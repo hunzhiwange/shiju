@@ -21,10 +21,31 @@ fn expert_hub_state_defaults_to_skills_marketplace() {
     assert_eq!(state.submitted_mine_statuses, MineSkillStatus::DEFAULT);
     assert!(state.mine_company_tag_ids_draft.is_empty());
     assert!(state.submitted_mine_company_tag_ids.is_empty());
+    assert_eq!(state.market_tag_id, None);
+    assert_eq!(state.market_company_tag_id, None);
     assert!(matches!(state.platform_tag_catalog, LoadState::Idle));
     assert!(matches!(state.company_tag_catalog, LoadState::Idle));
     assert_eq!(state.mine_filter_menu, None);
     assert_eq!(state.shiju_apps, crate::app::shiju_apps::ShijuAppsState::default());
+}
+
+#[test]
+fn expert_hub_state_market_tags_are_single_select_and_reset_with_account() {
+    let mut state = ExpertHubState::default();
+
+    state.select_market_tag(Some(2));
+    state.select_market_company_tag(Some(7));
+    state.select_market_tag(Some(9));
+    assert_eq!(state.market_tag_id, Some(9));
+    assert_eq!(state.market_company_tag_id, Some(7));
+
+    state.select_market_tag(None);
+    assert_eq!(state.market_tag_id, None);
+    assert_eq!(state.market_company_tag_id, Some(7));
+
+    state.clear_for_account(Some("new-account".to_string()));
+    assert_eq!(state.market_tag_id, None);
+    assert_eq!(state.market_company_tag_id, None);
 }
 
 #[test]

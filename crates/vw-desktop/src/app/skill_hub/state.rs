@@ -997,6 +997,8 @@ pub(crate) struct ExpertHubState {
     pub(crate) skill_tab: SkillTab,
     pub(crate) search_draft: String,
     pub(crate) submitted_search: String,
+    pub(crate) market_tag_id: Option<u64>,
+    pub(crate) market_company_tag_id: Option<u64>,
     pub(crate) system_filter: SkillListFilter,
     pub(crate) mine_filter: SkillListFilter,
     pub(crate) mine_tag_ids_draft: Vec<u64>,
@@ -1053,6 +1055,14 @@ fn toggle_ordered_ids(selected_ids: &mut Vec<u64>, tag_id: u64, option_order: &[
 }
 
 impl ExpertHubState {
+    pub(crate) fn select_market_tag(&mut self, tag_id: Option<u64>) {
+        self.market_tag_id = tag_id;
+    }
+
+    pub(crate) fn select_market_company_tag(&mut self, tag_id: Option<u64>) {
+        self.market_company_tag_id = tag_id;
+    }
+
     pub(crate) fn toggle_mine_tag(&mut self, tag_id: u64, option_order: &[u64]) {
         toggle_ordered_ids(&mut self.mine_tag_ids_draft, tag_id, option_order);
     }
@@ -1110,6 +1120,8 @@ impl ExpertHubState {
     pub(crate) fn clear_for_account(&mut self, account_id: Option<String>) {
         self.search_draft.clear();
         self.submitted_search.clear();
+        self.market_tag_id = None;
+        self.market_company_tag_id = None;
         self.system_filter.reset();
         self.reset_mine_filters();
         self.system_page = 1;
@@ -1243,6 +1255,8 @@ impl Default for ExpertHubState {
             skill_tab: SkillTab::default(),
             search_draft: String::new(),
             submitted_search: String::new(),
+            market_tag_id: None,
+            market_company_tag_id: None,
             system_filter: SkillListFilter::default(),
             mine_filter: SkillListFilter::default(),
             mine_tag_ids_draft: Vec::new(),

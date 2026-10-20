@@ -44,6 +44,12 @@ pub(super) struct MineTagFilterOption {
     pub(super) label: String,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct MarketTagFilterOption {
+    pub(super) id: Option<u64>,
+    pub(super) label: String,
+}
+
 impl fmt::Display for TagFilterOption {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(&self.label)
@@ -564,6 +570,73 @@ pub(super) fn mine_catalog_filter_options(
     (options, warning.or(empty_label))
 }
 
+/// 从完整账号目录构建“全部 + 单选标签”，不使用当前市场页条目兜底。
+pub(super) fn market_catalog_filter_options(
+    catalog: &LoadState<Vec<crate::app::skill_hub::SkillTag>>,
+) -> (Vec<MarketTagFilterOption>, Option<&'static str>) {
+    let mut options = vec![MarketTagFilterOption { id: None, label: "全部".to_string() }];
+    if let LoadState::Loaded(tags) = catalog {
+        let mut tags = tags.iter().collect::<Vec<_>>();
+        tags.sort_by_key(|tag| tag.sort_order);
+        for tag in tags {
+            if !options.iter().any(|option| option.id == Some(tag.id)) {
+                options.push(MarketTagFilterOption { id: Some(tag.id), label: tag.name.clone() });
+            }
+        }
+    }
+    let feedback = match catalog {
+        LoadState::Idle | LoadState::Loading { .. } => Some("标签目录加载中"),
+        LoadState::NeedsLogin => Some("登录后加载标签"),
+        LoadState::Error(_) => Some("标签目录加载失败"),
+        LoadState::Loaded(tags) if tags.is_empty() => Some("暂无可选标签"),
+        LoadState::Loaded(_) => None,
+    };
+    (options, feedback)
+}
+
+pub(super) fn market_tag_option_style(
+    theme: &Theme,
+    selected: bool,
+) -> iced::widget::button::Style {
+    let mut style = styles::quiet_button_style(theme, iced::widget::button::Status::Active);
+    style.background =
+        selected.then(|| Background::Color(theme.palette().primary.scale_alpha(0.18)));
+    style.text_color = theme.palette().text;
+    style.border.color = if selected {
+        theme.palette().primary
+    } else {
+        theme.extended_palette().background.strong.color
+    };
+    style.border.width = 1.0;
+    style.border.radius = 8.0.into();
+    style
+}
+
+fn market_tag_row(
+    label: &'static str,
+    catalog: &LoadState<Vec<crate::app::skill_hub::SkillTag>>,
+    selected_id: Option<u64>,
+    message: fn(Option<u64>) -> SkillHubMessage,
+) -> Element<'static, Message> {
+    let (options, feedback) = market_catalog_filter_options(catalog);
+    let mut tags =
+        row![text(label).size(13).width(Length::Fixed(76.0))].spacing(8).align_y(Alignment::Center);
+    for option in options {
+        let selected = option.id == selected_id;
+        let option_id = option.id;
+        tags = tags.push(
+            button(text(option.label).size(12))
+                .on_press(Message::SkillHub(message(option_id)))
+                .padding([6, 10])
+                .style(move |theme, _| market_tag_option_style(theme, selected)),
+        );
+    }
+    if let Some(feedback) = feedback {
+        tags = tags.push(text(feedback).size(12).style(styles::muted_text_style));
+    }
+    tags.wrap().into()
+}
+
 pub(super) fn mine_named_tag_filter_label(name: &str, selected_ids: &[u64]) -> String {
     if selected_ids.is_empty() {
         name.to_string()
@@ -766,7 +839,7 @@ fn search_controls(app: &App) -> Element<'_, Message> {
     match app.expert_hub.skill_tab {
         SkillTab::Marketplace => {
             let (_, submitted) = market_search_messages(app.expert_hub.search_draft.clone());
-            row![
+            let search = row![
                 text_input("搜索技能名称或描述", &app.expert_hub.search_draft)
                     .on_input(|value| market_search_messages(value).0)
                     .on_submit(submitted)
@@ -784,7 +857,23 @@ fn search_controls(app: &App) -> Element<'_, Message> {
             ]
             .spacing(8)
             .align_y(Alignment::Center)
-            .wrap()
+            .wrap();
+            column![
+                search,
+                market_tag_row(
+                    "平台标签",
+                    &app.expert_hub.platform_tag_catalog,
+                    app.expert_hub.market_tag_id,
+                    SkillHubMessage::MarketTagSelected,
+                ),
+                market_tag_row(
+                    "公司标签",
+                    &app.expert_hub.company_tag_catalog,
+                    app.expert_hub.market_company_tag_id,
+                    SkillHubMessage::MarketCompanyTagSelected,
+                ),
+            ]
+            .spacing(8)
             .into()
         }
         SkillTab::Installed | SkillTab::Install => Space::new().height(Length::Shrink).into(),

@@ -4,7 +4,7 @@
 use super::SkillHubMessage;
 use super::skill_hub::{
     ShijuDownloadChunk, agent_install_text, dispatch_download_with, dispatch_shiju_download_with,
-    mine_query, open_shiju_install_dir_with, update as update_skill_hub,
+    marketplace_query, mine_query, open_shiju_install_dir_with, update as update_skill_hub,
     write_shiju_download_chunks,
 };
 use crate::app::account::{
@@ -37,6 +37,45 @@ fn repository_with_account(secret: &str, company_id: &str) -> AccountRepository 
         AccountOrigin::BrowserLogin,
     );
     repository
+}
+
+#[test]
+fn market_tag_selection_refreshes_search() {
+    let (mut app, _) = App::new();
+    app.account.replace_repository(repository_with_account("account-secret", "company-1"));
+    let _ = update_skill_hub(&mut app, SkillHubMessage::SelectSkillTab(SkillTab::Marketplace));
+    app.expert_hub.search_draft = "保留草稿".to_string();
+    app.expert_hub.submitted_search = "保留关键词".to_string();
+
+    let generation = app.expert_hub.request_generation;
+    let _ = update_skill_hub(&mut app, SkillHubMessage::MarketTagSelected(Some(2)));
+    assert!(app.expert_hub.request_generation > generation);
+    assert!(matches!(app.expert_hub.marketplace, LoadState::Loading { .. }));
+    assert_eq!(app.expert_hub.market_tag_id, Some(2));
+    assert_eq!(app.expert_hub.market_company_tag_id, None);
+    let query = marketplace_query(&app);
+    assert_eq!(query.query.as_deref(), Some("保留关键词"));
+    assert_eq!(query.cursor, None);
+    assert_eq!(query.tag_ids, Some(2));
+    assert_eq!(query.company_tag_ids, None);
+
+    let generation = app.expert_hub.request_generation;
+    let _ = update_skill_hub(&mut app, SkillHubMessage::MarketCompanyTagSelected(Some(7)));
+    assert!(app.expert_hub.request_generation > generation);
+    assert_eq!(app.expert_hub.market_tag_id, Some(2));
+    assert_eq!(app.expert_hub.market_company_tag_id, Some(7));
+
+    let _ = update_skill_hub(&mut app, SkillHubMessage::MarketTagSelected(None));
+    let reset = marketplace_query(&app);
+    assert_eq!(reset.query.as_deref(), Some("保留关键词"));
+    assert_eq!(reset.tag_ids, None);
+    assert_eq!(reset.company_tag_ids, Some(7));
+
+    let _ = update_skill_hub(&mut app, SkillHubMessage::FiltersReset);
+    assert!(app.expert_hub.search_draft.is_empty());
+    assert!(app.expert_hub.submitted_search.is_empty());
+    assert_eq!(app.expert_hub.market_tag_id, None);
+    assert_eq!(app.expert_hub.market_company_tag_id, None);
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。

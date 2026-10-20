@@ -4,10 +4,10 @@
 use super::list::{
     SCROLLBAR_GUTTER, SCROLLBAR_WIDTH, access_action_message, description_preview,
     description_tooltip, detail_action_message, grid_column_count, install_action_message,
-    installed_quick_upgrade_message, market_search_messages, marketplace_quick_upgrade_action,
-    mine_catalog_filter_options, mine_filter_menu_entry_style, mine_filter_menu_style,
-    mine_named_tag_filter_label, mine_status_filter_label, mine_tag_filter_options,
-    pagination_messages, skill_tab_specs,
+    installed_quick_upgrade_message, market_catalog_filter_options, market_search_messages,
+    market_tag_option_style, marketplace_quick_upgrade_action, mine_catalog_filter_options,
+    mine_filter_menu_entry_style, mine_filter_menu_style, mine_named_tag_filter_label,
+    mine_status_filter_label, mine_tag_filter_options, pagination_messages, skill_tab_specs,
 };
 use super::styles::{
     action_button_style, card_style, search_input_style, selected_tab_style, skill_badge_style,
@@ -68,6 +68,57 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
             app.expert_hub.install_guide.open = true;
         }
     }
+}
+
+#[test]
+fn market_tag_rows_show_full_catalogs() {
+    let platform = LoadState::Loaded(vec![
+        SkillTag { id: 3, name: "平台三".to_string(), sort_order: 30 },
+        SkillTag { id: 1, name: "平台一".to_string(), sort_order: 10 },
+    ]);
+    let company = LoadState::Loaded(vec![
+        SkillTag { id: 8, name: "公司八".to_string(), sort_order: 20 },
+        SkillTag { id: 7, name: "公司七".to_string(), sort_order: 10 },
+    ]);
+
+    let (platform_options, platform_feedback) = market_catalog_filter_options(&platform);
+    let (company_options, company_feedback) = market_catalog_filter_options(&company);
+    assert_eq!(
+        platform_options
+            .iter()
+            .map(|option| (option.id, option.label.as_str()))
+            .collect::<Vec<_>>(),
+        vec![(None, "全部"), (Some(1), "平台一"), (Some(3), "平台三")]
+    );
+    assert_eq!(
+        company_options.iter().map(|option| (option.id, option.label.as_str())).collect::<Vec<_>>(),
+        vec![(None, "全部"), (Some(7), "公司七"), (Some(8), "公司八")]
+    );
+    assert_eq!(platform_feedback, None);
+    assert_eq!(company_feedback, None);
+
+    let (empty, empty_feedback) = market_catalog_filter_options(&LoadState::Loaded(Vec::new()));
+    assert_eq!(empty.len(), 1);
+    assert_eq!(empty_feedback, Some("暂无可选标签"));
+    let (_, failed_feedback) =
+        market_catalog_filter_options(&LoadState::Error("目录不可用".to_string()));
+    assert_eq!(failed_feedback, Some("标签目录加载失败"));
+
+    for theme in [Theme::Light, Theme::Dark] {
+        let selected = market_tag_option_style(&theme, true);
+        let unselected = market_tag_option_style(&theme, false);
+        assert_ne!(selected.background, unselected.background);
+        assert_eq!(selected.text_color, theme.palette().text);
+    }
+
+    let (mut app, _) = App::new();
+    app.expert_hub.skill_tab = SkillTab::Marketplace;
+    app.expert_hub.platform_tag_catalog = platform;
+    app.expert_hub.company_tag_catalog = company;
+    app.expert_hub.market_tag_id = Some(1);
+    app.expert_hub.market_company_tag_id = Some(7);
+    let element: iced::Element<'_, Message> = super::view(&app);
+    std::hint::black_box(element);
 }
 
 #[test]

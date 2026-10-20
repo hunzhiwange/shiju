@@ -132,6 +132,8 @@ pub(crate) enum SkillHubMessage {
     SelectSkillTab(SkillTab),
     SearchDraftChanged(String),
     SearchSubmitted,
+    MarketTagSelected(Option<u64>),
+    MarketCompanyTagSelected(Option<u64>),
     FilterKeywordChanged(String),
     FilterTagChanged(Option<u64>),
     ToggleMineTagFilterMenu,
@@ -371,6 +373,20 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             app.expert_hub.submitted_search = app.expert_hub.search_draft.trim().to_string();
             load_current_tab(app)
         }
+        SkillHubMessage::MarketTagSelected(tag_id) => {
+            if app.expert_hub.skill_tab != SkillTab::Marketplace {
+                return Task::none();
+            }
+            app.expert_hub.select_market_tag(tag_id);
+            load_current_tab(app)
+        }
+        SkillHubMessage::MarketCompanyTagSelected(tag_id) => {
+            if app.expert_hub.skill_tab != SkillTab::Marketplace {
+                return Task::none();
+            }
+            app.expert_hub.select_market_company_tag(tag_id);
+            load_current_tab(app)
+        }
         SkillHubMessage::FilterKeywordChanged(keyword) => {
             match app.expert_hub.skill_tab {
                 SkillTab::System => app.expert_hub.system_filter.keyword_draft = keyword,
@@ -450,6 +466,8 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                 SkillTab::Marketplace => {
                     app.expert_hub.search_draft.clear();
                     app.expert_hub.submitted_search.clear();
+                    app.expert_hub.select_market_tag(None);
+                    app.expert_hub.select_market_company_tag(None);
                 }
                 SkillTab::System => {
                     app.expert_hub.system_filter.reset();
@@ -2139,7 +2157,11 @@ fn load_current_tab(app: &mut App) -> Task<Message> {
         return load_installed_skills(app, true);
     }
     if app.expert_hub.skill_tab == SkillTab::Marketplace {
-        return Task::batch([load_marketplace_skills(app), load_installed_skills(app, false)]);
+        return Task::batch([
+            load_marketplace_skills(app),
+            load_installed_skills(app, false),
+            load_mine_tag_catalogs(app),
+        ]);
     }
 
     let active = app
@@ -2293,19 +2315,12 @@ fn load_marketplace_skills(app: &mut App) -> Task<Message> {
     }
     let generation = app.expert_hub.next_request_generation();
     app.expert_hub.marketplace = LoadState::Loading { generation };
-    let query = app.expert_hub.submitted_search.clone();
+    let query = marketplace_query(app);
     Task::perform(
         async move {
             let credential = credential
                 .gateway_credential()
                 .map_err(|error| SkillHubError::from(error.to_string()))?;
-            let query = ShijuSkillSearchQuery {
-                query: (!query.is_empty()).then_some(query),
-                cursor: None,
-                page_size: SHIJU_PAGE_SIZE,
-                tag_ids: None,
-                company_tag_ids: None,
-            };
             gateway_shiju_skill_search_async(&credential, &query)
                 .await
                 .map(CursorPage::from)
@@ -2315,6 +2330,18 @@ fn load_marketplace_skills(app: &mut App) -> Task<Message> {
             Message::SkillHub(SkillHubMessage::MarketplaceLoaded { generation, account_id, result })
         },
     )
+}
+
+/// 从市场关键词与两类单选标签构造首批查询。
+pub(super) fn marketplace_query(app: &App) -> ShijuSkillSearchQuery {
+    let query = app.expert_hub.submitted_search.clone();
+    ShijuSkillSearchQuery {
+        query: (!query.is_empty()).then_some(query),
+        cursor: None,
+        page_size: SHIJU_PAGE_SIZE,
+        tag_ids: app.expert_hub.market_tag_id,
+        company_tag_ids: app.expert_hub.market_company_tag_id,
+    }
 }
 
 fn load_installed_skills(app: &mut App, force: bool) -> Task<Message> {

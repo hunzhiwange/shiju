@@ -88,6 +88,10 @@ fn start_module_exports_start_channels_symbol() {
 #[test]
 fn provider_runtime_options_preserve_config_fields() {
     let mut config = Config::default();
+    config.providers.insert(
+        "custom-openai-endpoint".to_string(),
+        serde_json::json!({"api": "https://api.example.test/v1"}),
+    );
     config.api_url = Some("https://api.example.test/v1".to_string());
     config.config_path = PathBuf::from("/tmp/vw-start-test/config/vibewindow.json");
     config.secrets.encrypt = false;
@@ -99,6 +103,7 @@ fn provider_runtime_options_preserve_config_fields() {
     let expected_vibewindow_dir = config.workspace_dir.clone();
 
     assert_eq!(options.provider_api_url.as_deref(), Some("https://api.example.test/v1"));
+    assert_eq!(options.configured_provider_ids, vec!["custom-openai-endpoint"]);
     assert_eq!(options.vibewindow_dir.as_deref(), Some(expected_vibewindow_dir.as_path()));
     assert!(!options.secrets_encrypt);
     assert_eq!(options.reasoning_enabled, Some(true));

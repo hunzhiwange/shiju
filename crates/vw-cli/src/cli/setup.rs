@@ -357,6 +357,7 @@ pub(crate) fn setup_cli(
 
     // 构建 Provider 运行时选项
     let provider_runtime_options = crate::app::agent::providers::ProviderRuntimeOptions {
+        configured_provider_ids: config.providers.keys().cloned().collect(),
         auth_profile_override: None,              // 认证配置文件覆盖
         provider_api_url: config.api_url.clone(), // Provider API URL
         vibewindow_dir: config.config_path.parent().map(std::path::PathBuf::from), // 配置目录

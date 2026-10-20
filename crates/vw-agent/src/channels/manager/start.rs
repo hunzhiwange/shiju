@@ -350,6 +350,7 @@ fn build_provider_runtime_options(
     config: &Config,
 ) -> crate::app::agent::providers::ProviderRuntimeOptions {
     crate::app::agent::providers::ProviderRuntimeOptions {
+        configured_provider_ids: config.providers.keys().cloned().collect(),
         auth_profile_override: None,
         provider_api_url: config.api_url.clone(),
         vibewindow_dir: Some(config.workspace_dir.clone()),

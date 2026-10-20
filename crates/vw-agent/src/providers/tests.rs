@@ -21,6 +21,7 @@ fn moonshot_aliases_are_case_insensitive() {
 #[test]
 fn runtime_options_default_is_secure_and_unset() {
     let options = ProviderRuntimeOptions::default();
+    assert!(options.configured_provider_ids.is_empty());
     assert!(options.secrets_encrypt);
     assert!(options.auth_profile_override.is_none());
     assert!(options.provider_api_url.is_none());
@@ -45,6 +46,17 @@ fn provider_name_validation_accepts_supported_aliases_and_custom_urls() {
 #[test]
 fn provider_factory_accepts_shiju() {
     assert!(create_provider("shiju", None).is_ok());
+}
+
+#[test]
+fn provider_factory_accepts_configured_custom_provider_id() {
+    let options = ProviderRuntimeOptions {
+        configured_provider_ids: vec!["custom-openai-endpoint".to_string()],
+        ..ProviderRuntimeOptions::default()
+    };
+
+    assert!(create_provider_with_options("CUSTOM-OPENAI-ENDPOINT", None, &options).is_ok());
+    assert!(create_provider("custom-openai-endpoint", None).is_err());
 }
 
 #[test]

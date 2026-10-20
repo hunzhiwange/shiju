@@ -67,6 +67,7 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         config.api_url.as_deref(),
         &config.reliability,
         &providers::ProviderRuntimeOptions {
+            configured_provider_ids: config.providers.keys().cloned().collect(),
             auth_profile_override: None,
             provider_api_url: config.api_url.clone(),
             vibewindow_dir: config.config_path.parent().map(std::path::PathBuf::from),

@@ -242,6 +242,7 @@ impl QueryEngine {
             .unwrap_or_else(|| "anthropic/claude-sonnet-4-20250514".into());
 
         let provider_runtime_options = crate::app::agent::providers::ProviderRuntimeOptions {
+            configured_provider_ids: config.providers.keys().cloned().collect(),
             auth_profile_override: None,
             provider_api_url: config.api_url.clone(),
             vibewindow_dir: config.config_path.parent().map(std::path::PathBuf::from),

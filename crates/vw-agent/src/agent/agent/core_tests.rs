@@ -393,6 +393,28 @@ fn from_config_rejects_unknown_provider() {
 }
 
 #[test]
+fn from_config_accepts_configured_custom_provider() {
+    let mut config = crate::app::agent::config::Config::default();
+    config.memory.backend = "none".to_string();
+    config.default_provider = Some("test-custom-provider".to_string());
+    config.default_model = Some("test-custom-provider/model".to_string());
+    config.providers.insert(
+        "test-custom-provider".to_string(),
+        serde_json::json!({
+            "api": "https://api.example.test/v1",
+            "adapter": "openai-compatible",
+            "models": {"model": {"status": "active"}}
+        }),
+    );
+    config.workspace_dir = std::env::temp_dir().join(format!(
+        "vibe-window-custom-provider-{}",
+        std::process::id()
+    ));
+
+    assert!(Agent::from_config(&config).is_ok());
+}
+
+#[test]
 fn from_config_rejects_invalid_programmatic_timezone() {
     let mut config = crate::app::agent::config::Config::default();
     config.app_ui.system_settings.timezone = "Mars/Olympus_Mons".to_string();

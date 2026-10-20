@@ -214,14 +214,27 @@ impl Agent {
         let model_name =
             config.default_model.as_deref().unwrap_or("zhipuai-coding-plan/glm-5").to_string();
 
-        let provider: Box<dyn Provider> = crate::app::agent::providers::create_routed_provider(
-            provider_name,
-            config.api_key.as_deref(),
-            config.api_url.as_deref(),
-            &config.reliability,
-            &config.model_routes,
-            &model_name,
-        )?;
+        let provider_runtime_options = crate::app::agent::providers::ProviderRuntimeOptions {
+            configured_provider_ids: config.providers.keys().cloned().collect(),
+            provider_api_url: config.api_url.clone(),
+            vibewindow_dir: config.config_path.parent().map(std::path::PathBuf::from),
+            secrets_encrypt: config.secrets.encrypt,
+            reasoning_enabled: config.runtime.reasoning_enabled,
+            reasoning_level: config.effective_provider_reasoning_level(),
+            custom_provider_api_mode: config.provider_api.map(|mode| mode.as_compatible_mode()),
+            model_support_vision: config.model_support_vision,
+            ..crate::app::agent::providers::ProviderRuntimeOptions::default()
+        };
+        let provider: Box<dyn Provider> =
+            crate::app::agent::providers::create_routed_provider_with_options(
+                provider_name,
+                config.api_key.as_deref(),
+                config.api_url.as_deref(),
+                &config.reliability,
+                &config.model_routes,
+                &model_name,
+                &provider_runtime_options,
+            )?;
 
         let approval = ApprovalManager::from_config(&config.autonomy);
 

@@ -55,6 +55,12 @@ pub use vw_config_types::provider::CompatibleApiMode;
 /// 这些选项可以覆盖默认的配置值，用于定制 Provider 的行为。
 #[derive(Debug, Clone)]
 pub struct ProviderRuntimeOptions {
+    /// 当前配置中声明的自定义 Provider ID。
+    ///
+    /// Provider 的 API、adapter 与模型信息仍由 provider resolver 解析；这里仅用于让同步
+    /// 工厂区分已配置的动态 Provider 与拼写错误的未知名称。
+    pub configured_provider_ids: Vec<String>,
+
     /// 认证配置文件的覆盖名称
     ///
     /// 当设置时，使用指定的配置文件而非默认配置进行认证。
@@ -117,6 +123,7 @@ impl Default for ProviderRuntimeOptions {
     /// - `model_support_vision`: `None`
     fn default() -> Self {
         Self {
+            configured_provider_ids: Vec::new(),
             auth_profile_override: None,
             provider_api_url: None,
             vibewindow_dir: None,
@@ -409,12 +416,12 @@ pub fn create_provider_with_options(
     api_key: Option<&str>,
     options: &ProviderRuntimeOptions,
 ) -> anyhow::Result<Box<dyn Provider>> {
-    validate_provider_name(name)?;
+    validate_provider_name(name, &options.configured_provider_ids)?;
     let _ = api_key;
     Ok(Box::new(session_llm::SessionLlmProvider::with_options(options)))
 }
 
-fn validate_provider_name(name: &str) -> anyhow::Result<()> {
+fn validate_provider_name(name: &str, configured_provider_ids: &[String]) -> anyhow::Result<()> {
     let normalized = name.trim().to_ascii_lowercase();
     if normalized.is_empty() {
         anyhow::bail!("Provider name must not be empty");
@@ -466,6 +473,13 @@ fn validate_provider_name(name: &str) -> anyhow::Result<()> {
             | "copilot"
     );
     if supported {
+        return Ok(());
+    }
+
+    if configured_provider_ids
+        .iter()
+        .any(|provider_id| provider_id.trim().eq_ignore_ascii_case(&normalized))
+    {
         return Ok(());
     }
 

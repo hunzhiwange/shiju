@@ -687,13 +687,19 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
         items.push("Lark");
     }
     if s.feishu.is_some() || !s.feishu_instances.is_empty() {
-        items.push("Feishu");
+        items.push("飞书");
     }
     if s.dingtalk.is_some() || !s.dingtalk_instances.is_empty() {
-        items.push("DingTalk");
+        items.push("钉钉");
     }
     if s.qq.is_some() {
         items.push("QQ");
+    }
+    if s.wecom.is_some() {
+        items.push("企业微信");
+    }
+    if s.wechat.is_some() {
+        items.push("微信");
     }
     if s.nostr.is_some() {
         items.push("Nostr");

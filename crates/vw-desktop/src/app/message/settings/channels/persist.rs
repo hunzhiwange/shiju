@@ -54,19 +54,19 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
         channels.push("Lark");
     }
     if settings.feishu.is_some() || !settings.feishu_instances.is_empty() {
-        channels.push("Feishu");
+        channels.push("飞书");
     }
     if settings.dingtalk.is_some() || !settings.dingtalk_instances.is_empty() {
-        channels.push("DingTalk");
+        channels.push("钉钉");
     }
     if settings.qq.is_some() {
         channels.push("QQ");
     }
     if settings.wecom.is_some() {
-        channels.push("WeCom");
+        channels.push("企业微信");
     }
     if settings.wechat.is_some() {
-        channels.push("WeChat");
+        channels.push("微信");
     }
     if settings.nostr.is_some() {
         channels.push("Nostr");

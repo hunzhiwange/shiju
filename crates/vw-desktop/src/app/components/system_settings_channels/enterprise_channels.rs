@@ -116,7 +116,7 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
             ),
             text_row(app, "allowed_users", "逗号或换行分隔", "", "lark.allowed_users", false),
             bool_row("mention_only", cfg.mention_only, "群聊仅 @ 时回复", "lark.mention_only"),
-            bool_row("use_feishu", cfg.use_feishu, "使用 Feishu 中国区端点", "lark.use_feishu"),
+            bool_row("use_feishu", cfg.use_feishu, "使用飞书中国区端点", "lark.use_feishu"),
             pick_row(
                 "group_reply.mode",
                 group_reply_mode_value(&cfg.group_reply),
@@ -180,19 +180,19 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
 pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
     let enabled = s.feishu.is_some() || !s.feishu_instances.is_empty();
-    let mut body = column![].spacing(12);
+    let mut body = column![qr_authorization(app, "feishu")].spacing(12);
 
     if let Some(cfg) = s.feishu.as_ref() {
         body = body
             .push(settings_section_card(
-                "Feishu 详细配置",
+                "飞书详细配置",
                 "覆盖 app_id、app_secret、加密字段、接收模式、端口和草稿编辑参数。",
             ))
-            .push(text_row(app, "app_id", "Feishu App ID", &cfg.app_id, "feishu.app_id", true))
+            .push(text_row(app, "app_id", "飞书 App ID", &cfg.app_id, "feishu.app_id", true))
             .push(text_row(
                 app,
                 "app_secret",
-                "Feishu App Secret",
+                "飞书 App Secret",
                 &cfg.app_secret,
                 "feishu.app_secret",
                 true,
@@ -265,16 +265,15 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
                 200,
                 "",
                 "feishu.max_draft_edits",
-            ))
-            .push(qr_authorization(app, "feishu"));
+            ));
     }
 
     for (index, instance) in s.feishu_instances.iter().enumerate() {
         let key_prefix = format!("feishu_instances.{index}");
         let title = if instance.id.trim().is_empty() {
-            format!("Feishu 实例 {}", index + 1)
+            format!("飞书实例 {}", index + 1)
         } else {
-            format!("Feishu 实例 {}", instance.id)
+            format!("飞书实例 {}", instance.id)
         };
         body = body
             .push(instance_title_row(title, "feishu", index))
@@ -289,7 +288,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "app_id",
-                "Feishu App ID",
+                "飞书 App ID",
                 &instance.config.app_id,
                 format!("{key_prefix}.app_id"),
                 true,
@@ -297,7 +296,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "app_secret",
-                "Feishu App Secret",
+                "飞书 App Secret",
                 &instance.config.app_secret,
                 format!("{key_prefix}.app_secret"),
                 true,
@@ -372,9 +371,9 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
             ));
     }
 
-    body = body.push(add_instance_row("feishu", "新增 Feishu 实例"));
+    body = body.push(add_instance_row("feishu", "新增飞书实例"));
 
-    panel("feishu", "Feishu", "国内版飞书详细配置。", enabled, body.into())
+    panel("feishu", "飞书", "国内版飞书详细配置。", enabled, body.into())
 }
 
 /// 构建或处理 `dingtalk_panel` 对应的界面片段与交互数据。
@@ -393,14 +392,14 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
 pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
     let enabled = s.dingtalk.is_some() || !s.dingtalk_instances.is_empty();
-    let mut body = column![].spacing(12);
+    let mut body = column![qr_authorization(app, "dingtalk")].spacing(12);
 
     if let Some(cfg) = s.dingtalk.as_ref() {
         body = body
             .push(text_row(
                 app,
                 "client_id",
-                "DingTalk AppKey",
+                "钉钉 AppKey",
                 &cfg.client_id,
                 "dingtalk.client_id",
                 true,
@@ -408,7 +407,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             .push(text_row(
                 app,
                 "client_secret",
-                "DingTalk AppSecret",
+                "钉钉 AppSecret",
                 &cfg.client_secret,
                 "dingtalk.client_secret",
                 true,
@@ -426,9 +425,9 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
     for (index, instance) in s.dingtalk_instances.iter().enumerate() {
         let key_prefix = format!("dingtalk_instances.{index}");
         let title = if instance.id.trim().is_empty() {
-            format!("DingTalk 实例 {}", index + 1)
+            format!("钉钉实例 {}", index + 1)
         } else {
-            format!("DingTalk 实例 {}", instance.id)
+            format!("钉钉实例 {}", instance.id)
         };
         body = body
             .push(instance_title_row(title, "dingtalk", index))
@@ -443,7 +442,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "client_id",
-                "DingTalk AppKey",
+                "钉钉 AppKey",
                 &instance.config.client_id,
                 format!("{key_prefix}.client_id"),
                 true,
@@ -451,7 +450,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             .push(text_row_with_key(
                 app,
                 "client_secret",
-                "DingTalk AppSecret",
+                "钉钉 AppSecret",
                 &instance.config.client_secret,
                 format!("{key_prefix}.client_secret"),
                 true,
@@ -466,10 +465,9 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
             ));
     }
 
-    body = body.push(add_instance_row("dingtalk", "新增 DingTalk 实例"));
-    body = body.push(qr_authorization(app, "dingtalk"));
+    body = body.push(add_instance_row("dingtalk", "新增钉钉实例"));
 
-    panel("dingtalk", "DingTalk", "钉钉 Stream 模式鉴权与白名单。", enabled, body.into())
+    panel("dingtalk", "钉钉", "钉钉 Stream 模式鉴权与白名单。", enabled, body.into())
 }
 
 /// 构建或处理 `qq_panel` 对应的界面片段与交互数据。
@@ -489,6 +487,7 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
     let body: Element<'_, Message> = if let Some(cfg) = s.qq.as_ref() {
         column![
+            qr_authorization(app, "qq"),
             text_row(app, "app_id", "QQ app id", &cfg.app_id, "qq.app_id", true),
             text_row(app, "app_secret", "QQ app secret", &cfg.app_secret, "qq.app_secret", true),
             text_row(app, "allowed_users", "逗号或换行分隔", "", "qq.allowed_users", false),
@@ -498,7 +497,6 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
                 &QQ_RECEIVE_MODE_OPTIONS,
                 "qq.receive_mode",
             ),
-            qr_authorization(app, "qq"),
         ]
         .spacing(12)
         .into()
@@ -513,9 +511,9 @@ pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
     let body: Element<'_, Message> = if let Some(cfg) = s.wecom.as_ref() {
         column![
+            qr_authorization(app, "wecom"),
             text_row(app, "bot_id", "企业微信 Bot ID", &cfg.bot_id, "wecom.bot_id", false),
             text_row(app, "secret", "企业微信 Secret", &cfg.secret, "wecom.secret", true),
-            qr_authorization(app, "wecom"),
         ]
         .spacing(12)
         .into()
@@ -529,9 +527,9 @@ pub(super) fn wechat_panel(app: &App) -> Element<'_, Message> {
     let s = &app.channels_settings;
     let body: Element<'_, Message> = if let Some(cfg) = s.wechat.as_ref() {
         column![
+            qr_authorization(app, "wechat"),
             text_row(app, "bot_token", "微信 Bot Token", &cfg.bot_token, "wechat.bot_token", true,),
             text_row(app, "base_url", "可信 iLink 地址", &cfg.base_url, "wechat.base_url", false,),
-            qr_authorization(app, "wechat"),
         ]
         .spacing(12)
         .into()

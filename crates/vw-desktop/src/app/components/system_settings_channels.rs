@@ -26,12 +26,40 @@ use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, container, row, text, text_input};
+use iced::widget::{button, checkbox, column, container, row, svg, text, text_input};
 use iced::{Alignment, Background, Border, Color, Element, Length};
 
 use self::common::{LABEL_WIDTH, enabled_channels, number_row};
 
 const CHANNEL_TAB_COLUMNS: usize = 5;
+const CHINA_CHANNEL_CARD_COLUMNS: usize = 3;
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ChannelTabGroup {
+    Global,
+    China,
+    International,
+}
+
+const CHANNEL_TAB_GROUPS: [(ChannelTabGroup, &str); 3] = [
+    (ChannelTabGroup::Global, "全局"),
+    (ChannelTabGroup::China, "中文互联网"),
+    (ChannelTabGroup::International, "国外"),
+];
+
+const fn channel_tab_group(tab: ChannelsSettingsTab) -> ChannelTabGroup {
+    match tab {
+        ChannelsSettingsTab::Global
+        | ChannelsSettingsTab::Webhook
+        | ChannelsSettingsTab::Email => ChannelTabGroup::Global,
+        ChannelsSettingsTab::Feishu
+        | ChannelsSettingsTab::DingTalk
+        | ChannelsSettingsTab::Qq
+        | ChannelsSettingsTab::WeCom
+        | ChannelsSettingsTab::WeChat => ChannelTabGroup::China,
+        _ => ChannelTabGroup::International,
+    }
+}
 
 pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSettingsTab>> {
     let mut tabs = vec![
@@ -39,6 +67,32 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
             ChannelsSettingsTab::Global,
             "全局",
             &["CLI 通道", "项目目录", "workspace", "消息超时"],
+        ),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Webhook, "Webhook", &["webhook", "secret"]),
+    ];
+    #[cfg(not(target_arch = "wasm32"))]
+    tabs.push(SettingsTabDescriptor::new(
+        ChannelsSettingsTab::Email,
+        "Email",
+        &["email", "imap", "smtp"],
+    ));
+    tabs.extend([
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Feishu, "飞书", &["feishu", "飞书"]),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::DingTalk,
+            "钉钉",
+            &["dingtalk", "钉钉"],
+        ),
+        SettingsTabDescriptor::new(ChannelsSettingsTab::Qq, "QQ", &["qq"]),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::WeCom,
+            "企业微信",
+            &["wecom", "企业微信", "扫码"],
+        ),
+        SettingsTabDescriptor::new(
+            ChannelsSettingsTab::WeChat,
+            "微信",
+            &["wechat", "微信", "扫码"],
         ),
         SettingsTabDescriptor::new(
             ChannelsSettingsTab::Telegram,
@@ -60,7 +114,6 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
             "Mattermost",
             &["server url", "token"],
         ),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Webhook, "Webhook", &["webhook", "secret"]),
         SettingsTabDescriptor::new(
             ChannelsSettingsTab::IMessage,
             "iMessage",
@@ -75,33 +128,8 @@ pub(super) fn channel_tab_descriptors() -> Vec<SettingsTabDescriptor<ChannelsSet
             "Nextcloud Talk",
             &["nextcloud", "talk"],
         ),
-    ];
-    #[cfg(not(target_arch = "wasm32"))]
-    tabs.push(SettingsTabDescriptor::new(
-        ChannelsSettingsTab::Email,
-        "Email",
-        &["email", "imap", "smtp"],
-    ));
-    tabs.extend([
         SettingsTabDescriptor::new(ChannelsSettingsTab::Irc, "IRC", &["irc"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Lark, "Lark", &["lark", "飞书"]),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Feishu, "Feishu", &["feishu", "飞书"]),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::DingTalk,
-            "DingTalk",
-            &["dingtalk", "钉钉"],
-        ),
-        SettingsTabDescriptor::new(ChannelsSettingsTab::Qq, "QQ", &["qq"]),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::WeCom,
-            "企业微信",
-            &["wecom", "企业微信", "扫码"],
-        ),
-        SettingsTabDescriptor::new(
-            ChannelsSettingsTab::WeChat,
-            "微信",
-            &["wechat", "微信", "扫码"],
-        ),
         SettingsTabDescriptor::new(ChannelsSettingsTab::Nostr, "Nostr", &["nostr"]),
         SettingsTabDescriptor::new(ChannelsSettingsTab::ClawdTalk, "ClawdTalk", &["clawdtalk"]),
     ]);
@@ -215,25 +243,167 @@ fn tab_button(
         .into()
 }
 
+fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {
+    let (bytes, color): (&'static [u8], Color) = match tab {
+        ChannelsSettingsTab::DingTalk => (
+            include_bytes!("../../../../../assets/icons/bootstrap/send-fill.svg"),
+            Color::from_rgb8(22, 119, 255),
+        ),
+        ChannelsSettingsTab::Feishu => (
+            include_bytes!("../../../../../assets/icons/bootstrap/boxes.svg"),
+            Color::from_rgb8(51, 112, 255),
+        ),
+        ChannelsSettingsTab::Qq => (
+            include_bytes!("../../../../../assets/icons/bootstrap/tencent-qq.svg"),
+            Color::from_rgb8(18, 24, 38),
+        ),
+        ChannelsSettingsTab::WeCom => (
+            include_bytes!("../../../../../assets/icons/bootstrap/chat-square-dots-fill.svg"),
+            Color::from_rgb8(0, 132, 255),
+        ),
+        ChannelsSettingsTab::WeChat => (
+            include_bytes!("../../../../../assets/icons/bootstrap/wechat.svg"),
+            Color::from_rgb8(7, 193, 96),
+        ),
+        _ => unreachable!("only Chinese internet channel tabs have brand icons"),
+    };
+
+    svg::Svg::new(svg::Handle::from_memory(bytes))
+        .width(Length::Fixed(28.0))
+        .height(Length::Fixed(28.0))
+        .style(move |_theme: &iced::Theme, _status| svg::Style { color: Some(color) })
+}
+
+fn china_channel_card(
+    descriptor: &SettingsTabDescriptor<ChannelsSettingsTab>,
+    active_tab: ChannelsSettingsTab,
+) -> Element<'static, Message> {
+    let active = descriptor.tab == active_tab;
+    let icon = container(china_channel_icon(descriptor.tab))
+        .padding(10)
+        .style(move |theme: &iced::Theme| {
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
+            iced::widget::container::Style {
+                background: Some(Background::Color(
+                    theme.palette().primary.scale_alpha(if is_dark { 0.18 } else { 0.08 }),
+                )),
+                border: Border { radius: 12.0.into(), ..Default::default() },
+                ..Default::default()
+            }
+        });
+    let content = row![
+        icon,
+        text(descriptor.label).size(16),
+        container(text("")).width(Length::Fill),
+        text("配置").size(13).style(settings_muted_text_style),
+    ]
+    .spacing(14)
+    .align_y(Alignment::Center);
+
+    button(content)
+        .padding([18, 20])
+        .height(Length::Fixed(88.0))
+        .width(Length::Fill)
+        .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(
+            descriptor.tab,
+        ))))
+        .style(move |theme: &iced::Theme, status| {
+            let palette = theme.extended_palette();
+            let is_dark = theme.palette().background.r
+                + theme.palette().background.g
+                + theme.palette().background.b
+                < 1.5;
+            let background = if active {
+                theme.palette().primary.scale_alpha(if is_dark { 0.18 } else { 0.08 })
+            } else if matches!(status, iced::widget::button::Status::Hovered) {
+                palette.background.weak.color.scale_alpha(if is_dark { 0.72 } else { 0.9 })
+            } else if is_dark {
+                palette.background.base.color.scale_alpha(0.42)
+            } else {
+                Color::WHITE.scale_alpha(0.76)
+            };
+            iced::widget::button::Style {
+                background: Some(Background::Color(background)),
+                text_color: theme.palette().text,
+                border: Border {
+                    radius: 16.0.into(),
+                    width: if active { 1.5 } else { 1.0 },
+                    color: if active {
+                        theme.palette().primary.scale_alpha(0.62)
+                    } else if is_dark {
+                        palette.background.strong.color.scale_alpha(0.84)
+                    } else {
+                        Color::from_rgba8(15, 23, 42, 0.12)
+                    },
+                },
+                ..Default::default()
+            }
+        })
+        .into()
+}
+
+fn china_channel_cards(
+    descriptors: &[&SettingsTabDescriptor<ChannelsSettingsTab>],
+    active_tab: ChannelsSettingsTab,
+) -> Element<'static, Message> {
+    let mut rows = column![].spacing(12).width(Length::Fill);
+    for cards_in_row in descriptors.chunks(CHINA_CHANNEL_CARD_COLUMNS) {
+        let mut card_row = row![].spacing(12).width(Length::Fill);
+        for descriptor in cards_in_row {
+            card_row = card_row.push(
+                container(china_channel_card(descriptor, active_tab)).width(Length::FillPortion(1)),
+            );
+        }
+        for _ in cards_in_row.len()..CHINA_CHANNEL_CARD_COLUMNS {
+            card_row = card_row.push(container(text("")).width(Length::FillPortion(1)));
+        }
+        rows = rows.push(card_row);
+    }
+    rows.into()
+}
+
 fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
     let tabs = channel_tab_descriptors();
 
-    let mut rows = column![].spacing(8).width(Length::Fill);
-    for tabs_in_row in tabs.chunks(CHANNEL_TAB_COLUMNS) {
-        let mut tab_row = row![].spacing(8).width(Length::Fill);
-        for descriptor in tabs_in_row {
-            tab_row = tab_row.push(
-                container(tab_button(descriptor.tab, active_tab, descriptor.label))
-                    .width(Length::FillPortion(1)),
+    let mut sections = column![].spacing(14).width(Length::Fill);
+    for (group, title) in CHANNEL_TAB_GROUPS {
+        let group_tabs = tabs
+            .iter()
+            .filter(|descriptor| channel_tab_group(descriptor.tab) == group)
+            .collect::<Vec<_>>();
+        if group == ChannelTabGroup::China {
+            sections = sections.push(
+                column![
+                    text(title).size(12).style(settings_muted_text_style),
+                    china_channel_cards(&group_tabs, active_tab),
+                ]
+                .spacing(8),
             );
+            continue;
         }
-        for _ in tabs_in_row.len()..CHANNEL_TAB_COLUMNS {
-            tab_row = tab_row.push(container(text("")).width(Length::FillPortion(1)));
+        let mut rows = column![].spacing(8).width(Length::Fill);
+        for tabs_in_row in group_tabs.chunks(CHANNEL_TAB_COLUMNS) {
+            let mut tab_row = row![].spacing(8).width(Length::Fill);
+            for descriptor in tabs_in_row {
+                tab_row = tab_row.push(
+                    container(tab_button(descriptor.tab, active_tab, descriptor.label))
+                        .width(Length::FillPortion(1)),
+                );
+            }
+            for _ in tabs_in_row.len()..CHANNEL_TAB_COLUMNS {
+                tab_row = tab_row.push(container(text("")).width(Length::FillPortion(1)));
+            }
+            rows = rows.push(tab_row);
         }
-        rows = rows.push(tab_row);
+        sections = sections.push(
+            column![text(title).size(12).style(settings_muted_text_style), rows].spacing(8),
+        );
     }
 
-    rows.into()
+    sections.into()
 }
 
 /// 构建或处理 `view` 对应的界面片段与交互数据。
@@ -303,7 +473,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
     content = content.push(selected_panel);
 
-    container(content).width(Length::Fill).into()
+    container(content)
+        .padding(iced::Padding { left: 12.0, right: 12.0, ..Default::default() })
+        .width(Length::Fill)
+        .into()
 }
 #[cfg(test)]
 #[path = "system_settings_channels_tests.rs"]

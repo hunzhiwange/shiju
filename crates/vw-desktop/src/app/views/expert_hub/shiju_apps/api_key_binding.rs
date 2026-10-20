@@ -330,7 +330,11 @@ fn body(app: &App) -> Element<'static, Message> {
     }
     content = content.push(save_button);
 
-    let scrollable_body = scrollable(content)
+    let scrollable_body = scrollable(
+        container(content)
+            .padding([0, styles::SCROLLABLE_SIDE_PADDING])
+            .width(Length::Fill),
+    )
         .direction(Direction::Vertical(
             Scrollbar::new().width(styles::SCROLLBAR_WIDTH).scroller_width(styles::SCROLLBAR_WIDTH),
         ))

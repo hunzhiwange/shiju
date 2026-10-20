@@ -105,7 +105,11 @@ pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppCatalogDto>) -> Element<'s
                 .enumerate()
                 .map(|(index, app)| catalog_card(index, app))
                 .collect::<Vec<_>>();
-            scrollable(card_grid(cards))
+            scrollable(
+                container(card_grid(cards))
+                    .padding([0, styles::SCROLLABLE_SIDE_PADDING])
+                    .width(Length::Fill),
+            )
                 .direction(Direction::Vertical(
                     Scrollbar::new()
                         .width(styles::SCROLLBAR_WIDTH)

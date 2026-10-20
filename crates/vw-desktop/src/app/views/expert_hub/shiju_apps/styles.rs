@@ -7,6 +7,8 @@ use crate::app::components::system_settings_common::primary_action_btn_style;
 
 /// 识矩应用页面统一使用的滚动条宽度。
 pub(crate) const SCROLLBAR_WIDTH: u32 = 4;
+/// 滚动内容两侧预留与滚动条等宽的空间。
+pub(crate) const SCROLLABLE_SIDE_PADDING: u16 = SCROLLBAR_WIDTH as u16;
 
 /// 根据选中与悬停状态生成明暗主题均可读的页签样式。
 pub(super) fn tab_style(theme: &Theme, status: button::Status, selected: bool) -> button::Style {

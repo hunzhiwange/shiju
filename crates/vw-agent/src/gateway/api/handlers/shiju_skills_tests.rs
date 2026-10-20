@@ -155,6 +155,38 @@ async fn shiju_skill_routes_forward_maintained_multi_value_filters() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn shiju_skill_routes_forward_search_filters() {
+    let body =
+        r#"{"code":200,"message":"","data":{"items":[],"next_cursor":null,"has_more":false}}"#;
+    let upstream_response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    );
+    let (base, requests) = upstream_fixture_with_response(1, upstream_response.into_bytes());
+    let router = super::router_with_client::<()>(
+        crate::skills::shiju::ShijuSkillClient::with_base_url(&base).expect("client"),
+    );
+
+    let valid_response = router
+        .oneshot(
+            Request::get(
+                "/shiju/skills/search?page_size=20&q=visual%20guide&cursor=cursor%2Fnext&tag_ids=2&company_tag_ids=5",
+            )
+            .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+            .body(Body::empty())
+            .expect("search request"),
+        )
+        .await
+        .expect("response");
+    assert_eq!(valid_response.status(), StatusCode::OK);
+
+    let requests = requests.join().expect("join fixture");
+    assert!(requests[0].starts_with(
+        "GET /marketplace/skills?page_size=20&q=visual+guide&cursor=cursor%2Fnext&tag_ids=2&company_tag_ids=5 "
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn shiju_skill_routes_forward_tag_catalogs() {
     let bodies = [
         r#"{"code":200,"message":"","data":{"items":[{"id":2,"name":"平台","sort_order":1}]}}"#,
@@ -294,6 +326,20 @@ async fn shiju_skill_routes_reject_missing_credential_and_invalid_filters() {
         .await;
         assert_eq!(status, StatusCode::BAD_REQUEST);
         assert!(body["error"].as_str().unwrap_or_default().contains(expected));
+    }
+
+    for query in ["tag_ids=0", "company_tag_ids=0"] {
+        let (status, body) = response(
+            Request::get(format!("/shiju/skills/search?page_size=20&{query}"))
+                .header(SHIJU_CREDENTIAL_HEADER, "fixture-handler-secret")
+                .body(Body::empty())
+                .expect("invalid search request"),
+        )
+        .await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert!(
+            body["error"].as_str().unwrap_or_default().contains(query.split('=').next().unwrap())
+        );
     }
 
     let (status, body) = response(

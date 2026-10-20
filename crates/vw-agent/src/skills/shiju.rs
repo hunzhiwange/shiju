@@ -107,9 +107,13 @@ impl ShijuSkillClient {
         validate_page_size(query.page_size)?;
         validate_optional_text(query.query.as_deref(), "q")?;
         validate_optional_text(query.cursor.as_deref(), "cursor")?;
+        validate_single_tag_id(query.tag_ids, "tag_ids")?;
+        validate_single_tag_id(query.company_tag_ids, "company_tag_ids")?;
         let mut parameters = vec![("page_size", query.page_size.to_string())];
         push_text_filter(&mut parameters, "q", query.query.as_deref());
         push_text_filter(&mut parameters, "cursor", query.cursor.as_deref());
+        push_optional_u64_filter(&mut parameters, "tag_ids", query.tag_ids);
+        push_optional_u64_filter(&mut parameters, "company_tag_ids", query.company_tag_ids);
         self.get("marketplace/skills", &parameters, credential).await
     }
 
@@ -385,6 +389,14 @@ fn validate_tag_id(tag_id: Option<u64>) -> Result<(), ShijuSkillError> {
     }
 }
 
+fn validate_single_tag_id(tag_id: Option<u64>, name: &str) -> Result<(), ShijuSkillError> {
+    if tag_id == Some(0) {
+        Err(ShijuSkillError::invalid(format!("SHIJU skill {name} must be greater than zero")))
+    } else {
+        Ok(())
+    }
+}
+
 fn validate_tag_ids(tag_ids: &[u64], name: &str) -> Result<(), ShijuSkillError> {
     if tag_ids.contains(&0) {
         Err(ShijuSkillError::invalid(format!(
@@ -416,6 +428,16 @@ fn page_parameters(page: u32, page_size: u32) -> Vec<(&'static str, String)> {
 }
 
 fn push_text_filter<'a>(query: &mut Vec<(&'a str, String)>, key: &'a str, value: Option<&str>) {
+    if let Some(value) = value {
+        query.push((key, value.to_string()));
+    }
+}
+
+fn push_optional_u64_filter<'a>(
+    query: &mut Vec<(&'a str, String)>,
+    key: &'a str,
+    value: Option<u64>,
+) {
     if let Some(value) = value {
         query.push((key, value.to_string()));
     }

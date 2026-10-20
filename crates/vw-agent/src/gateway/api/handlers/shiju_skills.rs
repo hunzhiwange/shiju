@@ -56,6 +56,8 @@ struct SearchParams {
     query: Option<String>,
     cursor: Option<String>,
     page_size: u32,
+    tag_ids: Option<u64>,
+    company_tag_ids: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -86,6 +88,8 @@ async fn search_get(
         query: params.query,
         cursor: params.cursor,
         page_size: params.page_size,
+        tag_ids: params.tag_ids,
+        company_tag_ids: params.company_tag_ids,
     };
     client.search(&credential, &query).await.map(Json).map_err(map_error)
 }

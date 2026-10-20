@@ -20,6 +20,8 @@ pub struct ShijuSkillSearchQuery {
     pub query: Option<String>,
     pub cursor: Option<String>,
     pub page_size: u32,
+    pub tag_ids: Option<u64>,
+    pub company_tag_ids: Option<u64>,
 }
 
 /// Query for system skills visible to the active SHIJU account.
@@ -339,6 +341,8 @@ impl GatewayClient {
         let mut query_pairs = vec![("page_size".to_string(), query.page_size.to_string())];
         push_text_filter(&mut query_pairs, "q", query.query.as_deref());
         push_text_filter(&mut query_pairs, "cursor", query.cursor.as_deref());
+        push_optional_u64_filter(&mut query_pairs, "tag_ids", query.tag_ids);
+        push_optional_u64_filter(&mut query_pairs, "company_tag_ids", query.company_tag_ids);
         self.shiju_skill_get(&format!("{SHIJU_SKILLS_PATH}/search"), &query_pairs, credential).await
     }
 
@@ -484,6 +488,12 @@ fn page_query(page: u32, page_size: u32) -> Vec<(String, String)> {
 
 fn push_text_filter(query: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
     if let Some(value) = value.filter(|value| !value.is_empty()) {
+        query.push((key.to_string(), value.to_string()));
+    }
+}
+
+fn push_optional_u64_filter(query: &mut Vec<(String, String)>, key: &str, value: Option<u64>) {
+    if let Some(value) = value {
         query.push((key.to_string(), value.to_string()));
     }
 }

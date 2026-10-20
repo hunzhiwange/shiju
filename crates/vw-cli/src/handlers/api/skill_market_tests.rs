@@ -23,8 +23,7 @@ async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
         assert!(matches!(requests.try_recv(), Err(TryRecvError::Empty)));
     }
 
-    let search =
-        br#"{"credential":"private","query":{"query":"rust cli","cursor":"c/1","page_size":5}}"#;
+    let search = br#"{"credential":"private","query":{"query":"rust cli","cursor":"c/1","page_size":5,"tag_ids":2,"company_tag_ids":5}}"#;
     let system =
         br#"{"credential":"private","query":{"page":1,"page_size":5,"name":"agent","tag_id":2}}"#;
     let maintained = br#"{"credential":"private","query":{"page":1,"page_size":5,"keyword":"ops","tag_ids":[2,1],"company_tag_ids":[5],"statuses":["draft","published"]}}"#;
@@ -34,7 +33,7 @@ async fn api_skill_market_commands_cover_shiju_and_unified_market_routes() {
         (
             &["skill-market", "shiju-search", "--input", "-"][..],
             search.as_slice(),
-            "/v1/shiju/skills/search?page_size=5&q=rust+cli&cursor=c%2F1",
+            "/v1/shiju/skills/search?page_size=5&q=rust+cli&cursor=c%2F1&tag_ids=2&company_tag_ids=5",
         ),
         (
             &["skill-market", "shiju-installed", "--input", "-"][..],

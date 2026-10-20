@@ -2303,6 +2303,8 @@ fn load_marketplace_skills(app: &mut App) -> Task<Message> {
                 query: (!query.is_empty()).then_some(query),
                 cursor: None,
                 page_size: SHIJU_PAGE_SIZE,
+                tag_ids: None,
+                company_tag_ids: None,
             };
             gateway_shiju_skill_search_async(&credential, &query)
                 .await

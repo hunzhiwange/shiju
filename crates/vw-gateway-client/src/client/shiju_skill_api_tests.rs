@@ -53,6 +53,8 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         query: Some("visual guide".to_string()),
         cursor: Some("cursor/next".to_string()),
         page_size: 20,
+        tag_ids: Some(2),
+        company_tag_ids: Some(5),
     };
     let system = ShijuSystemSkillQuery {
         page: 2,
@@ -89,7 +91,7 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
     );
 
     let expected_paths = [
-        "/v1/shiju/skills/search?page_size=20&q=visual+guide&cursor=cursor%2Fnext",
+        "/v1/shiju/skills/search?page_size=20&q=visual+guide&cursor=cursor%2Fnext&tag_ids=2&company_tag_ids=5",
         "/v1/shiju/skills/installed",
         "/v1/shiju/skills/system?page=2&page_size=20&name=system+visual&tag_id=7",
         "/v1/shiju/skills/maintained?page=4&page_size=20&keyword=my+visual&tag_ids=2%2C1&company_tag_ids=5&statuses=draft%2Cpending_review%2Cpublished%2Cunpublished",
@@ -103,6 +105,39 @@ async fn shiju_skill_client_uses_private_gateway_paths() {
         assert_eq!(request.path, expected_path);
         assert_eq!(request.header(SHIJU_CREDENTIAL_HEADER), Some(credential.expose()));
         assert!(!request.path.contains(credential.expose()));
+    }
+    server.join();
+}
+
+#[tokio::test]
+async fn shiju_skill_client_omits_unselected_market_filters() {
+    let page = json!({"items": [], "next_cursor": null, "has_more": false});
+    let server = test_support::server(vec![(200, page.clone()), (200, page.clone()), (200, page)]);
+    let credential = credential();
+
+    for (tag_ids, company_tag_ids) in [(Some(2), None), (None, Some(5)), (None, None)] {
+        server
+            .client()
+            .shiju_skill_search(
+                &credential,
+                &ShijuSkillSearchQuery {
+                    query: None,
+                    cursor: None,
+                    page_size: 20,
+                    tag_ids,
+                    company_tag_ids,
+                },
+            )
+            .await
+            .expect("market search");
+    }
+
+    for expected_path in [
+        "/v1/shiju/skills/search?page_size=20&tag_ids=2",
+        "/v1/shiju/skills/search?page_size=20&company_tag_ids=5",
+        "/v1/shiju/skills/search?page_size=20",
+    ] {
+        assert_eq!(server.take_request().path, expected_path);
     }
     server.join();
 }

@@ -720,15 +720,15 @@ impl App {
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn prune_chat_heavy_editor_caches(&mut self, start_idx: usize, end_idx: usize) {
         let schedule_input = self.chat_chunk_schedule_input(start_idx, end_idx);
-        let (keep_start, keep_end) =
-            crate::app::components::chat_panel::chunk_loader::heavy_cache_keep_bounds_for_schedule(
+        let keep_ranges =
+            crate::app::components::chat_panel::chunk_loader::heavy_cache_keep_ranges_for_schedule(
                 &schedule_input,
                 CHAT_HEAVY_EDITOR_CACHE_MESSAGE_MARGIN,
             );
         let expanded_messages = self.chat_message_expanded.clone();
         let expanded_thinking = self.chat_think_expanded.clone();
         let keep_message = |message_idx: usize| {
-            (keep_start..keep_end).contains(&message_idx)
+            keep_ranges.iter().any(|(start, end)| (*start..*end).contains(&message_idx))
                 || expanded_messages.contains(&message_idx)
         };
 

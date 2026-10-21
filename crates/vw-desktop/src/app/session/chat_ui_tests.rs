@@ -564,6 +564,71 @@ fn markdown_cache_prunes_offscreen_blocks() {
     }));
 }
 
+fn seed_markdown_cache(app: &mut super::App) {
+    for idx in 0..app.chat.len() {
+        app.chat_markdown_blocks.insert(
+            (idx as u64) << 32,
+            crate::app::components::chat_panel::message_view::parse_markdown_blocks("cached"),
+        );
+    }
+}
+
+#[test]
+fn chat_cache_retention_is_bounded_by_visible_pages() {
+    let (mut app, _task) = super::App::new();
+    app.chat = (0..10_000)
+        .map(|idx| message(super::ChatRole::Assistant, &format!("message {idx}")))
+        .collect();
+    app.sync_chat_message_estimated_heights_len();
+    app.chat_virtualizer.set_viewport_height(2_000.0);
+    app.chat_virtualizer.scroll_to_item_anchor(5_000, 0.0, 0.0);
+    seed_markdown_cache(&mut app);
+
+    app.prune_chat_heavy_editor_caches(4_992, 5_024);
+
+    assert!(app.chat_markdown_blocks.len() <= 80);
+    assert!(app.chat_markdown_blocks.contains_key(&((5_000_u64) << 32)));
+}
+
+#[test]
+fn chat_cache_retention_pins_active_entry() {
+    let (mut app, _task) = super::App::new();
+    app.chat = (0..10_000)
+        .map(|idx| message(super::ChatRole::Assistant, &format!("message {idx}")))
+        .collect();
+    app.sync_chat_message_estimated_heights_len();
+    app.chat_virtualizer.set_viewport_height(2_000.0);
+    app.chat_virtualizer.scroll_to_item_anchor(0, 0.0, 0.0);
+    app.current_session_runtime_mut().is_requesting = true;
+    seed_markdown_cache(&mut app);
+
+    app.prune_chat_heavy_editor_caches(0, 32);
+
+    assert!(app.chat_markdown_blocks.contains_key(&((9_999_u64) << 32)));
+    assert!(app.chat_markdown_blocks.len() <= 160);
+}
+
+#[test]
+fn chat_cache_eviction_preserves_canonical_message() {
+    let (mut app, _task) = super::App::new();
+    app.chat = (0..256)
+        .map(|idx| message(super::ChatRole::Assistant, &format!("canonical {idx}")))
+        .collect();
+    app.sync_chat_message_estimated_heights_len();
+    app.chat_virtualizer.set_viewport_height(2_000.0);
+    app.chat_virtualizer.scroll_to_item_anchor(144, 0.0, 0.0);
+    seed_markdown_cache(&mut app);
+
+    app.prune_chat_heavy_editor_caches(128, 160);
+    assert!(!app.chat_markdown_blocks.contains_key(&0));
+    assert_eq!(app.chat[0].content, "canonical 0");
+
+    let rebuilt = super::prepare_chat_ui_message_phase(&app.chat[0], 0, false);
+    app.apply_prepared_chat_ui_phase(rebuilt);
+    assert!(app.chat_markdown_blocks.contains_key(&0));
+    assert_eq!(app.chat[0].content, "canonical 0");
+}
+
 #[test]
 fn markdown_cache_reuse_performance_probe() {
     let (mut app, _task) = super::App::new();

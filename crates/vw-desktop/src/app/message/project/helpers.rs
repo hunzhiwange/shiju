@@ -1242,6 +1242,23 @@ pub(crate) fn load_session_messages_task_scoped(
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
 /// 变更范围限制在当前消息处理路径内，不引入额外的流程分支。
+struct ChatUiChunkSnapshot {
+    chunk_start_idx: usize,
+    messages: crate::app::session::SharedChatMessages,
+}
+
+fn chat_ui_chunk_snapshot(
+    chat: &crate::app::session::SharedChatMessages,
+    chunk_start_idx: usize,
+) -> Option<ChatUiChunkSnapshot> {
+    let (chunk_start_idx, chunk_end_idx) =
+        crate::app::session::chat_ui_chunk_bounds(chat.len(), chunk_start_idx);
+    (chunk_start_idx < chunk_end_idx).then(|| ChatUiChunkSnapshot {
+        chunk_start_idx,
+        messages: std::sync::Arc::from(&chat[chunk_start_idx..chunk_end_idx]),
+    })
+}
+
 pub(crate) fn prepare_session_ui_task(
     session_id: String,
     chat: crate::app::session::SharedChatMessages,
@@ -1249,19 +1266,17 @@ pub(crate) fn prepare_session_ui_task(
     is_base: bool,
     show_reasoning_summary: bool,
 ) -> Task<Message> {
+    let Some(snapshot) = chat_ui_chunk_snapshot(&chat, chunk_start_idx) else {
+        return Task::done(Message::None);
+    };
     Task::perform(
         async move {
             crate::app::message::spawn_blocking_opt(move || {
-                let (chunk_start_idx, chunk_end_idx) =
-                    crate::app::session::chat_ui_chunk_bounds(chat.len(), chunk_start_idx);
-                if chunk_start_idx >= chunk_end_idx {
-                    return None;
-                }
                 Some((
                     session_id,
                     crate::app::session::prepare_chat_ui_chunk_phase(
-                        &chat[chunk_start_idx..chunk_end_idx],
-                        chunk_start_idx,
+                        &snapshot.messages,
+                        snapshot.chunk_start_idx,
                         is_base,
                         show_reasoning_summary,
                     ),

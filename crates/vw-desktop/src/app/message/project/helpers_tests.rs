@@ -725,6 +725,41 @@ async fn prepare_session_ui_tasks_return_none_for_empty_work_units() {
     assert!(empty_batch_messages.is_empty());
 }
 
+fn long_chat_chunk_snapshot() -> super::ChatUiChunkSnapshot {
+    let chat: crate::app::session::SharedChatMessages = std::sync::Arc::from(
+        (0..10_000)
+            .map(|idx| crate::app::models::ChatMessage {
+                role: crate::app::models::ChatRole::Assistant,
+                content: format!("message-{idx}"),
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            })
+            .collect::<Vec<_>>(),
+    );
+
+    super::chat_ui_chunk_snapshot(&chat, 9_952)
+        .expect("the requested history chunk should have a bounded snapshot")
+}
+
+#[test]
+fn chat_ui_chunk_snapshots_requested_32_only() {
+    let snapshot = long_chat_chunk_snapshot();
+
+    assert_eq!(snapshot.chunk_start_idx, 9_952);
+    assert_eq!(snapshot.messages.len(), crate::app::session::CHAT_UI_CHUNK_SIZE);
+    assert_eq!(snapshot.messages[0].content, "message-9952");
+    assert_eq!(snapshot.messages[31].content, "message-9983");
+}
+
+#[test]
+fn prepare_session_ui_does_not_clone_full_history() {
+    let snapshot = long_chat_chunk_snapshot();
+
+    assert_eq!(snapshot.messages.len(), 32);
+    assert!(snapshot.messages.len() < 10_000);
+}
+
 // 任务与结果：覆盖任务构造、调度或结果回写对公开状态的影响。
 // 完成、失败与过期响应均按当前场景的既定契约处理。
 #[tokio::test]

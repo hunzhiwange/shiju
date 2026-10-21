@@ -315,6 +315,7 @@ pub(crate) fn heavy_cache_keep_bounds(
 /// 执行 heavy_cache_keep_bounds_for_schedule 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
+#[cfg(test)]
 pub(crate) fn heavy_cache_keep_bounds_for_schedule(
     input: &ChatChunkScheduleInput,
     margin: usize,
@@ -343,4 +344,47 @@ pub(crate) fn heavy_cache_keep_bounds_for_schedule(
     }
 
     (keep_start, keep_end)
+}
+
+/// 返回重型缓存需要保留的不连续消息区间，避免远端 pinned 条目把中间历史一并保留。
+pub(crate) fn heavy_cache_keep_ranges_for_schedule(
+    input: &ChatChunkScheduleInput,
+    margin: usize,
+) -> Vec<(usize, usize)> {
+    let Some((visible_start_idx, visible_end_idx)) =
+        normalized_window(input.chat_len, input.visible_start_idx, input.visible_end_idx)
+    else {
+        return Vec::new();
+    };
+
+    let mut ranges = vec![(
+        visible_start_idx.saturating_sub(margin),
+        visible_end_idx.saturating_add(margin).min(input.chat_len),
+    )];
+    let protected_chunks = input
+        .protected_chunk_starts
+        .iter()
+        .copied()
+        .chain(schedule_anchor_idx(input).map(chat_ui_chunk_start_idx));
+    for chunk_start_idx in protected_chunks {
+        let (chunk_start_idx, chunk_end_idx) =
+            chat_ui_chunk_bounds(input.chat_len, chunk_start_idx);
+        ranges.push((
+            chunk_start_idx.saturating_sub(margin),
+            chunk_end_idx.saturating_add(margin).min(input.chat_len),
+        ));
+    }
+
+    ranges.sort_unstable();
+    let mut merged: Vec<(usize, usize)> = Vec::with_capacity(ranges.len());
+    for (start, end) in ranges {
+        if let Some((_, previous_end)) = merged.last_mut()
+            && start <= *previous_end
+        {
+            *previous_end = (*previous_end).max(end);
+        } else {
+            merged.push((start, end));
+        }
+    }
+    merged
 }

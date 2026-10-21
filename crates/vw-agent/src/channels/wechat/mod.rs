@@ -11,7 +11,9 @@ use tokio::sync::{RwLock, mpsc};
 use uuid::Uuid;
 use vw_config_types::channels::DEFAULT_WECHAT_BASE_URL;
 
-const CHANNEL_VERSION: &str = "2.0.1";
+pub(crate) mod protocol;
+
+use protocol::{CHANNEL_VERSION, with_json_headers};
 
 #[derive(Clone)]
 pub struct WeChatChannel {
@@ -49,10 +51,8 @@ impl WeChatChannel {
     }
 
     async fn post(&self, path: &str, body: Value) -> anyhow::Result<Value> {
-        let response = self
-            .client
-            .post(self.endpoint(path))
-            .bearer_auth(&self.bot_token)
+        let request = self.client.post(self.endpoint(path));
+        let response = with_json_headers(request, Some(&self.bot_token))
             .json(&body)
             .send()
             .await
@@ -141,7 +141,10 @@ impl Channel for WeChatChannel {
                         "context_token": context_token,
                         "item_list": [{"type": 1, "text_item": {"text": message.content}}]
                     },
-                    "base_info": {"channel_version": CHANNEL_VERSION}
+                    "base_info": {
+                        "channel_version": CHANNEL_VERSION,
+                        "bot_agent": "VibeWindow"
+                    }
                 }),
             )
             .await?;
@@ -155,14 +158,19 @@ impl Channel for WeChatChannel {
         if self.bot_token.trim().is_empty() {
             bail!("微信通道缺少 bot_token");
         }
+        tracing::info!("微信：正在连接到 iLink...");
         let mut cursor = String::new();
+        let mut connection_announced = false;
         loop {
             let response = self
                 .post(
                     "ilink/bot/getupdates",
                     json!({
                         "get_updates_buf": cursor,
-                        "base_info": {"channel_version": CHANNEL_VERSION}
+                        "base_info": {
+                            "channel_version": CHANNEL_VERSION,
+                            "bot_agent": "VibeWindow"
+                        }
                     }),
                 )
                 .await?;
@@ -170,9 +178,23 @@ impl Channel for WeChatChannel {
                 cursor = next_cursor.to_string();
             }
             let messages = response.get("msgs").and_then(Value::as_array);
-            let ret = response.get("ret").and_then(Value::as_i64).unwrap_or(-1);
-            if ret != 0 && ret != -1 && messages.is_none_or(Vec::is_empty) {
-                bail!("微信 iLink getupdates 返回失败状态 {ret}");
+            let ret = response.get("ret").and_then(Value::as_i64);
+            let errcode = response.get("errcode").and_then(Value::as_i64);
+            if ret.is_some_and(|code| code != 0) || errcode.is_some_and(|code| code != 0) {
+                let message = response
+                    .get("errmsg")
+                    .and_then(Value::as_str)
+                    .filter(|message| !message.trim().is_empty())
+                    .unwrap_or("未知错误");
+                bail!(
+                    "微信 iLink getupdates 返回失败状态 ret={} errcode={}：{message}",
+                    ret.map_or_else(|| "缺失".to_string(), |code| code.to_string()),
+                    errcode.map_or_else(|| "缺失".to_string(), |code| code.to_string())
+                );
+            }
+            if !connection_announced {
+                tracing::info!("微信：已连接，正在监听消息...");
+                connection_announced = true;
             }
             for raw in messages.into_iter().flatten() {
                 if let Some((message, context_token)) = Self::parse_message(raw)? {

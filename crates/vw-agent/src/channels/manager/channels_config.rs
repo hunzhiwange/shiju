@@ -453,12 +453,14 @@ pub(crate) fn collect_configured_channels(
 
     // ==================== 微信通道配置 ====================
     #[cfg(not(target_arch = "wasm32"))]
-    if let Some(ref wechat) = config.channels_config.wechat
-        && wechat.has_required_credentials()
-    {
-        match WeChatChannel::new(wechat.bot_token.clone(), wechat.base_url.clone()) {
-            Ok(channel) => channels.push(ConfiguredChannel::new("WeChat", Arc::new(channel))),
-            Err(error) => tracing::warn!("WeChat channel configuration rejected: {error}"),
+    if let Some(ref wechat) = config.channels_config.wechat {
+        if wechat.has_required_credentials() {
+            match WeChatChannel::new(wechat.bot_token.clone(), wechat.base_url.clone()) {
+                Ok(channel) => channels.push(ConfiguredChannel::new("WeChat", Arc::new(channel))),
+                Err(error) => tracing::warn!("WeChat channel configuration rejected: {error}"),
+            }
+        } else {
+            tracing::warn!("微信：配置未完成，未启动监听（请先完成扫码授权并保存）");
         }
     }
 

@@ -4,9 +4,8 @@ use serde_json::{Map, Value};
 use vw_config_types::channels::DEFAULT_WECHAT_BASE_URL;
 
 use super::{ChannelQrStatus, ProviderFetch, ProviderPoll};
+use crate::app::agent::channels::wechat::protocol::{with_application_headers, with_json_headers};
 use crate::app::agent::gateway::ApiError;
-
-const WECHAT_SCAN_URL: &str = "https://liteapp.weixin.qq.com/q/7GiQu1";
 
 pub(super) async fn fetch() -> Result<ProviderFetch, ApiError> {
     fetch_at(DEFAULT_WECHAT_BASE_URL).await
@@ -17,18 +16,21 @@ pub(super) async fn poll(state: &str) -> Result<ProviderPoll, ApiError> {
 }
 
 async fn fetch_at(base_url: &str) -> Result<ProviderFetch, ApiError> {
-    let response = get_json(
+    let response = post_json(
         base_url,
         "ilink/bot/get_bot_qrcode",
         &[("bot_type", "3")],
+        serde_json::json!({"local_token_list": []}),
         "QR code",
         Duration::from_secs(15),
-        false,
     )
     .await?;
     let poll_state = required_string(&response, "qrcode", "WeChat returned empty QR code data")?;
-    let scan_url =
-        format!("{WECHAT_SCAN_URL}?qrcode={}&bot_type=3", urlencoding::encode(&poll_state));
+    let scan_url = required_string(
+        &response,
+        "qrcode_img_content",
+        "WeChat returned empty QR code image data",
+    )?;
     Ok(ProviderFetch { scan_url, poll_state })
 }
 
@@ -42,7 +44,6 @@ async fn poll_at(base_url: &str, state: &str) -> Result<ProviderPoll, ApiError> 
         &[("qrcode", state)],
         "status",
         Duration::from_secs(45),
-        true,
     )
     .await?;
     Ok(map_poll_response(&response))
@@ -54,17 +55,14 @@ async fn get_json(
     query: &[(&str, &str)],
     operation: &str,
     timeout: Duration,
-    include_client_version: bool,
 ) -> Result<Value, ApiError> {
     let client = reqwest::Client::builder()
         .timeout(timeout)
         .build()
         .map_err(|_| provider_error("WeChat authorization client is unavailable"))?;
-    let mut request = client.get(format!("{}/{path}", base_url.trim_end_matches('/'))).query(query);
-    if include_client_version {
-        request = request.header("iLink-App-ClientVersion", "1");
-    }
-    request
+    with_application_headers(
+        client.get(format!("{}/{path}", base_url.trim_end_matches('/'))).query(query),
+    )
         .send()
         .await
         .and_then(reqwest::Response::error_for_status)
@@ -72,6 +70,32 @@ async fn get_json(
         .json()
         .await
         .map_err(|_| provider_error(format!("WeChat {operation} response was invalid")))
+}
+
+async fn post_json(
+    base_url: &str,
+    path: &str,
+    query: &[(&str, &str)],
+    body: Value,
+    operation: &str,
+    timeout: Duration,
+) -> Result<Value, ApiError> {
+    let client = reqwest::Client::builder()
+        .timeout(timeout)
+        .build()
+        .map_err(|_| provider_error("WeChat authorization client is unavailable"))?;
+    with_json_headers(
+        client.post(format!("{}/{path}", base_url.trim_end_matches('/'))).query(query),
+        None,
+    )
+    .json(&body)
+    .send()
+    .await
+    .and_then(reqwest::Response::error_for_status)
+    .map_err(|_| provider_error(format!("WeChat {operation} request failed")))?
+    .json()
+    .await
+    .map_err(|_| provider_error(format!("WeChat {operation} response was invalid")))
 }
 
 fn map_poll_response(response: &Value) -> ProviderPoll {

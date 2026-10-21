@@ -1,5 +1,6 @@
 use super::*;
 
+use crate::app::agent::channels::wechat::protocol::APP_CLIENT_VERSION;
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -24,18 +25,24 @@ async fn fixture(body: &'static str) -> (String, tokio::task::JoinHandle<String>
 
 #[tokio::test]
 async fn wechat_qr_fetch_maps_qrcode_without_credentials_in_state() {
-    let (base_url, request) = fixture(r#"{"qrcode":"qr value","bot_token":"must-not-leak"}"#).await;
+    let (base_url, request) = fixture(
+        r#"{"qrcode":"qr value","qrcode_img_content":"https://weixin.example/scan","bot_token":"must-not-leak"}"#,
+    )
+    .await;
 
     let result = fetch_at(&base_url).await.expect("fetch succeeds");
     let request = request.await.expect("WeChat fixture completes");
 
     assert_eq!(result.poll_state, "qr value");
     assert!(!result.poll_state.contains("must-not-leak"));
-    assert_eq!(
-        result.scan_url,
-        "https://liteapp.weixin.qq.com/q/7GiQu1?qrcode=qr%20value&bot_type=3"
-    );
-    assert!(request.starts_with("GET /ilink/bot/get_bot_qrcode?bot_type=3 HTTP/1.1"));
+    assert_eq!(result.scan_url, "https://weixin.example/scan");
+    assert!(request.starts_with("POST /ilink/bot/get_bot_qrcode?bot_type=3 HTTP/1.1"));
+    let lower = request.to_ascii_lowercase();
+    assert!(lower.contains("ilink-app-id: bot"));
+    assert!(lower.contains(&format!("ilink-app-clientversion: {APP_CLIENT_VERSION}")));
+    assert!(lower.contains("authorizationtype: ilink_bot_token"));
+    assert!(lower.contains("x-wechat-uin:"));
+    assert!(request.ends_with(r#"{"local_token_list":[]}"#));
 }
 
 #[tokio::test]
@@ -51,7 +58,9 @@ async fn wechat_qr_maps_provider_and_legacy_waiting_states() {
         let (base_url, request) = fixture(payload).await;
         let result = poll_at(&base_url, "qr-value").await.expect("poll succeeds");
         let request = request.await.expect("WeChat fixture completes");
-        assert!(request.to_ascii_lowercase().contains("ilink-app-clientversion: 1"));
+        let request = request.to_ascii_lowercase();
+        assert!(request.contains("ilink-app-id: bot"));
+        assert!(request.contains(&format!("ilink-app-clientversion: {APP_CLIENT_VERSION}")));
         assert_eq!(result.status, expected);
         assert_eq!(result.credentials, None);
     }

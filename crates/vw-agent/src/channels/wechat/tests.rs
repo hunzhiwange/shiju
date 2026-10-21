@@ -34,7 +34,7 @@ async fn start_mock_ilink() -> (String, tokio::task::JoinHandle<Vec<Value>>) {
                 }]
                 })
             } else {
-                json!({"ret": -1, "get_updates_buf": "cursor-2"})
+                json!({"ret": 0, "get_updates_buf": "cursor-2"})
             };
 
             let body = response.to_string();

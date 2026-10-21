@@ -58,6 +58,11 @@ pub fn prepare_session_open(
     session_model: Option<String>,
     show_reasoning_summary: bool,
 ) -> PreparedSessionOpen {
+    #[cfg(test)]
+    crate::app::components::chat_panel::performance::record_initial_load(
+        messages.len(),
+        messages.iter().map(|message| message.content.len()).sum(),
+    );
     if message_ids.len() != messages.len() {
         message_ids = vec![None; messages.len()];
     }

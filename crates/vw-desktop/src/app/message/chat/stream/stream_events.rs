@@ -395,6 +395,16 @@ fn append_stream_delta_to_tail(
     last_idx
 }
 
+#[cfg(test)]
+pub(crate) fn append_stream_delta_for_performance_probe(
+    chat: &mut Vec<models::ChatMessage>,
+    delta: String,
+) -> usize {
+    let mut message_ids = vec![None; chat.len()];
+    let mut tail_state = StreamTailState::default();
+    append_stream_delta_to_tail(chat, &mut message_ids, delta, now_ms(), &mut tail_state)
+}
+
 fn upsert_workflow_tool_to_tail(
     chat: &mut Vec<models::ChatMessage>,
     message_ids: &mut Vec<Option<String>>,
@@ -443,7 +453,13 @@ fn finish_active_stream_tail_update(
     let mut tail_prewarm_task = Task::none();
     let should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
     if let Some(stream_generation) = stream_generation
-        && let Some(message) = app.chat.get(changed_idx).cloned()
+        && let Some(message) = app.chat.get(changed_idx).map(|message| {
+            #[cfg(test)]
+            crate::app::components::chat_panel::performance::record_chat_message_clone(
+                message.content.len(),
+            );
+            message.clone()
+        })
     {
         tail_prewarm_task = crate::app::message::project::prepare_stream_message_ui_task(
             session_id.clone(),
@@ -504,6 +520,8 @@ fn clear_agent_stream_session_save_flush(app: &mut App, session_id: &str) {
 }
 
 fn save_latest_agent_stream_session(app: &App, session_id: &str) -> Task<Message> {
+    #[cfg(test)]
+    crate::app::components::chat_panel::performance::record_full_session_save();
     let mut session = load_session_or_default(app, session_id.to_string());
     session.updated_ms = now_ms();
     save_session_task(session, session_directory_for_save(app, session_id))

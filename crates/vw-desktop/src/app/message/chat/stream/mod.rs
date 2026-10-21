@@ -8,6 +8,9 @@ mod stream_events;
 mod todos;
 
 #[cfg(test)]
+pub(crate) use stream_events::append_stream_delta_for_performance_probe;
+
+#[cfg(test)]
 #[path = "permission_tests.rs"]
 mod permission_tests;
 

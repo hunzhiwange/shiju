@@ -158,6 +158,8 @@ impl ChatVirtualizer {
         }
 
         self.height_index.set_heights(&self.heights);
+        #[cfg(test)]
+        super::performance::record_height_index_rebuild();
         if self.turn_focus_user_index.is_some_and(|index| index >= len) {
             self.clear_turn_focus();
         }
@@ -172,6 +174,8 @@ impl ChatVirtualizer {
     pub fn set_estimated_heights(&mut self, heights: &[f32]) {
         self.heights = heights.iter().map(|height| height.max(0.0)).collect();
         self.height_index.set_heights(&self.heights);
+        #[cfg(test)]
+        super::performance::record_height_index_rebuild();
         if self.turn_focus_user_index.is_some_and(|index| index >= self.heights.len()) {
             self.clear_turn_focus();
         }
@@ -213,6 +217,8 @@ impl ChatVirtualizer {
 
         self.heights[idx] = next_height;
         self.height_index.update_height(idx, next_height);
+        #[cfg(test)]
+        super::performance::record_height_point_update();
         self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
     }

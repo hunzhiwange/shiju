@@ -25,6 +25,8 @@ pub mod header;
 pub mod height_index;
 pub mod message_measure;
 pub mod message_view;
+#[cfg(test)]
+pub(crate) mod performance;
 pub(crate) mod selectable_text;
 mod tool_names;
 pub mod tool_selector;
@@ -55,6 +57,9 @@ mod message_view_tests;
 #[cfg(test)]
 #[path = "mod_tests.rs"]
 mod mod_tests;
+#[cfg(test)]
+#[path = "performance_tests.rs"]
+mod performance_tests;
 #[cfg(test)]
 #[path = "permission_view_tests.rs"]
 mod permission_view_tests;
@@ -447,6 +452,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let question_visible_start_idx = window.visible_start_idx;
     let question_visible_end_idx = window.visible_end_idx;
     let user_question_markers = &app.active_session_view_state.user_question_markers;
+
+    #[cfg(test)]
+    performance::record_mounted_rows(end_idx.saturating_sub(start_idx));
 
     // 构建消息列，每条消息之间间隔 18px
     let mut col = chat_message_column();

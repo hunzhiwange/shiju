@@ -43,6 +43,8 @@ pub(crate) fn build_render_cache_entry(
     copy_hash: u64,
     show_reasoning_summary: bool,
 ) -> models::ChatRenderCacheEntry {
+    #[cfg(test)]
+    super::super::performance::record_full_content_parse(raw.len());
     const FOLD_PREVIEW_CHARS: usize = 2400;
     const FOLDABLE_VISIBLE_CHARS: usize = 6000;
     const FOLDABLE_TOTAL_CHARS: usize = 9000;
@@ -185,8 +187,12 @@ pub(crate) fn build_render_cache_entry(
     let estimated_collapsed_height =
         (estimate_text_height(&preview_text) + 96.0).clamp(88.0, 420.0);
 
+    #[cfg(test)]
+    super::super::performance::record_full_content_hash(raw.len());
+    let content_hash = hash_chat_content(raw);
+
     models::ChatRenderCacheEntry {
-        content_hash: hash_chat_content(raw),
+        content_hash,
         show_reasoning_summary,
         copy_content_hash: Some(copy_hash),
         blocks,
@@ -223,6 +229,8 @@ pub(super) fn resolve_visible_text_and_copy_hash<'a>(
     }
 
     let (_, visible_text, _) = crate::app::ui::chat::split_think(content);
+    #[cfg(test)]
+    super::super::performance::record_full_content_hash(visible_text.len());
     let copy_hash = hash_chat_content(&visible_text);
     (Cow::Owned(visible_text), copy_hash)
 }
@@ -257,6 +265,8 @@ pub(crate) fn assistant_render_blocks<'a>(
     _is_streaming_assistant: bool,
 ) -> (Cow<'a, [ParsedChatBlock]>, bool) {
     if render_cache.content_hash != current_content_hash {
+        #[cfg(test)]
+        super::super::performance::record_full_content_parse(content.len());
         let blocks = owned_blocks_from_raw(content);
         let has_special_blocks =
             blocks.iter().any(|block| !matches!(block, ParsedChatBlock::Text { .. }));

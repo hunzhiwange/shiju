@@ -200,6 +200,17 @@ fn chat_virtualizer_append_extends_index_without_rebuild() {
 }
 
 #[test]
+fn chat_virtualizer_sync_len_grows_default_index_without_panicking() {
+    let mut virtualizer = ChatVirtualizer::default();
+
+    virtualizer.sync_len(10_000, 40.0);
+    virtualizer.apply_measured_height(999, 41.0);
+
+    assert_eq!(virtualizer.len(), 10_000);
+    assert_eq!(virtualizer.estimated_height(999), Some(41.0));
+}
+
+#[test]
 fn chat_virtualizer_prepend_reports_anchor_delta() {
     let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 100.0, 120.0]);
     virtualizer.set_viewport_height(120.0);

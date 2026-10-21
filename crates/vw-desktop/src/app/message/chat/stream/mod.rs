@@ -3,7 +3,7 @@
 
 // 任务 11 接入现有流消费路径前，调度器先作为独立状态机由行为测试验证。
 #[allow(dead_code)]
-mod delta_scheduler;
+pub(crate) mod delta_scheduler;
 mod permissions;
 mod questions;
 mod steps;

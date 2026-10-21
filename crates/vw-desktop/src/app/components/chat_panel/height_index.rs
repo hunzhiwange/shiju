@@ -241,6 +241,9 @@ impl ChatHeightIndex {
     }
 
     pub(crate) fn append_height(&mut self, height: f32) {
+        if self.fenwick_tree.is_empty() {
+            self.fenwick_tree.push(0.0);
+        }
         let height = height.max(0.0);
         let slot_value = height + CHAT_MESSAGE_GAP;
         let tree_idx = self.heights.len() + 1;

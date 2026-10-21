@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 mod active;
 mod agent_children;
+pub(crate) mod chat_timeline;
 mod chat_ui;
 mod loading;
 mod runtime;
@@ -94,6 +95,9 @@ pub(crate) fn backfill_message_models_from_steps(
 #[cfg(test)]
 #[path = "session/agent_children_tests.rs"]
 mod agent_children_tests;
+#[cfg(test)]
+#[path = "session/chat_timeline_tests.rs"]
+mod chat_timeline_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

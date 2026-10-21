@@ -457,6 +457,8 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) stream_save_in_flight: Option<(u64, u64, u64)>,
     /// 当前 assistant 尾消息的增量解析、高度和后台预热代次。
     pub(crate) stream_tail_state: StreamTailState,
+    /// 活动 assistant 正文的 stable-prefix/mutable-tail 增量投影。
+    pub(crate) stream_render_state: crate::app::session::stream_render::StreamRenderState,
     /// 请求队列
     pub(crate) queue: Vec<QueueItem>,
     /// 输入编辑器内容
@@ -653,6 +655,7 @@ impl SessionRuntimeState {
             stream_save_dirty_records: Vec::new(),
             stream_save_in_flight: None,
             stream_tail_state: StreamTailState::default(),
+            stream_render_state: crate::app::session::stream_render::StreamRenderState::default(),
             queue: Vec::new(),
             input_editor: text_editor::Content::new(),
             model,

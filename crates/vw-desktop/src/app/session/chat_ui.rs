@@ -492,7 +492,15 @@ impl App {
         self.chat_virtualizer.sync_len(self.chat.len(), CHAT_INITIAL_MESSAGE_HEIGHT);
         self.chat_message_measured_heights.remove(&message_idx);
         self.chat_virtualizer.apply_measured_height(message_idx, estimated_height);
-        self.sync_chat_virtualizer_compat_fields();
+        if self.chat_message_estimated_heights.len() != self.chat_virtualizer.len() {
+            self.chat_message_estimated_heights =
+                self.chat_virtualizer.estimated_heights().to_vec();
+            self.chat_height_index.set_heights(&self.chat_message_estimated_heights);
+        } else if let Some(height) = self.chat_message_estimated_heights.get_mut(message_idx) {
+            *height = estimated_height;
+            self.chat_height_index.update_height(message_idx, estimated_height);
+        }
+        self.sync_chat_scroll_compat_fields();
     }
 
     pub(crate) fn sync_chat_scroll_compat_fields(&mut self) {

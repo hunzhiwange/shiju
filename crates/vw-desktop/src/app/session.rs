@@ -18,6 +18,7 @@ pub(crate) mod chat_timeline;
 mod chat_ui;
 mod loading;
 mod runtime;
+pub(crate) mod stream_render;
 pub(crate) mod view_cache;
 
 pub use self::agent_children::{
@@ -99,6 +100,9 @@ mod agent_children_tests;
 #[cfg(test)]
 #[path = "session/chat_timeline_tests.rs"]
 mod chat_timeline_tests;
+#[cfg(test)]
+#[path = "session/stream_render_tests.rs"]
+mod stream_render_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

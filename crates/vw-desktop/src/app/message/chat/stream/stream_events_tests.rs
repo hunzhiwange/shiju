@@ -836,14 +836,14 @@ fn stream_session_delta_save_retries_after_failure() {
 }
 
 #[test]
-fn active_stream_delta_flush_interval_is_fifty_milliseconds() {
+fn active_stream_delta_flush_interval_is_one_frame() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "active-session".to_string();
     app.active_session_id = Some(session_id.clone());
 
     assert_eq!(
         super::stream_delta_flush_interval(&app, &session_id),
-        std::time::Duration::from_millis(50)
+        std::time::Duration::from_millis(16)
     );
 }
 

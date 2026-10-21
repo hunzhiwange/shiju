@@ -19,7 +19,7 @@ use vw_shared::message::types as message;
 use vw_shared::session::info as session_info;
 
 /// 将连续的模型增量合并后再交给 UI，避免每个 token 都触发重排、预热和保存。
-pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(50);
+pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(16);
 pub(super) const BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
 pub(super) const STREAM_SESSION_SAVE_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
 
@@ -448,24 +448,11 @@ fn finish_active_stream_tail_update(
     };
     app.apply_stream_tail_estimated_height(changed_idx, estimated_height);
 
-    let mut tail_prewarm_task = Task::none();
     let should_snap_to_bottom = app.chat_virtualizer.should_follow_tail_after_growth();
-    if let Some(stream_generation) = stream_generation
-        && let Some(message) = app.chat.get(changed_idx).map(|message| {
-            #[cfg(test)]
-            crate::app::components::chat_panel::performance::record_chat_message_clone(
-                message.content.len(),
-            );
-            message.clone()
-        })
-    {
-        tail_prewarm_task = crate::app::message::project::prepare_stream_message_ui_task(
-            session_id.clone(),
-            message,
-            changed_idx,
-            stream_generation,
-            app.dialogue_flow_show_reasoning_summary,
-        );
+    if let Some(stream_generation) = stream_generation {
+        app.get_session_runtime_mut(&session_id)
+            .stream_tail_state
+            .finish_ui_preparation(stream_generation);
     }
 
     app.active_session_view_state.updated_ms = now;
@@ -475,10 +462,25 @@ fn finish_active_stream_tail_update(
     let save_task = schedule_agent_stream_session_save(app, &session_id);
 
     if should_snap_to_bottom {
-        Task::batch(vec![scroll_chat_to_bottom_task(app), tail_prewarm_task, save_task])
+        Task::batch(vec![scroll_chat_to_bottom_task(app), save_task])
     } else {
-        Task::batch(vec![tail_prewarm_task, save_task])
+        save_task
     }
+}
+
+fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, message_idx: usize) {
+    let generation = app
+        .get_session_runtime(session_id)
+        .active_agent_request
+        .as_ref()
+        .map_or(0, |request| request.id);
+    let mut render =
+        std::mem::take(&mut app.get_session_runtime_mut(session_id).stream_render_state);
+    if let Some(content) = app.chat.get(message_idx).map(|message| message.content.as_str()) {
+        render.begin(session_id, generation, message_idx, content);
+        let _ = render.replace_from_stable_boundary(session_id, generation, message_idx, content);
+    }
+    app.get_session_runtime_mut(session_id).stream_render_state = render;
 }
 
 fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<Message> {
@@ -845,6 +847,22 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         std::mem::take(&mut runtime.stream_tail_state)
     };
     if is_active {
+        let changed_idx = app
+            .chat
+            .last()
+            .is_some_and(|message| message.role == models::ChatRole::Assistant)
+            .then_some(app.chat.len().saturating_sub(1))
+            .unwrap_or(app.chat.len());
+        let generation = app
+            .get_session_runtime(&session_id)
+            .active_agent_request
+            .as_ref()
+            .map_or(0, |request| request.id);
+        {
+            let render = &mut app.get_session_runtime_mut(&session_id).stream_render_state;
+            render.begin(&session_id, generation, changed_idx, "");
+            let _ = render.append_delta(&session_id, generation, changed_idx, &delta);
+        }
         let changed_idx = append_stream_delta_to_tail(
             &mut app.chat,
             &mut app.chat_message_ids,
@@ -1029,6 +1047,7 @@ fn handle_agent_tool_blocks_update(
                 raw_tool_block,
             );
         }
+        refresh_stream_replacement_projection(app, &session_id, changed_idx);
         app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
         return Task::batch([
             delta_task,
@@ -1143,6 +1162,21 @@ pub(super) fn handle_agent_stream_done(
     );
     let terminal_tail =
         calibrate_stream_tail_at_terminal(app, &session_id, &mut persisted_chat, completed_ms);
+    let generation = app
+        .get_session_runtime(&session_id)
+        .active_agent_request
+        .as_ref()
+        .map_or(0, |request| request.id);
+    if let Some(content) = persisted_chat
+        .iter()
+        .rfind(|message| message.role == models::ChatRole::Assistant)
+        .map(|message| message.content.as_str())
+    {
+        let mut render =
+            std::mem::take(&mut app.get_session_runtime_mut(&session_id).stream_render_state);
+        let _ = render.complete(&session_id, generation, content);
+        app.get_session_runtime_mut(&session_id).stream_render_state = render;
+    }
     let handoff_task = complete_quick_message_handoff(app, id, &session_id, &persisted_chat);
     let mut persisted_ids = if is_active_session {
         app.chat_message_ids.clone()

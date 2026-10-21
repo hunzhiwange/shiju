@@ -259,7 +259,7 @@ async fn load() -> HashMap<String, Provider> {
     let path = flag::VIBEWINDOW_MODELS_PATH.clone().map(PathBuf::from).unwrap_or_else(cache_path);
     let custom_path = flag::VIBEWINDOW_MODELS_PATH.is_some();
 
-    info!(
+    debug!(
         path = %path.to_string_lossy(),
         models_path_env = custom_path,
         disable_fetch = *flag::VIBEWINDOW_DISABLE_MODELS_FETCH,

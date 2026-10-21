@@ -207,7 +207,9 @@ fn completed_assistant_body_prefers_markdown_layout() {
 
     assert_eq!(tree.children.len(), 1);
     assert_eq!(tree.children[0].children.len(), 1);
-    assert_eq!(tree.children[0].children[0].children.len(), blocks.len());
+    // MarkdownSelectionArea intentionally projects the cached markdown as one
+    // selectable surface so selection can cross paragraph boundaries.
+    assert_eq!(tree.children[0].children[0].children.len(), 1);
 }
 
 #[test]
@@ -235,7 +237,7 @@ fn special_text_block_prefers_markdown_layout() {
 
     assert_eq!(tree.children.len(), 1);
     assert_eq!(tree.children[0].children.len(), 1);
-    assert_eq!(tree.children[0].children[0].children.len(), blocks.len());
+    assert_eq!(tree.children[0].children[0].children.len(), 1);
 }
 
 #[test]

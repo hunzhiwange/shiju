@@ -910,34 +910,35 @@ fn is_one_shot_auto_delete(job: &CronJob) -> bool {
 /// - `Schedule::Cron`: 计算两个连续时间点的下次执行时间，判断间隔
 /// - `Schedule::At`: 一次性任务，不算高频
 fn warn_if_high_frequency_agent_job(job: &CronJob) {
-    // 只检查 Agent 类型任务
-    if !matches!(effective_job_type(job), JobType::Agent) {
-        return;
-    }
-
-    // 判断任务是否过于频繁
-    let too_frequent = match &job.schedule {
-        Schedule::Every { every_ms } => *every_ms < 5 * 60 * 1000,
-        Schedule::Cron { .. } => {
-            // 对于 cron 表达式，通过计算两个时间点的下次执行间隔来判断
-            let now = Utc::now();
-            match (
-                next_run_for_schedule(&job.schedule, now),
-                next_run_for_schedule(&job.schedule, now + chrono::Duration::seconds(1)),
-            ) {
-                (Ok(a), Ok(b)) => (b - a).num_minutes() < 5,
-                _ => false,
-            }
-        }
-        Schedule::At { .. } => false,
-    };
-
-    // 输出警告日志
-    if too_frequent {
+    if is_high_frequency_agent_job(job) {
         tracing::warn!(
             "Cron agent job '{}' is scheduled more frequently than every 5 minutes",
             job.id
         );
+    }
+}
+
+fn is_high_frequency_agent_job(job: &CronJob) -> bool {
+    // 只检查 Agent 类型任务
+    if !matches!(effective_job_type(job), JobType::Agent) {
+        return false;
+    }
+
+    // 判断任务是否过于频繁
+    match &job.schedule {
+        Schedule::Every { every_ms } => *every_ms < 5 * 60 * 1000,
+        Schedule::Cron { .. } => {
+            // 对于 cron 表达式，比较连续两次实际执行时间。
+            let now = Utc::now();
+            match next_run_for_schedule(&job.schedule, now) {
+                Ok(first) => match next_run_for_schedule(&job.schedule, first) {
+                    Ok(second) => second - first < chrono::Duration::minutes(5),
+                    Err(_) => false,
+                },
+                _ => false,
+            }
+        }
+        Schedule::At { .. } => false,
     }
 }
 

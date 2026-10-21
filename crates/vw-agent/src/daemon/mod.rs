@@ -188,7 +188,7 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
     // 启动网关组件监督器
     if existing_gateway_status == ExistingGatewayStatus::Compatible {
         crate::app::agent::health::mark_component_ok("gateway");
-        tracing::warn!(
+        tracing::info!(
             host = %host,
             port,
             "Gateway already running on requested address; daemon will not bind a duplicate gateway"

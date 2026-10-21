@@ -18,7 +18,8 @@ use crate::app::agent::cron::scheduler::{
     execute_and_persist_job, execute_job_with_retry, format_gateway_agent_output,
     invalid_job_payload, is_one_shot_auto_delete, normalize_agent_job_success_output,
     notify_schedule_changed, persist_job_result, process_due_jobs, run_agent_job, run_job_command,
-    run_job_command_with_timeout, wait_for_schedule_scan, warn_if_high_frequency_agent_job,
+    is_high_frequency_agent_job, run_job_command_with_timeout, wait_for_schedule_scan,
+    warn_if_high_frequency_agent_job,
 };
 use crate::app::agent::cron::{CronJob, DeliveryConfig, JobType, Schedule, SessionTarget};
 use crate::app::agent::security::{SecurityPolicy, ShellRedirectPolicy};
@@ -684,20 +685,27 @@ fn normalize_agent_job_success_output_trims_or_uses_default_message() {
 #[test]
 fn high_frequency_agent_warning_handles_shell_every_cron_and_at_schedules() {
     let shell = test_job("echo ok");
+    assert!(!is_high_frequency_agent_job(&shell));
     warn_if_high_frequency_agent_job(&shell);
 
     let mut every = test_job("");
     every.job_type = JobType::Agent;
     every.prompt = Some("run often".into());
     every.schedule = Schedule::Every { every_ms: 60_000 };
+    assert!(is_high_frequency_agent_job(&every));
     warn_if_high_frequency_agent_job(&every);
 
     let mut cron = every.clone();
     cron.schedule = Schedule::Cron { expr: "* * * * *".into(), tz: None };
+    assert!(is_high_frequency_agent_job(&cron));
     warn_if_high_frequency_agent_job(&cron);
+
+    cron.schedule = Schedule::Cron { expr: "*/5 * * * *".into(), tz: None };
+    assert!(!is_high_frequency_agent_job(&cron));
 
     let mut at = every;
     at.schedule = Schedule::At { at: Utc::now() + ChronoDuration::minutes(10) };
+    assert!(!is_high_frequency_agent_job(&at));
     warn_if_high_frequency_agent_job(&at);
 }
 

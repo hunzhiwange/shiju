@@ -381,6 +381,7 @@ pub(super) fn empty_state<'a>(title: &'a str, description: &'a str) -> Element<'
     )
     .padding([18, 14])
     .width(Length::Fill)
+    .center_x(Length::Fill)
     .style(section_card_style)
     .into()
 }

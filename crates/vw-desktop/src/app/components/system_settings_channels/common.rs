@@ -293,21 +293,32 @@ pub(super) fn text_row_with_key<'a>(
             .get(&key)
             .expect("multiline channel editor should be initialized");
         let key_for_action = key.clone();
+        let editor = container(
+            text_editor(editor)
+                .placeholder(multiline_placeholder(placeholder))
+                .on_action(move |action| {
+                    Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::TextEditorAction(key_for_action.clone(), action),
+                    ))
+                })
+                .padding([9, 12])
+                .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT))
+                .style(editor_style),
+        )
+        .width(Length::Fill);
+        let editor: Element<'a, Message> = if placeholder == "逗号或换行分隔，支持 *" {
+            let hint = if label == "group_reply.allowed_sender_ids" {
+                "填写 * 表示允许所有发送者，不推荐使用。"
+            } else {
+                "填写 * 表示允许所有用户，不推荐使用。"
+            };
+            settings_control_with_hint(editor, hint)
+        } else {
+            editor.into()
+        };
         return row![
             text(display_label).size(13).width(Length::Fixed(LABEL_WIDTH)),
-            container(
-                text_editor(editor)
-                    .placeholder(multiline_placeholder(placeholder))
-                    .on_action(move |action| {
-                        Message::Settings(SettingsMessage::Channels(
-                            ChannelsMessage::TextEditorAction(key_for_action.clone(), action),
-                        ))
-                    })
-                    .padding([9, 12])
-                    .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT))
-                    .style(editor_style),
-            )
-            .width(Length::Fill),
+            editor,
         ]
         .spacing(16)
         .align_y(Alignment::Start)

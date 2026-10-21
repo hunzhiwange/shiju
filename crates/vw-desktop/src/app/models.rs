@@ -20,6 +20,8 @@ pub enum ParsedChatBlock {
 #[derive(Debug, Clone, Default)]
 /// 表示 ChatRenderCacheEntry 相关的应用状态或派生数据。
 pub struct ChatRenderCacheEntry {
+    pub(crate) revision_key:
+        Option<crate::app::components::chat_panel::message_view::RevisionRenderKey>,
     pub content_hash: u64,
     pub show_reasoning_summary: bool,
     pub copy_content_hash: Option<u64>,

@@ -103,6 +103,8 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub(crate) fn current_session_runtime(&self) -> crate::app::state::SessionRuntimeState {
+        #[cfg(test)]
+        crate::app::components::chat_panel::performance::record_runtime_clone();
         match &self.active_session_id {
             Some(id) => self.get_session_runtime(id),
             None => self.get_session_runtime(EMPTY_SESSION_ID),

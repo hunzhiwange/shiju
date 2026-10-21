@@ -15,6 +15,8 @@ pub(crate) struct ChatPerformanceSnapshot {
     pub height_point_updates: usize,
     pub mounted_rows: usize,
     pub full_session_saves: usize,
+    pub runtime_borrows: usize,
+    pub runtime_clones: usize,
 }
 
 thread_local! {
@@ -31,6 +33,8 @@ thread_local! {
             height_point_updates: 0,
             mounted_rows: 0,
             full_session_saves: 0,
+            runtime_borrows: 0,
+            runtime_clones: 0,
         })
     };
 }
@@ -90,4 +94,12 @@ pub(crate) fn record_mounted_rows(rows: usize) {
 
 pub(crate) fn record_full_session_save() {
     update(|snapshot| snapshot.full_session_saves += 1);
+}
+
+pub(crate) fn record_runtime_borrow() {
+    update(|snapshot| snapshot.runtime_borrows += 1);
+}
+
+pub(crate) fn record_runtime_clone() {
+    update(|snapshot| snapshot.runtime_clones += 1);
 }

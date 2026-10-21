@@ -7,6 +7,7 @@ use std::borrow::Cow;
 
 use crate::app::App;
 use crate::app::models::{self, ParsedChatBlock};
+use crate::app::session::chat_timeline::{ChatEntryKey, ChatEntryRevision};
 
 use super::super::tools::{is_explore_tool, tool_identity_from_raw, tool_name_from_raw};
 use super::super::utils::{normalize_display_text, strip_internal_tool_trace, truncate_chars};
@@ -17,6 +18,58 @@ use super::tool_summaries::{
 };
 
 const LARGE_MESSAGE_RAW_CHARS: usize = 12_000;
+const RENDER_WIDTH_BUCKET_PX: f32 = 32.0;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RevisionRenderKey {
+    entry_key: ChatEntryKey,
+    revision: ChatEntryRevision,
+    width_bucket: u32,
+    dark_theme: bool,
+    show_reasoning_summary: bool,
+}
+
+impl RevisionRenderKey {
+    pub(crate) fn new(
+        entry_key: ChatEntryKey,
+        revision: ChatEntryRevision,
+        width: f32,
+        dark_theme: bool,
+        show_reasoning_summary: bool,
+    ) -> Self {
+        Self {
+            entry_key,
+            revision,
+            width_bucket: width_bucket(width),
+            dark_theme,
+            show_reasoning_summary,
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn matches(
+        &self,
+        entry_key: &ChatEntryKey,
+        revision: ChatEntryRevision,
+        width: f32,
+        dark_theme: bool,
+        show_reasoning_summary: bool,
+    ) -> bool {
+        self.entry_key == *entry_key
+            && self.revision == revision
+            && self.width_bucket == width_bucket(width)
+            && self.dark_theme == dark_theme
+            && self.show_reasoning_summary == show_reasoning_summary
+    }
+
+    pub(crate) fn matches_key(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+fn width_bucket(width: f32) -> u32 {
+    (width.max(0.0) / RENDER_WIDTH_BUCKET_PX).floor() as u32
+}
 const LARGE_MESSAGE_VISIBLE_CHARS: usize = 8_000;
 const LARGE_MESSAGE_BLOCKS: usize = 12;
 const LARGE_MESSAGE_LINES: usize = 220;
@@ -192,6 +245,7 @@ pub(crate) fn build_render_cache_entry(
     let content_hash = hash_chat_content(raw);
 
     models::ChatRenderCacheEntry {
+        revision_key: None,
         content_hash,
         show_reasoning_summary,
         copy_content_hash: Some(copy_hash),

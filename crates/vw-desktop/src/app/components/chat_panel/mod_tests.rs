@@ -50,6 +50,20 @@ fn chat_message_column_fills_available_width() {
     assert_eq!(element.as_widget().size().width, iced::Length::Fill);
 }
 
+#[test]
+fn conversation_shell_borrows_runtime_once() {
+    let mut app = App::new().0;
+    app.active_session_id = Some("session".to_string());
+    app.current_session_runtime_mut().is_requesting = true;
+    app.chat = vec![message(ChatRole::User, "one"), message(ChatRole::Assistant, "two")];
+    super::performance::reset();
+
+    let _ = view(&app);
+
+    assert_eq!(super::performance::snapshot().runtime_borrows, 1);
+    assert_eq!(super::performance::snapshot().runtime_clones, 0);
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 #[tokio::test(flavor = "multi_thread")]
 async fn conversation_shell_uses_shared_reading_column_width() {

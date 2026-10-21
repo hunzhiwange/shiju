@@ -120,6 +120,20 @@ fn estimate_chat_message_height(message: &ChatMessage) -> f32 {
     )
 }
 
+fn revision_render_key(
+    app: &App,
+    idx: usize,
+) -> Option<crate::app::components::chat_panel::message_view::RevisionRenderKey> {
+    let target = app.paged_chat_timeline.as_ref()?.target_at(idx)?;
+    Some(crate::app::components::chat_panel::message_view::RevisionRenderKey::new(
+        target.key,
+        target.revision,
+        app.window_size.0,
+        crate::app::components::chat_panel::utils::is_dark_theme(&app.theme()),
+        app.dialogue_flow_show_reasoning_summary,
+    ))
+}
+
 /// 执行 chat_ui_chunk_start_idx 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
@@ -1012,6 +1026,7 @@ impl App {
 
         let mut is_chunk_fresh = true;
         for idx in chunk_start_idx..chunk_end_idx {
+            let revision_key = revision_render_key(self, idx);
             self.chat_message_editors[idx] = text_editor::Content::new();
             let expected_hash = crate::app::components::chat_panel::message_view::hash_chat_content(
                 &self.chat[idx].content,
@@ -1039,8 +1054,10 @@ impl App {
                 .get(&idx)
                 .is_some_and(|cached| cached.content_hash == render_entry.content_hash)
                 && self.chat_markdown_blocks.keys().any(|key| (*key >> 32) as usize == idx);
+            let mut render_entry = render_entry.clone();
+            render_entry.revision_key = revision_key;
             self.chat_render_cache.insert(idx, render_entry.clone());
-            sync_chat_aux_text_editors_for_message(self, idx, render_entry, reuse_markdown_cache);
+            sync_chat_aux_text_editors_for_message(self, idx, &render_entry, reuse_markdown_cache);
             let offset = idx - chunk_start_idx;
             self.chat_visible_text_cache[idx] = visible_texts.get(offset).cloned().flatten();
             self.chat_copy_hash_cache[idx] = copy_hashes.get(offset).copied().flatten();
@@ -1103,6 +1120,8 @@ impl App {
             .get(&message_idx)
             .is_some_and(|cached| cached.content_hash == render_cache.content_hash)
             && self.chat_markdown_blocks.keys().any(|key| (*key >> 32) as usize == message_idx);
+        let mut render_cache = render_cache;
+        render_cache.revision_key = revision_render_key(self, message_idx);
         self.chat_render_cache.insert(message_idx, render_cache.clone());
         sync_chat_aux_text_editors_for_message(
             self,

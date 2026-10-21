@@ -119,9 +119,10 @@ pub(crate) fn chat_global_status(
 }
 
 pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
-    let Some(status) =
-        chat_global_status_memoized(&app.chat, app.current_session_runtime().is_requesting)
-    else {
+    let Some(status) = chat_global_status_memoized(
+        &app.chat,
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting),
+    ) else {
         return Space::new().height(Length::Fixed(0.0)).into();
     };
     let is_thinking = status.is_thinking;

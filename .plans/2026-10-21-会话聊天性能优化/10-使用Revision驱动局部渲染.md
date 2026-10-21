@@ -2,7 +2,7 @@
 
 批次：【批次 6】 依赖批次 5
 
-状态：未开始
+状态：已完成，待回归验证
 
 目的：以稳定 key 与显式 revision 驱动消息行缓存失效，移除 view 热路径中的完整运行态克隆、完整消息克隆和全文哈希。
 
@@ -78,3 +78,12 @@
 ## 完成
 
 完成时记录 revision 的递增点、缓存 key 维度和改为借用的 runtime 调用链。不得在本任务接入 delta 调度或改变持久化协议。
+
+## 完成记录
+
+- `PagedChatTimeline::set_active` 在同一稳定活动条目内容变化时递增 revision；持久化条目沿用服务端 revision。
+- 完成态缓存键包含 `ChatEntryKey + ChatEntryRevision + 32px width bucket + dark theme + reasoning summary`。
+- `ChatPanel::view` 每次构建只借用一次当前 runtime，并向消息行传递 `is_requesting` 与模型引用；思考块沿调用链复用流式标志。
+- 槽位：1；`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`。
+- 通过：`revision_render_` 3 项、`message_view_` 68 项、`conversation_shell_` 3 项、clippy 全目标全特性。
+- 待回归：`runtime_` 过滤命令命中既有 `agents_settings_patch_uses_current_main_model_and_combines_runtime_fields` 失败（`Null != true`），与本任务渲染改动无关；本任务新增 runtime 借用测试单独通过。

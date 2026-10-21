@@ -45,6 +45,7 @@ use super::text::{should_segment_text_block, think_text_body};
 /// - 点击头部可展开/折叠内容
 /// - 鼠标悬停显示高亮效果
 /// - 流式输出时实时更新状态
+#[cfg(test)]
 pub(super) fn think_block_view<'a>(
     app: &'a App,
     msg_idx: usize,
@@ -53,7 +54,29 @@ pub(super) fn think_block_view<'a>(
     open: bool,
     timing: Option<&'a models::ThinkTiming>,
 ) -> Element<'a, Message> {
-    let runtime = app.current_session_runtime();
+    let is_streaming_msg =
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting)
+            && msg_idx + 1 == app.chat.len();
+    think_block_view_with_streaming(
+        app,
+        msg_idx,
+        think_idx,
+        content,
+        open,
+        timing,
+        is_streaming_msg,
+    )
+}
+
+pub(super) fn think_block_view_with_streaming<'a>(
+    app: &'a App,
+    msg_idx: usize,
+    think_idx: usize,
+    content: String,
+    open: bool,
+    timing: Option<&'a models::ThinkTiming>,
+    is_streaming_msg: bool,
+) -> Element<'a, Message> {
     let key = ((msg_idx as u64) << 32) | (think_idx as u64);
     let is_thinking = think_block_is_running(open, timing);
     let default_expanded =
@@ -64,7 +87,6 @@ pub(super) fn think_block_view<'a>(
         &app.chat_think_expanded,
         &app.chat_think_collapsed,
     );
-    let is_streaming_msg = runtime.is_requesting && msg_idx + 1 == app.chat.len();
     let now_ms = crate::app::time::now_ms();
 
     let (status_label, duration_label) = if let Some(timing) = timing {

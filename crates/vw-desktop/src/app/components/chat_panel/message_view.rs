@@ -93,7 +93,8 @@ pub(crate) use self::markdown::{
 };
 pub(crate) use self::parse::hash_chat_content;
 pub(crate) use self::render_cache::{
-    assistant_render_blocks, build_render_cache_entry, effective_assistant_render_cache,
+    RevisionRenderKey, assistant_render_blocks, build_render_cache_entry,
+    effective_assistant_render_cache,
 };
 pub(crate) use self::styles::{
     compaction_status_card_style, compaction_status_text_color, message_surface_contract,
@@ -229,6 +230,36 @@ pub fn message_view<'a>(
     render_cache: &'a models::ChatRenderCacheEntry,
     _enable_heavy_tool_content: bool,
 ) -> Element<'a, Message> {
+    let is_requesting =
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting);
+    message_view_with_runtime(
+        app,
+        idx,
+        role,
+        content,
+        think_timing,
+        processing_timing,
+        message_meta,
+        render_cache,
+        _enable_heavy_tool_content,
+        is_requesting,
+        None,
+    )
+}
+
+pub(crate) fn message_view_with_runtime<'a>(
+    app: &'a App,
+    idx: usize,
+    role: ChatRole,
+    content: &'a str,
+    think_timing: &'a [models::ThinkTiming],
+    processing_timing: Option<&ProcessingTiming>,
+    message_meta: Option<Cow<'a, str>>,
+    render_cache: &'a models::ChatRenderCacheEntry,
+    _enable_heavy_tool_content: bool,
+    is_requesting: bool,
+    expected_revision_key: Option<&RevisionRenderKey>,
+) -> Element<'a, Message> {
     if role == ChatRole::System && compaction_status_card_contract(content).is_some() {
         return container(
             container(iced_text(content).size(MESSAGE_META_TEXT_SIZE).style(|theme: &Theme| {
@@ -249,14 +280,24 @@ pub fn message_view<'a>(
         Cow::Borrowed(content)
     };
     let content = task_session_content.as_ref();
-    let runtime = app.current_session_runtime();
     let is_user = role == ChatRole::User;
     let assistant_like = matches!(role, ChatRole::Assistant | ChatRole::Tool);
     let is_streaming_assistant =
-        role == ChatRole::Assistant && runtime.is_requesting && idx + 1 == app.chat.len();
+        role == ChatRole::Assistant && is_requesting && idx + 1 == app.chat.len();
     let live_processing_elapsed_ms = is_streaming_assistant
-        .then(|| runtime.processing_timer.elapsed_ms_at(web_time::Instant::now()));
-    let content_hash = hash_chat_content(content);
+        .then(|| app.current_session_runtime_ref())
+        .flatten()
+        .map(|runtime| runtime.processing_timer.elapsed_ms_at(web_time::Instant::now()));
+    let cache_matches_revision = expected_revision_key.is_none_or(|expected| {
+        render_cache.revision_key.as_ref().is_some_and(|actual| actual.matches_key(expected))
+    });
+    let content_hash = if render_cache.content_hash == 0 || !cache_matches_revision {
+        #[cfg(test)]
+        super::performance::record_full_content_hash(content.len());
+        hash_chat_content(content)
+    } else {
+        render_cache.content_hash
+    };
     let (visible_for_copy, visible_content_hash) =
         resolve_visible_text_and_copy_hash(app, idx, content, content_hash, render_cache);
     let render_cache = effective_assistant_render_cache(

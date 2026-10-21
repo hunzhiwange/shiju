@@ -105,7 +105,6 @@ use self::global_status::chat_global_status_view;
 use self::header::chat_header_view;
 use self::height_index::CHAT_MESSAGE_GAP;
 use self::message_view::estimate_message_height_rough;
-use self::message_view::message_view;
 use self::utils::{chat_context_menu, chat_scroll_direction, icon_svg};
 use self::virtualizer::ChatVirtualWindow;
 #[cfg(test)]
@@ -463,15 +462,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
         col = col.push(Space::new().height(Length::Fixed(top_spacer_h)));
     }
 
+    let runtime = app.current_session_runtime_ref();
+    #[cfg(test)]
+    performance::record_runtime_borrow();
+    let runtime_is_requesting = runtime.is_some_and(|runtime| runtime.is_requesting);
+    let runtime_model = runtime.map_or(app.model.as_str(), |runtime| runtime.model.as_str());
+
     // 遍历聊天消息并添加到列中
     for (i, m) in chat_render_window(&app.chat, start_idx, end_idx) {
         // 流式响应标志：当前消息是助手消息、正在请求中且是最后一条消息
         let is_last = i + 1 == app.chat.len();
-        let _is_streaming =
-            m.role == ChatRole::Assistant && app.current_session_runtime().is_requesting && is_last;
-
-        let runtime = app.current_session_runtime();
+        let _is_streaming = m.role == ChatRole::Assistant && runtime_is_requesting && is_last;
         let render_cache = app.chat_render_cache.get(&i).unwrap_or(&FALLBACK_RENDER_CACHE_ENTRY);
+        let revision_key = app.paged_chat_timeline.as_ref().and_then(|timeline| {
+            let target = timeline.target_at(i)?;
+            Some(message_view::RevisionRenderKey::new(
+                target.key,
+                target.revision,
+                app.window_size.0,
+                self::utils::is_dark_theme(&app.theme()),
+                app.dialogue_flow_show_reasoning_summary,
+            ))
+        });
         let enable_heavy_tool_content = i >= visible_start_idx && i < visible_end_idx;
         let message_meta = app
             .active_session_view_state
@@ -480,11 +492,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .and_then(|meta| meta.as_deref())
             .map(Cow::Borrowed)
             .or_else(|| {
-                live_message_meta_fallback(m.role, runtime.is_requesting, is_last, &runtime.model)
+                live_message_meta_fallback(m.role, runtime_is_requesting, is_last, runtime_model)
                     .map(Cow::Owned)
             });
 
-        let message = message_view(
+        let message = message_view::message_view_with_runtime(
             app,
             i,
             m.role,
@@ -494,6 +506,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             message_meta,
             render_cache,
             enable_heavy_tool_content,
+            runtime_is_requesting,
+            revision_key.as_ref(),
         );
         let target = app.paged_chat_timeline.as_ref().and_then(|timeline| timeline.target_at(i));
         col = col.push(message_measure::MeasuredChatMessage::new(i, message).with_target(target));

@@ -16,6 +16,41 @@ fn keep_message_view(element: iced::Element<'_, crate::app::Message>) {
 }
 
 #[test]
+fn message_view_does_not_hash_full_content() {
+    let mut app = crate::app::App::new().0;
+    app.chat.push(ChatMessage {
+        role: ChatRole::Assistant,
+        content: "cached assistant response".to_string(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    let cache = super::build_render_cache_entry(
+        &app.chat[0].content,
+        &app.chat[0].content,
+        super::hash_chat_content(&app.chat[0].content),
+        false,
+    );
+    app.chat_visible_text_cache = vec![Some(app.chat[0].content.clone())];
+    app.chat_copy_hash_cache = vec![cache.copy_content_hash];
+    super::super::performance::reset();
+
+    keep_message_view(message_view(
+        &app,
+        0,
+        ChatRole::Assistant,
+        &app.chat[0].content,
+        &[],
+        None,
+        None,
+        &cache,
+        true,
+    ));
+
+    assert_eq!(super::super::performance::snapshot().full_content_hashes, 0);
+}
+
+#[test]
 fn message_view_actions_carry_identity_without_message_text() {
     let copy = copy_chat_message_action("session-1", 42);
     assert!(matches!(

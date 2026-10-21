@@ -25,7 +25,9 @@ use super::super::utils::{chat_secondary_text_color, is_dark_theme};
 use super::assistant_error::assistant_api_error_view;
 use super::styles::{ASSISTANT_BLOCK_SPACING, MESSAGE_TEXT_SIZE};
 use super::text::{message_editor_body, message_text_body, should_segment_text_block};
-use super::think_block::{should_render_think_block, think_block_is_running, think_block_view};
+use super::think_block::{
+    should_render_think_block, think_block_is_running, think_block_view_with_streaming,
+};
 use super::tool_summaries::{
     normalized_visible_text, should_hide_explore_link_box, should_hide_post_explore_tool_block,
     trailing_tool_tail_text_source_block_idx,
@@ -390,13 +392,14 @@ where
                         explore_items.clear();
                         explore_group_force_running = false;
                         explore_group_idx = explore_group_idx.saturating_add(1);
-                        body = body.push(think_block_view(
+                        body = body.push(think_block_view_with_streaming(
                             app,
                             idx,
                             think_idx,
                             content.clone(),
                             *open,
                             timing,
+                            is_streaming_assistant,
                         ));
                     } else if think_running {
                         // 思考块隐藏时，让前一个探索组继续保持运行态，直到下一个可见的非探索块收口。

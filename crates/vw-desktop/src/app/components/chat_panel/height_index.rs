@@ -112,6 +112,13 @@ impl ChatHeightIndex {
         self.fenwick_add(idx + 1, diff);
     }
 
+    #[cfg(test)]
+    pub(crate) fn append_heights(&mut self, heights: &[f32]) {
+        for height in heights {
+            self.append_height(*height);
+        }
+    }
+
     pub(crate) fn find_start_by_scroll_top(&self, px: f32) -> usize {
         if self.heights.is_empty() {
             return 0;
@@ -231,6 +238,19 @@ impl ChatHeightIndex {
             self.fenwick_tree[tree_idx] += diff;
             tree_idx += least_significant_bit(tree_idx);
         }
+    }
+
+    pub(crate) fn append_height(&mut self, height: f32) {
+        let height = height.max(0.0);
+        let slot_value = height + CHAT_MESSAGE_GAP;
+        let tree_idx = self.heights.len() + 1;
+        let range_start = tree_idx - least_significant_bit(tree_idx);
+        let covered_prefix = self.prefix_sum(tree_idx - 1) - self.prefix_sum(range_start);
+
+        self.heights.push(height);
+        self.slot_values.push(slot_value);
+        self.fenwick_tree.push(covered_prefix + slot_value);
+        self.total_slot_height += slot_value;
     }
 
     fn lower_bound_prefix(&self, target: f32) -> usize {

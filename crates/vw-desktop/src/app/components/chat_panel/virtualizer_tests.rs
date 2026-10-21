@@ -163,3 +163,70 @@ fn chat_virtualizer_turn_runway_shrinks_without_moving_anchor() {
     assert_eq!(virtualizer.trailing_runway_height_px(), 0.0);
     assert!(virtualizer.total_height_px() > resized_total);
 }
+
+#[test]
+fn chat_virtualizer_same_len_sync_does_not_rebuild() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&vec![40.0; 10_000]);
+    virtualizer.reset_diagnostics();
+
+    for index in 0..1_000 {
+        virtualizer.sync_len(10_000, 40.0);
+        virtualizer.apply_measured_height(index, 41.0);
+    }
+
+    let diagnostics = virtualizer.diagnostics();
+    assert_eq!(diagnostics.full_rebuilds, 0);
+    assert_eq!(diagnostics.appends, 0);
+    assert_eq!(diagnostics.point_updates, 1_000);
+    assert_eq!(diagnostics.prepend_rebuilds, 0);
+    assert_eq!(diagnostics.truncate_rebuilds, 0);
+    assert_eq!(virtualizer.len(), 10_000);
+    assert_eq!(virtualizer.estimated_height(999), Some(41.0));
+    assert_eq!(virtualizer.estimated_height(1_000), Some(40.0));
+}
+
+#[test]
+fn chat_virtualizer_append_extends_index_without_rebuild() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[40.0, 50.0]);
+    virtualizer.reset_diagnostics();
+
+    virtualizer.sync_len(5, 60.0);
+
+    let diagnostics = virtualizer.diagnostics();
+    assert_eq!(diagnostics.full_rebuilds, 0);
+    assert_eq!(diagnostics.appends, 3);
+    assert_eq!(diagnostics.truncate_rebuilds, 0);
+    assert_eq!(virtualizer.estimated_heights(), &[40.0, 50.0, 60.0, 60.0, 60.0]);
+}
+
+#[test]
+fn chat_virtualizer_prepend_reports_anchor_delta() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 100.0, 120.0]);
+    virtualizer.set_viewport_height(120.0);
+    virtualizer.preserve_anchor(ChatScrollAnchor::new(1, 12.0));
+    let before = virtualizer.scroll_top_px();
+    virtualizer.reset_diagnostics();
+
+    let anchor_delta = virtualizer.prepend_estimated_heights(&[40.0, 60.0]);
+
+    assert_eq!(anchor_delta, 40.0 + 60.0 + CHAT_MESSAGE_GAP * 2.0);
+    assert_eq!(virtualizer.scroll_top_px(), before + anchor_delta);
+    assert_eq!(virtualizer.anchor(), Some(ChatScrollAnchor::new(3, 12.0)));
+    let diagnostics = virtualizer.diagnostics();
+    assert_eq!(diagnostics.full_rebuilds, 1);
+    assert_eq!(diagnostics.prepend_rebuilds, 1);
+}
+
+#[test]
+fn chat_virtualizer_truncate_rebuilds_once() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[40.0, 50.0, 60.0, 70.0]);
+    virtualizer.reset_diagnostics();
+
+    virtualizer.sync_len(2, 80.0);
+
+    assert_eq!(virtualizer.estimated_heights(), &[40.0, 50.0]);
+    let diagnostics = virtualizer.diagnostics();
+    assert_eq!(diagnostics.full_rebuilds, 1);
+    assert_eq!(diagnostics.prepend_rebuilds, 0);
+    assert_eq!(diagnostics.truncate_rebuilds, 1);
+}

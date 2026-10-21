@@ -39,6 +39,16 @@ pub struct ChatVirtualWindow {
     pub total_height_px: f32,
 }
 
+#[cfg(test)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct ChatVirtualizerDiagnostics {
+    pub(crate) full_rebuilds: usize,
+    pub(crate) appends: usize,
+    pub(crate) point_updates: usize,
+    pub(crate) prepend_rebuilds: usize,
+    pub(crate) truncate_rebuilds: usize,
+}
+
 impl ChatVirtualWindow {
     fn from_height_window(
         height_window: ChatHeightWindow,
@@ -71,6 +81,8 @@ pub struct ChatVirtualizer {
     scroll_mode: ChatScrollMode,
     anchor: Option<ChatScrollAnchor>,
     turn_focus_user_index: Option<usize>,
+    #[cfg(test)]
+    diagnostics: ChatVirtualizerDiagnostics,
 }
 
 impl Default for ChatVirtualizer {
@@ -83,6 +95,8 @@ impl Default for ChatVirtualizer {
             scroll_mode: ChatScrollMode::Free,
             anchor: None,
             turn_focus_user_index: None,
+            #[cfg(test)]
+            diagnostics: ChatVirtualizerDiagnostics::default(),
         }
     }
 }
@@ -152,14 +166,32 @@ impl ChatVirtualizer {
     }
 
     pub fn sync_len(&mut self, len: usize, estimated_height: f32) {
-        self.heights.truncate(len);
-        if self.heights.len() < len {
-            self.heights.resize(len, estimated_height.max(0.0));
+        let previous_len = self.heights.len();
+        match len.cmp(&previous_len) {
+            std::cmp::Ordering::Equal => return,
+            std::cmp::Ordering::Greater => {
+                let appended = len - previous_len;
+                let estimated_height = estimated_height.max(0.0);
+                self.heights.resize(len, estimated_height);
+                for _ in 0..appended {
+                    self.height_index.append_height(estimated_height);
+                }
+                #[cfg(test)]
+                {
+                    self.diagnostics.appends += appended;
+                }
+            }
+            std::cmp::Ordering::Less => {
+                self.heights.truncate(len);
+                self.height_index.set_heights(&self.heights);
+                #[cfg(test)]
+                {
+                    self.diagnostics.full_rebuilds += 1;
+                    self.diagnostics.truncate_rebuilds += 1;
+                    super::performance::record_height_index_rebuild();
+                }
+            }
         }
-
-        self.height_index.set_heights(&self.heights);
-        #[cfg(test)]
-        super::performance::record_height_index_rebuild();
         if self.turn_focus_user_index.is_some_and(|index| index >= len) {
             self.clear_turn_focus();
         }
@@ -175,7 +207,10 @@ impl ChatVirtualizer {
         self.heights = heights.iter().map(|height| height.max(0.0)).collect();
         self.height_index.set_heights(&self.heights);
         #[cfg(test)]
-        super::performance::record_height_index_rebuild();
+        {
+            self.diagnostics.full_rebuilds += 1;
+            super::performance::record_height_index_rebuild();
+        }
         if self.turn_focus_user_index.is_some_and(|index| index >= self.heights.len()) {
             self.clear_turn_focus();
         }
@@ -185,6 +220,38 @@ impl ChatVirtualizer {
         }
         self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
+    }
+
+    pub fn prepend_estimated_heights(&mut self, heights: &[f32]) -> f32 {
+        if heights.is_empty() {
+            return 0.0;
+        }
+
+        let prepended: Vec<f32> = heights.iter().map(|height| height.max(0.0)).collect();
+        let prepended_len = prepended.len();
+        let anchor_delta = prepended.iter().sum::<f32>()
+            + super::height_index::CHAT_MESSAGE_GAP * prepended_len as f32;
+        let mut combined = Vec::with_capacity(prepended_len + self.heights.len());
+        combined.extend_from_slice(&prepended);
+        combined.extend_from_slice(&self.heights);
+        self.heights = combined;
+        self.height_index.set_heights(&self.heights);
+        self.scroll_top_px += anchor_delta;
+        if let Some(anchor) = &mut self.anchor {
+            anchor.index += prepended_len;
+        }
+        if let Some(user_index) = &mut self.turn_focus_user_index {
+            *user_index += prepended_len;
+        }
+        #[cfg(test)]
+        {
+            self.diagnostics.full_rebuilds += 1;
+            self.diagnostics.prepend_rebuilds += 1;
+            super::performance::record_height_index_rebuild();
+        }
+        self.refresh_turn_runway();
+        self.reconcile_scroll_after_height_change();
+        anchor_delta
     }
 
     pub fn set_viewport_height(&mut self, viewport_h: f32) {
@@ -218,7 +285,10 @@ impl ChatVirtualizer {
         self.heights[idx] = next_height;
         self.height_index.update_height(idx, next_height);
         #[cfg(test)]
-        super::performance::record_height_point_update();
+        {
+            self.diagnostics.point_updates += 1;
+            super::performance::record_height_point_update();
+        }
         self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
     }
@@ -308,6 +378,16 @@ impl ChatVirtualizer {
 
     pub fn window(&self) -> ChatVirtualWindow {
         self.compute_window(CHAT_VIRTUALIZATION_OVERSCAN_PX)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn diagnostics(&self) -> ChatVirtualizerDiagnostics {
+        self.diagnostics
+    }
+
+    #[cfg(test)]
+    pub(crate) fn reset_diagnostics(&mut self) {
+        self.diagnostics = ChatVirtualizerDiagnostics::default();
     }
 
     fn reconcile_scroll_after_height_change(&mut self) {

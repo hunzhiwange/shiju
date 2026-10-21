@@ -145,3 +145,27 @@ fn chat_height_index_includes_trailing_runway_in_bottom_spacer() {
             < 0.01
     );
 }
+
+#[test]
+fn height_index_updates_one_point() {
+    let heights = vec![40.0; 10_000];
+    let mut index = ChatHeightIndex::from_heights(&heights);
+    let following_item_top = index.scroll_top_for_item(5_001);
+
+    index.update_height(5_000, 64.0);
+
+    assert_eq!(index.scroll_top_for_item(5_000), 5_000.0 * (40.0 + CHAT_MESSAGE_GAP));
+    assert_eq!(index.scroll_top_for_item(5_001), following_item_top + 24.0);
+}
+
+#[test]
+fn height_index_appends_without_changing_existing_prefixes() {
+    let mut index = ChatHeightIndex::from_heights(&[40.0, 60.0]);
+    let existing_prefix = index.scroll_top_for_item(2);
+
+    index.append_heights(&[80.0, 100.0]);
+
+    assert_eq!(index.len(), 4);
+    assert_eq!(index.scroll_top_for_item(2), existing_prefix);
+    assert_eq!(index.scroll_top_for_item(4), 40.0 + 60.0 + 80.0 + 100.0 + CHAT_MESSAGE_GAP * 4.0);
+}

@@ -9,13 +9,16 @@ use anyhow::{Context, Result, bail};
 use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
-    ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming, SessionTodoItem,
-    ThinkTiming, TokenUsage, ToolTiming,
+    ChatMessage, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
+    SessionMessageDelta, SessionMessagePage, SessionMessageRecord, SessionTodoItem, ThinkTiming,
+    TokenUsage, ToolTiming,
 };
 
 use super::{
-    LlmRawArtifact, LlmRawRound, LlmRawTurnContext, from_i64, from_i64_usize, parse_agent_info,
+    LlmRawArtifact, LlmRawRound, LlmRawTurnContext, SessionMessageDeltaResult, from_i64,
+    from_i64_usize, message_processing_values, parse_agent_info, resulting_message_count,
     role_from_db, role_to_db, session_last_content, to_i64, usize_to_i64,
+    validate_session_message_delta,
 };
 use crate::global_database::GlobalDatabase;
 
@@ -394,6 +397,37 @@ impl PostgresSessionStore {
     ) -> Result<Option<ChatSession>> {
         let mut connection = self.database.connect_postgres()?;
         load_session(&mut *connection, scope, session_id)
+    }
+
+    pub(super) fn load_session_message_page(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        before_seq_no: Option<u64>,
+        limit: usize,
+    ) -> Result<SessionMessagePage> {
+        let mut connection = self.database.connect_postgres()?;
+        load_session_message_page_postgres(
+            &mut *connection,
+            scope,
+            session_id,
+            before_seq_no,
+            limit,
+        )
+    }
+
+    pub(super) fn apply_session_message_delta(
+        &self,
+        scope: &ProjectScope,
+        delta: &SessionMessageDelta,
+    ) -> Result<SessionMessageDeltaResult> {
+        validate_session_message_delta(delta)?;
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction =
+            connection.transaction().context("begin PostgreSQL session message delta")?;
+        let result = apply_session_message_delta_postgres(&mut transaction, scope, delta)?;
+        transaction.commit().context("commit PostgreSQL session message delta")?;
+        Ok(result)
     }
 
     /// 在租户内查找最近更新的同标识会话，再以其项目作用域加载。
@@ -931,6 +965,219 @@ impl PostgresSessionStore {
             .context("delete scoped PostgreSQL agent session")?;
         Ok(changed == 1)
     }
+}
+
+fn load_session_message_page_postgres(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+    before_seq_no: Option<u64>,
+    limit: usize,
+) -> Result<SessionMessagePage> {
+    let fetch_limit = limit.checked_add(1).context("session message page limit overflow")?;
+    let fetch_limit = usize_to_i64(fetch_limit, "session message page limit")?;
+    let rows = match before_seq_no {
+        Some(before) => {
+            let before = to_i64(before, "session message page boundary")?;
+            client.query(
+                "SELECT seq_no, message_id, role, content, model, think_timing_json,
+                        processing_started_ms, processing_completed_ms, processing_elapsed_ms,
+                        processing_llm_elapsed_ms
+                 FROM session_messages
+                 WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+                   AND seq_no < $5
+                 ORDER BY seq_no DESC LIMIT $6",
+                &[
+                    &scope.platform_id().as_ref(),
+                    &scope.company_id().as_ref(),
+                    &scope.project_id().as_ref(),
+                    &session_id,
+                    &before,
+                    &fetch_limit,
+                ],
+            )?
+        }
+        None => client.query(
+            "SELECT seq_no, message_id, role, content, model, think_timing_json,
+                    processing_started_ms, processing_completed_ms, processing_elapsed_ms,
+                    processing_llm_elapsed_ms
+             FROM session_messages
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             ORDER BY seq_no DESC LIMIT $5",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &session_id,
+                &fetch_limit,
+            ],
+        )?,
+    };
+    let mut records = rows
+        .iter()
+        .map(|row| postgres_message_record(row, session_id))
+        .collect::<Result<Vec<_>>>()?;
+    let has_more = records.len() > limit;
+    records.truncate(limit);
+    records.reverse();
+    Ok(SessionMessagePage { records, has_more })
+}
+
+fn postgres_message_record(row: &Row, session_id: &str) -> Result<SessionMessageRecord> {
+    let processing_started_ms: Option<i64> = row.try_get(6)?;
+    let processing_completed_ms: Option<i64> = row.try_get(7)?;
+    let processing_elapsed_ms: Option<i64> = row.try_get(8)?;
+    let processing_llm_elapsed_ms: Option<i64> = row.try_get(9)?;
+    let processing_timing = match (processing_started_ms, processing_completed_ms) {
+        (None, None) => None,
+        (Some(started_ms), completed_ms) => Some(ProcessingTiming {
+            started_ms: from_i64(started_ms, "message processing started_ms")?,
+            completed_ms: completed_ms
+                .map(|value| from_i64(value, "message processing completed_ms"))
+                .transpose()?,
+            processing_elapsed_ms: processing_elapsed_ms
+                .map(|value| from_i64(value, "message processing elapsed_ms"))
+                .transpose()?,
+            llm_elapsed_ms: processing_llm_elapsed_ms
+                .map(|value| from_i64(value, "message processing llm_elapsed_ms"))
+                .transpose()?,
+        }),
+        (None, Some(_)) => {
+            bail!("session message processing completed_ms exists without started_ms: {session_id}")
+        }
+    };
+    let role: String = row.try_get(2)?;
+    let think_timing_json: String = row.try_get(5)?;
+    Ok(SessionMessageRecord {
+        seq_no: from_i64(row.try_get(0)?, "message seq_no")?,
+        message_id: row.try_get(1)?,
+        message: ChatMessage {
+            role: role_from_db(&role)?,
+            content: row.try_get(3)?,
+            model: row.try_get(4)?,
+            think_timing: serde_json::from_str(&think_timing_json).with_context(|| {
+                format!("parse session message think timing JSON: {session_id}")
+            })?,
+            processing_timing,
+        },
+    })
+}
+
+fn apply_session_message_delta_postgres(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    delta: &SessionMessageDelta,
+) -> Result<SessionMessageDeltaResult> {
+    let row = client
+        .query_opt(
+            "SELECT updated_ms, message_count FROM session_index
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             FOR UPDATE",
+            scoped_id_params!(scope, &delta.session_id),
+        )?
+        .context("session message delta target does not exist")?;
+    let stored_updated_ms = from_i64(row.try_get(0)?, "session updated_ms")?;
+    if stored_updated_ms != delta.expected_updated_ms {
+        bail!(
+            "stale session message delta for {}: expected updated_ms {}, stored updated_ms {}",
+            delta.session_id,
+            delta.expected_updated_ms,
+            stored_updated_ms
+        );
+    }
+    let message_count = resulting_message_count(
+        from_i64(row.try_get(1)?, "session message_count")?,
+        delta.truncate_after,
+        &delta.upserts,
+    )?;
+    let truncated_rows = if let Some(boundary) = delta.truncate_after {
+        let boundary = to_i64(boundary, "message truncate boundary")?;
+        client.execute(
+            "DELETE FROM session_messages
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+               AND seq_no > $5",
+            &[
+                &scope.platform_id().as_ref(),
+                &scope.company_id().as_ref(),
+                &scope.project_id().as_ref(),
+                &delta.session_id,
+                &boundary,
+            ],
+        )? as usize
+    } else {
+        0
+    };
+    for record in &delta.upserts {
+        upsert_session_message_postgres(client, scope, &delta.session_id, record)?;
+    }
+    let last_content = client
+        .query_opt(
+            "SELECT content FROM session_messages
+             WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4
+             ORDER BY seq_no DESC LIMIT 1",
+            scoped_id_params!(scope, &delta.session_id),
+        )?
+        .map(|row| row.try_get::<_, String>(0))
+        .transpose()?;
+    let updated_ms = to_i64(delta.updated_ms, "session updated_ms")?;
+    let message_count = to_i64(message_count, "session message_count")?;
+    client.execute(
+        "UPDATE session_index SET updated_ms = $5, message_count = $6, last_content = $7
+         WHERE platform_id = $1 AND company_id = $2 AND project_id = $3 AND session_id = $4",
+        &[
+            &scope.platform_id().as_ref(),
+            &scope.company_id().as_ref(),
+            &scope.project_id().as_ref(),
+            &delta.session_id,
+            &updated_ms,
+            &message_count,
+            &last_content,
+        ],
+    )?;
+    Ok(SessionMessageDeltaResult { upserted_rows: delta.upserts.len(), truncated_rows })
+}
+
+fn upsert_session_message_postgres(
+    client: &mut impl GenericClient,
+    scope: &ProjectScope,
+    session_id: &str,
+    record: &SessionMessageRecord,
+) -> Result<()> {
+    let message = &record.message;
+    let seq_no = to_i64(record.seq_no, "message seq_no")?;
+    let think_timing_json = serde_json::to_string(&message.think_timing)?;
+    let (started, completed, elapsed, llm_elapsed) = message_processing_values(message)?;
+    client.execute(
+        "INSERT INTO session_messages (
+             platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+             content, model, think_timing_json, processing_started_ms, processing_completed_ms,
+             processing_elapsed_ms, processing_llm_elapsed_ms
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         ON CONFLICT (platform_id, company_id, project_id, session_id, seq_no) DO UPDATE SET
+             role = excluded.role, message_id = excluded.message_id, content = excluded.content,
+             model = excluded.model, think_timing_json = excluded.think_timing_json,
+             processing_started_ms = excluded.processing_started_ms,
+             processing_completed_ms = excluded.processing_completed_ms,
+             processing_elapsed_ms = excluded.processing_elapsed_ms,
+             processing_llm_elapsed_ms = excluded.processing_llm_elapsed_ms",
+        &[
+            &scope.platform_id().as_ref(),
+            &scope.company_id().as_ref(),
+            &scope.project_id().as_ref(),
+            &session_id,
+            &seq_no,
+            &role_to_db(message.role),
+            &record.message_id,
+            &message.content,
+            &message.model,
+            &think_timing_json,
+            &started,
+            &completed,
+            &elapsed,
+            &llm_elapsed,
+        ],
+    )?;
+    Ok(())
 }
 
 fn reject_stale_session_ui_content(

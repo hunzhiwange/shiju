@@ -7,7 +7,8 @@ use vw_api_types::id::{ProjectId, ProjectScope, TenantScope};
 use vw_shared::session::info::Info as AgentSessionInfo;
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
-    SessionTodoItem, ThinkTiming, TokenUsage, ToolTiming,
+    SessionMessageDelta, SessionMessagePage, SessionMessageRecord, SessionTodoItem, ThinkTiming,
+    TokenUsage, ToolTiming,
 };
 
 use crate::global_database::config::DatabaseProvider;
@@ -236,6 +237,12 @@ pub struct SessionStore {
     provider: SessionStoreProvider,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SessionMessageDeltaResult {
+    pub upserted_rows: usize,
+    pub truncated_rows: usize,
+}
+
 /// 一个已完成 LLM 调用的稳定标识。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LlmRawStepKey {
@@ -414,6 +421,48 @@ impl SessionStore {
             }
             SessionStoreProvider::Postgres(store) => {
                 run_sync_database(|| store.load_session(scope, session_id))
+            }
+        }
+    }
+
+    pub fn load_session_message_page(
+        &self,
+        scope: &ProjectScope,
+        session_id: &str,
+        before_seq_no: Option<u64>,
+        limit: usize,
+    ) -> Result<SessionMessagePage> {
+        validate_id("session id", session_id)?;
+        if limit == 0 {
+            bail!("session message page limit must be greater than zero");
+        }
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => load_session_message_page_sqlite(
+                &database.connect_sqlite()?,
+                scope,
+                session_id,
+                before_seq_no,
+                limit,
+            ),
+            SessionStoreProvider::Postgres(store) => run_sync_database(|| {
+                store.load_session_message_page(scope, session_id, before_seq_no, limit)
+            }),
+        }
+    }
+
+    pub fn apply_session_message_delta(
+        &self,
+        scope: &ProjectScope,
+        delta: &SessionMessageDelta,
+    ) -> Result<SessionMessageDeltaResult> {
+        validate_session_message_delta(delta)?;
+        match &self.provider {
+            SessionStoreProvider::Sqlite(database) => database
+                .with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
+                    apply_session_message_delta_sqlite(transaction, scope, delta)
+                }),
+            SessionStoreProvider::Postgres(store) => {
+                run_sync_database(|| store.apply_session_message_delta(scope, delta))
             }
         }
     }
@@ -1568,6 +1617,291 @@ fn upsert_session_llm_raw_round(
         ],
     )?;
     Ok(())
+}
+
+fn validate_session_message_delta(delta: &SessionMessageDelta) -> Result<()> {
+    validate_id("session id", &delta.session_id)?;
+    if delta.updated_ms < delta.expected_updated_ms {
+        bail!(
+            "session message delta updated_ms {} is older than expected version {}",
+            delta.updated_ms,
+            delta.expected_updated_ms
+        );
+    }
+    let mut seq_nos = HashSet::with_capacity(delta.upserts.len());
+    for record in &delta.upserts {
+        if !seq_nos.insert(record.seq_no) {
+            bail!("duplicate session message seq_no in delta: {}", record.seq_no);
+        }
+        if let Some(message_id) = record.message_id.as_deref() {
+            validate_id("message id", message_id)?;
+        }
+    }
+    Ok(())
+}
+
+fn resulting_message_count(
+    current_count: u64,
+    truncate_after: Option<u64>,
+    upserts: &[SessionMessageRecord],
+) -> Result<u64> {
+    let base_count = truncate_after
+        .map(|boundary| current_count.min(boundary.saturating_add(1)))
+        .unwrap_or(current_count);
+    let mut appended = upserts
+        .iter()
+        .map(|record| record.seq_no)
+        .filter(|seq_no| *seq_no >= base_count)
+        .collect::<Vec<_>>();
+    appended.sort_unstable();
+    for (offset, seq_no) in appended.iter().enumerate() {
+        let expected = base_count
+            .checked_add(u64::try_from(offset).context("session message delta size overflow")?)
+            .context("session message count overflow")?;
+        if *seq_no != expected {
+            bail!("session message delta would create a seq_no gap at {expected}");
+        }
+    }
+    base_count
+        .checked_add(u64::try_from(appended.len()).context("session message delta size overflow")?)
+        .context("session message count overflow")
+}
+
+fn load_session_message_page_sqlite(
+    connection: &Connection,
+    scope: &ProjectScope,
+    session_id: &str,
+    before_seq_no: Option<u64>,
+    limit: usize,
+) -> Result<SessionMessagePage> {
+    let fetch_limit = limit.checked_add(1).context("session message page limit overflow")?;
+    let fetch_limit = usize_to_i64(fetch_limit, "session message page limit")?;
+    let before_seq_no =
+        before_seq_no.map(|value| to_i64(value, "session message page boundary")).transpose()?;
+    let sql = if before_seq_no.is_some() {
+        "SELECT seq_no, message_id, role, content, model, think_timing_json,
+                processing_started_ms, processing_completed_ms, processing_elapsed_ms,
+                processing_llm_elapsed_ms
+         FROM session_messages
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+           AND seq_no < ?5
+         ORDER BY seq_no DESC LIMIT ?6"
+    } else {
+        "SELECT seq_no, message_id, role, content, model, think_timing_json,
+                processing_started_ms, processing_completed_ms, processing_elapsed_ms,
+                processing_llm_elapsed_ms
+         FROM session_messages
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+         ORDER BY seq_no DESC LIMIT ?5"
+    };
+    let mut statement = connection.prepare(sql)?;
+    let mut rows = match before_seq_no {
+        Some(before) => statement.query(params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            session_id,
+            before,
+            fetch_limit
+        ])?,
+        None => statement.query(params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            session_id,
+            fetch_limit
+        ])?,
+    };
+    let mut records = Vec::with_capacity(limit.saturating_add(1));
+    while let Some(row) = rows.next()? {
+        records.push(sqlite_message_record(row, session_id)?);
+    }
+    let has_more = records.len() > limit;
+    records.truncate(limit);
+    records.reverse();
+    Ok(SessionMessagePage { records, has_more })
+}
+
+fn sqlite_message_record(
+    row: &rusqlite::Row<'_>,
+    session_id: &str,
+) -> Result<SessionMessageRecord> {
+    let seq_no = from_i64(row.get(0)?, "message seq_no")?;
+    let role: String = row.get(2)?;
+    let think_timing_json: String = row.get(5)?;
+    let processing_started_ms: Option<i64> = row.get(6)?;
+    let processing_completed_ms: Option<i64> = row.get(7)?;
+    let processing_elapsed_ms: Option<i64> = row.get(8)?;
+    let processing_llm_elapsed_ms: Option<i64> = row.get(9)?;
+    let processing_timing = match (processing_started_ms, processing_completed_ms) {
+        (None, None) => None,
+        (Some(started_ms), completed_ms) => Some(ProcessingTiming {
+            started_ms: from_i64(started_ms, "message processing started_ms")?,
+            completed_ms: completed_ms
+                .map(|value| from_i64(value, "message processing completed_ms"))
+                .transpose()?,
+            processing_elapsed_ms: processing_elapsed_ms
+                .map(|value| from_i64(value, "message processing elapsed_ms"))
+                .transpose()?,
+            llm_elapsed_ms: processing_llm_elapsed_ms
+                .map(|value| from_i64(value, "message processing llm_elapsed_ms"))
+                .transpose()?,
+        }),
+        (None, Some(_)) => {
+            bail!("session message processing completed_ms exists without started_ms: {session_id}")
+        }
+    };
+    Ok(SessionMessageRecord {
+        seq_no,
+        message_id: row.get(1)?,
+        message: ChatMessage {
+            role: role_from_db(&role)?,
+            content: row.get(3)?,
+            model: row.get(4)?,
+            think_timing: serde_json::from_str(&think_timing_json).with_context(|| {
+                format!("parse session message think timing JSON: {session_id}")
+            })?,
+            processing_timing,
+        },
+    })
+}
+
+fn apply_session_message_delta_sqlite(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    delta: &SessionMessageDelta,
+) -> Result<SessionMessageDeltaResult> {
+    let (stored_updated_ms, stored_message_count) = transaction
+        .query_row(
+            "SELECT updated_ms, message_count FROM session_index
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+            scoped_id_params(scope, &delta.session_id),
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+        )
+        .optional()?
+        .context("session message delta target does not exist")?;
+    let stored_updated_ms = from_i64(stored_updated_ms, "session updated_ms")?;
+    if stored_updated_ms != delta.expected_updated_ms {
+        bail!(
+            "stale session message delta for {}: expected updated_ms {}, stored updated_ms {}",
+            delta.session_id,
+            delta.expected_updated_ms,
+            stored_updated_ms
+        );
+    }
+    let message_count = resulting_message_count(
+        from_i64(stored_message_count, "session message_count")?,
+        delta.truncate_after,
+        &delta.upserts,
+    )?;
+
+    let truncated_rows = if let Some(boundary) = delta.truncate_after {
+        transaction.execute(
+            "DELETE FROM session_messages
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+               AND seq_no > ?5",
+            params![
+                scope.platform_id().as_ref(),
+                scope.company_id().as_ref(),
+                scope.project_id().as_ref(),
+                delta.session_id,
+                to_i64(boundary, "message truncate boundary")?
+            ],
+        )?
+    } else {
+        0
+    };
+    for record in &delta.upserts {
+        upsert_session_message_sqlite(transaction, scope, &delta.session_id, record)?;
+    }
+    let last_content: Option<String> = transaction
+        .query_row(
+            "SELECT content FROM session_messages
+             WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4
+             ORDER BY seq_no DESC LIMIT 1",
+            scoped_id_params(scope, &delta.session_id),
+            |row| row.get(0),
+        )
+        .optional()?;
+    transaction.execute(
+        "UPDATE session_index SET updated_ms = ?5, message_count = ?6, last_content = ?7
+         WHERE platform_id = ?1 AND company_id = ?2 AND project_id = ?3 AND session_id = ?4",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            delta.session_id,
+            to_i64(delta.updated_ms, "session updated_ms")?,
+            to_i64(message_count, "session message_count")?,
+            last_content
+        ],
+    )?;
+    Ok(SessionMessageDeltaResult { upserted_rows: delta.upserts.len(), truncated_rows })
+}
+
+fn upsert_session_message_sqlite(
+    transaction: &Transaction<'_>,
+    scope: &ProjectScope,
+    session_id: &str,
+    record: &SessionMessageRecord,
+) -> Result<()> {
+    let message = &record.message;
+    let think_timing_json = serde_json::to_string(&message.think_timing)?;
+    let (started, completed, elapsed, llm_elapsed) = message_processing_values(message)?;
+    transaction.execute(
+        "INSERT INTO session_messages (
+             platform_id, company_id, project_id, session_id, seq_no, role, message_id,
+             content, model, think_timing_json, processing_started_ms, processing_completed_ms,
+             processing_elapsed_ms, processing_llm_elapsed_ms
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+         ON CONFLICT (platform_id, company_id, project_id, session_id, seq_no) DO UPDATE SET
+             role = excluded.role, message_id = excluded.message_id, content = excluded.content,
+             model = excluded.model, think_timing_json = excluded.think_timing_json,
+             processing_started_ms = excluded.processing_started_ms,
+             processing_completed_ms = excluded.processing_completed_ms,
+             processing_elapsed_ms = excluded.processing_elapsed_ms,
+             processing_llm_elapsed_ms = excluded.processing_llm_elapsed_ms",
+        params![
+            scope.platform_id().as_ref(),
+            scope.company_id().as_ref(),
+            scope.project_id().as_ref(),
+            session_id,
+            to_i64(record.seq_no, "message seq_no")?,
+            role_to_db(message.role),
+            record.message_id,
+            message.content,
+            message.model,
+            think_timing_json,
+            started,
+            completed,
+            elapsed,
+            llm_elapsed
+        ],
+    )?;
+    Ok(())
+}
+
+fn message_processing_values(
+    message: &ChatMessage,
+) -> Result<(Option<i64>, Option<i64>, Option<i64>, Option<i64>)> {
+    let Some(timing) = message.processing_timing.as_ref() else {
+        return Ok((None, None, None, None));
+    };
+    Ok((
+        Some(to_i64(timing.started_ms, "message processing started_ms")?),
+        timing
+            .completed_ms
+            .map(|value| to_i64(value, "message processing completed_ms"))
+            .transpose()?,
+        timing
+            .processing_elapsed_ms
+            .map(|value| to_i64(value, "message processing elapsed_ms"))
+            .transpose()?,
+        timing
+            .llm_elapsed_ms
+            .map(|value| to_i64(value, "message processing llm_elapsed_ms"))
+            .transpose()?,
+    ))
 }
 
 fn load_session_from_connection(

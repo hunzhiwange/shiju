@@ -55,6 +55,34 @@ pub struct ChatMessage {
     pub processing_timing: Option<ProcessingTiming>,
 }
 
+/// 一条带稳定存储序号和可选消息身份的会话消息。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionMessageRecord {
+    pub seq_no: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub message_id: Option<String>,
+    pub message: ChatMessage,
+}
+
+/// 按 `seq_no` 升序返回的固定大小消息页。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionMessagePage {
+    pub records: Vec<SessionMessageRecord>,
+    pub has_more: bool,
+}
+
+/// 对单个会话消息序列的原子增量修改。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SessionMessageDelta {
+    pub session_id: String,
+    pub expected_updated_ms: u64,
+    pub updated_ms: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub upserts: Vec<SessionMessageRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub truncate_after: Option<u64>,
+}
+
 /// 会话列表展示所需的轻量元数据。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSessionMeta {

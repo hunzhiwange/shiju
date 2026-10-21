@@ -3,14 +3,14 @@
 use crate::project;
 use crate::session::session as agent_session;
 #[cfg(not(target_arch = "wasm32"))]
-use crate::session::store::SessionStore;
+use crate::session::store::{SessionMessageDeltaResult, SessionStore};
 use crate::session::ui_config::{
     load_app_config, load_app_config_result, set_config_field, set_config_field_result,
 };
 /// 当前公开项是模块对外契约的一部分。
 pub use crate::session::ui_types::{
-    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionTodoItem,
-    ThinkTiming, TokenUsage, ToolTiming,
+    ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, SessionMessageDelta,
+    SessionMessagePage, SessionMessageRecord, SessionTodoItem, ThinkTiming, TokenUsage, ToolTiming,
 };
 #[cfg(not(target_arch = "wasm32"))]
 use anyhow::{Context, Result};
@@ -864,6 +864,40 @@ pub(crate) fn load_session_scoped_for_tenant_fallible(
     run_project_operation_fallible("load session", tenant, scope, |store, project_scope| {
         store.load_session(project_scope, id)
     })
+}
+
+/// 按稳定序号读取固定大小的会话消息页；`before_seq_no` 为排他上界。
+#[cfg(not(target_arch = "wasm32"))]
+pub fn load_session_message_page_scoped_for_tenant(
+    tenant: &TenantScope,
+    session_id: &str,
+    scope: Option<&str>,
+    before_seq_no: Option<u64>,
+    limit: usize,
+) -> anyhow::Result<SessionMessagePage> {
+    run_project_operation_fallible(
+        "load session message page",
+        tenant,
+        scope,
+        |store, project_scope| {
+            store.load_session_message_page(project_scope, session_id, before_seq_no, limit)
+        },
+    )
+}
+
+/// 原子应用会话消息增量，完整快照替换仍由现有保存接口显式承担。
+#[cfg(not(target_arch = "wasm32"))]
+pub fn apply_session_message_delta_scoped_for_tenant(
+    tenant: &TenantScope,
+    delta: &SessionMessageDelta,
+    scope: Option<&str>,
+) -> anyhow::Result<SessionMessageDeltaResult> {
+    run_project_operation_fallible(
+        "apply session message delta",
+        tenant,
+        scope,
+        |store, project_scope| store.apply_session_message_delta(project_scope, delta),
+    )
 }
 
 /// 执行 load_session 操作，并返回调用方需要的结果。

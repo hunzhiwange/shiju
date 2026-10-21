@@ -121,3 +121,43 @@ fn chat_session_step_round_trips_tool_timings() {
     assert_eq!(reloaded.turn_id, step.turn_id);
     assert_eq!(reloaded.tool_timings, step.tool_timings);
 }
+
+#[test]
+fn session_message_page_serializes_bounded_records() {
+    let page = super::SessionMessagePage {
+        records: vec![super::SessionMessageRecord {
+            seq_no: 7,
+            message_id: Some("message-7".to_owned()),
+            message: super::ChatMessage {
+                role: super::ChatRole::Assistant,
+                content: "bounded".to_owned(),
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            },
+        }],
+        has_more: true,
+    };
+
+    let value = serde_json::to_value(&page).unwrap();
+    assert_eq!(value["records"][0]["seq_no"], 7);
+    assert_eq!(value["records"][0]["message_id"], "message-7");
+    assert_eq!(value["has_more"], true);
+    assert_eq!(serde_json::from_value::<super::SessionMessagePage>(value).unwrap(), page);
+}
+
+#[test]
+fn session_message_delta_round_trips_version_and_truncate_boundary() {
+    let delta = super::SessionMessageDelta {
+        session_id: "session-1".to_owned(),
+        expected_updated_ms: 10,
+        updated_ms: 11,
+        upserts: Vec::new(),
+        truncate_after: Some(4),
+    };
+
+    let value = serde_json::to_value(&delta).unwrap();
+    assert_eq!(value["expected_updated_ms"], 10);
+    assert_eq!(value["truncate_after"], 4);
+    assert_eq!(serde_json::from_value::<super::SessionMessageDelta>(value).unwrap(), delta);
+}

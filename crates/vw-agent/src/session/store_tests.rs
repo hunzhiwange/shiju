@@ -11,7 +11,8 @@ use vw_shared::session::info::{
 };
 use vw_shared::session::ui_types::{
     ChatMessage, ChatRole, ChatSession, ChatSessionMeta, ChatSessionStep, ProcessingTiming,
-    SessionTodoItem, ThinkTiming, TokenUsage, ToolTiming,
+    SessionMessageDelta, SessionMessageRecord, SessionTodoItem, ThinkTiming, TokenUsage,
+    ToolTiming,
 };
 
 use super::store::{LlmRawStepKey, SessionStore};
@@ -38,6 +39,165 @@ const SESSION_TABLES: [&str; 9] = [
     "session_steps",
     "session_todos",
 ];
+
+#[test]
+fn session_message_page_reads_bounded_tail() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope = fixture.create_project(&fixture.tenant_a, "bounded-page")?;
+    let mut session = sample_session("bounded-page", "Bounded page", 100);
+    session.messages = (0..10_000).map(|index| message(format!("message-{index}"))).collect();
+    session.message_ids = (0..10_000).map(|index| Some(format!("id-{index}"))).collect();
+    fixture.store.save_session(&scope, &session)?;
+
+    let page = fixture.store.load_session_message_page(&scope, &session.id, None, 64)?;
+
+    assert_eq!(page.records.len(), 64);
+    assert_eq!(page.records.first().map(|record| record.seq_no), Some(9_936));
+    assert_eq!(page.records.last().map(|record| record.seq_no), Some(9_999));
+    assert!(page.has_more);
+    Ok(())
+}
+
+#[test]
+fn session_message_delta_upserts_only_changed_rows() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope = fixture.create_project(&fixture.tenant_a, "delta-upsert")?;
+    let session = sample_session("delta-upsert", "Delta", 100);
+    fixture.store.save_session(&scope, &session)?;
+    let delta = SessionMessageDelta {
+        session_id: session.id.clone(),
+        expected_updated_ms: 100,
+        updated_ms: 101,
+        upserts: vec![SessionMessageRecord {
+            seq_no: 1,
+            message_id: Some("changed-id".to_owned()),
+            message: message("changed"),
+        }],
+        truncate_after: None,
+    };
+
+    let result = fixture.store.apply_session_message_delta(&scope, &delta)?;
+
+    assert_eq!(result.upserted_rows, 1);
+    assert_eq!(result.truncated_rows, 0);
+    let page = fixture.store.load_session_message_page(&scope, &session.id, None, 10)?;
+    assert_eq!(page.records[1].message.content, "changed");
+    Ok(())
+}
+
+#[test]
+fn session_message_delta_rejects_stale_version() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope = fixture.create_project(&fixture.tenant_a, "delta-stale")?;
+    let session = sample_session("delta-stale", "Delta", 100);
+    fixture.store.save_session(&scope, &session)?;
+    let delta = SessionMessageDelta {
+        session_id: session.id.clone(),
+        expected_updated_ms: 99,
+        updated_ms: 101,
+        upserts: Vec::new(),
+        truncate_after: None,
+    };
+
+    let error = fixture.store.apply_session_message_delta(&scope, &delta).unwrap_err();
+    assert!(error.to_string().contains("stale session message delta"));
+    Ok(())
+}
+
+#[test]
+fn session_message_page_reads_bounded_previous_page_and_isolates_scope() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope_a = fixture.create_project(&fixture.tenant_a, "page-scope-a")?;
+    let scope_b = fixture.create_project(&fixture.tenant_a, "page-scope-b")?;
+    let mut session_a = sample_session("same-session", "A", 100);
+    session_a.messages = (0..6).map(|index| message(format!("a-{index}"))).collect();
+    session_a.message_ids = vec![None; 6];
+    let mut session_b = sample_session("same-session", "B", 100);
+    session_b.messages = (0..6).map(|index| message(format!("b-{index}"))).collect();
+    session_b.message_ids = vec![None; 6];
+    fixture.store.save_session(&scope_a, &session_a)?;
+    fixture.store.save_session(&scope_b, &session_b)?;
+
+    let page = fixture.store.load_session_message_page(&scope_a, "same-session", Some(4), 2)?;
+
+    assert_eq!(page.records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![2, 3]);
+    assert!(page.has_more);
+    assert!(page.records.iter().all(|record| record.message.content.starts_with("a-")));
+    Ok(())
+}
+
+#[test]
+fn session_message_delta_truncates_only_after_boundary_and_rejects_gaps() -> Result<()> {
+    let sqlite_home = tempfile::tempdir()?;
+    let database = GlobalDatabase::new(sqlite_home.path().join("database/_index.sqlite3"))?;
+    let fixture = StoreFixture::new(database)?;
+    let scope = fixture.create_project(&fixture.tenant_a, "delta-truncate")?;
+    let mut session = sample_session("delta-truncate", "Delta", 100);
+    session.messages = (0..5).map(|index| message(format!("message-{index}"))).collect();
+    session.message_ids = vec![None; 5];
+    fixture.store.save_session(&scope, &session)?;
+
+    let result = fixture.store.apply_session_message_delta(
+        &scope,
+        &SessionMessageDelta {
+            session_id: session.id.clone(),
+            expected_updated_ms: 100,
+            updated_ms: 101,
+            upserts: Vec::new(),
+            truncate_after: Some(2),
+        },
+    )?;
+    assert_eq!(result.truncated_rows, 2);
+    let page = fixture.store.load_session_message_page(&scope, &session.id, None, 10)?;
+    assert_eq!(page.records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![0, 1, 2]);
+
+    let error = fixture
+        .store
+        .apply_session_message_delta(
+            &scope,
+            &SessionMessageDelta {
+                session_id: session.id,
+                expected_updated_ms: 101,
+                updated_ms: 102,
+                upserts: vec![SessionMessageRecord {
+                    seq_no: 4,
+                    message_id: None,
+                    message: message("gap"),
+                }],
+                truncate_after: None,
+            },
+        )
+        .expect_err("a sequence gap must roll back the delta");
+    assert!(error.to_string().contains("seq_no gap"));
+    Ok(())
+}
+
+#[test]
+fn postgres_session_message_page_matches_sqlite_order() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "page-order")?;
+        let mut session = sample_session("page-order", "Page order", 100);
+        session.messages = (0..7).map(|index| message(format!("message-{index}"))).collect();
+        session.message_ids = vec![None; 7];
+        fixture.store.save_session(&scope, &session)?;
+
+        let page = fixture.store.load_session_message_page(&scope, &session.id, Some(6), 3)?;
+        assert_eq!(
+            page.records.iter().map(|record| record.seq_no).collect::<Vec<_>>(),
+            vec![3, 4, 5]
+        );
+        assert!(page.has_more);
+        Ok(())
+    })
+}
 
 // 先锁定表结构与作用域外键，再复用同一夹具验证各存储提供方的行为契约。
 #[test]
@@ -819,6 +979,16 @@ fn sample_session(id: &str, title: &str, updated_ms: u64) -> ChatSession {
         }],
         created_ms: 40,
         updated_ms,
+    }
+}
+
+fn message(content: impl Into<String>) -> ChatMessage {
+    ChatMessage {
+        role: ChatRole::Assistant,
+        content: content.into(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
     }
 }
 

@@ -65,6 +65,17 @@ fn session_operations_reject_sqlite_backend_before_accessing_session_data() {
 
     assert_requires_postgres(store.save_session(&scope, &session));
     assert_requires_postgres(store.load_session(&scope, &session.id));
+    assert_requires_postgres(store.load_session_message_page(&scope, &session.id, None, 64));
+    assert_requires_postgres(store.apply_session_message_delta(
+        &scope,
+        &SessionMessageDelta {
+            session_id: session.id.clone(),
+            expected_updated_ms: 1,
+            updated_ms: 2,
+            upserts: Vec::new(),
+            truncate_after: None,
+        },
+    ));
     assert_requires_postgres(store.load_session_any(scope.tenant_scope(), &session.id));
     assert_requires_postgres(store.list_sessions(&scope));
     assert_requires_postgres(store.load_session_meta(&scope, &session.id));

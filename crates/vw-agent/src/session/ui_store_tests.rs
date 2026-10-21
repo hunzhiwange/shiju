@@ -414,6 +414,42 @@ fn scoped_session_save_load_preview_append_and_delete_uses_global_database() -> 
 }
 
 #[test]
+fn message_page_and_delta_use_narrow_ui_store_adapters() -> Result<()> {
+    let fixture = FacadeFixture::new("ui-store-message-delta")?;
+    let scope = fixture.scope();
+    let tenant = TenantScope::default();
+    let session = test_session("ui-store-message-delta-session");
+    save_session_scoped(&session, scope).expect("session path");
+
+    let result = apply_session_message_delta_scoped_for_tenant(
+        &tenant,
+        &SessionMessageDelta {
+            session_id: session.id.clone(),
+            expected_updated_ms: 2,
+            updated_ms: 3,
+            upserts: vec![SessionMessageRecord {
+                seq_no: 0,
+                message_id: Some("msg-1".to_owned()),
+                message: ChatMessage {
+                    role: ChatRole::User,
+                    content: "updated".to_owned(),
+                    model: None,
+                    think_timing: Vec::new(),
+                    processing_timing: None,
+                },
+            }],
+            truncate_after: None,
+        },
+        scope,
+    )?;
+    assert_eq!(result.upserted_rows, 1);
+
+    let page = load_session_message_page_scoped_for_tenant(&tenant, &session.id, scope, None, 1)?;
+    assert_eq!(page.records[0].message.content, "updated");
+    Ok(())
+}
+
+#[test]
 fn native_session_operations_skip_missing_project_scope() -> Result<()> {
     let fixture = FacadeFixture::new("ui-store-missing-scope")?;
     let session = test_session("missing-scope");

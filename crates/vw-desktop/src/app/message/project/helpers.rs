@@ -1134,6 +1134,38 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
     )
 }
 
+pub(crate) fn load_session_history_page_task(
+    project_path: String,
+    session_id: String,
+    open_generation: u64,
+    requested_cursor: String,
+) -> Task<Message> {
+    let response_session_id = session_id.clone();
+    let response_cursor = requested_cursor.clone();
+    Task::perform(
+        async move {
+            let client = crate::app::gateway_client()?;
+            let page =
+                crate::app::session_gateway::gateway_session_message_page_before_with_client(
+                    &client,
+                    &session_id,
+                    &project_path,
+                    requested_cursor,
+                )
+                .await?;
+            Ok(crate::app::session::prepare_timeline_page(&session_id, page))
+        },
+        move |result| {
+            Message::Project(ProjectMessage::SessionHistoryPageLoaded {
+                session_id: response_session_id,
+                open_generation,
+                requested_cursor: response_cursor,
+                result,
+            })
+        },
+    )
+}
+
 /// load_session_messages_task_scoped 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。

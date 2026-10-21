@@ -1245,6 +1245,75 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(trajectory_refresh_task)
         }
+        ProjectMessage::SessionHistoryPageLoaded {
+            session_id,
+            open_generation,
+            requested_cursor,
+            result,
+        } => {
+            let is_current = app.active_session_id.as_deref() == Some(&session_id)
+                && app.session_view_cache.is_current_open(&session_id, open_generation);
+            if !is_current {
+                return Some(iced::Task::none());
+            }
+            let Some(timeline) = app.paged_chat_timeline.as_mut() else {
+                return Some(iced::Task::none());
+            };
+            let page = match result {
+                Ok(page) => page,
+                Err(error) => {
+                    timeline.cancel_prepend(&requested_cursor);
+                    tracing::warn!(target: "vw_desktop", %session_id, %error, "failed to load older chat history page");
+                    return Some(iced::Task::none());
+                }
+            };
+            let old_keys = timeline
+                .entries()
+                .iter()
+                .map(|entry| entry.key.clone())
+                .collect::<std::collections::HashSet<_>>();
+            let outcome =
+                timeline.merge_prepend_page(&session_id, open_generation, &requested_cursor, page);
+            let inserted = match outcome {
+                crate::app::session::chat_timeline::PageMergeOutcome::Applied { inserted } => {
+                    inserted
+                }
+                _ => return Some(iced::Task::none()),
+            };
+            let new_entries = timeline
+                .entries()
+                .iter()
+                .filter(|entry| !old_keys.contains(&entry.key))
+                .take(inserted)
+                .cloned()
+                .collect::<Vec<_>>();
+            let new_messages =
+                new_entries.iter().map(|entry| entry.message.clone()).collect::<Vec<_>>();
+            let new_ids = new_entries
+                .iter()
+                .map(|entry| match &entry.key {
+                    crate::app::session::chat_timeline::ChatEntryKey::PersistedId(id) => {
+                        Some(id.clone())
+                    }
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            app.chat.splice(0..0, new_messages);
+            app.chat_message_ids.splice(0..0, new_ids);
+            app.chat_virtualizer.prepend_estimated_heights(&vec![120.0; inserted]);
+            app.chat_render_cache.clear();
+            app.chat_visible_text_cache.clear();
+            app.chat_copy_hash_cache.clear();
+            app.chat_message_measured_heights.clear();
+            app.sync_chat_virtualizer_compat_fields();
+            Some(crate::app::message::project::prepare_session_ui_chunks_task(
+                session_id,
+                app.active_shared_chat_messages(),
+                vec![0],
+                None,
+                app.dialogue_flow_show_reasoning_summary,
+            ))
+        }
         ProjectMessage::SessionMessagesLoaded(res) => {
             match res {
                 Ok((id, msgs, usage)) => {

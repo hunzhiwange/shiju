@@ -283,6 +283,26 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::ScrollChanged { offset_y: rel_y, absolute_offset_y, viewport_h } => {
             let outcome = apply_chat_scroll_changed(app, rel_y, absolute_offset_y, viewport_h);
+            let history_task = if rel_y <= 0.08 {
+                app.project_path.clone().zip(app.active_session_id.clone()).and_then(
+                    |(project_path, session_id)| {
+                        let request = app.paged_chat_timeline.as_mut().and_then(|timeline| {
+                            let cursor = timeline.before_cursor()?.to_owned();
+                            timeline.begin_prepend(&cursor).then(|| (timeline.generation(), cursor))
+                        });
+                        request.map(|(generation, cursor)| {
+                            crate::app::message::project::helpers::load_session_history_page_task(
+                                project_path,
+                                session_id,
+                                generation,
+                                cursor,
+                            )
+                        })
+                    },
+                )
+            } else {
+                None
+            };
             let chunk_task = if !outcome.pending_chunk_starts.is_empty()
                 && let Some(session_id) = app.active_session_id.clone()
             {
@@ -300,11 +320,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let measure_task =
                 outcome.measure_visible_messages.then(super::measure_visible_chat_messages_task);
 
-            match (chunk_task, measure_task) {
-                (Some(chunk_task), Some(measure_task)) => Task::batch([chunk_task, measure_task]),
-                (Some(task), None) | (None, Some(task)) => task,
-                (None, None) => Task::none(),
-            }
+            let tasks =
+                [history_task, chunk_task, measure_task].into_iter().flatten().collect::<Vec<_>>();
+            if tasks.is_empty() { Task::none() } else { Task::batch(tasks) }
         }
         ChatMessage::VisibleMessageMeasurements(measurements) => {
             if apply_chat_message_measurements(app, measurements) {
@@ -724,11 +742,27 @@ pub(crate) fn apply_chat_message_measurements(
 
     let mut changed = false;
     for measurement in measurements {
-        if measurement.message_idx >= app.chat.len() || !measurement.height.is_finite() {
+        if !measurement.height.is_finite() {
             continue;
         }
-
-        let idx = measurement.message_idx;
+        let idx = if let Some(target) = &measurement.target {
+            let Some(timeline) = app.paged_chat_timeline.as_ref() else { continue };
+            if !timeline.accepts_entry_result(
+                &target.session_id,
+                target.generation,
+                &target.key,
+                target.revision,
+            ) {
+                continue;
+            }
+            let Some(index) = timeline.index_of(&target.key) else { continue };
+            index
+        } else {
+            measurement.message_idx
+        };
+        if idx >= app.chat.len() {
+            continue;
+        }
         let height = measurement.height.max(0.0);
         let current = app
             .chat_message_measured_heights

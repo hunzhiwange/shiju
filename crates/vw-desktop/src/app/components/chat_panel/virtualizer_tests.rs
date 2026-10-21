@@ -218,6 +218,17 @@ fn chat_virtualizer_prepend_reports_anchor_delta() {
 }
 
 #[test]
+fn chat_history_prepend_preserves_visible_anchor() {
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0, 100.0, 120.0]);
+    virtualizer.set_viewport_height(100.0);
+    virtualizer.preserve_anchor(ChatScrollAnchor::new(1, 12.0));
+    let before = virtualizer.scroll_top_px();
+    let delta = virtualizer.prepend_estimated_heights(&[40.0, 60.0]);
+    assert_eq!(virtualizer.anchor(), Some(ChatScrollAnchor::new(3, 12.0)));
+    assert_eq!(virtualizer.scroll_top_px(), before + delta);
+}
+
+#[test]
 fn chat_virtualizer_truncate_rebuilds_once() {
     let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[40.0, 50.0, 60.0, 70.0]);
     virtualizer.reset_diagnostics();

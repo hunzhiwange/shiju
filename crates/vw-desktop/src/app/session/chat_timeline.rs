@@ -23,6 +23,14 @@ impl ChatEntryRevision {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ChatEntryTarget {
+    pub(crate) session_id: String,
+    pub(crate) generation: u64,
+    pub(crate) key: ChatEntryKey,
+    pub(crate) revision: ChatEntryRevision,
+}
+
 /// One loaded timeline row and its absolute persisted sequence, when available.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ChatTimelineEntry {
@@ -97,6 +105,24 @@ impl PagedChatTimeline {
 
     pub(crate) fn entries(&self) -> &[ChatTimelineEntry] {
         &self.entries
+    }
+
+    pub(crate) fn target_at(&self, index: usize) -> Option<ChatEntryTarget> {
+        let entry = self.entries.get(index)?;
+        Some(ChatEntryTarget {
+            session_id: self.session_id.clone(),
+            generation: self.generation,
+            key: entry.key.clone(),
+            revision: entry.revision,
+        })
+    }
+
+    pub(crate) fn index_of(&self, key: &ChatEntryKey) -> Option<usize> {
+        self.entries.iter().position(|entry| &entry.key == key)
+    }
+
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
     }
 
     pub(crate) fn active_entry(&self) -> Option<&ChatTimelineEntry> {
@@ -196,6 +222,13 @@ impl PagedChatTimeline {
 
     pub(crate) fn is_before_exhausted(&self) -> bool {
         self.before_exhausted
+    }
+
+    pub(crate) fn cancel_prepend(&mut self, cursor: &str) {
+        if self.in_flight_before.as_deref() == Some(cursor) {
+            self.in_flight_before = None;
+            self.attempted_before.remove(cursor);
+        }
     }
 
     pub(crate) fn set_active(&mut self, local_item_id: u64, message: ChatMessage) -> ChatEntryKey {

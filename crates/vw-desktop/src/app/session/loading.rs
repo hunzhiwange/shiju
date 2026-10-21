@@ -149,6 +149,32 @@ pub fn prepare_bounded_session_open(
     prepared
 }
 
+pub fn prepare_timeline_page(
+    session_id: &str,
+    page: vw_gateway_client::GatewaySessionMessagePage<
+        vw_shared::session::ui_types::SessionMessageRecord,
+    >,
+) -> TimelinePage {
+    TimelinePage {
+        entries: page
+            .items
+            .into_iter()
+            .map(|record| {
+                ChatTimelineEntry::persisted(
+                    session_id,
+                    record.seq_no,
+                    record.message_id,
+                    ChatEntryRevision::INITIAL,
+                    record.message,
+                )
+            })
+            .collect(),
+        before_cursor: page.next_cursor,
+        after_cursor: page.previous_cursor,
+        total_count: page.total_count,
+    }
+}
+
 /// 在后台将 UI Store 会话移动为统一的冷打开提交。
 pub fn prepare_session_open_from_ui_store(
     session: ChatSession,

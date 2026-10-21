@@ -814,8 +814,8 @@ fn message_measurements_ignore_empty_invalid_and_out_of_range_values() {
     assert!(!super::input::apply_chat_message_measurements(
         &mut app,
         vec![
-            ChatMessageMeasurement { message_idx: 0, y: 0.0, height: f32::NAN },
-            ChatMessageMeasurement { message_idx: 1, y: 0.0, height: 120.0 },
+            ChatMessageMeasurement { message_idx: 0, y: 0.0, height: f32::NAN, target: None },
+            ChatMessageMeasurement { message_idx: 1, y: 0.0, height: 120.0, target: None },
         ],
     ));
     assert!(app.chat_message_measured_heights.is_empty());
@@ -830,7 +830,7 @@ fn message_measurements_clamp_negative_height_and_sync_virtualizer_length() {
 
     let changed = super::input::apply_chat_message_measurements(
         &mut app,
-        vec![ChatMessageMeasurement { message_idx: 1, y: 0.0, height: -12.0 }],
+        vec![ChatMessageMeasurement { message_idx: 1, y: 0.0, height: -12.0, target: None }],
     );
 
     assert!(changed);
@@ -846,19 +846,19 @@ fn message_measurements_ignore_epsilon_changes_and_apply_larger_updates() {
 
     assert!(!super::input::apply_chat_message_measurements(
         &mut app,
-        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 80.5 }],
+        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 80.5, target: None }],
     ));
     assert!(app.chat_message_measured_heights.is_empty());
 
     assert!(super::input::apply_chat_message_measurements(
         &mut app,
-        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 82.0 }],
+        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 82.0, target: None }],
     ));
     assert_eq!(app.chat_message_measured_heights.get(&0), Some(&82.0));
 
     assert!(!super::input::apply_chat_message_measurements(
         &mut app,
-        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 82.0 }],
+        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 82.0, target: None }],
     ));
 }
 
@@ -877,10 +877,43 @@ fn visible_message_measurements_message_updates_virtualizer_when_height_changes(
             message_idx: 0,
             y: 0.0,
             height: 104.0,
+            target: None,
         }]),
     );
 
     assert_eq!(app.chat_message_measured_heights.get(&0), Some(&104.0));
+}
+
+#[test]
+fn chat_measurement_rejects_stale_revision() {
+    use crate::app::session::chat_timeline::{
+        ChatEntryRevision, ChatTimelineEntry, PagedChatTimeline, TimelinePage,
+    };
+    let (mut app, _) = crate::app::App::new();
+    let message = chat_entry(ChatRole::Assistant, "answer");
+    let mut timeline = PagedChatTimeline::new("session-a", 4);
+    timeline.merge_initial_page(TimelinePage {
+        entries: vec![ChatTimelineEntry::persisted(
+            "session-a",
+            1,
+            Some("m1".to_owned()),
+            ChatEntryRevision::INITIAL,
+            message.clone(),
+        )],
+        before_cursor: None,
+        after_cursor: None,
+        total_count: 1,
+    });
+    let mut stale = timeline.target_at(0).unwrap();
+    stale.revision = stale.revision.next();
+    app.chat = vec![message];
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[80.0]);
+    app.paged_chat_timeline = Some(timeline);
+    assert!(!super::input::apply_chat_message_measurements(
+        &mut app,
+        vec![ChatMessageMeasurement { message_idx: 0, y: 0.0, height: 120.0, target: Some(stale) }],
+    ));
+    assert!(app.chat_message_measured_heights.is_empty());
 }
 
 #[test]

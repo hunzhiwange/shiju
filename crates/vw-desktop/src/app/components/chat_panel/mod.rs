@@ -495,7 +495,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             render_cache,
             enable_heavy_tool_content,
         );
-        col = col.push(message_measure::MeasuredChatMessage::new(i, message));
+        let target = app.paged_chat_timeline.as_ref().and_then(|timeline| timeline.target_at(i));
+        col = col.push(message_measure::MeasuredChatMessage::new(i, message).with_target(target));
     }
 
     if bottom_spacer_h > 0.0 {

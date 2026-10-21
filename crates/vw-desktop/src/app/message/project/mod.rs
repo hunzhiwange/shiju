@@ -267,6 +267,12 @@ pub enum ProjectMessage {
         source: PreparedSessionOpenSource,
         result: Result<crate::app::session::PreparedSessionOpen, String>,
     },
+    SessionHistoryPageLoaded {
+        session_id: String,
+        open_generation: u64,
+        requested_cursor: String,
+        result: Result<crate::app::session::chat_timeline::TimelinePage, String>,
+    },
     SessionUiPrepared {
         session_id: String,
         stream_generation: Option<u64>,

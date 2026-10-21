@@ -204,3 +204,67 @@ fn paged_chat_timeline_rejects_out_of_order_page_response() {
     );
     assert_eq!(timeline.entries().len(), 1);
 }
+
+#[test]
+fn chat_history_page_loads_once_per_cursor() {
+    let mut timeline = PagedChatTimeline::new("session-a", 1);
+    timeline.merge_initial_page(page(
+        vec![persisted("session-a", 3, None)],
+        Some("before-3"),
+        None,
+        3,
+    ));
+    assert!(timeline.begin_prepend("before-3"));
+    assert!(!timeline.begin_prepend("before-3"));
+}
+
+#[test]
+fn chat_history_stops_on_repeated_cursor() {
+    let mut timeline = PagedChatTimeline::new("session-a", 1);
+    timeline.merge_initial_page(page(
+        vec![persisted("session-a", 3, None)],
+        Some("before-3"),
+        None,
+        3,
+    ));
+    assert!(timeline.begin_prepend("before-3"));
+    timeline.merge_prepend_page(
+        "session-a",
+        1,
+        "before-3",
+        page(vec![persisted("session-a", 2, None)], Some("before-3"), None, 3),
+    );
+    assert!(timeline.is_before_exhausted());
+    assert!(!timeline.begin_prepend("before-3"));
+}
+
+#[test]
+fn chat_stable_target_survives_prepend() {
+    let mut timeline = PagedChatTimeline::new("session-a", 7);
+    timeline.merge_initial_page(page(
+        vec![persisted("session-a", 3, Some("m3"))],
+        Some("before-3"),
+        None,
+        3,
+    ));
+    let target = timeline.target_at(0).unwrap();
+    assert!(timeline.begin_prepend("before-3"));
+    timeline.merge_prepend_page(
+        "session-a",
+        7,
+        "before-3",
+        page(
+            vec![persisted("session-a", 1, Some("m1")), persisted("session-a", 2, Some("m2"))],
+            None,
+            None,
+            3,
+        ),
+    );
+    assert_eq!(timeline.index_of(&target.key), Some(2));
+    assert!(timeline.accepts_entry_result(
+        &target.session_id,
+        target.generation,
+        &target.key,
+        target.revision,
+    ));
+}

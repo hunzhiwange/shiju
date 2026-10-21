@@ -1,11 +1,12 @@
 //! 在 Iced 布局阶段采集聊天消息的位置与高度，供视口定位使用。
 
+use crate::app::session::chat_timeline::ChatEntryTarget;
 use iced::advanced::widget::Operation;
 use iced::advanced::{Clipboard, Layout, Shell, Widget, layout, mouse, overlay, renderer, widget};
 use iced::{Element, Event, Length, Rectangle, Size, Vector};
 use std::any::Any;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 /// 单条可见聊天消息在滚动内容坐标系中的测量结果。
 pub struct ChatMessageMeasurement {
     /// 消息在当前聊天列表中的索引。
@@ -14,17 +15,20 @@ pub struct ChatMessageMeasurement {
     pub y: f32,
     /// 消息布局后的实际高度。
     pub height: f32,
+    pub(crate) target: Option<ChatEntryTarget>,
 }
 
 #[derive(Debug)]
 struct MeasuredChatMessageState {
     message_idx: usize,
+    target: Option<ChatEntryTarget>,
 }
 
 /// 包装聊天消息并向 Iced 操作树暴露其布局边界。
 pub(crate) struct MeasuredChatMessage<'a, Message, Theme, Renderer> {
     message_idx: usize,
     content: Element<'a, Message, Theme, Renderer>,
+    target: Option<ChatEntryTarget>,
 }
 
 impl<'a, Message, Theme, Renderer> MeasuredChatMessage<'a, Message, Theme, Renderer> {
@@ -33,7 +37,12 @@ impl<'a, Message, Theme, Renderer> MeasuredChatMessage<'a, Message, Theme, Rende
         message_idx: usize,
         content: impl Into<Element<'a, Message, Theme, Renderer>>,
     ) -> Self {
-        Self { message_idx, content: content.into() }
+        Self { message_idx, content: content.into(), target: None }
+    }
+
+    pub(crate) fn with_target(mut self, target: Option<ChatEntryTarget>) -> Self {
+        self.target = target;
+        self
     }
 }
 
@@ -86,7 +95,8 @@ where
         renderer: &Renderer,
         operation: &mut dyn Operation,
     ) {
-        let mut state = MeasuredChatMessageState { message_idx: self.message_idx };
+        let mut state =
+            MeasuredChatMessageState { message_idx: self.message_idx, target: self.target.clone() };
         operation.custom(None, layout.bounds(), &mut state);
         operation.traverse(&mut |operation| {
             self.content.as_widget_mut().operate(
@@ -221,6 +231,7 @@ impl Operation<Vec<ChatMessageMeasurement>> for CollectVisibleChatMessageMeasure
                 message_idx: state.message_idx,
                 y: bounds.y,
                 height: bounds.height.max(0.0),
+                target: state.target.clone(),
             });
         }
     }

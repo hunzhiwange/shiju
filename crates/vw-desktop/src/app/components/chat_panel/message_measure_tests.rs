@@ -146,7 +146,7 @@ fn chat_message_measure_operation_collects_bounds() {
     };
     assert_eq!(
         measurements,
-        vec![ChatMessageMeasurement { message_idx: 7, y: 24.0, height: 44.0 }]
+        vec![ChatMessageMeasurement { message_idx: 7, y: 24.0, height: 44.0, target: None }]
     );
 }
 
@@ -193,8 +193,8 @@ fn chat_message_measure_operation_accumulates_multiple_widgets_in_order() {
     assert_eq!(
         measurements,
         vec![
-            ChatMessageMeasurement { message_idx: 2, y: 12.0, height: 24.0 },
-            ChatMessageMeasurement { message_idx: 5, y: 48.0, height: 36.0 },
+            ChatMessageMeasurement { message_idx: 2, y: 12.0, height: 24.0, target: None },
+            ChatMessageMeasurement { message_idx: 5, y: 48.0, height: 36.0, target: None },
         ]
     );
 }
@@ -256,7 +256,7 @@ fn chat_message_measure_ignores_unchanged_heights() {
 
     let changed = apply_chat_message_measurements(
         &mut app,
-        vec![ChatMessageMeasurement { message_idx: 0, y: 10.0, height: 100.4 }],
+        vec![ChatMessageMeasurement { message_idx: 0, y: 10.0, height: 100.4, target: None }],
     );
 
     assert!(!changed);
@@ -279,7 +279,7 @@ fn chat_message_measure_updates_changed_heights_without_touching_copy_caches() {
 
     let changed = apply_chat_message_measurements(
         &mut app,
-        vec![ChatMessageMeasurement { message_idx: 0, y: 10.0, height: 124.0 }],
+        vec![ChatMessageMeasurement { message_idx: 0, y: 10.0, height: 124.0, target: None }],
     );
 
     assert!(changed);

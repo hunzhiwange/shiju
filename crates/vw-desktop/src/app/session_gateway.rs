@@ -314,6 +314,30 @@ pub(crate) async fn gateway_bounded_session_open_with_client(
     Ok((summary?, page?))
 }
 
+pub(crate) async fn gateway_session_message_page_before_with_client(
+    client: &vw_gateway_client::GatewayClient,
+    session_id: &str,
+    directory: &str,
+    cursor: String,
+) -> Result<
+    vw_gateway_client::GatewaySessionMessagePage<
+        vw_shared::session::ui_types::SessionMessageRecord,
+    >,
+    String,
+> {
+    client
+        .session_message_page(
+            session_id,
+            &vw_gateway_client::GatewaySessionMessagePageQuery {
+                directory: Some(directory.to_owned()),
+                cursor: Some(cursor),
+                limit: Some(64),
+                direction: vw_gateway_client::SessionMessagePageDirection::Older,
+            },
+        )
+        .await
+}
+
 /// 执行 gateway_load_session_any_async 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

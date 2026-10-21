@@ -5,7 +5,10 @@ rustflags = ["-C", "link-arg=-static"]
 rustflags = ["-C", "link-arg=-static"]
 
 [target.aarch64-apple-darwin]
-rustflags = ["-Ctarget-cpu=apple-m1"]
+rustflags = ["-Ctarget-cpu=apple-m1", "-C", "link-arg=-Wl,-no_compact_unwind"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-Wl,-no_compact_unwind"]
 
 # Android targets (NDK toolchain)
 [target.armv7-linux-androideabi]

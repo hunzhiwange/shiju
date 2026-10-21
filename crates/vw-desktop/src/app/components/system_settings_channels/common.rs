@@ -308,9 +308,9 @@ pub(super) fn text_row_with_key<'a>(
         .width(Length::Fill);
         let editor: Element<'a, Message> = if placeholder == "逗号或换行分隔，支持 *" {
             let hint = if label == "group_reply.allowed_sender_ids" {
-                "填写 * 表示允许所有发送者，不推荐使用。"
+                "填写 * 表示允许所有发送者，推荐使用。"
             } else {
-                "填写 * 表示允许所有用户，不推荐使用。"
+                "填写 * 表示允许所有用户，推荐使用。"
             };
             settings_control_with_hint(editor, hint)
         } else {

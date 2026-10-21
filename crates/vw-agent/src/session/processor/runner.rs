@@ -660,7 +660,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         let tools_for_step = if is_last_step { &empty_tools } else { &allowed_tools };
 
         let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
-        tracing::info!(
+        tracing::debug!(
             target: "vw_agent",
             session_id = %req.session,
             step_index = step_index.saturating_add(1),
@@ -905,7 +905,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         observed_input_tokens = Some(step_out.usage.input_tokens);
 
         let step_text_preview = response_preview(&step_out.text);
-        tracing::info!(
+        tracing::debug!(
             target: "vw_agent",
             session_id = %req.session,
             step_index,
@@ -1204,7 +1204,7 @@ fn handle_structured_tool_calls(
             tool_state,
             &req.reliability,
         );
-    tracing::info!(
+    tracing::debug!(
         target: "vw_agent",
         session_id = %req.session,
         step_index,

@@ -1085,7 +1085,7 @@ pub(crate) fn run_tool_and_record_with_protocol(
     let input_ui = sanitize_tool_input_for_ui(name, &input_effective);
     let call_id = stable_tool_call_id(ctx, name, &input_sanitized);
     let tool_input_for_trace = super::utils::truncate_string(&input_sanitized, 200);
-    tracing::info!(
+    tracing::debug!(
         target: "vw_agent",
         session_id = %ctx.session,
         tool_name = name,

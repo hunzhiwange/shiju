@@ -391,7 +391,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
 
         // 记录基础数据缺失的情况
         if existing.is_none() {
-            LOGGER.info(
+            LOGGER.debug(
                 "provider_base_missing",
                 Some({
                     let mut m = Map::new();
@@ -656,7 +656,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
         )
         .await
         {
-            LOGGER.warn(
+            LOGGER.debug(
                 "remote_model_discovery_failed",
                 Some({
                     let mut fields = Map::new();

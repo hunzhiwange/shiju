@@ -222,7 +222,7 @@ pub async fn stream(
         .tag("mode", &input.agent.mode);
 
     // 记录流式请求开始，包含模型和 provider 信息
-    l.info(
+    l.debug(
         "stream",
         Some({
             let mut m = Map::new();

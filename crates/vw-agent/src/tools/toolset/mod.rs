@@ -664,23 +664,23 @@ pub fn all_tools_with_runtime(
 
     #[cfg(not(target_arch = "wasm32"))]
     if browser_config.enabled {
-        tracing::info!(
-            "[DEBUG] all_tools_with_runtime: browser_config.enabled=true, browser_open={}",
+        tracing::debug!(
+            "all_tools_with_runtime: browser_config.enabled=true, browser_open={}",
             browser_config.browser_open
         );
 
         if !browser_config.browser_open.eq_ignore_ascii_case("disable") {
-            tracing::info!("[DEBUG] all_tools_with_runtime: creating BrowserOpenTool");
+            tracing::debug!("all_tools_with_runtime: creating BrowserOpenTool");
             tool_arcs.push(Arc::new(BrowserOpenTool::new(
                 security.clone(),
                 browser_config.allowed_domains.clone(),
                 browser_config.browser_open.clone(),
             )));
         } else {
-            tracing::info!("[DEBUG] all_tools_with_runtime: browser_open is disabled");
+            tracing::debug!("all_tools_with_runtime: browser_open is disabled");
         }
 
-        tracing::info!("[DEBUG] all_tools_with_runtime: creating BrowserTool");
+        tracing::debug!("all_tools_with_runtime: creating BrowserTool");
         tool_arcs.push(Arc::new(BrowserTool::new_with_backend(
             security.clone(),
             browser_config.allowed_domains.clone(),

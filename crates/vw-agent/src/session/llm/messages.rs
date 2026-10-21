@@ -71,7 +71,7 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
         .tag("providerID", &input.model.provider_id)
         .tag("modelID", &input.model.api.id)
         .tag("is_codex", &is_codex.to_string())
-        .info("build_system_messages: before provider prompt", None);
+        .debug("build_system_messages: before provider prompt", None);
 
     // 主会话会在知道真实工具与技能后预先渲染统一提示；旧入口则在这里
     // 根据 StreamInput 中的工具规格生成安全降级版本。
@@ -92,7 +92,7 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
         .tag("providerID", &input.model.provider_id)
         .tag("modelID", &input.model.api.id)
         .tag("count", &provider_prompts.len().to_string())
-        .info("build_system_messages: provider prompts", None);
+        .debug("build_system_messages: provider prompts", None);
 
     // 将 provider 提示词添加到消息列表
     parts.extend(provider_prompts.into_iter().map(|s| s.to_string()));
@@ -116,7 +116,7 @@ pub fn build_system_messages(input: &StreamInput, is_codex: bool) -> Vec<String>
         .tag("providerID", &input.model.provider_id)
         .tag("modelID", &input.model.api.id)
         .tag("joined_len", &joined.len().to_string())
-        .info("build_system_messages: final joined", None);
+        .debug("build_system_messages: final joined", None);
 
     // 如果合并结果为空则返回空向量，否则返回包含合并后消息的向量
     if joined.is_empty() { Vec::new() } else { vec![joined] }

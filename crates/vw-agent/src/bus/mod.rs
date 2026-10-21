@@ -244,7 +244,7 @@ pub fn publish_value(def: Definition, properties: Value, directory: Option<Strin
     });
 
     // 记录事件发布日志
-    LOG.info(
+    LOG.debug(
         "publishing",
         Some({
             let mut m = Map::new();

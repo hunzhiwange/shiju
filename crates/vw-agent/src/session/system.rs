@@ -330,7 +330,7 @@ pub(crate) fn provider_with_context(
     log::create(None)
         .tag("modelID", id)
         .tag("providerID", &model.provider_id)
-        .info("system_prompt::provider called", None);
+        .debug("system_prompt::provider called", None);
 
     vec![render_unified_prompt_for_model(model, root, available_tool_ids)]
 }

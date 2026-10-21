@@ -344,7 +344,7 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     let mut model = req.model;
 
     // 记录流请求开始日志
-    LOGGER.clone_logger().tag("providerID", &provider_id).info(
+    LOGGER.clone_logger().tag("providerID", &provider_id).debug(
         "aisdk.stream.start",
         Some({
             let mut m = serde_json::Map::new();

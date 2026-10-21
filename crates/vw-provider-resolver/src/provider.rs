@@ -319,7 +319,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             let existing = database.get(provider_id).cloned();
 
             if existing.is_none() {
-                tracing::info!(provider_id, "provider_base_missing");
+                tracing::debug!(provider_id, "provider_base_missing");
             }
 
             let name = provider
@@ -562,7 +562,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             )
             .await
             {
-                tracing::warn!(
+                tracing::debug!(
                     provider_id,
                     category = error.category(),
                     "remote_model_discovery_failed"

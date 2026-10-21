@@ -201,7 +201,7 @@ pub async fn do_stream_request_aisdk(
     let provider_id = provider_info.id.clone();
 
     // 记录请求日志，包含提供商 ID、模型 ID、适配器和 URL 信息
-    LOGGER.clone_logger().tag("providerID", &provider_id).tag("modelID", &model.api.id).info(
+    LOGGER.clone_logger().tag("providerID", &provider_id).tag("modelID", &model.api.id).debug(
         "aisdk.request",
         Some({
             let mut m = Map::new();

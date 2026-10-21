@@ -1,9 +1,7 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
-use super::{
-    load_session_or_default, now_ms, save_session_task, session_directory_for_save, start_next,
-};
+use super::{now_ms, session_directory_for_save, start_next};
 use crate::app::message::ProjectMessage;
 use crate::app::message::chat::scroll_chat_to_bottom_task;
 use crate::app::message::chat::session as chat_session;
@@ -473,6 +471,7 @@ fn finish_active_stream_tail_update(
     app.active_session_view_state.updated_ms = now;
     app.refresh_active_session_tail_message_meta(changed_idx);
 
+    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now);
     let save_task = schedule_agent_stream_session_save(app, &session_id);
 
     if should_snap_to_bottom {
@@ -503,6 +502,52 @@ fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<M
     }
 }
 
+fn mark_agent_stream_session_dirty(app: &mut App, session_id: &str, index: usize, updated_ms: u64) {
+    let is_active = app.active_session_id.as_deref() == Some(session_id);
+    let message = if is_active {
+        app.chat.get(index).cloned()
+    } else {
+        app.cached_chat_messages(session_id).and_then(|messages| messages.get(index).cloned())
+    };
+    let Some(message) = message else {
+        return;
+    };
+    let message_id = if is_active {
+        app.chat_message_ids.get(index).cloned().flatten()
+    } else {
+        app.cached_chat_message_ids(session_id).and_then(|ids| ids.get(index).cloned()).flatten()
+    };
+    let base_updated_ms = app
+        .sessions
+        .iter()
+        .find(|session| session.id == session_id)
+        .map_or(0, |session| session.time.updated);
+    let request_generation =
+        app.get_session_runtime(session_id).active_agent_request.as_ref().map(|request| request.id);
+    let runtime = app.get_session_runtime_mut(session_id);
+    if runtime.stream_save_expected_updated_ms == 0 {
+        runtime.stream_save_expected_updated_ms = base_updated_ms;
+    }
+    if let Some(generation) = request_generation {
+        runtime.stream_save_generation = generation;
+    }
+    runtime.stream_save_revision = runtime.stream_save_revision.saturating_add(1);
+    let record = vw_shared::session::ui_types::SessionMessageRecord {
+        seq_no: index as u64,
+        message_id,
+        message,
+    };
+    if let Some(existing) =
+        runtime.stream_save_dirty_records.iter_mut().find(|dirty| dirty.seq_no == record.seq_no)
+    {
+        *existing = record;
+    } else {
+        runtime.stream_save_dirty_records.push(record);
+    }
+    // Keep the newest local timestamp in the delta snapshot; the stored base changes only on ack.
+    app.active_session_view_state.updated_ms = updated_ms;
+}
+
 pub(super) fn flush_agent_stream_session_save(app: &mut App, session_id: String) -> Task<Message> {
     let should_save = {
         let runtime = app.get_session_runtime_mut(&session_id);
@@ -519,12 +564,80 @@ fn clear_agent_stream_session_save_flush(app: &mut App, session_id: &str) {
     app.get_session_runtime_mut(session_id).stream_save_flush_scheduled = false;
 }
 
-fn save_latest_agent_stream_session(app: &App, session_id: &str) -> Task<Message> {
-    #[cfg(test)]
-    crate::app::components::chat_panel::performance::record_full_session_save();
-    let mut session = load_session_or_default(app, session_id.to_string());
-    session.updated_ms = now_ms();
-    save_session_task(session, session_directory_for_save(app, session_id))
+fn save_latest_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
+    let directory = session_directory_for_save(app, session_id);
+    let runtime = app.get_session_runtime_mut(session_id);
+    if runtime.stream_save_in_flight.is_some() {
+        return Task::none();
+    }
+    if runtime.stream_save_dirty_records.is_empty() {
+        return Task::none();
+    }
+    let generation = runtime.stream_save_generation;
+    let revision = runtime.stream_save_revision;
+    let updated_ms = now_ms().max(runtime.stream_save_expected_updated_ms.saturating_add(1));
+    let delta = vw_shared::session::ui_types::SessionMessageDelta {
+        session_id: session_id.to_string(),
+        expected_updated_ms: runtime.stream_save_expected_updated_ms,
+        updated_ms,
+        upserts: runtime.stream_save_dirty_records.clone(),
+        truncate_after: None,
+    };
+    runtime.stream_save_in_flight = Some((generation, revision, updated_ms));
+    let saved_session_id = session_id.to_string();
+    let result_session_id = session_id.to_string();
+    Task::perform(
+        async move {
+            crate::app::session_gateway::gateway_session_message_delta_async(
+                &saved_session_id,
+                directory.as_deref(),
+                &delta,
+            )
+            .await
+            .map(|_| ())
+        },
+        move |result| {
+            Message::Chat(super::ChatMessage::AgentStreamSessionDeltaSaved {
+                session_id: result_session_id.clone(),
+                generation,
+                revision,
+                updated_ms,
+                result,
+            })
+        },
+    )
+}
+
+pub(super) fn handle_agent_stream_session_delta_saved(
+    app: &mut App,
+    session_id: String,
+    generation: u64,
+    revision: u64,
+    updated_ms: u64,
+    result: Result<(), String>,
+) -> Task<Message> {
+    let runtime = app.get_session_runtime_mut(&session_id);
+    if runtime.stream_save_in_flight != Some((generation, revision, updated_ms)) {
+        return Task::none();
+    }
+    runtime.stream_save_in_flight = None;
+    match result {
+        Ok(()) => {
+            runtime.stream_save_expected_updated_ms = updated_ms;
+            runtime.stream_save_acked_revision = runtime.stream_save_acked_revision.max(revision);
+            if runtime.stream_save_revision == revision
+                && runtime.stream_save_generation == generation
+            {
+                runtime.stream_save_dirty_records.clear();
+                return Task::none();
+            }
+            save_latest_agent_stream_session(app, &session_id)
+        }
+        Err(error) => {
+            tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error, "failed to save stream message delta");
+            schedule_agent_stream_session_save(app, &session_id)
+        }
+    }
 }
 
 pub(super) fn force_save_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
@@ -754,7 +867,8 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         .cloned()
         .unwrap_or_else(|| vec![None; live_chat.len()]);
 
-    append_stream_delta_to_tail(&mut live_chat, &mut live_ids, delta, now, &mut tail_state);
+    let changed_idx =
+        append_stream_delta_to_tail(&mut live_chat, &mut live_ids, delta, now, &mut tail_state);
     app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
 
     app.store_session_chat_snapshot(
@@ -762,6 +876,7 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         crate::app::session::shared_chat_messages(live_chat),
         live_ids,
     );
+    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now);
     app.sync_task_pet_from_runtime();
     schedule_agent_stream_session_save(app, &session_id)
 }
@@ -1017,7 +1132,8 @@ pub(super) fn handle_agent_stream_done(
     } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
         cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
-        load_session_or_default(app, session_id.clone()).messages
+        tracing::warn!(target: "vw_desktop", session_id = %session_id, "missing bounded chat cache at stream completion");
+        Vec::new()
     };
     crate::app::message::chat::processing_timing::complete_tail_assistant_processing(
         &mut persisted_chat,
@@ -1063,27 +1179,27 @@ pub(super) fn handle_agent_stream_done(
         }
     }
 
-    let mut local_session = load_session_or_default(app, session_id.clone());
-    local_session.messages = persisted_chat.clone();
-    local_session.message_ids = persisted_ids.clone();
-    local_session.updated_ms = completed_ms;
     if let Some(turn_id) = assistant_message_id.as_deref() {
-        for step in local_session.steps.iter_mut().filter(|step| {
-            step.turn_id.is_none()
-                && (request_started_ms == 0 || step.started_ms >= request_started_ms)
-        }) {
-            step.turn_id = Some(turn_id.to_string());
-        }
         if is_active_session {
-            app.replace_active_session_steps(local_session.steps.clone());
+            for step in app.active_session_view_state.steps.iter_mut().filter(|step| {
+                step.turn_id.is_none()
+                    && (request_started_ms == 0 || step.started_ms >= request_started_ms)
+            }) {
+                step.turn_id = Some(turn_id.to_string());
+            }
         }
     }
-    let save_task = save_session_task(local_session, session_directory_for_save(app, &session_id));
     app.store_session_chat_snapshot(
         session_id.clone(),
         crate::app::session::shared_chat_messages(persisted_chat),
         persisted_ids,
     );
+    let terminal_idx =
+        app.cached_chat_messages(&session_id).and_then(|messages| messages.len().checked_sub(1));
+    if let Some(terminal_idx) = terminal_idx {
+        mark_agent_stream_session_dirty(app, &session_id, terminal_idx, completed_ms);
+    }
+    let save_task = force_save_agent_stream_session(app, &session_id);
     info!(
         target: "vw_desktop",
         request_id = id,
@@ -1227,11 +1343,10 @@ pub(super) fn handle_agent_post_tool_round(
         crate::app::session::shared_chat_messages(app.chat.clone()),
         app.chat_message_ids.clone(),
     );
-    let mut session = load_session_or_default(app, session_id.clone());
-    session.messages = app.chat.clone();
-    session.message_ids = app.chat_message_ids.clone();
-    session.updated_ms = completed_ms;
-    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
+    if let Some(tail_idx) = app.chat.len().checked_sub(1) {
+        mark_agent_stream_session_dirty(app, &session_id, tail_idx, completed_ms);
+    }
+    let save_task = force_save_agent_stream_session(app, &session_id);
 
     let resume_history = app.chat.clone();
     let continuation = QueueItem {
@@ -1354,7 +1469,8 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     } else if let Some(cached) = app.session_chat_cache.get(&session_id).cloned() {
         cached.iter().cloned().collect::<Vec<models::ChatMessage>>()
     } else {
-        load_session_or_default(app, session_id.clone()).messages
+        tracing::warn!(target: "vw_desktop", session_id = %session_id, "missing bounded chat cache at stream failure");
+        Vec::new()
     };
     let mut persisted_ids = if is_active_session {
         app.chat_message_ids.clone()
@@ -1395,11 +1511,15 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         app.sync_active_session_from_chat();
     }
 
-    let mut session = load_session_or_default(app, session_id.clone());
-    session.messages = persisted_chat;
-    session.message_ids = persisted_ids;
-    session.updated_ms = completed_ms;
-    let save_task = save_session_task(session, session_directory_for_save(app, &session_id));
+    let message_count = if is_active_session {
+        app.chat.len()
+    } else {
+        app.cached_chat_messages(&session_id).map_or(0, |messages| messages.len())
+    };
+    for index in message_count.saturating_sub(2)..message_count {
+        mark_agent_stream_session_dirty(app, &session_id, index, completed_ms);
+    }
+    let save_task = force_save_agent_stream_session(app, &session_id);
 
     let next = start_next(app, &session_id);
 

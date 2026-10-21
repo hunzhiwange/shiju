@@ -402,6 +402,15 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamSessionSaveFlush(session_id) => {
             stream_events::flush_agent_stream_session_save(app, session_id)
         }
+        ChatMessage::AgentStreamSessionDeltaSaved {
+            session_id,
+            generation,
+            revision,
+            updated_ms,
+            result,
+        } => stream_events::handle_agent_stream_session_delta_saved(
+            app, session_id, generation, revision, updated_ms, result,
+        ),
         ChatMessage::AgentContextLoaded(id, paths) => {
             stream_events::handle_agent_context_loaded(app, id, paths)
         }

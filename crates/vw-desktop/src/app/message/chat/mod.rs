@@ -430,8 +430,17 @@ pub enum ChatMessage {
     /// 合并一小段时间内的 Agent 流式增量，降低 UI 重绘和会话保存频率。
     AgentStreamDeltaFlush(String),
 
-    /// 保存流式会话的最新完整快照。
+    /// 保存流式会话的最新消息增量。
     AgentStreamSessionSaveFlush(String),
+
+    /// 流式消息增量的异步回执。
+    AgentStreamSessionDeltaSaved {
+        session_id: String,
+        generation: u64,
+        revision: u64,
+        updated_ms: u64,
+        result: Result<(), String>,
+    },
 
     /// 系统提示词实际加载的协议文件。
     AgentContextLoaded(u64, Vec<String>),
@@ -1220,6 +1229,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::VisibleTaskSessionLoaded(_)
         | ChatMessage::AgentStreamDeltaFlush(_)
         | ChatMessage::AgentStreamSessionSaveFlush(_)
+        | ChatMessage::AgentStreamSessionDeltaSaved { .. }
         | ChatMessage::AgentContextLoaded(_, _)
         | ChatMessage::AgentWorkflowNodeUpdate(_, _)
         | ChatMessage::PlanRunSessionStarted { .. }

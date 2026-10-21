@@ -40,7 +40,7 @@ use vw_gateway_client::{
     ShijuSkillPageDto, ShijuSkillReadmeDto, ShijuSkillSearchQuery, ShijuSkillTagCatalogDto,
     ShijuSkillVersionDto, ShijuSystemSkillDto, ShijuSystemSkillQuery, ShijuTenantSkillDto,
 };
-use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta};
+use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
 
 #[cfg(not(target_arch = "wasm32"))]
 fn block_on_gateway<F, T>(fut: F) -> Result<T, String>
@@ -466,6 +466,16 @@ pub async fn gateway_save_session_async(
     );
     client.session_ui_save(&session_to_save.id, directory, &session_to_save).await?;
     Ok(Some(std::path::PathBuf::from(&session_to_save.id)))
+}
+
+/// 原子提交有界的会话消息增量。
+pub async fn gateway_session_message_delta_async(
+    session_id: &str,
+    directory: Option<&str>,
+    delta: &SessionMessageDelta,
+) -> Result<(), String> {
+    let client = gateway_client()?;
+    client.session_message_delta(session_id, directory, delta).await.map(|_| ())
 }
 
 fn session_ui_content_snapshot(session: &ChatSession) -> ChatSession {

@@ -446,8 +446,15 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) pending_stream_delta: String,
     /// 是否已经为流式文本增量安排了合并刷新。
     pub(crate) stream_delta_flush_scheduled: bool,
-    /// 是否已经为完整会话快照安排了保存刷新。
+    /// 是否已经为流式消息增量安排了保存刷新。
     pub(crate) stream_save_flush_scheduled: bool,
+    /// 最新流式消息修订号及待持久化的单条记录。
+    pub(crate) stream_save_revision: u64,
+    pub(crate) stream_save_acked_revision: u64,
+    pub(crate) stream_save_generation: u64,
+    pub(crate) stream_save_expected_updated_ms: u64,
+    pub(crate) stream_save_dirty_records: Vec<vw_shared::session::ui_types::SessionMessageRecord>,
+    pub(crate) stream_save_in_flight: Option<(u64, u64, u64)>,
     /// 当前 assistant 尾消息的增量解析、高度和后台预热代次。
     pub(crate) stream_tail_state: StreamTailState,
     /// 请求队列
@@ -639,6 +646,12 @@ impl SessionRuntimeState {
             pending_stream_delta: String::new(),
             stream_delta_flush_scheduled: false,
             stream_save_flush_scheduled: false,
+            stream_save_revision: 0,
+            stream_save_acked_revision: 0,
+            stream_save_generation: 0,
+            stream_save_expected_updated_ms: 0,
+            stream_save_dirty_records: Vec::new(),
+            stream_save_in_flight: None,
             stream_tail_state: StreamTailState::default(),
             queue: Vec::new(),
             input_editor: text_editor::Content::new(),

@@ -687,7 +687,7 @@ fn active_stream_terminal_flushes_pending_delta() {
 #[tokio::test(flavor = "multi_thread")]
 #[cfg(not(target_arch = "wasm32"))]
 // 高频增量只触发防抖保存，终态则必须取消延迟并持久化最新快照。
-async fn stream_deltas_debounce_full_session_save() {
+async fn stream_session_delta_save_sends_dirty_entry_only() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "background-session".to_string();
     app.active_session_id = Some("foreground-session".to_string());
@@ -700,31 +700,10 @@ async fn stream_deltas_debounce_full_session_save() {
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(42, &session_id));
 
-    let saved_sessions = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let observed_sessions = Arc::clone(&saved_sessions);
-    let (first_save, duplicate_save, flush_save, late_flush) = super::super::with_save_session_hook(
-        move |session, _| {
-            observed_sessions.lock().unwrap().push(session.clone());
-            Some(std::path::PathBuf::from("/saved/session.json"))
-        },
-        || {
-            let first_save = super::handle_agent_session_delta(
-                &mut app,
-                session_id.clone(),
-                "hello".to_string(),
-            );
-            let duplicate_save = super::handle_agent_session_delta(
-                &mut app,
-                session_id.clone(),
-                " world".to_string(),
-            );
-            assert!(app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-            let flush_save = super::flush_agent_stream_session_save(&mut app, session_id.clone());
-            assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-            let late_flush = super::flush_agent_stream_session_save(&mut app, session_id.clone());
-            (first_save, duplicate_save, flush_save, late_flush)
-        },
-    );
+    let first_save =
+        super::handle_agent_session_delta(&mut app, session_id.clone(), "hello".into());
+    let duplicate_save =
+        super::handle_agent_session_delta(&mut app, session_id.clone(), " world".into());
 
     assert!(first_save.units() > 0, "the first delta should schedule a save flush");
     assert_eq!(
@@ -736,17 +715,15 @@ async fn stream_deltas_debounce_full_session_save() {
         app.cached_chat_messages(&session_id).unwrap().last().unwrap().content,
         "hello world"
     );
-    assert_eq!(late_flush.units(), 0, "a late timer message must be a no-op");
-
-    let _messages = collect_task_messages(flush_save).await;
-    let saved_sessions = saved_sessions.lock().unwrap();
-    assert_eq!(saved_sessions.len(), 1);
-    assert_eq!(saved_sessions[0].messages.last().unwrap().content, "hello world");
+    let runtime = app.get_session_runtime(&session_id);
+    let dirty = runtime.stream_save_dirty_records.first().expect("dirty record");
+    assert_eq!(dirty.seq_no, 1);
+    assert_eq!(dirty.message.content, "hello world");
+    assert_eq!(runtime.stream_save_revision, 2);
 }
 
-#[tokio::test(flavor = "multi_thread")]
-#[cfg(not(target_arch = "wasm32"))]
-async fn stream_done_persists_latest_delta_and_cancels_debounce() {
+#[test]
+fn stream_session_delta_save_forces_terminal_flush() {
     let (mut app, _) = crate::app::App::new();
     let session_id = "background-session".to_string();
     app.active_session_id = Some("foreground-session".to_string());
@@ -760,49 +737,102 @@ async fn stream_done_persists_latest_delta_and_cancels_debounce() {
     runtime.is_requesting = true;
     runtime.active_agent_request = Some(agent_request(43, &session_id));
 
-    let saved_sessions = Arc::new(std::sync::Mutex::new(Vec::new()));
-    let observed_sessions = Arc::clone(&saved_sessions);
-    let (duplicate_save, terminal_save, late_flush) = super::super::with_save_session_hook(
-        move |session, _| {
-            observed_sessions.lock().unwrap().push(session.clone());
-            Some(std::path::PathBuf::from("/saved/session.json"))
-        },
-        || {
-            let _first_save = super::handle_agent_session_delta(
-                &mut app,
-                session_id.clone(),
-                "latest".to_string(),
-            );
-            let duplicate_save = super::handle_agent_session_delta(
-                &mut app,
-                session_id.clone(),
-                " delta".to_string(),
-            );
-            let terminal_save = super::handle_agent_stream_done(
-                &mut app,
-                43,
-                crate::app::models::TokenUsage::default(),
-                None,
-                None,
-            );
-            assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
-            let late_flush = super::flush_agent_stream_session_save(&mut app, session_id.clone());
-            (duplicate_save, terminal_save, late_flush)
-        },
+    let _ = super::handle_agent_session_delta(&mut app, session_id.clone(), "latest".into());
+    let duplicate_save =
+        super::handle_agent_session_delta(&mut app, session_id.clone(), " delta".into());
+    let terminal_save = super::handle_agent_stream_done(
+        &mut app,
+        43,
+        crate::app::models::TokenUsage::default(),
+        None,
+        None,
     );
-
     assert_eq!(duplicate_save.units(), 0);
     assert!(terminal_save.units() > 0, "the terminal path must force a final save");
     assert_eq!(
         app.cached_chat_messages(&session_id).unwrap().last().unwrap().content,
         "latest delta"
     );
-    assert_eq!(late_flush.units(), 0, "the cancelled debounce must not save twice");
+    assert!(app.get_session_runtime(&session_id).stream_save_in_flight.is_some());
+}
 
-    let _messages = collect_task_messages(terminal_save).await;
-    let saved_sessions = saved_sessions.lock().unwrap();
-    assert_eq!(saved_sessions.len(), 1);
-    assert_eq!(saved_sessions[0].messages.last().unwrap().content, "latest delta");
+#[test]
+fn stream_session_delta_save_preserves_newer_revision() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-revision".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
+    app.chat = vec![message(ChatRole::Assistant, "first")];
+    app.chat_message_ids = vec![Some("assistant-1".into())];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(77, &session_id));
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    app.chat[0].content.push_str(" newer");
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 11);
+    let (_, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+    let _ = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        77,
+        revision,
+        updated_ms,
+        Ok(()),
+    );
+    assert_eq!(
+        app.get_session_runtime(&session_id)
+            .stream_save_dirty_records
+            .first()
+            .unwrap()
+            .message
+            .content,
+        "first newer"
+    );
+}
+
+#[test]
+fn stream_session_delta_save_never_loads_full_session() {
+    let source = include_str!("stream_events.rs");
+    let body = source
+        .split("fn save_latest_agent_stream_session")
+        .nth(1)
+        .unwrap()
+        .split("pub(super) fn handle_agent_stream_session_delta_saved")
+        .next()
+        .unwrap();
+    assert!(!body.contains("load_session_or_default"));
+    assert!(!body.contains("save_session_task"));
+}
+
+#[test]
+fn stream_session_delta_save_retries_after_failure() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-retry".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
+    app.chat = vec![message(ChatRole::Assistant, "retry me")];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(88, &session_id));
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    let (_, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+
+    let retry = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        88,
+        revision,
+        updated_ms,
+        Err("temporary outage".to_string()),
+    );
+
+    let runtime = app.get_session_runtime(&session_id);
+    assert!(!runtime.stream_save_dirty_records.is_empty());
+    assert!(runtime.stream_save_flush_scheduled);
+    assert!(retry.units() > 0);
 }
 
 #[test]

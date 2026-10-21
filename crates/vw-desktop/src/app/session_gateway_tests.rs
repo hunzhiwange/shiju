@@ -304,6 +304,48 @@ fn desktop_ui_snapshot_omits_runtime_trajectory() {
 }
 
 #[test]
+fn gateway_session_message_delta_payload_is_bounded() {
+    use vw_shared::session::ui_types::{
+        ChatMessage, ChatRole, SessionMessageDelta, SessionMessageRecord,
+    };
+
+    let delta = SessionMessageDelta {
+        session_id: "session-bounded".to_string(),
+        expected_updated_ms: 10,
+        updated_ms: 11,
+        upserts: vec![SessionMessageRecord {
+            seq_no: 10_000,
+            message_id: Some("assistant-active".to_string()),
+            message: ChatMessage {
+                role: ChatRole::Assistant,
+                content: "delta".repeat(128),
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            },
+        }],
+        truncate_after: None,
+    };
+    let bytes = serde_json::to_vec(&delta).unwrap();
+    let full_session = vw_shared::session::ui_types::ChatSession {
+        id: delta.session_id.clone(),
+        title: "baseline".to_string(),
+        messages: (0..10_000).map(|_| delta.upserts[0].message.clone()).collect(),
+        message_ids: vec![None; 10_000],
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 11,
+    };
+    let full_bytes = serde_json::to_vec(&full_session).unwrap().len();
+
+    assert_eq!(delta.upserts.len(), 1);
+    assert!(bytes.len() < 1_024, "single-entry payload was {} bytes", bytes.len());
+    assert!(full_bytes > bytes.len() * 1_000);
+    eprintln!("full_session_bytes={full_bytes} delta_bytes={}", bytes.len());
+}
+
+#[test]
 fn permanent_session_save_error_only_classifies_payload_too_large() {
     assert!(super::is_permanent_session_save_error(
         "gateway request failed: 413 Payload Too Large"

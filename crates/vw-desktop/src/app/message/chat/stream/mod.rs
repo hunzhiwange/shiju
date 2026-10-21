@@ -1,6 +1,9 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
+// 任务 11 接入现有流消费路径前，调度器先作为独立状态机由行为测试验证。
+#[allow(dead_code)]
+mod delta_scheduler;
 mod permissions;
 mod questions;
 mod steps;
@@ -13,6 +16,10 @@ pub(crate) use stream_events::append_stream_delta_for_performance_probe;
 #[cfg(test)]
 #[path = "permission_tests.rs"]
 mod permission_tests;
+
+#[cfg(test)]
+#[path = "delta_scheduler_tests.rs"]
+mod delta_scheduler_tests;
 
 #[cfg(test)]
 #[path = "tests.rs"]

@@ -666,7 +666,11 @@ fn filter_loaded_chat_after_reset_boundary(
     (filtered_chat, filtered_ids)
 }
 
-fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::PreparedSessionOpen) {
+fn apply_prepared_session_open(
+    app: &mut App,
+    prepared: crate::app::session::PreparedSessionOpen,
+    open_generation: u64,
+) {
     let crate::app::session::PreparedSessionOpen {
         session_id,
         messages,
@@ -680,7 +684,17 @@ fn apply_prepared_session_open(app: &mut App, prepared: crate::app::session::Pre
         content_signature: _,
         session_model,
         base_ui_chunk,
+        timeline_page,
     } = prepared;
+
+    if let Some(page) = timeline_page {
+        let mut timeline = crate::app::session::chat_timeline::PagedChatTimeline::new(
+            session_id.clone(),
+            open_generation,
+        );
+        timeline.merge_initial_page(page);
+        app.paged_chat_timeline = Some(timeline);
+    }
 
     app.chat_scroll_id = iced::widget::Id::unique();
     app.chat = messages;
@@ -1201,7 +1215,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             let commit_started_at = Instant::now();
             let message_count = prepared.messages.len();
-            apply_prepared_session_open(app, prepared);
+            apply_prepared_session_open(app, prepared, open_generation);
             let trajectory_refresh_task =
                 crate::app::message::chat::refresh_active_trajectory_raw_task(
                     app,

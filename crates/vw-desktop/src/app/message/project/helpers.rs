@@ -1036,6 +1036,7 @@ pub(crate) fn run_find_task(
 
 /// 后台读取 UI Store，并将完整历史和首屏分块合并为一个冷打开结果。
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(dead_code)] // Kept for explicit compatibility/import flows; normal opens use bounded pages.
 pub(crate) fn load_prepared_session_open_from_ui_store_task(
     project_path: String,
     session_id: String,
@@ -1103,64 +1104,20 @@ pub(crate) fn load_prepared_session_open_from_gateway_task(
                 "loading prepared session history from gateway"
             );
             let client = crate::app::gateway_client()?;
-            let (messages, session_info, session_ui) = tokio::join!(
-                client.session_messages::<Vec<agent_message::WithParts>>(
+            let (summary, page) =
+                crate::app::session_gateway::gateway_bounded_session_open_with_client(
+                    &client,
                     &session_id,
-                    Some(&project_path),
-                ),
-                client.session_get::<vw_shared::session::info::Info>(
-                    &session_id,
-                    Some(&project_path),
-                ),
-                client.session_ui_get_without_raw(&session_id, Some(&project_path)),
-            );
-            let messages = messages?;
-            session_info?;
-            let (step_llm_raw, llm_raw_step_indices) = match session_ui {
-                Ok(Some(loaded)) => (loaded.step_llm_raw, loaded.llm_raw_step_indices),
-                Ok(None) => (std::collections::HashMap::new(), Vec::new()),
-                Err(error) => {
-                    tracing::warn!(
-                        target: "vw_desktop",
-                        session_id = %session_id,
-                        error = %error,
-                        "session raw step payloads were unavailable"
-                    );
-                    (std::collections::HashMap::new(), Vec::new())
-                }
-            };
+                    &project_path,
+                )
+                .await?;
 
             crate::app::message::spawn_blocking_opt(move || {
-                let usage = messages.iter().fold(
-                    crate::app::models::TokenUsage::default(),
-                    |mut usage, message| {
-                        if let agent_message::Info::Assistant(assistant) = &message.info {
-                            usage.input_tokens += assistant.tokens.input;
-                            usage.output_tokens += assistant.tokens.output;
-                            usage.cached_tokens +=
-                                assistant.tokens.cache.read + assistant.tokens.cache.write;
-                            usage.reasoning_tokens += assistant.tokens.reasoning;
-                        }
-                        usage
-                    },
-                );
-                let session_model = super::latest_assistant_model_label(&messages);
-                let steps = super::steps_from_gateway_messages(&messages);
-                let (chat, message_ids) = super::loaded_chat_from_gateway_messages(messages);
-                let mut prepared = crate::app::session::prepare_session_open(
-                    session_id,
-                    chat,
-                    message_ids,
-                    usage,
-                    steps,
-                    Vec::new(),
-                    0,
-                    session_model,
+                Some(crate::app::session::prepare_bounded_session_open(
+                    summary,
+                    page,
                     show_reasoning_summary,
-                );
-                prepared.step_llm_raw = step_llm_raw;
-                prepared.llm_raw_step_indices = llm_raw_step_indices;
-                Some(prepared)
+                ))
             })
             .await
             .ok_or_else(|| "session history preparation task did not complete".to_string())

@@ -39,6 +39,72 @@ async fn stop_stub(
     (client, handle)
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn session_open_requests_summary_and_latest_page_only() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let server = tokio::spawn(async move {
+        let mut requests = Vec::new();
+        for _ in 0..2 {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut bytes = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            loop {
+                let read = stream.read(&mut buffer).await.unwrap();
+                bytes.extend_from_slice(&buffer[..read]);
+                if read == 0 || bytes.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let request = String::from_utf8(bytes).unwrap();
+            let body = if request.contains("/ui/summary") {
+                r#"{"id":"session-page","title":"Paged","updated_ms":42,"message_count":10000,"call_count":0}"#
+            } else {
+                r#"{"items":[],"total_count":10000}"#
+            };
+            let response = format!(
+                "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(response.as_bytes()).await.unwrap();
+            requests.push(request);
+        }
+        requests
+    });
+    let client = vw_gateway_client::GatewayClient::new(vw_gateway_client::GatewayEndpoint::new(
+        "127.0.0.1",
+        port,
+    ))
+    .unwrap();
+
+    let (summary, page) = super::gateway_bounded_session_open_with_client(
+        &client,
+        "session-page",
+        "/workspace/project",
+    )
+    .await
+    .unwrap();
+    let requests = server.await.unwrap();
+
+    assert_eq!(summary.message_count, 10_000);
+    assert!(page.items.is_empty());
+    assert_eq!(requests.len(), 2);
+    assert!(
+        requests
+            .iter()
+            .any(|request| request.starts_with("GET /v1/session/session-page/ui/summary?"))
+    );
+    let page_request = requests
+        .iter()
+        .find(|request| request.starts_with("GET /v1/session/session-page/ui/messages?"))
+        .expect("latest page request");
+    assert!(page_request.contains("limit=64"));
+    assert!(!requests.iter().any(|request| request.contains("/ui/without-raw")));
+}
+
 #[test]
 fn test_module_is_wired() {
     let module = std::hint::black_box(module_path!());

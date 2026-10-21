@@ -12,6 +12,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
+use super::chat_timeline::{ChatEntryRevision, ChatTimelineEntry, TimelinePage};
+
 /// 为 SharedChatMessages 领域数据提供更清晰的类型名称。
 pub type SharedChatMessages = Arc<[ChatMessage]>;
 
@@ -32,6 +34,7 @@ pub struct PreparedSessionOpen {
     pub content_signature: u64,
     pub session_model: Option<String>,
     pub base_ui_chunk: Option<PreparedChatUiChunk>,
+    pub timeline_page: Option<TimelinePage>,
 }
 
 /// 计算会话可见内容与消息标识的稳定进程内签名。
@@ -93,7 +96,57 @@ pub fn prepare_session_open(
         content_signature,
         session_model,
         base_ui_chunk,
+        timeline_page: None,
     }
+}
+
+/// 把 Gateway 的最近消息页转换为首屏提交，不读取步骤、调用或完整历史。
+pub fn prepare_bounded_session_open(
+    summary: vw_gateway_client::GatewaySessionUiSummary,
+    page: vw_gateway_client::GatewaySessionMessagePage<
+        vw_shared::session::ui_types::SessionMessageRecord,
+    >,
+    show_reasoning_summary: bool,
+) -> PreparedSessionOpen {
+    let entries = page
+        .items
+        .into_iter()
+        .map(|record| {
+            ChatTimelineEntry::persisted(
+                &summary.id,
+                record.seq_no,
+                record.message_id,
+                ChatEntryRevision::INITIAL,
+                record.message,
+            )
+        })
+        .collect::<Vec<_>>();
+    let messages = entries.iter().map(|entry| entry.message.clone()).collect::<Vec<_>>();
+    let message_ids = entries
+        .iter()
+        .map(|entry| match &entry.key {
+            super::chat_timeline::ChatEntryKey::PersistedId(id) => Some(id.clone()),
+            _ => None,
+        })
+        .collect();
+    let mut prepared = prepare_session_open(
+        summary.id,
+        messages,
+        message_ids,
+        TokenUsage::default(),
+        Vec::new(),
+        Vec::new(),
+        summary.updated_ms,
+        None,
+        show_reasoning_summary,
+    );
+    prepared.timeline_page = Some(TimelinePage {
+        entries,
+        before_cursor: page.next_cursor,
+        after_cursor: page.previous_cursor,
+        total_count: page.total_count,
+    });
+    prepared
 }
 
 /// 在后台将 UI Store 会话移动为统一的冷打开提交。

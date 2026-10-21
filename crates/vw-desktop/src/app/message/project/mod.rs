@@ -22,10 +22,7 @@ pub(crate) use helpers::refresh_file_index;
 pub(crate) use helpers::{
     prepare_session_ui_chunks_task, prepare_session_ui_task, prepare_stream_message_ui_task,
 };
-pub(crate) use session::{
-    cache_external_session, latest_assistant_model_label, loaded_chat_from_gateway_messages,
-    steps_from_gateway_messages,
-};
+pub(crate) use session::{cache_external_session, loaded_chat_from_gateway_messages};
 
 #[derive(Debug, Clone)]
 /// LoadedProjectInfo 保存该流程中跨函数传递的结构化数据。

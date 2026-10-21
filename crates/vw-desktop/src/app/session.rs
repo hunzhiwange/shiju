@@ -35,9 +35,9 @@ pub use self::chat_ui::{
 };
 /// 对外暴露当前模块需要复用的能力。
 pub use self::loading::{
-    PreparedSessionOpen, SharedChatMessages, build_session_previews, prepare_session_open,
-    prepare_session_open_from_ui_store, session_content_signature, session_usage,
-    shared_chat_messages,
+    PreparedSessionOpen, SharedChatMessages, build_session_previews, prepare_bounded_session_open,
+    prepare_session_open, prepare_session_open_from_ui_store, session_content_signature,
+    session_usage, shared_chat_messages,
 };
 pub(crate) use self::view_cache::SessionViewCache;
 
@@ -81,6 +81,7 @@ fn assign_message_model_to_step(
     }
 }
 
+#[allow(dead_code)] // Used only by the retained full-session compatibility loader.
 pub(crate) fn backfill_message_models_from_steps(
     messages: &mut [ChatMessage],
     steps: &[ChatSessionStep],

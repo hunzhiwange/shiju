@@ -641,6 +641,7 @@ impl App {
             archived_session_ids: cfg_archived_session_ids,
             session_chat_cache: HashMap::new(),
             session_view_cache: crate::app::session::SessionViewCache::new(),
+            paged_chat_timeline: None,
             session_chat_message_id_cache: HashMap::new(),
             session_history_reset_boundaries: HashMap::new(),
             session_previews: HashMap::new(),

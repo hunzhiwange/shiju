@@ -288,6 +288,32 @@ pub async fn gateway_load_session_async(id: &str) -> Result<Option<ChatSession>,
     client.session_ui_get(id, None).await
 }
 
+pub(crate) async fn gateway_bounded_session_open_with_client(
+    client: &vw_gateway_client::GatewayClient,
+    session_id: &str,
+    directory: &str,
+) -> Result<
+    (
+        vw_gateway_client::GatewaySessionUiSummary,
+        vw_gateway_client::GatewaySessionMessagePage<
+            vw_shared::session::ui_types::SessionMessageRecord,
+        >,
+    ),
+    String,
+> {
+    let page_query = vw_gateway_client::GatewaySessionMessagePageQuery {
+        directory: Some(directory.to_owned()),
+        cursor: None,
+        limit: Some(64),
+        direction: vw_gateway_client::SessionMessagePageDirection::Older,
+    };
+    let (summary, page) = tokio::join!(
+        client.session_ui_summary(session_id, Some(directory)),
+        client.session_message_page(session_id, &page_query),
+    );
+    Ok((summary?, page?))
+}
+
 /// 执行 gateway_load_session_any_async 对应的领域操作。
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

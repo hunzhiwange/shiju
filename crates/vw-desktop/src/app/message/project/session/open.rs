@@ -4,8 +4,6 @@
 
 use super::common::{clear_new_session_picker_messages, reset_new_session_picker_state};
 use crate::app::message::project::ProjectMessage;
-#[cfg(not(target_arch = "wasm32"))]
-use crate::app::message::project::helpers::load_prepared_session_open_from_ui_store_task;
 use crate::app::message::project::helpers::{
     create_gateway_session_in_directory, load_prepared_session_open_from_gateway_task,
     load_project_worktree_picker_options, prepare_session_ui_task,
@@ -162,25 +160,6 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 }
                 iced::Task::none()
             };
-            #[cfg(not(target_arch = "wasm32"))]
-            let history_load_task = if app.chat.is_empty() && !app.session_is_requesting(&id) {
-                load_prepared_session_open_from_ui_store_task(
-                    resolved_path.clone(),
-                    id.clone(),
-                    open_generation,
-                    app.dialogue_flow_show_reasoning_summary,
-                )
-            } else if !has_requesting_cache {
-                load_prepared_session_open_from_gateway_task(
-                    resolved_path.clone(),
-                    id.clone(),
-                    open_generation,
-                    app.dialogue_flow_show_reasoning_summary,
-                )
-            } else {
-                iced::Task::none()
-            };
-            #[cfg(target_arch = "wasm32")]
             let history_load_task = if !has_requesting_cache {
                 load_prepared_session_open_from_gateway_task(
                     resolved_path.clone(),

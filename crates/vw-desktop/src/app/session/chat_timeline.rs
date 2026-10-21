@@ -50,7 +50,7 @@ impl ChatTimelineEntry {
 
 /// A bounded response page. Cursors are opaque to the timeline.
 #[derive(Debug, Clone)]
-pub(crate) struct TimelinePage {
+pub struct TimelinePage {
     pub(crate) entries: Vec<ChatTimelineEntry>,
     pub(crate) before_cursor: Option<String>,
     pub(crate) after_cursor: Option<String>,

@@ -157,6 +157,33 @@ fn chat_entry_rejects_stale_generation_or_revision() {
 }
 
 #[test]
+fn session_active_overlay_merges_repeated_recovery_once() {
+    let mut timeline = PagedChatTimeline::new("session-a", 9);
+    let message = message("streaming");
+
+    timeline.set_active(1, message.clone());
+    timeline.set_active(1, message);
+
+    assert_eq!(timeline.visible_entries().len(), 1);
+}
+
+#[test]
+fn session_active_overlay_completion_deduplicates_page_overlap() {
+    let mut timeline = PagedChatTimeline::new("session-a", 9);
+    timeline.set_active(1, message("done"));
+    timeline.complete_active(12, Some("message-12".to_string()));
+    timeline.merge_initial_page(page(
+        vec![persisted("session-a", 12, Some("message-12"))],
+        None,
+        None,
+        12,
+    ));
+
+    assert_eq!(timeline.visible_entries().len(), 1);
+    assert!(timeline.active_entry().is_none());
+}
+
+#[test]
 fn paged_chat_timeline_rejects_out_of_order_page_response() {
     let mut timeline = PagedChatTimeline::new("session-a", 2);
     timeline.merge_initial_page(page(

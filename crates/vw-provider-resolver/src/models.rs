@@ -19,7 +19,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use tracing::error;
-use tracing::info;
+use tracing::{debug, info};
 
 pub use vw_shared::provider::models::{
     Model, ModelCost, ModelCostOver200k, ModelInterleaved, ModelLimit, ModelModalities,
@@ -59,7 +59,7 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
     let value = match serde_json::from_str::<Value>(text) {
         Ok(v) => v,
         Err(err) => {
-            info!(
+            debug!(
                 error = %err,
                 "{label}_parse_invalid"
             );
@@ -70,7 +70,7 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
     match &value {
         Value::Object(obj) => {
             let keys: Vec<&String> = obj.keys().take(5).collect();
-            info!(
+            debug!(
                 kind = "object",
                 keys_count = obj.len(),
                 keys = ?keys,
@@ -81,24 +81,24 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
                 && let Ok(json) =
                     serde_json::from_value::<HashMap<String, Provider>>(providers.clone())
             {
-                info!(providers = json.len(), "{label}_parsed_wrapped");
+                debug!(providers = json.len(), "{label}_parsed_wrapped");
                 return Some(json);
             }
 
             if let Some(data) = obj.get("data")
                 && let Ok(json) = serde_json::from_value::<HashMap<String, Provider>>(data.clone())
             {
-                info!(providers = json.len(), "{label}_parsed_data");
+                debug!(providers = json.len(), "{label}_parsed_data");
                 return Some(json);
             }
 
             match serde_json::from_value::<HashMap<String, Provider>>(value.clone()) {
                 Ok(json) => {
-                    info!(providers = json.len(), "{label}_parsed");
+                    debug!(providers = json.len(), "{label}_parsed");
                     return Some(json);
                 }
                 Err(err) => {
-                    info!(
+                    debug!(
                         error = %err,
                         "{label}_parse_failed"
                     );
@@ -106,7 +106,7 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
             }
         }
         Value::Array(arr) => {
-            info!(kind = "array", len = arr.len(), "{label}_parse_shape");
+            debug!(kind = "array", len = arr.len(), "{label}_parse_shape");
 
             if let Ok(list) = serde_json::from_value::<Vec<Provider>>(value) {
                 let map = list
@@ -114,12 +114,12 @@ fn parse_models_text(label: &str, text: &str) -> Option<HashMap<String, Provider
                     .filter(|p| !p.id.is_empty())
                     .map(|p| (p.id.clone(), p))
                     .collect::<HashMap<_, _>>();
-                info!(providers = map.len(), "{label}_parsed_array");
+                debug!(providers = map.len(), "{label}_parsed_array");
                 return Some(map);
             }
         }
         _ => {
-            info!(kind = "other", "{label}_parse_shape");
+            debug!(kind = "other", "{label}_parse_shape");
         }
     }
     None

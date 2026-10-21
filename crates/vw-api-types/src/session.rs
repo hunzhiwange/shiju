@@ -301,6 +301,61 @@ pub struct GatewaySessionMessageListQuery {
     /// 返回消息数量上限。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub limit: Option<usize>,
+    /// 不透明分页游标；省略时读取最近一页。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+}
+
+/// UI 消息页的读取方向。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SessionMessagePageDirection {
+    /// 从当前边界向更旧消息读取。
+    #[default]
+    Older,
+}
+
+/// 查询有界 UI 消息页的参数。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub struct GatewaySessionMessagePageQuery {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub directory: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limit: Option<usize>,
+    #[serde(default)]
+    pub direction: SessionMessagePageDirection,
+}
+
+/// 不包含消息、调用和步骤正文的 UI 会话摘要。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GatewaySessionUiSummary {
+    pub id: String,
+    pub title: String,
+    pub updated_ms: u64,
+    pub message_count: usize,
+    pub call_count: usize,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_content: Option<String>,
+}
+
+/// 有界消息页响应；消息记录类型由使用协议的 crate 提供。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GatewaySessionMessagePage<T> {
+    pub items: Vec<T>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next_cursor: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub previous_cursor: Option<String>,
+    pub total_count: usize,
+}
+
+/// 增量写入结果。
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GatewaySessionMessageDeltaResponse {
+    pub upserted_rows: usize,
+    pub truncated_rows: usize,
 }
 
 /// 从现有会话分叉创建新会话的请求。

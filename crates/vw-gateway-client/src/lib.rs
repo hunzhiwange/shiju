@@ -111,10 +111,11 @@ pub use http::is_gateway_unavailable_error;
 /// 这些类型直接复用 `vw-api-types` 中的定义，避免调用方重复依赖多个 crate。
 pub use session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
-    GatewaySessionMessageListQuery, GatewaySessionPatchBody, GatewaySessionPatchTime,
+    GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery, GatewaySessionMessagePage,
+    GatewaySessionMessagePageQuery, GatewaySessionPatchBody, GatewaySessionPatchTime,
     GatewaySessionResetBody, GatewaySessionScopeBody, GatewaySessionSummarizeBody,
     GatewaySessionTitleGenerateBody, GatewaySessionTitleGenerateResponse, GatewaySessionTodoItem,
-    GatewaySessionTodoPutBody,
+    GatewaySessionTodoPutBody, GatewaySessionUiSummary, SessionMessagePageDirection,
 };
 #[allow(deprecated)]
 /// 兼容旧命名的会话类型别名。

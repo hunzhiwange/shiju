@@ -866,6 +866,20 @@ pub(crate) fn load_session_scoped_for_tenant_fallible(
     })
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn load_session_meta_scoped_for_tenant(
+    tenant: &TenantScope,
+    id: &str,
+    scope: Option<&str>,
+) -> anyhow::Result<Option<ChatSessionMeta>> {
+    run_project_operation_fallible(
+        "load session metadata",
+        tenant,
+        scope,
+        |store, project_scope| store.load_session_meta(project_scope, id),
+    )
+}
+
 /// 按稳定序号读取固定大小的会话消息页；`before_seq_no` 为排他上界。
 #[cfg(not(target_arch = "wasm32"))]
 pub fn load_session_message_page_scoped_for_tenant(

@@ -132,6 +132,7 @@ pub(super) async fn run(
                     &GatewaySessionMessageListQuery {
                         directory: directory.map(ToOwned::to_owned),
                         limit,
+                        cursor: None,
                     },
                 )
                 .await

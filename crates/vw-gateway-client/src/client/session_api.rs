@@ -16,11 +16,14 @@ use super::GatewayClient;
 use crate::http::directory_query;
 use crate::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
-    GatewaySessionMessageListQuery, GatewaySessionPatchBody, GatewaySessionResetBody,
+    GatewaySessionMessageDeltaResponse, GatewaySessionMessageListQuery, GatewaySessionMessagePage,
+    GatewaySessionMessagePageQuery, GatewaySessionPatchBody, GatewaySessionResetBody,
     GatewaySessionScopeBody, GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
-    GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody,
+    GatewaySessionTitleGenerateResponse, GatewaySessionTodoPutBody, GatewaySessionUiSummary,
 };
-use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta, ChatSessionStep};
+use vw_shared::session::ui_types::{
+    ChatSession, ChatSessionMeta, ChatSessionStep, SessionMessageDelta, SessionMessageRecord,
+};
 use vw_shared::todo::Todo;
 
 #[derive(Debug, Clone, Deserialize)]
@@ -242,7 +245,49 @@ impl GatewayClient {
             &GatewaySessionMessageListQuery {
                 directory: directory.map(ToOwned::to_owned),
                 limit: None,
+                cursor: None,
             },
+        )
+        .await
+    }
+
+    /// 读取不包含历史正文的会话摘要。
+    pub async fn session_ui_summary(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+    ) -> Result<GatewaySessionUiSummary, String> {
+        self.get_json(
+            &format!("{}/ui/summary", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
+    }
+
+    /// 读取固定大小的会话消息页。
+    pub async fn session_message_page(
+        &self,
+        session_id: &str,
+        query: &GatewaySessionMessagePageQuery,
+    ) -> Result<GatewaySessionMessagePage<SessionMessageRecord>, String> {
+        self.get_json(
+            &format!("{}/ui/messages", session_path(session_id)?),
+            &session_message_page_query(query),
+        )
+        .await
+    }
+
+    /// 原子提交会话消息增量。
+    pub async fn session_message_delta(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+        delta: &SessionMessageDelta,
+    ) -> Result<GatewaySessionMessageDeltaResponse, String> {
+        self.patch_json(
+            &format!("{}/ui/messages", session_path(session_id)?),
+            &directory_query(directory),
+            delta,
         )
         .await
     }
@@ -606,6 +651,26 @@ fn session_message_list_query(query: &GatewaySessionMessageListQuery) -> Vec<(St
     if let Some(limit) = query.limit {
         pairs.push(("limit".to_string(), limit.to_string()));
     }
+    if let Some(cursor) = query.cursor.as_deref().filter(|value| !value.is_empty()) {
+        pairs.push(("cursor".to_string(), cursor.to_string()));
+    }
+    pairs
+}
+
+fn session_message_page_query(query: &GatewaySessionMessagePageQuery) -> Vec<(String, String)> {
+    let mut pairs = directory_query(query.directory.as_deref());
+    if let Some(cursor) = query.cursor.as_deref().filter(|value| !value.is_empty()) {
+        pairs.push(("cursor".to_string(), cursor.to_string()));
+    }
+    if let Some(limit) = query.limit {
+        pairs.push(("limit".to_string(), limit.to_string()));
+    }
+    pairs.push((
+        "direction".to_string(),
+        match query.direction {
+            vw_api_types::session::SessionMessagePageDirection::Older => "older".to_string(),
+        },
+    ));
     pairs
 }
 

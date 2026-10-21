@@ -10,7 +10,8 @@ use std::path::Path as FsPath;
 use std::sync::Once;
 use tempfile::TempDir;
 use vw_api_types::session::{
-    GatewaySessionScopeBody, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
+    GatewaySessionMessagePageQuery, GatewaySessionScopeBody, GatewaySessionTodoItem,
+    GatewaySessionTodoPutBody,
 };
 use vw_api_types::todo::{TodoPriority, TodoStatus};
 use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessionTimeInfo};
@@ -206,6 +207,117 @@ fn save_runtime_session(project_path: &FsPath, session: &ui_models::ChatSession)
     ui_store::save_session_scoped_for_tenant(&tenant, session, Some(&scope))
         .expect("runtime session should save");
     scope
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_summary_omits_message_payload() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let body = scoped_session("bounded-summary", "Summary", "secret-body", 20);
+    save_runtime_session(project.path(), &body);
+    let Json(summary) = session_ui_summary(
+        Path(body.id.clone()),
+        Query(query_for(project.path())),
+        HeaderMap::new(),
+    )
+    .await
+    .unwrap();
+    let encoded = serde_json::to_value(summary).unwrap();
+    assert_eq!(encoded["message_count"], 1);
+    assert!(encoded.get("messages").is_none());
+    assert!(encoded.get("calls").is_none());
+    assert!(encoded.get("steps").is_none());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_messages_enforces_page_limit() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let mut body = scoped_session("bounded-page", "Page", "0", 20);
+    body.messages = (0..10_000)
+        .map(|index| ui_models::ChatMessage {
+            role: ui_models::ChatRole::User,
+            content: index.to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect();
+    body.message_ids = (0..10_000).map(|index| Some(format!("m-{index}"))).collect();
+    save_runtime_session(project.path(), &body);
+    let Json(page) = session_ui_messages(
+        Path(body.id),
+        Query(GatewaySessionMessagePageQuery {
+            directory: Some(project.path().to_string_lossy().into_owned()),
+            cursor: None,
+            limit: None,
+            direction: Default::default(),
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(page.items.len(), 64);
+    assert_eq!(page.total_count, 10_000);
+    assert!(page.next_cursor.is_some());
+    assert!(serde_json::to_vec(&page).unwrap().len() < 32_000);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_messages_rejects_foreign_cursor() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let body = scoped_session("cursor-owner", "Page", "0", 20);
+    let scope = save_runtime_session(project.path(), &body);
+    let tenant = ui_store::current_tenant_scope();
+    let cursor = encode_cursor(&MessageCursor {
+        session_id: "another-session".into(),
+        platform_id: tenant.platform_id().as_ref().to_owned(),
+        company_id: tenant.company_id().as_ref().to_owned(),
+        scope,
+        before_seq_no: 1,
+    })
+    .unwrap();
+    let error = session_ui_messages(
+        Path(body.id),
+        Query(GatewaySessionMessagePageQuery {
+            directory: Some(project.path().to_string_lossy().into_owned()),
+            cursor: Some(cursor),
+            limit: Some(1),
+            direction: Default::default(),
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect_err("foreign cursor must fail");
+    assert!(error.to_string().contains("does not match request scope"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_message_delta_rejects_stale_version() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let body = scoped_session("stale-delta", "Delta", "0", 20);
+    save_runtime_session(project.path(), &body);
+    let error = session_ui_message_delta(
+        Path(body.id.clone()),
+        Query(query_for(project.path())),
+        HeaderMap::new(),
+        Json(ui_models::SessionMessageDelta {
+            session_id: body.id,
+            expected_updated_ms: 19,
+            updated_ms: 21,
+            upserts: Vec::new(),
+            truncate_after: None,
+        }),
+    )
+    .await
+    .expect_err("stale delta must fail");
+    assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
 }
 
 fn agent_session(id: &str, project_id: &str, title: &str, updated: u64) -> AgentSessionInfo {

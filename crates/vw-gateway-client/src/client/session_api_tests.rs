@@ -5,14 +5,15 @@
 use serde_json::json;
 use vw_api_types::session::{
     GatewaySessionCreateBody, GatewaySessionDiffQuery, GatewaySessionForkBody,
-    GatewaySessionMessageListQuery, GatewaySessionPatchBody, GatewaySessionPatchTime,
-    GatewaySessionResetBody, GatewaySessionSummarizeBody, GatewaySessionTitleGenerateBody,
-    GatewaySessionTodoItem, GatewaySessionTodoPutBody,
+    GatewaySessionMessageListQuery, GatewaySessionMessagePageQuery, GatewaySessionPatchBody,
+    GatewaySessionPatchTime, GatewaySessionResetBody, GatewaySessionSummarizeBody,
+    GatewaySessionTitleGenerateBody, GatewaySessionTodoItem, GatewaySessionTodoPutBody,
 };
 use vw_api_types::todo::{TodoPriority, TodoStatus};
 use vw_shared::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+use vw_shared::session::ui_types::{SessionMessageDelta, SessionMessageRecord};
 
-use super::{session_diff_query, session_message_list_query};
+use super::{session_diff_query, session_message_list_query, session_message_page_query};
 use crate::client::test_support;
 
 fn chat_session() -> ChatSession {
@@ -39,6 +40,7 @@ fn session_message_list_query_omits_blank_directory_and_keeps_zero_limit() {
     let pairs = session_message_list_query(&GatewaySessionMessageListQuery {
         directory: Some("  \t".to_string()),
         limit: Some(0),
+        cursor: None,
     });
 
     assert_eq!(pairs, vec![("limit".to_string(), "0".to_string())]);
@@ -46,9 +48,90 @@ fn session_message_list_query_omits_blank_directory_and_keeps_zero_limit() {
         session_message_list_query(&GatewaySessionMessageListQuery {
             directory: None,
             limit: None,
+            cursor: None,
         })
         .is_empty()
     );
+}
+
+#[test]
+fn session_message_page_client_encodes_cursor() {
+    let pairs = session_message_page_query(&GatewaySessionMessagePageQuery {
+        directory: Some("/repo path".into()),
+        cursor: Some("opaque+/=".into()),
+        limit: Some(64),
+        direction: Default::default(),
+    });
+    assert_eq!(
+        pairs,
+        vec![
+            ("directory".into(), "/repo path".into()),
+            ("cursor".into(), "opaque+/=".into()),
+            ("limit".into(), "64".into()),
+            ("direction".into(), "older".into()),
+        ]
+    );
+}
+
+#[tokio::test]
+async fn session_message_page_client_sends_bounded_query() {
+    let server = test_support::server(vec![(
+        200,
+        json!({
+            "items": [], "next_cursor": null, "previous_cursor": null, "total_count": 10000
+        }),
+    )]);
+    let page = server
+        .client()
+        .session_message_page(
+            "s1",
+            &GatewaySessionMessagePageQuery {
+                directory: Some("/repo".into()),
+                cursor: Some("abc".into()),
+                limit: Some(64),
+                direction: Default::default(),
+            },
+        )
+        .await
+        .expect("page");
+    assert_eq!(page.total_count, 10_000);
+    let request = server.take_request();
+    assert_eq!(request.method, "GET");
+    assert_eq!(
+        request.path,
+        "/v1/session/s1/ui/messages?directory=%2Frepo&cursor=abc&limit=64&direction=older"
+    );
+    server.join();
+}
+
+#[tokio::test]
+async fn session_message_delta_client_sends_patch_body() {
+    let server =
+        test_support::server(vec![(200, json!({"upserted_rows": 1, "truncated_rows": 0}))]);
+    let delta = SessionMessageDelta {
+        session_id: "s1".into(),
+        expected_updated_ms: 1,
+        updated_ms: 2,
+        upserts: vec![SessionMessageRecord {
+            seq_no: 1,
+            message_id: None,
+            message: ChatMessage {
+                role: ChatRole::User,
+                content: "hi".into(),
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            },
+        }],
+        truncate_after: None,
+    };
+    let result = server.client().session_message_delta("s1", Some("/repo"), &delta).await.unwrap();
+    assert_eq!(result.upserted_rows, 1);
+    let request = server.take_request();
+    assert_eq!(request.method, "PATCH");
+    assert_eq!(request.path, "/v1/session/s1/ui/messages?directory=%2Frepo");
+    assert_eq!(request.body["expected_updated_ms"], 1);
+    server.join();
 }
 
 #[test]
@@ -353,6 +436,7 @@ async fn session_client_uses_content_and_ui_routes() {
             &GatewaySessionMessageListQuery {
                 directory: Some("/repo path".to_string()),
                 limit: Some(7),
+                cursor: None,
             },
         )
         .await
@@ -473,6 +557,7 @@ async fn session_api_routes_lifecycle_messages_ui_scope_and_title_calls() {
             &GatewaySessionMessageListQuery {
                 directory: Some("/repo".to_string()),
                 limit: Some(25),
+                cursor: None,
             },
         )
         .await

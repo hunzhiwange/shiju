@@ -223,6 +223,7 @@ async fn session_message_list_honors_zero_limit_and_unbounded_newest_first() {
         Query(GatewaySessionMessageListQuery {
             directory: Some(project_path.to_string_lossy().to_string()),
             limit: Some(0),
+            cursor: None,
         }),
         HeaderMap::new(),
     )
@@ -235,6 +236,7 @@ async fn session_message_list_honors_zero_limit_and_unbounded_newest_first() {
         Query(GatewaySessionMessageListQuery {
             directory: Some(project_path.to_string_lossy().to_string()),
             limit: None,
+            cursor: None,
         }),
         HeaderMap::new(),
     )
@@ -272,6 +274,7 @@ async fn session_message_list_rejects_incomplete_history() {
         Query(GatewaySessionMessageListQuery {
             directory: Some(project.path().to_string_lossy().to_string()),
             limit: None,
+            cursor: None,
         }),
         HeaderMap::new(),
     )
@@ -300,6 +303,7 @@ async fn session_message_list_returns_empty_for_unknown_session() {
         Query(GatewaySessionMessageListQuery {
             directory: Some(project.path().to_string_lossy().to_string()),
             limit: None,
+            cursor: None,
         }),
         HeaderMap::new(),
     )
@@ -333,7 +337,7 @@ async fn session_message_handlers_round_trip_messages_and_parts() {
 
     let Json(listed) = session_message_list(
         Path(session_id.clone()),
-        Query(GatewaySessionMessageListQuery { directory: None, limit: Some(1) }),
+        Query(GatewaySessionMessageListQuery { directory: None, limit: Some(1), cursor: None }),
         headers_for(project_path),
     )
     .await

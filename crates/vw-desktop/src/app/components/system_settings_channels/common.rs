@@ -297,9 +297,10 @@ pub(super) fn text_row_with_key<'a>(
             text_editor(editor)
                 .placeholder(multiline_placeholder(placeholder))
                 .on_action(move |action| {
-                    Message::Settings(SettingsMessage::Channels(
-                        ChannelsMessage::TextEditorAction(key_for_action.clone(), action),
-                    ))
+                    Message::Settings(SettingsMessage::Channels(ChannelsMessage::TextEditorAction(
+                        key_for_action.clone(),
+                        action,
+                    )))
                 })
                 .padding([9, 12])
                 .height(Length::Fixed(MULTILINE_EDITOR_HEIGHT))
@@ -316,13 +317,10 @@ pub(super) fn text_row_with_key<'a>(
         } else {
             editor.into()
         };
-        return row![
-            text(display_label).size(13).width(Length::Fixed(LABEL_WIDTH)),
-            editor,
-        ]
-        .spacing(16)
-        .align_y(Alignment::Start)
-        .into();
+        return row![text(display_label).size(13).width(Length::Fixed(LABEL_WIDTH)), editor,]
+            .spacing(16)
+            .align_y(Alignment::Start)
+            .into();
     }
 
     let key_for_input = key.clone();

@@ -175,6 +175,50 @@ fn runtime_defaults_preserve_configured_values() {
 }
 
 #[test]
+fn runtime_defaults_prefer_complete_main_agent_model_binding() {
+    let mut config = Config {
+        default_provider: Some("shiju".to_string()),
+        default_model: Some("shiju/deepseek-v4-flash".to_string()),
+        ..Config::default()
+    };
+    config.agents.insert(
+        "main".to_string(),
+        vw_config_types::agent::AgentDefinitionConfig {
+            provider: " token-plan ".to_string(),
+            model: " deepseek-v4.1-flash-1017 ".to_string(),
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(resolved_default_provider(&config), "token-plan");
+    assert_eq!(resolved_default_model(&config), "token-plan/deepseek-v4.1-flash-1017");
+
+    let defaults = runtime_defaults_from_config(&config);
+    assert_eq!(defaults.default_provider, "token-plan");
+    assert_eq!(defaults.model, "token-plan/deepseek-v4.1-flash-1017");
+}
+
+#[test]
+fn runtime_defaults_ignore_incomplete_main_agent_model_binding() {
+    let mut config = Config {
+        default_provider: Some("provider-a".to_string()),
+        default_model: Some("provider-a/model-a".to_string()),
+        ..Config::default()
+    };
+    config.agents.insert(
+        "main".to_string(),
+        vw_config_types::agent::AgentDefinitionConfig {
+            provider: "token-plan".to_string(),
+            model: " ".to_string(),
+            ..Default::default()
+        },
+    );
+
+    assert_eq!(resolved_default_provider(&config), "provider-a");
+    assert_eq!(resolved_default_model(&config), "provider-a/model-a");
+}
+
+#[test]
 fn runtime_defaults_use_builtin_provider_and_model_when_unset() {
     let config = Config::default();
 

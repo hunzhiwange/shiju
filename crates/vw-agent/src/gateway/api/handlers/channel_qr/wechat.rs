@@ -63,13 +63,13 @@ async fn get_json(
     with_application_headers(
         client.get(format!("{}/{path}", base_url.trim_end_matches('/'))).query(query),
     )
-        .send()
-        .await
-        .and_then(reqwest::Response::error_for_status)
-        .map_err(|_| provider_error(format!("WeChat {operation} request failed")))?
-        .json()
-        .await
-        .map_err(|_| provider_error(format!("WeChat {operation} response was invalid")))
+    .send()
+    .await
+    .and_then(reqwest::Response::error_for_status)
+    .map_err(|_| provider_error(format!("WeChat {operation} request failed")))?
+    .json()
+    .await
+    .map_err(|_| provider_error(format!("WeChat {operation} response was invalid")))
 }
 
 async fn post_json(

@@ -122,7 +122,8 @@ pub(crate) fn runtime_config_store() -> &'static Mutex<HashMap<PathBuf, RuntimeC
 
 /// 解析配置中的默认 Provider
 ///
-/// 从配置对象中获取默认 Provider，如果未配置则返回系统默认值。
+/// 优先使用主代理的完整模型绑定；未配置时回退到顶层默认 Provider，
+/// 最后才使用系统默认值。
 ///
 /// # 参数
 ///
@@ -136,12 +137,16 @@ pub(crate) fn runtime_config_store() -> &'static Mutex<HashMap<PathBuf, RuntimeC
 ///
 /// 如果配置中未指定，默认使用 `"zhipuai-coding-plan"`
 pub(crate) fn resolved_default_provider(config: &Config) -> String {
-    config.default_provider.clone().unwrap_or_else(|| "zhipuai-coding-plan".to_string())
+    main_agent_model_binding(config)
+        .map(|(provider, _)| provider.to_string())
+        .or_else(|| config.default_provider.clone())
+        .unwrap_or_else(|| "zhipuai-coding-plan".to_string())
 }
 
 /// 解析配置中的默认 Model
 ///
-/// 从配置对象中获取默认 Model，如果未配置则返回系统默认值。
+/// 优先使用主代理的完整模型绑定；未配置时回退到顶层默认 Model，
+/// 最后才使用系统默认值。
 ///
 /// # 参数
 ///
@@ -155,7 +160,17 @@ pub(crate) fn resolved_default_provider(config: &Config) -> String {
 ///
 /// 如果配置中未指定，默认使用 `"zhipuai-coding-plan/glm-5"`
 pub(crate) fn resolved_default_model(config: &Config) -> String {
-    config.default_model.clone().unwrap_or_else(|| "zhipuai-coding-plan/glm-5".to_string())
+    main_agent_model_binding(config)
+        .map(|(provider, model)| format!("{provider}/{model}"))
+        .or_else(|| config.default_model.clone())
+        .unwrap_or_else(|| "zhipuai-coding-plan/glm-5".to_string())
+}
+
+fn main_agent_model_binding(config: &Config) -> Option<(&str, &str)> {
+    let main = config.agents.get("main")?;
+    let provider = main.provider.trim();
+    let model = main.model.trim();
+    if provider.is_empty() || model.is_empty() { None } else { Some((provider, model)) }
 }
 
 /// 从配置对象构建通道运行时默认值

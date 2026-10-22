@@ -56,7 +56,7 @@ impl WidgetRef for &WelcomeWidget {
         lines.push(Line::from(vec![
             "  ".into(),
             "Welcome to ".into(),
-            "VibeWindow".bold(),
+            "ShiJu".bold(),
             ", your autonomous agent runtime".into(),
         ]));
         Paragraph::new(lines).wrap(Wrap { trim: false }).render(area, buf);
@@ -88,7 +88,7 @@ mod tests {
         (&widget).render_ref(area, &mut buf);
 
         let rendered = format!("{buf:?}");
-        assert!(rendered.contains("Welcome to VibeWindow"));
+        assert!(rendered.contains("Welcome to ShiJu"));
         insta::assert_snapshot!(rendered);
     }
 }

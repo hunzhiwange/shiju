@@ -10,7 +10,7 @@ fn key(code: KeyCode) -> KeyEvent {
 fn typing_at_requests_search_and_selecting_inserts_path() {
     let mut pane = BottomPane::new(BottomPaneParams {
         footer_data: V3FooterData::default(),
-        placeholder: "Compose a VibeWindow task".into(),
+        placeholder: "Compose a ShiJu task".into(),
     });
     pane.set_command_palette_items(vec![V3SelectionItem::new("search", "Search")]);
 

@@ -49,7 +49,7 @@ fn sample_widget() -> ChatWidget {
             directory: Some("/workspace".into()),
             ..V3FooterData::default()
         },
-        placeholder: "Ask VibeWindow".into(),
+        placeholder: "Ask ShiJu".into(),
     })
 }
 

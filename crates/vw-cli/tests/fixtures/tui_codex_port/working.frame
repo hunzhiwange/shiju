@@ -2,7 +2,7 @@
 ▌ Show the final copied TUI matrix.
 
 • The Codex-derived ChatWidget is
-  connected to VibeWindow Gateway.
+  connected to ShiJu Gateway.
 
 thinking: Inspecting the Gateway bridge
   and terminal buffer.
@@ -20,7 +20,7 @@ thinking: Inspecting the Gateway bridge
 === 80x24 ===
 ▌ Show the final copied TUI matrix.
 
-• The Codex-derived ChatWidget is connected to VibeWindow Gateway.
+• The Codex-derived ChatWidget is connected to ShiJu Gateway.
 
 thinking: Inspecting the Gateway bridge and terminal buffer.
 
@@ -45,7 +45,7 @@ thinking: Inspecting the Gateway bridge and terminal buffer.
 === 120x40 ===
 ▌ Show the final copied TUI matrix.
 
-• The Codex-derived ChatWidget is connected to VibeWindow Gateway.
+• The Codex-derived ChatWidget is connected to ShiJu Gateway.
 
 thinking: Inspecting the Gateway bridge and terminal buffer.
 

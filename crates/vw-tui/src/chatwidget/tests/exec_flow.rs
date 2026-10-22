@@ -57,7 +57,7 @@ Checking vw-tui
   •
 • Working (0s • esc to interrupt)
 
-› Compose a VibeWindow task
+› Compose a ShiJu task
   esc interrupt
 
 
@@ -94,7 +94,7 @@ Finished dev profile
 
 • The check passed.
 
-› Compose a VibeWindow task
+› Compose a ShiJu task
   ? shortcuts
 
 "###);

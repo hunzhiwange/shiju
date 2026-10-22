@@ -16,7 +16,7 @@ struct ThemePreview;
 /// 预览区域只声明由 VibeWindow 提供实际预览，不在复制壳内应用主题。
 impl Renderable for ThemePreview {
     fn render(&self, area: Rect, buf: &mut Buffer) {
-        Line::from("Preview is supplied by VibeWindow").render(area, buf);
+        Line::from("Preview is supplied by ShiJu").render(area, buf);
     }
     fn desired_height(&self, _width: u16) -> u16 {
         1

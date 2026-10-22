@@ -17,7 +17,7 @@ impl Default for ChatWidgetConfig {
     fn default() -> Self {
         Self {
             footer_data: V3FooterData::default(),
-            placeholder: "Compose a VibeWindow task".to_string(),
+            placeholder: "Compose a ShiJu task".to_string(),
         }
     }
 }

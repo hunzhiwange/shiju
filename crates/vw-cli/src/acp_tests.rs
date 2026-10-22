@@ -119,7 +119,7 @@ async fn acp_command_routes_to_agent_side_stdio() {
 async fn acp_stdio_keeps_diagnostics_off_stdout() {
     let root = tempfile::tempdir().expect("temporary cwd");
     let output = initialize_line(RecordingBackend::new(root.path().to_path_buf())).await;
-    assert!(!output.contains("VibeWindow"));
+    assert!(!output.contains("ShiJu"));
     assert!(!output.contains("INFO"));
     for line in output.lines() {
         let frame: serde_json::Value = serde_json::from_str(line).expect("protocol frame");

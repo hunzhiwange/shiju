@@ -252,7 +252,7 @@ pub(crate) async fn maybe_refresh_cli_session_title(
 /// use std::path::Path;
 ///
 /// let info = build_project_info(Path::new("/projects/myapp"));
-/// // 可能返回: "/projects/myapp:main • VibeWindow 1.0.0"
+/// // 可能返回: "/projects/myapp:main • ShiJu 1.0.0"
 /// ```
 pub(crate) fn build_project_info(worktree: &Path) -> String {
     let base = worktree.display().to_string();
@@ -263,7 +263,7 @@ pub(crate) fn build_project_info(worktree: &Path) -> String {
 
     // 追加 VibeWindow 版本标识
     // write! 宏返回 Result，但此处忽略错误（字符串写入不应失败）
-    let _ = write!(out, " • VibeWindow {CLI_VERSION}");
+    let _ = write!(out, " • ShiJu {CLI_VERSION}");
 
     out
 }

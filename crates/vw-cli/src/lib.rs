@@ -378,7 +378,7 @@ pub async fn run() -> Result<()> {
             security::OtpValidator::from_config(&config.security.otp, config_dir, &store)?;
         // 如果是新初始化的 OTP，显示注册 URI
         if let Some(uri) = enrollment_uri {
-            println!("Initialized OTP secret for VibeWindow.");
+            println!("Initialized OTP secret for ShiJu.");
             println!("Enrollment URI: {uri}");
         }
     }
@@ -452,9 +452,9 @@ pub async fn run() -> Result<()> {
             let host = host.unwrap_or_else(|| config.gateway.host.clone());
             // 显示启动信息
             if port == 0 {
-                info!(" Starting VibeWindow Gateway on {host} (random port)");
+                info!(" Starting ShiJu Gateway on {host} (random port)");
             } else {
-                info!(" Starting VibeWindow Gateway on {host}:{port}");
+                info!(" Starting ShiJu Gateway on {host}:{port}");
             }
             // 启动网关服务
             gateway::run_gateway(&host, port, config).await
@@ -467,9 +467,9 @@ pub async fn run() -> Result<()> {
             let host = host.unwrap_or_else(|| config.gateway.host.clone());
             // 显示启动信息
             if port == 0 {
-                info!("💡 Starting VibeWindow Daemon on {host} (random port)");
+                info!("💡 Starting ShiJu Daemon on {host} (random port)");
             } else {
-                info!("💡 Starting VibeWindow Daemon on {host}:{port}");
+                info!("💡 Starting ShiJu Daemon on {host}:{port}");
             }
             // 启动守护进程
             daemon::run(config, host, port).await
@@ -477,7 +477,7 @@ pub async fn run() -> Result<()> {
 
         // 处理 Status 命令：显示系统状态
         Commands::Status => {
-            println!("VibeWindow Status");
+            println!("ShiJu Status");
             println!();
             println!("Version:     {}", env!("CARGO_PKG_VERSION"));
             println!("Workspace:   {}", config.workspace_dir.display());

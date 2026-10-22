@@ -108,7 +108,7 @@ impl SessionHistoryCell {
         let lines = vec![
             Line::from(vec![
                 ">_ ".dim(),
-                "VibeWindow".bold(),
+                "ShiJu".bold(),
                 " ".dim(),
                 format!("(v{})", data.version).dim(),
             ]),
@@ -195,7 +195,7 @@ mod tests {
             .map(|line| line.to_string())
             .collect::<Vec<_>>()
             .join("\n");
-        assert!(header_text.contains(">_ VibeWindow (v0.4.0)"));
+        assert!(header_text.contains(">_ ShiJu (v0.4.0)"));
         assert!(header_text.contains("model:       openai/gpt-5.6"));
         assert!(header_text.contains("directory:   /workspace/vibe-window"));
 
@@ -206,7 +206,7 @@ mod tests {
             .map(|line| line.to_string())
             .collect::<Vec<_>>()
             .join("\n");
-        assert!(status_text.contains(">_ VibeWindow (v0.4.0)"));
+        assert!(status_text.contains(">_ ShiJu (v0.4.0)"));
         assert!(status_text.contains("Gateway:"));
         assert!(!status_text.contains("OpenAI"));
         assert!(!status_text.contains("ChatGPT"));

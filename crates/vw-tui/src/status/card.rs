@@ -53,7 +53,7 @@ impl StatusHistoryCell {
         let mut lines = vec![
             Line::from(vec![
                 " >_ ".dim(),
-                "VibeWindow".bold(),
+                "ShiJu".bold(),
                 " ".dim(),
                 format!("(v{})", self.data.version).dim(),
             ]),

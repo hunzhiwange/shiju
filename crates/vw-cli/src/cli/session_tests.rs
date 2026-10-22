@@ -150,6 +150,6 @@ fn build_project_info_includes_path_version_and_no_branch_for_non_git_directory(
     let info = build_project_info(test_dir.path());
 
     assert!(info.starts_with(&test_dir.path().display().to_string()));
-    assert!(info.contains("VibeWindow"));
+    assert!(info.contains("ShiJu"));
     assert!(!info.contains(":main"));
 }

@@ -3,7 +3,7 @@ source: crates/vw-tui/src/history_cell/session.rs
 expression: wide
 ---
 ╭──────────────────────────────────────────────────────────╮
-│ >_ VibeWindow (v0.4.0)                                   │
+│ >_ ShiJu (v0.4.0)                                        │
 │                                                          │
 │ model:       openai/gpt-5.6                              │
 │ directory:   /workspace/vibe-window                      │

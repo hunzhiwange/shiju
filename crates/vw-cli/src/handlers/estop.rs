@@ -131,7 +131,7 @@ pub(crate) fn handle_estop_command(
 
                 // 如果是首次使用，输出注册 URI
                 if let Some(uri) = enrollment_uri {
-                    println!("Initialized OTP secret for VibeWindow.");
+                    println!("Initialized OTP secret for ShiJu.");
                     println!("Enrollment URI: {uri}");
                 }
                 Some(validator)

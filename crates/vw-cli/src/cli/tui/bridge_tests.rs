@@ -213,7 +213,7 @@ fn tui_gateway_bridge_preserves_request_and_terminal_semantics() {
     let mut buffer = Buffer::empty(area);
     app.widget().render(area, &mut buffer);
     let rendered = buffer.content.iter().map(|cell| cell.symbol()).collect::<String>();
-    assert!(rendered.contains(">_ VibeWindow (v0.4.0)"));
+    assert!(rendered.contains(">_ ShiJu (v0.4.0)"));
     assert!(rendered.contains("hello world"), "copied ChatWidget must render bridged deltas");
 }
 

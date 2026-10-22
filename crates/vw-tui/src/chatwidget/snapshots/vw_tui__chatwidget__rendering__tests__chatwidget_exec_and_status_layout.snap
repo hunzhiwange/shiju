@@ -10,5 +10,5 @@ exec: running focused snapshots
 • ⠋ Running command (0s • esc to interrupt)
   └ cargo test
 
-› Ask VibeWindow
+› Ask ShiJu
   esc interrupt  vibewindow · default · /workspace

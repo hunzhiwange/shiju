@@ -47,7 +47,7 @@ pub(crate) struct ChatComposer {
 
 impl ChatComposer {
     pub(crate) fn new() -> Self {
-        Self::with_data("Compose a VibeWindow task".to_string(), V3FooterData::default())
+        Self::with_data("Compose a ShiJu task".to_string(), V3FooterData::default())
     }
 
     pub(crate) fn with_data(placeholder: String, footer_data: V3FooterData) -> Self {

@@ -139,7 +139,7 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
         assert!(rendered.contains("hello"));
         assert!(rendered.contains("world"));
         if width == 120 {
-            assert!(rendered.contains(">_ VibeWindow (v0.4.0)"));
+            assert!(rendered.contains(">_ ShiJu (v0.4.0)"));
         }
     }
 
@@ -429,7 +429,7 @@ fn push_conversation(widget: &mut ChatWidget) {
         attachments: Vec::new(),
     });
     widget.push_history(V3DisplayEvent::Assistant {
-        markdown: "The **Codex-derived** ChatWidget is connected to VibeWindow Gateway."
+        markdown: "The **Codex-derived** ChatWidget is connected to ShiJu Gateway."
             .to_string(),
     });
 }

@@ -189,7 +189,7 @@ fn append_running_descendants(
     }
 }
 
-pub(super) fn cached_running_agent_sessions(app: &App) -> std::sync::Arc<Vec<AgentChildSession>> {
+pub(crate) fn cached_running_agent_sessions(app: &App) -> std::sync::Arc<Vec<AgentChildSession>> {
     let mut cached = app.session_ui_projection.agent_sessions.borrow_mut();
     cached.get_or_insert_with(|| std::sync::Arc::new(running_agent_sessions(app))).clone()
 }

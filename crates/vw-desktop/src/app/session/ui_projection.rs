@@ -19,7 +19,18 @@ pub(crate) struct SessionUiProjection {
 
 fn preserves_projection(message: &Message) -> bool {
     match message {
-        Message::None | Message::CopyDone | Message::Batch(_) => true,
+        Message::None | Message::CopyDone | Message::Batch(_) | Message::SessionPinsLoaded(..) => {
+            true
+        }
+        // Queued tokens and save acknowledgements do not change either view.
+        // Applying a delta invalidates the agent projection at the mutation site;
+        // sidebar metadata remains unchanged until a lifecycle/session event.
+        Message::Chat(
+            ChatMessage::AgentStreamDelta(..)
+            | ChatMessage::AgentStreamDeltaFlush(_)
+            | ChatMessage::AgentStreamSessionSaveFlush(_)
+            | ChatMessage::AgentStreamSessionDeltaSaved { .. },
+        ) => true,
         Message::View(
             ViewMessage::PointerMoved(..)
             | ViewMessage::ActivityAnimationTick
@@ -66,24 +77,6 @@ fn preserves_projection(message: &Message) -> bool {
 impl App {
     pub(crate) fn prepare_session_ui_projection(&mut self, message: &Message) -> bool {
         if !preserves_projection(message) {
-            if self.session_ui_projection.sidebar.borrow().is_some() {
-                match message {
-                    Message::Chat(inner) => {
-                        eprintln!("PROJECTION_INVALIDATE Chat {:?}", std::mem::discriminant(inner))
-                    }
-                    Message::View(inner) => {
-                        eprintln!("PROJECTION_INVALIDATE View {:?}", std::mem::discriminant(inner))
-                    }
-                    Message::Project(inner) => eprintln!(
-                        "PROJECTION_INVALIDATE Project {:?}",
-                        std::mem::discriminant(inner)
-                    ),
-                    _ => eprintln!(
-                        "PROJECTION_INVALIDATE Other {:?}",
-                        std::mem::discriminant(message)
-                    ),
-                }
-            }
             self.session_ui_projection.agent_sessions.get_mut().take();
             self.session_ui_projection.sidebar.get_mut().take();
         }

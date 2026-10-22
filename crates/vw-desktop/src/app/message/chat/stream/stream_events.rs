@@ -895,6 +895,10 @@ pub(super) fn handle_agent_session_delta(
 }
 
 fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -> Task<Message> {
+    // A buffered token has no visible effect until it reaches this point. Keep
+    // sidebar metadata and queued-token views cached; tool markers in applied
+    // text can change the agent badge, including for background descendants.
+    app.session_ui_projection.agent_sessions.get_mut().take();
     let now = now_ms();
     let is_active = app.active_session_id.as_ref() == Some(&session_id);
     let mut tail_state = {

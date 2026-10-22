@@ -758,3 +758,76 @@ fn cached_agent_badge_tracks_lifecycle_and_active_session_switch() {
     assert!(!std::sync::Arc::ptr_eq(&previous, &switched));
     assert!(switched.is_empty());
 }
+
+#[test]
+fn buffered_stream_tokens_reuse_projection_without_cloning_runtime() {
+    use super::agent_sessions::cached_running_agent_sessions;
+    use crate::app::components::chat_panel::performance;
+    use message::ChatMessage;
+    let mut app = crate::app::App::new().0;
+    app.active_session_id = Some("parent".into());
+    app.get_session_runtime_mut("parent").active_agent_request = Some(agent_request(42, "parent"));
+    let apply = |app: &mut crate::app::App, event: ChatMessage| {
+        app.prepare_session_ui_projection(&Message::Chat(event.clone()));
+        let _ = message::chat::update(app, event);
+    };
+    apply(
+        &mut app,
+        ChatMessage::AgentStreamDelta(
+            42,
+            agent_tool_event("running", "parent", "child", "writer", "task"),
+        ),
+    );
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.project_path = Some("/workspace".into());
+    app.recent_projects = vec!["/workspace".into()];
+    app.project_sessions
+        .insert("/workspace".into(), vec![session("parent", None, "Parent", "/workspace")]);
+    drop(crate::app::views::project::view(&app));
+    let sidebar = app.session_ui_projection.sidebar.borrow().as_ref().unwrap().clone();
+    app.show_agent_sessions_popover = true;
+    let snapshot = cached_running_agent_sessions(&app);
+    assert_eq!(snapshot.len(), 1);
+    let before = app.chat.last().unwrap().content.clone();
+    performance::reset();
+    for _ in 0..256 {
+        apply(&mut app, ChatMessage::AgentStreamDelta(42, "增量".into()));
+        assert!(std::sync::Arc::ptr_eq(&snapshot, &cached_running_agent_sessions(&app)));
+        assert!(std::sync::Arc::ptr_eq(
+            &sidebar,
+            app.session_ui_projection.sidebar.borrow().as_ref().unwrap()
+        ));
+    }
+    assert_eq!(app.chat.last().unwrap().content, before);
+    assert_eq!(performance::snapshot().runtime_clones, 0);
+    apply(&mut app, ChatMessage::AgentStreamDeltaFlush("parent".into()));
+    assert_eq!(app.chat.last().unwrap().content, format!("{before}{}", "增量".repeat(256)));
+    assert!(std::sync::Arc::ptr_eq(
+        &sidebar,
+        app.session_ui_projection.sidebar.borrow().as_ref().unwrap()
+    ));
+    let flushed = cached_running_agent_sessions(&app);
+    assert!(!std::sync::Arc::ptr_eq(&snapshot, &flushed));
+    apply(&mut app, ChatMessage::AgentStreamDeltaFlush("parent".into()));
+    assert!(std::sync::Arc::ptr_eq(&flushed, &cached_running_agent_sessions(&app)));
+    assert_eq!(performance::snapshot().runtime_clones, 0);
+    apply(&mut app, ChatMessage::AgentStreamSessionSaveFlush("parent".into()));
+    let (generation, revision, updated_ms) =
+        app.session_runtime_states["parent"].stream_save_in_flight.unwrap();
+    apply(
+        &mut app,
+        ChatMessage::AgentStreamSessionDeltaSaved {
+            session_id: "parent".into(),
+            generation,
+            revision,
+            updated_ms,
+            result: Ok(()),
+        },
+    );
+    assert!(app.session_runtime_states["parent"].stream_save_in_flight.is_none());
+    assert!(std::sync::Arc::ptr_eq(&flushed, &cached_running_agent_sessions(&app)));
+    assert!(std::sync::Arc::ptr_eq(
+        &sidebar,
+        app.session_ui_projection.sidebar.borrow().as_ref().unwrap()
+    ));
+}

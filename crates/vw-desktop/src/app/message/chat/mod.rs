@@ -1323,7 +1323,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     };
 
     if app.show_agent_sessions_popover
-        && crate::app::components::input_panel::agent_sessions::running_agent_sessions(app)
+        && crate::app::components::input_panel::agent_sessions::cached_running_agent_sessions(app)
             .is_empty()
     {
         app.show_agent_sessions_popover = false;
@@ -1332,7 +1332,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     // 对流式增量消息执行特殊处理：同步思考块状态
     if is_stream_delta {
         let stream_tail = app.active_session_id.as_deref().and_then(|session_id| {
-            let state = &app.get_session_runtime(session_id).stream_tail_state;
+            let state = &app.session_runtime_states.get(session_id)?.stream_tail_state;
             state
                 .message_idx()
                 .map(|message_idx| (message_idx, state.think_count(), state.thinking_open()))

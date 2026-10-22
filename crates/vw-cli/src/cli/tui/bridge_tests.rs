@@ -576,26 +576,37 @@ fn tui_explicit_resume_restores_gateway_session_title_history_and_identity() {
     app.persist_session_snapshot().expect("persist restored session");
 
     assert_eq!(
-        requests.recv().expect("snapshot request"),
+        requests.recv().expect("snapshot request").path,
         "/v1/session/session-restored/ui?directory=%2Fworkspace"
     );
+    let persisted_after_ms = app.state().session.updated_ms;
+    assert!(persisted_after_ms > snapshot.updated_ms);
+    let save_request = requests.recv().expect("save request");
     assert_eq!(
-        requests.recv().expect("save request"),
+        save_request.path,
         "/v1/session/session-restored/ui?directory=%2Fworkspace"
     );
+    let saved_snapshot: ChatSession =
+        serde_json::from_slice(&save_request.body).expect("saved session snapshot");
+    assert_eq!(saved_snapshot.updated_ms, persisted_after_ms);
     server.join().expect("gateway fixture");
+}
+
+struct GatewayRequest {
+    path: String,
+    body: Vec<u8>,
 }
 
 fn gateway_fixture(
     responses: Vec<serde_json::Value>,
-) -> (GatewayEndpoint, mpsc::Receiver<String>, thread::JoinHandle<()>) {
+) -> (GatewayEndpoint, mpsc::Receiver<GatewayRequest>, thread::JoinHandle<()>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind gateway fixture");
     let port = listener.local_addr().expect("gateway fixture address").port();
     let (sender, receiver) = mpsc::channel();
     let handle = thread::spawn(move || {
         for body in responses {
             let (mut stream, _) = listener.accept().expect("accept gateway request");
-            sender.send(read_request_path(&mut stream)).expect("record gateway request");
+            sender.send(read_request(&mut stream)).expect("record gateway request");
             let body = body.to_string();
             let response = format!(
                 "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
@@ -607,7 +618,7 @@ fn gateway_fixture(
     (GatewayEndpoint::new("127.0.0.1", port), receiver, handle)
 }
 
-fn read_request_path(stream: &mut TcpStream) -> String {
+fn read_request(stream: &mut TcpStream) -> GatewayRequest {
     let mut bytes = Vec::new();
     let mut buffer = [0_u8; 1024];
     let header_end = loop {
@@ -637,5 +648,5 @@ fn read_request_path(stream: &mut TcpStream) -> String {
         assert!(read > 0, "gateway request closed before body");
         bytes.extend_from_slice(&buffer[..read]);
     }
-    path
+    GatewayRequest { path, body: bytes[body_start..body_start + content_length].to_vec() }
 }

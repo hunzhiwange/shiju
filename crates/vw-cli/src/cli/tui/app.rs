@@ -2273,7 +2273,16 @@ impl V3GatewayApp {
     /// 将当前视图状态转换为会话快照并同步保存。
     pub(crate) fn persist_session_snapshot(&mut self) -> Result<(), String> {
         self.sync_runtime_session_seed();
-        self.runtime.session_ui_save_blocking(&self.state.to_chat_session())
+        let observed_now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+            .unwrap_or_default();
+        let updated_ms = observed_now_ms.max(self.state.session.updated_ms.saturating_add(1));
+        let mut snapshot = self.state.to_chat_session();
+        snapshot.updated_ms = updated_ms;
+        self.runtime.session_ui_save_blocking(&snapshot)?;
+        reduce_tui_state(&mut self.state, TuiAction::SessionUpdatedMsSet(updated_ms));
+        Ok(())
     }
 
     /// 加载非归档会话并打开可搜索选择层。

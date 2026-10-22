@@ -62,11 +62,11 @@ pub(super) fn agent_session_status_label(
 }
 
 fn known_sessions(app: &App) -> Vec<&Info> {
-    let mut seen = HashSet::new();
+    let mut seen = HashSet::<&str>::new();
     app.sessions
         .iter()
         .chain(app.project_sessions.values().flatten())
-        .filter(|session| seen.insert(session.id.clone()))
+        .filter(|session| seen.insert(session.id.as_str()))
         .collect()
 }
 

@@ -346,6 +346,23 @@ fn subscription_builds_default_and_polling_states() {
 }
 
 #[test]
+fn requesting_sessions_do_not_force_global_activity_animation_ticks() {
+    let mut app = test_app();
+    app.active_session_id = Some("active".to_string());
+
+    let mut active = SessionRuntimeState::new();
+    active.is_requesting = true;
+    app.session_runtime_states.insert("active".to_string(), active);
+
+    let mut background = SessionRuntimeState::new();
+    background.is_requesting = true;
+    app.session_runtime_states.insert("background".to_string(), background);
+
+    assert!(!needs_activity_animation_tick(&app, false));
+    assert!(needs_activity_animation_tick(&app, true));
+}
+
+#[test]
 fn subscription_builds_agent_runtime_states() {
     let mut app = test_app();
     app.active_session_id = Some("active".to_string());

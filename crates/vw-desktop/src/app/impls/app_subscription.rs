@@ -10,6 +10,12 @@ use super::{App, Message, Screen};
 use crate::app::components::status_animation::ACTIVITY_ANIMATION_INTERVAL_MS;
 use crate::apps::workflow::state::WorkflowRunSubscriptionRequest;
 
+fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
+    startup_transition_active
+        || app.has_active_explore_summary_animation()
+        || app.task_pet_window_id.is_some()
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 type WorkflowRunBoxStream<T> = iced::futures::stream::BoxStream<'static, T>;
 #[cfg(target_arch = "wasm32")]
@@ -183,16 +189,18 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let startup_transition_active = false;
 
-        let activity_animation_tick = if startup_transition_active
-            || self.any_session_requesting()
-            || self.has_active_explore_summary_animation()
-            || self.task_pet_window_id.is_some()
-        {
-            iced::time::every(std::time::Duration::from_millis(ACTIVITY_ANIMATION_INTERVAL_MS))
+        // Session streams already rebuild the UI when visible state changes. Driving the global
+        // application tree from an additional 90 ms timer makes an otherwise idle long chat
+        // continuously repeat layout and text shaping, including for background sessions.
+        let activity_animation_tick =
+            if needs_activity_animation_tick(self, startup_transition_active) {
+                iced::time::every(std::time::Duration::from_millis(
+                    ACTIVITY_ANIMATION_INTERVAL_MS,
+                ))
                 .map(|_| Message::View(message::ViewMessage::ActivityAnimationTick))
-        } else {
-            Subscription::none()
-        };
+            } else {
+                Subscription::none()
+            };
 
         let task_board_ui_tick = if self.screen == Screen::TaskBoard {
             iced::time::every(std::time::Duration::from_secs(1))

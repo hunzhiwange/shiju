@@ -531,6 +531,11 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, running_delta),
     );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
+    );
 
     let children = running_agent_sessions(&app);
     assert_eq!(children.len(), 1);
@@ -564,12 +569,22 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, completed_delta),
     );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
+    );
     assert!(running_agent_sessions(&app).is_empty());
 
     let failed_running_delta = delta_rx.recv().await.expect("failed child running event");
     let _ = crate::app::message::chat::update(
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, failed_running_delta),
+    );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert_eq!(
         running_agent_sessions(&app)
@@ -588,6 +603,11 @@ async fn agent_tool_live_child_integrates_with_input_session_list() {
     let _ = crate::app::message::chat::update(
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, failed_delta),
+    );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert!(running_agent_sessions(&app).is_empty());
     assert!(!app.show_agent_sessions_popover);
@@ -614,6 +634,11 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
     let _ = crate::app::message::chat::update(
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, running),
+    );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
     );
     assert_eq!(running_agent_sessions(&app).len(), 2);
     let _ = crate::app::message::chat::update(
@@ -650,6 +675,11 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, mixed),
     );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
+    );
     let children = running_agent_sessions(&app);
     assert_eq!(children.len(), 1);
     assert_eq!(children[0].session_id, "child-2");
@@ -675,6 +705,56 @@ fn agent_tool_batch_lifecycle_stream_refreshes_badge_and_closes_popover() {
         &mut app,
         message::ChatMessage::AgentStreamDelta(REQUEST_ID, terminal),
     );
+    // Deliver the coalescing timer event before checking the visible child state.
+    let _ = crate::app::message::chat::update(
+        &mut app,
+        message::ChatMessage::AgentStreamDeltaFlush(PARENT_ID.into()),
+    );
     assert!(running_agent_sessions(&app).is_empty());
     assert!(!app.show_agent_sessions_popover);
+}
+
+#[test]
+fn agent_badge_reuses_projection_until_tool_or_session_data_changes() {
+    use super::agent_sessions::cached_running_agent_sessions;
+    let mut app = crate::app::App::new().0;
+    app.active_session_id = Some("parent".into());
+    let first = cached_running_agent_sessions(&app);
+    let _ = app.prepare_session_ui_projection(&Message::View(
+        crate::app::message::ViewMessage::PointerMoved(1.0, 2.0),
+    ));
+    assert!(std::sync::Arc::ptr_eq(&first, &cached_running_agent_sessions(&app)));
+    app.prepare_session_ui_projection(&Message::Chat(
+        crate::app::message::ChatMessage::AgentWorkflowNodeUpdate(1, String::new()),
+    ));
+    assert!(!std::sync::Arc::ptr_eq(&first, &cached_running_agent_sessions(&app)));
+}
+
+#[test]
+fn cached_agent_badge_tracks_lifecycle_and_active_session_switch() {
+    use super::agent_sessions::cached_running_agent_sessions;
+    let mut app = crate::app::App::new().0;
+    app.active_session_id = Some("parent".into());
+    app.get_session_runtime_mut("parent").active_agent_request = Some(agent_request(42, "parent"));
+    for (status, expected_count) in [("running", 1), ("completed", 0)] {
+        for event in [
+            message::ChatMessage::AgentStreamDelta(
+                42,
+                agent_tool_event(status, "parent", "child", "writer", "task"),
+            ),
+            message::ChatMessage::AgentStreamDeltaFlush("parent".into()),
+        ] {
+            app.prepare_session_ui_projection(&Message::Chat(event.clone()));
+            let _ = crate::app::message::chat::update(&mut app, event);
+        }
+        assert_eq!(cached_running_agent_sessions(&app).len(), expected_count);
+    }
+    let previous = cached_running_agent_sessions(&app);
+    app.prepare_session_ui_projection(&Message::Project(
+        message::ProjectMessage::OpenProjectSessionPressed("/workspace".into(), "other".into()),
+    ));
+    app.active_session_id = Some("other".into());
+    let switched = cached_running_agent_sessions(&app);
+    assert!(!std::sync::Arc::ptr_eq(&previous, &switched));
+    assert!(switched.is_empty());
 }

@@ -731,7 +731,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         })
         .unwrap_or_default();
     let card = with_panel_background(card.into(), input_bg, fit);
-    let running_agent_sessions = agent_sessions::running_agent_sessions(app);
+    let running_agent_sessions = agent_sessions::cached_running_agent_sessions(app);
     let mut panel = column![].spacing(6).width(Length::Fill);
     if let Some(entry) = agent_sessions::agent_sessions_entry(app, &running_agent_sessions) {
         panel = panel.push(entry);

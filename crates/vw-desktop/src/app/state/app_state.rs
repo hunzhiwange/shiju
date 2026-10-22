@@ -87,6 +87,7 @@ pub(crate) enum NativeStartupState {
 
 #[allow(dead_code)]
 pub struct App {
+    pub(crate) session_ui_projection: crate::app::session::ui_projection::SessionUiProjection,
     /// 当前显示的屏幕
     pub(crate) screen: Screen,
     /// 原生端本地服务启动状态，用于门控主界面。

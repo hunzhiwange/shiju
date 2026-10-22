@@ -21,6 +21,7 @@ mod work_resources;
 #[path = "layout/work_resources_tests.rs"]
 mod work_resources_tests;
 mod work_sidebar;
+pub(crate) use work_sidebar::WorkSidebarModel;
 #[cfg(test)]
 #[path = "layout/work_sidebar_tests.rs"]
 mod work_sidebar_tests;

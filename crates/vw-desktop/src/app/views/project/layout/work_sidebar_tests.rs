@@ -786,3 +786,130 @@ fn draw(element: &mut iced::Element<'_, Message>, renderer: &mut iced::Renderer,
         &viewport,
     );
 }
+
+#[test]
+fn work_sidebar_projection_reuses_scroll_snapshot_and_updates_after_session_change() {
+    let mut app = App::new().0;
+    app.recent_projects = vec!["/workspace".into()];
+    app.project_sessions.insert("/workspace".into(), vec![session("old", "Old", "/workspace", 1)]);
+    let first = work_sidebar::cached_model(&app);
+    let _ =
+        app.prepare_session_ui_projection(&Message::View(ViewMessage::PointerMoved(20.0, 30.0)));
+    let second = work_sidebar::cached_model(&app);
+    assert!(std::sync::Arc::ptr_eq(&first, &second));
+    let event = ProjectMessage::ProjectSessionsLoaded(
+        "/workspace".into(),
+        Ok(vec![session("new", "New", "/workspace", 2)]),
+    );
+    app.prepare_session_ui_projection(&Message::Project(event.clone()));
+    let _ = crate::app::message::project::update(&mut app, event);
+    let changed = work_sidebar::cached_model(&app);
+    assert!(!std::sync::Arc::ptr_eq(&first, &changed));
+    assert_eq!(changed.tasks[0].id, "new");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "explicit real-layout session open/scroll performance probe"]
+async fn session_ui_projection_open_scroll_probe() {
+    use crate::app::message::ChatMessage;
+    use std::time::Instant;
+    let mut renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut app = App::new().0;
+    let path = "/workspace/probe";
+    app.screen = crate::app::Screen::Project;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Work;
+    app.project_path = Some(path.into());
+    app.recent_projects = vec![path.into()];
+    app.active_session_id = Some("root".into());
+    let mut sessions = vec![session("root", "中文会话", path, 1)];
+    for index in 0..10_000 {
+        let mut child =
+            child_session(&format!("task-{index}"), "root", "中文历史任务", path, index + 2);
+        child.slug = Info::visible_task_slug(&child.slug);
+        sessions.push(child);
+    }
+    app.project_sessions.insert(path.into(), sessions);
+    app.chat = (0..80)
+        .map(|index| crate::app::models::ChatMessage {
+            role: if index % 2 == 0 {
+                crate::app::models::ChatRole::User
+            } else {
+                crate::app::models::ChatRole::Assistant
+            },
+            content: "中文会话滚动验证，检查布局与绘制。\n".repeat(8),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect();
+    app.rebuild_chat_message_estimated_heights();
+    let started = Instant::now();
+    let mut element = crate::app::views::project::view(&app);
+    let limits = layout::Limits::new(Size::ZERO, Size::new(1200.0, 800.0));
+    let mut tree = Tree::new(element.as_widget());
+    let _ = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    drop(element);
+    let open_ms = started.elapsed().as_secs_f64() * 1000.0;
+    let sidebar_snapshot = app.session_ui_projection.sidebar.borrow().as_ref().unwrap().clone();
+    let agents_snapshot =
+        app.session_ui_projection.agent_sessions.borrow().as_ref().unwrap().clone();
+    let mut frames = Vec::new();
+    for step in 0..60 {
+        let started = Instant::now();
+        // Native scrolling also crosses hover regions and read-only editors.
+        // These messages must not discard unrelated session projections.
+        for event in [
+            ChatMessage::ToolHover(1, 0),
+            ChatMessage::ToolHoverLeave,
+            ChatMessage::ThinkHover(1, 0),
+            ChatMessage::ThinkHoverLeave,
+            ChatMessage::MarkdownBlockEditorAction(
+                1,
+                0,
+                0,
+                iced::widget::text_editor::Action::SelectAll,
+            ),
+        ] {
+            app.prepare_session_ui_projection(&Message::Chat(event.clone()));
+            let _ = crate::app::message::chat::update(&mut app, event);
+        }
+        let event = ChatMessage::ScrollChanged {
+            offset_y: step as f32 / 60.0,
+            absolute_offset_y: step as f32 * 30.0,
+            viewport_h: 600.0,
+        };
+        app.prepare_session_ui_projection(&Message::Chat(event.clone()));
+        let _ = crate::app::message::chat::update(&mut app, event);
+        let mut element = crate::app::views::project::view(&app);
+        element.as_widget().diff(&mut tree);
+        let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &Theme::Dark,
+            &renderer::Style { text_color: iced::Color::WHITE },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(Size::new(1200.0, 800.0)),
+        );
+        frames.push(started.elapsed().as_secs_f64() * 1000.0);
+        assert!(std::sync::Arc::ptr_eq(
+            app.session_ui_projection.sidebar.borrow().as_ref().unwrap(),
+            &sidebar_snapshot,
+        ));
+        assert!(std::sync::Arc::ptr_eq(
+            app.session_ui_projection.agent_sessions.borrow().as_ref().unwrap(),
+            &agents_snapshot,
+        ));
+    }
+    frames.sort_by(f64::total_cmp);
+    println!(
+        "SESSION_PROBE sessions=10001 messages=80 open_ms={open_ms:.3} scroll_p50_ms={:.3} scroll_p95_ms={:.3} scroll_max_ms={:.3}",
+        frames[30], frames[57], frames[59]
+    );
+    assert!(app.session_ui_projection.sidebar.borrow().is_some());
+    assert!(app.session_ui_projection.agent_sessions.borrow().is_some());
+}

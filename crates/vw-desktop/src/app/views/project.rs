@@ -30,6 +30,7 @@ pub(crate) use components::project_list_action_order;
 mod handles;
 use components::new_session_picker_layer;
 mod layout;
+pub(crate) use layout::WorkSidebarModel;
 mod styles;
 use layout::{build_base_layout, build_work_layout, drag_badge_layer};
 use styles::workspace_background_style;

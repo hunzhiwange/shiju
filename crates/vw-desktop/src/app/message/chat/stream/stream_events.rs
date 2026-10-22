@@ -351,7 +351,7 @@ fn prepare_scroll_for_active_stream_growth(app: &mut App) {
     } else if app.chat_virtualizer.turn_focus_user_index().is_none() {
         app.chat_virtualizer.preserve_current_anchor_around();
     }
-    app.sync_chat_virtualizer_compat_fields();
+    app.sync_chat_scroll_compat_fields();
 }
 
 fn append_stream_delta_to_tail(
@@ -436,6 +436,7 @@ fn finish_active_stream_tail_update(
     session_id: String,
     changed_idx: usize,
     now: u64,
+    previous_content_len: Option<usize>,
 ) -> Task<Message> {
     app.session_chat_cache.remove(&session_id);
     app.session_chat_message_id_cache.remove(&session_id);
@@ -458,7 +459,7 @@ fn finish_active_stream_tail_update(
     app.active_session_view_state.updated_ms = now;
     app.refresh_active_session_tail_message_meta(changed_idx);
 
-    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now);
+    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now, previous_content_len);
     let save_task = schedule_agent_stream_session_save(app, &session_id);
 
     if should_snap_to_bottom {
@@ -470,9 +471,9 @@ fn finish_active_stream_tail_update(
 
 fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, message_idx: usize) {
     let generation = app
-        .get_session_runtime(session_id)
-        .active_agent_request
-        .as_ref()
+        .session_runtime_states
+        .get(session_id)
+        .and_then(|runtime| runtime.active_agent_request.as_ref())
         .map_or(0, |request| request.id);
     let mut render =
         std::mem::take(&mut app.get_session_runtime_mut(session_id).stream_render_state);
@@ -504,10 +505,47 @@ fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<M
     }
 }
 
-fn mark_agent_stream_session_dirty(app: &mut App, session_id: &str, index: usize, updated_ms: u64) {
+fn mark_agent_stream_session_dirty(
+    app: &mut App,
+    session_id: &str,
+    index: usize,
+    updated_ms: u64,
+    previous_content_len: Option<usize>,
+) {
     let is_active = app.active_session_id.as_deref() == Some(session_id);
     let message = if is_active {
-        app.chat.get(index).cloned()
+        app.chat.get(index).map(|source| {
+            // Only text append events can reuse the pending snapshot's prefix. Tool
+            // replacements and terminal metadata updates still take a fresh snapshot.
+            let previous = previous_content_len
+                .filter(|len| source.content.is_char_boundary(*len))
+                .and_then(|len| {
+                    app.session_runtime_states
+                        .get_mut(session_id)?
+                        .stream_save_dirty_records
+                        .iter_mut()
+                        .find(|record| {
+                            record.seq_no == index as u64 && record.message.content.len() == len
+                        })
+                        .map(|record| std::mem::take(&mut record.message.content))
+                });
+            if let Some(mut content) = previous {
+                content.push_str(&source.content[content.len()..]);
+                models::ChatMessage {
+                    content,
+                    role: source.role,
+                    model: source.model.clone(),
+                    think_timing: source.think_timing.clone(),
+                    processing_timing: source.processing_timing.clone(),
+                }
+            } else {
+                #[cfg(test)]
+                crate::app::components::chat_panel::performance::record_chat_message_clone(
+                    source.content.len(),
+                );
+                source.clone()
+            }
+        })
     } else {
         app.cached_chat_messages(session_id).and_then(|messages| messages.get(index).cloned())
     };
@@ -524,8 +562,11 @@ fn mark_agent_stream_session_dirty(app: &mut App, session_id: &str, index: usize
         .iter()
         .find(|session| session.id == session_id)
         .map_or(0, |session| session.time.updated);
-    let request_generation =
-        app.get_session_runtime(session_id).active_agent_request.as_ref().map(|request| request.id);
+    let request_generation = app
+        .session_runtime_states
+        .get(session_id)
+        .and_then(|runtime| runtime.active_agent_request.as_ref())
+        .map(|request| request.id);
     let runtime = app.get_session_runtime_mut(session_id);
     if runtime.stream_save_expected_updated_ms == 0 {
         runtime.stream_save_expected_updated_ms = base_updated_ms;
@@ -861,6 +902,11 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         std::mem::take(&mut runtime.stream_tail_state)
     };
     if is_active {
+        let previous_content_len = app
+            .chat
+            .last()
+            .filter(|message| message.role == models::ChatRole::Assistant)
+            .map(|message| message.content.len());
         let changed_idx = app
             .chat
             .last()
@@ -868,9 +914,9 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
             .then_some(app.chat.len().saturating_sub(1))
             .unwrap_or(app.chat.len());
         let generation = app
-            .get_session_runtime(&session_id)
-            .active_agent_request
-            .as_ref()
+            .session_runtime_states
+            .get(&session_id)
+            .and_then(|runtime| runtime.active_agent_request.as_ref())
             .map_or(0, |request| request.id);
         {
             let render = &mut app.get_session_runtime_mut(&session_id).stream_render_state;
@@ -885,7 +931,13 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
             &mut tail_state,
         );
         app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
-        return finish_active_stream_tail_update(app, session_id, changed_idx, now);
+        return finish_active_stream_tail_update(
+            app,
+            session_id,
+            changed_idx,
+            now,
+            previous_content_len,
+        );
     }
 
     let mut live_chat: Vec<models::ChatMessage> = app
@@ -908,7 +960,7 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
         crate::app::session::shared_chat_messages(live_chat),
         live_ids,
     );
-    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now);
+    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now, None);
     app.sync_task_pet_from_runtime();
     schedule_agent_stream_session_save(app, &session_id)
 }
@@ -1065,7 +1117,7 @@ fn handle_agent_tool_blocks_update(
         app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
         return Task::batch([
             delta_task,
-            finish_active_stream_tail_update(app, session_id, changed_idx, now),
+            finish_active_stream_tail_update(app, session_id, changed_idx, now, None),
         ]);
     }
 
@@ -1245,7 +1297,7 @@ pub(super) fn handle_agent_stream_done(
     let terminal_idx =
         app.cached_chat_messages(&session_id).and_then(|messages| messages.len().checked_sub(1));
     if let Some(terminal_idx) = terminal_idx {
-        mark_agent_stream_session_dirty(app, &session_id, terminal_idx, completed_ms);
+        mark_agent_stream_session_dirty(app, &session_id, terminal_idx, completed_ms, None);
     }
     let save_task = force_save_agent_stream_session(app, &session_id);
     info!(
@@ -1392,7 +1444,7 @@ pub(super) fn handle_agent_post_tool_round(
         app.chat_message_ids.clone(),
     );
     if let Some(tail_idx) = app.chat.len().checked_sub(1) {
-        mark_agent_stream_session_dirty(app, &session_id, tail_idx, completed_ms);
+        mark_agent_stream_session_dirty(app, &session_id, tail_idx, completed_ms, None);
     }
     let save_task = force_save_agent_stream_session(app, &session_id);
 
@@ -1565,7 +1617,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         app.cached_chat_messages(&session_id).map_or(0, |messages| messages.len())
     };
     for index in message_count.saturating_sub(2)..message_count {
-        mark_agent_stream_session_dirty(app, &session_id, index, completed_ms);
+        mark_agent_stream_session_dirty(app, &session_id, index, completed_ms, None);
     }
     let save_task = force_save_agent_stream_session(app, &session_id);
 

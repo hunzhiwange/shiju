@@ -352,6 +352,7 @@ impl App {
             work_sidebar_filter_status: state::WorkSidebarFilterStatus::default(),
             work_sidebar_filter_time: state::WorkSidebarFilterTime::default(),
             work_sidebar_tab: state::WorkSidebarTab::default(),
+            session_ui_projection: Default::default(),
             work_sidebar_visible_tasks: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
             work_sidebar_visible_spaces: state::WORK_SIDEBAR_INITIAL_VISIBLE_ITEMS,
             work_space_picker_open: false,

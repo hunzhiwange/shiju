@@ -19,6 +19,7 @@ mod chat_ui;
 mod loading;
 mod runtime;
 pub(crate) mod stream_render;
+pub(crate) mod ui_projection;
 pub(crate) mod view_cache;
 
 pub use self::agent_children::{

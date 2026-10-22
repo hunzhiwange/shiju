@@ -70,16 +70,6 @@ fn known_sessions(app: &App) -> Vec<&Info> {
         .collect()
 }
 
-fn session_chat(app: &App, session_id: &str) -> Vec<crate::app::models::ChatMessage> {
-    if app.active_session_id.as_deref() == Some(session_id) {
-        app.chat.clone()
-    } else {
-        app.cached_chat_messages(session_id)
-            .map(|messages| messages.iter().cloned().collect())
-            .unwrap_or_default()
-    }
-}
-
 fn plan_run_controls(app: &App, sessions: &[&Info]) -> HashMap<String, PlanRunSessionControl> {
     let mut controls = HashMap::new();
     for message in &app.chat {
@@ -123,9 +113,14 @@ fn append_running_descendants(
     visited: &mut HashSet<String>,
     projected: &mut Vec<AgentChildSession>,
 ) {
-    let chat = session_chat(app, parent_session_id);
+    let cached_chat = app.cached_chat_messages(parent_session_id);
+    let chat = if app.active_session_id.as_deref() == Some(parent_session_id) {
+        app.chat.as_slice()
+    } else {
+        cached_chat.as_deref().unwrap_or_default()
+    };
     let agent_children =
-        agent_child_session_projection(Some(parent_session_id), &chat, sessions.iter().copied());
+        agent_child_session_projection(Some(parent_session_id), chat, sessions.iter().copied());
     for mut child in agent_children {
         if !visited.insert(child.session_id.clone()) {
             continue;
@@ -149,7 +144,10 @@ fn append_running_descendants(
             session.parent_id.as_deref().map(str::trim) == Some(parent_session_id);
         if !belongs_to_parent
             || !session.is_plan_run()
-            || !app.get_session_runtime(&session.id).is_requesting
+            || !app
+                .session_runtime_states
+                .get(&session.id)
+                .is_some_and(|runtime| runtime.is_requesting)
             || !visited.insert(session.id.clone())
         {
             continue;
@@ -191,6 +189,11 @@ fn append_running_descendants(
     }
 }
 
+pub(super) fn cached_running_agent_sessions(app: &App) -> std::sync::Arc<Vec<AgentChildSession>> {
+    let mut cached = app.session_ui_projection.agent_sessions.borrow_mut();
+    cached.get_or_insert_with(|| std::sync::Arc::new(running_agent_sessions(app))).clone()
+}
+
 /// 合并当前会话及其运行中后代，并按层级生成输入面板投影。
 pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
     let Some(parent_session_id) =
@@ -198,6 +201,26 @@ pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
     else {
         return Vec::new();
     };
+    // Most conversations have no running descendants. Do not build global ID maps
+    // or scan other sessions' cached transcripts just to return an empty badge.
+    let has_agent_children = !agent_child_session_projection(
+        Some(parent_session_id),
+        &app.chat,
+        std::iter::empty::<&Info>(),
+    )
+    .is_empty();
+    let has_plan_children =
+        app.sessions.iter().chain(app.project_sessions.values().flatten()).any(|session| {
+            session.parent_id.as_deref().map(str::trim) == Some(parent_session_id)
+                && session.is_plan_run()
+                && app
+                    .session_runtime_states
+                    .get(&session.id)
+                    .is_some_and(|runtime| runtime.is_requesting)
+        });
+    if !has_agent_children && !has_plan_children {
+        return Vec::new();
+    }
     let sessions = known_sessions(app);
     let controls = plan_run_controls(app, &sessions);
     let mut visited = HashSet::from([parent_session_id.to_string()]);
@@ -507,7 +530,11 @@ pub(super) fn agent_sessions_entry<'a>(
     let anchor = row![badge, Space::new().width(Length::Fill)]
         .align_y(Alignment::Center)
         .width(Length::Fill);
-    let popover = agent_sessions_popover(app, children);
+    let popover = if app.show_agent_sessions_popover {
+        agent_sessions_popover(app, children)
+    } else {
+        Space::new().into()
+    };
 
     Some(
         AboveOverlay::new(anchor, popover)

@@ -535,7 +535,7 @@ impl App {
             chunk_starts.push(chunk_start_idx);
         }
 
-        if self.current_session_runtime().is_requesting
+        if self.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting)
             && let Some(last_idx) = self.chat.len().checked_sub(1)
             && matches!(
                 self.chat.get(last_idx).map(|message| message.role),

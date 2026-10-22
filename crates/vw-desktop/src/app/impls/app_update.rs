@@ -497,7 +497,12 @@ impl App {
     /// ]));
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
+            Message::SessionPinsLoaded(generation, result) => {
+                self.apply_session_pins(generation, result);
+                Task::none()
+            }
             #[cfg(not(target_arch = "wasm32"))]
             Message::StartupCliServiceBootstrapped(result) => {
                 match result {
@@ -830,7 +835,7 @@ impl App {
             );
         }
 
-        task
+        if refresh_pins { Task::batch([task, self.refresh_session_pins_task()]) } else { task }
     }
 }
 #[cfg(test)]

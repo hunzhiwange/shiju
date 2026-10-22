@@ -71,7 +71,9 @@ pub(super) fn focus_chat_on_turn(app: &mut App, user_index: usize) -> bool {
 pub(super) fn scroll_chat_to_bottom_task(app: &mut App) -> Task<Message> {
     arm_autoscroll_hold(app);
     app.chat_virtualizer.snap_to_tail();
-    app.sync_chat_virtualizer_compat_fields();
+    // Scrolling changes the offset, not message heights. Rebuilding the compatibility
+    // height index here turns every streaming tail-follow into a full-history update.
+    app.sync_chat_scroll_compat_fields();
     iced::widget::operation::snap_to(
         app.chat_scroll_id.clone(),
         scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },

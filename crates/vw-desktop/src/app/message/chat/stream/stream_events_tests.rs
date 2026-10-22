@@ -766,10 +766,10 @@ fn stream_session_delta_save_preserves_newer_revision() {
     app.chat_message_ids = vec![Some("assistant-1".into())];
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(77, &session_id));
-    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10);
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     app.chat[0].content.push_str(" newer");
-    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 11);
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 11, None);
     let (_, revision, updated_ms) =
         app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
     let _ = super::handle_agent_stream_session_delta_saved(
@@ -815,7 +815,7 @@ fn stream_session_delta_save_retries_after_failure() {
     app.chat_message_ids = vec![None];
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(88, &session_id));
-    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10);
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (_, revision, updated_ms) =
         app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
@@ -847,7 +847,7 @@ fn stale_stream_session_delta_rebases_before_retry() {
     app.chat_message_ids = vec![None];
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(89, &session_id));
-    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10);
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
     let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
     let (_, revision, updated_ms) =
         app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
@@ -939,6 +939,80 @@ fn active_stream_delta_updates_tail_without_replacing_chat_vector() {
     assert_eq!(app.chat_message_ids, vec![Some("user-id".to_string()), None]);
     assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::Anchored);
     assert_eq!(app.active_shared_chat_messages()[1].content, "hello world");
+}
+
+#[test]
+fn active_stream_following_tail_preserves_height_storage_and_borrows_runtime() {
+    use crate::app::components::chat_panel::performance;
+
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "stream-work-budget".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question")];
+    app.chat_message_ids = vec![Some("user-id".to_string())];
+    app.chat_auto_scroll = true;
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0]);
+    app.chat_virtualizer.set_viewport_height(220.0);
+    app.sync_chat_virtualizer_compat_fields();
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    runtime.is_requesting = true;
+    runtime.input_editor = iced::widget::text_editor::Content::with_text(&"中文草稿".repeat(1000));
+
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "开始".to_string());
+    let heights_ptr = app.chat_message_estimated_heights.as_ptr();
+    performance::reset();
+    for _ in 0..32 {
+        let _ = super::handle_agent_stream_delta(&mut app, 42, "继续\n".to_string());
+        assert_eq!(app.chat_message_estimated_heights.as_ptr(), heights_ptr);
+    }
+    assert_eq!(performance::snapshot().runtime_clones, 0);
+    assert_eq!(performance::snapshot().chat_message_clone_bytes, 0);
+    assert_eq!(app.chat[1].content, format!("开始{}", "继续\n".repeat(32)));
+    assert_eq!(
+        app.session_runtime_states[&session_id].stream_save_dirty_records[0].message.content,
+        app.chat[1].content
+    );
+    assert_eq!(app.chat_virtualizer.scroll_mode(), ChatScrollMode::TailSticky);
+    assert_eq!(app.chat_virtualizer.scroll_top_px(), app.chat_virtualizer.max_scroll_top_px());
+}
+
+#[test]
+fn active_stream_save_snapshot_preserves_replacements_and_restarts_after_ack() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "stream-save-prefix".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question")];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "中文".into());
+    // This append inserts a newline before the tool marker as well as the delta.
+    let _ = super::handle_agent_stream_delta(
+        &mut app,
+        42,
+        "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"a\"}\n".into(),
+    );
+    assert_eq!(
+        app.session_runtime_states[&session_id].stream_save_dirty_records[0].message.content,
+        app.chat[1].content
+    );
+    let _ = super::handle_agent_workflow_node_update(
+        &mut app,
+        42,
+        "tool shell\n{\"tool_call_id\":\"call-1\",\"status\":\"b\"}\n".into(),
+    );
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "<think>思考".into());
+    let dirty = &app.session_runtime_states[&session_id].stream_save_dirty_records[0].message;
+    assert_eq!(dirty.content, app.chat[1].content);
+    assert!(dirty.content.contains("\"status\":\"b\""));
+    assert_eq!(dirty.think_timing.len(), app.chat[1].think_timing.len());
+
+    app.get_session_runtime_mut(&session_id).stream_save_dirty_records.clear();
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "</think>完成".into());
+    let dirty = &app.session_runtime_states[&session_id].stream_save_dirty_records[0].message;
+    assert_eq!(dirty.content, app.chat[1].content);
+    assert!(dirty.content.starts_with("中文\ntool shell"));
 }
 
 #[test]

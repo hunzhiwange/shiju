@@ -235,7 +235,7 @@ mod imp {
     ///
     /// # 返回值
     ///
-    /// 返回状态文件路径：`~/.vibewindow/worktree/workspaces/<workspace-id>/state/memory_hygiene_state.json`
+    /// 返回状态文件路径：`~/.shiju-agent/worktree/workspaces/<workspace-id>/state/memory_hygiene_state.json`
     fn state_path(workspace_dir: &Path) -> Result<PathBuf> {
         Ok(paths::workspace_data_dir(workspace_dir)?.join("state").join(STATE_FILE))
     }

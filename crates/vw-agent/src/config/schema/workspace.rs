@@ -14,7 +14,7 @@
 //! 1. 环境变量 `VIBEWINDOW_CONFIG_DIR`
 //! 2. 环境变量 `VIBEWINDOW_WORKSPACE`
 //! 3. 持久化的活动工作空间标记文件 (`active_workspace.toml`)
-//! 4. 默认配置目录 (`~/.vibewindow`/`~/.vibewindowdev` 或对应 wasm 根目录)
+//! 4. 默认配置目录 (`~/.shiju-agent`/`~/.shiju-agent-dev` 或对应 wasm 根目录)
 //!
 //! ## 文件结构
 //!
@@ -72,12 +72,12 @@ pub fn default_config_and_workspace_dirs() -> Result<(PathBuf, PathBuf)> {
 
 /// 获取默认的配置目录路径（原生平台实现）
 ///
-/// 在原生（非 WASM）平台上，默认配置目录位于用户家目录下的 `.vibewindow` 文件夹。
+/// 在原生（非 WASM）平台上，默认配置目录位于用户家目录下的 `.shiju-agent` 文件夹。
 ///
 /// # 平台差异
 ///
-/// - **Linux/macOS**: release `~/.vibewindow`，dev `~/.vibewindowdev`
-/// - **Windows**: release `C:\Users\<username>\.vibewindow`，dev `C:\Users\<username>\.vibewindowdev`
+/// - **Linux/macOS**: release `~/.shiju-agent`，dev `~/.shiju-agent-dev`
+/// - **Windows**: release `C:\Users\<username>\.shiju-agent`，dev `C:\Users\<username>\.shiju-agent-dev`
 ///
 /// # 错误
 ///

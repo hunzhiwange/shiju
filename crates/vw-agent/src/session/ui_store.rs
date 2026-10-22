@@ -254,6 +254,18 @@ fn log_session_store_error(
     scope: Option<&str>,
     error: &anyhow::Error,
 ) {
+    if error.to_string().contains("stale session message delta") {
+        tracing::debug!(
+            target: "vw_agent",
+            operation,
+            platform_id = tenant.platform_id().as_ref(),
+            company_id = tenant.company_id().as_ref(),
+            project_id = scope.map(str::trim).filter(|value| !value.is_empty()).unwrap_or("<missing>"),
+            error = %error,
+            "native session store optimistic conflict"
+        );
+        return;
+    }
     tracing::error!(
         target: "vw_agent",
         operation,

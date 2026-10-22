@@ -10,8 +10,8 @@ VibeWindow 支持 SQLite 和 PostgreSQL 两种全局数据库后端。SQLite 是
 
 | 构建模式 | 数据库配置文件 |
 | --- | --- |
-| Debug | `~/.vibewindowdev/database/config.json` |
-| Release | `~/.vibewindow/database/config.json` |
+| Debug | `~/.shiju-agent-dev/database/config.json` |
+| Release | `~/.shiju-agent/database/config.json` |
 
 SQLite 数据文件 `vibe-window.sqlite3` 位于对应的 `database` 目录中。
 
@@ -28,17 +28,17 @@ SQLite 数据文件 `vibe-window.sqlite3` 位于对应的 `database` 目录中�
 Debug 构建执行：
 
 ```bash
-mkdir -p ~/.vibewindowdev/database
+mkdir -p ~/.shiju-agent-dev/database
 printf '%s\n' '{"provider":"postgres","schema":"vibewindow"}' \
-  > ~/.vibewindowdev/database/config.json
+  > ~/.shiju-agent-dev/database/config.json
 ```
 
 Release 构建执行：
 
 ```bash
-mkdir -p ~/.vibewindow/database
+mkdir -p ~/.shiju-agent/database
 printf '%s\n' '{"provider":"postgres","schema":"vibewindow"}' \
-  > ~/.vibewindow/database/config.json
+  > ~/.shiju-agent/database/config.json
 ```
 
 `schema` 可以省略，省略后默认使用 `vibewindow`：

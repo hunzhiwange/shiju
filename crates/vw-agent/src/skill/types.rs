@@ -8,7 +8,7 @@
 //! - 技能命令（SkillCommands）
 //! - 技能加载模式（SkillLoadMode）
 //!
-//! 技能是用户定义或社区构建的能力扩展，位于 `~/.vibewindow/workspace/skills/<name>/SKILL.md`，
+//! 技能是用户定义或社区构建的能力扩展，位于 `~/.shiju-agent/workspace/skills/<name>/SKILL.md`，
 //! 可以包含工具定义、提示词模板和自动化脚本。
 
 use crate::app::agent::skill::constants::{
@@ -84,7 +84,7 @@ impl SkillsShSource {
 /// 技能定义
 ///
 /// 技能是用户定义或社区构建的能力扩展。每个技能存储在独立目录中，
-/// 路径为 `~/.vibewindow/workspace/skills/<name>/SKILL.md`，可以包含：
+/// 路径为 `~/.shiju-agent/workspace/skills/<name>/SKILL.md`，可以包含：
 /// - 工具定义（shell 命令、HTTP 调用等）
 /// - 提示词模板
 /// - 自动化脚本

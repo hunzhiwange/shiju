@@ -2,10 +2,10 @@
 
 #[test]
 fn build_planning_prompt_requires_fixed_plan_dir_and_tool_writes() {
-    let plan_dir = std::path::Path::new("/tmp/user/.vibewindowdev/storage/plan/task-abc-123");
+    let plan_dir = std::path::Path::new("/tmp/user/.shiju-agent-dev/storage/plan/task-abc-123");
     let prompt =
         super::prompts::build_planning_prompt_for_dir("abc-123", "实现工作流执行", plan_dir);
-    assert!(prompt.contains("`/tmp/user/.vibewindowdev/storage/plan/task-abc-123/`"));
+    assert!(prompt.contains("`/tmp/user/.shiju-agent-dev/storage/plan/task-abc-123/`"));
     assert!(!prompt.contains("仓库相对路径"));
     assert!(!prompt.contains(".plans/task-abc-123"));
     assert!(prompt.contains("必须通过写文件工具实际创建文件"));
@@ -29,7 +29,7 @@ fn goal_mode_planning_prompt_requires_final_validation_task() {
     let prompt = super::prompts::build_goal_planning_prompt_for_dir(
         "goal-1",
         "实现目标模式",
-        std::path::Path::new("/tmp/user/.vibewindowdev/storage/plan/task-goal-1"),
+        std::path::Path::new("/tmp/user/.shiju-agent-dev/storage/plan/task-goal-1"),
     );
     assert!(prompt.contains("持续目标模式"));
     assert!(prompt.contains("独立的目标验收任务"));

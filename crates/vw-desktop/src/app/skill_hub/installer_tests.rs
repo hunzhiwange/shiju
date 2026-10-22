@@ -88,7 +88,7 @@ fn valid_archive_installs_only_current_environment() {
 fn unsafe_or_invalid_archive_leaves_existing_installs_unchanged() {
     let temp = tempfile::tempdir().expect("fixture home");
     let home = temp.path();
-    for config_dir in [".vibewindow", ".vibewindowdev"] {
+    for config_dir in [".shiju-agent", ".shiju-agent-dev"] {
         let existing = target(home, config_dir);
         fs::create_dir_all(&existing).expect("create existing install");
         fs::write(existing.join("marker.txt"), config_dir).expect("write marker");
@@ -104,7 +104,7 @@ fn unsafe_or_invalid_archive_leaves_existing_installs_unchanged() {
 
     assert!(error.to_string().contains("不安全"));
     assert!(!home.join("escaped.txt").exists());
-    for config_dir in [".vibewindow", ".vibewindowdev"] {
+    for config_dir in [".shiju-agent", ".shiju-agent-dev"] {
         assert_eq!(
             fs::read_to_string(target(home, config_dir).join("marker.txt"))
                 .expect("read unchanged marker"),

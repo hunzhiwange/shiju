@@ -62,11 +62,11 @@ fn init_skills_idempotent() {
 #[test]
 fn skills_dir_path() {
     // 定义测试用的基础路径
-    let base = std::path::Path::new("/home/user/.vibewindow");
+    let base = std::path::Path::new("/home/user/.shiju-agent");
 
     // 计算技能目录路径
     let dir = skills_dir(base);
 
     // 验证返回路径是否正确
-    assert_eq!(dir, PathBuf::from("/home/user/.vibewindow/skills"));
+    assert_eq!(dir, PathBuf::from("/home/user/.shiju-agent/skills"));
 }

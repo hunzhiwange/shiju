@@ -77,7 +77,7 @@ fn full_access_context_bypasses_all_bash_security_checks() {
     let workspace_dir = PathBuf::from("/tmp/vw-toolset-full-access-workspace");
     let mut config = Config { workspace_dir: workspace_dir.clone(), ..Config::default() };
     config.security.bash.enabled = true;
-    let command = "for item in {one,two}; do ls /Users/xiangmin/.vibewindow/skills/$item; done";
+    let command = "for item in {one,two}; do ls /Users/xiangmin/.shiju-agent/skills/$item; done";
 
     let security =
         security_for_tool_context(&config, &workspace_dir, &ToolUseContext::new("test", None));

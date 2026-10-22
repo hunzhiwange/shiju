@@ -4,7 +4,7 @@ set -euo pipefail
 APP="shiju"
 PACKAGE="vw-cli"
 REPO="hunzhiwange/vibewindow"
-INSTALL_DIR="${VIBEWINDOW_INSTALL_DIR:-$HOME/.vibewindow/bin}"
+INSTALL_DIR="${VIBEWINDOW_INSTALL_DIR:-$HOME/.shiju-agent/bin}"
 
 MUTED='\033[0;2m'
 RED='\033[0;31m'

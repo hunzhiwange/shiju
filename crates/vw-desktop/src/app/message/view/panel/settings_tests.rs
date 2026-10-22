@@ -675,7 +675,7 @@ fn existing_profile_without_trailing_newline_gets_a_separate_path_line() {
 #[test]
 fn path_profiles_are_created_only_inside_supplied_home() {
     let home = tempfile::tempdir().expect("temporary home should be created");
-    let install_dir = home.path().join(".vibewindow").join("bin");
+    let install_dir = home.path().join(".shiju-agent").join("bin");
 
     let updated = super::ensure_path_profiles(home.path(), &install_dir)
         .expect("isolated profiles should be updated");

@@ -587,8 +587,8 @@ impl EstopManager {
 ///
 /// ```rust,ignore
 /// let config_dir = Path::new("/etc/vibewindow");
-/// let path = resolve_state_file_path(config_dir, "~/.vibewindow/estop.json");
-/// // 在 Unix 系统上返回：/home/user/.vibewindow/estop.json
+/// let path = resolve_state_file_path(config_dir, "~/.shiju-agent/estop.json");
+/// // 在 Unix 系统上返回：/home/user/.shiju-agent/estop.json
 ///
 /// let path = resolve_state_file_path(config_dir, "estop.json");
 /// // 返回：/etc/vibewindow/estop.json

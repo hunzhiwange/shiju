@@ -172,11 +172,11 @@ pub(super) fn provider_global_paths(provider: SkillsDirectoryProvider) -> &'stat
         SkillsDirectoryProvider::Vibewindow => {
             #[cfg(debug_assertions)]
             {
-                "~/.vibewindowdev/skills 与 ~/.skills"
+                "~/.shiju-agent-dev/skills 与 ~/.skills"
             }
             #[cfg(not(debug_assertions))]
             {
-                "~/.vibewindow/skills 与 ~/.skills"
+                "~/.shiju-agent/skills 与 ~/.skills"
             }
         }
         SkillsDirectoryProvider::Codex => "~/.codex/skills 与 ~/.agents/skills",

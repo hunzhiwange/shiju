@@ -68,14 +68,14 @@ mod tests {
         assert_eq!(NativeRuntime::new().memory_budget(), 0);
     }
 
-    /// 测试存储路径包含项目标识
+    /// 测试存储路径包含 Agent 标识
     ///
-    /// 验证运行时的存储路径中包含 `"vibewindow"` 字符串，
+    /// 验证运行时的存储路径中包含 `"shiju-agent"` 字符串，
     /// 确保应用数据存储在专用的目录下，避免与其他应用冲突。
     #[test]
-    fn native_storage_path_contains_vibewindow() {
+    fn native_storage_path_contains_shiju_agent() {
         let path = NativeRuntime::new().storage_path();
-        assert!(path.to_string_lossy().contains("vibewindow"));
+        assert!(path.to_string_lossy().contains("shiju-agent"));
     }
 
     #[test]

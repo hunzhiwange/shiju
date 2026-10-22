@@ -250,7 +250,7 @@ pub(crate) fn channel_delivery_instructions(channel_name: &str) -> Option<&'stat
              - Be concise. No markdown headers (## etc.) — they don't render.\n\
              - No markdown tables — use bullet lists instead.\n\
              - For sending images, documents, videos, or audio files use markers: [IMAGE:<absolute-path>], [DOCUMENT:<absolute-path>], [VIDEO:<absolute-path>], [AUDIO:<absolute-path>]\n\
-             - The path MUST be an absolute filesystem path to a local file (e.g. [IMAGE:/home/nicolas/.vibewindow/workspace/images/chart.png]).\n\
+             - The path MUST be an absolute filesystem path to a local file (e.g. [IMAGE:/home/nicolas/.shiju-agent/workspace/images/chart.png]).\n\
              - Keep normal text outside markers and never wrap markers in code fences.\n\
              - You can combine text and media in one response — text is sent first, then each attachment.\n\
              - Use tool results silently: answer the latest user message directly, and do not narrate delayed/internal tool execution bookkeeping.",

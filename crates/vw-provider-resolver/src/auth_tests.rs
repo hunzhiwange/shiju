@@ -67,7 +67,8 @@ fn filepath_uses_global_paths_and_legacy_auth_location() {
 
     let path = super::filepath();
 
-    assert!(path.ends_with(".vibewindow/auth.json") || path.ends_with("auth.json"));
+    let home_auth = Path::new(vw_config_types::paths::HOME_CONFIG_DIR_NAME).join("auth.json");
+    assert!(path.ends_with(home_auth) || path.ends_with("auth.json"));
 }
 
 /// 在当前进程解析出的鉴权文件路径上写入内容并在结束后恢复，避免污染本机文件。

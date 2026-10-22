@@ -6,7 +6,7 @@
 //! - 技能工具定义
 //! - 技能加载模式枚举
 //!
-//! 技能是用户自定义或社区构建的能力扩展，存储在 `~/.vibewindow/workspace/skills/<name>/SKILL.md`，
+//! 技能是用户自定义或社区构建的能力扩展，存储在 `~/.shiju-agent/workspace/skills/<name>/SKILL.md`，
 //! 可以包含工具定义、提示词模板和自动化脚本。
 
 use serde::{Deserialize, Serialize};
@@ -115,7 +115,7 @@ impl Default for SkillDownloadPolicy {
 
 /// 技能定义结构
 ///
-/// 技能是用户定义或社区构建的能力单元，存储在 `~/.vibewindow/workspace/skills/<name>/SKILL.md`。
+/// 技能是用户定义或社区构建的能力单元，存储在 `~/.shiju-agent/workspace/skills/<name>/SKILL.md`。
 /// 每个技能可以包含工具定义、提示词模板和自动化脚本。
 ///
 /// # 字段说明

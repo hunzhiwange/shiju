@@ -176,7 +176,7 @@ fn normalize_security_otp_method(raw: &str) -> String {
 ///
 /// ## 紧急停止
 /// - `enabled`：是否启用紧急停止
-/// - `state_file`：状态文件路径（默认 "~/.vibewindow/estop-state.json"）
+/// - `state_file`：状态文件路径（默认 "~/.shiju-agent/estop-state.json"）
 /// - `require_otp_to_resume`：恢复时是否需要 OTP
 ///
 /// ## 系统调用异常检测

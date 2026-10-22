@@ -616,7 +616,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
     generation: u64,
     revision: u64,
     updated_ms: u64,
-    result: Result<(), String>,
+    result: Result<(), crate::app::session_gateway::SessionMessageDeltaSaveError>,
 ) -> Task<Message> {
     let runtime = app.get_session_runtime_mut(&session_id);
     if runtime.stream_save_in_flight != Some((generation, revision, updated_ms)) {
@@ -635,7 +635,21 @@ pub(super) fn handle_agent_stream_session_delta_saved(
             }
             save_latest_agent_stream_session(app, &session_id)
         }
-        Err(error) => {
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            stored_updated_ms,
+        }) => {
+            // Another writer advanced the session metadata while this stream delta was in flight.
+            // The gateway refreshed this authoritative value instead of parsing its truncated log.
+            runtime.stream_save_expected_updated_ms = stored_updated_ms;
+            tracing::debug!(
+                target: "vw_desktop",
+                session_id = %session_id,
+                stored_updated_ms,
+                "rebasing stale stream message delta"
+            );
+            schedule_agent_stream_session_save(app, &session_id)
+        }
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other(error)) => {
             tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error, "failed to save stream message delta");
             schedule_agent_stream_session_save(app, &session_id)
         }

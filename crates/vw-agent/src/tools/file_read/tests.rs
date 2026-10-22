@@ -1300,7 +1300,7 @@ mod tests {
     /// 实时 E2E 测试：真实 OpenAI Codex Provider + 真实 FileReadTool + PDF 文件
     ///
     /// 验证模型能够接收提取的 PDF 文本并做出有意义的响应。
-    /// 此测试需要有效的 OAuth 凭证配置在 `~/.vibewindow/` 目录。
+    /// 此测试需要有效的 OAuth 凭证配置在 `~/.shiju-agent/` 目录。
     ///
     /// 运行命令：
     /// ```bash

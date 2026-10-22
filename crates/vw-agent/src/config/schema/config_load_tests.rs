@@ -2,7 +2,7 @@
 
 use super::config_load::{
     config_json_path, load_config_for_tenant_from_store, load_config_from_json_root,
-    load_config_from_toml_path,
+    load_config_from_toml_path, is_retired_agent_tool_policy,
 };
 use super::workspace::ConfigResolutionSource;
 use crate::app::agent::config::SystemConfigStore;
@@ -17,6 +17,14 @@ fn config_json_path_appends_stable_filename() {
         config_json_path(std::path::Path::new("/tmp/vw")),
         std::path::Path::new("/tmp/vw/vibewindow.json")
     );
+}
+
+#[test]
+fn retired_agent_tool_policy_matches_only_removed_nested_key() {
+    assert!(is_retired_agent_tool_policy("agents.main.tool_policy"));
+    assert!(!is_retired_agent_tool_policy("agents.tool_policy"));
+    assert!(!is_retired_agent_tool_policy("agents.main.model"));
+    assert!(!is_retired_agent_tool_policy("tools.main.tool_policy"));
 }
 
 // 错误路径还要确认原配置或存储保持不变，防止校验失败后留下部分更新。

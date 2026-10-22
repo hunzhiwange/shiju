@@ -518,8 +518,8 @@ impl RuntimeAdapter for NativeRuntime {
     /// 获取存储路径
     ///
     /// 返回 VibeWindow 数据存储目录的路径。
-    /// 优先使用用户主目录下的 `.vibewindow` 目录，
-    /// 如果无法确定用户主目录，则使用当前目录下的 `.vibewindow`。
+    /// 优先使用用户主目录下的 `.shiju-agent` 目录，
+    /// 如果无法确定用户主目录，则使用当前目录下的 `.shiju-agent`。
     ///
     /// # 返回值
     ///

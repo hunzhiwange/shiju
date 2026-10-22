@@ -38,6 +38,22 @@ use crate::app::agent::config::schema::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::global_database::GlobalDatabase;
 
+pub(super) fn is_retired_agent_tool_policy(path: &str) -> bool {
+    let mut segments = path.split('.');
+    matches!(segments.next(), Some("agents"))
+        && segments.next().is_some()
+        && matches!(segments.next(), Some("tool_policy"))
+        && segments.next().is_none()
+}
+
+fn log_ignored_config_key(path: &str) {
+    if is_retired_agent_tool_policy(path) {
+        tracing::debug!(key = %path, "Retired config key ignored");
+    } else {
+        tracing::warn!(key = %path, "Unknown config key ignored");
+    }
+}
+
 /// 返回当前配置目录下的 JSON 配置文件路径。
 ///
 /// 参数 `vibewindow_dir` 是已经解析好的 VibeWindow 配置目录；函数只拼接文件名，不访问文件系统。
@@ -81,10 +97,7 @@ pub(crate) async fn load_config_from_toml_path(
         .context("Failed to deserialize config file")?;
 
         for path in ignored_paths {
-            tracing::warn!(
-                "Unknown config key ignored: \"{}\". Check the system config payload for typos or deprecated options.",
-                path
-            );
+            log_ignored_config_key(&path);
         }
         config.config_path = config_path.to_path_buf();
         config.workspace_dir = workspace_dir;
@@ -125,7 +138,7 @@ fn decode_json_config_with_environment(
     .context("Failed to deserialize config payload")?;
 
     for path in ignored_paths {
-        tracing::warn!(key = %path, "Unknown config key ignored");
+        log_ignored_config_key(&path);
     }
     config.config_path = config_path.to_path_buf();
     config.workspace_dir = workspace_dir;

@@ -74,7 +74,7 @@ Environment:
   VIBEWINDOW_DOCKER_CARGO_FEATURES
                             Extra Cargo features for Docker builds (comma-separated)
   VIBEWINDOW_CARGO_FEATURES    Extra Cargo features for local source builds (comma-separated)
-  VIBEWINDOW_CONFIG_PATH       Config path used for channel feature auto-detection (default: ~/.vibewindow/config.toml)
+  VIBEWINDOW_CONFIG_PATH       Config path used for channel feature auto-detection (default: ~/.shiju-agent/config.toml)
   VIBEWINDOW_DOCKER_DAEMON_NAME
                             Daemon container name for --docker-daemon (default: vibewindow-daemon)
   VIBEWINDOW_DOCKER_DAEMON_BIND_HOST
@@ -1042,7 +1042,7 @@ run_docker_bootstrap() {
     reset_docker_vibewindow_resources "$docker_data_dir"
   fi
 
-  mkdir -p "$docker_data_dir/.vibewindow" "$docker_data_dir/workspace"
+  mkdir -p "$docker_data_dir/.shiju-agent" "$docker_data_dir/workspace"
 
   if [[ -n "$seed_config_path" ]]; then
     if [[ ! -f "$seed_config_path" ]]; then
@@ -1050,8 +1050,8 @@ run_docker_bootstrap() {
       exit 1
     fi
     info "Seeding Docker config from $seed_config_path"
-    install -m 600 "$seed_config_path" "$docker_data_dir/.vibewindow/config.toml"
-    seed_docker_secret_key_for_config "$seed_config_path" "$docker_data_dir/.vibewindow" "$seed_secret_key_path"
+    install -m 600 "$seed_config_path" "$docker_data_dir/.shiju-agent/config.toml"
+    seed_docker_secret_key_for_config "$seed_config_path" "$docker_data_dir/.shiju-agent" "$seed_secret_key_path"
   fi
 
   if [[ "$SKIP_INSTALL" == true ]]; then
@@ -1134,7 +1134,7 @@ run_docker_bootstrap() {
     fi
   fi
 
-  config_mount="$docker_data_dir/.vibewindow:/vibewindow-data/.vibewindow"
+  config_mount="$docker_data_dir/.shiju-agent:/vibewindow-data/.shiju-agent"
   workspace_mount="$docker_data_dir/workspace:/vibewindow-data/workspace"
   if [[ "$CONTAINER_CLI" == "podman" ]]; then
     config_mount+=":Z"
@@ -1166,8 +1166,8 @@ run_docker_bootstrap() {
     fi
 
     config_gateway_port_value=""
-    if [[ -f "$docker_data_dir/.vibewindow/config.toml" ]]; then
-      config_gateway_port_value="$(config_gateway_port "$docker_data_dir/.vibewindow/config.toml" || true)"
+    if [[ -f "$docker_data_dir/.shiju-agent/config.toml" ]]; then
+      config_gateway_port_value="$(config_gateway_port "$docker_data_dir/.shiju-agent/config.toml" || true)"
     fi
     docker_daemon_port="${config_gateway_port_value:-14682}"
     if [[ -z "$docker_daemon_host_port" ]]; then
@@ -1293,7 +1293,7 @@ API_KEY="${VIBEWINDOW_API_KEY:-}"
 PROVIDER="${VIBEWINDOW_PROVIDER:-openrouter}"
 MODEL="${VIBEWINDOW_MODEL:-}"
 LOCAL_CARGO_FEATURES="${VIBEWINDOW_CARGO_FEATURES:-}"
-LOCAL_CONFIG_PATH="${VIBEWINDOW_CONFIG_PATH:-$HOME/.vibewindow/config.toml}"
+LOCAL_CONFIG_PATH="${VIBEWINDOW_CONFIG_PATH:-$HOME/.shiju-agent/config.toml}"
 AUTO_CONFIG_FEATURES=""
 
 while [[ $# -gt 0 ]]; do

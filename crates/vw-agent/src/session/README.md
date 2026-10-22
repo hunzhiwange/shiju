@@ -4,7 +4,7 @@
 `{"provider":"postgres","schema":"vibewindow"}` 时使用 PostgreSQL，连接串只从
 `VIBEWINDOW_DATABASE_URL` 读取。URL 必须显式选择 `sslmode=require` 或 `sslmode=disable`，前者使用
 WebPKI 根证书验证服务端。Debug/Release 配置分别位于
-`~/.vibewindowdev/database/config.json` 与 `~/.vibewindow/database/config.json`；首次成功选择会在进程内
+`~/.shiju-agent-dev/database/config.json` 与 `~/.shiju-agent/database/config.json`；首次成功选择会在进程内
 固定，修改配置或 URL 后必须重启。
 
 ## 数据模型

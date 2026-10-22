@@ -6,8 +6,8 @@
 //! # 架构设计
 //!
 //! 存储布局：
-//! - `~/.vibewindow/worktree/<workspace-hash>/MEMORY.md` - 长期记忆的核心文件
-//! - `~/.vibewindow/worktree/<workspace-hash>/memory/YYYY-MM-DD.md` - 每日日志文件
+//! - `~/.shiju-agent/worktree/<workspace-hash>/MEMORY.md` - 长期记忆的核心文件
+//! - `~/.shiju-agent/worktree/<workspace-hash>/memory/YYYY-MM-DD.md` - 每日日志文件
 //!
 //! # 核心特性
 //!

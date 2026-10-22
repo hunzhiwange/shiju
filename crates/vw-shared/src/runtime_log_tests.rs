@@ -69,6 +69,6 @@ fn ensure_runtime_log_dir_creates_nested_directory() {
 fn default_home_runtime_log_dir_uses_product_home_name() {
     assert_eq!(
         default_home_runtime_log_dir(Path::new("/home/alice")),
-        Path::new("/home/alice").join(".vibewindow").join("runtime_log")
+        Path::new("/home/alice").join(".shiju-agent").join("runtime_log")
     );
 }

@@ -826,11 +826,45 @@ fn stream_session_delta_save_retries_after_failure() {
         88,
         revision,
         updated_ms,
-        Err("temporary outage".to_string()),
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other(
+            "temporary outage".to_string(),
+        )),
     );
 
     let runtime = app.get_session_runtime(&session_id);
     assert!(!runtime.stream_save_dirty_records.is_empty());
+    assert!(runtime.stream_save_flush_scheduled);
+    assert!(retry.units() > 0);
+}
+
+#[test]
+fn stale_stream_session_delta_rebases_before_retry() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "session-stale".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.sessions = vec![session_info(&session_id, "/workspace/demo", None)];
+    app.chat = vec![message(ChatRole::Assistant, "retry me")];
+    app.chat_message_ids = vec![None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(89, &session_id));
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    let (_, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+
+    let retry = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        89,
+        revision,
+        updated_ms,
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            stored_updated_ms: 4_200_000_000_042,
+        }),
+    );
+
+    let runtime = app.get_session_runtime(&session_id);
+    assert_eq!(runtime.stream_save_expected_updated_ms, 4_200_000_000_042);
     assert!(runtime.stream_save_flush_scheduled);
     assert!(retry.units() > 0);
 }

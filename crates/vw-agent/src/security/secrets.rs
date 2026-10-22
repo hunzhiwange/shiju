@@ -3,7 +3,7 @@
 //! # 模块概述
 //!
 //! 本模块实现了安全的密钥加密存储机制，使用 ChaCha20-Poly1305 AEAD（认证加密）算法，
-//! 密钥以受限文件权限（0600）存储在 `~/.vibewindow/.secret_key` 文件中。
+//! 密钥以受限文件权限（0600）存储在 `~/.shiju-agent/.secret_key` 文件中。
 //! 配置文件仅存储十六进制编码的密文，绝不存储明文密钥。
 //!
 //! # 加密机制
@@ -36,7 +36,7 @@
 //! use vibewindow::security::SecretStore;
 //!
 //! // 创建密钥存储实例
-//! let store = SecretStore::new(Path::new("~/.vibewindow"), true);
+//! let store = SecretStore::new(Path::new("~/.shiju-agent"), true);
 //!
 //! // 加密密钥
 //! let encrypted = store.encrypt("my_api_key")?;
@@ -74,13 +74,13 @@ const NONCE_LEN: usize = 12;
 /// # 示例
 ///
 /// ```rust,ignore
-/// let store = SecretStore::new(Path::new("~/.vibewindow"), true);
+/// let store = SecretStore::new(Path::new("~/.shiju-agent"), true);
 /// let encrypted = store.encrypt("secret_key")?;
 /// let decrypted = store.decrypt(&encrypted)?;
 /// ```
 #[derive(Debug, Clone)]
 pub struct SecretStore {
-    /// 密钥文件路径（`~/.vibewindow/.secret_key`）。
+    /// 密钥文件路径（`~/.shiju-agent/.secret_key`）。
     key_path: PathBuf,
     /// 是否启用加密功能。
     enabled: bool,
@@ -103,7 +103,7 @@ impl SecretStore {
     /// ```rust,ignore
     /// use std::path::Path;
     ///
-    /// let store = SecretStore::new(Path::new("~/.vibewindow"), true);
+    /// let store = SecretStore::new(Path::new("~/.shiju-agent"), true);
     /// ```
     pub fn new(vibewindow_dir: &Path, enabled: bool) -> Self {
         Self { key_path: vibewindow_dir.join(".secret_key"), enabled }
@@ -134,7 +134,7 @@ impl SecretStore {
     /// # 示例
     ///
     /// ```rust,ignore
-    /// let store = SecretStore::new(Path::new("~/.vibewindow"), true);
+    /// let store = SecretStore::new(Path::new("~/.shiju-agent"), true);
     /// let encrypted = store.encrypt("my_secret")?;
     /// assert!(encrypted.starts_with("enc2:"));
     /// ```
@@ -188,7 +188,7 @@ impl SecretStore {
     /// # 示例
     ///
     /// ```rust,ignore
-    /// let store = SecretStore::new(Path::new("~/.vibewindow"), true);
+    /// let store = SecretStore::new(Path::new("~/.shiju-agent"), true);
     ///
     /// // 解密新格式
     /// let plaintext = store.decrypt("enc2:...")?;
@@ -230,7 +230,7 @@ impl SecretStore {
     /// # 示例
     ///
     /// ```rust,ignore
-    /// let store = SecretStore::new(Path::new("~/.vibewindow"), true);
+    /// let store = SecretStore::new(Path::new("~/.shiju-agent"), true);
     ///
     /// // 解密旧格式并获取迁移后的新格式
     /// let (plaintext, migrated) = store.decrypt_and_migrate("enc:...")?;

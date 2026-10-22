@@ -54,5 +54,5 @@ target-dir/
 **/MEMORY_SNAPSHOT.md
 
 /local-temp/
-.vibewindowdev/
+.shiju-agent-dev/
 examples/

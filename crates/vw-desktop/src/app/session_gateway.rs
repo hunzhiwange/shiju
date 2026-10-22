@@ -42,6 +42,23 @@ use vw_gateway_client::{
 };
 use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta, SessionMessageDelta};
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SessionMessageDeltaSaveError {
+    Stale { stored_updated_ms: u64 },
+    Other(String),
+}
+
+impl std::fmt::Display for SessionMessageDeltaSaveError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Stale { stored_updated_ms } => {
+                write!(formatter, "stale session message delta at {stored_updated_ms}")
+            }
+            Self::Other(error) => formatter.write_str(error),
+        }
+    }
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn block_on_gateway<F, T>(fut: F) -> Result<T, String>
 where
@@ -473,9 +490,25 @@ pub async fn gateway_session_message_delta_async(
     session_id: &str,
     directory: Option<&str>,
     delta: &SessionMessageDelta,
-) -> Result<(), String> {
-    let client = gateway_client()?;
-    client.session_message_delta(session_id, directory, delta).await.map(|_| ())
+) -> Result<(), SessionMessageDeltaSaveError> {
+    let client = gateway_client().map_err(SessionMessageDeltaSaveError::Other)?;
+    match client.session_message_delta(session_id, directory, delta).await {
+        Ok(_) => Ok(()),
+        Err(error) if error.contains("409 Conflict") => {
+            let summary = client
+                .session_ui_summary(session_id, directory)
+                .await
+                .map_err(|refresh_error| {
+                    SessionMessageDeltaSaveError::Other(format!(
+                        "{error}; failed to refresh stale session version: {refresh_error}"
+                    ))
+                })?;
+            Err(SessionMessageDeltaSaveError::Stale {
+                stored_updated_ms: summary.updated_ms,
+            })
+        }
+        Err(error) => Err(SessionMessageDeltaSaveError::Other(error)),
+    }
 }
 
 fn session_ui_content_snapshot(session: &ChatSession) -> ChatSession {

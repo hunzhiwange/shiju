@@ -439,7 +439,7 @@ pub enum ChatMessage {
         generation: u64,
         revision: u64,
         updated_ms: u64,
-        result: Result<(), String>,
+        result: Result<(), crate::app::session_gateway::SessionMessageDeltaSaveError>,
     },
 
     /// 系统提示词实际加载的协议文件。

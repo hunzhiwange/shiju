@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 
 /// 正式构建在用户主目录下使用的配置目录名。
-pub const PROD_HOME_CONFIG_DIR_NAME: &str = ".vibewindow";
+pub const PROD_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent";
 /// 调试构建在用户主目录下使用的隔离配置目录名。
-pub const DEV_HOME_CONFIG_DIR_NAME: &str = ".vibewindowdev";
+pub const DEV_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent-dev";
 /// 正式构建在平台数据目录下使用的应用目录名。
 pub const PROD_APP_DIR_NAME: &str = "vibewindow";
 /// 调试构建在平台数据目录下使用的隔离应用目录名。
@@ -24,10 +24,10 @@ pub const HOME_CONFIG_DIR_NAME: &str = PROD_HOME_CONFIG_DIR_NAME;
 
 /// 调试构建使用的紧急停止状态文件路径。
 #[cfg(debug_assertions)]
-pub const ESTOP_STATE_FILE_PATH: &str = "~/.vibewindowdev/estop-state.json";
+pub const ESTOP_STATE_FILE_PATH: &str = "~/.shiju-agent-dev/estop-state.json";
 /// 正式构建使用的紧急停止状态文件路径。
 #[cfg(not(debug_assertions))]
-pub const ESTOP_STATE_FILE_PATH: &str = "~/.vibewindow/estop-state.json";
+pub const ESTOP_STATE_FILE_PATH: &str = "~/.shiju-agent/estop-state.json";
 
 /// 当前构建配置对应的平台应用目录名。
 #[cfg(debug_assertions)]

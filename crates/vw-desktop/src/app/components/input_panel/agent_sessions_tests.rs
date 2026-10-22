@@ -207,7 +207,7 @@ async fn agent_sessions_popover_layouts_nested_non_ascii_text_in_light_and_dark_
     workflow.kind = AgentChildSessionKind::WorkflowPlanning;
     workflow.title = "规划 · 019fb6ed-fc1c-7c21-8d82-c13454526594 · 计划任务".to_string();
     workflow.task.clear();
-    workflow.task_path = Some("/home/user/.vibewindow/storage/plan/task-render".to_string());
+    workflow.task_path = Some("/home/user/.shiju-agent/storage/plan/task-render".to_string());
     workflow.status = AgentChildSessionStatus::Waiting;
     workflow.plan_run_task_id = Some("task-render".to_string());
     let mut nested = child("agent-grandchild", "reviewer", "检查中文动态文本", "等待递归后代完成");
@@ -291,7 +291,7 @@ fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
                     "event_type": "planning_started",
                     "task_id": TASK_ID,
                     "session_id": SESSION_ID,
-                    "task_path": "/home/user/.vibewindow/storage/plan/task-compact",
+                    "task_path": "/home/user/.shiju-agent/storage/plan/task-compact",
                 },
             })
         )),
@@ -319,11 +319,11 @@ fn workflow_planning_child_uses_compact_label_and_task_path_tooltip() {
     assert_eq!(children[0].directory, DIRECTORY);
     assert_eq!(
         children[0].task_path.as_deref(),
-        Some("/home/user/.vibewindow/storage/plan/task-compact")
+        Some("/home/user/.shiju-agent/storage/plan/task-compact")
     );
     assert_eq!(
         agent_session_tooltip_text(&children[0]),
-        Some("/home/user/.vibewindow/storage/plan/task-compact")
+        Some("/home/user/.shiju-agent/storage/plan/task-compact")
     );
     assert_eq!(children[0].kind, AgentChildSessionKind::WorkflowPlanning);
     assert_eq!(children[0].status, AgentChildSessionStatus::Waiting);
@@ -361,7 +361,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
             "task_id": TASK_ID,
             "session_id": WORKFLOW_SESSION_ID,
             "title": "实现递归会话树",
-            "task_path": "/home/user/.vibewindow/storage/plan/task-nested/3-实现递归会话树.md",
+            "task_path": "/home/user/.shiju-agent/storage/plan/task-nested/3-实现递归会话树.md",
         },
     });
     let workflow_chat = vec![assistant(&format!("tool workflow_node\n{workflow_event}\n"))];
@@ -410,7 +410,7 @@ fn agent_sessions_popover_lists_nested_plan_run_descendants_and_stops_owner() {
     assert_eq!(children[0].plan_run_task_id.as_deref(), Some(TASK_ID));
     assert_eq!(
         agent_session_tooltip_text(&children[0]),
-        Some("/home/user/.vibewindow/storage/plan/task-nested/3-实现递归会话树.md")
+        Some("/home/user/.shiju-agent/storage/plan/task-nested/3-实现递归会话树.md")
     );
     assert_eq!(children[1].depth, 1);
     assert_eq!(children[1].status, AgentChildSessionStatus::Waiting);

@@ -205,7 +205,12 @@ pub fn is_local() -> bool {
 pub fn method() -> Method {
     let exe = env::current_exe().ok();
     if let Some(p) = exe.as_ref().and_then(|p| p.to_str()) {
-        if p.contains(Path::new(".vibewindow").join("bin").to_string_lossy().as_ref()) {
+        if p.contains(
+            Path::new(vw_config_types::paths::PROD_HOME_CONFIG_DIR_NAME)
+                .join("bin")
+                .to_string_lossy()
+                .as_ref(),
+        ) {
             return Method::Curl;
         }
         if p.contains(Path::new(".local").join("bin").to_string_lossy().as_ref()) {

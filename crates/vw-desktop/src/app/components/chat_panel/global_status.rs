@@ -119,23 +119,21 @@ pub(crate) fn chat_global_status(
 }
 
 pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
-    let Some(status) = chat_global_status_memoized(
-        &app.chat,
-        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting),
-    ) else {
-        return Space::new().height(Length::Fixed(0.0)).into();
+    let is_requesting =
+        app.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting);
+    let Some(status) = chat_global_status_memoized(&app.chat, is_requesting) else {
+        // 首字到达前、正文输出和状态切换期间保留槽位，避免输入区域反复跳动。
+        let height = if is_requesting { GLOBAL_STATUS_HEIGHT } else { 0.0 };
+        return Space::new().height(Length::Fixed(height)).into();
     };
     let is_thinking = status.is_thinking;
     let action = status.action;
 
     // 思考中恢复原有星形呼吸动画；工具状态继续使用紧凑状态图标。
-    let (activity_icon, line_height) = if is_thinking {
-        (think_pulse_indicator(app.status_animation_frame), THINK_PULSE_MAX_SIZE)
+    let activity_icon = if is_thinking {
+        think_pulse_indicator(app.status_animation_frame)
     } else {
-        (
-            compact_activity_indicator(status.visual, app.status_animation_frame),
-            COMPACT_ACTIVITY_SLOT_SIZE,
-        )
+        compact_activity_indicator(status.visual, app.status_animation_frame)
     };
 
     // 进行内容保留完整单行，由剩余布局宽度动态裁切，不再按固定字符数提前截短。
@@ -170,13 +168,13 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
     let line = row![activity_icon, meta_view]
         .spacing(5)
         .width(Length::Fill)
-        .height(Length::Fixed(line_height))
+        .height(Length::Fixed(THINK_PULSE_MAX_SIZE))
         .align_y(Alignment::Center)
         .clip(true);
 
     container(line)
         .width(Length::Fill)
-        .height(Length::Shrink)
+        .height(Length::Fixed(GLOBAL_STATUS_HEIGHT))
         .padding(iced::Padding { top: 4.0, right: 28.0, bottom: 6.0, left: 12.0 })
         .into()
 }
@@ -198,6 +196,8 @@ pub(crate) fn think_pulse_glyph(frame: usize) -> &'static str {
 
 const THINK_PULSE_MIN_SIZE: f32 = 14.0;
 const THINK_PULSE_MAX_SIZE: f32 = 44.0;
+// 固定行高加上下内边距，思考、工具和临时空状态共用。
+const GLOBAL_STATUS_HEIGHT: f32 = THINK_PULSE_MAX_SIZE + 10.0;
 const THINK_PULSE_BREATH_PERIOD: usize = THINK_PULSE_FRAMES_PER_GLYPH * 2;
 const THINK_PULSE_VERTICAL_OFFSET: f32 = 3.0;
 

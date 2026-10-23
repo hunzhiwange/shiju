@@ -371,3 +371,43 @@ fn tokens_label_ignores_negative_components() {
 
     assert_eq!(tokens_label(&usage).as_deref(), Some("25 tokens"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn global_status_keeps_height_during_request_state_transitions() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut app = App::new().0;
+    app.current_session_runtime_mut().is_requesting = true;
+    let limits = layout::Limits::new(Size::ZERO, Size::new(480.0, 100.0));
+    let mut expected_height = None;
+    for content in [
+        "",
+        "<think>正在分析",
+        "tool read\n{\"status\":\"running\",\"input\":\"src/main.rs\"}",
+        "正常回复",
+        "<think>继续分析",
+    ] {
+        app.chat = if content.is_empty() { Vec::new() } else { vec![assistant(content)] };
+        for frame in [0, 12, 24, 36] {
+            app.status_animation_frame = frame;
+            let mut element = chat_global_status_view(&app);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+            let height = node.size().height;
+            assert!(height > 0.0);
+            if let Some(expected) = expected_height {
+                assert_eq!(height, expected, "content={content}, frame={frame}");
+            } else {
+                expected_height = Some(height);
+            }
+        }
+    }
+    app.current_session_runtime_mut().is_requesting = false;
+    let mut element = chat_global_status_view(&app);
+    let mut tree = Tree::new(element.as_widget());
+    let node = element.as_widget_mut().layout(&mut tree, &renderer, &limits);
+    assert_eq!(node.size().height, 0.0);
+}

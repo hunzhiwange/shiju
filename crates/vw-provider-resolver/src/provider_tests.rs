@@ -874,7 +874,8 @@ async fn custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
             "wan2.7-image": {"status": "active"},
             "unknown-model": {"status": "active"}
         }}
-    }})).await;
+    }}))
+    .await;
     let state = load_state_impl(false).await;
     assert!(state.providers["shiju"].models["deepseek-v4.1-flash"].capabilities.reasoning);
     for (id, expected) in [
@@ -886,10 +887,17 @@ async fn custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
         ("kimi/kimi-k2.8-preview", vec![]),
     ] {
         let model = &state.providers["shiju"].models[id];
-        assert_eq!(vw_shared::provider::reasoning::reasoning_levels(
-            id, "openai-compatible", "shiju", "",
-            model.capabilities.reasoning_options.as_deref(),
-        ), expected, "{id}");
+        assert_eq!(
+            vw_shared::provider::reasoning::reasoning_levels(
+                id,
+                "openai-compatible",
+                "shiju",
+                "",
+                model.capabilities.reasoning_options.as_deref(),
+            ),
+            expected,
+            "{id}"
+        );
     }
 
     let models = &state.providers["token-plan"].models;

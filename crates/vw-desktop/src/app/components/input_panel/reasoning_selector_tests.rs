@@ -260,12 +260,17 @@ fn bundled_shiju_definition_controls_visible_effort_choices() {
         use ReasoningEffortDto::{High, Low, Max, Medium, None as Disabled, Xhigh};
         let levels = match id.as_str() {
             "deepseek-v4-pro-0813" => vec![High, Max],
-            "deepseek-v4.1-flash" | "deepseek-v4.1-flash-1017" | "glm-5.3" | "kimi-k3" => vec![Low, High, Max],
-            "qwen3.8-27b" | "qwen3.8-2.4t-a95b" | "qwen3.8-max" | "qwen3.8-flash" => vec![Low, Medium, Xhigh],
+            "deepseek-v4.1-flash" | "deepseek-v4.1-flash-1017" | "glm-5.3" | "kimi-k3" => {
+                vec![Low, High, Max]
+            }
+            "qwen3.8-27b" | "qwen3.8-2.4t-a95b" | "qwen3.8-max" | "qwen3.8-flash" => {
+                vec![Low, Medium, Xhigh]
+            }
             "qwen3.8-omni-flash" => vec![Disabled, Low, Medium, Xhigh],
             _ => vec![],
         };
-        let expected = std::iter::once(None).chain(levels.into_iter().map(Some)).collect::<Vec<_>>();
+        let expected =
+            std::iter::once(None).chain(levels.into_iter().map(Some)).collect::<Vec<_>>();
         assert_eq!(options, expected, "{id}");
     }
 }

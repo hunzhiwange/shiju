@@ -301,6 +301,7 @@ fn model(id: &str) -> super::Model {
         capabilities: super::Capabilities {
             temperature: true,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: capability_io(),

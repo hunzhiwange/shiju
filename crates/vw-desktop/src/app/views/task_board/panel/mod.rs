@@ -275,8 +275,11 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
                     row![
                         container(agent_field).width(Length::FillPortion(1)),
                         container(executor_field).width(Length::FillPortion(1)),
-                        container(reasoning_effort_field).width(Length::FillPortion(1)),
                     ]
+                    .extend(
+                        reasoning_effort_field
+                            .map(|field| container(field).width(Length::FillPortion(1)).into())
+                    )
                     .spacing(12),
                     row![
                         container(model_field).width(Length::FillPortion(1)),
@@ -317,8 +320,11 @@ pub fn build_task_panel<'a>(app: &'a App, is_edit_mode: bool) -> Element<'a, Mes
                     row![
                         container(agent_field).width(Length::FillPortion(1)),
                         container(executor_field).width(Length::FillPortion(1)),
-                        container(reasoning_effort_field).width(Length::FillPortion(1)),
                     ]
+                    .extend(
+                        reasoning_effort_field
+                            .map(|field| container(field).width(Length::FillPortion(1)).into())
+                    )
                     .spacing(12),
                     row![
                         container(model_field).width(Length::FillPortion(1)),

@@ -36,8 +36,18 @@ pub(super) fn handle_task_mode_priority_changed(app: &mut App, value: String) ->
 /// 模块内可见函数，执行 handle_task_mode_model_changed 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_task_mode_model_changed(app: &mut App, model: String) -> Task<Message> {
+    let options =
+        crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(
+            app,
+            model.trim(),
+        );
     let runtime = app.current_session_runtime_mut();
     let trimmed = model.trim();
+    if runtime.task_mode_executor.is_none()
+        && !options.contains(&runtime.task_mode_reasoning_effort)
+    {
+        runtime.task_mode_reasoning_effort = None;
+    }
     runtime.task_mode_model =
         if trimmed.is_empty() { "auto".to_string() } else { trimmed.to_string() };
     Task::none()

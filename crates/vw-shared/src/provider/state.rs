@@ -1,7 +1,7 @@
 use super::models::{self, Model as RawModel, Provider as RawProvider};
 use super::types::*;
 use serde_json::Value;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// provider 运行时状态快照。
 #[derive(Debug, Default)]
@@ -96,6 +96,7 @@ pub fn default_model_capabilities() -> Capabilities {
     Capabilities {
         temperature: false,
         reasoning: false,
+        reasoning_options: None,
         attachment: false,
         toolcall: true,
         input: CapabilityIO { text: true, audio: false, image: false, video: false, pdf: false },
@@ -104,9 +105,29 @@ pub fn default_model_capabilities() -> Capabilities {
     }
 }
 
-/// 解析模型级能力覆盖，未显式设置的字段沿用基线或兼容默认值。
-pub fn resolve_model_capabilities(model_cfg: &Value, base: Option<&Capabilities>) -> Capabilities {
-    let mut capabilities = base.cloned().unwrap_or_else(default_model_capabilities);
+/// 从目录收集明确声明推理能力的模型 ID；只用于自定义提供者缺少基线的模型。
+pub fn catalog_reasoning_model_ids(providers: &HashMap<String, Info>) -> HashSet<String> {
+    providers
+        .values()
+        .flat_map(|provider| provider.models.values())
+        .filter(|model| model.capabilities.reasoning)
+        .flat_map(|model| [model.id.clone(), model.api.id.clone()])
+        .filter(|id| !id.is_empty())
+        .collect()
+}
+
+/// 能力优先级：显式配置、同提供者基线、目录中的同名模型推理声明、保守默认值。
+/// 跨提供者仅继承推理声明，不继承端点、鉴权或其它能力。
+pub fn resolve_model_capabilities(
+    model_cfg: &Value,
+    base: Option<&Capabilities>,
+    catalog_reasoning: bool,
+) -> Capabilities {
+    let mut capabilities = base.cloned().unwrap_or_else(|| {
+        let mut capabilities = default_model_capabilities();
+        capabilities.reasoning = catalog_reasoning;
+        capabilities
+    });
 
     for (key, target) in [
         ("temperature", &mut capabilities.temperature),
@@ -117,6 +138,12 @@ pub fn resolve_model_capabilities(model_cfg: &Value, base: Option<&Capabilities>
         if let Some(value) = model_cfg.get(key).and_then(Value::as_bool) {
             *target = value;
         }
+    }
+
+    if let Some(options) = model_cfg.get("reasoning_options") {
+        // Malformed explicit metadata must not enable inferred effort levels.
+        capabilities.reasoning_options =
+            Some(serde_json::from_value(options.clone()).unwrap_or_default());
     }
 
     if let Some(modalities) = model_cfg.get("modalities").and_then(Value::as_object) {
@@ -239,6 +266,7 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
         capabilities: Capabilities {
             temperature: model.temperature,
             reasoning: model.reasoning,
+            reasoning_options: model.reasoning_options.clone(),
             attachment: model.attachment,
             toolcall: model.tool_call,
             input,

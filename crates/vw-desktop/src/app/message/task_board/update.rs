@@ -655,6 +655,9 @@ pub fn update(
                     set_viewing_logs(app, Some(task.clone()));
                     app.task_board_draft.priority = task.priority.to_string();
                     app.task_board_draft.model = task.model.clone();
+                    if app.task_board_draft.acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_draft.model).contains(&app.task_board_draft.reasoning_effort) {
+                app.task_board_draft.reasoning_effort = None;
+            }
                     app.task_board_draft.reasoning_effort = task.reasoning_effort;
                     set_draft_executor_selection(&mut app.task_board_draft, task.acp_agent.clone());
                     app.task_board_draft.prompt = task.prompt.clone();
@@ -866,6 +869,9 @@ pub fn update(
         }
         TaskBoardMessage::UpdateDraftModel(v) => {
             app.task_board_draft.model = v;
+            if app.task_board_draft.acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_draft.model).contains(&app.task_board_draft.reasoning_effort) {
+                app.task_board_draft.reasoning_effort = None;
+            }
             app.task_board_last_model = app.task_board_draft.model.clone();
             iced::Task::none()
         }
@@ -1215,12 +1221,18 @@ pub fn update(
         }
         TaskBoardMessage::UpdateEditingTaskModel(model) => {
             app.task_board_draft.model = model;
+            if app.task_board_draft.acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_draft.model).contains(&app.task_board_draft.reasoning_effort) {
+                app.task_board_draft.reasoning_effort = None;
+            }
             app.task_board_last_model = normalize_task_model(&app.task_board_draft.model);
             app.task_board_model_popover = false;
             iced::Task::none()
         }
         TaskBoardMessage::UpdateEditingTaskModelInput(model) => {
             app.task_board_draft.model = model;
+            if app.task_board_draft.acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_draft.model).contains(&app.task_board_draft.reasoning_effort) {
+                app.task_board_draft.reasoning_effort = None;
+            }
             app.task_board_last_model = normalize_task_model(&app.task_board_draft.model);
             iced::Task::none()
         }
@@ -1600,6 +1612,9 @@ pub fn update(
         }
         TaskBoardMessage::ModelSelected(model) => {
             app.task_board_draft.model = model;
+            if app.task_board_draft.acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_draft.model).contains(&app.task_board_draft.reasoning_effort) {
+                app.task_board_draft.reasoning_effort = None;
+            }
             app.task_board_last_model = app.task_board_draft.model.clone();
             app.task_board_model_popover = false;
             app.model_popover_hover = None;
@@ -1680,6 +1695,9 @@ pub fn update(
         }
         TaskBoardMessage::UpdateBulkModelInput(value) => {
             app.task_board_bulk_model_input = value;
+            if app.task_board_bulk_acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_bulk_model_input).contains(&app.task_board_bulk_reasoning_effort) {
+                app.task_board_bulk_reasoning_effort = None;
+            }
             iced::Task::none()
         }
         TaskBoardMessage::UpdateBulkTaskSplitMode(mode) => {
@@ -1702,6 +1720,9 @@ pub fn update(
         }
         TaskBoardMessage::BulkModelSelected(model) => {
             app.task_board_bulk_model_input = normalize_task_model(&model);
+            if app.task_board_bulk_acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_bulk_model_input).contains(&app.task_board_bulk_reasoning_effort) {
+                app.task_board_bulk_reasoning_effort = None;
+            }
             app.task_board_last_model = app.task_board_bulk_model_input.clone();
             app.task_board_bulk_model_popover = false;
             app.model_popover_hover = None;
@@ -1767,6 +1788,9 @@ pub fn update(
 
             let model = normalized_bulk_model_input(&app.task_board_bulk_model_input);
             app.task_board_bulk_model_input = model.clone();
+            if app.task_board_bulk_acp_agent.is_none() && !crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &app.task_board_bulk_model_input).contains(&app.task_board_bulk_reasoning_effort) {
+                app.task_board_bulk_reasoning_effort = None;
+            }
             app.task_board_last_model = model.clone();
 
             for task in &mut tasks {

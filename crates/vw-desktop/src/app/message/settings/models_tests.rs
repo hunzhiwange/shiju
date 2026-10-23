@@ -29,6 +29,7 @@ fn model(provider_id: &str, id: &str, name: &str, status: &str) -> Model {
         capabilities: Capabilities {
             temperature: true,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: CapabilityIO { text: true, audio: false, image: true, video: false, pdf: true },

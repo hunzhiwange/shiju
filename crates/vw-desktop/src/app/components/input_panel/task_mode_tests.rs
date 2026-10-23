@@ -189,9 +189,16 @@ fn task_mode_reasoning_effort_option_displays_every_shared_label() {
 
 #[test]
 fn task_mode_reasoning_effort_handles_missing_and_claude_agents() {
-    assert_eq!(task_mode_reasoning_effort_options(None), vec![None]);
     assert_eq!(
-        task_mode_reasoning_effort_options(Some(" CLAUDE-CODE ")),
+        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", None),
+        vec![None]
+    );
+    assert_eq!(
+        task_mode_reasoning_effort_options(
+            &crate::app::App::new().0,
+            "auto",
+            Some(" CLAUDE-CODE ")
+        ),
         vec![None, Some(ReasoningEffortDto::High), Some(ReasoningEffortDto::Max),]
     );
 }
@@ -199,7 +206,7 @@ fn task_mode_reasoning_effort_handles_missing_and_claude_agents() {
 #[test]
 fn task_mode_reasoning_effort_uses_shared_agent_fallback_options() {
     assert_eq!(
-        task_mode_reasoning_effort_options(Some("codex")),
+        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", Some("codex")),
         vec![
             None,
             Some(ReasoningEffortDto::None),
@@ -209,13 +216,16 @@ fn task_mode_reasoning_effort_uses_shared_agent_fallback_options() {
             Some(ReasoningEffortDto::Xhigh),
         ]
     );
-    assert_eq!(task_mode_reasoning_effort_options(Some("unknown")), vec![None]);
+    assert_eq!(
+        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", Some("unknown")),
+        vec![None]
+    );
 }
 
 #[test]
 fn task_mode_reasoning_effort_accepts_codex_cli_alias() {
     assert_eq!(
-        task_mode_reasoning_effort_options(Some(" CoDeX CLI ")),
+        task_mode_reasoning_effort_options(&crate::app::App::new().0, "auto", Some(" CoDeX CLI ")),
         vec![
             None,
             Some(ReasoningEffortDto::None),

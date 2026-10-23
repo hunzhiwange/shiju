@@ -34,14 +34,14 @@ fn selector_kind_reads_draft_and_bulk_agent_and_effort_sources() {
 fn selector_builders_cover_draft_edit_bulk_and_missing_agent_defaults() {
     let mut app = App::new().0;
 
-    std::hint::black_box(build_reasoning_effort_selector(&app, false));
-    std::hint::black_box(build_reasoning_effort_selector(&app, true));
-    std::hint::black_box(build_bulk_reasoning_effort_selector(&app));
+    assert!(build_reasoning_effort_selector(&app, false).is_none());
+    assert!(build_reasoning_effort_selector(&app, true).is_none());
+    assert!(build_bulk_reasoning_effort_selector(&app).is_none());
 
     app.task_board_draft.acp_agent = Some("codex".to_string());
     app.task_board_bulk_acp_agent = Some("codex".to_string());
-    std::hint::black_box(build_reasoning_effort_selector(&app, false));
-    std::hint::black_box(build_bulk_reasoning_effort_selector(&app));
+    assert!(build_reasoning_effort_selector(&app, false).is_some());
+    assert!(build_bulk_reasoning_effort_selector(&app).is_some());
 }
 
 #[test]

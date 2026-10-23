@@ -80,6 +80,8 @@ pub struct Model {
     pub attachment: bool,
     #[serde(default)]
     pub reasoning: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reasoning_options: Option<Vec<super::reasoning::ReasoningOption>>,
     #[serde(default)]
     pub temperature: bool,
     #[serde(default)]

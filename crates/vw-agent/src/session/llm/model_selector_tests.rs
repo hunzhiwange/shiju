@@ -33,6 +33,7 @@ fn model(
         capabilities: provider::Capabilities {
             temperature: true,
             reasoning,
+            reasoning_options: None,
             attachment: image_input,
             toolcall,
             input: provider::CapabilityIO {

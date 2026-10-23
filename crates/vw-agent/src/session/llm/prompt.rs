@@ -223,6 +223,7 @@ fn acp_route_model(options: &Value) -> provider::Model {
         capabilities: provider::Capabilities {
             temperature: false,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: provider::CapabilityIO {

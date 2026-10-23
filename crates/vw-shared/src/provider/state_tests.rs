@@ -25,6 +25,7 @@ fn raw_model(id: &str) -> RawModel {
         release_date: "2026-01-02".to_string(),
         attachment: true,
         reasoning: true,
+        reasoning_options: None,
         temperature: true,
         tool_call: true,
         interleaved: None,
@@ -362,4 +363,32 @@ fn as_string_map_returns_empty_map_for_non_object() {
 #[test]
 fn builtin_model_limit_returns_none_for_any_input() {
     assert_eq!(builtin_model_limit("provider", "model"), None);
+}
+
+#[test]
+fn custom_model_reasoning_preserves_explicit_and_provider_capabilities() {
+    assert!(resolve_model_capabilities(&json!({}), None, true).reasoning);
+    assert!(!resolve_model_capabilities(&json!({}), None, false).reasoning);
+    assert!(!resolve_model_capabilities(&json!({"reasoning": false}), None, true).reasoning);
+    assert!(resolve_model_capabilities(&json!({"reasoning": true}), None, false).reasoning);
+    let base = default_model_capabilities();
+    assert!(!resolve_model_capabilities(&json!({}), Some(&base), true).reasoning);
+    assert!(resolve_model_capabilities(&json!({"reasoning": true}), Some(&base), false).reasoning);
+}
+
+#[test]
+fn reasoning_options_survive_catalog_conversion_and_explicit_overrides() {
+    let mut raw = raw_model("alias");
+    raw.reasoning_options =
+        serde_json::from_value(json!([{"type": "effort", "values": ["high", "max"]}])).unwrap();
+    let model = from_models_dev_model(&raw_provider(), &raw);
+    assert_eq!(model.capabilities.reasoning_options, raw.reasoning_options);
+    let inherited = resolve_model_capabilities(&json!({}), Some(&model.capabilities), true);
+    assert_eq!(inherited.reasoning_options, raw.reasoning_options);
+    let disabled = resolve_model_capabilities(
+        &json!({"reasoning_options": []}),
+        Some(&model.capabilities),
+        true,
+    );
+    assert_eq!(disabled.reasoning_options, Some(vec![]));
 }

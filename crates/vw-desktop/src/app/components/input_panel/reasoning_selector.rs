@@ -35,6 +35,50 @@ const CLAUDE_OPTIONS: [Option<ReasoningEffortDto>; 3] =
     [None, Some(ReasoningEffortDto::High), Some(ReasoningEffortDto::Max)];
 const DEFAULT_OPTIONS: [Option<ReasoningEffortDto>; 1] = [None];
 
+/// UI and request validation share provider metadata and legacy model inference.
+pub(crate) fn model_reasoning_effort_options(
+    app: &App,
+    model: &str,
+) -> Vec<Option<ReasoningEffortDto>> {
+    let (provider_id, model_id) =
+        model.split_once('/').map_or((None, model), |(p, m)| (Some(p), m));
+    let mut options = vec![None];
+    let candidate = app
+        .model_settings
+        .providers
+        .iter()
+        .filter(|p| provider_id.is_none_or(|id| p.id == id))
+        .find_map(|p| p.models.iter().find(|m| m.id == model_id && m.enabled).map(|m| (p, m)));
+    if let Some((provider, model)) = candidate {
+        let detail = &model.detail;
+        if detail.pointer("/capabilities/reasoning").and_then(serde_json::Value::as_bool)
+            != Some(true)
+        {
+            return options;
+        }
+        let declared: Option<Vec<vw_shared::provider::reasoning::ReasoningOption>> = detail
+            .pointer("/capabilities/reasoning_options")
+            .map(|value| serde_json::from_value(value.clone()).unwrap_or_default());
+        let levels = vw_shared::provider::reasoning::reasoning_levels(
+            detail.pointer("/api/id").and_then(serde_json::Value::as_str).unwrap_or(&model.id),
+            detail
+                .pointer("/api/adapter")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("openai-compatible"),
+            &provider.id,
+            detail.pointer("/api/url").and_then(serde_json::Value::as_str).unwrap_or_default(),
+            declared.as_deref(),
+        );
+        options.extend(
+            levels
+                .iter()
+                .filter_map(|level| serde_json::from_value(serde_json::json!(level)).ok())
+                .map(Some),
+        );
+    }
+    options
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct ReasoningEffortItem {
     pub(super) value: Option<ReasoningEffortDto>,
@@ -46,6 +90,7 @@ pub(crate) fn reasoning_effort_label(value: Option<ReasoningEffortDto>) -> &'sta
     match value {
         None => "默认",
         Some(ReasoningEffortDto::None) => "None",
+        Some(ReasoningEffortDto::Minimal) => "Minimal",
         Some(ReasoningEffortDto::Low) => "Low",
         Some(ReasoningEffortDto::Medium) => "Medium",
         Some(ReasoningEffortDto::High) => "High",
@@ -63,10 +108,10 @@ pub(crate) fn reasoning_effort_options(agent: &str) -> &'static [Option<Reasonin
 }
 
 pub(super) fn reasoning_effort_items(
-    agent: &str,
+    options: &[Option<ReasoningEffortDto>],
     current: Option<ReasoningEffortDto>,
 ) -> Vec<ReasoningEffortItem> {
-    reasoning_effort_options(agent)
+    options
         .iter()
         .copied()
         .map(|value| ReasoningEffortItem {
@@ -86,7 +131,15 @@ pub(super) fn reasoning_effort_selector<'a>(
     agent: Option<&str>,
     current: Option<ReasoningEffortDto>,
 ) -> Option<Element<'a, Message>> {
-    let agent = agent?;
+    let runtime = app.current_session_runtime_ref();
+    let model = runtime.map(|runtime| runtime.model.as_str()).unwrap_or(&app.model);
+    let options = match agent {
+        Some(agent) => reasoning_effort_options(agent).to_vec(),
+        None => model_reasoning_effort_options(app, model),
+    };
+    if agent.is_none() && options.len() <= 1 {
+        return None;
+    }
     let expanded = app.show_reasoning_effort_popover;
     let icon = icon_svg(Icon::Speedometer2, BOTTOM_BAR_ICON_SIZE).style(move |theme: &Theme, _| {
         svg::Style { color: Some(selector_text_color(theme, expanded || current.is_some())) }
@@ -119,7 +172,7 @@ pub(super) fn reasoning_effort_selector<'a>(
             .gap(6.0)
             .into();
 
-    let items = reasoning_effort_items(agent, current);
+    let items = reasoning_effort_items(&options, current);
     let list_height = (items.len() as f32 * ITEM_HEIGHT).min(MAX_LIST_HEIGHT);
     let mut list = column![].spacing(4);
     for item in items {

@@ -288,40 +288,41 @@ fn bundled_models_include_shiju_static_catalog() {
     let bundled = bundled_models("bundled_shiju");
     let shiju = bundled.get("shiju").expect("bundled models should include shiju");
     let expected = HashSet::from([
-        "qwen-coder-turbo",
+        "cosyvoice-v2",
+        "deepseek-v4-pro-0813",
+        "deepseek-v4.1-flash",
+        "deepseek-v4.1-flash-1017",
+        "fun-asr",
+        "glm-5.3",
         "gte-rerank-v2",
-        "qwen3-max-preview",
-        "qwen-mt-turbo",
-        "qwen3-32b",
-        "qwen3-235b-a22b",
-        "qvq-max",
-        "deepseek-v3",
-        "glm-4.7",
-        "text-embedding-v3",
-        "qwen3-30b-a3b",
-        "MiniMax-M2.5",
-        "qwen-plus-latest",
-        "qwen-plus",
-        "glm-5.2",
-        "deepseek-v3.2",
-        "glm-5",
-        "qwen3-235b-a22b-instruct-2507",
-        "glm-5.1",
-        "qwen3.5-plus",
-        "deepseek-v4-pro",
-        "qwen-image-edit-max",
-        "qwen-math-plus",
-        "qwen3.7-text-embedding",
-        "deepseek-r1-distill-qwen-14b",
-        "qwen3.5-flash",
-        "deepseek-r1-distill-qwen-32b",
-        "qwen3-next-80b-a3b-thinking",
-        "text-embedding-v4",
+        "kimi-k3",
+        "kimi/kimi-k2.8-preview",
+        "paraformer-v2",
+        "qwen-audio-3.1-asr-flash-streaming",
+        "qwen-audio-3.1-tts-next",
         "qwen-image-2.0",
-        "qwen-turbo",
-        "qwen3-235b-a22b-thinking-2507",
-        "qwen3-vl-flash",
-        "deepseek-v4-flash",
+        "qwen-image-2.0-pro",
+        "qwen-image-3.0",
+        "qwen-mt-plus",
+        "qwen-vl-ocr",
+        "qwen3-rerank",
+        "qwen3-vl-plus",
+        "qwen3.7-plus",
+        "qwen3.8-2.4t-a95b",
+        "qwen3.8-27b",
+        "qwen3.8-flash",
+        "qwen3.8-max",
+        "qwen3.8-omni-flash",
+        "text-embedding-v3",
+        "text-embedding-v4",
+        "voice-enrollment",
+        "wan2.2-animate-mix",
+        "wan2.2-s2v",
+        "wan2.2-s2v-detect",
+        "wan2.7-image",
+        "wan2.7-image-pro",
+        "wan3.0-video",
+        "wan3.0-video-prime",
     ]);
     let actual = shiju.models.keys().map(String::as_str).collect::<HashSet<_>>();
 
@@ -331,11 +332,11 @@ fn bundled_models_include_shiju_static_catalog() {
     assert_eq!(shiju.api.as_deref(), Some("https://router.shiju.cloud/v1"));
     assert_eq!(shiju.adapter.as_deref(), Some("openai-compatible"));
     assert_eq!(actual, expected);
-    assert_eq!(shiju.models.len(), 34);
-    assert!(shiju.models.contains_key("qwen-coder-turbo"));
-    assert!(shiju.models.contains_key("deepseek-v4-flash"));
+    assert_eq!(shiju.models.len(), 35);
+    assert!(shiju.models.contains_key("qwen3.8-max"));
+    assert!(shiju.models.contains_key("deepseek-v4.1-flash"));
 
-    for model_id in ["qvq-max", "qwen-plus-latest", "qwen-image-edit-max", "qwen3-vl-flash"] {
+    for model_id in ["qwen-vl-ocr", "qwen3-vl-plus", "qwen-image-3.0", "kimi-k3"] {
         let input = &shiju.models[model_id]
             .modalities
             .as_ref()
@@ -344,7 +345,7 @@ fn bundled_models_include_shiju_static_catalog() {
         assert!(input.iter().any(|modality| modality == "image"));
     }
 
-    for model_id in ["qwen3.5-flash", "qwen3.5-plus"] {
+    for model_id in ["qwen3.8-flash", "qwen3.8-max"] {
         let input = &shiju.models[model_id]
             .modalities
             .as_ref()

@@ -483,7 +483,7 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) task_mode_model: String,
     /// 任务模式使用的 ACP 智能体
     pub(crate) task_mode_executor: Option<String>,
-    /// 任务模式使用的推理强度；`None` 表示沿用 ACP 智能体默认值
+    /// 任务模式使用的推理强度；`None` 表示沿用模型或 ACP 智能体默认值
     pub(crate) task_mode_reasoning_effort:
         Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>,
     /// 任务模式的任务拆分策略

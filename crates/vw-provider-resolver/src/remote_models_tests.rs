@@ -88,6 +88,7 @@ fn test_model(id: &str, status: &str) -> Model {
         capabilities: Capabilities {
             temperature: true,
             reasoning: true,
+            reasoning_options: None,
             attachment: true,
             toolcall: true,
             input: CapabilityIO { text: true, audio: false, image: true, video: false, pdf: false },

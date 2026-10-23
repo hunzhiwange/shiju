@@ -500,6 +500,7 @@ fn summarize_models_keeps_builtin_provider_models_even_when_all_disabled() {
         capabilities: Capabilities {
             temperature: true,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: CapabilityIO {
@@ -731,6 +732,7 @@ fn summarize_models_projects_active_capabilities_limits_and_detail() {
         capabilities: Capabilities {
             temperature: true,
             reasoning: true,
+            reasoning_options: None,
             attachment: false,
             toolcall: false,
             input: CapabilityIO { text: true, audio: false, image: true, video: false, pdf: true },

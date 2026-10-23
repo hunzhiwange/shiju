@@ -377,7 +377,7 @@ fn gateway_task_stream_request(
         messages: vec![json!({ "role": "user", "content": prompt })],
         system: None,
         model: (model != "auto").then(|| model.to_string()),
-        reasoning_effort: acp_enabled.then_some(reasoning_effort).flatten(),
+        reasoning_effort,
         agent,
         allowed_tools: None,
         acp_agent: acp_enabled.then_some(acp_agent).flatten(),

@@ -1263,6 +1263,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.task_mode_model = runtime.model.clone();
                 (runtime.model.clone(), runtime.auto_model)
             };
+            let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
+            let runtime = app.current_session_runtime_mut();
+            if runtime.acp_agent.is_none() && !options.contains(&runtime.reasoning_effort) {
+                runtime.reasoning_effort = None;
+            }
+            if runtime.task_mode_executor.is_none()
+                && !options.contains(&runtime.task_mode_reasoning_effort)
+            {
+                runtime.task_mode_reasoning_effort = None;
+            }
             app.model = model.clone();
             app.auto_model = auto_model;
             app.show_model_popover = false;
@@ -1282,6 +1292,16 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 runtime.task_mode_model = runtime.model.clone();
                 (runtime.model.clone(), runtime.auto_model)
             };
+            let options = crate::app::components::input_panel::reasoning_selector::model_reasoning_effort_options(app, &model);
+            let runtime = app.current_session_runtime_mut();
+            if runtime.acp_agent.is_none() && !options.contains(&runtime.reasoning_effort) {
+                runtime.reasoning_effort = None;
+            }
+            if runtime.task_mode_executor.is_none()
+                && !options.contains(&runtime.task_mode_reasoning_effort)
+            {
+                runtime.task_mode_reasoning_effort = None;
+            }
             app.model = model.clone();
             app.auto_model = auto_model;
             persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())

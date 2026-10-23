@@ -314,21 +314,26 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         .spacing(6)
         .width(Length::Fill);
 
-        let reasoning_effort_rows = column![
-            build_bulk_reasoning_effort_selector(app),
-            row![
-                button(text("应用").size(10)).padding([5, 8]).style(button_style_success).on_press(
-                    Message::TaskBoard(TaskBoardMessage::BulkSetReasoningEffortInStatus {
-                        status,
-                        reasoning_effort: app.task_board_bulk_reasoning_effort,
-                    })
-                ),
+        let reasoning_effort_rows = build_bulk_reasoning_effort_selector(app).map(|selector| {
+            column![
+                selector,
+                row![
+                    button(text("应用").size(10))
+                        .padding([5, 8])
+                        .style(button_style_success)
+                        .on_press(Message::TaskBoard(
+                            TaskBoardMessage::BulkSetReasoningEffortInStatus {
+                                status,
+                                reasoning_effort: app.task_board_bulk_reasoning_effort,
+                            }
+                        )),
+                ]
+                .spacing(6)
+                .align_y(Alignment::Center)
             ]
             .spacing(6)
-            .align_y(Alignment::Center)
-        ]
-        .spacing(6)
-        .width(Length::Fill);
+            .width(Length::Fill)
+        });
 
         let task_split_rows = column![
             build_bulk_task_split_selector(app),
@@ -372,7 +377,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
             .push(Space::new().height(6.0))
             .push(text("批量推理强度").size(10))
             .push(Space::new().height(4.0))
-            .push(reasoning_effort_rows)
+            .extend(reasoning_effort_rows.map(Into::into))
             .push(Space::new().height(6.0))
             .push(text("批量任务拆分").size(10))
             .push(Space::new().height(4.0))

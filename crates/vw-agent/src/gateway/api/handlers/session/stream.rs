@@ -445,7 +445,7 @@ fn merge_gateway_request_options(
 
     merged.remove("reasoning_effort");
     merged.remove("thought_level");
-    if acp_requested && let Some(reasoning_effort) = reasoning_effort {
+    if let Some(reasoning_effort) = reasoning_effort {
         merged.insert(
             "reasoning_effort".to_string(),
             serde_json::to_value(reasoning_effort)

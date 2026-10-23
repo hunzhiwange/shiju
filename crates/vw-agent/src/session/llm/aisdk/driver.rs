@@ -83,25 +83,51 @@ pub(crate) async fn dispatch_stream_request(
     abort: Option<&tokio::sync::watch::Receiver<bool>>,
     on_event: &mut (impl FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
-    let lm = resolve_model(provider_id, model, bearer, &request_info)
+    super::reasoning::validate_reasoning(model, merged_options)
         .map_err(|error| log_build_failed(provider_id, model, &request_info.request_url, error))?;
-
-    do_stream_request_aisdk_with_model(
-        provider_id.to_string(),
-        lm,
-        request_info.request_url,
-        request_info.enforce_strict_tool_schema,
-        request_info.messages,
-        tools,
-        temperature,
-        top_p,
-        max_output_tokens,
-        merged_options,
-        retries,
-        abort,
-        on_event,
-    )
-    .await
+    macro_rules! send_model {
+        ($resolved:expr) => {{
+            let lm = $resolved.map_err(|error| {
+                log_build_failed(provider_id, model, &request_info.request_url, error)
+            })?;
+            do_stream_request_aisdk_with_model(
+                provider_id.to_string(),
+                lm,
+                request_info.request_url,
+                request_info.enforce_strict_tool_schema,
+                request_info.messages,
+                tools,
+                temperature,
+                top_p,
+                max_output_tokens,
+                merged_options,
+                retries,
+                abort,
+                on_event,
+            )
+            .await
+        }};
+    }
+    if request_info.request_url.ends_with("/messages") {
+        return send_model!(
+            aisdk::providers::Anthropic::<DynamicModel>::builder()
+                .model_name(model.api.id.clone())
+                .api_key(bearer)
+                .base_url(request_info.base_url.clone())
+                .build()
+        );
+    }
+    if request_info.request_url.ends_with("/responses") {
+        return send_model!(
+            aisdk::providers::OpenAI::<DynamicModel>::builder()
+                .path("/responses")
+                .model_name(model.api.id.clone())
+                .api_key(bearer)
+                .base_url(request_info.base_url.clone())
+                .build()
+        );
+    }
+    send_model!(resolve_model(provider_id, model, bearer, &request_info))
 }
 
 #[cfg(all(test, not(target_arch = "wasm32")))]

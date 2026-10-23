@@ -26,6 +26,7 @@ fn model_with_limits(context: u64, input: Option<u64>, output: u64) -> provider:
         capabilities: provider::Capabilities {
             temperature: true,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: capability_io(true),

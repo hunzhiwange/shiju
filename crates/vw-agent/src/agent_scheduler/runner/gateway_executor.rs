@@ -520,7 +520,7 @@ pub(crate) fn gateway_local_agent_stream_request(
         messages: vec![json!({ "role": "user", "content": request.prompt.clone() })],
         system: None,
         model: request.model.clone(),
-        reasoning_effort: request.acp_agent.as_ref().and(request.reasoning_effort),
+        reasoning_effort: request.reasoning_effort,
         agent: request.agent.clone(),
         allowed_tools: None,
         acp_agent: request.acp_agent.clone(),

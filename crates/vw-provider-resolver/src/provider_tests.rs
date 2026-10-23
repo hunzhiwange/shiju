@@ -860,3 +860,44 @@ async fn remote_models_http_failure_preserves_existing_models() {
     assert_eq!(provider.models.len(), 1);
     server.join().expect("test server should stop");
 }
+
+#[tokio::test]
+async fn custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
+    let env = ProviderTestEnv::new().await;
+    env.write_config(json!({"providers": {
+        "shiju": {"models": {"deepseek-v4.1-flash": {"status": "active"}}},
+        "token-plan": {"api": "https://example.test/v1", "models": {
+            "deepseek-v4-flash-0731": {"status": "active"},
+            "qwen3.7-plus": {"status": "active"},
+            "alias": {"id": "glm-5.2", "status": "active"},
+            "deepseek-v4-pro": {"status": "active", "reasoning": false},
+            "wan2.7-image": {"status": "active"},
+            "unknown-model": {"status": "active"}
+        }}
+    }})).await;
+    let state = load_state_impl(false).await;
+    assert!(state.providers["shiju"].models["deepseek-v4.1-flash"].capabilities.reasoning);
+    for (id, expected) in [
+        ("deepseek-v4.1-flash", vec!["low", "high", "max"]),
+        ("deepseek-v4-pro-0813", vec!["high", "max"]),
+        ("glm-5.3", vec!["low", "high", "max"]),
+        ("qwen3.8-max", vec!["low", "medium", "xhigh"]),
+        ("qwen3.7-plus", vec![]),
+        ("kimi/kimi-k2.8-preview", vec![]),
+    ] {
+        let model = &state.providers["shiju"].models[id];
+        assert_eq!(vw_shared::provider::reasoning::reasoning_levels(
+            id, "openai-compatible", "shiju", "",
+            model.capabilities.reasoning_options.as_deref(),
+        ), expected, "{id}");
+    }
+
+    let models = &state.providers["token-plan"].models;
+    for id in ["deepseek-v4-flash-0731", "qwen3.7-plus", "alias"] {
+        assert!(models[id].capabilities.reasoning, "{id}");
+        assert_eq!(models[id].api.url, "https://example.test/v1");
+    }
+    for id in ["deepseek-v4-pro", "wan2.7-image", "unknown-model"] {
+        assert!(!models[id].capabilities.reasoning, "{id}");
+    }
+}

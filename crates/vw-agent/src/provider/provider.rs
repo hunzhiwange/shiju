@@ -384,6 +384,8 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
         .map(|(k, v)| (k, from_models_dev_provider(v)))
         .collect::<HashMap<_, _>>();
 
+    let reasoning_model_ids = vw_shared::provider::state::catalog_reasoning_model_ids(&database);
+
     // 将所有模型初始化为 disabled 状态
     for provider in database.values_mut() {
         for model in provider.models.values_mut() {
@@ -549,6 +551,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
                 let cap = resolve_model_capabilities(
                     &model_cfg,
                     base.as_ref().map(|model| &model.capabilities),
+                    reasoning_model_ids.contains(&api_id),
                 );
 
                 // 解析成本配置（使用基础模型或默认值）

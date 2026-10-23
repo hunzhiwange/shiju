@@ -230,6 +230,7 @@ fn safe_remote_model(provider_id: &str, api_base: &str, model_id: String) -> Mod
         capabilities: Capabilities {
             temperature: false,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: CapabilityIO {

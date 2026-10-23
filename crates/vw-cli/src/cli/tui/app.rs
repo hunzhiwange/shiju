@@ -3671,7 +3671,7 @@ pub(crate) fn gateway_stream_request_from_state(
         system,
         model: submission.model.clone(),
         reasoning_effort: Some(match submission.execution.effort {
-            ReasoningEffort::Minimal => vw_gateway_client::vw_api_types::ReasoningEffortDto::None,
+            ReasoningEffort::Minimal => vw_gateway_client::vw_api_types::ReasoningEffortDto::Minimal,
             ReasoningEffort::Low => vw_gateway_client::vw_api_types::ReasoningEffortDto::Low,
             ReasoningEffort::Medium => vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium,
             ReasoningEffort::High => vw_gateway_client::vw_api_types::ReasoningEffortDto::High,

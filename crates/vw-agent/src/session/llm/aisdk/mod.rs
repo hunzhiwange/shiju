@@ -8,6 +8,8 @@ mod convert;
 mod driver;
 mod error;
 mod request;
+#[cfg(not(target_arch = "wasm32"))]
+mod reasoning;
 mod stream;
 mod util;
 

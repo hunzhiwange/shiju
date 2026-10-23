@@ -70,46 +70,6 @@ fn aisdk_stream_chunk_error(
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn parse_reasoning_effort_label(value: &str) -> Option<&'static str> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "low" => Some("low"),
-        "medium" => Some("medium"),
-        "high" => Some("high"),
-        _ => None,
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn uses_dashscope_reasoning_body(provider_id: &str, request_url: &str) -> bool {
-    provider_id.eq_ignore_ascii_case("alibaba-cn")
-        || request_url.contains("dashscope.aliyuncs.com")
-        || request_url.contains("dashscope-us.aliyuncs.com")
-        || request_url.contains("dashscope-intl.aliyuncs.com")
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn reasoning_request_config(
-    provider_id: &str,
-    request_url: &str,
-    obj: &Map<String, Value>,
-) -> (Option<&'static str>, Option<Map<String, Value>>) {
-    let effort =
-        obj.get("reasoning_effort").and_then(Value::as_str).and_then(parse_reasoning_effort_label);
-
-    if effort.is_none() {
-        return (None, None);
-    }
-
-    if uses_dashscope_reasoning_body(provider_id, request_url) {
-        let mut body = Map::new();
-        body.insert("enable_thinking".to_string(), Value::Bool(true));
-        (None, Some(body))
-    } else {
-        (effort, None)
-    }
-}
-
-#[cfg(not(target_arch = "wasm32"))]
 fn normalize_tool_call_id(id: &str, request_namespace: &str) -> String {
     let Some(index) = id.strip_prefix("openai-tool-call-") else {
         return id.to_string();
@@ -166,7 +126,7 @@ fn normalize_tool_call_id(id: &str, request_namespace: &str) -> String {
 /// - `frequency_penalty`: 频率惩罚（f32）
 /// - `seed`: 随机种子（u32）
 /// - `top_k`: Top-K 采样参数（u32）
-/// - `reasoning_effort`: 推理努力程度（"low"/"medium"/"high"）
+/// - `reasoning_effort`: 推理强度（按模型验证并保留所选档位）
 /// - `stop_sequences` / `stop`: 停止序列列表
 ///
 /// # 示例
@@ -219,6 +179,7 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     on_event: &mut (dyn FnMut(StreamEvent) + Send),
 ) -> Result<(), Error> {
     // 初始化请求构建器，设置模型和消息
+    let model_name = model.name();
     let mut builder = LanguageModelRequest::<M>::builder().model(model).messages(messages);
 
     // 设置重试次数，限制在 u32 范围内
@@ -304,19 +265,11 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
             builder.top_k = Some(v.min(u64::from(u32::MAX)) as u32);
         }
 
-        // DashScope 的 OpenAI 兼容 Chat 使用 extra_body.enable_thinking，
-        // 不接受顶层 reasoning_effort。
-        let (reasoning_effort, reasoning_body) =
-            reasoning_request_config(&provider_id, &request_url, obj);
-        if let Some(body) = reasoning_body {
-            request_body.extend(body);
-        }
-        builder.reasoning_effort = reasoning_effort.map(|value| match value {
-            "low" => aisdk::core::language_model::ReasoningEffort::Low,
-            "medium" => aisdk::core::language_model::ReasoningEffort::Medium,
-            "high" => aisdk::core::language_model::ReasoningEffort::High,
-            _ => unreachable!("reasoning label should already be normalized"),
-        });
+        let (reasoning_effort, reasoning_body) = super::reasoning::reasoning_request_config(
+            &provider_id, &request_url, &model_name, obj,
+        ).map_err(|error| Error::Api(super::error::assistant_error_from_aisdk(&provider_id, error)))?;
+        request_body.extend(reasoning_body);
+        builder.reasoning_effort = reasoning_effort;
 
         // 停止序列：模型遇到这些序列时会停止生成
         // 优先使用 stop_sequences，回退到 stop

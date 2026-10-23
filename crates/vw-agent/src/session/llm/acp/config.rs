@@ -294,6 +294,7 @@ pub(crate) fn parse_acp_options(
             vw_api_types::ReasoningEffortDto::High => "high",
             vw_api_types::ReasoningEffortDto::Xhigh => "xhigh",
             vw_api_types::ReasoningEffortDto::Max => "max",
+            vw_api_types::ReasoningEffortDto::Minimal => "minimal",
         };
         let config_id =
             resolve_compatible_config_id(acp_agent_name, &acp_cfg.command, "reasoning_effort");

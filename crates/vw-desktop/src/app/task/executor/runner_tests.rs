@@ -359,7 +359,7 @@ fn task_reasoning_effort_is_reused_for_plan_execution_review_and_continue() {
         Some(ReasoningEffortDto::Xhigh),
         super::GatewayPromptSessionMode::Fresh,
     );
-    assert_eq!(non_acp.reasoning_effort, None);
+    assert_eq!(non_acp.reasoning_effort, Some(ReasoningEffortDto::Xhigh));
 }
 
 #[cfg(not(target_arch = "wasm32"))]

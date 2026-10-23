@@ -452,6 +452,7 @@ fn merge_custom_provider_draft_combines_config_and_settings_models() {
             capabilities: Capabilities {
                 temperature: true,
                 reasoning: false,
+                reasoning_options: None,
                 attachment: false,
                 toolcall: true,
                 input: CapabilityIO {

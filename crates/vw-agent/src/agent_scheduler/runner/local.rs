@@ -337,11 +337,8 @@ where
         )?;
 
         let acp_agent = execution_acp_agent(task);
-        let reasoning_effort = if acp_agent.is_some() {
-            crate::agent_scheduler::task_board::reasoning_effort_from_metadata(&task.metadata)?
-        } else {
-            None
-        };
+        let reasoning_effort =
+            crate::agent_scheduler::task_board::reasoning_effort_from_metadata(&task.metadata)?;
         let execution = self.executor.execute(LocalAgentExecutionRequest {
             project_path: project_path.storage_project_path().to_path_buf(),
             task_id: task.id.clone(),

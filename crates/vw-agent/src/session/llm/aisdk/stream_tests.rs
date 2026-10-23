@@ -27,7 +27,6 @@ use crate::app::agent::tools;
 
 use super::{
     aisdk_stream_chunk_error, do_stream_request_aisdk_with_model, normalize_tool_call_id,
-    parse_reasoning_effort_label, reasoning_request_config, uses_dashscope_reasoning_body,
 };
 
 type ChunkResult = aisdk::Result<Vec<AiStreamChunk>>;
@@ -305,80 +304,6 @@ fn stream_chunk_error_builds_non_retryable_api_error_metadata() {
 }
 
 #[test]
-fn reasoning_helpers_normalize_labels_and_dashscope_routing() {
-    assert_eq!(parse_reasoning_effort_label(" LOW "), Some("low"));
-    assert_eq!(parse_reasoning_effort_label("medium"), Some("medium"));
-    assert_eq!(parse_reasoning_effort_label("High"), Some("high"));
-    assert_eq!(parse_reasoning_effort_label("max"), None);
-
-    assert!(uses_dashscope_reasoning_body("alibaba-cn", "https://example.com"));
-    assert!(uses_dashscope_reasoning_body("ALIBABA-CN", "https://example.com"));
-    assert!(uses_dashscope_reasoning_body(
-        "openai",
-        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
-    ));
-    assert!(uses_dashscope_reasoning_body(
-        "openai",
-        "https://dashscope-us.aliyuncs.com/compatible-mode/v1/chat/completions"
-    ));
-    assert!(uses_dashscope_reasoning_body(
-        "openai",
-        "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
-    ));
-    assert!(!uses_dashscope_reasoning_body("openai", "https://api.openai.com/v1/chat/completions"));
-}
-
-#[test]
-fn reasoning_request_config_splits_dashscope_body_from_top_level_effort() {
-    let missing = json!({});
-    let invalid = json!({ "reasoning_effort": "extreme" });
-    let wrong_type = json!({ "reasoning_effort": 3 });
-    let dashscope = json!({ "reasoning_effort": "high" });
-    let openai = json!({ "reasoning_effort": "medium" });
-
-    assert_eq!(
-        reasoning_request_config(
-            "openai",
-            "https://api.openai.com/v1/chat/completions",
-            missing.as_object().unwrap()
-        ),
-        (None, None)
-    );
-    assert_eq!(
-        reasoning_request_config(
-            "openai",
-            "https://api.openai.com/v1/chat/completions",
-            wrong_type.as_object().unwrap()
-        ),
-        (None, None)
-    );
-    assert_eq!(
-        reasoning_request_config(
-            "openai",
-            "https://api.openai.com/v1/chat/completions",
-            invalid.as_object().unwrap()
-        ),
-        (None, None)
-    );
-
-    let (effort, body) = reasoning_request_config(
-        "alibaba-cn",
-        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-        dashscope.as_object().unwrap(),
-    );
-    assert_eq!(effort, None);
-    assert_eq!(body.and_then(|map| map.get("enable_thinking").cloned()), Some(json!(true)));
-
-    let (effort, body) = reasoning_request_config(
-        "openai",
-        "https://api.openai.com/v1/chat/completions",
-        openai.as_object().unwrap(),
-    );
-    assert_eq!(effort, Some("medium"));
-    assert_eq!(body, None);
-}
-
-#[test]
 fn synthetic_openai_tool_call_ids_are_namespaced_per_request() {
     assert_eq!(normalize_tool_call_id("provider-call-1", "request-a"), "provider-call-1");
     assert_eq!(
@@ -518,7 +443,7 @@ async fn request_options_scale_values_use_stop_fallback_and_ignore_wrong_types()
         "frequency_penalty": true,
         "seed": -1,
         "top_k": 1.5,
-        "reasoning_effort": 3,
+
         "stop": " END "
     });
 
@@ -656,7 +581,7 @@ async fn dashscope_reasoning_option_is_sent_in_extra_body() {
 
     let captured =
         captured.lock().expect("capture lock").clone().expect("stream options should be captured");
-    assert!(captured.reasoning_effort.is_none());
+    assert_eq!(captured.reasoning_effort, Some(ReasoningEffort::Low));
     assert_eq!(
         captured.body.as_ref().and_then(|body| body.get("enable_thinking")),
         Some(&json!(true))

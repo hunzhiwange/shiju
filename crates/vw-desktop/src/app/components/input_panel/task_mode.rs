@@ -25,7 +25,7 @@ use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use crate::app::assets::Icon;
 use crate::app::components::input_panel::icons::{acp_agent_icon, icon_svg};
 use crate::app::components::input_panel::reasoning_selector::{
-    reasoning_effort_label, reasoning_effort_options,
+    model_reasoning_effort_options, reasoning_effort_label, reasoning_effort_options,
 };
 use crate::app::components::input_panel::styles::{
     popover_style, selectable_list_button_style, selector_chevron_color, selector_label_font,
@@ -52,9 +52,13 @@ impl fmt::Display for TaskModeReasoningEffortOption {
 }
 
 pub(super) fn task_mode_reasoning_effort_options(
+    app: &App,
+    model: &str,
     agent: Option<&str>,
 ) -> Vec<Option<ReasoningEffortDto>> {
-    reasoning_effort_options(agent.unwrap_or_default()).to_vec()
+    agent
+        .map(|agent| reasoning_effort_options(agent).to_vec())
+        .unwrap_or_else(|| model_reasoning_effort_options(app, model))
 }
 
 /// 构建任务模式配置表单
@@ -402,11 +406,11 @@ pub fn task_mode_form<'a>(
         row![text("ACP 智能体").size(12), Space::new().width(Length::Fill), executor_btn]
             .align_y(Alignment::Center);
 
+    let effort_options =
+        task_mode_reasoning_effort_options(app, task_mode_model, effective_acp_agent.as_deref());
+    let show_effort = effort_options.len() > 1;
     let reasoning_effort_field = pick_list(
-        task_mode_reasoning_effort_options(effective_acp_agent.as_deref())
-            .into_iter()
-            .map(TaskModeReasoningEffortOption)
-            .collect::<Vec<_>>(),
+        effort_options.into_iter().map(TaskModeReasoningEffortOption).collect::<Vec<_>>(),
         Some(TaskModeReasoningEffortOption(task_mode_reasoning_effort)),
         |option| Message::Chat(message::ChatMessage::TaskModeReasoningEffortChanged(option.0)),
     )
@@ -420,18 +424,18 @@ pub fn task_mode_form<'a>(
 
     // 组装完整的表单布局
     // 包含优先级配置、执行器选择、子任务列表和新增按钮
-    let form = column![
-        priority_row,
-        model_row,
-        task_split_row,
-        executor_row,
-        reasoning_effort_row,
-        text("子任务").size(12),
-        subtask_rows,
-        row![add_subtask_btn, Space::new().width(Length::Fill)].align_y(Alignment::Center)
-    ]
-    .spacing(6)
-    .width(Length::Fill);
+    let form = column![priority_row, model_row, task_split_row, executor_row,]
+        .extend(show_effort.then_some(reasoning_effort_row.into()))
+        .push(
+            column![
+                text("子任务").size(12),
+                subtask_rows,
+                row![add_subtask_btn, Space::new().width(Length::Fill)].align_y(Alignment::Center)
+            ]
+            .spacing(6),
+        )
+        .spacing(6)
+        .width(Length::Fill);
 
     // 将表单包装为容器，应用样式（背景、边框、阴影）
     container(form)

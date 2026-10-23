@@ -162,7 +162,7 @@ fn compatible_non_gpt_model_adds_v1_without_strict_schema_or_path_override() {
 }
 
 #[test]
-fn non_openai_adapter_uses_original_url_and_default_chat_completions_request() {
+fn anthropic_adapter_uses_native_messages_endpoint() {
     let model = test_model(
         "anthropic",
         "anthropic",
@@ -173,9 +173,9 @@ fn non_openai_adapter_uses_original_url_and_default_chat_completions_request() {
 
     let info = compute_request_info(&model, &chat_messages()).expect("request info");
 
-    assert_eq!(info.base_url, "https://anthropic.example.com/v1/messages");
-    assert_eq!(info.request_url, "https://anthropic.example.com/v1/messages/chat/completions");
-    assert_eq!(info.path_override, None);
+    assert_eq!(info.base_url, "https://anthropic.example.com/v1");
+    assert_eq!(info.request_url, "https://anthropic.example.com/v1/messages");
+    assert_eq!(info.path_override.as_deref(), Some("messages"));
     assert!(!info.enforce_strict_tool_schema);
 }
 
@@ -338,7 +338,7 @@ fn gpt_in_model_id_only_enables_strict_schema_and_default_override() {
 }
 
 #[test]
-fn non_openai_gpt_model_does_not_enable_strict_schema_or_override() {
+fn anthropic_adapter_preserves_native_protocol_for_gpt_named_proxy() {
     let model = test_model(
         "custom",
         "anthropic",
@@ -350,8 +350,8 @@ fn non_openai_gpt_model_does_not_enable_strict_schema_or_override() {
     let info = compute_request_info(&model, &chat_messages()).expect("request info");
 
     assert!(!info.enforce_strict_tool_schema);
-    assert_eq!(info.path_override, None);
-    assert_eq!(info.request_url, "https://api.example.com/v1/messages/chat/completions");
+    assert_eq!(info.path_override.as_deref(), Some("messages"));
+    assert_eq!(info.request_url, "https://api.example.com/v1/messages");
 }
 
 #[test]
@@ -390,13 +390,22 @@ fn compatible_non_gpt_explicit_responses_endpoint_keeps_override_without_strict_
 }
 
 #[test]
-fn empty_non_openai_url_keeps_empty_base_and_builds_relative_default_request() {
+fn empty_anthropic_url_keeps_empty_base_for_client_validation() {
     let model = test_model("custom", "anthropic", "   ", "claude-sonnet", "Claude Sonnet");
 
     let info = compute_request_info(&model, &chat_messages()).expect("request info");
 
     assert_eq!(info.base_url, "");
-    assert_eq!(info.request_url, "/chat/completions");
-    assert_eq!(info.path_override, None);
+    assert_eq!(info.request_url, "/messages");
+    assert_eq!(info.path_override.as_deref(), Some("messages"));
     assert!(!info.enforce_strict_tool_schema);
+}
+
+#[test]
+fn responses_adapter_selects_native_endpoint_without_url_suffix() {
+    let model =
+        test_model("custom", "openai-responses", "https://api.example.com/v1", "gpt-5.4", "alias");
+    let info = compute_request_info(&model, &chat_messages()).unwrap();
+    assert_eq!(info.base_url, "https://api.example.com/v1");
+    assert_eq!(info.request_url, "https://api.example.com/v1/responses");
 }

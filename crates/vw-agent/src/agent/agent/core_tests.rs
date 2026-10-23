@@ -108,6 +108,7 @@ fn selectable_model(provider_id: &str, id: &str) -> provider::Model {
         capabilities: provider::Capabilities {
             temperature: true,
             reasoning: false,
+            reasoning_options: None,
             attachment: false,
             toolcall: true,
             input: provider::CapabilityIO {

@@ -400,3 +400,38 @@ fn shiju_model_credential_changes_invalidate_provider_fingerprint() {
     assert_ne!(fingerprint(Some(&first)), fingerprint(Some(&next)));
     assert_eq!(fingerprint(Some(&first)), fingerprint(Some(&first)));
 }
+
+#[tokio::test]
+async fn agent_custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().expect("temp home");
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    config::update(serde_json::json!({"providers": {
+        "shiju": {"models": {"deepseek-v4-flash": {"status": "active"}}},
+        "token-plan": {"api": "https://example.test/v1", "models": {
+            "deepseek-v4-flash-0731": {"status": "active"},
+            "alias": {"id": "qwen3.7-plus", "status": "active"},
+            "glm-5.2": {"status": "active", "reasoning": false},
+            "wan2.7-image": {"status": "active"}
+        }}
+    }})).await.expect("save config");
+    let state = load_state_impl(false).await;
+    assert!(state.providers["shiju"].models["deepseek-v4-flash"].capabilities.reasoning);
+    for id in ["deepseek-v4-flash", "deepseek-v4-pro", "glm-5.2"] {
+        let model = &state.providers["shiju"].models[id];
+        assert_eq!(serde_json::to_value(&model.capabilities.reasoning_options).unwrap(),
+            serde_json::json!([{"type": "effort", "values": ["high", "max"]}]), "{id}");
+    }
+
+    let models = &state.providers["token-plan"].models;
+    for id in ["deepseek-v4-flash-0731", "alias"] {
+        assert!(models[id].capabilities.reasoning, "{id}");
+        assert_eq!(models[id].api.url, "https://example.test/v1");
+    }
+    for id in ["glm-5.2", "wan2.7-image"] {
+        assert!(!models[id].capabilities.reasoning, "{id}");
+    }
+}

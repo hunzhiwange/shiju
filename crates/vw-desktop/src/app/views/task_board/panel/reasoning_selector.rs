@@ -7,7 +7,7 @@ use iced::{Element, Length};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use crate::app::components::input_panel::reasoning_selector::{
-    reasoning_effort_label, reasoning_effort_options,
+    model_reasoning_effort_options, reasoning_effort_label, reasoning_effort_options,
 };
 use crate::app::components::system_settings_common::{
     settings_pick_list_menu_style, settings_pick_list_style,
@@ -58,7 +58,7 @@ impl TaskBoardReasoningSelectorKind {
 pub(crate) fn build_reasoning_effort_selector(
     app: &App,
     is_edit_mode: bool,
-) -> Element<'_, Message> {
+) -> Option<Element<'_, Message>> {
     let kind = if is_edit_mode {
         TaskBoardReasoningSelectorKind::Edit
     } else {
@@ -67,28 +67,42 @@ pub(crate) fn build_reasoning_effort_selector(
     build_selector(app, kind)
 }
 
-pub(crate) fn build_bulk_reasoning_effort_selector(app: &App) -> Element<'_, Message> {
+pub(crate) fn build_bulk_reasoning_effort_selector(app: &App) -> Option<Element<'_, Message>> {
     build_selector(app, TaskBoardReasoningSelectorKind::Bulk)
 }
 
-fn build_selector(app: &App, kind: TaskBoardReasoningSelectorKind) -> Element<'_, Message> {
-    let options = reasoning_effort_options(kind.agent(app).unwrap_or_default())
+fn build_selector(app: &App, kind: TaskBoardReasoningSelectorKind) -> Option<Element<'_, Message>> {
+    let model = match kind {
+        TaskBoardReasoningSelectorKind::Draft | TaskBoardReasoningSelectorKind::Edit => {
+            &app.task_board_draft.model
+        }
+        TaskBoardReasoningSelectorKind::Bulk => &app.task_board_bulk_model_input,
+    };
+    let options = kind
+        .agent(app)
+        .map(|agent| reasoning_effort_options(agent).to_vec())
+        .unwrap_or_else(|| model_reasoning_effort_options(app, model))
         .iter()
         .copied()
         .map(TaskBoardReasoningEffortOption)
         .collect::<Vec<_>>();
+    if options.len() <= 1 {
+        return None;
+    }
     let selected = TaskBoardReasoningEffortOption(kind.current(app));
 
-    pick_list(options, Some(selected), move |option| {
-        Message::TaskBoard(kind.select_message(option.0))
-    })
-    .placeholder("推理强度")
-    .padding([6, 10])
-    .text_size(14)
-    .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style)
-    .width(Length::Fill)
-    .into()
+    Some(
+        pick_list(options, Some(selected), move |option| {
+            Message::TaskBoard(kind.select_message(option.0))
+        })
+        .placeholder("推理强度")
+        .padding([6, 10])
+        .text_size(14)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style)
+        .width(Length::Fill)
+        .into(),
+    )
 }
 
 #[cfg(test)]

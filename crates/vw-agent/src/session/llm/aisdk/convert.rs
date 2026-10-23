@@ -87,6 +87,19 @@ pub(crate) fn compute_request_info(
     model: &provider::Model,
     chat_messages: &Value,
 ) -> Result<AisdkRequestInfo, Error> {
+    if model.api.adapter.trim() == "anthropic"
+        || model.api.url.trim().trim_end_matches('/').ends_with("/messages")
+    {
+        let base_url =
+            model.api.url.trim().trim_end_matches('/').trim_end_matches("/messages").to_string();
+        return Ok(AisdkRequestInfo {
+            request_url: format!("{base_url}/messages"),
+            base_url,
+            path_override: Some("messages".into()),
+            enforce_strict_tool_schema: false,
+            messages: openai_messages_to_aisdk_messages(chat_messages, model)?,
+        });
+    }
     // 提取并规范化 API URL，移除首尾空白和末尾斜杠
     let api_url = model.api.url.trim().trim_end_matches('/').to_string();
     // 获取适配器类型并规范化为小写
@@ -98,7 +111,12 @@ pub(crate) fn compute_request_info(
     let is_gpt_like = model_id_lower.contains("gpt") || model_name_lower.contains("gpt");
     let is_openai_compatible_adapter = matches!(
         adapter,
-        "openai" | "openai-compatible" | "acp" | "agent-client-protocol" | "agent_client_protocol"
+        "openai"
+            | "openai-compatible"
+            | "openai-responses"
+            | "acp"
+            | "agent-client-protocol"
+            | "agent_client_protocol"
     );
     // 对于 OpenAI 兼容适配器的 GPT 模型，强制执行严格的工具 schema
     let enforce_strict_tool_schema = is_openai_compatible_adapter && is_gpt_like;
@@ -174,7 +192,8 @@ pub(crate) fn compute_request_info(
     } else if matches!(endpoint_kind(&api_url), Some("chat_completions")) {
         // 已明确指定 chat/completions 端点
         Some("chat/completions".to_string())
-    } else if matches!(endpoint_kind(&api_url), Some("responses")) {
+    } else if adapter == "openai-responses" || matches!(endpoint_kind(&api_url), Some("responses"))
+    {
         // responses 端点（用于某些特定 API）
         Some("responses".to_string())
     } else if is_openai_compatible_adapter && is_gpt_like {

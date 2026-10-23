@@ -53,6 +53,8 @@ pub enum MessageStatus {
 pub enum ReasoningEffortDto {
     /// 显式关闭推理。
     None,
+    /// 最低推理强度。
+    Minimal,
     /// 低推理强度。
     Low,
     /// 中等推理强度。

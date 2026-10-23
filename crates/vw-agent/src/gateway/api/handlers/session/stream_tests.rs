@@ -597,7 +597,7 @@ fn merge_gateway_request_options_replaces_non_object_options_with_object() {
 }
 
 #[test]
-fn chat_reasoning_effort_reaches_acp_options_without_leaking_to_non_acp() {
+fn chat_reasoning_effort_reaches_acp_and_model_options() {
     use vw_api_types::ReasoningEffortDto;
 
     for (effort, expected) in [
@@ -629,7 +629,7 @@ fn chat_reasoning_effort_reaches_acp_options_without_leaking_to_non_acp() {
             None,
             Some(effort),
         );
-        assert!(non_acp_options.get("reasoning_effort").is_none());
+        assert_eq!(non_acp_options.get("reasoning_effort").and_then(Value::as_str), Some(expected));
     }
 
     let default_options = merge_gateway_request_options(

@@ -2110,7 +2110,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                     .get("model")
                     .cloned()
                     .and_then(|value| serde_json::from_value(value).ok()),
-                reasoning_effort: req.acp_test.then_some(req.reasoning_effort).flatten(),
+                reasoning_effort: req.reasoning_effort,
                 agent: req.agent.clone(),
                 allowed_tools: req.allowed_tools.clone(),
                 acp_agent: req.acp_test.then(|| req.acp_agent.clone()).flatten(),

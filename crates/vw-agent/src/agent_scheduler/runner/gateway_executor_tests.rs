@@ -157,6 +157,16 @@ fn gateway_stream_request_without_agent_or_acp_keeps_minimal_options() -> Result
 }
 
 #[test]
+fn gateway_stream_request_preserves_reasoning_effort_without_acp() -> Result<()> {
+    let mut request = execution_request(None, None)?;
+    request.reasoning_effort = Some(vw_api_types::ReasoningEffortDto::High);
+    let stream = gateway_local_agent_stream_request(&request);
+    assert_eq!(stream.reasoning_effort, request.reasoning_effort);
+    assert_eq!(stream.acp_agent, None);
+    Ok(())
+}
+
+#[test]
 fn gateway_stream_payload_task_log_appends_each_message_with_run_context() -> Result<()> {
     let temp = tempfile::tempdir()?;
     let project_path = temp.path().join("gateway-stream-log-project");

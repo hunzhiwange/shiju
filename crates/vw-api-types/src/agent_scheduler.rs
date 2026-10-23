@@ -21,6 +21,7 @@ where
     value
         .map(|value| match value.as_str() {
             "none" => Ok(ReasoningEffortDto::None),
+            "minimal" => Ok(ReasoningEffortDto::Minimal),
             "low" => Ok(ReasoningEffortDto::Low),
             "medium" => Ok(ReasoningEffortDto::Medium),
             "high" => Ok(ReasoningEffortDto::High),

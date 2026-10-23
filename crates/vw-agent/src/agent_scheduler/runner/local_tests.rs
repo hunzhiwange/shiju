@@ -124,6 +124,30 @@ fn local_runner_forwards_task_reasoning_effort_to_acp_execution() -> Result<()> 
 }
 
 #[test]
+fn local_runner_forwards_task_reasoning_effort_to_model_execution() -> Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    let project_path = temp_dir.path().join("project-local-reasoning");
+    std::fs::create_dir_all(&project_path)?;
+    let store = AgentSchedulerStore::new();
+    let task_id = TaskId::new("task-local-reasoning")?;
+    let executor = RecordingExecutor::succeeding("completed");
+    let runner = LocalAgentRunner::new(&store, &executor);
+
+    store.initialize_project(&project_path)?;
+    let mut task = finite_task(&task_id)?;
+    task.metadata.as_object_mut().expect("metadata").remove("acp_agent");
+    store.create_task(&project_path, task)?;
+    runner
+        .run_once(&project_path, LocalAgentRunnerRequest { task_id, now_ms: TimestampMs(1_000) })?;
+
+    let requests = executor.requests.lock().expect("requests lock");
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].acp_agent, None);
+    assert_eq!(requests[0].reasoning_effort, Some(vw_api_types::ReasoningEffortDto::High));
+    Ok(())
+}
+
+#[test]
 fn local_runner_cannot_bypass_task_graph() -> Result<()> {
     let temp_dir = tempfile::tempdir()?;
     let project_path = temp_dir.path().join("project-local-runner-task-graph");

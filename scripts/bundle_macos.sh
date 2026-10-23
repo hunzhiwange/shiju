@@ -20,10 +20,43 @@ INCLUDE_CLI_IN_APP="${INCLUDE_CLI_IN_APP:-1}"
 INCLUDE_CLI_COMPAT_IN_APP="${INCLUDE_CLI_COMPAT_IN_APP:-0}"
 INCLUDE_ACP_IN_APP="${INCLUDE_ACP_IN_APP:-0}"
 MACOS_SIGN_MODE="${MACOS_SIGN_MODE:-adhoc}"
-MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:-}"
+MACOS_SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:-${APPLE_SIGNING_IDENTITY:-}}"
 MACOS_NOTARIZE="${MACOS_NOTARIZE:-0}"
-NOTARY_KEYCHAIN_PROFILE="${NOTARY_KEYCHAIN_PROFILE:-}"
-NOTARY_KEYCHAIN_PATH="${NOTARY_KEYCHAIN_PATH:-}"
+NOTARY_KEYCHAIN_PROFILE="${NOTARY_KEYCHAIN_PROFILE:-${SHIJU_NOTARY_PROFILE:-}}"
+NOTARY_KEYCHAIN_PATH="${NOTARY_KEYCHAIN_PATH:-${SHIJU_NOTARY_KEYCHAIN:-}}"
+NOTARY_KEYCHAIN_PASSWORD_FILE="${NOTARY_KEYCHAIN_PASSWORD_FILE:-${SHIJU_NOTARY_KEYCHAIN_PASSWORD_FILE:-}}"
+
+codesign_with_identity() {
+  if [ -n "$NOTARY_KEYCHAIN_PATH" ]; then
+    codesign --sign "$MACOS_SIGN_IDENTITY" --keychain "$NOTARY_KEYCHAIN_PATH" "$@"
+  else
+    codesign --sign "$MACOS_SIGN_IDENTITY" "$@"
+  fi
+}
+
+prepare_signing_keychain() {
+  if [ -n "$NOTARY_KEYCHAIN_PATH" ] && [ ! -f "$NOTARY_KEYCHAIN_PATH" ]; then
+    echo "Error: signing/notary keychain not found: $NOTARY_KEYCHAIN_PATH" >&2
+    exit 1
+  fi
+  if [ -n "$NOTARY_KEYCHAIN_PASSWORD_FILE" ]; then
+    if [ -z "$NOTARY_KEYCHAIN_PATH" ] || [ ! -r "$NOTARY_KEYCHAIN_PASSWORD_FILE" ]; then
+      echo "Error: keychain unlock requires a keychain path and readable password file" >&2
+      exit 1
+    fi
+    # Do not expose the unlock password if the caller enabled shell tracing.
+    local restore_xtrace=0
+    case "$-" in *x*) restore_xtrace=1; set +x ;; esac
+    local unlock_status=0
+    security unlock-keychain -p "$(cat "$NOTARY_KEYCHAIN_PASSWORD_FILE")" \
+      "$NOTARY_KEYCHAIN_PATH" || unlock_status=$?
+    if [ "$restore_xtrace" = "1" ]; then set -x; fi
+    if [ "$unlock_status" != "0" ]; then
+      echo "Error: unable to unlock signing/notary keychain" >&2
+      exit 1
+    fi
+  fi
+}
 
 if [ -n "$TARGET" ]; then
   TARGET_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
@@ -97,7 +130,10 @@ EOF
           exit 1
           ;;
       esac
-      if ! SIGNING_IDENTITIES="$(security find-identity -v -p codesigning)"; then
+      prepare_signing_keychain
+      if [ -n "$NOTARY_KEYCHAIN_PATH" ]; then
+        SIGNING_IDENTITIES="$(security find-identity -v -p codesigning "$NOTARY_KEYCHAIN_PATH")"
+      elif ! SIGNING_IDENTITIES="$(security find-identity -v -p codesigning)"; then
         echo "Error: unable to read code-signing identities from the keychain" >&2
         exit 1
       fi
@@ -126,8 +162,12 @@ EOF
           echo "Error: xcrun is required for notarization" >&2
           exit 1
         }
-        if [ -n "$NOTARY_KEYCHAIN_PATH" ] && [ ! -f "$NOTARY_KEYCHAIN_PATH" ]; then
-          echo "Error: notary keychain not found: $NOTARY_KEYCHAIN_PATH" >&2
+        local notary_auth_args=(--keychain-profile "$NOTARY_KEYCHAIN_PROFILE")
+        if [ -n "$NOTARY_KEYCHAIN_PATH" ]; then
+          notary_auth_args+=(--keychain "$NOTARY_KEYCHAIN_PATH")
+        fi
+        if ! xcrun notarytool history "${notary_auth_args[@]}" --output-format json >/dev/null; then
+          echo "Error: notarization credentials are unavailable; check the keychain profile" >&2
           exit 1
         fi
       fi
@@ -144,6 +184,8 @@ submit_for_notarization() {
   local notary_result
   local notary_status
   local notary_auth_args=(--keychain-profile "$NOTARY_KEYCHAIN_PROFILE")
+
+  prepare_signing_keychain
 
   if [ -n "$NOTARY_KEYCHAIN_PATH" ]; then
     notary_auth_args+=(--keychain "$NOTARY_KEYCHAIN_PATH")
@@ -268,25 +310,24 @@ fi
 ensure_app_icon
 
 if [ "$MACOS_SIGN_MODE" = "developer-id" ]; then
+  prepare_signing_keychain
   echo "Signing embedded binaries with Developer ID..."
   for binary_name in vw-webview "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$ACP_BIN_NAME"; do
     binary_path="$DEST_DIR/$binary_name"
     if [ -f "$binary_path" ]; then
-      codesign \
+      codesign_with_identity \
         --force \
         --timestamp \
         --options runtime \
-        --sign "$MACOS_SIGN_IDENTITY" \
         "$binary_path"
     fi
   done
 
   echo "Signing app bundle with Developer ID..."
-  codesign \
+  codesign_with_identity \
     --force \
     --timestamp \
     --options runtime \
-    --sign "$MACOS_SIGN_IDENTITY" \
     "$APP_BUNDLE"
 else
   echo "Applying ad-hoc signature for local development..."
@@ -342,6 +383,9 @@ if [ "$CREATE_DMG" = "1" ]; then
 
   if [ "$MACOS_NOTARIZE" = "1" ]; then
     DMG_PATH="$OUT_DIR/$DMG_NAME"
+    prepare_signing_keychain
+    codesign_with_identity --force --timestamp "$DMG_PATH"
+    codesign --verify --strict --verbose=2 "$DMG_PATH"
     submit_for_notarization "$DMG_PATH"
     echo "Stapling notarization ticket to disk image..."
     xcrun stapler staple "$DMG_PATH"

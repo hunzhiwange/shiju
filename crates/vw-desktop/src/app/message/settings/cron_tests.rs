@@ -588,3 +588,26 @@ fn mutation_actions_clear_errors_when_they_can_start() {
     let _ = update(&mut app, SettingsMessage::CronAddSubmit);
     assert_eq!(app.cron_settings.save_error, None);
 }
+
+#[test]
+fn common_frequency_selection_updates_both_drafts_and_advanced_preserves_expression() {
+    let mut app = app();
+    for frequency in CronFrequency::ALL {
+        let _ = update(&mut app, SettingsMessage::CronAddFrequencyChanged(frequency));
+        let _ = update(&mut app, SettingsMessage::CronJobEditFrequencyChanged(frequency));
+        assert_eq!(app.cron_settings.add_draft.frequency, frequency);
+        assert_eq!(app.cron_settings.edit_draft.frequency, frequency);
+        if frequency != CronFrequency::Advanced {
+            assert_eq!(app.cron_settings.add_draft.schedule, frequency.default_expression());
+            assert_eq!(app.cron_settings.edit_draft.schedule, frequency.default_expression());
+        } else {
+            assert_eq!(app.cron_settings.add_draft.schedule, "0 9 1 * *");
+            assert_eq!(app.cron_settings.edit_draft.schedule, "0 9 1 * *");
+        }
+    }
+    let expression = "0 9 * * MON-FRI";
+    let _ = update(&mut app, SettingsMessage::CronAddScheduleChanged(expression.to_string()));
+    let _ = update(&mut app, SettingsMessage::CronAddFrequencyChanged(CronFrequency::Advanced));
+    assert_eq!(app.cron_settings.add_draft.schedule, expression);
+    assert_eq!(app.cron_settings.add_draft.frequency, CronFrequency::Advanced);
+}

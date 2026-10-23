@@ -24,6 +24,8 @@ use iced::widget::{
 use iced::{Alignment, Element, Length, Theme};
 use vw_gateway_client::{CronJobDto, CronRunDto};
 
+mod schedule;
+
 const NO_ACP_AGENT_LABEL: &str = "不使用 ACP";
 const RUN_HISTORY_PREVIEW_LINES: usize = 3;
 
@@ -475,13 +477,7 @@ fn edit_form(app: &App) -> Element<'_, Message> {
     let project_options = project_options(app, &draft.project_path);
 
     let schedule_row = match draft.schedule_kind {
-        CronAddScheduleKind::Cron => field_row(
-            "Cron 表达式",
-            "支持标准 5/6 字段表达式。",
-            text_field("例如 0 9 * * 1-5", &draft.schedule, |v| {
-                Message::Settings(message::SettingsMessage::CronJobEditScheduleChanged(v))
-            }),
-        ),
+        CronAddScheduleKind::Cron => schedule::frequency_form(draft, true),
         CronAddScheduleKind::At => field_row(
             "指定时间",
             "RFC3339 时间，例如 2026-06-04T09:00:00Z。",
@@ -529,10 +525,10 @@ fn edit_form(app: &App) -> Element<'_, Message> {
         ),
         field_row(
             "调度类型",
-            "选择周期、指定时间或固定间隔。",
+            "常用周期可直接选择时间，高级模式支持 Cron。",
             row![
                 segment_button(
-                    "Cron",
+                    "周期执行",
                     draft.schedule_kind == CronAddScheduleKind::Cron,
                     Message::Settings(message::SettingsMessage::CronJobEditScheduleKindChanged(
                         CronAddScheduleKind::Cron
@@ -933,10 +929,10 @@ fn add_tab(app: &App) -> Element<'_, Message> {
     );
     let schedule_kind_row = field_row(
         "调度类型",
-        "选择周期、指定时间或固定间隔。",
+        "常用周期可直接选择时间，高级模式支持 Cron。",
         row![
             segment_button(
-                "Cron",
+                "周期执行",
                 draft.schedule_kind == CronAddScheduleKind::Cron,
                 Message::Settings(message::SettingsMessage::CronAddScheduleKindChanged(
                     CronAddScheduleKind::Cron
@@ -960,13 +956,7 @@ fn add_tab(app: &App) -> Element<'_, Message> {
         .spacing(8),
     );
     let schedule_row = match draft.schedule_kind {
-        CronAddScheduleKind::Cron => field_row(
-            "Cron 表达式",
-            "支持标准 5/6 字段表达式。",
-            text_field("例如 0 9 * * 1-5", &draft.schedule, |v| {
-                Message::Settings(message::SettingsMessage::CronAddScheduleChanged(v))
-            }),
-        ),
+        CronAddScheduleKind::Cron => schedule::frequency_form(draft, false),
         CronAddScheduleKind::At => field_row(
             "指定时间",
             "RFC3339 时间，例如 2026-06-04T09:00:00Z。",

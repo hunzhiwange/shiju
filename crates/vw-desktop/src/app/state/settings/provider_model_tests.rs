@@ -262,7 +262,8 @@ fn cron_tabs_job_types_and_draft_defaults_match_api_contract() {
     assert_eq!(draft.schedule_kind, CronAddScheduleKind::Cron);
     assert_eq!(draft.session_target, "isolated");
     assert_eq!(draft.agent, "main");
-    assert!(draft.schedule.is_empty());
+    assert_eq!(draft.schedule, "0 9 * * *");
+    assert_eq!(draft.frequency, CronFrequency::Daily);
     assert!(draft.at.is_empty());
     assert!(draft.every_ms.is_empty());
     assert!(draft.command.is_empty());

@@ -76,6 +76,29 @@ Output defaults to:
 The Developer ID build enables Hardened Runtime without App Sandbox. Outbound
 networking remains available, and credentials stay in the macOS keychain.
 
+#### Reuse the shiju-agent signing keychain
+
+Run on rsungM1, where the existing certificate, private key and notarization
+profile are stored. No certificate export or private-key copy is required:
+
+```bash
+export APPLE_SIGNING_IDENTITY='Developer ID Application: Chengdu Rsung Information Technology Co., Ltd. (C6J8T6SJPD)'
+export SHIJU_NOTARY_PROFILE=shiju-notary
+export SHIJU_NOTARY_KEYCHAIN="$HOME/Library/Keychains/shiju-build.keychain-db"
+export SHIJU_NOTARY_KEYCHAIN_PASSWORD_FILE="$HOME/.config/shiju-remote-build/keychain-password"
+MACOS_SIGN_MODE=developer-id MACOS_NOTARIZE=1 PACKAGE_APP=1 CREATE_DMG=1 \
+CARGO_TARGET_DIR=target ./scripts/bundle_macos.sh
+```
+
+The script accepts these existing shiju-agent variables. Explicit
+`MACOS_SIGN_IDENTITY`, `NOTARY_KEYCHAIN_PROFILE`, `NOTARY_KEYCHAIN_PATH` and
+`NOTARY_KEYCHAIN_PASSWORD_FILE` take precedence over their shiju-agent equivalents.
+It checks the selected keychain and notarization authentication before compiling,
+unlocks again before signing and notarization, and signs the DMG before submitting
+it. Missing credentials fail the release; they never select ad-hoc signing.
+Keep the unlock file private (mode `600`) and outside the repository. Each new
+package still requires its own signature and notarization.
+
 ### 1.4 GitHub Actions Signing
 
 Tag releases sign and notarize macOS ZIP and DMG artifacts in

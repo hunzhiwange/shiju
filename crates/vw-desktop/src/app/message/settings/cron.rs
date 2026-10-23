@@ -5,7 +5,7 @@ use crate::app::config::{
     load_cron_jobs_async, set_cron_job_enabled_async, set_cron_jobs_enabled_async,
     update_cron_job_async,
 };
-use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
+use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronFrequency, CronSettingsTab};
 use crate::app::{App, Message};
 use iced::Task;
 use iced::widget::text_editor;
@@ -249,6 +249,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     job.every_ms,
                 );
                 app.cron_settings.edit_draft.schedule = job.expression.clone();
+                app.cron_settings.edit_draft.frequency =
+                    CronFrequency::from_expression(&job.expression);
                 app.cron_settings.edit_draft.at = job.at.clone().unwrap_or_default();
                 app.cron_settings.edit_draft.every_ms =
                     job.every_ms.map(|value| value.to_string()).unwrap_or_default();
@@ -300,6 +302,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.edit_draft.schedule_kind = value;
             match value {
                 CronAddScheduleKind::Cron => {
+                    if app.cron_settings.edit_draft.schedule.is_empty() {
+                        app.cron_settings.edit_draft.frequency = CronFrequency::Daily;
+                        app.cron_settings.edit_draft.schedule =
+                            CronFrequency::Daily.default_expression().to_string();
+                    }
                     app.cron_settings.edit_draft.at.clear();
                     app.cron_settings.edit_draft.every_ms.clear();
                 }
@@ -311,6 +318,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.edit_draft.schedule.clear();
                     app.cron_settings.edit_draft.at.clear();
                 }
+            }
+            Task::none()
+        }
+        SettingsMessage::CronJobEditFrequencyChanged(value) => {
+            let draft = &mut app.cron_settings.edit_draft;
+            draft.frequency = value;
+            if value != CronFrequency::Advanced {
+                draft.schedule = value.default_expression().to_string();
             }
             Task::none()
         }
@@ -488,6 +503,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.add_draft.schedule_kind = value;
             match value {
                 CronAddScheduleKind::Cron => {
+                    if app.cron_settings.add_draft.schedule.is_empty() {
+                        app.cron_settings.add_draft.frequency = CronFrequency::Daily;
+                        app.cron_settings.add_draft.schedule =
+                            CronFrequency::Daily.default_expression().to_string();
+                    }
                     app.cron_settings.add_draft.at.clear();
                     app.cron_settings.add_draft.every_ms.clear();
                 }
@@ -499,6 +519,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.cron_settings.add_draft.schedule.clear();
                     app.cron_settings.add_draft.at.clear();
                 }
+            }
+            Task::none()
+        }
+        SettingsMessage::CronAddFrequencyChanged(value) => {
+            let draft = &mut app.cron_settings.add_draft;
+            draft.frequency = value;
+            if value != CronFrequency::Advanced {
+                draft.schedule = value.default_expression().to_string();
             }
             Task::none()
         }

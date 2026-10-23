@@ -3,9 +3,10 @@
 use crate::app::components::system_settings_search::SystemSettingsSearchTarget;
 use crate::app::state::{
     AutonomyListKind, AutonomySettingsTab, ChannelsSettingsTab, CronAddJobType,
-    CronAddScheduleKind, CronSettingsTab, CustomProviderModelFilter, CustomProviderModelTab,
-    CustomProviderTab, GatewaySettingsTab, McpNewServerTransport, McpSettingsTab,
-    MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab, ThemeEditorTab,
+    CronAddScheduleKind, CronFrequency, CronSettingsTab, CustomProviderModelFilter,
+    CustomProviderModelTab, CustomProviderTab, GatewaySettingsTab, McpNewServerTransport,
+    McpSettingsTab, MemorySettingsTab, ModelCatalogEntry, SecurityListKind, SecuritySettingsTab,
+    ThemeEditorTab,
 };
 use crate::app::{SettingsTab, components::system_settings::SystemTab};
 use iced::widget::text_editor;
@@ -793,6 +794,7 @@ pub enum SettingsMessage {
     CronJobEditJobTypeChanged(CronAddJobType),
     CronJobEditScheduleKindChanged(CronAddScheduleKind),
     CronJobEditScheduleChanged(String),
+    CronJobEditFrequencyChanged(CronFrequency),
     CronJobEditAtChanged(String),
     CronJobEditEveryMsChanged(String),
     CronJobEditCommandChanged(String),
@@ -823,6 +825,7 @@ pub enum SettingsMessage {
     CronAddJobTypeChanged(CronAddJobType),
     CronAddScheduleKindChanged(CronAddScheduleKind),
     CronAddScheduleChanged(String),
+    CronAddFrequencyChanged(CronFrequency),
     CronAddAtChanged(String),
     CronAddEveryMsChanged(String),
     CronAddCommandChanged(String),

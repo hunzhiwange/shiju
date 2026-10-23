@@ -35,6 +35,7 @@ fn markdown_visual_contract_preserves_readable_block_hierarchy() {
 
     let contract = markdown_visual_contract();
     assert_eq!(contract.heading_sizes, [21.0, 19.0, 17.0, 16.0, 16.0, 16.0]);
+    assert_eq!(contract.line_height, 1.6);
     assert_eq!(contract.block_spacing, 8.0);
     assert_eq!(contract.list_base_indent, 18.0);
     assert_eq!(contract.list_nested_indent, 14.0);
@@ -170,8 +171,15 @@ fn formatted_markdown_uses_one_editor_for_cross_line_selection() {
 
     assert_eq!(
         selected_chat_text_for_message(&app, 0).as_deref(),
-        Some("first\n\nsecond\n\nthird")
+        Some("first\nsecond\nthird")
     );
+}
+
+#[test]
+fn markdown_editor_text_keeps_block_boundaries_compact() {
+    let blocks = parse_markdown_blocks("正文\n\n- 第一项\n- 第二项\n\n结尾");
+
+    assert_eq!(markdown_editor_text(&blocks), "正文\n• 第一项\n• 第二项\n结尾");
 }
 
 #[test]

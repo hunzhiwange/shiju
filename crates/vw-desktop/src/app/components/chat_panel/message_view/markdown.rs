@@ -19,7 +19,7 @@ use crate::app::components::text_editor_scroll_panel::pass_wheel_to_parent;
 use crate::app::{App, Message, message};
 
 use super::super::tool_text_support::{
-    READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, chat_text_line_height, read_only_text_style,
+    READ_ONLY_EDITOR_MAX_HEIGHT, chat_text_font, read_only_text_style,
 };
 use super::styles::{
     MARKDOWN_BLOCK_SPACING, MESSAGE_TEXT_SIZE, is_dark_theme, message_body_text_color,
@@ -52,6 +52,7 @@ pub(crate) struct MarkdownBlock {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct MarkdownVisualContract {
     pub(crate) heading_sizes: [f32; 6],
+    pub(crate) line_height: f32,
     pub(crate) block_spacing: f32,
     pub(crate) list_base_indent: f32,
     pub(crate) list_nested_indent: f32,
@@ -72,6 +73,7 @@ pub(crate) fn markdown_visual_contract() -> MarkdownVisualContract {
             MESSAGE_TEXT_SIZE + 1.0,
             MESSAGE_TEXT_SIZE + 1.0,
         ],
+        line_height: 1.6,
         block_spacing: MARKDOWN_BLOCK_SPACING,
         list_base_indent: 18.0,
         list_nested_indent: 14.0,
@@ -417,7 +419,7 @@ pub(crate) fn markdown_editor_text(blocks: &[MarkdownBlock]) -> String {
             | MarkdownBlockKind::CodeBlock(_) => block.text.clone(),
         })
         .collect::<Vec<_>>()
-        .join("\n\n")
+        .join("\n")
 }
 
 /// 渲染单个 Markdown 块为可划选元素。
@@ -446,7 +448,7 @@ fn markdown_block_view<'a>(
                         ))
                     })
                     .size(size)
-                    .line_height(chat_text_line_height())
+                    .line_height(iced::widget::text::LineHeight::Relative(contract.line_height))
                     .padding(0)
                     .height(Length::Shrink)
                     .max_height(READ_ONLY_EDITOR_MAX_HEIGHT)
@@ -458,7 +460,7 @@ fn markdown_block_view<'a>(
             text(block.text.clone())
                 .size(size)
                 .font(font)
-                .line_height(chat_text_line_height())
+                .line_height(iced::widget::text::LineHeight::Relative(contract.line_height))
                 .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(body_color) })
                 .into()
         };
@@ -569,7 +571,9 @@ pub(crate) fn markdown_body_view<'a>(
                 text(markdown_editor_text(blocks))
                     .size(MESSAGE_TEXT_SIZE)
                     .font(chat_text_font())
-                    .line_height(chat_text_line_height())
+                    .line_height(iced::widget::text::LineHeight::Relative(
+                        markdown_visual_contract().line_height,
+                    ))
                     .style(move |_theme: &Theme| iced::widget::text::Style {
                         color: Some(body_color),
                     }),

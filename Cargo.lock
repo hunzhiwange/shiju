@@ -4271,8 +4271,8 @@ dependencies = [
 
 [[package]]
 name = "iced-code-editor"
-version = "0.4.1"
-source = "git+https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.1#b4fc00976e5feb2088ce8788824f43aafeaac4bb"
+version = "0.5.2"
+source = "git+https://github.com/doyouhaobaby/iced-code-editor.git?tag=v0.4.2#18720c2e890026c6e9486dc7a521d0c44af42088"
 dependencies = [
  "iced",
  "iced_aw",

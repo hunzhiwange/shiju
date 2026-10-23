@@ -32,7 +32,7 @@ directories = "5"
 glob = "0.3"
 hex = "0.4"
 iced = { version = "0.14", features = ["image", "svg", "advanced", "tokio", "highlighter", "markdown"] }
-iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.4.1", features = ["lsp-process"] }
+iced-code-editor = { git = "https://github.com/doyouhaobaby/iced-code-editor.git", tag = "v0.4.2", features = ["lsp-process"] }
 iced_highlighter = "0.14"
 image = "0.25.9"
 include_dir = "0.7"

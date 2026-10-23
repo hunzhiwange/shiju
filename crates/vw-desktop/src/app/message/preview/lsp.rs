@@ -756,6 +756,10 @@ pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
                             .push(Task::done(Message::Preview(PreviewMessage::Open(path.clone()))));
                     }
                 }
+                LspEvent::Formatting { .. } => {
+                    // 预览编辑器尚未接入 LSP 格式化请求与编辑应用流程。
+                    app.push_notification("暂不支持 LSP 格式化".to_string());
+                }
                 // 处理 LSP 服务器进度事件
                 LspEvent::Progress { token, server_key, title, message, percentage, done } => {
                     if done {

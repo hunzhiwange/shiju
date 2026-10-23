@@ -198,7 +198,7 @@ fn current_release_api_uses_default_for_missing_or_blank_env() {
 
     assert_eq!(
         super::current_release_api(),
-        "https://api.github.com/repos/hunzhiwange/vibewindow/releases/latest"
+        "https://api.github.com/repos/hunzhiwange/shiju/releases/latest"
     );
 }
 

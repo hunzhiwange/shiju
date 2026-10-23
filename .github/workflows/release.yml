@@ -158,8 +158,9 @@ jobs:
               TARGET="$target" PROFILE=dist OUT_DIR=target/distrib scripts/bundle_linux.sh
             fi
           done
+      # Temporarily disabled until Developer ID signing and notarization are available.
       - name: Configure macOS release signing
-        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ false && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         env:
           MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
@@ -212,8 +213,9 @@ jobs:
         if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         run: cargo install cargo-bundle --locked
-      - name: Build macOS DMG for pull request
-        if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+      # Use certificate-free ad-hoc signing for PR and release packages for now.
+      - name: Build macOS packages with ad-hoc signing
+        if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         run: |
           for target in ${{ join(matrix.targets, ' ') }}; do
@@ -222,13 +224,17 @@ jobs:
               PROFILE=dist \
               OUT_DIR=target/distrib \
               CREATE_DMG=1 \
+              PACKAGE_APP=1 \
+              MACOS_SIGN_MODE=adhoc \
+              MACOS_NOTARIZE=0 \
               INCLUDE_CLI_IN_APP=1 \
               INCLUDE_ACP_IN_APP=1 \
               scripts/bundle_macos.sh
             fi
           done
+      # Retained for re-enabling together with the signing setup and cleanup steps.
       - name: Build signed and notarized macOS packages
-        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ false && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
@@ -251,7 +257,7 @@ jobs:
             fi
           done
       - name: Clean up macOS signing credentials
-        if: ${{ always() && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ always() && false && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         run: |
           keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"
@@ -382,7 +388,7 @@ jobs:
           echo "artifacts uploaded and released successfully"
           cat dist-manifest.json
           echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
-      - name: Upload signed macOS packages to GitHub Release
+      - name: Upload macOS packages to GitHub Release
         shell: bash
         env:
           RELEASE_TAG: ${{ needs.plan.outputs.tag }}

@@ -23,6 +23,7 @@ It updates these package manifests:
   crates/vw-gateway-client/Cargo.toml
   crates/vw-provider-resolver/Cargo.toml
   crates/vw-shared/Cargo.toml
+  crates/vw-tui/Cargo.toml
   crates/vw-webview/Cargo.toml
 
 It also updates matching package entries in Cargo.lock.
@@ -222,6 +223,7 @@ MANIFEST_FILES=(
   "crates/vw-gateway-client/Cargo.toml"
   "crates/vw-provider-resolver/Cargo.toml"
   "crates/vw-shared/Cargo.toml"
+  "crates/vw-tui/Cargo.toml"
   "crates/vw-webview/Cargo.toml"
 )
 
@@ -235,6 +237,7 @@ LOCK_PACKAGE_NAMES=(
   "vw-gateway-client"
   "vw-provider-resolver"
   "vw-shared"
+  "vw-tui"
   "vw-webview"
 )
 

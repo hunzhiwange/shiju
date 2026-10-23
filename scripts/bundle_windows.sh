@@ -3,6 +3,7 @@ set -euo pipefail
 
 TARGET="${TARGET:-x86_64-pc-windows-msvc}"
 PROFILE="${PROFILE:-release}"
+TARGET_ROOT="${CARGO_TARGET_DIR:-target-dir}"
 OUT_DIR="${OUT_DIR:-dist/windows}"
 MODE="${MODE:-app}"
 CREATE_MSI="${CREATE_MSI:-0}"
@@ -185,7 +186,7 @@ build_acp_binary() {
   fi
 }
 
-BIN_DIR="target/$TARGET/$PROFILE"
+BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
 
 if [ "$MODE" = "cli" ]; then
   if missing_binaries "$CLI_SOURCE_BIN_NAME" "$CLI_COMPAT_BIN_NAME"; then

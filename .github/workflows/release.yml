@@ -388,21 +388,6 @@ jobs:
           echo "artifacts uploaded and released successfully"
           cat dist-manifest.json
           echo "manifest=$(jq -c "." dist-manifest.json)" >> "$GITHUB_OUTPUT"
-      - name: Upload macOS packages to GitHub Release
-        shell: bash
-        env:
-          RELEASE_TAG: ${{ needs.plan.outputs.tag }}
-        run: |
-          shopt -s nullglob
-          macos_packages=(
-            target/distrib/*.dmg
-            target/distrib/ShiJu-macos*.zip
-          )
-          if (( ${#macos_packages[@]} == 0 )); then
-            echo "No custom macOS packages found"
-            exit 0
-          fi
-          gh release upload "$RELEASE_TAG" "${macos_packages[@]}" --clobber
       - name: "Upload dist-manifest.json"
         uses: actions/upload-artifact@v4
         with:
@@ -509,30 +494,16 @@ jobs:
             npm publish --access public "./npm/${pkg}"
           done
 
-  custom-publish-crates:
-    needs:
-      - plan
-      - host
-    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
-    uses: ./.github/workflows/publish-crates.yml
-    with:
-      plan: ${{ needs.plan.outputs.val }}
-    secrets: inherit
-    permissions:
-      "id-token": "write"
-      "packages": "write"
-
   announce:
     needs:
       - plan
       - host
       - publish-homebrew-formula
       - publish-npm
-      - custom-publish-crates
     # use "always() && ..." to allow us to wait for all publish jobs while
     # still allowing individual publish jobs to skip themselves (for prereleases).
     # "host" however must run to completion, no skipping allowed!
-    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') && (needs.publish-npm.result == 'skipped' || needs.publish-npm.result == 'success') && (needs.custom-publish-crates.result == 'skipped' || needs.custom-publish-crates.result == 'success') }}
+    if: ${{ always() && needs.host.result == 'success' && (needs.publish-homebrew-formula.result == 'skipped' || needs.publish-homebrew-formula.result == 'success') && (needs.publish-npm.result == 'skipped' || needs.publish-npm.result == 'success') }}
     runs-on: "ubuntu-22.04"
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

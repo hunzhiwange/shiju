@@ -483,3 +483,27 @@ fn render_assistant_body_falls_back_for_unknown_tool_block() {
 
     std::hint::black_box(body);
 }
+
+#[test]
+fn streaming_special_text_ignores_stale_editor() {
+    let mut app = App::new().0;
+    app.chat_special_text_editors.insert(0, text_editor::Content::with_text("stale"));
+    let body = render_assistant_body(
+        &app,
+        0,
+        &[],
+        vec!["latest streamed text".to_string()],
+        String::new(),
+        vec![ParsedChatBlock::Text { content: "latest streamed text".into() }],
+        Vec::new(),
+        true,
+        true,
+        "latest streamed text",
+    );
+    let element: Element<'_, Message> = body.into();
+    let actual = Tree::new(element.as_widget());
+    let expected = super::text::message_text_body("latest streamed text".into(), false);
+    let expected = Tree::new(expected.as_widget());
+    assert_eq!(actual.children[0].tag, expected.tag);
+    assert_eq!(actual.children[0].children.len(), expected.children.len());
+}

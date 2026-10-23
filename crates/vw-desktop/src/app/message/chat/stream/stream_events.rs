@@ -438,6 +438,15 @@ fn finish_active_stream_tail_update(
     now: u64,
     previous_content_len: Option<usize>,
 ) -> Task<Message> {
+    // 流式追加和工具替换都会改变尾消息；旧哈希不能继续作为视图缓存命中依据。
+    // 仅失效变化行，历史消息缓存和编辑器保持可复用。
+    app.chat_render_cache.remove(&changed_idx);
+    if let Some(visible_text) = app.chat_visible_text_cache.get_mut(changed_idx) {
+        *visible_text = None;
+    }
+    if let Some(copy_hash) = app.chat_copy_hash_cache.get_mut(changed_idx) {
+        *copy_hash = None;
+    }
     app.session_chat_cache.remove(&session_id);
     app.session_chat_message_id_cache.remove(&session_id);
     prepare_scroll_for_active_stream_growth(app);

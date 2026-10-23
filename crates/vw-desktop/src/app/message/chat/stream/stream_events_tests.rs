@@ -1805,3 +1805,41 @@ fn context_loaded_adds_visible_agents_read_card() {
     assert!(content.contains(r#""status":"completed""#));
     assert_eq!(content.matches("tool read\n").count(), 2);
 }
+
+#[test]
+fn streamed_tail_invalidates_stale_display_and_copy_caches_before_done() {
+    use crate::app::components::chat_panel::message_view::{
+        build_render_cache_entry, hash_chat_content,
+    };
+
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "live-cache".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::User, "question"), message(ChatRole::Assistant, "old")];
+    app.chat_message_ids = vec![None, None];
+    app.get_session_runtime_mut(&session_id).active_agent_request =
+        Some(agent_request(42, &session_id));
+    app.get_session_runtime_mut(&session_id).is_requesting = true;
+    app.chat_render_cache.insert(
+        0,
+        build_render_cache_entry("question", "question", hash_chat_content("question"), false),
+    );
+
+    for delta in [" first", " second"] {
+        // Simulate a background UI preparation finishing between stream frames.
+        let old = app.chat[1].content.clone();
+        let hash = hash_chat_content(&old);
+        app.chat_render_cache.insert(1, build_render_cache_entry(&old, &old, hash, false));
+        app.chat_visible_text_cache = vec![Some("question".into()), Some(old.clone())];
+        app.chat_copy_hash_cache = vec![Some(hash_chat_content("question")), Some(hash)];
+        let _ = super::queue_agent_stream_delta(&mut app, 42, delta.into());
+        let _ = super::flush_agent_stream_delta(&mut app, session_id.clone());
+        assert_eq!(app.chat[1].content, format!("{old}{delta}"));
+        assert!(!app.chat_render_cache.contains_key(&1));
+        assert!(app.chat_visible_text_cache[1].is_none());
+        assert!(app.chat_copy_hash_cache[1].is_none());
+        assert!(app.chat_render_cache.contains_key(&0));
+        assert_eq!(app.chat_visible_text_cache[0].as_deref(), Some("question"));
+        assert!(app.get_session_runtime(&session_id).is_requesting);
+    }
+}

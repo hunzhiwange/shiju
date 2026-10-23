@@ -296,14 +296,16 @@ fn push_special_text_block<'a>(
         return body.push(super::markdown::markdown_body_view(app, idx, text_idx, blocks));
     }
 
-    if let Some(view) = tool_text_editor(
-        app,
-        ToolTextTarget::SpecialMessageText { msg_idx: idx, text_idx },
-        chat_text_font_name(),
-        MESSAGE_TEXT_SIZE,
-        false,
-        false,
-    ) {
+    if prefer_markdown
+        && let Some(view) = tool_text_editor(
+            app,
+            ToolTextTarget::SpecialMessageText { msg_idx: idx, text_idx },
+            chat_text_font_name(),
+            MESSAGE_TEXT_SIZE,
+            false,
+            false,
+        )
+    {
         return body.push(view);
     }
 

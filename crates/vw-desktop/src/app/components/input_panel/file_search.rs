@@ -10,8 +10,6 @@ use iced::{Background, Border, Color, Element, Length, Theme};
 
 /// 重新导出 use crate::app::assets::{self, Icon}，让上层模块通过稳定路径访问。
 use crate::app::assets::{self, Icon};
-/// 重新导出 use crate::app::message::chat::input::ranked_file_search_entries，让上层模块通过稳定路径访问。
-use crate::app::message::chat::input::ranked_file_search_entries;
 /// 重新导出 use crate::app::{App, Message, message}，让上层模块通过稳定路径访问。
 use crate::app::{App, Message, message};
 
@@ -93,7 +91,7 @@ pub(super) fn file_search_overlay_style(theme: &Theme) -> iced::widget::containe
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn file_search_overlay(app: &App) -> Element<'_, Message> {
-    let files = ranked_file_search_entries(app);
+    let files = app.cached_file_search_entries();
     let highlighted_query = highlighted_file_search_query(&app.file_search_query);
 
     let mut list = column![].spacing(4);

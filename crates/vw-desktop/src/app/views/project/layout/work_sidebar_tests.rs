@@ -960,3 +960,25 @@ fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
     assert!(!std::sync::Arc::ptr_eq(&snapshot, &changed));
     assert_eq!(changed.tasks[0].updated, 2);
 }
+
+#[test]
+fn sidebar_navigation_hover_and_menus_reuse_session_projection() {
+    let mut app = App::new().0;
+    let snapshot = work_sidebar::cached_model(&app);
+    for event in [
+        ViewMessage::WorkSidebarProjectNavHovered(true),
+        ViewMessage::WorkSidebarProjectNavHovered(false),
+        ViewMessage::WorkSidebarFilterToggled,
+        ViewMessage::WorkSidebarFilterClosed,
+        ViewMessage::WorkSidebarMoreToggled,
+        ViewMessage::WorkSidebarMoreOpened,
+        ViewMessage::WorkSidebarMoreClosed,
+    ] {
+        app.prepare_session_ui_projection(&Message::View(event.clone()));
+        let _ = crate::app::message::view::update(&mut app, event);
+        assert!(std::sync::Arc::ptr_eq(&snapshot, &work_sidebar::cached_model(&app)));
+    }
+    assert!(!app.work_sidebar_project_nav_hovered);
+    assert!(!app.work_sidebar_filter_open);
+    assert!(!app.work_sidebar_more_open);
+}

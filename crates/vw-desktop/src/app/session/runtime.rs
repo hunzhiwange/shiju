@@ -226,7 +226,7 @@ impl App {
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
     /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
     pub fn current_session_is_requesting(&self) -> bool {
-        self.current_session_runtime().is_requesting
+        self.current_session_runtime_ref().is_some_and(|runtime| runtime.is_requesting)
     }
 
     /// 执行 session_is_requesting 对应的领域操作。

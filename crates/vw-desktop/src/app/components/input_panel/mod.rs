@@ -670,8 +670,16 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     };
 
     // 构建文件搜索覆盖层
-    let file_search_content: Element<'_, Message> = file_search::file_search_overlay(app);
-    let slash_palette_content: Element<'_, Message> = slash_palette::slash_palette_overlay(app);
+    let file_search_content: Element<'_, Message> = if app.show_file_search {
+        file_search::file_search_overlay(app)
+    } else {
+        Space::new().into()
+    };
+    let slash_palette_content: Element<'_, Message> = if app.show_slash_palette {
+        slash_palette::slash_palette_overlay(app)
+    } else {
+        Space::new().into()
+    };
 
     // 将文件搜索作为覆盖层添加到主内容上
     let content_with_file_search: Element<'_, Message> =

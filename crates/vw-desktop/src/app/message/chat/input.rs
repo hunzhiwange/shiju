@@ -30,9 +30,7 @@ use super::ClipboardPastePayload;
 use crate::app::components::chat_panel::message_measure::ChatMessageMeasurement;
 use crate::app::state::WorkspaceMode;
 use crate::app::{App, Message, message};
-pub(crate) use file_search::{
-    FileSearchResult, build_ranked_file_search_entries, ranked_file_search_entries,
-};
+pub(crate) use file_search::{FileSearchResult, build_ranked_file_search_entries};
 use iced::Task;
 use std::time::Duration;
 

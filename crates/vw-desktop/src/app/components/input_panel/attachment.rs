@@ -6,6 +6,7 @@
 //! - 附件条：显示当前已选择的本地附件
 //! - 工具提示：鼠标悬停时显示"附件"提示
 
+use std::borrow::Cow;
 use std::path::Path;
 
 use iced::alignment::{Horizontal, Vertical};
@@ -331,7 +332,34 @@ pub(crate) fn attachment_preview_strip(
 #[path = "attachment_tests.rs"]
 mod tests;
 
-pub(crate) fn parse_attachment_markers(content: &str) -> (String, Vec<AttachmentDisplayItem>) {
+// Most rendered messages have no attachments or whitespace to normalize. Borrow
+// their text instead of allocating several full transcript copies per frame.
+fn normalize_attachment_text(content: &str) -> Cow<'_, str> {
+    let trimmed = content.trim();
+    if !trimmed.contains("\r\n") && trimmed.lines().all(|line| line.len() == line.trim_end().len())
+    {
+        return Cow::Borrowed(trimmed);
+    }
+    let mut normalized = String::with_capacity(trimmed.len());
+    for (index, line) in trimmed.lines().enumerate() {
+        if index != 0 {
+            normalized.push('\n');
+        }
+        normalized.push_str(line.trim_end());
+    }
+    Cow::Owned(normalized)
+}
+
+pub(crate) fn parse_attachment_markers(
+    content: &str,
+) -> (Cow<'_, str>, Vec<AttachmentDisplayItem>) {
+    if !content.contains('[')
+        || !(content.contains("IMAGE:")
+            || content.contains("DOCUMENT:")
+            || content.contains("Document:"))
+    {
+        return (normalize_attachment_text(content), Vec::new());
+    }
     let mut attachments = Vec::new();
     let mut cleaned = String::with_capacity(content.len());
     let mut cursor = 0usize;
@@ -414,10 +442,10 @@ pub(crate) fn parse_attachment_markers(content: &str) -> (String, Vec<Attachment
         cursor = marker_end + 1;
     }
 
-    let cleaned =
-        cleaned.lines().map(str::trim_end).collect::<Vec<_>>().join("\n").trim().to_string();
-
-    (cleaned, attachments)
+    if attachments.is_empty() {
+        return (normalize_attachment_text(content), attachments);
+    }
+    (Cow::Owned(normalize_attachment_text(&cleaned).into_owned()), attachments)
 }
 
 pub fn attachment_strip(app: &App) -> Element<'_, Message> {

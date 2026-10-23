@@ -344,3 +344,23 @@ fn attachment_button_clamps_multimodal_limits_while_counting_images() {
     let upper_clamped = attachment_button(&app);
     assert_size(&upper_clamped, Length::Shrink, Length::Shrink);
 }
+
+#[test]
+fn plain_attachment_text_is_borrowed_and_normalization_matches_legacy() {
+    let plain = "中文正文\n继续思考".repeat(1000);
+    let (text, items) = parse_attachment_markers(&plain);
+    assert!(matches!(text, std::borrow::Cow::Borrowed(_)));
+    assert_eq!(text, plain);
+    assert!(items.is_empty());
+    for input in [
+        "\r\n中文  \r\n 下一行\t \n",
+        "\u{2003}\n\u{2003}",
+        "a\r\nb",
+        "a\n \n b",
+        "[unknown]\t\n正文",
+    ] {
+        let expected =
+            input.lines().map(str::trim_end).collect::<Vec<_>>().join("\n").trim().to_string();
+        assert_eq!(parse_attachment_markers(input).0, expected);
+    }
+}

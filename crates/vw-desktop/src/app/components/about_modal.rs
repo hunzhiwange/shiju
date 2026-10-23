@@ -29,7 +29,7 @@ use iced::{Alignment, Element, Length};
 use std::hash::{Hash, Hasher};
 
 const APP_NAME: &str = "VibeWindow";
-const ABOUT_TITLE: &str = "关于 VibeWindow";
+const ABOUT_TITLE: &str = "关于识矩";
 const ABOUT_SUBTITLE: &str =
     "Rust-first 的自主代理运行时，连接桌面端、CLI、网关服务和长驻守护进程。";
 const ABOUT_DESCRIPTION: &str = "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。";

@@ -228,7 +228,7 @@ fn handle_input_editor_edit(app: &mut App, edit: text_editor::Edit) -> Task<Mess
 
     sync_global_input_editor_if_needed(app);
 
-    let text = app.current_session_runtime().input_editor.text().to_string();
+    let text = app.current_session_runtime_mut().input_editor.text();
     let previous_file_query = app.file_search_query.clone();
     let previous_slash_query = app.slash_palette_query.clone();
     let last_char = text.chars().last();

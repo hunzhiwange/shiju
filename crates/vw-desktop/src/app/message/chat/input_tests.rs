@@ -925,3 +925,37 @@ fn wasm_focus_message_is_noop_on_native_targets() {
 
     assert_eq!(app.input_text, "unchanged");
 }
+
+#[test]
+fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
+    use crate::app::components::chat_panel::performance;
+    use iced::widget::text_editor;
+    let mut app = crate::app::App::new().0;
+    app.active_session_id = Some("typing".into());
+    app.chat =
+        (0..80).map(|_| chat_entry(ChatRole::Assistant, &"长回复内容".repeat(500))).collect();
+    app.rebuild_chat_message_estimated_heights();
+    let runtime = app.current_session_runtime_mut();
+    runtime.is_requesting = true;
+    runtime.pending_stream_delta = "生成中的长缓冲".repeat(10_000);
+    performance::reset();
+    let input = "生成过程中连续输入中文，保持动画和滚动";
+    for character in input.chars() {
+        let event = ChatMessage::InputEditorAction(text_editor::Action::Edit(
+            text_editor::Edit::Insert(character),
+        ));
+        app.prepare_session_ui_projection(&Message::Chat(event.clone()));
+        let _ = super::update(&mut app, event);
+        app.prepare_session_ui_projection(&Message::Chat(ChatMessage::SubmitTick));
+        let _ = super::update(&mut app, ChatMessage::SubmitTick);
+    }
+    assert_eq!(app.current_session_runtime_ref().unwrap().input_editor.text(), input);
+    assert_eq!(performance::snapshot().runtime_clones, 0);
+    assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
+    assert!(app.chat_render_cache.is_empty());
+    assert_eq!(app.chat.len(), 80);
+    assert_eq!(
+        app.session_runtime_states["typing"].pending_stream_delta,
+        "生成中的长缓冲".repeat(10_000)
+    );
+}

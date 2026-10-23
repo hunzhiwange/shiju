@@ -919,3 +919,44 @@ async fn session_ui_projection_open_scroll_probe() {
     assert!(app.session_ui_projection.sidebar.borrow().is_some());
     assert!(app.session_ui_projection.agent_sessions.borrow().is_some());
 }
+
+#[test]
+fn browser_and_request_polling_reuse_sidebar_without_hiding_metadata_updates() {
+    use crate::app::message::ChatMessage;
+    let mut app = App::new().0;
+    app.recent_projects = vec!["/workspace".into()];
+    app.project_sessions
+        .insert("/workspace".into(), vec![session("task", "Task", "/workspace", 1)]);
+    app.active_session_id = Some("task".into());
+    app.current_session_runtime_mut().is_requesting = true;
+    let snapshot = work_sidebar::cached_model(&app);
+    for _ in 0..30 {
+        let tick = ViewMessage::WorkBrowserRuntimeTick;
+        app.prepare_session_ui_projection(&Message::View(tick.clone()));
+        let _ = crate::app::message::view::update(&mut app, tick);
+        let frame = app.current_session_runtime_ref().unwrap().submit_anim;
+        for event in [
+            ChatMessage::SubmitTick,
+            ChatMessage::SessionSaveAck,
+            ChatMessage::QuestionPollTick,
+            ChatMessage::PermissionPollTick,
+            ChatMessage::TodoPollTick,
+            ChatMessage::QuestionListLoaded(Ok(Vec::new())),
+            ChatMessage::PermissionListLoaded(Ok(Vec::new())),
+        ] {
+            app.prepare_session_ui_projection(&Message::Chat(event.clone()));
+            let _ = crate::app::message::chat::update(&mut app, event);
+        }
+        assert_eq!(app.current_session_runtime_ref().unwrap().submit_anim, (frame + 1) % 3);
+        assert!(std::sync::Arc::ptr_eq(&snapshot, &work_sidebar::cached_model(&app)));
+    }
+    let event = ProjectMessage::ProjectSessionsLoaded(
+        "/workspace".into(),
+        Ok(vec![session("task", "Renamed", "/workspace", 2)]),
+    );
+    app.prepare_session_ui_projection(&Message::Project(event.clone()));
+    let _ = crate::app::message::project::update(&mut app, event);
+    let changed = work_sidebar::cached_model(&app);
+    assert!(!std::sync::Arc::ptr_eq(&snapshot, &changed));
+    assert_eq!(changed.tasks[0].updated, 2);
+}

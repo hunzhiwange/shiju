@@ -12,6 +12,7 @@ use iced::Task;
 #[derive(Default)]
 pub(crate) struct SessionUiProjection {
     pub(crate) agent_sessions: RefCell<Option<Arc<Vec<AgentChildSession>>>>,
+    pub(crate) agent_session_key: RefCell<(Option<String>, usize)>,
     pub(crate) sidebar: RefCell<Option<Arc<crate::app::views::project::WorkSidebarModel>>>,
     pub(crate) pinned: HashSet<(String, String)>,
     pins_generation: u64,
@@ -19,6 +20,22 @@ pub(crate) struct SessionUiProjection {
 
 fn preserves_projection(message: &Message) -> bool {
     match message {
+        Message::Chat(event) if crate::app::message::chat::input::is_composer_event(event) => true,
+        // These handlers update local UI/transport state, not session metadata.
+        Message::Terminal(crate::app::message::TerminalMessage::Event(_))
+        | Message::View(ViewMessage::WorkBrowserRuntimeTick)
+        | Message::GatewayHealthTick => true,
+        Message::Chat(
+            ChatMessage::SubmitTick
+            | ChatMessage::SessionSaveAck
+            | ChatMessage::QuestionPollTick
+            | ChatMessage::PermissionPollTick
+            | ChatMessage::TodoPollTick
+            | ChatMessage::LoadInputPanelTodos
+            | ChatMessage::QuestionListLoaded(_)
+            | ChatMessage::PermissionListLoaded(_)
+            | ChatMessage::InputPanelTodosLoaded(..),
+        ) => true,
         Message::None | Message::CopyDone | Message::Batch(_) | Message::SessionPinsLoaded(..) => {
             true
         }
@@ -78,7 +95,33 @@ impl App {
     pub(crate) fn prepare_session_ui_projection(&mut self, message: &Message) -> bool {
         if !preserves_projection(message) {
             self.session_ui_projection.agent_sessions.get_mut().take();
-            self.session_ui_projection.sidebar.get_mut().take();
+            if !matches!(
+                message,
+                Message::Chat(
+                    ChatMessage::AgentToolLifecycle(..)
+                        | ChatMessage::AgentWorkflowNodeUpdate(..)
+                        | ChatMessage::AgentCompactionStatus(..)
+                        | ChatMessage::AgentContextLoaded(..)
+                )
+            ) {
+                if self.session_ui_projection.sidebar.get_mut().take().is_some() {
+                    // Only enum tags: never log keystrokes, prompts, or tool payloads.
+                    match message {
+                        Message::Chat(event) => {
+                            tracing::debug!(target: "vw_desktop::session_ui", family = "chat", event = ?std::mem::discriminant(event), "sidebar invalidated")
+                        }
+                        Message::View(event) => {
+                            tracing::debug!(target: "vw_desktop::session_ui", family = "view", event = ?std::mem::discriminant(event), "sidebar invalidated")
+                        }
+                        Message::Project(event) => {
+                            tracing::debug!(target: "vw_desktop::session_ui", family = "project", event = ?std::mem::discriminant(event), "sidebar invalidated")
+                        }
+                        _ => {
+                            tracing::debug!(target: "vw_desktop::session_ui", family = "app", event = ?std::mem::discriminant(message), "sidebar invalidated")
+                        }
+                    }
+                }
+            }
         }
         matches!(
             message,

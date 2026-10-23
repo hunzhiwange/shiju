@@ -52,6 +52,28 @@ fn git_quick_action_path(app: &App) -> Option<String> {
         .filter(|path| !path.trim().is_empty())
 }
 
+/// Composer edits do not change the transcript or its visible window. Keep them
+/// out of transcript chunk preparation, even while the streaming tail is dirty.
+pub(crate) fn is_composer_event(message: &ChatMessage) -> bool {
+    matches!(
+        message,
+        ChatMessage::InputChanged(_)
+            | ChatMessage::InputEditorAction(_)
+            | ChatMessage::WasmImeCommit(_)
+            | ChatMessage::WasmImeFocus
+            | ChatMessage::WasmImeBackspace
+            | ChatMessage::WasmImeDelete
+            | ChatMessage::WasmImeMove { .. }
+            | ChatMessage::OpenInputContextMenu { .. }
+            | ChatMessage::CloseInputContextMenu
+            | ChatMessage::CopyInputSelection
+            | ChatMessage::CutInputSelection
+            | ChatMessage::PasteIntoInput
+            | ChatMessage::ClipboardPasteResolved(_)
+            | ChatMessage::SelectAllInput
+    )
+}
+
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::InputChanged(value) => {

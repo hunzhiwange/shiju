@@ -1087,6 +1087,11 @@ pub enum ChatMessage {
 /// // task 可能包含 UI 更新命令
 /// ```
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
+    let local_ui_event = input::is_composer_event(&message)
+        || matches!(
+            &message,
+            ChatMessage::SubmitTick | ChatMessage::TodoAnimTick | ChatMessage::SessionSaveAck
+        );
     // 检查是否为流式增量消息，用于后续特殊处理
     let is_stream_delta = matches!(
         message,
@@ -1327,6 +1332,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             .is_empty()
     {
         app.show_agent_sessions_popover = false;
+    }
+
+    if local_ui_event {
+        return task;
     }
 
     // 对流式增量消息执行特殊处理：同步思考块状态

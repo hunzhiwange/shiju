@@ -25,8 +25,7 @@ pub(super) fn close_input_context_menu(app: &mut App) {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn sync_global_input_editor_if_needed(app: &mut App) {
     if app.active_session_id.is_none() {
-        let runtime = app.current_session_runtime();
-        app.input_editor = runtime.input_editor;
+        app.input_editor = app.current_session_runtime_mut().input_editor.clone();
     }
 }
 

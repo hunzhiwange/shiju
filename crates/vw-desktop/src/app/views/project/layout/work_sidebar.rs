@@ -95,7 +95,7 @@ pub(super) fn navigation_specs() -> [(&'static str, Icon, Option<&'static str>);
         ("识矩应用", Icon::Grid1x2, None),
         ("识矩技能", Icon::Star, None),
         ("专家 · 技能 · 连接器", Icon::GearWideConnected, None),
-        ("自动化", Icon::ArrowRepeat, None),
+        ("定时任务", Icon::ArrowRepeat, None),
         ("更多", Icon::Grid1x2, Some("知识库 · 应用")),
     ]
 }
@@ -1280,7 +1280,7 @@ fn navigation_section(app: &App) -> Element<'static, Message> {
         .push(navigation_button(
             specs[6].0,
             specs[6].1,
-            Message::View(ViewMessage::OpenWorkflowManager),
+            Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Cron)),
             specs[6].2,
         ))
         .push(more_control(app))

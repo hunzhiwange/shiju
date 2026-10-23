@@ -403,7 +403,7 @@ fn work_sidebar_navigation_matches_reference_grouping_and_icons() {
             ("识矩应用", Icon::Grid1x2, None),
             ("识矩技能", Icon::Star, None),
             ("专家 · 技能 · 连接器", Icon::GearWideConnected, None),
-            ("自动化", Icon::ArrowRepeat, None),
+            ("定时任务", Icon::ArrowRepeat, None),
             ("更多", Icon::Grid1x2, Some("知识库 · 应用")),
         ]
     );

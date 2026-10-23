@@ -595,7 +595,9 @@ fn input_strip_control_order(app: &App) -> Vec<InputStripControl> {
     controls.push(InputStripControl::Shiju);
     if !app.quick_messages.is_empty() {
         controls.push(InputStripControl::GeneralActions);
-        controls.push(InputStripControl::GitActions);
+        if app.project_is_git_repo {
+            controls.push(InputStripControl::GitActions);
+        }
     }
     controls
 }

@@ -98,6 +98,7 @@ fn quick_message_group_click_toggles_and_switches_open_group() {
 fn quick_message_strip_keeps_shiju_visible_and_renders_defaults_in_general_group() {
     let mut app = App::new().0;
     app.workspace_mode = WorkspaceMode::Code;
+    app.project_is_git_repo = true;
     app.quick_messages.clear();
     let empty = view(&app).expect("shiju trigger should keep the input strip visible");
     assert_eq!(Tree::new(empty.as_widget()).children.len(), 1);
@@ -118,6 +119,7 @@ fn quick_message_strip_keeps_shiju_visible_and_renders_defaults_in_general_group
 fn quick_message_strip_renders_both_groups_with_original_button_indices() {
     let mut app = App::new().0;
     app.workspace_mode = WorkspaceMode::Code;
+    app.project_is_git_repo = true;
     app.quick_messages = vec![
         config("Git", QuickMessageGroup::Git, QuickMessageKind::Message),
         config("通用", QuickMessageGroup::General, QuickMessageKind::Message),
@@ -130,6 +132,27 @@ fn quick_message_strip_renders_both_groups_with_original_button_indices() {
 
     app.quick_message_open_group = Some(QuickMessageGroup::Git);
     assert!(view(&app).is_some());
+}
+
+#[test]
+fn quick_message_strip_hides_git_actions_for_non_git_projects() {
+    let mut app = App::new().0;
+    app.quick_messages = vec![
+        config("Git", QuickMessageGroup::Git, QuickMessageKind::Message),
+        config("通用", QuickMessageGroup::General, QuickMessageKind::Message),
+    ];
+    app.project_is_git_repo = false;
+    app.quick_message_open_group = Some(QuickMessageGroup::Git);
+
+    for mode in [WorkspaceMode::Code, WorkspaceMode::Work] {
+        app.workspace_mode = mode;
+        let controls = input_strip_control_order(&app);
+        assert!(!controls.contains(&InputStripControl::GitActions));
+        assert!(controls.contains(&InputStripControl::GeneralActions));
+        assert!(controls.contains(&InputStripControl::Shiju));
+        let element = view(&app).expect("non-git projects should keep other controls visible");
+        assert_eq!(Tree::new(element.as_widget()).children.len(), controls.len());
+    }
 }
 
 #[test]
@@ -181,6 +204,7 @@ fn work_mode_space_picker_add_project_closes_and_opens_folder() {
 fn input_strip_places_shiju_before_general_actions() {
     let mut app = App::new().0;
     app.workspace_mode = WorkspaceMode::Code;
+    app.project_is_git_repo = true;
     app.quick_messages = vec![
         config("通用", QuickMessageGroup::General, QuickMessageKind::Message),
         config("Git", QuickMessageGroup::Git, QuickMessageKind::Message),

@@ -229,3 +229,29 @@ fn gateway_route_summary_hides_disabled_optional_routes() {
         assert!(!text.contains(route), "disabled route should not be shown: {route}");
     }
 }
+
+#[tokio::test]
+async fn unavailable_default_provider_keeps_health_route_available_and_rejects_inference() {
+    let config = Config {
+        default_provider: Some("unknown-gateway-provider".into()),
+        ..Config::default()
+    };
+    let mut state = state();
+    state.provider = gateway_provider(&config);
+    let error = state.provider.simple_chat("hello", "model", 0.0).await.unwrap_err();
+    assert!(error.to_string().contains("Default provider is unavailable"));
+    let response = external_router()
+        .with_state(state)
+        .oneshot(Request::get("/v1/health").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn supported_default_provider_is_initialized_normally() {
+    let config =
+        Config { default_provider: Some("openai".into()), ..Config::default() };
+    let provider = gateway_provider(&config);
+    assert!(provider.supports_streaming());
+}

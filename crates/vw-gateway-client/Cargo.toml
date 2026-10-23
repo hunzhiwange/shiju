@@ -1,6 +1,6 @@
 [package]
 name = "vw-gateway-client"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -12,8 +12,8 @@ futures-util = "0.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
-vw-api-types = { path = "../vw-api-types", version = "0.5.2" }
-vw-shared = { path = "../vw-shared", version = "0.5.2" }
+vw-api-types = { path = "../vw-api-types", version = "0.5.3" }
+vw-shared = { path = "../vw-shared", version = "0.5.3" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "json", "query", "stream", "rustls"] }

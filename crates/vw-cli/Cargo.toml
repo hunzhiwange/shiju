@@ -1,6 +1,6 @@
 [package]
 name = "vw-cli"
-version = "0.5.2"
+version = "0.5.3"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -38,12 +38,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "chrono", "fmt
 rustls = { version = "0.23.37", default-features = false, features = ["ring", "logging", "std", "tls12"] }
 unicode-width = "0.2"
 unicode-segmentation = "1"
-vw-agent = { path = "../vw-agent", version = "0.5.2", default-features = false }
-vw-acp = { path = "../vw-acp", version = "0.5.2" }
-vw-config-types = { path = "../vw-config-types", version = "0.5.2" }
-vw-gateway-client = { path = "../vw-gateway-client", version = "0.5.2" }
-vw-shared = { path = "../vw-shared", version = "0.5.2" }
-vw-tui = { path = "../vw-tui", version = "0.5.2" }
+vw-agent = { path = "../vw-agent", version = "0.5.3", default-features = false }
+vw-acp = { path = "../vw-acp", version = "0.5.3" }
+vw-config-types = { path = "../vw-config-types", version = "0.5.3" }
+vw-gateway-client = { path = "../vw-gateway-client", version = "0.5.3" }
+vw-shared = { path = "../vw-shared", version = "0.5.3" }
+vw-tui = { path = "../vw-tui", version = "0.5.3" }
 
 [dev-dependencies]
 async-trait = "0.1.89"

@@ -232,6 +232,15 @@ jobs:
               scripts/bundle_macos.sh
             fi
           done
+      # Intel hosted runners can drop CloudKit HTTP/3 connections during stapling.
+      # Force TCP for this ephemeral runner: https://github.com/actions/runner-images/issues/14924
+      - name: Work around Intel macOS CloudKit HTTP/3 failures
+        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'x86_64-apple-darwin') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "block return out quick proto udp from any to any port 443" | sudo pfctl -f -
+          sudo pfctl -E
       - name: Build signed and notarized macOS packages
         if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash

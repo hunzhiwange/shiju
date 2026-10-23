@@ -222,6 +222,7 @@ jobs:
             if [[ "$target" == *apple-darwin ]]; then
               TARGET="$target" \
               PROFILE=dist \
+              SKIP_BUILD=1 \
               OUT_DIR=target/distrib \
               CREATE_DMG=1 \
               PACKAGE_APP=1 \
@@ -243,6 +244,7 @@ jobs:
             if [[ "$target" == *apple-darwin ]]; then
               TARGET="$target" \
               PROFILE=dist \
+              SKIP_BUILD=1 \
               OUT_DIR=target/distrib \
               CREATE_DMG=1 \
               PACKAGE_APP=1 \

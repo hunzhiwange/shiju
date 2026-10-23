@@ -46,6 +46,13 @@ make macos-dev
 Output defaults to:
 - `target/release/bundle/osx/ShiJu.app`
 
+Release CI sets `SKIP_BUILD=1 PROFILE=dist TARGET=<triple>` to package the
+executables already produced by cargo-dist in `target-dir/<triple>/dist`
+(or the selected `CARGO_TARGET_DIR`). In this app packaging mode, all enabled
+executables must already exist and be executable; missing artifacts fail without
+rebuilding. The bundled CLI therefore uses the same features as the dist CLI.
+Local builds retain their existing compilation and feature selection by default.
+
 ### 1.3 Signed and Notarized macOS Package
 
 Public distribution requires a `Developer ID Application` certificate in the

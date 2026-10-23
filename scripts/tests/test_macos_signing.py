@@ -25,8 +25,13 @@ if name == 'xcrun' and args[:2] == ['notarytool', 'submit']:
 if name == 'cargo':
     if args[:2] == ['bundle', '--help']:
         sys.exit(0)
-    root = pathlib.Path(os.environ['CARGO_TARGET_DIR']) / 'release'
+    root = pathlib.Path(os.environ['CARGO_TARGET_DIR'])
+    if '--target' in args:
+        root /= args[args.index('--target') + 1]
+    root /= args[args.index('--profile') + 1] if '--profile' in args else 'release'
     if args[0] == 'bundle':
+        with open(os.environ['CALL_LOG'], 'a') as log:
+            log.write(json.dumps(['bundle-skip-build', os.environ.get('CARGO_BUNDLE_SKIP_BUILD')]) + '\n')
         app = root / 'bundle/osx/ShiJu.app/Contents'
         (app / 'MacOS').mkdir(parents=True)
         (app / 'Resources').mkdir()
@@ -105,6 +110,44 @@ class MacosSigningTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("keychain not found", result.stderr)
         self.assertFalse(any(c[0] == "cargo" for c in calls))
+
+    def prepare_prebuilt_binaries(self):
+        self.env.update(SKIP_BUILD="1", PROFILE="dist", TARGET="aarch64-apple-darwin",
+                        INCLUDE_ACP_IN_APP="1", INCLUDE_CLI_COMPAT_IN_APP="1")
+        root = Path(self.env["CARGO_TARGET_DIR"]) / self.env["TARGET"] / "dist"
+        root.mkdir(parents=True)
+        for name in ("shi-ju", "vw-webview", "shiju", "vibe-agent", "acp"):
+            binary = root / name
+            binary.write_text(f"prebuilt {name}")
+            binary.chmod(0o755)
+        return root
+
+    def test_prebuilt_binaries_are_packaged_without_compiling(self):
+        root = self.prepare_prebuilt_binaries()
+        result, calls = self.run_bundle()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse(any(c[:2] == ["cargo", "build"] for c in calls))
+        self.assertIn(["bundle-skip-build", "1"], calls)
+        bundle_call = next(c for c in calls if c[:2] == ["cargo", "bundle"] and "--bin" in c)
+        self.assertEqual(bundle_call[bundle_call.index("--format") + 1], "osx")
+        bundled = root / "bundle/osx/ShiJu.app/Contents/MacOS"
+        for name in ("vw-webview", "shiju", "vibe-agent", "acp"):
+            self.assertEqual((bundled / name).read_bytes(), (root / name).read_bytes())
+        self.assertTrue(list(Path(self.env["OUT_DIR"]).glob("*.dmg")))
+        self.assertTrue(list(Path(self.env["OUT_DIR"]).glob("*.zip")))
+
+    def test_missing_prebuilt_binary_fails_without_compiling(self):
+        root = self.prepare_prebuilt_binaries()
+        for name in ("shi-ju", "vw-webview", "shiju", "vibe-agent", "acp"):
+            with self.subTest(binary=name):
+                binary = root / name
+                binary.chmod(0o644)
+                result, calls = self.run_bundle()
+                binary.chmod(0o755)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(f"expected prebuilt executable not found: {binary}", result.stderr)
+                self.assertFalse(any(c[:2] == ["cargo", "build"] for c in calls))
+                self.assertFalse(any(c[0] == "bundle-skip-build" for c in calls))
 
     def test_invalid_notary_credentials_fail_before_build(self):
         self.env["AUTH_FAILURE"] = "1"

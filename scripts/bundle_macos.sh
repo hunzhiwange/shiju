@@ -4,6 +4,8 @@ set -euo pipefail
 # MODE: app | cli
 MODE="${MODE:-app}"
 PROFILE="${PROFILE:-release}"
+# CI packages the binaries already produced by cargo-dist.
+SKIP_BUILD="${SKIP_BUILD:-0}"
 OUT_DIR="${OUT_DIR:-dist/macos}"
 TARGET="${TARGET:-}"
 TARGET_ROOT="${CARGO_TARGET_DIR:-target-dir}"
@@ -259,22 +261,43 @@ APP_BUNDLE="$BUNDLE_DIR/ShiJu.app"
 
 need_cargo_bundle
 
-echo "Bundling main application..."
-cargo_bundle -p vw-desktop --bin shi-ju
-
-echo "Building helper binary..."
-cargo_build -p vw-webview --bin vw-webview
-if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
-  echo "Building CLI binary (to include in app bundle)..."
-  cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --no-default-features --features channel-lark
-  if [ "$INCLUDE_CLI_COMPAT_IN_APP" = "1" ]; then
-    echo "Building CLI compatibility binary (to include in app bundle)..."
-    cargo_build -p vw-cli --bin "$CLI_COMPAT_BIN_NAME" --no-default-features --features channel-lark
+if [ "$SKIP_BUILD" = "1" ]; then
+  required_binaries=("$DESKTOP_BIN_NAME" vw-webview)
+  if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+    required_binaries+=("$CLI_SOURCE_BIN_NAME")
+    if [ "$INCLUDE_CLI_COMPAT_IN_APP" = "1" ]; then
+      required_binaries+=("$CLI_COMPAT_BIN_NAME")
+    fi
   fi
-fi
-if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
-  echo "Building ACP binary (to include in app bundle)..."
-  cargo_build -p vw-acp --bin "$ACP_BIN_NAME"
+  if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
+    required_binaries+=("$ACP_BIN_NAME")
+  fi
+  for binary_name in "${required_binaries[@]}"; do
+    if [ ! -x "$TARGET_DIR/$binary_name" ]; then
+      echo "Error: expected prebuilt executable not found: $TARGET_DIR/$binary_name" >&2
+      exit 1
+    fi
+  done
+  echo "Bundling prebuilt application from $TARGET_DIR..."
+  CARGO_BUNDLE_SKIP_BUILD=1 cargo_bundle -p vw-desktop --bin shi-ju --format osx
+else
+  echo "Bundling main application..."
+  cargo_bundle -p vw-desktop --bin shi-ju
+
+  echo "Building helper binary..."
+  cargo_build -p vw-webview --bin vw-webview
+  if [ "$INCLUDE_CLI_IN_APP" = "1" ]; then
+    echo "Building CLI binary (to include in app bundle)..."
+    cargo_build -p vw-cli --bin "$CLI_SOURCE_BIN_NAME" --no-default-features --features channel-lark
+    if [ "$INCLUDE_CLI_COMPAT_IN_APP" = "1" ]; then
+      echo "Building CLI compatibility binary (to include in app bundle)..."
+      cargo_build -p vw-cli --bin "$CLI_COMPAT_BIN_NAME" --no-default-features --features channel-lark
+    fi
+  fi
+  if [ "$INCLUDE_ACP_IN_APP" = "1" ]; then
+    echo "Building ACP binary (to include in app bundle)..."
+    cargo_build -p vw-acp --bin "$ACP_BIN_NAME"
+  fi
 fi
 
 HELPER_BIN="$TARGET_DIR/vw-webview"

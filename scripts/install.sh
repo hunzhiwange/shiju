@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" >/dev/null 2>&1 && pwd || pwd)"
 INSTALLER_LOCAL="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd || pwd)/vibewindow_install.sh"
 BOOTSTRAP_LOCAL="$SCRIPT_DIR/bootstrap.sh"
-REPO_URL="https://github.com/hunzhiwange/vibewindow.git"
+REPO_URL="https://github.com/hunzhiwange/shiju.git"
 
 echo "[deprecated] scripts/install.sh -> ./vibewindow_install.sh" >&2
 

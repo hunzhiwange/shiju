@@ -2,8 +2,8 @@
 name = "vw-api-types"
 version = "0.5.1"
 edition = "2024"
-repository = "https://github.com/hunzhiwange/vibewindow"
-homepage = "https://github.com/hunzhiwange/vibewindow"
+repository = "https://github.com/hunzhiwange/shiju"
+homepage = "https://github.com/hunzhiwange/shiju"
 description = "API types for VibeWindow"
 license = "MIT"
 

@@ -2,7 +2,7 @@ pkgbase = shiju
 	pkgdesc = Rust-first autonomous agent runtime with CLI, ACP, and desktop client
 	pkgver = 0.2.3
 	pkgrel = 1
-	url = https://github.com/hunzhiwange/vibewindow
+	url = https://github.com/hunzhiwange/shiju
 	arch = x86_64
 	arch = aarch64
 	license = MIT
@@ -21,7 +21,7 @@ pkgbase = shiju
 	depends = libxkbcommon
 	depends = openssl
 	depends = webkit2gtk-4.1
-	source = shiju-0.2.3.tar.gz::https://github.com/hunzhiwange/vibewindow/archive/refs/tags/v0.2.3.tar.gz
+	source = shiju-0.2.3.tar.gz::https://github.com/hunzhiwange/shiju/archive/refs/tags/v0.2.3.tar.gz
 	sha256sums = SKIP
 
 pkgname = shiju

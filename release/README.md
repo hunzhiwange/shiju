@@ -18,13 +18,13 @@ Install the CLI with any of these commands, then run `shiju --help`:
 ```sh
 brew install hunzhiwange/tap/shiju
 npm install -g shiju
-curl --proto '=https' --tlsv1.2 -LsSf https://github.com/hunzhiwange/vibewindow/releases/latest/download/shiju-installer.sh | sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/hunzhiwange/shiju/releases/latest/download/shiju-installer.sh | sh
 ```
 
 On Windows:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/hunzhiwange/vibewindow/releases/latest/download/shiju-installer.ps1 | iex"
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/hunzhiwange/shiju/releases/latest/download/shiju-installer.ps1 | iex"
 ```
 
 Each application's `crates/vw-*/dist.toml` overrides its distribution name. Cargo crate names stay unchanged; cargo-dist uses the distribution names for archives, installer filenames, Homebrew formulas, npm packages, and release instructions. Check these outputs with `cargo dist plan --output-format=json` before tagging a release.

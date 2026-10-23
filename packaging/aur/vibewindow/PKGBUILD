@@ -1,12 +1,12 @@
 # Maintainer: ShiJu maintainers <xiangminliu1990@gmail.com>
 
 pkgname=shiju
-_repo=vibewindow
+_repo=shiju
 pkgver=0.2.3
 pkgrel=1
 pkgdesc="Rust-first autonomous agent runtime with CLI, ACP, and desktop client"
 arch=('x86_64' 'aarch64')
-url="https://github.com/hunzhiwange/vibewindow"
+url="https://github.com/hunzhiwange/shiju"
 license=('MIT')
 depends=(
   'fontconfig'

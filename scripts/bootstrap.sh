@@ -58,7 +58,7 @@ Examples:
   ./bootstrap.sh --docker
 
   # Remote one-liner
-  curl -fsSL https://raw.githubusercontent.com/hunzhiwange/vibewindow/main/scripts/bootstrap.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/hunzhiwange/shiju/main/scripts/bootstrap.sh | bash
 
 Environment:
   VIBEWINDOW_CONTAINER_CLI     Container CLI command (default: docker; auto-fallback: podman)
@@ -269,7 +269,7 @@ install_prebuilt_binary() {
     return 1
   fi
 
-  archive_url="https://github.com/hunzhiwange/vibewindow/releases/latest/download/shiju-${target}.tar.gz"
+  archive_url="https://github.com/hunzhiwange/shiju/releases/latest/download/shiju-${target}.tar.gz"
   temp_dir="$(mktemp -d -t vibewindow-prebuilt-XXXXXX)"
   archive_path="$temp_dir/shiju-${target}.tar.gz"
 
@@ -1269,7 +1269,7 @@ MSG
 SCRIPT_PATH="${BASH_SOURCE[0]:-$0}"
 SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" >/dev/null 2>&1 && pwd || pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." >/dev/null 2>&1 && pwd || pwd)"
-REPO_URL="https://github.com/hunzhiwange/vibewindow.git"
+REPO_URL="https://github.com/hunzhiwange/shiju.git"
 ORIGINAL_ARG_COUNT=$#
 GUIDED_MODE="auto"
 

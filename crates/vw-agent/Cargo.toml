@@ -83,7 +83,7 @@ vw-shared = { path = "../vw-shared", version = "0.5.3", features = ["shell-tokio
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", package = "vibewindow-aisdk", version = ">=0.7.0", features = ["full"] }
+aisdk = { git = "https://github.com/hunzhiwange/aisdk.git", package = "vibewindow-aisdk", version = ">=0.7.1", features = ["full"] }
 async-imap = { version = "0.11", features = ["runtime-tokio"], default-features = false }
 axum = { version = "0.8.8", features = ["json", "ws", "macros"] }
 crossterm = "0.29"

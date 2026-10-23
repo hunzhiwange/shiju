@@ -171,15 +171,15 @@ fn formatted_markdown_uses_one_editor_for_cross_line_selection() {
 
     assert_eq!(
         selected_chat_text_for_message(&app, 0).as_deref(),
-        Some("first\nsecond\nthird")
+        Some("first\n\nsecond\n\nthird")
     );
 }
 
 #[test]
-fn markdown_editor_text_keeps_block_boundaries_compact() {
+fn markdown_editor_text_separates_blocks_and_keeps_list_items_compact() {
     let blocks = parse_markdown_blocks("正文\n\n- 第一项\n- 第二项\n\n结尾");
 
-    assert_eq!(markdown_editor_text(&blocks), "正文\n• 第一项\n• 第二项\n结尾");
+    assert_eq!(markdown_editor_text(&blocks), "正文\n\n• 第一项\n• 第二项\n\n结尾");
 }
 
 #[test]

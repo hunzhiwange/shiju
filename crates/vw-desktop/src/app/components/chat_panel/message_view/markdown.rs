@@ -402,11 +402,21 @@ pub(crate) fn markdown_block_font(block: &MarkdownBlock) -> iced::Font {
     }
 }
 
-/// 将 Markdown 块转换为单个只读编辑器使用的连续文本。
+/// 将 Markdown 块转换为连续可选文本，块间留空行，相邻列表项保持紧凑。
 pub(crate) fn markdown_editor_text(blocks: &[MarkdownBlock]) -> String {
-    blocks
-        .iter()
-        .map(|block| match &block.kind {
+    let mut output = String::new();
+    for (index, block) in blocks.iter().enumerate() {
+        if index > 0 {
+            let is_list_item = |kind: &MarkdownBlockKind| {
+                matches!(kind, MarkdownBlockKind::BulletItem(_) | MarkdownBlockKind::OrderedItem(_))
+            };
+            if is_list_item(&blocks[index - 1].kind) && is_list_item(&block.kind) {
+                output.push('\n');
+            } else {
+                output.push_str("\n\n");
+            }
+        }
+        let text = match &block.kind {
             MarkdownBlockKind::BulletItem(level) => {
                 format!("{}• {}", "  ".repeat(usize::from(*level)), block.text)
             }
@@ -417,9 +427,10 @@ pub(crate) fn markdown_editor_text(blocks: &[MarkdownBlock]) -> String {
             MarkdownBlockKind::Heading(_)
             | MarkdownBlockKind::Paragraph
             | MarkdownBlockKind::CodeBlock(_) => block.text.clone(),
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+        };
+        output.push_str(&text);
+    }
+    output
 }
 
 /// 渲染单个 Markdown 块为可划选元素。

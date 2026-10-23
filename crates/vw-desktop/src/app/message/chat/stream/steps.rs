@@ -1,9 +1,7 @@
 //! 处理聊天流式会话事件。
 //! 本模块把网关轮询和流式增量落到会话状态，避免 UI 层理解传输细节。
 
-use super::{
-    ChatMessage, load_session_or_default, now_ms, save_session_task, session_directory_for_save,
-};
+use super::{ChatMessage, load_session_or_default, now_ms};
 use crate::app::{App, Message, models};
 use iced::Task;
 use vw_gateway_client::{GatewayChatToolEvent, GatewayChatToolEventKind};
@@ -271,8 +269,7 @@ pub(super) fn handle_agent_step_start(
     start_llm_timer_at(app.get_session_runtime_mut(&session_id), web_time::Instant::now());
     let mut session = load_session_or_default(app, session_id.clone());
     upsert_step_start(&mut session, step_index, created_ms, model, None);
-    let save_task =
-        save_session_task(session.clone(), session_directory_for_save(app, &session_id));
+    // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
     if app.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = session
             .steps
@@ -294,7 +291,7 @@ pub(super) fn handle_agent_step_start(
             session.message_ids.clone(),
         );
     }
-    save_task
+    Task::none()
 }
 
 /// 模块内可见函数，执行 handle_agent_step_finish 对应的应用流程。
@@ -333,8 +330,7 @@ pub(super) fn handle_agent_step_finish(
         finish_reason,
         model.clone(),
     );
-    let save_task =
-        save_session_task(session.clone(), session_directory_for_save(app, &session_id));
+    // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
     if app.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = session
             .steps
@@ -361,7 +357,6 @@ pub(super) fn handle_agent_step_finish(
         super::super::trajectory::refresh_missing_raw_task(app, &session_id, Some(step_index));
 
     Task::batch(vec![
-        save_task,
         Task::perform(compute_step_cost(model, usage), move |(resolved_model, cost)| {
             Message::Chat(ChatMessage::AgentStepCostLoaded(
                 id,
@@ -385,8 +380,7 @@ pub(super) fn handle_agent_tool_lifecycle(
     };
     let mut session = load_session_or_default(app, session_id.clone());
     merge_tool_lifecycle(&mut session, event);
-    let save_task =
-        save_session_task(session.clone(), session_directory_for_save(app, &session_id));
+    // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
     if app.active_session_id.as_ref() == Some(&session_id) {
         app.active_session_view_state.updated_ms = session.updated_ms;
         if let Some(step) = session.steps.iter().find(|step| step.index == event.step_index) {
@@ -399,7 +393,7 @@ pub(super) fn handle_agent_tool_lifecycle(
             session.message_ids.clone(),
         );
     }
-    save_task
+    Task::none()
 }
 
 /// 模块内可见函数，执行 handle_agent_step_cost_loaded 对应的应用流程。
@@ -443,8 +437,7 @@ pub(super) fn handle_agent_step_cost_loaded(
         crate::app::session::bind_message_model_to_step(&mut session.messages, step_index, model);
     }
     session.updated_ms = session.updated_ms.max(now_ms());
-    let save_task =
-        save_session_task(session.clone(), session_directory_for_save(app, &session_id));
+    // 运行时负责持久化步骤；此处仅更新投影，避免整份快照与消息增量竞争。
     if app.active_session_id.as_ref() == Some(&session_id) {
         if let Some(model) = message_model.as_deref() {
             crate::app::session::bind_message_model_to_step(&mut app.chat, step_index, model);
@@ -461,7 +454,7 @@ pub(super) fn handle_agent_step_cost_loaded(
             session.message_ids.clone(),
         );
     }
-    save_task
+    Task::none()
 }
 #[cfg(test)]
 #[path = "steps_tests.rs"]

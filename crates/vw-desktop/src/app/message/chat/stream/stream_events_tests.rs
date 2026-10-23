@@ -867,6 +867,20 @@ fn stale_stream_session_delta_rebases_before_retry() {
     assert_eq!(runtime.stream_save_expected_updated_ms, 4_200_000_000_042);
     assert!(runtime.stream_save_flush_scheduled);
     assert!(retry.units() > 0);
+    assert_eq!(runtime.stream_save_dirty_records[0].message.content, "retry me");
+    let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
+    let (generation, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+    assert!(updated_ms > 4_200_000_000_042);
+    let _ = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        generation,
+        revision,
+        updated_ms,
+        Ok(()),
+    );
+    assert!(app.get_session_runtime(&session_id).stream_save_dirty_records.is_empty());
 }
 
 #[test]

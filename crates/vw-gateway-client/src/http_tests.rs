@@ -366,3 +366,24 @@ fn log_helpers_accept_empty_and_non_empty_request_metadata() {
     super::log_request_succeeded("GET", &endpoint, "/v1/git/command");
     super::log_request_succeeded("GET", &endpoint, "/v1/other");
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn message_delta_conflict_remains_an_error_without_generic_failure_log() {
+    let captured = CapturedEvents::default();
+    let _guard = tracing::subscriber::set_default(captured.clone());
+    let endpoint = GatewayEndpoint::new("127.0.0.1", 0);
+    let server = test_support::server(vec![(409, json!({"error": "stale session message delta"}))]);
+    let response = reqwest::Client::new()
+        .patch(format!("{}/v1/session/test/ui/messages", server.base_url()))
+        .send()
+        .await
+        .expect("response");
+    let error =
+        super::response_error("PATCH", &endpoint, "/v1/session/test/ui/messages", response).await;
+    assert!(error.contains("409 Conflict"));
+    let logs = captured.joined();
+    assert!(logs.contains("gateway session message version conflict"));
+    assert!(!logs.contains("gateway request returned non-success status"));
+    assert_eq!(server.take_request().path, "/v1/session/test/ui/messages");
+    server.join();
+}

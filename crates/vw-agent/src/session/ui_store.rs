@@ -254,7 +254,9 @@ fn log_session_store_error(
     scope: Option<&str>,
     error: &anyhow::Error,
 ) {
-    if error.to_string().contains("stale session message delta") {
+    if error.to_string().contains("stale session message delta")
+        || error.to_string().contains("stale session UI content")
+    {
         tracing::debug!(
             target: "vw_agent",
             operation,

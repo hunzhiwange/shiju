@@ -385,7 +385,13 @@ pub(super) async fn session_ui_save(
     })
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;
-    let _path = path.map_err(|error| ApiError::internal(error.to_string()))?;
+    let _path = path.map_err(|error| {
+        if error.to_string().contains("stale session UI content") {
+            ApiError::conflict(error.to_string())
+        } else {
+            ApiError::internal(error.to_string())
+        }
+    })?;
     Ok(Json(true))
 }
 

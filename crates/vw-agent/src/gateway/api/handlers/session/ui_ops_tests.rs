@@ -1393,3 +1393,30 @@ async fn ui_snapshot_handlers_isolate_same_session_id_across_tenants() {
     assert_eq!(loaded_a.messages[0].content, "alpha");
     assert_eq!(loaded_b.messages[0].content, "beta");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_save_returns_conflict_for_stale_content() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().expect("project dir");
+    let session_id = "ui-save-version-conflict";
+    let newer = scoped_session(session_id, "Newer", "new content", 200);
+    let _ = session_ui_save(
+        Path(session_id.to_string()),
+        Query(query_for(project.path())),
+        HeaderMap::new(),
+        Json(newer),
+    )
+    .await
+    .expect("save newer content");
+    let stale = scoped_session(session_id, "Older", "old content", 100);
+    let error = session_ui_save(
+        Path(session_id.to_string()),
+        Query(query_for(project.path())),
+        HeaderMap::new(),
+        Json(stale),
+    )
+    .await
+    .expect_err("stale content must fail");
+    assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
+}

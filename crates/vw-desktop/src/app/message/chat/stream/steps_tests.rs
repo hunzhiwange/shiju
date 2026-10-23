@@ -384,7 +384,7 @@ fn handle_agent_step_start_creates_step_in_active_session_view() {
     app.get_session_runtime_mut(&session_id).active_agent_request =
         Some(agent_request(42, &session_id));
 
-    let _task = super::handle_agent_step_start(
+    let task = super::handle_agent_step_start(
         &mut app,
         42,
         session_id,
@@ -393,6 +393,7 @@ fn handle_agent_step_start_creates_step_in_active_session_view() {
         Some("model-x".to_string()),
     );
 
+    assert_eq!(task.units(), 0, "step projection must not submit a full UI snapshot");
     assert_eq!(app.active_session_view_state.steps.len(), 1);
     assert_eq!(app.active_session_view_state.steps[0].index, 1);
     assert_eq!(app.active_session_view_state.steps[0].started_ms, 100);

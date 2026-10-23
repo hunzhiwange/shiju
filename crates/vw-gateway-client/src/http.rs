@@ -127,15 +127,29 @@ pub async fn response_error(
     let status = response.status();
     let body = response.text().await.unwrap_or_default();
     let sanitized_body = sanitize_payload(&body);
-    warn!(
-        target: "vw_gateway_client",
-        method = method,
-        endpoint = %endpoint.describe(),
-        path = path,
-        status = %status,
-        response_body = %sanitized_body,
-        "gateway request returned non-success status"
-    );
+    // 消息增量的版本冲突由调用方刷新版本后重试，仍将错误返回给调用方。
+    if method == "PATCH"
+        && path.starts_with("/v1/session/")
+        && path.ends_with("/ui/messages")
+        && status == reqwest::StatusCode::CONFLICT
+        && body.contains("stale session message delta")
+    {
+        debug!(
+            target: "vw_gateway_client",
+            method, path, status = %status,
+            "gateway session message version conflict"
+        );
+    } else {
+        warn!(
+            target: "vw_gateway_client",
+            method = method,
+            endpoint = %endpoint.describe(),
+            path = path,
+            status = %status,
+            response_body = %sanitized_body,
+            "gateway request returned non-success status"
+        );
+    }
     if sanitized_body.is_empty() {
         format!("gateway request failed: {status}")
     } else {
@@ -175,15 +189,29 @@ pub fn response_error_blocking(
     let status = response.status();
     let body = response.text().unwrap_or_default();
     let sanitized_body = sanitize_payload(&body);
-    warn!(
-        target: "vw_gateway_client",
-        method = method,
-        endpoint = %endpoint.describe(),
-        path = path,
-        status = %status,
-        response_body = %sanitized_body,
-        "gateway request returned non-success status"
-    );
+    // 消息增量的版本冲突由调用方刷新版本后重试，仍将错误返回给调用方。
+    if method == "PATCH"
+        && path.starts_with("/v1/session/")
+        && path.ends_with("/ui/messages")
+        && status == reqwest::StatusCode::CONFLICT
+        && body.contains("stale session message delta")
+    {
+        debug!(
+            target: "vw_gateway_client",
+            method, path, status = %status,
+            "gateway session message version conflict"
+        );
+    } else {
+        warn!(
+            target: "vw_gateway_client",
+            method = method,
+            endpoint = %endpoint.describe(),
+            path = path,
+            status = %status,
+            response_body = %sanitized_body,
+            "gateway request returned non-success status"
+        );
+    }
     if sanitized_body.is_empty() {
         format!("gateway request failed: {status}")
     } else {

@@ -1211,3 +1211,38 @@ fn scoped_row_count(database: &GlobalDatabase, table: &str, scope: &ProjectScope
             .try_get(0)?),
     }
 }
+
+#[test]
+fn ordinary_reply_delta_persists_after_version_conflict() -> Result<()> {
+    for_each_session_store_provider(|fixture| {
+        let scope = fixture.create_project(&fixture.tenant_a, "reply-conflict")?;
+        let session = sample_session("reply-conflict", "Reply", 200);
+        fixture.store.save_session(&scope, &session)?;
+        let mut delta = SessionMessageDelta {
+            session_id: session.id.clone(),
+            expected_updated_ms: 100,
+            updated_ms: 201,
+            upserts: vec![SessionMessageRecord {
+                seq_no: 1,
+                message_id: Some("reply-id".to_owned()),
+                message: ChatMessage {
+                    role: ChatRole::Assistant,
+                    content: "普通回复完整内容".to_owned(),
+                    model: None,
+                    think_timing: Vec::new(),
+                    processing_timing: None,
+                },
+            }],
+            truncate_after: None,
+        };
+        assert!(fixture.store.apply_session_message_delta(&scope, &delta).is_err());
+        let stored = fixture.store.load_session(&scope, &session.id)?.expect("stored session");
+        delta.expected_updated_ms = stored.updated_ms;
+        fixture.store.apply_session_message_delta(&scope, &delta)?;
+        let saved = fixture.store.load_session(&scope, &session.id)?.expect("saved session");
+        assert_eq!(saved.messages[1].content, "普通回复完整内容");
+        assert_eq!(saved.message_ids[1].as_deref(), Some("reply-id"));
+        assert_json_eq!(&saved.messages[0], &session.messages[0]);
+        Ok(())
+    })
+}

@@ -10,7 +10,9 @@ LINUX_DESKTOP_SOURCE="${LINUX_DESKTOP_SOURCE:-release/linux/vibewindow.desktop}"
 CREATE_DEB="${CREATE_DEB:-1}"
 CREATE_RPM="${CREATE_RPM:-1}"
 
-BIN_DIR="target/$TARGET/$PROFILE"
+# Match .cargo/config.toml and honor Cargo's target directory override.
+TARGET_ROOT="${CARGO_TARGET_DIR:-target-dir}"
+BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
 WORK_DIR="$OUT_DIR/linux-package-$TARGET"
 ROOT_DIR="$WORK_DIR/root"
 

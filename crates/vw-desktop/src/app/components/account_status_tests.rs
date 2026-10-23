@@ -42,6 +42,44 @@ fn account_trigger_labels_cover_signed_out_active_and_busy_states() {
 }
 
 #[test]
+fn account_trigger_label_follows_active_user_company_and_sign_out() {
+    use crate::app::account::{
+        AccountIdentity, AccountOrigin, AccountProfile, AccountRepository, SecretSkey,
+        VerifiedAccount,
+    };
+
+    let (mut app, _) = App::new();
+    let mut repository = AccountRepository::default();
+    let first = repository.upsert_verified(
+        VerifiedAccount::from_parts_with_profile(
+            AccountIdentity::from_profile("成都示例公司", "enabled").unwrap(),
+            AccountProfile::new("enabled", "刘祥敏", "user-one", "enabled", vec![], vec![])
+                .unwrap(),
+            SecretSkey::new("fixture-one").unwrap(),
+        ),
+        AccountOrigin::BrowserLogin,
+    );
+    let legacy = repository.upsert_verified(
+        VerifiedAccount::from_parts(
+            AccountIdentity::from_profile("另一公司", "enabled").unwrap(),
+            SecretSkey::new("fixture-two").unwrap(),
+        ),
+        AccountOrigin::ManualSkey,
+    );
+    repository.activate(&first).unwrap();
+    app.account.replace_repository(repository.clone());
+    assert_eq!(trigger_label(&app), "刘祥敏（成都示例公司）");
+
+    repository.activate(&legacy).unwrap();
+    app.account.replace_repository(repository.clone());
+    assert_eq!(trigger_label(&app), "另一公司");
+
+    repository.sign_out();
+    app.account.replace_repository(repository);
+    assert_eq!(trigger_label(&app), "登录账号");
+}
+
+#[test]
 fn account_styles_keep_dark_and_light_contrast() {
     for theme in [Theme::Dark, Theme::Light] {
         let style = menu_style(&theme);

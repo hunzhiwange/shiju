@@ -2,8 +2,8 @@
 //! 亮度阈值两侧和恰好位于阈值的主题 fixture 用于锁定严格比较语义。
 
 use super::{
-    empty_session_placeholder, empty_session_title, is_dark_theme, placeholder_chip_style,
-    session_loading_placeholder,
+    empty_session_placeholder, empty_session_title, is_dark_theme, login_greeting,
+    placeholder_chip_style, session_loading_placeholder,
 };
 use crate::app::{App, state::WorkspaceMode};
 use iced::{Background, Color, Theme, theme::Palette};
@@ -12,6 +12,16 @@ use iced::{Background, Color, Theme, theme::Palette};
 fn empty_session_title_matches_workspace_mode() {
     assert_eq!(empty_session_title(WorkspaceMode::Code), "识矩软件智能体");
     assert_eq!(empty_session_title(WorkspaceMode::Work), "您的专属 AI 工作助理");
+}
+
+#[test]
+fn login_greeting_uses_current_user_at_noon_boundary() {
+    for hour in [0, 9, 11] {
+        assert_eq!(login_greeting("刘祥敏", hour), "上午好，刘祥敏");
+    }
+    for hour in [12, 15, 23] {
+        assert_eq!(login_greeting("李明", hour), "下午好，李明");
+    }
 }
 
 #[test]
@@ -94,6 +104,7 @@ fn empty_session_placeholder_produces_element_with_default_app() {
 fn empty_session_placeholder_produces_element_with_context() {
     let mut app = App::new().0;
     app.project_path = Some("/project".into());
+    app.project_is_git_repo = true;
     app.selected_branch = Some("develop".into());
     app.project_updated_at_ms = Some(2_000_000);
     let _element = empty_session_placeholder(&app);

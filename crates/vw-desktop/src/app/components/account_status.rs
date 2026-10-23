@@ -18,14 +18,20 @@ fn install_guide_message() -> Message {
     Message::SkillHub(SkillHubMessage::OpenInstallGuide)
 }
 
-/// 返回账号入口当前应展示的操作状态或活动公司名称。
+/// 返回账号入口当前应展示的操作状态或登录人及公司。
 pub(crate) fn trigger_label(app: &App) -> String {
     if let Some(label) = app.account.operation.label() {
         return label.to_string();
     }
     app.account
         .active_account()
-        .map(|account| account.identity().company_name().to_string())
+        .map(|account| {
+            let company = account.identity().company_name();
+            match account.profile() {
+                Some(profile) => format!("{}（{company}）", profile.name()),
+                None => company.to_string(),
+            }
+        })
         .unwrap_or_else(|| "登录账号".to_string())
 }
 

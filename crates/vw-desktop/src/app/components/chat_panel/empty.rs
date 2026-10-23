@@ -1,6 +1,7 @@
 //! 渲染聊天面板空状态。
 //! 空状态保持为纯 UI 组件，不携带会话业务逻辑。
 
+use chrono::Timelike;
 use iced::widget::svg;
 use iced::widget::{Image, Space, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
@@ -18,6 +19,11 @@ fn empty_session_title(workspace_mode: WorkspaceMode) -> &'static str {
         WorkspaceMode::Code => "识矩软件智能体",
         WorkspaceMode::Work => "您的专属 AI 工作助理",
     }
+}
+
+fn login_greeting(name: &str, hour: u32) -> String {
+    let greeting = if hour < 12 { "上午好" } else { "下午好" };
+    format!("{greeting}，{name}")
 }
 
 fn is_dark_theme(theme: &Theme) -> bool {
@@ -203,6 +209,7 @@ pub fn session_loading_placeholder(_app: &App) -> Element<'_, Message> {
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
+    let name = app.account.active_account().and_then(|account| account.profile()).map(|p| p.name());
     let logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(96.0))
@@ -212,56 +219,60 @@ pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
     .height(Length::Fixed(96.0));
 
     let path_text = current_project_path_label(app);
-    let branch_text = format!("分支 {}", current_branch_label(app));
-    let modified_text = relative_modified_label(app);
-    let branch_row = container(
-        row![
-            icon_svg(Icon::GitBranch).style(|theme: &Theme, _status| svg::Style {
-                color: Some(muted_icon_color(theme))
-            }),
-            text(branch_text).size(15),
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center),
-    )
-    .padding([6, 10])
-    .style(placeholder_chip_style);
-    let modified_row = container(
-        row![
-            icon_svg(Icon::Clock).style(|theme: &Theme, _status| svg::Style {
-                color: Some(muted_icon_color(theme))
-            }),
-            text(modified_text).size(15),
-        ]
-        .spacing(6)
-        .align_y(Alignment::Center),
-    )
-    .padding([6, 10])
-    .style(placeholder_chip_style);
+    let mut content = column![logo].spacing(12).align_x(iced::alignment::Horizontal::Center);
+    if let Some(name) = name {
+        content = content.push(
+            text(login_greeting(name, chrono::Local::now().hour())).size(26).font(bold_font()),
+        );
+    }
+    content = content
+        .push(text(empty_session_title(app.workspace_mode)).size(26).font(bold_font()))
+        .push(text(path_text).size(14).style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.palette().text.scale_alpha(0.72)),
+        }));
 
-    container(
-        container(
-            column![
-                logo,
-                text(empty_session_title(app.workspace_mode)).size(26).font(bold_font()),
-                text(path_text).size(14).style(|theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.palette().text.scale_alpha(0.72)),
+    if app.project_is_git_repo {
+        let branch_text = format!("分支 {}", current_branch_label(app));
+        let modified_text = relative_modified_label(app);
+        let branch_row = container(
+            row![
+                icon_svg(Icon::GitBranch).style(|theme: &Theme, _status| svg::Style {
+                    color: Some(muted_icon_color(theme))
                 }),
-                column![branch_row, modified_row]
-                    .spacing(10)
-                    .align_x(iced::alignment::Horizontal::Center),
+                text(branch_text).size(15),
             ]
-            .spacing(12)
-            .align_x(iced::alignment::Horizontal::Center),
+            .spacing(6)
+            .align_y(Alignment::Center),
         )
-        .padding([30, 34]),
-    )
-    .width(Length::Fill)
-    .height(Length::Fill)
-    .center_x(Length::Fill)
-    .center_y(Length::Fill)
-    .padding(28)
-    .into()
+        .padding([6, 10])
+        .style(placeholder_chip_style);
+        let modified_row = container(
+            row![
+                icon_svg(Icon::Clock).style(|theme: &Theme, _status| svg::Style {
+                    color: Some(muted_icon_color(theme))
+                }),
+                text(modified_text).size(15),
+            ]
+            .spacing(6)
+            .align_y(Alignment::Center),
+        )
+        .padding([6, 10])
+        .style(placeholder_chip_style);
+
+        content = content.push(
+            column![branch_row, modified_row]
+                .spacing(10)
+                .align_x(iced::alignment::Horizontal::Center),
+        );
+    }
+
+    container(container(content).padding([30, 34]))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fill)
+        .padding(28)
+        .into()
 }
 #[cfg(test)]
 #[path = "empty_tests.rs"]

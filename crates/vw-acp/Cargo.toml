@@ -1,6 +1,6 @@
 [package]
 name = "vw-acp"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -27,9 +27,9 @@ time = { version = "0.3", features = ["formatting", "parsing"] }
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "process", "rt", "rt-multi-thread", "signal", "sync", "time"] }
 tokio-util = { version = "0.7.18", features = ["compat"] }
 tracing = "0.1"
-vw-api-types = { path = "../vw-api-types", version = "0.5.3" }
-vw-config-types = { path = "../vw-config-types", version = "0.5.3" }
-vw-shared = { path = "../vw-shared", version = "0.5.3", features = ["shell-tokio"] }
+vw-api-types = { path = "../vw-api-types", version = "0.5.4" }
+vw-config-types = { path = "../vw-config-types", version = "0.5.4" }
+vw-shared = { path = "../vw-shared", version = "0.5.4", features = ["shell-tokio"] }
 
 [dev-dependencies]
 tempfile = "3"

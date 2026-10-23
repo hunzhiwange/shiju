@@ -1,6 +1,6 @@
 [package]
 name = "vw-agent"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -74,12 +74,12 @@ uuid = { version = "1.11", features = ["v4", "js"] }
 walkdir = "2"
 webpki-roots = "1.0"
 web-time = "1.1.0"
-vw-config-types = { path = "../vw-config-types", version = "0.5.3" }
-vw-gateway-client = { path = "../vw-gateway-client", version = "0.5.3" }
-vw-api-types = { path = "../vw-api-types", version = "0.5.3" }
-vw-acp = { path = "../vw-acp", version = "0.5.3" }
-vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.5.3" }
-vw-shared = { path = "../vw-shared", version = "0.5.3", features = ["shell-tokio"] }
+vw-config-types = { path = "../vw-config-types", version = "0.5.4" }
+vw-gateway-client = { path = "../vw-gateway-client", version = "0.5.4" }
+vw-api-types = { path = "../vw-api-types", version = "0.5.4" }
+vw-acp = { path = "../vw-acp", version = "0.5.4" }
+vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.5.4" }
+vw-shared = { path = "../vw-shared", version = "0.5.4", features = ["shell-tokio"] }
 agent-client-protocol = { version = "0.10.4", features = ["unstable_session_usage", "unstable_session_resume"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -1,6 +1,6 @@
 [package]
 name = "vw-desktop"
-version = "0.5.3"
+version = "0.5.4"
 edition = "2024"
 repository = "https://github.com/hunzhiwange/shiju"
 homepage = "https://github.com/hunzhiwange/shiju"
@@ -62,10 +62,10 @@ urlencoding = "2.1"
 walkdir = "2"
 web-time = "1.1.0"
 zip = { version = "8.6", default-features = false, features = ["deflate-flate2-zlib-rs"] }
-vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.5.3" }
-vw-config-types = { path = "../vw-config-types", version = "0.5.3" }
-vw-gateway-client = { path = "../vw-gateway-client", version = "0.5.3" }
-vw-shared = { path = "../vw-shared", version = "0.5.3" }
+vw-provider-resolver = { path = "../vw-provider-resolver", version = "0.5.4" }
+vw-config-types = { path = "../vw-config-types", version = "0.5.4" }
+vw-gateway-client = { path = "../vw-gateway-client", version = "0.5.4" }
+vw-shared = { path = "../vw-shared", version = "0.5.4" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = "3.4"

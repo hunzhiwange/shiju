@@ -11713,8 +11713,8 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vibewindow-aisdk"
-version = "0.7.0"
-source = "git+https://github.com/hunzhiwange/aisdk.git#eb1fbe1f64aba1e54683d5b5f2b1e5f6c5ac6c25"
+version = "0.7.1"
+source = "git+https://github.com/hunzhiwange/aisdk.git#1a87cb54ca09f01125bbf985a3886e3ea19ca679"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -11738,7 +11738,7 @@ dependencies = [
 [[package]]
 name = "vibewindow-aisdk-macros"
 version = "0.3.0"
-source = "git+https://github.com/hunzhiwange/aisdk.git#eb1fbe1f64aba1e54683d5b5f2b1e5f6c5ac6c25"
+source = "git+https://github.com/hunzhiwange/aisdk.git#1a87cb54ca09f01125bbf985a3886e3ea19ca679"
 dependencies = [
  "proc-macro2",
  "quote",

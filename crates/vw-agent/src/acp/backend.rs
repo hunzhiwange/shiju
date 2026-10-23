@@ -195,9 +195,9 @@ fn runtime_request(
         root: Some(scope.directory().to_string_lossy().into_owned()),
         model: None,
         reliability,
-        options: json!({
-            "acp_agent": "vibewindow",
-        }),
+        // `acp_agent` 用于选择外部 ACP Agent；入站请求使用原生模型与本地工具，
+        // 传输来源由 channel_name 记录。
+        options: json!({}),
         approval: Some(approval),
         channel_name: Some("acp".to_string()),
         non_cli_approval_context: Some(non_cli_approval_context),

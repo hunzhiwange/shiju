@@ -77,6 +77,35 @@ async fn backend_prompt_persists_turn_once() {
     crate::project::instance::dispose_all().await;
 }
 
+#[tokio::test]
+async fn backend_prompt_uses_native_model_and_local_tools() {
+    let root = TempDir::new().expect("temporary cwd");
+    let backend = VibeWindowBackend::new(tenant("native-route"));
+    let created =
+        SessionBackend::create_session(&backend, root.path().to_path_buf()).await.expect("create");
+    let mut prompt = start_prompt_with_runtime_runner(
+        &backend,
+        &created.id,
+        vec![PromptContent::Text("hello".to_string())],
+        |request, mut emit| {
+            assert_eq!(request.channel_name.as_deref(), Some("acp"));
+            assert!(request.model.is_none());
+            assert!(crate::session::processor::should_execute_structured_tool_calls_locally(
+                &request.options
+            ));
+            emit(StreamEvent::Done(TokenUsage::default()));
+        },
+    )
+    .await
+    .expect("prompt");
+
+    let terminal = tokio::time::timeout(Duration::from_secs(5), prompt.events.recv())
+        .await
+        .expect("terminal timeout")
+        .expect("terminal event");
+    assert_eq!(terminal, BackendEvent::Terminal(BackendTermination::EndTurn));
+}
+
 #[test]
 fn backend_maps_runtime_events_without_parsing_display_text() {
     let payload = json!({

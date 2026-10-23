@@ -32,6 +32,18 @@ pub(crate) enum AccountNotice {
 #[derive(Debug, Clone)]
 /// 账号登录、资料编辑和密码修改流程中的输入及异步结果消息。
 pub(crate) enum AccountMessage {
+    ResetModels {
+        generation: u64,
+    },
+    ModelTokenLoaded {
+        generation: u64,
+        account_id: String,
+        result: Result<vw_gateway_client::ShijuModelTokenDto, String>,
+    },
+    ModelsConfigured {
+        generation: u64,
+        result: Result<(), String>,
+    },
     RepositoryLoaded(Result<AccountRepository, String>),
     ToggleMenu,
     CloseMenu,
@@ -225,16 +237,25 @@ fn shiju_key_sync_task(app: &App, notice: AccountNotice) -> Task<Message> {
 /// 应用账号状态转换，并为需要的网关或持久化工作返回异步任务。
 pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
     match message {
+        AccountMessage::ResetModels { generation } => {
+            super::settings::providers::managed_shiju::reset(app, generation)
+        }
+        AccountMessage::ModelTokenLoaded { generation, account_id, result } => {
+            super::settings::providers::managed_shiju::token_loaded(
+                app, generation, account_id, result,
+            )
+        }
+        AccountMessage::ModelsConfigured { generation, result } => {
+            super::settings::providers::managed_shiju::configured(app, generation, result)
+        }
         AccountMessage::RepositoryLoaded(result) => {
             match result {
                 Ok(repository) => app.account.replace_repository(repository),
                 Err(error) => return app.show_error_toast(format!("账户配置加载失败：{error}")),
             }
-            if app.account.active_account().is_some() {
-                crate::app::message::skill_hub::account_changed(app)
-            } else {
-                Task::none()
-            }
+            let reload = crate::app::message::skill_hub::account_changed(app);
+            let models = super::settings::providers::managed_shiju::sync(app);
+            Task::batch([reload, models])
         }
         AccountMessage::ToggleMenu => {
             app.account.menu_open = !app.account.menu_open;
@@ -629,7 +650,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     };
                     let reload = crate::app::message::skill_hub::account_changed(app);
                     let sync = shiju_key_sync_task(app, notice);
-                    Task::batch([feedback, reload, sync])
+                    let models = super::settings::providers::managed_shiju::sync(app);
+                    Task::batch([feedback, reload, sync, models])
                 }
                 Err(error) => app.show_error_toast(format!("账户配置保存失败：{error}")),
             }

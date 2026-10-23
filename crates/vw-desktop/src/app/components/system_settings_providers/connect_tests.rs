@@ -12,6 +12,20 @@ fn test_app() -> App {
     App::new().0
 }
 
+#[test]
+fn shiju_model_key_dialog_remains_hidden_even_with_stale_modal_state() {
+    let mut app = test_app();
+    app.provider_settings.connect_modal = Some(ProviderConnectState {
+        provider_id: "shiju".to_string(),
+        provider_name: "识矩".to_string(),
+        api_key: "issued-model-secret".to_string(),
+    });
+    let base: Element<'_, Message> = container(text("base")).width(Length::Fixed(321.0)).into();
+    let element = super::connect::view_overlays(&app, base);
+    assert_eq!(element.as_widget().size().width, Length::Fixed(321.0));
+    assert!(element.as_widget().children().is_empty());
+}
+
 fn connect_app(provider_name: &str, api_key: &str, error: Option<&str>) -> App {
     let mut app = test_app();
     app.provider_settings.connect_modal = Some(ProviderConnectState {

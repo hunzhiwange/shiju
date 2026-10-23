@@ -8,11 +8,11 @@ use std::thread;
 use super::*;
 
 // 轻量 HTTP 夹具按顺序返回响应并回收请求文本，便于同时断言路由、头部和载荷。
-fn fixture(responses: Vec<String>) -> (String, thread::JoinHandle<Vec<String>>) {
+pub(super) fn fixture(responses: Vec<String>) -> (String, thread::JoinHandle<Vec<String>>) {
     fixture_with_status(responses.into_iter().map(|body| ("200 OK".to_string(), body)).collect())
 }
 
-fn fixture_with_status(
+pub(super) fn fixture_with_status(
     responses: Vec<(String, String)>,
 ) -> (String, thread::JoinHandle<Vec<String>>) {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind SHIJU fixture");

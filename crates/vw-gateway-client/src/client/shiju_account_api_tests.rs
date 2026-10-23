@@ -17,6 +17,26 @@ use super::{
 };
 use crate::client::test_support;
 
+#[tokio::test]
+async fn shiju_model_token_client_keeps_login_and_model_credentials_separate() {
+    let server = test_support::server(vec![(
+        200,
+        json!({
+            "key": "issued-model-secret", "endpoint_url": "https://router.shiju.cloud/v1"
+        }),
+    )]);
+    let credential = ShijuCredential::new("login-secret").unwrap();
+    let token = server.client().shiju_model_token(&credential).await.unwrap();
+    let request = server.take_request();
+    assert_eq!(request.method, "PUT");
+    assert_eq!(request.path, "/v1/shiju/models/token");
+    assert_eq!(request.header(SHIJU_CREDENTIAL_HEADER), Some("login-secret"));
+    assert_eq!(request.body, serde_json::Value::Null);
+    assert_eq!(token.key.expose(), "issued-model-secret");
+    assert!(!format!("{token:?}").contains("issued-model-secret"));
+    server.join();
+}
+
 #[derive(Clone, Default)]
 struct CapturedEvents(Arc<Mutex<Vec<String>>>);
 

@@ -22,6 +22,9 @@ const ACCOUNT_PASSWORD_PATH: &str = "/iam/api/v1/me/password";
 const LOGIN_SOURCE: &str = "shiju-cli";
 const AUTHORIZATION_HOST: &str = "auth.shiju.cloud";
 
+#[path = "model_token.rs"]
+mod model_token;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// SHIJU 账户接口的输入或上游响应错误。
 pub(crate) enum ShijuAccountError {

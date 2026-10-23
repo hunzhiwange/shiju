@@ -108,6 +108,7 @@ pub(crate) struct AccountState {
     profile_generation: u64,
     pub(crate) password_editor: AccountPasswordEditorState,
     password_generation: u64,
+    model_generation: u64,
 }
 
 impl Default for AccountState {
@@ -123,11 +124,21 @@ impl Default for AccountState {
             profile_generation: 0,
             password_editor: AccountPasswordEditorState::Closed,
             password_generation: 0,
+            model_generation: 0,
         }
     }
 }
 
 impl AccountState {
+    pub(crate) fn begin_model_sync(&mut self) -> u64 {
+        self.model_generation = self.model_generation.wrapping_add(1);
+        self.model_generation
+    }
+
+    pub(crate) fn model_sync_is_current(&self, generation: u64) -> bool {
+        self.model_generation == generation
+    }
+
     pub(crate) fn repository(&self) -> &AccountRepository {
         &self.repository
     }

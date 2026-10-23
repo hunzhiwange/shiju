@@ -1,6 +1,7 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
 mod helpers;
+pub(crate) mod managed_shiju;
 mod models;
 mod tasks;
 mod updates;

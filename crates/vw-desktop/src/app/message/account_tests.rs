@@ -290,7 +290,7 @@ fn successful_login_and_switch_schedule_shiju_key_sync() {
             AccountMessage::RepositoryPersisted { generation, notice, result: Ok(repository) },
         );
 
-        assert_eq!(task.units(), 3);
+        assert_eq!(task.units(), 4);
         assert!(app.account.active_account().is_some());
     }
 }
@@ -310,7 +310,7 @@ fn sign_out_and_delete_do_not_sync_shiju_key() {
             },
         );
 
-        assert_eq!(task.units(), 1);
+        assert_eq!(task.units(), 2);
         assert!(app.account.active_account().is_none());
     }
 }

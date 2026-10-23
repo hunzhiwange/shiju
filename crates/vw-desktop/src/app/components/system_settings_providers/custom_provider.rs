@@ -206,13 +206,22 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             |v| Message::Settings(message::SettingsMessage::CustomProviderBaseUrlChanged(v)),
         );
 
-        let api_key_row = secure_text_row(
-            "API Key",
-            "可选默认密钥；填写后会作为 Authorization 头使用。",
-            "sk-...",
-            &s.custom.api_key,
-            |v| Message::Settings(message::SettingsMessage::CustomProviderApiKeyChanged(v)),
-        );
+        let api_key_row = if crate::app::state::is_shiju_official_provider_id(&s.custom.provider_id)
+        {
+            field_row(
+                "账户自动授权",
+                "登录识矩账户后自动配置模型，无需填写模型密钥。",
+                text("密钥由账户管理，不显示明文").style(settings_muted_text_style),
+            )
+        } else {
+            secure_text_row(
+                "API Key",
+                "可选默认密钥；填写后会作为 Authorization 头使用。",
+                "sk-...",
+                &s.custom.api_key,
+                |v| Message::Settings(message::SettingsMessage::CustomProviderApiKeyChanged(v)),
+            )
+        };
 
         let mut headers_controls = column![
             row![

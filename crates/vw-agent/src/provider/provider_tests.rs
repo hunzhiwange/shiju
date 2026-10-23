@@ -390,3 +390,13 @@ async fn agent_provider_explicit_model_capabilities_match_resolver_contract() {
     assert_eq!(model.limit.input, Some(60000));
     assert_eq!(model.limit.output, 4096);
 }
+#[test]
+fn shiju_model_credential_changes_invalidate_provider_fingerprint() {
+    let config = config::Config::default();
+    let first = auth::Info::Api(auth::ApiInfo { key: "first-model-key".to_string() });
+    let next = auth::Info::Api(auth::ApiInfo { key: "next-model-key".to_string() });
+    let fingerprint = |info| config_fingerprint_with_shiju_auth(&config, info);
+    assert_ne!(fingerprint(None), fingerprint(Some(&first)));
+    assert_ne!(fingerprint(Some(&first)), fingerprint(Some(&next)));
+    assert_eq!(fingerprint(Some(&first)), fingerprint(Some(&first)));
+}

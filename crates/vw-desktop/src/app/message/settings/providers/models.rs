@@ -12,7 +12,7 @@ use vw_shared::auth::{self as shared_auth};
 use super::super::util::load_gateway_providers;
 use super::helpers::{build_catalog_from_sources, load_popular_providers_from_config};
 
-fn auth_filepath() -> std::path::PathBuf {
+pub(super) fn auth_filepath() -> std::path::PathBuf {
     let base = directories::BaseDirs::new();
     let home = base
         .as_ref()
@@ -36,6 +36,9 @@ mod models_tests;
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回 `None` 表示输入为空或当前状态不需要生成后续值。
 pub fn current_provider_api_key(provider_id: &str) -> Option<String> {
+    if crate::app::state::is_shiju_official_provider_id(provider_id) {
+        return None;
+    }
     match shared_auth::store::get_from(&auth_filepath(), provider_id) {
         Some(shared_auth::Info::Api(info)) => Some(info.key),
         Some(shared_auth::Info::Wellknown(info)) => Some(info.key),
@@ -592,7 +595,9 @@ pub async fn save_custom_provider(
     let (_, patch) = custom_provider_patch_from_draft(&draft, existing_provider)?;
 
     config::patch_full_agent_config_async(patch).await.map_err(server_config_unreachable_error)?;
-    if !draft.api_key.trim().is_empty() {
+    if !crate::app::state::is_shiju_official_provider_id(&provider_id)
+        && !draft.api_key.trim().is_empty()
+    {
         let path = auth_filepath();
         shared_auth::store::set_to(
             &path,

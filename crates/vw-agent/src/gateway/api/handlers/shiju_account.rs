@@ -39,11 +39,21 @@ where
 {
     Router::new()
         .route("/shiju/account/login", post(login_post))
+        .route("/shiju/models/token", axum::routing::put(model_token_put))
         .route("/shiju/account/login/poll", post(login_poll_post))
         .route("/shiju/account/profile", get(profile_get))
         .route("/shiju/account/me", get(account_me_get).put(account_me_put))
         .route("/shiju/account/me/password", axum::routing::put(account_password_put))
         .layer(Extension(Arc::new(client)))
+}
+
+async fn model_token_put(
+    Extension(client): Extension<Arc<ShijuAccountClient>>,
+    headers: HeaderMap,
+) -> Result<Json<vw_gateway_client::ShijuModelTokenDto>, ApiError> {
+    let credential = credential_from_headers(&headers)?;
+    let token = client.model_token(credential.expose()).await.map_err(upstream_error)?;
+    Ok(Json(token))
 }
 
 async fn login_post(

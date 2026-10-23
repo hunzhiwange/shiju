@@ -22,7 +22,7 @@ mod models;
 mod multimodal;
 mod observability;
 mod projects;
-mod providers;
+pub(crate) mod providers;
 mod proxy;
 mod query_classification;
 mod quick_messages;

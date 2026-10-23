@@ -158,6 +158,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
         },
         SettingsMessage::ProviderConnectOpen(provider_id) => {
+            if is_shiju_official_provider_id(&provider_id) {
+                app.provider_settings.connect_modal = None;
+                if app.account.active_account().is_none() {
+                    return app.show_warning_toast("请先登录识矩账户，模型将自动配置");
+                }
+                return super::managed_shiju::sync(app);
+            }
             let provider_name = app
                 .provider_settings
                 .catalog_items
@@ -204,6 +211,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let Some(m) = app.provider_settings.connect_modal.clone() else {
                 return Task::none();
             };
+            if is_shiju_official_provider_id(&m.provider_id) {
+                return super::managed_shiju::sync(app);
+            }
             if m.api_key.trim().is_empty() {
                 app.provider_settings.connect_error = Some("请输入 API 密钥".to_string());
                 return Task::none();

@@ -129,9 +129,18 @@ async fn current_config_fingerprint() -> ConfigFingerprint {
 }
 
 fn config_fingerprint(config: &config::Config) -> ConfigFingerprint {
+    config_fingerprint_with_shiju_auth(config, auth::get("shiju").as_ref())
+}
+
+fn config_fingerprint_with_shiju_auth(
+    config: &config::Config,
+    shiju_auth: Option<&auth::Info>,
+) -> ConfigFingerprint {
     let payload = serde_json::to_vec(&config.providers).unwrap_or_default();
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     payload.hash(&mut hasher);
+    // 登录自动配置只更改认证文件时，也必须撤销已有实例中的模型凭据缓存。
+    serde_json::to_vec(&shiju_auth).unwrap_or_default().hash(&mut hasher);
     ConfigFingerprint(hasher.finish())
 }
 

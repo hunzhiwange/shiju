@@ -245,12 +245,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
             } else {
                 row![
                     source_badge,
-                    button(text("修改密钥"))
-                        .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
-                            p.id.clone()
-                        )))
-                        .padding([7, 12])
-                        .style(rounded_action_btn_style),
+                    button(text(if is_shiju_official_provider_id(&p.id) {
+                        "重新授权"
+                    } else {
+                        "修改密钥"
+                    }))
+                    .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
+                        p.id.clone()
+                    )))
+                    .padding([7, 12])
+                    .style(rounded_action_btn_style),
                     button(text("编辑"))
                         .on_press(Message::Settings(
                             message::SettingsMessage::CustomProviderEditOpen(p.id.clone()),

@@ -73,7 +73,7 @@ pub use client::{
     SHIJU_CREDENTIAL_HEADER, ShijuAccountDepartmentDto, ShijuAccountMeDto,
     ShijuAccountPasswordUpdateRequest, ShijuAccountProfileDto, ShijuAccountRoleDto,
     ShijuAccountUpdateRequest, ShijuAccountUpdateResponseDto, ShijuCredential,
-    ShijuLoginChallengeDto, ShijuLoginPollDto,
+    ShijuLoginChallengeDto, ShijuLoginPollDto, ShijuModelTokenDto,
 };
 /// SHIJU application gateway transport contract.
 pub use client::{

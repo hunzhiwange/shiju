@@ -98,6 +98,13 @@ pub enum ShijuLoginPollDto {
     Approved { credential: ShijuCredential },
 }
 
+/// Account-issued model credential; debug output never includes the key.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShijuModelTokenDto {
+    pub key: ShijuCredential,
+    pub endpoint_url: String,
+}
+
 /// Account fields currently consumed by the desktop account state.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ShijuAccountProfileDto {
@@ -186,6 +193,21 @@ struct ShijuLoginPollRequest<'a> {
 }
 
 impl GatewayClient {
+    /// Exchanges a Passport credential for a model-service credential.
+    pub async fn shiju_model_token(
+        &self,
+        credential: &ShijuCredential,
+    ) -> Result<ShijuModelTokenDto, String> {
+        self.shiju_account_sensitive_request::<ShijuLoginRequest, _>(
+            reqwest::Method::PUT,
+            "/v1/shiju/models/token",
+            &[],
+            None,
+            Some(credential),
+        )
+        .await
+    }
+
     /// Starts a SHIJU browser-login challenge through the local gateway.
     pub async fn shiju_account_login(&self) -> Result<ShijuLoginChallengeDto, String> {
         self.shiju_account_sensitive_request(

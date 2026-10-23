@@ -53,7 +53,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     let mut base = dialog;
 
     // 检查是否需要显示连接模态对话框
-    if let Some(m) = &s.connect_modal {
+    if let Some(m) = s
+        .connect_modal
+        .as_ref()
+        .filter(|modal| !crate::app::state::is_shiju_official_provider_id(&modal.provider_id))
+    {
         let close_message = Message::Settings(message::SettingsMessage::ProviderConnectClose);
         // 创建关闭按钮（× 符号）
         let close_btn = settings_close_button(close_message.clone());

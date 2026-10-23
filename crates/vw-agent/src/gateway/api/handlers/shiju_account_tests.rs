@@ -26,6 +26,10 @@ async fn response(request: Request<Body>) -> (StatusCode, Value) {
 // 敏感字段在访问上游前完成校验，错误响应只保留允许公开的状态和消息。
 #[tokio::test]
 async fn shiju_account_routes_require_valid_sensitive_inputs() {
+    let (status, body) =
+        response(Request::put("/shiju/models/token").body(Body::empty()).unwrap()).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(body["error"], "SHIJU credential header is required");
     let (status, body) = response(
         Request::post("/shiju/account/login/poll")
             .header("content-type", "application/json")

@@ -1647,6 +1647,7 @@ fn initial_stream_session_title(query: &str) -> String {
 fn upsert_stream_ui_message(
     session: &mut ui_models::ChatSession,
     message_id: &str,
+    parent_message_id: Option<&str>,
     message: ui_models::ChatMessage,
 ) {
     if session.message_ids.len() < session.messages.len() {
@@ -1658,18 +1659,41 @@ fn upsert_stream_ui_message(
         session.messages[position] = message;
         return;
     }
-    if let Some(position) = session
-        .messages
-        .iter()
-        .enumerate()
-        .rev()
-        .find(|(position, existing)| {
-            session.message_ids.get(*position).is_none_or(Option::is_none)
-                && existing.role == message.role
-                && existing.content == message.content
-        })
-        .map(|(position, _)| position)
-    {
+    // Desktop snapshots can contain tool markers or only a partial response, so
+    // content equality cannot identify the pending assistant. Bind it to this
+    // turn's user message, without consuming entries from another turn.
+    let pending_position = if let Some(parent_id) = parent_message_id {
+        session.message_ids.iter().position(|id| id.as_deref() == Some(parent_id)).and_then(
+            |parent_position| {
+                let mut candidates = session
+                    .messages
+                    .iter()
+                    .enumerate()
+                    .skip(parent_position + 1)
+                    .take_while(|(_, existing)| existing.role != ui_models::ChatRole::User)
+                    .filter(|(position, existing)| {
+                        session.message_ids.get(*position).is_none_or(Option::is_none)
+                            && existing.role == message.role
+                    })
+                    .map(|(position, _)| position);
+                let position = candidates.next()?;
+                candidates.next().is_none().then_some(position)
+            },
+        )
+    } else {
+        session
+            .messages
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(position, existing)| {
+                session.message_ids.get(*position).is_none_or(Option::is_none)
+                    && existing.role == message.role
+                    && existing.content == message.content
+            })
+            .map(|(position, _)| position)
+    };
+    if let Some(position) = pending_position {
         session.messages[position] = message;
         session.message_ids[position] = Some(message_id.to_string());
         return;
@@ -1724,6 +1748,7 @@ fn commit_stream_session_trajectory(
     upsert_stream_ui_message(
         &mut session,
         &ids.user_id,
+        None,
         ui_models::ChatMessage {
             role: ui_models::ChatRole::User,
             content: query.to_string(),
@@ -1735,6 +1760,7 @@ fn commit_stream_session_trajectory(
     upsert_stream_ui_message(
         &mut session,
         &ids.assistant_id,
+        Some(&ids.user_id),
         ui_models::ChatMessage {
             role: ui_models::ChatRole::Assistant,
             content: assistant_text.to_string(),

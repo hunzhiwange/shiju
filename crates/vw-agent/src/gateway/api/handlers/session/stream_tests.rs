@@ -1436,3 +1436,87 @@ async fn chat_stream_returns_sse_response_for_docs_request() {
     assert!(resumed_body.contains("id: 2") || resumed_body.contains("id:2"));
     assert!(resumed_body.contains(r#""type":"chat.done""#));
 }
+
+fn pending_stream_ui_session(
+    entries: &[(ui_models::ChatRole, &str, Option<&str>)],
+) -> ui_models::ChatSession {
+    ui_models::ChatSession {
+        id: "pending-stream".to_string(),
+        title: "pending".to_string(),
+        messages: entries
+            .iter()
+            .map(|(role, content, _)| ui_models::ChatMessage {
+                role: *role,
+                content: (*content).to_string(),
+                model: None,
+                think_timing: Vec::new(),
+                processing_timing: None,
+            })
+            .collect(),
+        message_ids: entries.iter().map(|(_, _, id)| id.map(str::to_string)).collect(),
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 1,
+    }
+}
+
+#[test]
+fn stream_ui_commit_replaces_current_draft_despite_tool_markers_or_partial_text() {
+    use ui_models::ChatRole::{Assistant, User};
+    for draft in
+        ["", "partial", "tool read\n{\"status\":\"completed\"}\n<think>reason</think>answer"]
+    {
+        let mut session =
+            pending_stream_ui_session(&[(User, "question", None), (Assistant, draft, None)]);
+        let final_message =
+            pending_stream_ui_session(&[(Assistant, "<think>reason</think>answer", None)])
+                .messages
+                .remove(0);
+        let user = session.messages[0].clone();
+        upsert_stream_ui_message(&mut session, "user-current", None, user);
+        upsert_stream_ui_message(
+            &mut session,
+            "assistant-current",
+            Some("user-current"),
+            final_message.clone(),
+        );
+        upsert_stream_ui_message(
+            &mut session,
+            "assistant-current",
+            Some("user-current"),
+            final_message.clone(),
+        );
+        assert_eq!(session.messages.len(), 2, "draft: {draft}");
+        assert_eq!(session.messages[1], final_message);
+        assert_eq!(
+            session.message_ids,
+            vec![Some("user-current".into()), Some("assistant-current".into())]
+        );
+    }
+}
+
+#[test]
+fn stream_ui_commit_does_not_claim_another_turns_identical_answer() {
+    use ui_models::ChatRole::{Assistant, User};
+    let mut session = pending_stream_ui_session(&[
+        (User, "previous", Some("user-previous")),
+        (Assistant, "answer", None),
+        (User, "current", Some("user-current")),
+        (Assistant, "old response", Some("assistant-existing")),
+        (User, "next", Some("user-next")),
+        (Assistant, "answer", None),
+    ]);
+    let final_message = session.messages[1].clone();
+    upsert_stream_ui_message(
+        &mut session,
+        "assistant-current",
+        Some("user-current"),
+        final_message,
+    );
+    assert_eq!(session.messages.len(), 7);
+    assert_eq!(session.message_ids[1], None);
+    assert_eq!(session.message_ids[3].as_deref(), Some("assistant-existing"));
+    assert_eq!(session.message_ids[5], None);
+    assert_eq!(session.message_ids[6].as_deref(), Some("assistant-current"));
+}

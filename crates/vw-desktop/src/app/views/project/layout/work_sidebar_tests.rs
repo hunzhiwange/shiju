@@ -797,6 +797,12 @@ fn work_sidebar_projection_reuses_scroll_snapshot_and_updates_after_session_chan
         app.prepare_session_ui_projection(&Message::View(ViewMessage::PointerMoved(20.0, 30.0)));
     let second = work_sidebar::cached_model(&app);
     assert!(std::sync::Arc::ptr_eq(&first, &second));
+    let frame = app.status_animation_frame;
+    let tick = ViewMessage::ActivityAnimationTick;
+    app.prepare_session_ui_projection(&Message::View(tick.clone()));
+    let _ = crate::app::message::view::update(&mut app, tick);
+    assert_eq!(app.status_animation_frame, frame.wrapping_add(1));
+    assert!(std::sync::Arc::ptr_eq(&first, &work_sidebar::cached_model(&app)));
     let event = ProjectMessage::ProjectSessionsLoaded(
         "/workspace".into(),
         Ok(vec![session("new", "New", "/workspace", 2)]),

@@ -346,18 +346,25 @@ fn subscription_builds_default_and_polling_states() {
 }
 
 #[test]
-fn requesting_sessions_do_not_force_global_activity_animation_ticks() {
+fn requesting_sessions_animate_on_conversation_screen_and_stop_when_idle() {
     let mut app = test_app();
+    app.screen = Screen::Project;
     app.active_session_id = Some("active".to_string());
+    assert!(!needs_activity_animation_tick(&app, false));
 
     let mut active = SessionRuntimeState::new();
     active.is_requesting = true;
     app.session_runtime_states.insert("active".to_string(), active);
+    assert!(needs_activity_animation_tick(&app, false));
+    app.session_runtime_states.get_mut("active").unwrap().is_requesting = false;
+    assert!(!needs_activity_animation_tick(&app, false));
 
     let mut background = SessionRuntimeState::new();
     background.is_requesting = true;
     app.session_runtime_states.insert("background".to_string(), background);
-
+    // The session list still displays the background request's running indicator.
+    assert!(needs_activity_animation_tick(&app, false));
+    app.screen = Screen::TaskBoard;
     assert!(!needs_activity_animation_tick(&app, false));
     assert!(needs_activity_animation_tick(&app, true));
 }

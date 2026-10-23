@@ -12,6 +12,7 @@ use crate::apps::workflow::state::WorkflowRunSubscriptionRequest;
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
     startup_transition_active
+        || (app.screen == Screen::Project && app.any_session_requesting())
         || app.has_active_explore_summary_animation()
         || app.task_pet_window_id.is_some()
 }
@@ -189,15 +190,13 @@ impl App {
         #[cfg(target_arch = "wasm32")]
         let startup_transition_active = false;
 
-        // Session streams already rebuild the UI when visible state changes. Driving the global
-        // application tree from an additional 90 ms timer makes an otherwise idle long chat
-        // continuously repeat layout and text shaping, including for background sessions.
+        // Thinking headers and session indicators need ticks even while awaiting tokens.
+        // Restrict request-driven ticks to the conversation screen; tick messages preserve
+        // the expensive session projections in prepare_session_ui_projection.
         let activity_animation_tick =
             if needs_activity_animation_tick(self, startup_transition_active) {
-                iced::time::every(std::time::Duration::from_millis(
-                    ACTIVITY_ANIMATION_INTERVAL_MS,
-                ))
-                .map(|_| Message::View(message::ViewMessage::ActivityAnimationTick))
+                iced::time::every(std::time::Duration::from_millis(ACTIVITY_ANIMATION_INTERVAL_MS))
+                    .map(|_| Message::View(message::ViewMessage::ActivityAnimationTick))
             } else {
                 Subscription::none()
             };

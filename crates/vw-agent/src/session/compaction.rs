@@ -7,12 +7,12 @@
 //!
 //! - **溢出检测**：判断当前会话是否接近上下文限制，需要执行压缩
 //! - **消息修剪**：移除旧的、已完成的工具调用输出，减少上下文占用
-//! - **摘要生成**：提取最近的文本内容，生成会话摘要消息
+//! - **摘要生成**：分块覆盖全部待替换的文本与工具记录，生成会话摘要
 //! - **压缩请求创建**：创建新的压缩请求消息，触发压缩流程
 //!
 //! # 压缩策略
 //!
-//! 1. 当会话使用率达到 90% 的可用上下文时，触发溢出检测
+//! 1. 当会话使用率达到 70% 的可用上下文时，触发溢出检测
 //! 2. 修剪时会保护最近 2 轮对话和所有 skill 工具调用
 //! 3. 只有当可修剪的 token 数量超过最小阈值时才执行实际修剪
 //! 4. 压缩后会发布 `session.compacted` 事件通知相关组件
@@ -277,58 +277,35 @@ pub struct ProcessInput {
     pub auto: bool,
 }
 
-/// 提取最近的文本内容
-///
-/// 从消息列表中提取最近的文本内容，用于生成会话摘要。
-/// 最多提取最近 20 条消息中的文本部分。
-///
-/// # 参数
-///
-/// - `messages`: 消息列表
-/// - `limit_chars`: 最大字符数限制，超过此限制将被截断
-///
-/// # 返回值
-///
-/// 格式化的文本内容，包含角色标识（user/assistant）和文本内容
-fn extract_recent_text(messages: &[message::WithParts], limit_chars: usize) -> String {
+/// 提取所有待替换消息的文本、工具调用及文件引用；模型请求阶段再分块。
+fn extract_compaction_text(messages: &[message::WithParts]) -> String {
     let mut out = String::new();
-
-    // 从后向前取最近 20 条消息，然后再反转回正序
-    for m in messages.iter().rev().take(20).rev() {
-        // 确定消息角色
-        let role = match &m.info {
+    for message in messages {
+        let role = match &message.info {
             message::Info::User(_) => "user",
             message::Info::Assistant(_) => "assistant",
         };
-
-        // 提取所有文本部分
-        for part in &m.parts {
-            if let message::Part::Text(tp) = part {
-                let text = tp.text.trim();
-                // 跳过空文本
-                if text.is_empty() {
-                    continue;
-                }
-
-                // 添加分隔符（非第一条消息）
-                if !out.is_empty() {
-                    out.push('\n');
-                }
-
-                // 格式：角色: 文本内容
-                out.push_str(role);
-                out.push_str(": ");
-                out.push_str(text);
-
-                // 达到字符限制时截断并返回
-                if out.len() >= limit_chars {
-                    out.truncate(limit_chars);
-                    return out;
-                }
+        for part in &message.parts {
+            let text = match part {
+                message::Part::Text(part) => part.text.trim().to_string(),
+                message::Part::Tool(_)
+                | message::Part::File(_)
+                | message::Part::Subtask(_)
+                | message::Part::Patch(_) => serde_json::to_string(part)
+                    .expect("message parts contain serializable JSON values"),
+                _ => continue,
+            };
+            if text.is_empty() {
+                continue;
             }
+            if !out.is_empty() {
+                out.push('\n');
+            }
+            out.push_str(role);
+            out.push_str(": ");
+            out.push_str(&text);
         }
     }
-
     out
 }
 
@@ -369,20 +346,17 @@ pub(crate) fn internal_compaction_profile() -> crate::app::agent::session::llm::
     }
 }
 
-fn build_internal_request(input: &ProcessInput) -> Option<(usize, InternalCompactionRequest)> {
+fn build_internal_request(input: &ProcessInput) -> Option<(usize, String)> {
     let boundary =
         input.messages.iter().position(|message| message.info.id() == input.parent_id)?;
     if !matches!(input.messages[boundary].info, message::Info::User(_)) || boundary == 0 {
         return None;
     }
-    let context = extract_recent_text(&input.messages[..boundary], 32_000);
+    let context = extract_compaction_text(&input.messages[..boundary]);
     if context.trim().is_empty() {
         return None;
     }
-    Some((
-        boundary,
-        InternalCompactionRequest { prompt: internal_summary_prompt(&context), tools: Vec::new() },
-    ))
+    Some((boundary, context))
 }
 
 /// Stable, tool-free prompt shared by every internal compaction trigger.
@@ -482,12 +456,12 @@ async fn persist_compaction(
 async fn compact_with_summary(
     input: ProcessInput,
     model: &provider::Model,
-    summarize: impl FnOnce(&InternalCompactionRequest) -> Result<String, String>,
+    model_result: Result<String, String>,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
-    let Some((boundary, request)) = build_internal_request(&input) else {
+    let Some((boundary, _)) = build_internal_request(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
-    let summary = match summarize(&request).and_then(valid_summary) {
+    let summary = match model_result.and_then(valid_summary) {
         Ok(summary) => summary,
         Err(error) => return Ok(CompactionOutcome::Failed { history: input.messages, error }),
     };
@@ -567,48 +541,8 @@ async fn stream_internal_summary(
     Ok(output.lock().unwrap_or_else(|error| error.into_inner()).clone())
 }
 
-/// 处理会话压缩
-///
-/// 执行会话压缩的核心逻辑，包括创建摘要助手消息、生成摘要文本，
-/// 以及可选的继续提示消息。
-///
-/// # 参数
-///
-/// - `input`: 压缩处理输入参数，包含会话信息、消息列表等
-/// - `model`: 用于标识摘要消息的模型信息
-///
-/// # 返回值
-///
-/// - `Ok("continue")`: 压缩成功，会话应该继续
-/// - `Ok("stop")`: 未找到用户消息，会话应停止
-/// - `Err(Error)`: 压缩过程中发生错误
-///
-/// # 处理流程
-///
-/// 1. 查找触发压缩的用户消息，如果找不到则返回 "stop"
-/// 2. 创建摘要助手消息，标记为 summary=true
-/// 3. 提取最近的文本内容，生成摘要提示文本
-/// 4. 创建摘要文本部分并保存
-/// 5. 如果是自动模式，创建继续提示用户消息
-/// 6. 发布会话压缩事件
-///
-/// # 示例
-///
-/// ```ignore
-/// let input = ProcessInput {
-///     parent_id: "msg_123".to_string(),
-///     messages: vec![/* ... */],
-///     session_id: "session_456".to_string(),
-///     auto: true,
-/// };
-///
-/// let result = process(input, &model).await?;
-/// // result 为 "continue" 或 "stop"
-/// ```
-/// Compact a persisted conversation by requesting one tool-free internal summary.
-///
-/// No history is changed until the model has supplied a non-empty summary.  Trigger paths use
-/// the returned outcome to present failures without losing the conversation.
+/// Generate a bounded rolling summary of all covered history before replacing persisted records.
+/// Model errors leave the history untouched and return a failed outcome.
 pub async fn process(
     input: ProcessInput,
     model: &provider::Model,
@@ -616,8 +550,17 @@ pub async fn process(
     let Some((_, request)) = build_internal_request(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
-    let model_result = stream_internal_summary(&input, model, &request).await;
-    let outcome = compact_with_summary(input, model, |_| model_result).await?;
+    let model_result = async {
+        let mut chunks =
+            super::compaction_summary::SummaryChunks::new(&request, Some(&model.limit))?;
+        while let Some(prompt) = chunks.next_prompt() {
+            let request = InternalCompactionRequest { prompt, tools: Vec::new() };
+            chunks.accept(stream_internal_summary(&input, model, &request).await?)?;
+        }
+        chunks.finish()
+    }
+    .await;
+    let outcome = compact_with_summary(input, model, model_result).await?;
     if matches!(outcome, CompactionOutcome::Compacted { .. }) {
         let session_id = match &outcome {
             CompactionOutcome::Compacted { history, .. } => history
@@ -692,9 +635,20 @@ pub async fn process_session(
 async fn process_with_summarizer(
     input: ProcessInput,
     model: &provider::Model,
-    summarize: impl FnOnce(&InternalCompactionRequest) -> Result<String, String>,
+    mut summarize: impl FnMut(&InternalCompactionRequest) -> Result<String, String>,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
-    compact_with_summary(input, model, summarize).await
+    let Some((_, context)) = build_internal_request(&input) else {
+        return Ok(CompactionOutcome::NotNeeded { history: input.messages });
+    };
+    let result = (|| {
+        let mut chunks =
+            super::compaction_summary::SummaryChunks::new(&context, Some(&model.limit))?;
+        while let Some(prompt) = chunks.next_prompt() {
+            chunks.accept(summarize(&InternalCompactionRequest { prompt, tools: Vec::new() })?)?;
+        }
+        chunks.finish()
+    })();
+    compact_with_summary(input, model, result).await
 }
 
 /// 创建压缩请求输入参数

@@ -176,14 +176,14 @@ pub(crate) fn provider_request_options(options: &Value) -> Value {
     options
 }
 
-/// Replace only the covered transient history after the shared internal summary service returns
-/// a non-empty result. The current user message remains intact, so a failed summary never loses
-/// the request that triggered it.
+/// Summarize completed history, including tool rounds after the latest user request.
+/// Preserve that user request verbatim and replace history only after every chunk succeeds.
 fn compact_transient_history_for_request(
     session_id: &str,
     llm_messages: &mut Vec<Value>,
     model: &str,
     reliability: &crate::app::agent::config::ReliabilityConfig,
+    model_limit: &crate::app::agent::provider::provider::ModelLimit,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) -> Result<bool, String> {
     let Some(boundary) = llm_messages
@@ -192,56 +192,51 @@ fn compact_transient_history_for_request(
     else {
         return Ok(false);
     };
-    if boundary == 0 {
+    if llm_messages.len() == 1 {
         return Ok(false);
     }
-    let mut context = String::new();
-    for message in &llm_messages[..boundary] {
-        let Some(content) = message.get("content").and_then(Value::as_str) else { continue };
-        if content.trim().is_empty() {
-            continue;
-        }
-        if !context.is_empty() {
-            context.push('\n');
-        }
-        context.push_str(message.get("role").and_then(Value::as_str).unwrap_or("unknown"));
-        context.push_str(": ");
-        context.push_str(content.trim());
-        if context.len() >= 32_000 {
-            context.truncate(32_000);
-            break;
-        }
+    // Include structured content and tool arguments as well as text. Every replaced
+    // record must reach the summarizer, including records after the first chunk.
+    let covered = llm_messages
+        .iter()
+        .enumerate()
+        .filter_map(|(index, message)| (index != boundary).then_some(message))
+        .collect::<Vec<_>>();
+    let context = serde_json::to_string(&covered)
+        .map_err(|error| format!("failed to serialize compaction history: {error}"))?;
+    let mut chunks =
+        crate::session::compaction_summary::SummaryChunks::new(&context, Some(model_limit))?;
+    if !on_event(StreamEvent::Compaction { phase: CompactionPhase::Started }) {
+        return Err("stream consumer stopped".to_string());
     }
-    if context.trim().is_empty() {
-        return Ok(false);
+    while let Some(prompt) = chunks.next_prompt() {
+        let mut discard_events = |_| true;
+        let output = llm_runner::run_llm_step_with_retry(
+            session_id,
+            &[json!({ "role": "user", "content": prompt })],
+            &[],
+            Some(model.to_string()),
+            &json!({ "disable_tools": true }),
+            &[],
+            &HashSet::new(),
+            &mut discard_events,
+            reliability.provider_retries,
+            reliability.provider_backoff_ms,
+        )?;
+        if !output.tool_calls.is_empty() {
+            return Err("internal compaction rejected a model tool call".to_string());
+        }
+        if output.finish_reason.as_deref() == Some("length") {
+            return Err("internal compaction summary was truncated by the model".to_string());
+        }
+        chunks.accept(output.text)?;
     }
-    on_event(StreamEvent::Compaction { phase: CompactionPhase::Started });
-    let prompt = crate::session::compaction::internal_summary_prompt(&context);
-    let mut discard_events = |_| true;
-    let summary = llm_runner::run_llm_step_with_retry(
-        session_id,
-        &[json!({ "role": "user", "content": prompt })],
-        &[],
-        Some(model.to_string()),
-        &json!({ "disable_tools": true }),
-        &[],
-        &HashSet::new(),
-        &mut discard_events,
-        reliability.provider_retries,
-        reliability.provider_backoff_ms,
-    )?
-    .text;
-    let summary = summary.trim();
-    if summary.is_empty() {
-        return Err("internal compaction generated an empty summary".to_string());
-    }
-    llm_messages.splice(
-        0..boundary,
-        std::iter::once(json!({
-            "role": "assistant",
-            "content": format!("[Compaction summary]\n{summary}"),
-        })),
-    );
+    let summary = chunks.finish()?;
+    let current_user = llm_messages[boundary].clone();
+    *llm_messages = vec![
+        json!({ "role": "assistant", "content": format!("[Compaction summary]\n{summary}") }),
+        current_user,
+    ];
     on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed });
     Ok(true)
 }
@@ -724,7 +719,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 return;
             }
         };
-        if compaction.needs_internal_compaction {
+        if compaction.needs_internal_compaction && !internal_compaction_attempted {
             tracing::info!(
                 target: "vw_agent",
                 session_id = %req.session,
@@ -735,22 +730,17 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 input_limit = context_governance::effective_input_window(&model_limit),
                 "session processor requires internal compaction before llm step"
             );
-            if internal_compaction_attempted {
-                on_event(StreamEvent::Error(
-                    "internal compaction did not reduce the request below the model input window"
-                        .to_string(),
-                ));
-                return;
-            }
             match compact_transient_history_for_request(
                 &req.session,
                 &mut llm_messages,
                 &selected_model.model,
                 &req.reliability,
+                &model_limit,
                 &mut on_event,
             ) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
+                    observed_input_tokens = None;
                     continue;
                 }
                 Ok(false) => {
@@ -764,6 +754,16 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                     return;
                 }
             }
+        }
+
+        if internal_compaction_attempted
+            && compaction.before_tokens > context_governance::effective_input_window(&model_limit)
+        {
+            on_event(StreamEvent::Error(
+                "internal compaction did not reduce the request below the model input window"
+                    .to_string(),
+            ));
+            return;
         }
 
         if !on_event(StreamEvent::StepStart {
@@ -797,6 +797,9 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                         image_ctx.rewrite_json_messages(&mut llm_messages);
                     }
                 }
+                // A successful primary request permits a fresh compaction after later
+                // tool results grow the context. Consecutive failed attempts stay bounded.
+                internal_compaction_attempted = false;
                 output
             }
             Err(message) => {
@@ -807,18 +810,22 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                         &mut llm_messages,
                         &selected_model.model,
                         &req.reliability,
+                        &model_limit,
                         &mut on_event,
                     ) {
                         Ok(true) => {
                             internal_compaction_attempted = true;
+                            observed_input_tokens = None;
                             continue;
                         }
                         Ok(false) => {
                             on_event(StreamEvent::Error(message));
                             return;
                         }
-                        Err(_) => {
-                            on_event(StreamEvent::Error(message));
+                        Err(error) => {
+                            on_event(StreamEvent::Error(format!(
+                                "{message}; internal compaction failed: {error}"
+                            )));
                             return;
                         }
                     }

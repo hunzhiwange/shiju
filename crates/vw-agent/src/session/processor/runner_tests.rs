@@ -760,6 +760,11 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
         &mut |event| {
             events.push(event);
             true
@@ -808,6 +813,11 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
         &mut |event| {
             events.push(event);
             true
@@ -1250,4 +1260,133 @@ fn handle_empty_assistant_text_retries_at_limit_boundary() {
     assert_eq!(llm_messages[0]["reasoning_content"].as_str(), Some("boundary reasoning"));
     assert_eq!(llm_messages[1]["content"].as_str(), Some(super::EMPTY_RESPONSE_RETRY_PROMPT));
     assert!(events.is_empty());
+}
+
+#[test]
+fn compaction_lifecycle_chunk_failure_preserves_multibyte_history() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Delta("first chunk summary".to_string()),
+        crate::app::agent::session::llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("stop".to_string()),
+        },
+    ]);
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Error(
+            crate::app::agent::session::message::AssistantError::Unknown {
+                message: "later chunk unavailable".to_string(),
+            },
+        ),
+    ]);
+    let mut messages = vec![
+        serde_json::json!({"role": "user", "content": "中文😀".repeat(5000)}),
+        serde_json::json!({"role": "assistant", "tool_calls": [{"id": "call-1", "function": {"name": "read", "arguments": "{}"}}]}),
+        serde_json::json!({"role": "tool", "tool_call_id": "call-1", "content": "final decision"}),
+        serde_json::json!({"role": "user", "content": "continue"}),
+    ];
+    let before = messages.clone();
+    let mut events = Vec::new();
+    let error = super::compact_transient_history_for_request(
+        "chunk-failure",
+        &mut messages,
+        "provider/model",
+        &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
+        &mut |event| {
+            events.push(event);
+            true
+        },
+    )
+    .unwrap_err();
+    assert!(error.contains("later chunk unavailable"));
+    assert_eq!(messages, before);
+    assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids().len(), 2);
+    assert!(matches!(
+        events.as_slice(),
+        [super::StreamEvent::Compaction { phase: super::CompactionPhase::Started }]
+    ));
+}
+
+#[test]
+fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::app::agent::session::llm::StreamEvent::Delta("unfinished summary".to_string()),
+        crate::app::agent::session::llm::StreamEvent::Done {
+            usage: models::TokenUsage::default(),
+            finish_reason: Some("length".to_string()),
+        },
+    ]);
+    let mut messages = vec![
+        serde_json::json!({"role": "user", "content": "old request"}),
+        serde_json::json!({"role": "user", "content": "continue"}),
+    ];
+    let before = messages.clone();
+    let error = super::compact_transient_history_for_request(
+        "truncated-summary",
+        &mut messages,
+        "provider/model",
+        &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
+        &mut |_| true,
+    )
+    .unwrap_err();
+    assert!(error.contains("truncated"));
+    assert_eq!(messages, before);
+}
+
+#[test]
+fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    let user = serde_json::json!({"role": "user", "content": "continue", "_vw_source": {"rpcId": "original"}});
+    let mut messages = vec![user.clone()];
+    for round in 0..2 {
+        messages.push(serde_json::json!({"role": "assistant", "tool_calls": [{"id": format!("call-{round}"), "function": {"name": "read", "arguments": "{}"}}]}));
+        messages.push(serde_json::json!({"role": "tool", "tool_call_id": format!("call-{round}"), "content": format!("completed tool round {round}")}));
+        super::llm_runner::enqueue_test_llm_stream(vec![
+            crate::app::agent::session::llm::StreamEvent::Delta(format!(
+                "remembered round {round}"
+            )),
+            crate::app::agent::session::llm::StreamEvent::Done {
+                usage: models::TokenUsage::default(),
+                finish_reason: Some("stop".to_string()),
+            },
+        ]);
+        assert!(
+            super::compact_transient_history_for_request(
+                "successive-rounds",
+                &mut messages,
+                "provider/model",
+                &crate::app::agent::config::ReliabilityConfig {
+                    provider_retries: 0,
+                    ..Default::default()
+                },
+                &crate::app::agent::provider::provider::ModelLimit {
+                    context: 128_000,
+                    input: None,
+                    output: 4096
+                },
+                &mut |_| true,
+            )
+            .unwrap()
+        );
+        assert_eq!(messages.len(), 2);
+        assert_eq!(messages[1], user);
+        assert!(
+            messages[0]["content"].as_str().unwrap().contains(&format!("remembered round {round}"))
+        );
+    }
+    assert_eq!(
+        super::llm_runner::take_test_llm_stream_tool_ids(),
+        vec![Vec::<String>::new(), Vec::<String>::new()]
+    );
 }

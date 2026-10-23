@@ -450,10 +450,16 @@ impl QueryEngine {
             &mut self.history,
             self.provider.as_ref(),
             &self.model_name,
-            self.max_history_messages,
+            &self.model_limit,
         )
         .await
-        .map(|_| ())
+        .and_then(|compacted| {
+            if compacted {
+                Ok(())
+            } else {
+                anyhow::bail!("internal compaction has no eligible history to summarize")
+            }
+        })
     }
 
     /// 返回当前会话已成功提交的轮次数。

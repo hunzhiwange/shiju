@@ -291,7 +291,7 @@ async fn instance_directory_opt_returns_directory_inside_project_context() {
 }
 
 #[test]
-fn extract_recent_text_formats_roles_trims_and_skips_empty_text() {
+fn compaction_text_formats_roles_trims_and_skips_empty_text() {
     let session_id = "extract-session";
     let messages = vec![
         user_message(session_id, "msg_1", "  hello  "),
@@ -299,31 +299,21 @@ fn extract_recent_text_formats_roles_trims_and_skips_empty_text() {
         user_message(session_id, "msg_3", "   "),
     ];
 
-    assert_eq!(extract_recent_text(&messages, 100), "user: hello\nassistant: answer");
+    assert_eq!(extract_compaction_text(&messages), "user: hello\nassistant: answer");
 }
 
 #[test]
-fn extract_recent_text_uses_recent_twenty_messages_and_truncates() {
-    let session_id = "recent-session";
-    let messages = (0..21)
-        .map(|idx| user_message(session_id, &format!("msg_{idx:02}"), &format!("text-{idx:02}")))
+fn compaction_text_keeps_all_messages_and_multibyte_tail() {
+    let mut messages = (0..25)
+        .map(|idx| user_message("long-source", &format!("msg_{idx:02}"), &format!("text-{idx:02}")))
         .collect::<Vec<_>>();
-
-    let full = extract_recent_text(&messages, 1_000);
-    assert!(!full.contains("text-00"));
-    assert!(full.starts_with("user: text-01"));
-    assert!(full.ends_with("user: text-20"));
-
-    let truncated = extract_recent_text(&messages, 12);
-    assert_eq!(truncated.len(), 12);
-    assert_eq!(truncated, "user: text-0");
-}
-
-#[test]
-fn extract_recent_text_returns_empty_at_zero_character_limit() {
-    let messages = vec![user_message("zero-limit-session", "msg_1", "visible text")];
-
-    assert_eq!(extract_recent_text(&messages, 0), "");
+    messages.push(user_message("long-source", "msg_long", &"中文😀".repeat(5000)));
+    messages.push(user_message("long-source", "msg_tail", "最终决策必须保留"));
+    let text = extract_compaction_text(&messages);
+    assert!(text.starts_with("user: text-00"));
+    assert!(text.contains("text-24"));
+    assert!(text.contains(&"中文😀".repeat(5000)));
+    assert!(text.ends_with("最终决策必须保留"));
 }
 
 #[test]
@@ -845,5 +835,55 @@ async fn prune_skips_unfinished_tool_states() {
     };
     assert!(matches!(&tool.state, message::ToolState::Pending(_)));
 
+    cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn internal_compaction_summarizes_every_chunk_before_replacing_persisted_history() {
+    let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
+    let session_id = unique_session("compaction-all-chunks");
+    let mut history = (0..25)
+        .map(|index| {
+            user_message(&session_id, &format!("msg_{index:02}"), &format!("decision-{index:02}"))
+        })
+        .collect::<Vec<_>>();
+    history.push(user_message(&session_id, "msg_long", &"中文😀".repeat(5000)));
+    history.push(user_message(&session_id, "msg_tail", "FINAL_DECISION"));
+    history.push(user_message(&session_id, "msg_trigger", "continue"));
+    for message in &history {
+        write_message_with_parts(message).await;
+    }
+    let input = ProcessInput {
+        parent_id: "msg_trigger".to_string(),
+        messages: history,
+        session_id: session_id.clone(),
+        auto: true,
+    };
+    let model = model_with_limits(128_000, None, 4096);
+    let mut calls = 0;
+    let failed = process_with_summarizer(input.clone(), &model, |_| {
+        calls += 1;
+        if calls == 2 {
+            Err("second chunk failed".to_string())
+        } else {
+            Ok("partial summary".to_string())
+        }
+    })
+    .await
+    .unwrap();
+    assert!(matches!(failed, CompactionOutcome::Failed { .. }));
+    assert_eq!(message::messages(&session_id, None).await.unwrap().len(), input.messages.len());
+    let mut saw_first = false;
+    let mut saw_last = false;
+    let completed = process_with_summarizer(input, &model, |request| {
+        saw_first |= request.prompt.contains("decision-00");
+        saw_last |= request.prompt.contains("FINAL_DECISION");
+        Ok("complete summary".to_string())
+    })
+    .await
+    .unwrap();
+    assert!(matches!(completed, CompactionOutcome::Compacted { .. }));
+    assert!(saw_first && saw_last);
+    assert_eq!(message::messages(&session_id, None).await.unwrap().len(), 2);
     cleanup_session(&session_id).await;
 }

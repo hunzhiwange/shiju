@@ -86,22 +86,32 @@ fn compaction_transcript_and_summary_are_deterministic() {
 }
 
 #[test]
-fn compaction_transcript_truncates_long_sources() {
-    let messages = vec![ChatMessage::user("x".repeat(COMPACTION_MAX_SOURCE_CHARS + 100))];
+fn compaction_transcript_preserves_long_sources() {
+    let messages = vec![ChatMessage::user(format!("{}TAIL_DECISION", "中文😀".repeat(5000)))];
 
     let transcript = build_compaction_transcript(&messages);
 
-    assert!(transcript.chars().count() <= COMPACTION_MAX_SOURCE_CHARS + 3);
+    assert!(transcript.contains(&"中文😀".repeat(5000)));
+    assert!(transcript.contains("TAIL_DECISION"));
 }
 
 #[tokio::test]
-async fn internal_compaction_returns_false_when_under_limit() {
+async fn internal_compaction_returns_false_without_prior_history() {
     let provider = Testcov0094Provider::ok("unused");
     let mut history = vec![ChatMessage::system("system"), ChatMessage::user("short")];
 
-    let compacted = compact_history_with_internal_service(&mut history, &provider, "test-model", 3)
-        .await
-        .unwrap();
+    let compacted = compact_history_with_internal_service(
+        &mut history,
+        &provider,
+        "test-model",
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
+    )
+    .await
+    .unwrap();
 
     assert!(!compacted);
     assert_eq!(provider.calls(), 0);
@@ -109,13 +119,22 @@ async fn internal_compaction_returns_false_when_under_limit() {
 }
 
 #[tokio::test]
-async fn internal_compaction_returns_false_when_recent_window_covers_all_messages() {
+async fn internal_compaction_keeps_the_current_user_and_assistant_round() {
     let provider = Testcov0094Provider::ok("unused");
     let mut history = vec![ChatMessage::user("older"), ChatMessage::assistant("newer")];
 
-    let compacted = compact_history_with_internal_service(&mut history, &provider, "test-model", 1)
-        .await
-        .unwrap();
+    let compacted = compact_history_with_internal_service(
+        &mut history,
+        &provider,
+        "test-model",
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
+    )
+    .await
+    .unwrap();
 
     assert!(!compacted);
     assert_eq!(provider.calls(), 0);
@@ -125,25 +144,34 @@ async fn internal_compaction_returns_false_when_recent_window_covers_all_message
 }
 
 #[tokio::test]
-async fn internal_compaction_preserves_system_and_recent_messages() {
+async fn internal_compaction_preserves_system_and_current_user() {
     let provider = Testcov0094Provider::ok("- remembered decision");
     let mut history = vec![ChatMessage::system("system")];
     for index in 0..23 {
         history.push(ChatMessage::user(format!("message-{index}")));
     }
 
-    let compacted = compact_history_with_internal_service(&mut history, &provider, "test-model", 2)
-        .await
-        .unwrap();
+    let compacted = compact_history_with_internal_service(
+        &mut history,
+        &provider,
+        "test-model",
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
+    )
+    .await
+    .unwrap();
 
     assert!(compacted);
     assert_eq!(provider.calls(), 1);
-    assert_eq!(history.len(), 22);
+    assert_eq!(history.len(), 3);
     assert_eq!(history[0].role, "system");
     assert_eq!(history[1].role, "assistant");
     assert!(history[1].content.contains("[Compaction summary]"));
     assert!(history[1].content.contains("remembered decision"));
-    assert_eq!(history[2].content, "message-3");
+    assert_eq!(history[2].content, "message-22");
     assert_eq!(history.last().unwrap().content, "message-22");
 }
 
@@ -155,12 +183,53 @@ async fn internal_compaction_keeps_history_when_provider_fails() {
         history.push(ChatMessage::user(format!("fallback-{index}")));
     }
 
-    let error = compact_history_with_internal_service(&mut history, &provider, "test-model", 1)
-        .await
-        .expect_err("summary failure should preserve history");
+    let error = compact_history_with_internal_service(
+        &mut history,
+        &provider,
+        "test-model",
+        &crate::app::agent::provider::provider::ModelLimit {
+            context: 128_000,
+            input: None,
+            output: 4096,
+        },
+    )
+    .await
+    .expect_err("summary failure should preserve history");
 
     assert!(error.to_string().contains("internal compaction model request failed"));
     assert_eq!(provider.calls(), 1);
     assert_eq!(history.len(), 22);
     assert_eq!(history[0].content, "fallback-0");
+}
+
+#[tokio::test]
+async fn token_compaction_summarizes_few_large_messages_and_keeps_current_turn() {
+    let provider = Testcov0094Provider::ok("remembered decision");
+    let mut history = vec![
+        ChatMessage::system("system"),
+        ChatMessage::user("中文😀".repeat(5000)),
+        ChatMessage::assistant("recent decision"),
+        ChatMessage::user("current request"),
+        ChatMessage::assistant("current tool round"),
+    ];
+    assert!(
+        compact_history_with_internal_service(
+            &mut history,
+            &provider,
+            "test-model",
+            &crate::app::agent::provider::provider::ModelLimit {
+                context: 128_000,
+                input: None,
+                output: 4096
+            }
+        )
+        .await
+        .unwrap()
+    );
+    assert!(provider.calls() > 1);
+    assert_eq!(history.len(), 4);
+    assert_eq!(history[0].content, "system");
+    assert!(history[1].content.contains("remembered decision"));
+    assert_eq!(history[2].content, "current request");
+    assert_eq!(history[3].content, "current tool round");
 }

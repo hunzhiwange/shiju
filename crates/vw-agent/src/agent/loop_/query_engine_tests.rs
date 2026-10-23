@@ -675,16 +675,14 @@ async fn submit_message_compacts_before_the_primary_request() {
     let provider_handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.compact_context = true;
-    engine.max_history_messages = 21;
+    engine.max_history_messages = 100;
     engine.model_limit = crate::app::agent::provider::provider::ModelLimit {
-        context: 10,
-        input: Some(10),
+        context: 8192,
+        input: Some(8192),
         output: 0,
     };
     engine.history = vec![ChatMessage::system("system")];
-    for index in 0..23 {
-        engine.history.push(ChatMessage::user(format!("message-{index}")));
-    }
+    engine.history.push(ChatMessage::user("message-0 中文😀".repeat(5000)));
 
     engine.submit_message("latest").await.expect("primary request should succeed");
 

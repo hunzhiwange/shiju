@@ -12,6 +12,7 @@ pub mod child_agent;
 mod child_agent_tests;
 /// 声明 compaction 子模块，保持当前领域的职责拆分清晰。
 pub mod compaction;
+pub(crate) mod compaction_summary;
 /// 声明临时模型上下文装配器，避免 AGENTS 进入可见聊天记录。
 pub mod context_injection;
 /// 声明 instruction 子模块，保持当前领域的职责拆分清晰。

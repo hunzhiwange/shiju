@@ -1,6 +1,6 @@
-# VibeWindow
+# SHiJu
 
-VibeWindow 是一个 Rust-first 的自主代理运行时，目标是在桌面端、CLI、网关服务和长驻守护进程之间提供同一套高性能、可扩展、可审计的 Agent 能力。
+SHiJu 是一个 Rust-first 的自主代理运行时，目标是在桌面端、CLI、网关服务和长驻守护进程之间提供同一套高性能、可扩展、可审计的 Agent 能力。
 
 项目当前包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。
 

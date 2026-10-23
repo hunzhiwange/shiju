@@ -178,8 +178,8 @@ copy_linux_desktop_files() {
 archive_name() {
   case "$KIND" in
     cli) echo "shiju-cli-$TARGET.$ARCHIVE_EXT" ;;
-    acp) echo "vwacp-$TARGET.$ARCHIVE_EXT" ;;
-    desktop) echo "ShiJu-desktop-$TARGET.$ARCHIVE_EXT" ;;
+    acp) echo "shiju-acp-$TARGET.$ARCHIVE_EXT" ;;
+    desktop) echo "shiju-desktop-$TARGET.$ARCHIVE_EXT" ;;
     all) echo "shiju-$TARGET.$ARCHIVE_EXT" ;;
   esac
 }

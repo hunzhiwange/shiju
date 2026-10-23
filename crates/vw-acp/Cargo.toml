@@ -7,9 +7,6 @@ homepage = "https://github.com/hunzhiwange/vibewindow"
 description = "Agent Client Protocol bridge for VibeWindow"
 license = "MIT"
 
-[package.metadata.dist]
-dist = true
-
 [[bin]]
 name = "acp"
 path = "src/main.rs"

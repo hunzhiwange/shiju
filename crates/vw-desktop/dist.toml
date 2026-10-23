@@ -1,0 +1,5 @@
+[package]
+name = "shiju-desktop"
+
+[dist]
+dist = true

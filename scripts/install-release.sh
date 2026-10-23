@@ -111,7 +111,12 @@ curl -fL "$DOWNLOAD_URL" -o "$TMP_DIR/$ASSET"
 
 echo "==> Extracting release archive"
 tar -xzf "$TMP_DIR/$ASSET" -C "$TMP_DIR"
-if [ ! -f "$TMP_DIR/shiju" ]; then
+CLI_SOURCE="$TMP_DIR/shiju-${TRIPLE}/shiju"
+# Local packages put binaries at the archive root; cargo-dist uses a directory.
+if [ ! -f "$CLI_SOURCE" ]; then
+  CLI_SOURCE="$TMP_DIR/shiju"
+fi
+if [ ! -f "$CLI_SOURCE" ]; then
   echo "error: release archive does not contain expected 'shiju' binary" >&2
   exit 1
 fi
@@ -121,10 +126,10 @@ BIN_PATH="${INSTALL_DIR}/shiju"
 
 if [ "${INSTALL_DIR#/usr/local/}" != "$INSTALL_DIR" ]; then
   run_privileged mkdir -p "$INSTALL_DIR"
-  run_privileged install -m 0755 "$TMP_DIR/shiju" "$BIN_PATH"
+  run_privileged install -m 0755 "$CLI_SOURCE" "$BIN_PATH"
 else
   mkdir -p "$INSTALL_DIR"
-  install -m 0755 "$TMP_DIR/shiju" "$BIN_PATH"
+  install -m 0755 "$CLI_SOURCE" "$BIN_PATH"
 fi
 
 echo "==> Installed: $BIN_PATH"

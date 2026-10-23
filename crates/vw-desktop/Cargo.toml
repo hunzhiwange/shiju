@@ -9,9 +9,6 @@ license = "MIT"
 default-run = "shi-ju"
 build = "build.rs"
 
-[package.metadata.dist]
-dist = true
-
 [package.metadata.bundle]
 name = "ShiJu"
 identifier = "com.rsung.shiju"

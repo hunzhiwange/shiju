@@ -8,9 +8,6 @@ description = "Cross-platform WebView window for VibeWindow"
 license = "MIT"
 default-run = "vw-webview"
 
-[package.metadata.dist]
-dist = true
-
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage)'] }
 

@@ -1,0 +1,7 @@
+[package]
+name = "shiju"
+
+[dist]
+dist = true
+npm-package = "shiju"
+formula = "shiju"

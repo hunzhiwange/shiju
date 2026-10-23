@@ -1,0 +1,5 @@
+[package]
+name = "shiju-webview"
+
+[dist]
+dist = true

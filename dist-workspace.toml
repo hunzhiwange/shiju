@@ -22,6 +22,8 @@ targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "aarch64-pc-wind
 all-features = true
 # Build only the selected release packages instead of the whole workspace.
 precise-builds = true
+# Match the archive format consumed by scripts/install-release.sh.
+unix-archive = ".tar.gz"
 # Path that installers should place binaries in
 install-path = "CARGO_HOME"
 # Where to host releases

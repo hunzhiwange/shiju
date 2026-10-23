@@ -9,12 +9,6 @@ license = "MIT"
 default-run = "shiju"
 autobins = false
 
-[package.metadata.dist]
-dist = true
-npm-package = "shiju"
-# Enable this when Homebrew publishing is enabled in dist-workspace.toml.
-# formula = "shiju"
-
 [[bin]]
 name = "shiju"
 path = "src/main.rs"

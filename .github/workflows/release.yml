@@ -158,9 +158,8 @@ jobs:
               TARGET="$target" PROFILE=dist OUT_DIR=target/distrib scripts/bundle_linux.sh
             fi
           done
-      # Temporarily disabled until Developer ID signing and notarization are available.
       - name: Configure macOS release signing
-        if: ${{ false && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         env:
           MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
@@ -213,9 +212,9 @@ jobs:
         if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         run: cargo install cargo-bundle --locked
-      # Use certificate-free ad-hoc signing for PR and release packages for now.
+      # Pull requests use certificate-free ad-hoc signing.
       - name: Build macOS packages with ad-hoc signing
-        if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         run: |
           for target in ${{ join(matrix.targets, ' ') }}; do
@@ -233,9 +232,8 @@ jobs:
               scripts/bundle_macos.sh
             fi
           done
-      # Retained for re-enabling together with the signing setup and cleanup steps.
       - name: Build signed and notarized macOS packages
-        if: ${{ false && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         env:
           MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
@@ -259,7 +257,7 @@ jobs:
             fi
           done
       - name: Clean up macOS signing credentials
-        if: ${{ always() && false && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
+        if: ${{ always() && github.event_name != 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
         run: |
           keychain_path="$RUNNER_TEMP/vibewindow-signing.keychain-db"

@@ -83,8 +83,11 @@ jobs:
               if not item.get('checksum'):
                   continue
               expected = (root / item['checksum']).read_text().split()[0]
+              digest = hashlib.sha256()
               with (root / name).open('rb') as artifact:
-                  actual = hashlib.file_digest(artifact, 'sha256').hexdigest()
+                  for chunk in iter(lambda: artifact.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              actual = digest.hexdigest()
               assert actual == expected, f'Checksum mismatch: {name}'
               checked += 1
           assert checked > 0, 'No checksums verified'

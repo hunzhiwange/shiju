@@ -498,12 +498,12 @@ jobs:
           path: homebrew-tap
           ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
       - name: Download published Homebrew formulas
-        run: gh release download "$RELEASE_TAG" --pattern '*.rb' --pattern sha256.sum --dir "$RUNNER_TEMP/formula"
+        run: gh release download "$RELEASE_TAG" --pattern '*.rb' --pattern dist-manifest.json --dir "$RUNNER_TEMP/formula"
       - name: Verify original formulas and update tap
         shell: bash
         run: |
           set -euo pipefail
-          (cd "$RUNNER_TEMP/formula" && sha256sum --check --ignore-missing sha256.sum)
+          python3 scripts/verify_homebrew_release.py "$RUNNER_TEMP/formula" "$RELEASE_TAG"
           bash scripts/publish_homebrew.sh "$RUNNER_TEMP/formula" "$GITHUB_WORKSPACE/homebrew-tap" "$RELEASE_TAG"
 
   publish-npm:

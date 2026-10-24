@@ -26,6 +26,7 @@ def load(name):
 
 npm = load('publish_npm_release')
 oidc = load('check_npm_publish_access')
+homebrew = load('verify_homebrew_release')
 
 
 class PackagePublishingTests(unittest.TestCase):
@@ -94,6 +95,27 @@ class PackagePublishingTests(unittest.TestCase):
         self.assertIn('audience=npm%3Aregistry.npmjs.org', requests[0].full_url)
         self.assertIn('%40shiju-ai%2Fshiju', requests[1].full_url)
         self.assertNotIn('secret', output.getvalue())
+
+    def test_homebrew_validates_binary_hashes_without_formula_hashes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            artifacts = {}
+            for package in homebrew.PACKAGES:
+                lines = ['  version "0.5.6"']
+                for target in homebrew.TARGETS:
+                    name = f'{package}-{target}.tar.gz'
+                    artifacts[name] = {'checksums': {'sha256': 'a' * 64}}
+                    url = f'https://github.com/hunzhiwange/shiju/releases/download/v0.5.6/{name}'
+                    lines += [f'      url "{url}"', '      sha256 "' + 'a' * 64 + '"']
+                (root / (package + '.rb')).write_text('\n'.join(lines))
+            (root / 'dist-manifest.json').write_text(json.dumps({
+                'announcement_tag': 'v0.5.6', 'artifacts': artifacts,
+            }))
+            homebrew.verify(root, 'v0.5.6')
+            formula = root / 'shiju.rb'
+            formula.write_text(formula.read_text().replace('a' * 64, 'b' * 64))
+            with self.assertRaisesRegex(SystemExit, 'checksum mismatch'):
+                homebrew.verify(root, 'v0.5.6')
 
     def test_homebrew_repeat_is_a_noop(self):
         with tempfile.TemporaryDirectory() as temp:

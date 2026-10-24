@@ -1,0 +1,120 @@
+name: Recover GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Original Release run containing completed build artifacts'
+        required: true
+        type: string
+      tag:
+        description: 'Existing release tag, for example v0.5.6'
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: release-recovery-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      SOURCE_RUN: ${{ inputs.run_id }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - name: Verify source run and tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN" =~ ^[0-9]+$ ]]
+          gh api "repos/$GH_REPO/actions/runs/$SOURCE_RUN" > "$RUNNER_TEMP/source-run.json"
+          gh api "repos/$GH_REPO/git/ref/tags/$RELEASE_TAG" > "$RUNNER_TEMP/tag.json"
+          python3 - <<'PY'
+          import json, os, pathlib, subprocess
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          run = json.loads((root / 'source-run.json').read_text())
+          tag = json.loads((root / 'tag.json').read_text())['object']
+          while tag['type'] == 'tag':
+              tag = json.loads(subprocess.check_output([
+                  'gh', 'api', f"repos/{os.environ['GH_REPO']}/git/tags/{tag['sha']}"
+              ]))['object']
+          assert run['path'] == '.github/workflows/release.yml', 'Unexpected source workflow'
+          assert run['event'] == 'push' and run['status'] == 'completed', 'Source run must be a completed push run'
+          assert run['head_branch'] == os.environ['RELEASE_TAG'], 'Source tag mismatch'
+          assert tag['type'] == 'commit' and run['head_sha'] == tag['sha'], 'Source commit mismatch'
+          print(f"Verified {os.environ['RELEASE_TAG']} at {tag['sha']}")
+          PY
+          gh api --paginate "repos/$GH_REPO/actions/runs/$SOURCE_RUN/jobs?per_page=100" --jq '.jobs[] | select(.name == "build-global-artifacts" or (.name | startswith("build-local-artifacts ("))) | .conclusion' > "$RUNNER_TEMP/build-results.txt"
+          test "$(wc -l < "$RUNNER_TEMP/build-results.txt")" -gt 0
+          if grep -vx 'success' "$RUNNER_TEMP/build-results.txt"; then
+            echo 'Source builds did not all succeed' >&2
+            exit 1
+          fi
+      - name: Download existing artifacts
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ inputs.run_id }}
+          pattern: artifacts-*
+          path: artifacts
+          merge-multiple: true
+      - name: Verify artifact completeness and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, pathlib
+          root = pathlib.Path('artifacts')
+          manifest = json.loads((root / 'dist-manifest.json').read_text())
+          assert manifest['announcement_tag'] == os.environ['RELEASE_TAG'], 'Manifest tag mismatch'
+          assert not manifest['announcement_is_prerelease'], 'Recovery currently supports stable releases only'
+          missing = [name for name in manifest['artifacts'] if not (root / name).is_file()]
+          assert not missing, f'Missing artifacts: {missing}'
+          checked = 0
+          for name, item in manifest['artifacts'].items():
+              if not item.get('checksum'):
+                  continue
+              expected = (root / item['checksum']).read_text().split()[0]
+              with (root / name).open('rb') as artifact:
+                  actual = hashlib.file_digest(artifact, 'sha256').hexdigest()
+              assert actual == expected, f'Checksum mismatch: {name}'
+              checked += 1
+          assert checked > 0, 'No checksums verified'
+          for path in root.glob('*-dist-manifest.json'):
+              path.unlink()
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'notes.txt').write_text(manifest['announcement_github_body'])
+          print(f'Verified {len(manifest["artifacts"])} manifest artifacts and {checked} checksums')
+          for path in sorted(root.iterdir()):
+              assert path.is_file(), f'Unexpected artifact directory: {path}'
+              print(f'{path.name}: {path.stat().st_size} bytes')
+          PY
+      - name: Create draft and upload original artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" --verify-tag --draft --title "$RELEASE_TAG" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
+      - name: Verify uploaded assets and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --json isDraft,assets > "$RUNNER_TEMP/uploaded.json"
+          python3 - <<'PY'
+          import json, os, pathlib
+          release = json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'uploaded.json').read_text())
+          assert release['isDraft'], 'Expected a draft release'
+          local = {p.name: p.stat().st_size for p in pathlib.Path('artifacts').iterdir()}
+          remote = {a['name']: a['size'] for a in release['assets']}
+          assert local == remote, 'Uploaded asset names or sizes differ'
+          assert all(a['state'] == 'uploaded' for a in release['assets']), 'Incomplete upload'
+          print(f'Confirmed all {len(local)} uploaded assets')
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false --latest
+          gh release view "$RELEASE_TAG" --json url,isDraft --jq '.'

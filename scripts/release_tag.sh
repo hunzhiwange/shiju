@@ -10,7 +10,6 @@ Create an annotated release tag from the current checkout.
 Requirements:
 - tag must match vX.Y.Z (optional suffix like -rc.1)
 - working tree must be clean
-- HEAD must match origin's default branch
 - tag must not already exist locally or on origin
 
 Options:
@@ -49,28 +48,16 @@ if ! git diff --quiet || ! git diff --cached --quiet; then
   exit 1
 fi
 
-DEFAULT_BRANCH="$(git ls-remote --symref origin HEAD | awk '$1 == "ref:" && $3 == "HEAD" { sub(/^refs\/heads\//, "", $2); print $2 }')"
-if [[ -z "$DEFAULT_BRANCH" ]]; then
-  echo "error: could not determine origin's default branch." >&2
-  exit 1
-fi
-echo "Fetching origin/$DEFAULT_BRANCH and tags..."
-git fetch --quiet origin "refs/heads/$DEFAULT_BRANCH:refs/remotes/origin/$DEFAULT_BRANCH" --tags
-
-HEAD_SHA="$(git rev-parse HEAD)"
-DEFAULT_SHA="$(git rev-parse "refs/remotes/origin/$DEFAULT_BRANCH")"
-if [[ "$HEAD_SHA" != "$DEFAULT_SHA" ]]; then
-  echo "error: HEAD ($HEAD_SHA) is not origin/$DEFAULT_BRANCH ($DEFAULT_SHA)." >&2
-  echo "hint: checkout/update $DEFAULT_BRANCH before cutting a release tag." >&2
-  exit 1
-fi
-
 if git show-ref --tags --verify --quiet "refs/tags/$TAG"; then
   echo "error: tag already exists locally: $TAG" >&2
   exit 1
 fi
 
-if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+if ! REMOTE_TAG="$(git ls-remote --tags origin "refs/tags/$TAG")"; then
+  echo "error: could not check existing tags on origin." >&2
+  exit 1
+fi
+if [[ -n "$REMOTE_TAG" ]]; then
   echo "error: tag already exists on origin: $TAG" >&2
   exit 1
 fi

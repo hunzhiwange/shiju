@@ -1,4 +1,4 @@
-"""Check release tagging against the remote default branch without GitHub writes."""
+"""Check arbitrary branch and historical release tagging without GitHub writes."""
 
 from pathlib import Path
 import subprocess
@@ -38,14 +38,37 @@ class ReleaseTagTests(unittest.TestCase):
                              self.git(local, 'rev-parse', 'HEAD'))
             self.assertEqual(self.git(local, 'ls-remote', 'origin', 'refs/tags/v0.5.7'), '')
 
-    def test_rejects_unpushed_commit(self):
+    def test_tags_another_branch_without_pushing_it(self):
         with tempfile.TemporaryDirectory() as directory:
             local = self.fixture(directory)
-            self.git(local, 'commit', '--allow-empty', '-m', 'unpushed')
+            self.git(local, 'checkout', '-b', 'release-fix')
+            self.git(local, 'commit', '--allow-empty', '-m', 'release fix')
+            expected = self.git(local, 'rev-parse', 'HEAD')
+            result = subprocess.run(['bash', str(SCRIPT), 'v0.5.7'], cwd=local,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(self.git(local, 'rev-parse', 'v0.5.7^{}'), expected)
+
+    def test_tags_detached_historical_commit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            local = self.fixture(directory)
+            historical = self.git(local, 'rev-parse', 'HEAD')
+            self.git(local, 'commit', '--allow-empty', '-m', 'newer')
+            self.git(local, 'push', 'origin', 'HEAD')
+            self.git(local, 'checkout', '--detach', historical)
+            result = subprocess.run(['bash', str(SCRIPT), 'v0.5.7'], cwd=local,
+                                    capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertEqual(self.git(local, 'rev-parse', 'v0.5.7^{}'), historical)
+
+    def test_remote_check_failure_does_not_create_a_tag(self):
+        with tempfile.TemporaryDirectory() as directory:
+            local = self.fixture(directory)
+            self.git(local, 'remote', 'set-url', 'origin', str(Path(directory) / 'missing.git'))
             result = subprocess.run(['bash', str(SCRIPT), 'v0.5.7'], cwd=local,
                                     capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('origin/shiju', result.stderr)
+            self.assertIn('could not check existing tags', result.stderr)
             self.assertEqual(self.git(local, 'tag', '--list'), '')
 
 

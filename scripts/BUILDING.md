@@ -2,6 +2,29 @@
 
 This document is located under `scripts/` for daily development and release.
 
+## Release permission preflight (no build)
+
+Run **Actions → Release preflight → Run workflow**, selecting the branch with
+the fix and supplying an existing tag without a release (for example `v0.5.6`).
+This uses the workflow's `GITHUB_TOKEN` to create a draft, upload a tiny text
+asset, and delete that draft by ID. It preserves the tag and refuses tags that
+already have a release. Cleanup failure reports the draft ID for manual removal.
+It does not compile Rust or publish a release. The job has a five-minute timeout.
+
+Tag-triggered release builds require this preflight to succeed before starting
+the platform build matrix. A manual run requires the workflow to be present on
+the default branch. Rerunning an old release run still uses its old workflow.
+
+Local failure-handling checks (no network writes):
+
+```bash
+python3 -m unittest discover -s scripts/tests -p test_release_permissions.py
+```
+
+The local checks cannot validate GitHub token permissions. The online probe
+checks draft creation and upload; final publication and downstream Homebrew/npm
+publishing can still fail independently.
+
 ## 0. Prerequisites
 
 - Install Rust (recommend via rustup):

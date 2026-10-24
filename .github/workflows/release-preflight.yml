@@ -1,0 +1,37 @@
+name: Release preflight
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag without a release (for example v0.5.6)'
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# Serialize manual and automatic probes for the same tag.
+concurrency:
+  group: release-preflight-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  release-permissions:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Check release creation and upload permissions
+        run: bash scripts/check_release_permissions.sh "$RELEASE_TAG"

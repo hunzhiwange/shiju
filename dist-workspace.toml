@@ -13,6 +13,7 @@ allow-dirty = ["ci"]
 dist = false
 # The installers to generate for each app
 installers = ["shell", "powershell", "npm", "homebrew"]
+npm-scope = "@shiju-ai"
 tap = "hunzhiwange/homebrew-tap"
 # Publish jobs to run in CI
 publish-jobs = ["homebrew", "npm"]

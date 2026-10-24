@@ -25,6 +25,22 @@ The local checks cannot validate GitHub token permissions. The online probe
 checks draft creation and upload; final publication and downstream Homebrew/npm
 publishing can still fail independently.
 
+## npm distribution
+
+The four npm installers use the `@shiju-ai` scope, configured by `npm-scope`
+in `dist-workspace.toml`:
+
+```bash
+npm install @shiju-ai/shiju@0.5.6
+npm install @shiju-ai/shiju-acp@0.5.6
+npm install @shiju-ai/shiju-desktop@0.5.6
+npm install @shiju-ai/shiju-webview@0.5.6
+```
+
+These installers download existing GitHub Release binaries. Automated publishing
+requires a trusted publisher on each npm package for `hunzhiwange/shiju` and
+`release.yml`; `id-token: write` alone does not configure npm authorization.
+
 ## 0. Prerequisites
 
 - Install Rust (recommend via rustup):

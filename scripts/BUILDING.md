@@ -39,7 +39,24 @@ npm install @shiju-ai/shiju-webview@0.5.6
 
 These installers download existing GitHub Release binaries. Automated publishing
 requires a trusted publisher on each npm package for `hunzhiwange/shiju` and
-`release.yml`; `id-token: write` alone does not configure npm authorization.
+`release.yml`, with direct publishing allowed. No npm password or long-lived npm
+token is used. Homebrew uses `HOMEBREW_TAP_DEPLOY_KEY`, a write deploy key limited
+to `hunzhiwange/homebrew-tap` (deploy key title: `shiju-release-homebrew`).
+
+Tag releases check npm OIDC token exchange for all four packages and Homebrew
+SSH write access before building. Both publishers download the completed GitHub
+Release artifacts and verify checksums. Matching npm versions and unchanged tap
+formulas succeed without republishing or creating empty commits.
+
+For a lightweight online check, run **Actions → Release → Run workflow** with
+`mode=check`. For a retry after a partial publishing failure, choose
+`mode=publish-existing` and set `tag` to the existing release tag. Both manual
+modes skip planning, building and packaging. The retry rejects published npm
+versions whose contents differ from the Release artifact.
+
+To rotate the Homebrew key, create a new write deploy key on the tap, replace
+the `HOMEBREW_TAP_DEPLOY_KEY` secret on `hunzhiwange/shiju`, verify with
+`mode=check`, then delete the old deploy key.
 
 ## 0. Prerequisites
 

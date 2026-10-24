@@ -40,12 +40,48 @@ permissions:
 # If there's a prerelease-style suffix to the version, then the release(s)
 # will be marked as a prerelease.
 on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Check credentials only, or publish from an existing GitHub Release'
+        type: choice
+        options: [check, publish-existing]
+        default: check
+      tag:
+        description: 'Existing release tag (used only by publish-existing)'
+        type: string
+        default: v0.5.6
   pull_request:
   push:
     tags:
       - '**[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
+  publish-access:
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Verify npm trusted publishing without publishing
+        run: python3 scripts/check_npm_publish_access.py
+      - name: Require tap deploy key
+        env:
+          TAP_KEY: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+        run: test -n "$TAP_KEY"
+      - uses: actions/checkout@v6
+        with:
+          repository: hunzhiwange/homebrew-tap
+          path: homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+      - name: Verify Homebrew write access without changing the tap
+        run: git -C homebrew-tap push --dry-run origin HEAD:refs/heads/main
+
   release-preflight:
     if: ${{ github.event_name == 'push' }}
     uses: ./.github/workflows/release-preflight.yml
@@ -54,6 +90,7 @@ jobs:
 
   # Run 'dist plan' (or host) to determine what tasks we need to do
   plan:
+    if: ${{ github.event_name != 'workflow_dispatch' }}
     runs-on: "ubuntu-22.04"
     outputs:
       val: ${{ steps.plan.outputs.manifest }}
@@ -101,7 +138,8 @@ jobs:
     needs:
       - plan
       - release-preflight
-    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.release-preflight.result == 'success' || github.event_name == 'pull_request') && fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
+      - publish-access
+    if: ${{ !cancelled() && needs.plan.result == 'success' && (needs.release-preflight.result == 'success' || github.event_name == 'pull_request') && (needs.publish-access.result == 'success' || github.event_name == 'pull_request') && fromJson(needs.plan.outputs.val).ci.github.artifacts_matrix.include != null && (needs.plan.outputs.publishing == 'true' || fromJson(needs.plan.outputs.val).ci.github.pr_run_mode == 'upload') }}
     strategy:
       fail-fast: false
       # Target platforms/runners are computed by dist in create-release.
@@ -371,10 +409,11 @@ jobs:
     needs:
       - plan
       - release-preflight
+      - publish-access
       - build-local-artifacts
       - build-global-artifacts
     # Only run if we're "publishing", and only if plan, local and global didn't fail (skipped is fine)
-    if: ${{ always() && needs.release-preflight.result == 'success' && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
+    if: ${{ always() && needs.publish-access.result == 'success' && needs.release-preflight.result == 'success' && needs.plan.result == 'success' && needs.plan.outputs.publishing == 'true' && (needs.build-global-artifacts.result == 'skipped' || needs.build-global-artifacts.result == 'success') && (needs.build-local-artifacts.result == 'skipped' || needs.build-local-artifacts.result == 'success') }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     runs-on: "ubuntu-22.04"
@@ -436,81 +475,65 @@ jobs:
           gh release create "${{ needs.plan.outputs.tag }}" --verify-tag $PRERELEASE_FLAG --title "$ANNOUNCEMENT_TITLE" --notes-file "$RUNNER_TEMP/notes.txt" artifacts/*
 
   publish-homebrew-formula:
-    needs:
-      - plan
-      - host
-    runs-on: "ubuntu-22.04"
+    needs: [plan, host, publish-access]
+    if: ${{ !cancelled() && needs.publish-access.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-existing') || (needs.host.result == 'success' && (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases))) }}
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: homebrew-tap-publish
+      cancel-in-progress: false
+    timeout-minutes: 10
+    permissions:
+      contents: read
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-      PLAN: ${{ needs.plan.outputs.val }}
-      GITHUB_USER: "vibewindow bot"
-      GITHUB_EMAIL: "actions@github.com"
-    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag || needs.plan.outputs.tag }}
     steps:
-      - name: Verify Homebrew tap token
-        shell: bash
-        run: |
-          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
-            echo "HOMEBREW_TAP_TOKEN is required to publish hunzhiwange/homebrew-tap." >&2
-            echo "Create a fine-grained personal access token with Contents: Read and write for hunzhiwange/homebrew-tap, then save it as this repository secret." >&2
-            exit 1
-          fi
       - uses: actions/checkout@v6
         with:
-          persist-credentials: true
-          repository: "hunzhiwange/homebrew-tap"
-          token: ${{ env.HOMEBREW_TAP_TOKEN }}
-      - name: Fetch homebrew formulae
-        uses: actions/download-artifact@v4
+          persist-credentials: false
+      - uses: actions/checkout@v6
         with:
-          pattern: artifacts-*
-          path: Formula/
-          merge-multiple: true
-      - name: Commit formula files
+          repository: hunzhiwange/homebrew-tap
+          path: homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+      - name: Download published Homebrew formulas
+        run: gh release download "$RELEASE_TAG" --pattern '*.rb' --pattern sha256.sum --dir "$RUNNER_TEMP/formula"
+      - name: Verify original formulas and update tap
+        shell: bash
         run: |
-          git config --global user.name "${GITHUB_USER}"
-          git config --global user.email "${GITHUB_EMAIL}"
-
-          for release in $(echo "$PLAN" | jq --compact-output '.releases[] | select([.artifacts[] | endswith(".rb")] | any)'); do
-            filename=$(echo "$release" | jq '.artifacts[] | select(endswith(".rb"))' --raw-output)
-            name=$(echo "$filename" | sed "s/\.rb$//")
-            version=$(echo "$release" | jq .app_version --raw-output)
-
-            export PATH="/home/linuxbrew/.linuxbrew/bin:$PATH"
-            brew update
-            brew style --except-cops FormulaAudit/Homepage,FormulaAudit/Desc,FormulaAuditStrict --fix "Formula/${filename}" || true
-
-            git add "Formula/${filename}"
-            git commit -m "${name} ${version}"
-          done
-          git push
+          set -euo pipefail
+          (cd "$RUNNER_TEMP/formula" && sha256sum --check --ignore-missing sha256.sum)
+          bash scripts/publish_homebrew.sh "$RUNNER_TEMP/formula" "$GITHUB_WORKSPACE/homebrew-tap" "$RELEASE_TAG"
 
   publish-npm:
-    needs:
-      - plan
-      - host
-    runs-on: "ubuntu-22.04"
+    needs: [plan, host, publish-access]
+    if: ${{ !cancelled() && needs.publish-access.result == 'success' && ((github.event_name == 'workflow_dispatch' && inputs.mode == 'publish-existing') || (needs.host.result == 'success' && (!fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases))) }}
+    runs-on: ubuntu-22.04
+    concurrency:
+      group: npm-publish-${{ inputs.tag || needs.plan.outputs.tag }}
+      cancel-in-progress: false
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PLAN: ${{ needs.plan.outputs.val }}
-    if: ${{ !fromJson(needs.plan.outputs.val).announcement_is_prerelease || fromJson(needs.plan.outputs.val).publish_prereleases }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_TAG: ${{ inputs.tag || needs.plan.outputs.tag }}
     steps:
-      - name: Fetch npm packages
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
         with:
-          pattern: artifacts-*
-          path: npm/
-          merge-multiple: true
+          persist-credentials: false
+      - name: Download published npm installers
+        run: gh release download "$RELEASE_TAG" --pattern '*-npm-package.tar.gz' --pattern dist-manifest.json --dir "$RUNNER_TEMP/npm"
       - uses: actions/setup-node@v4
         with:
           node-version: '24.x'
           registry-url: 'https://registry.npmjs.org'
-      - run: |
-          for release in $(echo "$PLAN" | jq --compact-output '.releases[] | select([.artifacts[] | endswith("-npm-package.tar.gz")] | any)'); do
-            pkg=$(echo "$release" | jq '.artifacts[] | select(endswith("-npm-package.tar.gz"))' --raw-output)
-            npm publish --access public "./npm/${pkg}"
-          done
+      - name: Publish verified existing installers using OIDC
+        # Node 24 provides npm >=11.5.1, required for trusted publishing.
+        run: python3 scripts/publish_npm_release.py "$RUNNER_TEMP/npm" "$RELEASE_TAG"
 
   announce:
     needs:

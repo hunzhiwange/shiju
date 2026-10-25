@@ -1,0 +1,75 @@
+- description: edit-01 · 精确文件编辑
+  metadata:
+    suite: runtime-accuracy
+    batch: 14
+    category: edit
+    split: dev
+    taskId: edit-01
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: edit-01
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["settings.ini", "notes.txt"]
+    task: >-
+      只将 settings.ini 中 [server] 段的 port 值 4100 替换为 6287，保持所有其他字节不变。
+      公开输入仅为上述 fixtureFiles：settings.ini、notes.txt。只允许修改指定目标文件；禁止创建、删除或修改其他文件、创建目录、访问网络或扩大权限。无需自写测试，完成后简短说明。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。
+
+- description: edit-02 · 精确文件编辑
+  metadata:
+    suite: runtime-accuracy
+    batch: 14
+    category: edit
+    split: dev
+    taskId: edit-02
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: edit-02
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["routes.txt", "notes.txt"]
+    task: >-
+      在 routes.txt 的唯一标记 # INSERT ROUTE HERE 所在行之后插入一行 east，使用原有 CRLF 行尾，保持其他字节不变。
+      公开输入仅为上述 fixtureFiles：routes.txt、notes.txt。只允许修改指定目标文件；禁止创建、删除或修改其他文件、创建目录、访问网络或扩大权限。无需自写测试，完成后简短说明。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。
+
+- description: edit-03 · 精确文件编辑
+  metadata:
+    suite: runtime-accuracy
+    batch: 14
+    category: edit
+    split: dev
+    taskId: edit-03
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: edit-03
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["records.csv", "notes.txt"]
+    task: >-
+      删除 records.csv 中 id 为 drop-2 的完整记录行（含其 LF 行尾），保持其余字节完全不变，包括末尾没有换行。
+      公开输入仅为上述 fixtureFiles：records.csv、notes.txt。只允许修改指定目标文件；禁止创建、删除或修改其他文件、创建目录、访问网络或扩大权限。无需自写测试，完成后简短说明。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。
+
+- description: edit-04 · 精确文件编辑
+  metadata:
+    suite: runtime-accuracy
+    batch: 14
+    category: edit
+    split: holdout
+    taskId: edit-04
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: edit-04
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["资料/生产/设置.txt", "资料/备份/设置.txt", "设置.txt"]
+    task: >-
+      仅将 资料/生产/设置.txt 中的 重试=2 改为 重试=5，保留行尾；资料/备份/设置.txt 和根目录 设置.txt 两个同名文件必须保持原样。
+      公开输入仅为上述 fixtureFiles：资料/生产/设置.txt、资料/备份/设置.txt、设置.txt。只允许修改指定目标文件；禁止创建、删除或修改其他文件、创建目录、访问网络或扩大权限。无需自写测试，完成后简短说明。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。

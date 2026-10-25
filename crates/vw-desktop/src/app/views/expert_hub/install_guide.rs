@@ -34,11 +34,7 @@ pub(super) struct InstallTargetPresentation {
 }
 
 const INSTALL_TARGETS: [(SkillInstallTarget, &str, &str); 10] = [
-    (
-        SkillInstallTarget::VibeWindow,
-        "VibeWindow",
-        "VibeWindow 原生技能目录，仅供当前 VibeWindow 运行时使用。",
-    ),
+    (SkillInstallTarget::VibeWindow, "ShiJu", "ShiJu 原生技能目录，仅供当前 ShiJu 运行时使用。"),
     (
         SkillInstallTarget::AgentSkills,
         "通用 Agent Skills",
@@ -538,7 +534,7 @@ fn direct_install_card(app: &App) -> Element<'static, Message> {
             section_header(
                 Some("方法 1"),
                 "直接安装",
-                "选择全局或项目范围，再选择目标项目和一个或多个 Agent 目标。VibeWindow 会下载、校验并以独立副本统一安装。",
+                "选择全局或项目范围，再选择目标项目和一个或多个 Agent 目标。ShiJu 会下载、校验并以独立副本统一安装。",
             ),
             text(platform).size(13),
             scope_controls,

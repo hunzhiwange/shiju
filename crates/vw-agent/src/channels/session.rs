@@ -301,11 +301,14 @@ pub(crate) async fn run_session_processor_for_channel(
     };
     #[cfg(test)]
     let run_processor = crate::global_database::inherit_test_database_context(run_processor);
-    tokio::task::spawn_blocking(run_processor);
+    let processor_task = tokio::task::spawn_blocking(run_processor);
 
     // 处理流式事件
     let mut output = String::new();
-    while let Some(ev) = event_rx.recv().await {
+    let terminal = loop {
+        let Some(ev) = event_rx.recv().await else {
+            break Err(anyhow::anyhow!("session processor exited without terminal event"));
+        };
         match ev {
             crate::app::agent::session::processor::StreamEvent::LlmRawArtifact(_) => {}
             crate::app::agent::session::processor::StreamEvent::Delta(delta) => {
@@ -321,9 +324,9 @@ pub(crate) async fn run_session_processor_for_channel(
                     let _ = tx.send(delta).await;
                 }
             }
-            crate::app::agent::session::processor::StreamEvent::Done(_) => return Ok(output),
+            crate::app::agent::session::processor::StreamEvent::Done(_) => break Ok(output),
             crate::app::agent::session::processor::StreamEvent::Error(err) => {
-                anyhow::bail!(err)
+                break Err(anyhow::anyhow!(err));
             }
             crate::app::agent::session::processor::StreamEvent::StepStart { .. }
             | crate::app::agent::session::processor::StreamEvent::StepFinish { .. }
@@ -331,10 +334,10 @@ pub(crate) async fn run_session_processor_for_channel(
             | crate::app::agent::session::processor::StreamEvent::Compaction { .. }
             | crate::app::agent::session::processor::StreamEvent::ContextLoaded { .. } => {}
         }
-    }
-
-    // 如果没有收到终止事件，视为异常
-    anyhow::bail!("session processor exited without terminal event")
+    };
+    // 终态事件可能早于最终工件持久化，必须等待阻塞处理器真正返回。
+    processor_task.await.context("channel session processor crashed")?;
+    terminal
 }
 
 /// 将通道聊天消息转换为会话历史格式

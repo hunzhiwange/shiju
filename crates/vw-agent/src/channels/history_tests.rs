@@ -44,6 +44,7 @@ fn test_context() -> ChannelRuntimeContext {
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -87,7 +88,7 @@ fn conversation_keys_include_thread_when_present() {
     assert_eq!(identity["thread"], "thread-9");
     assert_eq!(identity["reply_target"], "room-1");
     assert_eq!(identity["instance"], "default");
-    assert_eq!(interruption_scope_key(&threaded), "telegram_room-1_sender-1");
+    assert_eq!(interruption_scope_key(&threaded), conversation_history_key(&threaded));
 }
 
 #[test]

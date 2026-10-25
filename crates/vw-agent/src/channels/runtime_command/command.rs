@@ -10,6 +10,7 @@ use super::super::*;
 pub(crate) enum ChannelRuntimeCommand {
     Help(String),
     Status,
+    Stop,
     Settings,
     Effort(String),
     Error(String),
@@ -85,6 +86,7 @@ pub(crate) fn parse_runtime_command(
     let tail = args.join(" ");
     Some(match meta.name {
         "help" => ChannelRuntimeCommand::Help(tail),
+        "stop" => ChannelRuntimeCommand::Stop,
         "status" => ChannelRuntimeCommand::Status,
         "settings" => ChannelRuntimeCommand::Settings,
         "effort" => ChannelRuntimeCommand::Effort(tail),

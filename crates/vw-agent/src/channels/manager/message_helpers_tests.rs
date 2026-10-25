@@ -214,6 +214,7 @@ fn test_context(
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("test-provider".to_string()),

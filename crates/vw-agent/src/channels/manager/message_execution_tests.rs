@@ -32,6 +32,7 @@ fn context(workspace_dir: PathBuf) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -92,7 +93,7 @@ fn channel_session_options_enable_full_access() {
         reasoning_effort: None,
         task_mode_enabled: false,
     };
-    let options = channel_session_options(&route);
+    let options = channel_session_options(&route, true);
 
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
 }
@@ -178,10 +179,21 @@ fn channel_command_catalog_effort_is_forwarded_without_permission_changes() {
         reasoning_effort: None,
         task_mode_enabled: false,
     };
-    let defaults = channel_session_options(&route);
+    let defaults = channel_session_options(&route, true);
     route.reasoning_effort = Some("high".into());
-    let mut selected = channel_session_options(&route);
+    let mut selected = channel_session_options(&route, true);
     assert_eq!(selected["reasoning_effort"], "high");
     selected.as_object_mut().unwrap().remove("reasoning_effort");
     assert_eq!(selected, defaults);
+}
+
+#[test]
+fn channel_command_cancel_webhook_preserves_supervised_permissions() {
+    let route = ChannelRouteSelection {
+        provider: "provider".into(),
+        model: "model".into(),
+        reasoning_effort: None,
+        task_mode_enabled: false,
+    };
+    assert_eq!(channel_session_options(&route, false)["full_access"], false);
 }

@@ -187,7 +187,7 @@ async fn process_channel_messages_sends_fallback_with_thread_when_gateway_chat_f
     let channel = RecordingChannel::default();
     let messages = vec![channel_message()];
 
-    process_channel_messages(
+    process_channel_messages_with_chat(
         &state,
         "Recording",
         &channel,
@@ -195,6 +195,7 @@ async fn process_channel_messages_sends_fallback_with_thread_when_gateway_chat_f
         |msg| format!("recording:{}", msg.sender),
         "recording message",
         true,
+        run_gateway_chat_with_tools_boxed,
     )
     .await;
 
@@ -1040,4 +1041,181 @@ async fn channel_reload_saved_credentials_update_existing_webhook_router() {
     .unwrap();
     watcher.abort();
     let _ = watcher.await;
+}
+
+#[tokio::test]
+async fn channel_command_cancel_webhook_uses_common_stop_and_help() {
+    let state = state();
+    let channel = Arc::new(RecordingChannel::default());
+    let mut message = channel_message();
+    message.channel = "qq".into();
+    for command in ["/stop", "/help stop", "/stop extra"] {
+        message.content = command.into();
+        process_channel_messages(
+            &state,
+            "QQ",
+            &channel,
+            &[message.clone()],
+            qq_memory_key,
+            "QQ",
+            true,
+        )
+        .await;
+    }
+    let sent = channel.sent.lock();
+    assert_eq!(sent.len(), 3);
+    assert!(sent[0].content.contains("没有正在执行"));
+    assert!(sent[1].content.contains("当前聊天"));
+    assert!(sent[2].content.contains("参数错误"));
+    assert!(sent.iter().all(
+        |reply| reply.recipient == message.reply_target && reply.thread_ts == message.thread_ts
+    ));
+}
+
+#[tokio::test]
+async fn channel_command_cancel_qq_webhook_stops_previous_message_id() {
+    let name =
+        concat!(module_path!(), "::channel_command_cancel_qq_webhook_stops_previous_message_id");
+    let name = name.strip_prefix("vw_agent::").unwrap_or(name);
+    if std::env::var("VW_QQ_CANCEL_TEST").as_deref() != Ok(name) {
+        let home = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", name, "--nocapture"])
+            .env("VW_QQ_CANCEL_TEST", name)
+            .env("HOME", home.path())
+            .env("VIBEWINDOW_CONFIG_DIR", home.path().join("config"))
+            .env("VIBEWINDOW_WORKSPACE", home.path().join("workspace"))
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success() && String::from_utf8_lossy(&output.stdout).contains("1 passed"),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    crate::config::update(serde_json::json!({
+        "providers": {"channel-cancel-fixture": {"models": {"cancel-model": {"status": "active"}}}}
+    }))
+    .await
+    .unwrap();
+    let tmp = tempfile::tempdir().unwrap();
+    crate::project::from_directory(&crate::session::ui_store::current_tenant_scope(), tmp.path())
+        .await
+        .unwrap();
+    let replies = Arc::new(tokio::sync::Mutex::new(Vec::<SendMessage>::new()));
+    let mut state = state();
+    state.model = "cancel-model".into();
+    {
+        let mut config = state.config.lock();
+        config.workspace_dir = tmp.path().to_path_buf();
+        config.default_provider = Some("channel-cancel-fixture".into());
+    }
+    let qq = Arc::new(
+        QQChannel::new(
+            "fixture-app".into(),
+            "fixture-secret".into(),
+            vec!["allowed-sender".into()],
+        )
+        .with_outbound_recorder(replies.clone()),
+    );
+    state.channels.lock().qq = Some(qq);
+    state.channels.lock().qq_webhook_enabled = true;
+    let payload = |id: &str, content: &str, sender: &str| {
+        Bytes::from(serde_json::to_vec(&serde_json::json!({
+        "op":0,"t":"C2C_MESSAGE_CREATE","d":{"id":id,"content":content,"author":{"user_openid":sender}}
+    })).unwrap())
+    };
+    let mut headers = HeaderMap::new();
+    headers.insert("X-Bot-Appid", HeaderValue::from_static("fixture-app"));
+    assert_eq!(
+        handle_qq_webhook(
+            State(state.clone()),
+            headers.clone(),
+            payload("new-id", "/new", "allowed-sender")
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+    let runtime = super::super::channel_runtime::channel_runtime(&state).unwrap();
+    let mut msg = channel_message();
+    msg.channel = "qq".into();
+    msg.sender = "allowed-sender".into();
+    msg.reply_target = "user:allowed-sender".into();
+    msg.thread_ts = Some("new-id".into());
+    let snapshot = crate::channels::resolve_channel_message_snapshot(&runtime, &msg).await.unwrap();
+    let session = crate::channels::sender_session_store()
+        .lock()
+        .unwrap()
+        .get(&snapshot.scope)
+        .unwrap()
+        .clone();
+    let stream = Arc::new(crate::session::processor::ChannelCancelStream::default());
+    crate::session::processor::register_channel_cancel_stream(&session, stream.clone());
+    let running = tokio::spawn(handle_qq_webhook(
+        State(state.clone()),
+        headers.clone(),
+        payload("ordinary-id", "Tell a story", "allowed-sender"),
+    ));
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !stream.started.load(std::sync::atomic::Ordering::Acquire) {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    // Actor allowlisting still runs before cancellation control.
+    handle_qq_webhook(
+        State(state.clone()),
+        headers.clone(),
+        payload("denied-stop", "/stop", "other-sender"),
+    )
+    .await;
+    assert!(!stream.exited.load(std::sync::atomic::Ordering::Acquire));
+    let response = tokio::time::timeout(
+        Duration::from_secs(2),
+        handle_qq_webhook(
+            State(state.clone()),
+            headers,
+            payload("stop-id", "/stop", "allowed-sender"),
+        ),
+    )
+    .await
+    .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(stream.exited.load(std::sync::atomic::Ordering::Acquire));
+    running.await.unwrap();
+    let sent = replies.lock().await;
+    assert!(
+        sent.iter().any(|reply| reply.content.contains("执行已停止")
+            && reply.thread_ts.as_deref() == Some("stop-id")
+            && reply.recipient == "user:allowed-sender"),
+        "captured QQ replies: {sent:?}"
+    );
+    assert!(!sent.iter().any(|reply| reply.content.contains("completed naturally")));
+}
+
+#[tokio::test]
+async fn channel_command_cancel_webhook_failed_send_preserves_state() {
+    let state = state();
+    let channel = Arc::new(RecordingChannel { fail_send: true, ..Default::default() });
+    let mut msg = channel_message();
+    msg.content = "/stop".into();
+    process_channel_messages(
+        &state,
+        "recording",
+        &channel,
+        &[msg],
+        qq_memory_key,
+        "recording",
+        true,
+    )
+    .await;
+    assert_eq!(channel.sent.lock().len(), 1);
+    let runtime = super::super::channel_runtime::channel_runtime(&state).unwrap();
+    assert!(runtime.conversation_histories.lock().unwrap().is_empty());
+    assert!(runtime.project_state.lock().unwrap().active.is_empty());
+    assert!(!runtime.session_full_access);
 }

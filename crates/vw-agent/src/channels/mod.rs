@@ -482,6 +482,8 @@ pub(crate) struct RuntimeAutonomyPolicy {
 pub(crate) struct ChannelRuntimeContext {
     pub(crate) project_state: Arc<Mutex<ChannelProjectState>>,
     pub(crate) message_snapshot: Option<ChannelMessageSnapshot>,
+    /// Webhook 保留网关的受监督工具权限；监听通道沿用既有会话权限。
+    pub(crate) session_full_access: bool,
     /// 按名称索引的通道实例映射
     pub(crate) channels_by_name: Arc<HashMap<String, Arc<dyn Channel>>>,
     /// 当前使用的服务提供者
@@ -583,12 +585,11 @@ impl InFlightTaskCompletion {
     ///
     /// 如果任务已完成则立即返回，否则阻塞等待通知。
     async fn wait(&self) {
-        // 快速路径：已完成后直接返回
-        if self.done.load(Ordering::Acquire) {
-            return;
+        // 先创建通知 Future，再检查完成状态，避免 notify_waiters 丢失唤醒。
+        let notified = self.notify.notified();
+        if !self.done.load(Ordering::Acquire) {
+            notified.await;
         }
-        // 慢速路径：等待完成通知
-        self.notify.notified().await;
     }
 }
 
@@ -724,3 +725,11 @@ include!("channel_session_lifecycle_tests.rs");
 #[cfg(test)]
 #[path = "runtime_command/history_commands_tests.rs"]
 mod channel_session_history_tests;
+
+#[cfg(test)]
+#[path = "manager/dispatch_tests.rs"]
+mod dispatch_tests;
+
+#[cfg(test)]
+#[path = "manager/dispatch_cancel_tests.rs"]
+mod channel_command_cancel_dispatch_tests;

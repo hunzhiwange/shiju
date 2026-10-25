@@ -172,9 +172,9 @@ fn spawn_llm_stream_thread(
     tools: std::collections::HashMap<String, ToolSpec>,
     abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
-) {
-    llm_runner_tests::record_test_llm_messages(session_id, messages);
-    llm_runner_tests::spawn_test_llm_stream_thread(tools, abort_rx, tx);
+) -> std::thread::JoinHandle<()> {
+    llm_runner_tests::record_test_llm_messages(session_id.clone(), messages);
+    llm_runner_tests::spawn_test_llm_stream_thread(&session_id, tools, abort_rx, tx)
 }
 
 #[cfg(not(test))]
@@ -187,7 +187,7 @@ fn spawn_llm_stream_thread(
     tools: std::collections::HashMap<String, ToolSpec>,
     abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
-) {
+) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
         llm::stream_chat_with_tools_for_session_with_abort(
             &session_id,
@@ -201,7 +201,7 @@ fn spawn_llm_stream_thread(
                 let _ = tx.send(ev);
             },
         );
-    });
+    })
 }
 
 fn collect_llm_step_from_stream(
@@ -209,6 +209,7 @@ fn collect_llm_step_from_stream(
     on_event: &mut dyn FnMut(StreamEvent) -> bool,
     abort_tx: &tokio::sync::watch::Sender<bool>,
     idle_timeout: std::time::Duration,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<LlmStep, String> {
     /// 流式内容刷新的最小时间间隔（约 30 FPS）
     const FLUSH_MIN_INTERVAL: std::time::Duration = std::time::Duration::from_millis(33);
@@ -233,12 +234,26 @@ fn collect_llm_step_from_stream(
     let mut thinking_open = false; // 标记 thinking 标签是否已打开
     let mut thinking_emitted = false; // 标记是否已输出推理内容
 
+    // 短轮询只用于取消；模型空闲超时仍按最后一条事件计时。
+    let mut last_event = Instant::now();
     // === 主事件处理循环 ===
     loop {
+        if cancellation.is_some_and(|token| token.is_cancelled()) {
+            request_stream_abort(abort_tx);
+            return Err("执行已取消".into());
+        }
         // 尝试接收事件，设置超时以检测无响应情况
-        let ev = match rx.recv_timeout(idle_timeout) {
-            Ok(v) => v,
+        let ev = match rx.recv_timeout(idle_timeout.min(Duration::from_millis(50))) {
+            Ok(v) => {
+                last_event = Instant::now();
+                v
+            }
             // 超时处理：刷新所有待输出内容并返回错误
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+                if last_event.elapsed() < idle_timeout =>
+            {
+                continue;
+            }
             Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
                 // 刷新待输出的普通文本
                 if !pending.is_empty() {
@@ -517,6 +532,7 @@ pub(crate) fn run_llm_step(
     available_tools: &[ToolSpec],
     allowed_tools: &std::collections::HashSet<String>,
     on_event: &mut dyn FnMut(StreamEvent) -> bool,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<LlmStep, String> {
     // 创建用于跨线程通信的通道
     let (tx, rx) = std::sync::mpsc::channel::<llm::StreamEvent>();
@@ -537,9 +553,15 @@ pub(crate) fn run_llm_step(
         .map(|s| (s.id.clone(), s))
         .collect::<std::collections::HashMap<_, _>>();
 
-    spawn_llm_stream_thread(session_id, messages, system, model, options, tools, abort_rx, tx);
+    let stream_task =
+        spawn_llm_stream_thread(session_id, messages, system, model, options, tools, abort_rx, tx);
 
-    collect_llm_step_from_stream(rx, on_event, &abort_tx, idle_timeout)
+    let result = collect_llm_step_from_stream(rx, on_event, &abort_tx, idle_timeout, cancellation);
+    if result.is_err() {
+        request_stream_abort(&abort_tx);
+    }
+    stream_task.join().map_err(|_| "model stream worker crashed".to_string())?;
+    result
 }
 
 /// 执行带重试机制的 LLM 调用
@@ -607,6 +629,7 @@ pub(crate) fn run_llm_step_with_retry(
     on_event: &mut dyn FnMut(StreamEvent) -> bool,
     additional_retries: u32,
     initial_backoff_ms: u64,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<LlmStep, String> {
     // 保存最后一次错误信息
     let mut last_err: Option<String> = None;
@@ -616,6 +639,9 @@ pub(crate) fn run_llm_step_with_retry(
 
     // 逐次尝试调用
     for attempt in 1..=attempts {
+        if cancellation.is_some_and(|token| token.is_cancelled()) {
+            return Err("执行已取消".into());
+        }
         match run_llm_step(
             session_id,
             messages,
@@ -625,6 +651,7 @@ pub(crate) fn run_llm_step_with_retry(
             available_tools,
             allowed_tools,
             on_event,
+            cancellation,
         ) {
             // 成功则立即返回结果
             Ok(v) => return Ok(v),
@@ -666,7 +693,17 @@ pub(crate) fn run_llm_step_with_retry(
                 let backoff_ms = provider_retry_backoff_ms(initial_backoff_ms, attempt as u32 - 1);
 
                 // 等待后重试
-                std::thread::sleep(std::time::Duration::from_millis(backoff_ms));
+                let deadline = std::time::Instant::now() + Duration::from_millis(backoff_ms);
+                while std::time::Instant::now() < deadline {
+                    if cancellation.is_some_and(|token| token.is_cancelled()) {
+                        return Err("执行已取消".into());
+                    }
+                    std::thread::sleep(
+                        deadline
+                            .saturating_duration_since(std::time::Instant::now())
+                            .min(Duration::from_millis(50)),
+                    );
+                }
             }
         }
     }
@@ -687,6 +724,6 @@ mod llm_runner_tests;
 
 #[cfg(test)]
 pub(crate) use llm_runner_tests::{
-    enqueue_test_llm_stream, take_test_llm_messages, take_test_llm_stream_tool_ids,
-    test_llm_stream_guard,
+    ChannelCancelStream, enqueue_test_llm_stream, register_channel_cancel_stream,
+    take_test_llm_messages, take_test_llm_stream_tool_ids, test_llm_stream_guard,
 };

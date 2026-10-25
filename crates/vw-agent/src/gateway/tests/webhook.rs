@@ -318,6 +318,7 @@ async fn webhook_secret_hash_rejects_missing_header() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: Some(Arc::from(hash_webhook_secret(&secret))),
                 whatsapp: None,
                 whatsapp_app_secret: None,
@@ -395,6 +396,7 @@ async fn webhook_secret_hash_rejects_invalid_header() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: Some(Arc::from(hash_webhook_secret(&valid_secret))),
                 whatsapp: None,
                 whatsapp_app_secret: None,
@@ -475,6 +477,7 @@ async fn webhook_secret_hash_accepts_valid_header() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: Some(Arc::from(hash_webhook_secret(&secret))),
                 whatsapp: None,
                 whatsapp_app_secret: None,

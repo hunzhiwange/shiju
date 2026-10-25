@@ -17,7 +17,7 @@ use super::*;
 ///
 /// 错误处理：本函数把可恢复错误转换为日志、通道通知或提前返回，避免单条消息
 /// 失败拖垮监听循环。
-pub(crate) async fn process_channel_message(
+pub(super) async fn process_channel_message_inner(
     ctx: Arc<ChannelRuntimeContext>,
     msg: traits::ChannelMessage,
     cancellation_token: CancellationToken,
@@ -25,13 +25,6 @@ pub(crate) async fn process_channel_message(
     if cancellation_token.is_cancelled() {
         return;
     }
-
-    log_inbound_message(&msg);
-
-    let msg = match apply_inbound_hooks(ctx.as_ref(), msg).await {
-        Some(modified) => modified,
-        None => return,
-    };
 
     let target_channel = channel_for_message(ctx.as_ref(), &msg);
     if let Err(err) = maybe_apply_runtime_config_update(ctx.as_ref()).await {
@@ -41,7 +34,8 @@ pub(crate) async fn process_channel_message(
     if matches!(
         parse_runtime_command(&msg.channel, &msg.content),
         Some(
-            ChannelRuntimeCommand::Help(_)
+            ChannelRuntimeCommand::Stop
+                | ChannelRuntimeCommand::Help(_)
                 | ChannelRuntimeCommand::Error(_)
                 | ChannelRuntimeCommand::ListProjects
                 | ChannelRuntimeCommand::ShowProject
@@ -58,21 +52,6 @@ pub(crate) async fn process_channel_message(
         handle_runtime_command_if_needed(ctx.as_ref(), &msg, target_channel.as_ref()).await;
         return;
     }
-    let gate = channel_chat_gate(ctx.as_ref(), &msg);
-    let _chat_guard = match gate.try_read() {
-        Ok(guard) => guard,
-        Err(_) => {
-            if let Some(channel) = &target_channel {
-                let _ = channel
-                    .send(
-                        &SendMessage::new("当前聊天繁忙，请先使用 /stop", &msg.reply_target)
-                            .in_thread(msg.thread_ts.clone()),
-                    )
-                    .await;
-            }
-            return;
-        }
-    };
     let snapshot = match resolve_channel_message_snapshot(ctx.as_ref(), &msg).await {
         Ok(snapshot) => snapshot,
         Err(err) => {

@@ -2,6 +2,7 @@
 //!
 //! 各提供者先完成签名或令牌验证，再把消息规范化为通道模型；失败响应不进入代理执行。
 
+#[cfg(test)]
 use super::chat::{log_channel_message, run_gateway_chat_with_tools, sanitize_gateway_response};
 use super::state::AppState;
 use super::util::{
@@ -9,8 +10,10 @@ use super::util::{
 };
 use crate::app::agent::channels::SendMessage;
 use crate::app::agent::channels::traits::{Channel, ChannelMessage};
+#[cfg(test)]
 use crate::app::agent::memory::MemoryCategory;
 use crate::app::agent::security::pairing::constant_time_eq;
+#[cfg(test)]
 use crate::app::agent::tools::Tool;
 use axum::{
     body::Bytes,
@@ -18,12 +21,17 @@ use axum::{
     http::{HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
 };
+#[cfg(test)]
 use std::future::Future;
+#[cfg(test)]
 use std::pin::Pin;
 
+#[cfg(test)]
 type GatewayChatFuture<'a> = Pin<Box<dyn Future<Output = anyhow::Result<String>> + Send + 'a>>;
+#[cfg(test)]
 type GatewayChatRunner = for<'a> fn(&'a AppState, &'a str, &'a str) -> GatewayChatFuture<'a>;
 
+#[cfg(test)]
 fn run_gateway_chat_with_tools_boxed<'a>(
     state: &'a AppState,
     message: &'a str,
@@ -34,29 +42,46 @@ fn run_gateway_chat_with_tools_boxed<'a>(
 
 async fn process_channel_messages<C, K>(
     state: &AppState,
-    channel_name: &str,
-    channel: &C,
+    _channel_name: &str,
+    channel: &std::sync::Arc<C>,
     messages: &[ChannelMessage],
-    memory_key: K,
-    llm_error_label: &str,
-    include_thread: bool,
+    _memory_key: K,
+    _llm_error_label: &str,
+    _include_thread: bool,
 ) where
-    C: Channel + ?Sized,
+    C: Channel + 'static,
     K: Fn(&ChannelMessage) -> String,
 {
-    process_channel_messages_with_chat(
-        state,
-        channel_name,
-        channel,
-        messages,
-        memory_key,
-        llm_error_label,
-        include_thread,
-        run_gateway_chat_with_tools_boxed,
-    )
-    .await;
+    for msg in messages {
+        let runtime = match super::channel_runtime::channel_runtime(state) {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                tracing::warn!("Unable to initialize webhook channel runtime: {error}");
+                let _ = channel
+                    .send(
+                        &SendMessage::new("通道运行时不可用，请稍后重试。", &msg.reply_target)
+                            .in_thread(msg.thread_ts.clone()),
+                    )
+                    .await;
+                continue;
+            }
+        };
+        let mut ctx = runtime.as_ref().clone();
+        ctx.channels_by_name = std::sync::Arc::new(std::collections::HashMap::from([(
+            crate::channels::channel_instance_key(&msg.channel, &msg.instance_id),
+            channel.clone() as std::sync::Arc<dyn Channel>,
+        )]));
+        // Webhook 自身已持有较大的请求状态，不把完整会话 Future 内联到 HTTP Future。
+        Box::pin(crate::channels::manager::process_channel_message(
+            std::sync::Arc::new(ctx),
+            msg.clone(),
+            tokio_util::sync::CancellationToken::new(),
+        ))
+        .await;
+    }
 }
 
+#[cfg(test)]
 async fn process_channel_messages_with_chat<C, K>(
     state: &AppState,
     channel_name: &str,
@@ -105,6 +130,7 @@ async fn process_channel_messages_with_chat<C, K>(
     }
 }
 
+#[cfg(test)]
 async fn send_successful_channel_reply<C: Channel + ?Sized>(
     channel_name: &str,
     channel: &C,
@@ -241,7 +267,7 @@ pub async fn handle_whatsapp_message(
     process_channel_messages(
         &state,
         "WhatsApp",
-        wa.as_ref(),
+        &wa,
         &messages,
         whatsapp_memory_key,
         "WhatsApp message",
@@ -322,7 +348,7 @@ pub async fn handle_linq_webhook(
     process_channel_messages(
         &state,
         "Linq",
-        linq.as_ref(),
+        &linq,
         &messages,
         linq_memory_key,
         "Linq message",
@@ -388,7 +414,7 @@ pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> 
     process_channel_messages(
         &state,
         "WATI",
-        wati.as_ref(),
+        &wati,
         &messages,
         wati_memory_key,
         "WATI message",
@@ -462,7 +488,7 @@ pub async fn handle_nextcloud_talk_webhook(
     process_channel_messages(
         &state,
         "Nextcloud Talk",
-        nextcloud_talk.as_ref(),
+        &nextcloud_talk,
         &messages,
         nextcloud_talk_memory_key,
         "Nextcloud Talk message",
@@ -525,7 +551,7 @@ pub async fn handle_qq_webhook(
     process_channel_messages(
         &state,
         "QQ",
-        qq.as_ref(),
+        &qq,
         &messages,
         qq_memory_key,
         "QQ webhook message",

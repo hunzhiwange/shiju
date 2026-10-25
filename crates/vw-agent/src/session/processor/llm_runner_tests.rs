@@ -60,10 +60,34 @@ pub(crate) fn take_test_llm_stream_tool_ids() -> Vec<Vec<String>> {
 }
 
 pub(super) fn spawn_test_llm_stream_thread(
+    session: &str,
     tools: std::collections::HashMap<String, ToolSpec>,
     mut abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
-) {
+) -> std::thread::JoinHandle<()> {
+    if let Some(stream) = CHANNEL_CANCEL_STREAMS.lock().unwrap().remove(session) {
+        return std::thread::spawn(move || {
+            stream.started.store(true, std::sync::atomic::Ordering::Release);
+            loop {
+                let cancelled = *abort_rx.borrow_and_update();
+                if stream.release.load(std::sync::atomic::Ordering::Acquire) {
+                    if !cancelled {
+                        let _ = tx.send(llm::StreamEvent::Delta("completed naturally".into()));
+                        let _ = tx.send(llm::StreamEvent::Done {
+                            finish_reason: Some("stop".into()),
+                            usage: Default::default(),
+                        });
+                    }
+                    break;
+                }
+                if cancelled && !stream.hold_exit {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            stream.exited.store(true, std::sync::atomic::Ordering::Release);
+        });
+    }
     let mut tool_ids = tools.keys().cloned().collect::<Vec<_>>();
     tool_ids.sort();
     TEST_LLM_STREAM_TOOL_IDS.lock().expect("lock scripted LLM tool ids").push(tool_ids);
@@ -85,7 +109,7 @@ pub(super) fn spawn_test_llm_stream_thread(
             }
             let _ = tx.send(event);
         }
-    });
+    })
 }
 
 fn collect_events(
@@ -109,6 +133,7 @@ fn collect_events(
         },
         &abort_tx,
         Duration::from_millis(5),
+        None,
     );
     (result, deltas)
 }
@@ -140,6 +165,7 @@ fn collect_events_with_delta_consumer(
         },
         &abort_tx,
         idle_timeout,
+        None,
     );
     drop(keep_sender_alive);
 
@@ -164,6 +190,7 @@ fn observe_first_delta_before_stream_continues(
             },
             &abort_tx,
             Duration::from_secs(5),
+            None,
         )
     });
 
@@ -298,6 +325,7 @@ fn remote_tool_updates_are_forwarded_without_entering_answer_text() {
         },
         &abort_tx,
         Duration::from_millis(5),
+        None,
     )
     .expect("stream should produce a step");
 
@@ -452,6 +480,7 @@ fn collect_stream_times_out_and_closes_open_reasoning() {
         },
         &abort_tx,
         Duration::from_millis(1),
+        None,
     );
 
     assert_eq!(result.unwrap_err(), "模型响应超时");
@@ -476,6 +505,7 @@ fn collect_stream_reports_empty_when_sender_disconnects_without_done() {
         },
         &abort_tx,
         Duration::from_millis(5),
+        None,
     );
 
     assert_eq!(result.unwrap_err(), "模型未返回内容");
@@ -494,6 +524,7 @@ fn collect_stream_aborts_when_consumer_stops() {
         &mut |_event| false,
         &abort_tx,
         Duration::from_millis(5),
+        None,
     );
 
     assert_eq!(result.unwrap_err(), super::STREAM_CONSUMER_STOPPED_ERR);
@@ -744,6 +775,7 @@ fn collect_stream_timeout_flushes_pending_text_and_requests_abort() {
         },
         &abort_tx,
         Duration::from_millis(1),
+        None,
     );
 
     assert_eq!(result.unwrap_err(), "模型响应超时");
@@ -776,6 +808,7 @@ fn collect_stream_aborts_when_consumer_rejects_reasoning_close_tag() {
         },
         &abort_tx,
         Duration::from_millis(5),
+        None,
     );
 
     assert_eq!(result.unwrap_err(), super::STREAM_CONSUMER_STOPPED_ERR);
@@ -1036,6 +1069,7 @@ fn run_llm_step_uses_scripted_stream_and_filters_allowed_tools() {
             }
             true
         },
+        None,
     )
     .expect("scripted LLM stream should produce a step");
 
@@ -1073,6 +1107,7 @@ fn run_llm_step_with_retry_retries_retryable_error_then_succeeds() {
         },
         1,
         0,
+        None,
     )
     .expect("second scripted attempt should succeed");
 
@@ -1102,6 +1137,7 @@ fn configured_provider_retries_control_total_attempts() {
         &mut |_event| true,
         2,
         0,
+        None,
     )
     .unwrap_err();
 
@@ -1136,6 +1172,7 @@ fn run_llm_step_with_retry_stops_on_non_retryable_error() {
         &mut |_event| true,
         2,
         0,
+        None,
     )
     .unwrap_err();
 
@@ -1161,6 +1198,7 @@ fn run_llm_step_with_retry_treats_zero_retries_as_one_attempt() {
         &mut |_event| true,
         0,
         0,
+        None,
     )
     .unwrap_err();
 
@@ -1181,9 +1219,27 @@ fn run_llm_step_reports_missing_scripted_stream() {
         &[],
         &HashSet::new(),
         &mut |_event| true,
+        None,
     )
     .unwrap_err();
 
     assert!(error.contains("missing scripted LLM stream"));
     assert_eq!(take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
+}
+
+#[derive(Default)]
+pub(crate) struct ChannelCancelStream {
+    pub(crate) started: std::sync::atomic::AtomicBool,
+    pub(crate) exited: std::sync::atomic::AtomicBool,
+    pub(crate) release: std::sync::atomic::AtomicBool,
+    pub(crate) hold_exit: bool,
+}
+static CHANNEL_CANCEL_STREAMS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<ChannelCancelStream>>>,
+> = std::sync::LazyLock::new(Default::default);
+pub(crate) fn register_channel_cancel_stream(
+    session: &str,
+    stream: std::sync::Arc<ChannelCancelStream>,
+) {
+    CHANNEL_CANCEL_STREAMS.lock().unwrap().insert(session.into(), stream);
 }

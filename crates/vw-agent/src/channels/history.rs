@@ -32,25 +32,9 @@ pub(crate) fn conversation_history_key(msg: &traits::ChannelMessage) -> String {
         .expect("channel identity contains only serializable fields")
 }
 
-/// 生成中断范围键
-///
-/// 该函数生成用于标识中断处理范围的键，基于通道、回复目标和发送者。
-/// 用于在处理中断或取消操作时确定作用域。
-///
-/// # 参数
-///
-/// - `msg`: 通道消息引用，包含通道、回复目标和发送者信息
-///
-/// # 返回值
-///
-/// 返回格式化的范围键字符串，格式为：`{channel}_{reply_target}_{sender}`
-///
-/// # 设计说明
-///
-/// 使用 `reply_target` 而非 `thread_ts`，因为中断通常与回复目标相关联，
-/// 而非线程时间戳。
+/// 中断与历史使用完整聊天身份，包含租户、实例、房间、主题和发送者。
 pub(crate) fn interruption_scope_key(msg: &traits::ChannelMessage) -> String {
-    format!("{}_{}_{}", msg.channel, msg.reply_target, msg.sender)
+    conversation_history_key(msg)
 }
 
 /// 规范化缓存的通道轮次

@@ -769,6 +769,7 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
             events.push(event);
             true
         },
+        None,
     )
     .expect("summary should succeed");
 
@@ -822,6 +823,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
             events.push(event);
             true
         },
+        None,
     )
     .expect_err("failed summaries must not change history");
 
@@ -1301,6 +1303,7 @@ fn compaction_lifecycle_chunk_failure_preserves_multibyte_history() {
             events.push(event);
             true
         },
+        None,
     )
     .unwrap_err();
     assert!(error.contains("later chunk unavailable"));
@@ -1338,6 +1341,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
             output: 4096,
         },
         &mut |_| true,
+        None,
     )
     .unwrap_err();
     assert!(error.contains("truncated"));
@@ -1376,6 +1380,7 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
                     output: 4096
                 },
                 &mut |_| true,
+                None,
             )
             .unwrap()
         );

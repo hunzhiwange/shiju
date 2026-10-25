@@ -96,6 +96,7 @@ async fn nextcloud_talk_webhook_returns_not_found_when_not_configured() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: None,
                 whatsapp: None,
                 whatsapp_app_secret: None,
@@ -185,6 +186,7 @@ async fn nextcloud_talk_webhook_rejects_invalid_signature() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: None,
                 whatsapp: None,
                 whatsapp_app_secret: None,

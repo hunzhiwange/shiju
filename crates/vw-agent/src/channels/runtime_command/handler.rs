@@ -61,6 +61,23 @@ pub(crate) async fn handle_runtime_command_if_needed(
         return true;
     };
 
+    let read_only = matches!(
+        &command,
+        ChannelRuntimeCommand::Stop
+            | ChannelRuntimeCommand::Help(_)
+            | ChannelRuntimeCommand::Error(_)
+            | ChannelRuntimeCommand::Status
+            | ChannelRuntimeCommand::Settings
+            | ChannelRuntimeCommand::ListProjects
+            | ChannelRuntimeCommand::ShowProject
+            | ChannelRuntimeCommand::ShowProviders
+            | ChannelRuntimeCommand::ShowModel
+    ) || matches!(&command, ChannelRuntimeCommand::Effort(value) if value.is_empty())
+        || is_approval_management_command(&command);
+    if !read_only && active_channel_task(ctx, msg).is_some() {
+        send_channel_busy(ctx, msg).await;
+        return true;
+    }
     let mut current = get_route_selection(ctx, &sender_key);
     let sender = msg.sender.as_str();
     let source_channel = msg.channel.as_str();
@@ -161,6 +178,7 @@ pub(crate) async fn handle_runtime_command_if_needed(
         match command {
             ChannelRuntimeCommand::Help(_) => unreachable!("help already sent"),
             ChannelRuntimeCommand::Error(error) => error,
+            ChannelRuntimeCommand::Stop => stop_channel_task(ctx, msg).await,
             ChannelRuntimeCommand::Status | ChannelRuntimeCommand::Settings => {
                 super::session_commands::handle_status(ctx, msg, &current).await
             }

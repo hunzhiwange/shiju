@@ -27,10 +27,11 @@ impl Provider for StaticProvider {
     }
 }
 
-struct RecordingChannel {
+pub(super) struct RecordingChannel {
     name: &'static str,
-    sent: tokio::sync::Mutex<Vec<SendMessage>>,
+    pub(super) sent: tokio::sync::Mutex<Vec<SendMessage>>,
     block_sends: bool,
+    block_feedback: bool,
     release_sends: AtomicBool,
     release_notify: Notify,
     active_sends: AtomicUsize,
@@ -38,11 +39,12 @@ struct RecordingChannel {
 }
 
 impl RecordingChannel {
-    fn new(name: &'static str) -> Self {
+    pub(super) fn new(name: &'static str) -> Self {
         Self {
             name,
             sent: tokio::sync::Mutex::new(Vec::new()),
             block_sends: false,
+            block_feedback: false,
             release_sends: AtomicBool::new(true),
             release_notify: Notify::new(),
             active_sends: AtomicUsize::new(0),
@@ -50,11 +52,12 @@ impl RecordingChannel {
         }
     }
 
-    fn blocking(name: &'static str) -> Self {
+    pub(super) fn blocking(name: &'static str) -> Self {
         Self {
             name,
             sent: tokio::sync::Mutex::new(Vec::new()),
             block_sends: true,
+            block_feedback: false,
             release_sends: AtomicBool::new(false),
             release_notify: Notify::new(),
             active_sends: AtomicUsize::new(0),
@@ -62,16 +65,20 @@ impl RecordingChannel {
         }
     }
 
-    async fn sent_contents(&self) -> Vec<String> {
+    pub(super) fn feedback_blocking(name: &'static str) -> Self {
+        Self { block_feedback: true, ..Self::blocking(name) }
+    }
+
+    pub(super) async fn sent_contents(&self) -> Vec<String> {
         self.sent.lock().await.iter().map(|message| message.content.clone()).collect()
     }
 
-    fn release(&self) {
+    pub(super) fn release(&self) {
         self.release_sends.store(true, AtomicOrdering::SeqCst);
         self.release_notify.notify_waiters();
     }
 
-    async fn wait_for_active_sends(&self, expected: usize) {
+    pub(super) async fn wait_for_active_sends(&self, expected: usize) {
         tokio::time::timeout(Duration::from_secs(1), async {
             while self.active_sends.load(AtomicOrdering::SeqCst) < expected {
                 tokio::time::sleep(Duration::from_millis(5)).await;
@@ -104,6 +111,13 @@ impl Channel for RecordingChannel {
         Ok(())
     }
 
+    async fn stop_typing(&self, recipient: &str) -> anyhow::Result<()> {
+        if self.block_feedback {
+            self.send(&SendMessage::new("typing feedback stopped", recipient)).await?;
+        }
+        Ok(())
+    }
+
     async fn listen(
         &self,
         _tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
@@ -112,7 +126,7 @@ impl Channel for RecordingChannel {
     }
 }
 
-fn context(
+pub(super) fn context(
     workspace_dir: &Path,
     channel_name: &str,
     channel: Option<Arc<dyn Channel>>,
@@ -127,6 +141,7 @@ fn context(
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name: Arc::new(channels_by_name),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -158,7 +173,12 @@ fn context(
     }
 }
 
-fn message(id: &str, channel: &str, sender: &str, reply_target: &str) -> traits::ChannelMessage {
+pub(super) fn message(
+    id: &str,
+    channel: &str,
+    sender: &str,
+    reply_target: &str,
+) -> traits::ChannelMessage {
     traits::ChannelMessage {
         instance_id: "default".to_string(),
         id: id.to_string(),
@@ -169,6 +189,21 @@ fn message(id: &str, channel: &str, sender: &str, reply_target: &str) -> traits:
         timestamp: 1,
         thread_ts: Some("thread-1".to_string()),
     }
+}
+
+async fn registered_context(
+    workspace_dir: &Path,
+    channel_name: &str,
+    channel: Option<Arc<dyn Channel>>,
+    interrupt_on_new_message: bool,
+) -> ChannelRuntimeContext {
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        workspace_dir,
+    )
+    .await
+    .unwrap();
+    context(workspace_dir, channel_name, channel, interrupt_on_new_message)
 }
 
 #[test]
@@ -201,7 +236,7 @@ async fn run_message_dispatch_loop_processes_runtime_commands_until_input_closes
     let tmp = tempfile::tempdir().unwrap();
     let channel = Arc::new(RecordingChannel::new("telegram"));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(tmp.path(), "telegram", Some(channel_dyn), false));
+    let ctx = Arc::new(registered_context(tmp.path(), "telegram", Some(channel_dyn), false).await);
     let (tx, rx) = tokio::sync::mpsc::channel(4);
 
     tx.send(message("msg-1", "telegram", "sender-1", "chat-1")).await.unwrap();
@@ -220,7 +255,7 @@ async fn run_message_dispatch_loop_limits_in_flight_workers() {
     let tmp = tempfile::tempdir().unwrap();
     let channel = Arc::new(RecordingChannel::blocking("telegram"));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(tmp.path(), "telegram", Some(channel_dyn), false));
+    let ctx = Arc::new(registered_context(tmp.path(), "telegram", Some(channel_dyn), false).await);
     let (tx, rx) = tokio::sync::mpsc::channel(4);
     let dispatch = tokio::spawn(run_message_dispatch_loop(rx, ctx, 1));
 
@@ -246,7 +281,7 @@ async fn run_message_dispatch_loop_skips_interrupt_for_non_telegram_channel() {
     let tmp = tempfile::tempdir().unwrap();
     let channel = Arc::new(RecordingChannel::new("slack"));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(tmp.path(), "slack", Some(channel_dyn), true));
+    let ctx = Arc::new(registered_context(tmp.path(), "slack", Some(channel_dyn), true).await);
     let (tx, rx) = tokio::sync::mpsc::channel(4);
 
     tx.send(message("msg-1", "slack", "sender-1", "chat-1")).await.unwrap();
@@ -265,7 +300,7 @@ async fn run_message_dispatch_loop_keeps_distinct_telegram_senders_independent()
     let tmp = tempfile::tempdir().unwrap();
     let channel = Arc::new(RecordingChannel::new("telegram"));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(tmp.path(), "telegram", Some(channel_dyn), true));
+    let ctx = Arc::new(registered_context(tmp.path(), "telegram", Some(channel_dyn), true).await);
     let (tx, rx) = tokio::sync::mpsc::channel(4);
 
     tx.send(message("msg-1", "telegram", "sender-1", "chat-1")).await.unwrap();
@@ -284,7 +319,7 @@ async fn run_message_dispatch_loop_stops_when_semaphore_closed_before_receive() 
     let tmp = tempfile::tempdir().unwrap();
     let channel = Arc::new(RecordingChannel::new("telegram"));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(tmp.path(), "telegram", Some(channel_dyn), false));
+    let ctx = Arc::new(registered_context(tmp.path(), "telegram", Some(channel_dyn), false).await);
     let (tx, rx) = tokio::sync::mpsc::channel::<traits::ChannelMessage>(1);
     drop(tx);
 
@@ -296,20 +331,20 @@ async fn run_message_dispatch_loop_stops_when_semaphore_closed_before_receive() 
 }
 
 #[tokio::test]
-async fn run_message_dispatch_loop_interrupts_previous_telegram_sender_request() {
+async fn run_message_dispatch_loop_does_not_interrupt_model_queries() {
     let tmp = tempfile::tempdir().unwrap();
     let channel = Arc::new(RecordingChannel::blocking("telegram"));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(tmp.path(), "telegram", Some(channel_dyn), true));
+    let ctx = Arc::new(registered_context(tmp.path(), "telegram", Some(channel_dyn), true).await);
     let (tx, rx) = tokio::sync::mpsc::channel(4);
     let dispatch = tokio::spawn(run_message_dispatch_loop(rx, ctx, 2));
 
     tx.send(message("msg-1", "telegram", "sender-1", "chat-1")).await.unwrap();
     channel.wait_for_active_sends(1).await;
     tx.send(message("msg-2", "telegram", "sender-1", "chat-1")).await.unwrap();
-    tokio::time::sleep(Duration::from_millis(25)).await;
+    channel.wait_for_active_sends(2).await;
 
-    assert_eq!(channel.max_active_sends(), 1);
+    assert_eq!(channel.max_active_sends(), 2);
     assert!(channel.sent_contents().await.is_empty());
 
     channel.release();
@@ -317,5 +352,5 @@ async fn run_message_dispatch_loop_interrupts_previous_telegram_sender_request()
     tokio::time::timeout(Duration::from_secs(1), dispatch).await.unwrap().unwrap();
 
     assert_eq!(channel.sent_contents().await.len(), 2);
-    assert_eq!(channel.max_active_sends(), 1);
+    assert_eq!(channel.max_active_sends(), 2);
 }

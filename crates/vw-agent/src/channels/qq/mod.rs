@@ -89,6 +89,8 @@ pub struct QQChannel {
     auth_url_override: Option<String>,
     #[cfg(test)]
     api_base_override: Option<String>,
+    #[cfg(test)]
+    outbound_recorder: Option<Arc<tokio::sync::Mutex<Vec<super::traits::SendMessage>>>>,
 }
 
 impl QQChannel {
@@ -124,6 +126,8 @@ impl QQChannel {
             auth_url_override: None,
             #[cfg(test)]
             api_base_override: None,
+            #[cfg(test)]
+            outbound_recorder: None,
         }
     }
 
@@ -161,6 +165,16 @@ impl QQChannel {
     #[cfg(test)]
     fn with_api_base(mut self, api_base: String) -> Self {
         self.api_base_override = Some(api_base.trim_end_matches('/').to_string());
+        self
+    }
+
+    /// 仅替换平台出站网络边界；webhook 解析、白名单和通道作用域仍走真实路径。
+    #[cfg(test)]
+    pub(crate) fn with_outbound_recorder(
+        mut self,
+        recorder: Arc<tokio::sync::Mutex<Vec<super::traits::SendMessage>>>,
+    ) -> Self {
+        self.outbound_recorder = Some(recorder);
         self
     }
 

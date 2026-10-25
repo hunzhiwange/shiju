@@ -112,6 +112,7 @@ pub(crate) fn maybe_update_todos_after_work(
         &mut noop,
         reliability.provider_retries,
         reliability.provider_backoff_ms,
+        ctx.tool_use_context().abort_token(),
     ) {
         Ok(v) => v,
         Err(_) => return false, // LLM 调用失败，返回 false

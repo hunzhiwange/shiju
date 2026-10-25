@@ -185,6 +185,7 @@ fn compact_transient_history_for_request(
     reliability: &crate::app::agent::config::ReliabilityConfig,
     model_limit: &crate::app::agent::provider::provider::ModelLimit,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<bool, String> {
     let Some(boundary) = llm_messages
         .iter()
@@ -222,6 +223,7 @@ fn compact_transient_history_for_request(
             &mut discard_events,
             reliability.provider_retries,
             reliability.provider_backoff_ms,
+            cancellation,
         )?;
         if !output.tool_calls.is_empty() {
             return Err("internal compaction rejected a model tool call".to_string());
@@ -737,6 +739,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 &req.reliability,
                 &model_limit,
                 &mut on_event,
+                req.abort_token.as_ref(),
             ) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
@@ -786,6 +789,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &mut on_event,
             provider_retries,
             provider_backoff_ms,
+            req.abort_token.as_ref(),
         ) {
             Ok(output) => {
                 if let Some(image_ctx) = image_turn.as_mut() {
@@ -812,6 +816,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                         &req.reliability,
                         &model_limit,
                         &mut on_event,
+                        req.abort_token.as_ref(),
                     ) {
                         Ok(true) => {
                             internal_compaction_attempted = true;

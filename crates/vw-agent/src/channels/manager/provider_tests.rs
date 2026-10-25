@@ -60,6 +60,7 @@ fn context(default_provider: &str) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new(default_provider.to_string()),

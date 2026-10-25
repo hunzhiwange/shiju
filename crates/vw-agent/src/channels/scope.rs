@@ -20,7 +20,9 @@ impl ChannelChatScope {
             channel: msg.channel.clone(),
             instance: msg.instance_id.clone(),
             reply_target: msg.reply_target.clone(),
-            thread: msg.thread_ts.clone(),
+            // QQ 的 thread_ts 是被动回复所需的消息 ID，并不表示聊天主题。
+            // 保留原消息用于发回 msg_id，但不把每条回复引用拆成独立会话。
+            thread: if msg.channel == "qq" { None } else { msg.thread_ts.clone() },
             sender: msg.sender.clone(),
         }
     }
@@ -59,6 +61,7 @@ pub(crate) struct ChannelProjectState {
     pub(crate) tenant: TenantScope,
     pub(crate) config: crate::app::agent::config::ChannelsConfig,
     pub(crate) selections: HashMap<ChannelChatScope, String>,
+    pub(crate) active: HashMap<ChannelChatScope, InFlightSenderTaskState>,
     gates: HashMap<ChannelChatScope, std::sync::Weak<tokio::sync::RwLock<()>>>,
 }
 

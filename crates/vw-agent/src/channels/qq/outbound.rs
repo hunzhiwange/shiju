@@ -216,6 +216,11 @@ impl QQChannel {
         &self,
         message: &crate::app::agent::channels::traits::SendMessage,
     ) -> anyhow::Result<()> {
+        #[cfg(test)]
+        if let Some(recorder) = &self.outbound_recorder {
+            recorder.lock().await.push(message.clone());
+            return Ok(());
+        }
         let token = self.get_token().await?;
         let (message_url, files_url) = resolve_send_endpoints(&message.recipient);
         let client = self.http_client();

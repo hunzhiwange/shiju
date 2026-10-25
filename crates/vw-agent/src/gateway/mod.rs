@@ -16,6 +16,7 @@ pub mod api;
 mod approval_state;
 mod bootstrap;
 mod channel_reload;
+mod channel_runtime;
 mod chat;
 mod error;
 mod handlers;

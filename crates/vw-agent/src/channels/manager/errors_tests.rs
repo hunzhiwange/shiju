@@ -29,6 +29,7 @@ fn context_with_exclusions(excluded: Vec<String>) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
         project_state: Default::default(),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),

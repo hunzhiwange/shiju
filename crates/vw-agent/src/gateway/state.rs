@@ -128,6 +128,10 @@ mod state_tests;
 /// Webhook 请求的通道快照，连接与签名凭据始终来自同一版配置。
 #[derive(Clone, Default)]
 pub(crate) struct GatewayChannels {
+    /// 在连接重载之间保留聊天执行状态；按租户隔离。
+    pub(crate) runtimes: Arc<
+        Mutex<HashMap<vw_api_types::id::TenantScope, Arc<crate::channels::ChannelRuntimeContext>>>,
+    >,
     /// `X-Webhook-Secret` 的 SHA-256 哈希值（十六进制编码）
     ///
     /// **安全注意**: 绝不存储明文密钥，仅存储哈希值用于验证

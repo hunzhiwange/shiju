@@ -310,6 +310,7 @@ pub(super) async fn run_channels(
     let runtime_ctx = Arc::new(ChannelRuntimeContext {
         project_state: listeners.configure_project_state(&config),
         message_snapshot: None,
+        session_full_access: true,
         channels_by_name,
         provider: Arc::clone(&provider),
         default_provider: Arc::new(provider_name),
@@ -351,7 +352,7 @@ pub(super) async fn run_channels(
     Ok(())
 }
 
-fn build_provider_runtime_options(
+pub(crate) fn build_provider_runtime_options(
     config: &Config,
 ) -> crate::app::agent::providers::ProviderRuntimeOptions {
     crate::app::agent::providers::ProviderRuntimeOptions {

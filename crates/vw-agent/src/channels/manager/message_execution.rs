@@ -12,8 +12,8 @@
 
 use super::*;
 
-fn channel_session_options(route: &ChannelRouteSelection) -> serde_json::Value {
-    let mut options = serde_json::json!({ "full_access": true });
+fn channel_session_options(route: &ChannelRouteSelection, full_access: bool) -> serde_json::Value {
+    let mut options = serde_json::json!({ "full_access": full_access });
     if let Some(effort) = &route.reasoning_effort {
         options["reasoning_effort"] = serde_json::json!(effort);
     }
@@ -92,17 +92,12 @@ pub(crate) async fn run_message_execution(
     let request_root_dir = &snapshot.directory;
     let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
+    let processor_abort = cancellation_token.child_token();
+    let _abort_guard = processor_abort.clone().drop_guard();
     // 使用 select! 同时监听取消信号和执行结果
     // 优先响应取消信号，确保快速终止
     crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
-        tokio::select! {
-            // 如果收到取消信号，立即返回 Cancelled
-            () = cancellation_token.cancelled() => LlmExecutionResult::Cancelled,
-
-            // 在指定的超时时间内执行会话处理器
-            result = tokio::time::timeout(
-                Duration::from_secs(timeout_budget_secs),
-                run_session_processor_for_channel(
+        let execution = run_session_processor_for_channel(
                     // 构建会话处理器请求
                     crate::app::agent::session::processor::Request {
                         // 使用当前时间戳作为流标识
@@ -116,7 +111,7 @@ pub(crate) async fn run_message_execution(
                         // 指定使用的模型
                         model: Some(channel_model_request_model(&route.provider, &route.model)),
                         reliability: channel_request_reliability(ctx),
-                        options: channel_session_options(route),
+                        options: channel_session_options(route, ctx.session_full_access),
                         approval: Some(ctx.approval_manager.clone()),
                         channel_name: Some(msg.channel.clone()),
                         non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
@@ -130,13 +125,29 @@ pub(crate) async fn run_message_execution(
                         // 持久化会话工件（如日志、中间结果等）
                         persist_app_session_artifacts: true,
                         app_session_scope: Some(snapshot.scope.project.clone()),
-                        abort_token: None,
+                        abort_token: Some(processor_abort.clone()),
                         session_tools: crate::session::runtime::SessionToolset::default(),
                     },
                     // 传入增量文本通道，用于流式输出
                     delta_tx,
-                ),
-            ) => LlmExecutionResult::Completed(result),
+                );
+        tokio::pin!(execution);
+        tokio::select! {
+            biased;
+            () = cancellation_token.cancelled() => {
+                processor_abort.cancel();
+                let _ = execution.await;
+                LlmExecutionResult::Cancelled
+            }
+            deadline = tokio::time::timeout(Duration::from_secs(timeout_budget_secs), std::future::pending::<()>()) => {
+                processor_abort.cancel();
+                let _ = execution.await;
+                LlmExecutionResult::Completed(Err(deadline.expect_err("pending deadline must time out")))
+            }
+            result = &mut execution => {
+                if cancellation_token.is_cancelled() { LlmExecutionResult::Cancelled }
+                else { LlmExecutionResult::Completed(Ok(result)) }
+            }
         }
     })
     .await

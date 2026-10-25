@@ -74,6 +74,7 @@ async fn qq_webhook_returns_not_found_when_not_configured() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: None,
                 whatsapp: None,
                 whatsapp_app_secret: None,
@@ -168,6 +169,7 @@ async fn qq_webhook_validation_returns_signed_challenge() {
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash: None,
                 whatsapp: None,
                 whatsapp_app_secret: None,

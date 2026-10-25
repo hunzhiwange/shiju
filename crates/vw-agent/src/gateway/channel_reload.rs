@@ -117,6 +117,7 @@ pub(super) fn build_gateway_channels(config: &ChannelsConfig) -> GatewayChannels
             .map(Arc::from);
 
     GatewayChannels {
+        runtimes: Default::default(),
         webhook_secret_hash,
         whatsapp: whatsapp_channel,
         whatsapp_app_secret,
@@ -147,8 +148,15 @@ pub(super) async fn watch_gateway_channels_with_source(
         interval.tick().await;
         match source.poll(&config).await {
             Ok(Some(channels)) => {
-                let snapshot = build_gateway_channels(&channels);
-                *state.channels.lock() = snapshot;
+                let mut snapshot = build_gateway_channels(&channels);
+                let mut current = state.channels.lock();
+                snapshot.runtimes = current.runtimes.clone();
+                for runtime in snapshot.runtimes.lock().values() {
+                    runtime.project_state.lock().unwrap_or_else(|e| e.into_inner()).config =
+                        channels.clone();
+                }
+                *current = snapshot;
+                drop(current);
                 config.channels_config = channels;
                 state.config.lock().channels_config = config.channels_config.clone();
                 tracing::info!("Reloaded gateway channel configuration");

@@ -228,6 +228,7 @@ fn state_with(
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                runtimes: Default::default(),
                 webhook_secret_hash,
                 whatsapp: None,
                 whatsapp_app_secret: None,

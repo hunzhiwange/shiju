@@ -14,6 +14,18 @@ pub(crate) struct CommandMetadata {
 
 pub(crate) const COMMANDS: &[CommandMetadata] = &[
     CommandMetadata {
+        name: "stop",
+        group: "执行",
+        min_args: 0,
+        max_args: 0,
+        usage: "/stop",
+        description: "停止当前聊天执行，等待处理器和反馈退出；其他聊天不受影响",
+        example: "/stop",
+        aliases: &[],
+        approval: false,
+        errors: "无任务时幂等；退出未确认时保留繁忙状态",
+    },
+    CommandMetadata {
         name: "projects",
         group: "项目",
         min_args: 0,

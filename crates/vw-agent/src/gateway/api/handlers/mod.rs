@@ -70,6 +70,7 @@ pub(crate) mod skill_market;
 /// SHIJU account gateway API handlers.
 pub(crate) mod shiju_account;
 pub(crate) mod shiju_apps;
+mod shiju_connectors;
 pub(crate) mod shiju_skills;
 
 /// 定时任务（Cron）管理处理器模块

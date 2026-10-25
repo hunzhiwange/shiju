@@ -1036,6 +1036,7 @@ pub(crate) struct ExpertHubState {
     pub(crate) package_status: ShijuPackageStatus,
     pub(crate) install_guide: ShijuInstallGuideState,
     pub(crate) public_market: PublicSkillMarketState,
+    pub(crate) connectors: super::connectors::ConnectorsState,
     pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
 }
 
@@ -1152,6 +1153,7 @@ impl ExpertHubState {
         self.package_status.cancel_refresh();
         self.install_guide.reset_requests();
         self.shiju_apps.clear_for_account(self.account_id.clone());
+        self.connectors.clear(self.account_id.clone());
     }
 
     pub(crate) fn next_request_generation(&mut self) -> u64 {
@@ -1294,6 +1296,7 @@ impl Default for ExpertHubState {
             package_status: ShijuPackageStatus::default(),
             install_guide: ShijuInstallGuideState::default(),
             public_market: PublicSkillMarketState::default(),
+            connectors: super::connectors::ConnectorsState::default(),
             shiju_apps: crate::app::shiju_apps::ShijuAppsState::default(),
         }
     }

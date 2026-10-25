@@ -6,6 +6,7 @@ use crate::app::{App, Message, Screen};
 use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length};
 
+mod connectors;
 mod detail;
 mod experts;
 mod install_guide;
@@ -60,10 +61,7 @@ fn section_tabs(app: &App) -> Element<'static, Message> {
 pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = match app.expert_hub.section {
         ExpertHubSection::Experts => experts::view(app),
-        ExpertHubSection::Connectors => container(text("连接器能力即将接入").size(16))
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into(),
+        ExpertHubSection::Connectors => connectors::view(app),
         ExpertHubSection::Skills if app.expert_hub.public_market.installed_open => {
             installed_skills::view(app)
         }
@@ -79,7 +77,8 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .padding([24, 28])
         .into();
 
-    installed_skills::with_delete_confirmation(app, base)
+    let base = installed_skills::with_delete_confirmation(app, base);
+    connectors::with_binding_modal(app, base)
 }
 
 /// 构建兼容的识矩技能入口，复用专家中心技能列表与详情。
@@ -93,6 +92,8 @@ pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
     install_guide::with_uninstall_confirmation(app, base)
 }
 
+#[cfg(test)]
+mod connectors_tests;
 #[cfg(test)]
 mod detail_tests;
 #[cfg(test)]

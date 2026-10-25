@@ -150,3 +150,38 @@ fn shiju_account_upstream_errors_preserve_status_and_message() {
         assert_eq!(error.message, message);
     }
 }
+
+#[tokio::test]
+async fn connector_routes_require_credential_and_reject_identity_override() {
+    let (status, _) =
+        response(Request::get("/shiju/connectors").body(Body::empty()).unwrap()).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    let (status, _) = response(
+        Request::post("/shiju/connectors/authorizations/poll")
+            .header("content-type", "application/json")
+            .body(Body::from(r#"{"flow_id":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}"#))
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    for (path, payload) in [
+        (
+            "/shiju/connectors/binding",
+            r#"{"company_platform_id":7,"third_party_account_id":"account","third_party_account_name":"name","binding_config":{},"user_id":"other"}"#,
+        ),
+        ("/shiju/connectors/authorizations", r#"{"company_platform_id":7,"user_id":"other"}"#),
+    ] {
+        let method = if path.ends_with("binding") { "PUT" } else { "POST" };
+        let (status, _) = response(
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header("content-type", "application/json")
+                .header(SHIJU_CREDENTIAL_HEADER, "credential")
+                .body(Body::from(payload))
+                .unwrap(),
+        )
+        .await;
+        assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    }
+}

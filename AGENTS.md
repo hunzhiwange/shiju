@@ -61,7 +61,11 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 - UI 相关功能必须适配暗黑主题，避免文字、图标、背景颜色对比不足。
 - 容器注意水平与垂直居中。
-- 所有滚动条宽度为 4px。
+- 所有滚动条宽度为 4px；滚动内容必须额外预留滚动条宽度与间隔（参考系统设置的两侧 7px 留白），禁止让卡片或表单贴住、覆盖滚动条。
+- 新增或修改表单前，必须对照 `crates/vw-desktop/src/app/components/system_settings_common/` 与 `system_settings_providers/custom_model_modal.rs`，复用统一控件，禁止直接使用未设置样式的默认表单。
+- 文本输入框统一使用 `settings_text_input_style`、`SETTINGS_CONTROL_PADDING`、`SETTINGS_CONTROL_TEXT_SIZE`；选择框、复选框与文本编辑器使用对应的 `settings_*_style`，保持圆角、边框、焦点、禁用态及明暗主题一致。
+- 配置类表单使用弹窗，复用 `settings_modal_card`、`settings_modal_overlay`、`settings_close_button`；标题与说明、分组、字段标签、辅助说明和底部操作区保持清晰层级，长表单只滚动内容区，标题与保存/取消按钮固定。
+- 表单主次按钮复用 `primary_action_btn_style` 与 `rounded_action_btn_style`，显式设置内边距并保持圆角；不得遗漏重试、取消、刷新等辅助按钮。
 - 禁止对中文或其它非 ASCII 文本使用 `Font::MONOSPACE`，否则可能触发 `cosmic-text` 字形缓存溢出并导致主线程 panic。
 - 路径、代码等需要等宽字体时，必须将中文标签与纯 ASCII 内容拆成独立 `text` 控件；中文使用默认字体，仅纯 ASCII 内容使用 `Font::MONOSPACE`。
 - 字体相关 UI 变更不能只依赖构建 `Element` 的测试；涉及非 ASCII、弹窗或动态文本时，必须检查实际渲染路径，确认不会在字形整形阶段 panic。

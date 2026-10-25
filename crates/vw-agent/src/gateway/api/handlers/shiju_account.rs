@@ -38,6 +38,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
+        .merge(super::shiju_connectors::router())
         .route("/shiju/account/login", post(login_post))
         .route("/shiju/models/token", axum::routing::put(model_token_put))
         .route("/shiju/account/login/poll", post(login_poll_post))
@@ -146,7 +147,7 @@ async fn account_password_put(
     Ok(StatusCode::NO_CONTENT)
 }
 
-fn credential_from_headers(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
+pub(super) fn credential_from_headers(headers: &HeaderMap) -> Result<ShijuCredential, ApiError> {
     let raw = headers
         .get(SHIJU_CREDENTIAL_HEADER)
         .ok_or_else(|| ApiError::bad_request("SHIJU credential header is required"))?
@@ -155,7 +156,7 @@ fn credential_from_headers(headers: &HeaderMap) -> Result<ShijuCredential, ApiEr
     ShijuCredential::new(raw).map_err(|_| ApiError::bad_request("SHIJU credential cannot be empty"))
 }
 
-fn upstream_error(error: ShijuAccountError) -> ApiError {
+pub(super) fn upstream_error(error: ShijuAccountError) -> ApiError {
     if let Some(status) = error.status() {
         return ApiError { status, message: error.to_string() };
     }

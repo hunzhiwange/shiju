@@ -31,6 +31,9 @@ use std::time::Duration;
 use tempfile::NamedTempFile;
 use vw_gateway_client::{ShijuMaintainedSkillQuery, ShijuSkillSearchQuery, ShijuSystemSkillQuery};
 
+pub(crate) mod connectors;
+#[cfg(test)]
+mod connectors_tests;
 mod public;
 #[cfg(test)]
 mod public_tests;
@@ -64,6 +67,7 @@ const SHIJU_INSTALL_TARGETS: [SkillInstallTarget; 10] = [
 #[allow(dead_code)]
 /// 专家中心技能目录、安装向导、版本操作与公共市场的消息集合。
 pub(crate) enum SkillHubMessage {
+    Connectors(connectors::ConnectorMessage),
     Public(public::PublicSkillMessage),
     Open,
     OpenShijuSkills,
@@ -235,6 +239,7 @@ pub(crate) enum SkillHubMessage {
 /// 归约技能中心消息，并用请求代次与账号 ID 屏蔽迟到的异步响应。
 pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
     match message {
+        SkillHubMessage::Connectors(message) => connectors::update(app, message),
         SkillHubMessage::Public(message) => public::update(app, message),
         SkillHubMessage::Open => {
             app.expert_hub.reset_navigation();
@@ -360,6 +365,8 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     ),
                 );
                 Task::batch([suites, public::ensure_loaded(app)])
+            } else if section == ExpertHubSection::Connectors {
+                connectors::ensure_loaded(app)
             } else if section == ExpertHubSection::Skills {
                 public::ensure_loaded(app)
             } else {
@@ -533,7 +540,11 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             }
         }
         SkillHubMessage::Retry | SkillHubMessage::ReloadAfterAccountChange => {
-            if app.expert_hub.install_guide.open {
+            if app.screen == Screen::ExpertHub
+                && app.expert_hub.section == ExpertHubSection::Connectors
+            {
+                connectors::load(app)
+            } else if app.expert_hub.install_guide.open {
                 load_agent_package(app, false)
             } else {
                 load_current_tab(app)

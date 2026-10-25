@@ -164,3 +164,9 @@ pub use vw_api_types::workflow::{
     WorkflowRecordSummary, WorkflowRecordUpsertBody, WorkflowRunRequest, WorkflowRunResponse,
     WorkflowRunStatus,
 };
+
+pub use client::{
+    ShijuConnector, ShijuConnectorAuthorizationStatus, ShijuConnectorAuthorizeRequest,
+    ShijuConnectorBinding, ShijuConnectorChallenge, ShijuConnectorPoll, ShijuConnectorPollRequest,
+    ShijuConnectorSaveRequest, ShijuConnectorVariable,
+};

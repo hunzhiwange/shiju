@@ -2,6 +2,7 @@
 
 mod cache_sync;
 mod client;
+pub(crate) mod connectors;
 mod installer;
 mod models;
 mod package_version_cache;

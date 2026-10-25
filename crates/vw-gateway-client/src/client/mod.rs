@@ -47,6 +47,8 @@ mod shiju_account_api;
 #[cfg(test)]
 #[path = "shiju_account_api_tests.rs"]
 mod shiju_account_api_tests;
+mod shiju_connector_api;
+pub use shiju_connector_api::*;
 mod shiju_app_api;
 #[cfg(test)]
 #[path = "shiju_app_api_tests.rs"]

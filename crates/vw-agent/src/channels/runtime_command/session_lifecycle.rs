@@ -277,7 +277,7 @@ async fn restore_channel_session(
         Some(&project),
     );
     let history = history.map(|session| session.messages).unwrap_or_default();
-    let history = history
+    let mut history: Vec<ChatMessage> = history
         .into_iter()
         .map(|message| {
             let role = match message.role {
@@ -289,6 +289,10 @@ async fn restore_channel_session(
             ChatMessage { role: role.into(), content: message.content }
         })
         .collect();
+    let persisted = crate::session::message::messages(id, None).await?;
+    if !persisted.is_empty() {
+        history = super::history_commands::cached_history(persisted);
+    }
     let key = snapshot.scope.key();
     persist_current_route(ctx, &get_route_selection(ctx, &key)).await?;
     // 全部读取/校验完成后无 await：同时替换历史、模型选项和当前绑定。

@@ -23,7 +23,8 @@ use super::LarkChannel;
 use super::ack::random_lark_ack_reaction;
 use super::constants::{LARK_IMAGE_DOWNLOAD_FALLBACK_TEXT, WS_HEARTBEAT_TIMEOUT};
 use super::parsing::{
-    parse_image_key, parse_post_content_details, should_respond_in_group, strip_at_placeholders,
+    message_thread, parse_image_key, parse_post_content_details, should_respond_in_group,
+    strip_at_placeholders,
 };
 use super::types::{
     LarkEvent, MsgReceivePayload, PbFrame, PbHeader, WsClientConfig, WsEndpointResp,
@@ -478,7 +479,7 @@ impl LarkChannel {
                     let channel_msg = super::ChannelMessage {
                         instance_id: "default".to_string(),
                         id: Uuid::new_v4().to_string(),
-                        sender: lark_msg.chat_id.clone(),
+                        sender: sender_open_id.to_string(),
                         reply_target: lark_msg.chat_id.clone(),
                         content: text,
                         channel: self.channel_name().to_string(),
@@ -486,7 +487,7 @@ impl LarkChannel {
                             .duration_since(std::time::UNIX_EPOCH)
                             .unwrap_or_default()
                             .as_secs(),
-                        thread_ts: None,
+                        thread_ts: message_thread(&event_payload),
                     };
 
                     tracing::debug!("Lark WS: message in {}", lark_msg.chat_id);

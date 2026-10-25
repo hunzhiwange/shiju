@@ -71,7 +71,7 @@ fn lark_parse_valid_text_message() {
     let msgs = ch.parse_event_payload(&payload);
     assert_eq!(msgs.len(), 1);
     assert_eq!(msgs[0].content, "Hello VibeWindow!");
-    assert_eq!(msgs[0].sender, "oc_chat123");
+    assert_eq!(msgs[0].sender, "ou_testuser123");
     assert_eq!(msgs[0].channel, "lark");
     assert_eq!(msgs[0].timestamp, 1_699_999_999);
 }

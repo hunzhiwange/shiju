@@ -80,7 +80,7 @@ mod config_loading; // 配置加载验证测试
 mod health_supervisor; // 健康监督器功能测试
 mod history_management; // 历史记录管理测试
 mod identity; // 身份验证和管理测试
-mod message_dispatch; // 消息分发机制测试
+// message_dispatch 在 channels 根注册，以保留聚焦验收过滤器。
 mod routing; // 路由算法和策略测试
 mod session_history; // 会话历史角色映射测试
 mod system_prompt; // 系统提示词构建测试

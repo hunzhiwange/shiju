@@ -279,6 +279,29 @@ pub(crate) async fn handle_llm_result(
                 format!("{tool_summary}\n{delivered_response}")
             };
 
+            if let Err(err) = super::super::session_turn::persist_channel_turn(
+                ctx,
+                &msg,
+                route,
+                &history_response,
+            )
+            .await
+            {
+                if let Some(channel) = target_channel {
+                    let error = crate::providers::sanitize_api_error(&err.to_string());
+                    let _ = channel
+                        .send(
+                            &SendMessage::new(
+                                format!("会话持久化失败：{error}。请重试。"),
+                                &msg.reply_target,
+                            )
+                            .in_thread(msg.thread_ts.clone()),
+                        )
+                        .await;
+                }
+                return;
+            }
+
             // 将助手响应追加到会话历史
             append_sender_turn(ctx, history_key, ChatMessage::assistant(&history_response));
 

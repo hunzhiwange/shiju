@@ -514,12 +514,12 @@ impl LarkChannel {
         messages.push(super::ChannelMessage {
             instance_id: "default".to_string(),
             id: Uuid::new_v4().to_string(),
-            sender: chat_id.to_string(),
+            sender: open_id.to_string(),
             reply_target: chat_id.to_string(),
             content: text,
             channel: self.channel_name().to_string(),
             timestamp,
-            thread_ts: None,
+            thread_ts: message_thread(event),
         });
 
         messages
@@ -676,12 +676,12 @@ impl LarkChannel {
         messages.push(super::ChannelMessage {
             instance_id: "default".to_string(),
             id: Uuid::new_v4().to_string(),
-            sender: chat_id.to_string(),
+            sender: open_id.to_string(),
             reply_target: chat_id.to_string(),
             content: text,
             channel: self.channel_name().to_string(),
             timestamp,
-            thread_ts: None,
+            thread_ts: message_thread(event),
         });
 
         messages
@@ -691,3 +691,12 @@ impl LarkChannel {
 #[cfg(test)]
 #[path = "parsing_tests.rs"]
 mod parsing_tests;
+
+/// 平台主题标识不能与群聊身份或发送者混用。
+pub(super) fn message_thread(event: &serde_json::Value) -> Option<String> {
+    ["/message/thread_id", "/message/root_id"]
+        .into_iter()
+        .filter_map(|path| event.pointer(path).and_then(serde_json::Value::as_str))
+        .find(|value| !value.is_empty())
+        .map(str::to_string)
+}

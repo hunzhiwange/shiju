@@ -180,7 +180,7 @@ pub(super) async fn handle_history_command(
     Ok(format!("{action}会话 {target}。"))
 }
 
-fn cached_history(mut messages: Vec<message::WithParts>) -> Vec<ChatMessage> {
+pub(super) fn cached_history(mut messages: Vec<message::WithParts>) -> Vec<ChatMessage> {
     messages.sort_by(|a, b| a.info.id().cmp(b.info.id()));
     messages
         .into_iter()

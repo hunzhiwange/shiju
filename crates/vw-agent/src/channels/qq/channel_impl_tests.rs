@@ -75,3 +75,16 @@ async fn qq_channel_trait_health_check_returns_false_when_auth_request_fails() {
 
     assert!(!as_trait.health_check().await);
 }
+
+impl QQChannel {
+    // 替换外部 WebSocket 读取边界，保留与 listen_gateway 相同的事件解析和权限检查。
+    pub(crate) async fn command_flow_websocket_frame(
+        &self,
+        frame: &serde_json::Value,
+    ) -> Option<crate::channels::traits::ChannelMessage> {
+        if frame.get("op").and_then(serde_json::Value::as_u64) != Some(0) {
+            return None;
+        }
+        self.parse_dispatch_message_event(frame.get("t")?.as_str()?, frame.get("d")?).await
+    }
+}

@@ -200,7 +200,11 @@ async fn listen_ws_dispatches_text_and_skips_non_matching_frames() {
         ))
         .await
         .unwrap();
-        ws.send(event_frame(13, "", text_event("ou_allowed", "", " hello @_user_1 world ")))
+        let mut topic_event: serde_json::Value = serde_json::from_slice(&text_event(
+            "ou_allowed", "", " hello @_user_1 world ",
+        )).unwrap();
+        topic_event["event"]["message"]["thread_id"] = json!("topic");
+        ws.send(event_frame(13, "", serde_json::to_vec(&topic_event).unwrap()))
             .await
             .unwrap();
         ws.send(event_frame(14, "", text_event("ou_allowed", "", "duplicate")))
@@ -230,7 +234,8 @@ async fn listen_ws_dispatches_text_and_skips_non_matching_frames() {
     let message = rx.recv().await.unwrap();
 
     assert!(request.starts_with("POST /callback/ws/endpoint "));
-    assert_eq!(message.sender, "oc_chat");
+    assert_eq!(message.sender, "ou_allowed");
+    assert_eq!(message.thread_ts.as_deref(), Some("topic"));
     assert_eq!(message.reply_target, "oc_chat");
     assert_eq!(message.content, "hello world");
     assert_eq!(message.channel, "lark");

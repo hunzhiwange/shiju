@@ -48,6 +48,7 @@ impl HookHandler for CancelHook {
 struct RecordingChannel {
     supports_drafts: bool,
     sent: tokio::sync::Mutex<Vec<String>>,
+    destinations: tokio::sync::Mutex<Vec<(String, Option<String>)>>,
     draft_placeholders: tokio::sync::Mutex<Vec<String>>,
     draft_updates: tokio::sync::Mutex<Vec<String>>,
     reactions: tokio::sync::Mutex<Vec<String>>,
@@ -60,6 +61,7 @@ impl RecordingChannel {
         Self {
             supports_drafts,
             sent: tokio::sync::Mutex::new(Vec::new()),
+            destinations: tokio::sync::Mutex::new(Vec::new()),
             draft_placeholders: tokio::sync::Mutex::new(Vec::new()),
             draft_updates: tokio::sync::Mutex::new(Vec::new()),
             reactions: tokio::sync::Mutex::new(Vec::new()),
@@ -99,6 +101,7 @@ impl Channel for RecordingChannel {
 
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
         self.sent.lock().await.push(message.content.clone());
+        self.destinations.lock().await.push((message.recipient.clone(), message.thread_ts.clone()));
         Ok(())
     }
 
@@ -358,3 +361,7 @@ async fn finish_feedback_tasks_cancels_typing_task() {
 
     assert_eq!(channel.typing_stopped(), 1);
 }
+
+// 独立文件保留真实 manager 入站路径，仅替换平台发送边界。
+#[path = "command_flow_tests.rs"]
+mod command_flow_tests;

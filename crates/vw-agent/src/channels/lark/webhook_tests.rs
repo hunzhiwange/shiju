@@ -129,11 +129,14 @@ async fn handle_event_rejects_mismatched_challenge_token() {
 async fn handle_event_dispatches_text_message() {
     let channel = make_channel(Some(0), vec!["ou_allowed".to_string()]);
     let (tx, mut rx) = tokio::sync::mpsc::channel(1);
-    let response = post_payload(&channel, tx, text_payload(Some("om_message"))).await;
+    let mut payload = text_payload(Some("om_message"));
+    payload["event"]["message"]["root_id"] = serde_json::json!("root-message");
+    let response = post_payload(&channel, tx, payload).await;
 
     assert_eq!(response.status(), StatusCode::OK);
     let message = rx.recv().await.expect("message should be dispatched");
-    assert_eq!(message.sender, "oc_chat");
+    assert_eq!(message.sender, "ou_allowed");
+    assert_eq!(message.thread_ts.as_deref(), Some("root-message"));
     assert_eq!(message.reply_target, "oc_chat");
     assert_eq!(message.content, "hello webhook");
     assert_eq!(message.channel, "lark");

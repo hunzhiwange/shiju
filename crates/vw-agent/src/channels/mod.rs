@@ -733,3 +733,8 @@ mod dispatch_tests;
 #[cfg(test)]
 #[path = "manager/dispatch_cancel_tests.rs"]
 mod channel_command_cancel_dispatch_tests;
+
+#[cfg(test)]
+include!("tests/message_dispatch.rs");
+
+mod session_turn;

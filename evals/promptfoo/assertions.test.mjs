@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { evaluate } from './assertions.mjs';
+import { evaluate, noFailedTools } from './assertions.mjs';
 
 const THREAD_ID = 'thread-child-1';
 const PROJECT_ID = 'project-current';
@@ -151,4 +151,61 @@ test('accuracy_profile_requires_evaluator_oracle', () => {
   delete metadata.boundary.admissionDigest;
   assert.equal(score().pass, false);
   assert.equal(score().namedScores.boundary_checks, 0);
+});
+
+test('accuracy_recovery_rejects_unexpected_tool_failure', () => {
+  const metadata = { evaluationProfile: 'runtime-accuracy', terminal: { pass: true },
+    budget: { pass: true }, boundary: { pass: true, admissionDigest: 'a'.repeat(64) },
+    oracle: { pass: true, checks: [{ pass: true }] },
+    expectedFailure: { toolName: 'bash', operation: 'node probe.mjs', exitCode: 2,
+      recoveryOperation: 'node repair.mjs' },
+    toolCalls: [call('bash', { command: 'node probe.mjs' }, 'exit 2',
+      { status: 'failed', isError: true, exitCode: 2, startedMs: 1, finishedMs: 2, startEventIndex: 0, completeEventIndex: 1, completeEventCount: 1 }),
+    call('bash', { command: 'node repair.mjs' }, 'done', { exitCode: 0, startedMs: 3, finishedMs: 4, startEventIndex: 2, completeEventIndex: 3, completeEventCount: 1 })] };
+  const score = () => evaluate('done', { providerResponse: { metadata } });
+  assert.equal(score().pass, true);
+  const original = structuredClone(metadata.toolCalls);
+  for (const change of [
+    calls => { calls[0].exitCode = 1; },
+    calls => { calls[0].status = 'denied'; },
+    calls => { calls[0].status = 'cancelled'; },
+    calls => { delete calls[0].exitCode; },
+    calls => { calls.shift(); },
+    calls => { calls.push(structuredClone(calls[0])); },
+    calls => { calls[0].input.command = 'node other.mjs'; },
+    calls => { calls.reverse(); },
+    calls => { calls[1].startedMs = 1; },
+    calls => { calls[1].exitCode = 2; },
+    calls => { calls[1].startEventIndex = 0; },
+    calls => { delete calls[0].completeEventIndex; },
+    calls => { calls[0].completeEventCount = 2; },
+  ]) {
+    metadata.toolCalls = structuredClone(original);
+    change(metadata.toolCalls);
+    assert.equal(score().pass, false);
+  }
+  metadata.toolCalls = structuredClone(original);
+  metadata.toolCalls[1].startedMs = 2;
+  assert.equal(score().pass, true);
+  metadata.toolCalls = original;
+  metadata.oracle.pass = false;
+  assert.equal(score().pass, false);
+  metadata.oracle.pass = true;
+  metadata.budget.pass = false;
+  assert.equal(score().pass, false);
+  metadata.budget.pass = true;
+  delete metadata.expectedFailure;
+  assert.equal(score().pass, false);
+});
+
+
+test('legacy_profiles_keep_existing_failed_test_exception', () => {
+  const failed = call('bash', { command: 'node --test broken.mjs' }, 'failed', { status: 'failed', isError: true });
+  const passed = call('bash', { command: 'node --test fixed.mjs' }, 'passed');
+  for (const profile of ['coding', 'rustcodegraph', 'thread-commands']) {
+    const ctx = { vars: { evaluationProfile: profile }, providerResponse: { metadata: { toolCalls: [failed, passed] } } };
+    assert.equal(noFailedTools('', ctx).pass, true);
+    ctx.providerResponse.metadata.toolCalls.push(call('read_file', {}, 'denied', { status: 'denied', isError: true }));
+    assert.equal(noFailedTools('', ctx).pass, false);
+  }
 });

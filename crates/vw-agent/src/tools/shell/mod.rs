@@ -652,6 +652,23 @@ impl Tool for ShellTool {
             .with_strict(true)
     }
 
+    /// Preserve the OS exit status in structured results and gateway metadata.
+    async fn call(
+        &self,
+        input: serde_json::Value,
+    ) -> anyhow::Result<super::traits::ToolCallResult> {
+        let mut exit_code = None;
+        let legacy = self.execute_with_exit_code(input, &mut exit_code).await?;
+        let mut result = super::traits::ToolCallResult::from_legacy_result(legacy);
+        let mut hint = super::traits::ToolRenderHint::titled(self.spec().display_name);
+        if let Some(code) = exit_code {
+            result.data["exit_code"] = json!(code);
+            hint.metadata = json!({ "exit_code": code });
+        }
+        result.render_hint = Some(hint);
+        Ok(result)
+    }
+
     /// 执行 Shell 命令
     ///
     /// 在沙箱环境中安全地执行给定的 Shell 命令。执行过程包括多层安全检查、
@@ -716,8 +733,18 @@ impl Tool for ShellTool {
     ///     "approved": true
     /// })).await?;
     /// ```
-    #[allow(clippy::incompatible_msrv)]
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
+        self.execute_with_exit_code(args, &mut None).await
+    }
+}
+
+impl ShellTool {
+    #[allow(clippy::incompatible_msrv)]
+    async fn execute_with_exit_code(
+        &self,
+        args: serde_json::Value,
+        exit_code: &mut Option<i32>,
+    ) -> anyhow::Result<ToolResult> {
         let shell_args = self.parse_args(&args)?;
         let command = shell_args.command.clone();
 
@@ -859,7 +886,8 @@ impl Tool for ShellTool {
 
                 let parsed = parse_command(&execution_plan.effective_command);
                 let semantics = ExitSemantics::for_parsed_command(&parsed);
-                let interpretation = semantics.interpret(output.status.code());
+                *exit_code = output.status.code();
+                let interpretation = semantics.interpret(*exit_code);
 
                 Ok(tool_result_from_interpretation(interpretation, stdout, stderr))
             }

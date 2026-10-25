@@ -408,3 +408,68 @@ test('accuracy_provider_verifies_artifacts_and_cleans_only_after_writer_exit', a
   assert.equal(await readFile(join(root, 'answer.txt'), 'utf8'), 'input');
   assert.equal(requests, 13);
 });
+
+test('accuracy_recovery_uses_sse_exit_code_and_independent_file_oracle', async t => {
+  const { mkdtemp, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { prepare, cleanup } = await import('./attempt-workspace.mjs');
+  const { loadManifest } = await import('./accuracy-manifest.mjs');
+  const { evaluate } = await import('./assertions.mjs');
+  const root = await mkdtemp(join(tmpdir(), 'recovery-'));
+  const originalFetch = globalThis.fetch;
+  t.after(async () => { globalThis.fetch = originalFetch; await rm(root, { recursive: true, force: true }); });
+  await writeFile(join(root, 'answer.txt'), 'input');
+  const initial = await prepare({ fixtureRoot: root, fixtureFiles: ['answer.txt'] });
+  const fixtureDigest = initial.inputDigest;
+  await cleanup(initial);
+  const manifest = loadManifest(new URL('./accuracy-manifest.json', import.meta.url));
+  manifest.contract.tasks.push({ taskId: 'recovery-test', description: 'recover', category: 'recovery', split: 'dev',
+    fixtureDigest, oracleDigest: 'a'.repeat(64) });
+  const definition = { expectedFiles: { 'answer.txt': Buffer.from('correct') }, unchangedFiles: {}, allowExtraFiles: false,
+    expectedFailure: { toolName: 'bash', operation: 'node probe.mjs', exitCode: 2, recoveryOperation: 'node repair.mjs' } };
+  const config = { evaluationProfile: 'runtime-accuracy', manifest, taskId: 'recovery-test', fixtureRoot: root,
+    fixtureFiles: ['answer.txt'], timeoutMs: 1000, accuracyAcceptance: {
+      definitions: new Map([['recovery-test', definition]]),
+      admit: async ({ workRoot }) => admission(workRoot),
+      settle: async ({ admission }) => ({ writersExited: true, admissionDigest: admission.digest,
+        checks: [{ kind: 'non_target_files', pass: true }] }),
+    } };
+  let content = 'correct';
+  let exitCode = 2;
+  let duplicateFailure = false;
+  globalThis.fetch = async (_url, options) => {
+    await writeFile(join(options.headers['X-VibeWindow-Directory'], 'answer.txt'), content);
+    const events = [];
+    for (const [index, command, code] of [[0, 'node probe.mjs', exitCode], [1, 'node repair.mjs', 0]]) {
+      events.push({ type: 'chat.tool', kind: 'start', status: 'running', call_id: String(index), name: 'bash',
+        step_index: index, occurred_ms: index * 3 + 1, payload: { input: { command } } },
+      { type: 'chat.tool', kind: 'complete', status: index === 0 ? 'failed' : 'completed', call_id: String(index), name: 'bash',
+        step_index: index, occurred_ms: index * 3 + 2, payload: { metadata: { exit_code: code }, output: 'exit_code=2' } });
+    }
+    if (duplicateFailure) events.splice(2, 0, structuredClone(events[1]));
+    events.push({ type: 'chat.delta', delta: 'recovered' }, { type: 'chat.done', session_id: 'session', message_id: 'answer' });
+    return sseResponse(events);
+  };
+  const provider = new VibeWindowProvider({ config });
+  const run = async () => provider.callApi('recover', { vars: { expectedFailure: { exitCode: 1 } } });
+  const score = result => evaluate(result.output, { providerResponse: result });
+  const correct = await run();
+  assert.equal(correct.metadata.toolCalls[0].exitCode, 2);
+  assert.equal(correct.metadata.expectedFailure.exitCode, 2);
+  assert.equal(correct.metadata.toolCalls.length, 2);
+  assert.equal(score(correct).pass, true);
+  content = 'wrong';
+  assert.equal(score(await run()).pass, false);
+  content = 'correct';
+  exitCode = 1;
+  assert.equal(score(await run()).pass, false);
+  exitCode = undefined;
+  assert.equal(score(await run()).pass, false);
+  exitCode = 2;
+  duplicateFailure = true;
+  assert.equal(score(await run()).pass, false);
+  duplicateFailure = false;
+  manifest.contract.experiment.budget.toolCalls = 1;
+  assert.equal(score(await run()).pass, false);
+});

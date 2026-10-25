@@ -1548,3 +1548,17 @@ fn agent_tool_finalization_keeps_background_child_running_when_event_sink_closes
         "closing the parent event sink must not cancel a background child"
     );
 }
+
+#[test]
+fn completed_shell_payload_preserves_exit_code_and_failed_status() {
+    let mut result = ToolCallResult::from_legacy_result(crate::tools::traits::ToolResult {
+        success: false,
+        output: "exit_code=0".into(),
+        error: Some("process failed".into()),
+    });
+    result.render_hint =
+        Some(ToolRenderHint { metadata: json!({ "exit_code": 2 }), ..Default::default() });
+    let payload = super::completed_tool_payload_for_ui("bash", "{}", &result, "exit_code=0");
+    assert_eq!(payload["status"], "failed");
+    assert_eq!(payload["metadata"]["exit_code"], 2);
+}

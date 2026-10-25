@@ -609,6 +609,41 @@ function accuracyBudget(_output, context) {
   return gradingResult(metadata(context).budget?.pass === true, '冻结预算验收');
 }
 
+function accuracyTools(_output, context) {
+  const calls = toolCalls(context);
+  const rule = metadata(context).expectedFailure;
+  const failed = calls.filter(tool => tool.isError || !isSuccessfulTool(tool)
+    || (Number.isSafeInteger(tool.exitCode) && tool.exitCode !== 0));
+  if (rule == null) return gradingResult(failed.length === 0 && !metadata(context).requiresRecovery, '未声明的工具失败不得豁免');
+  if (Object.keys(rule).sort().join(',') !== 'exitCode,operation,recoveryOperation,toolName'
+      || rule.toolName !== 'bash' || typeof rule.operation !== 'string' || !rule.operation.trim()
+      || typeof rule.recoveryOperation !== 'string' || !rule.recoveryOperation.trim()
+      || !Number.isSafeInteger(rule.exitCode) || rule.exitCode <= 0 || failed.length !== 1) {
+    return gradingResult(false, '恢复契约无效或失败次数不为一次');
+  }
+  const failure = failed[0];
+  const index = calls.indexOf(failure);
+  const pass = failure.name === rule.toolName && failure.status === 'failed'
+    && failure.isError === true && failure.exitCode === rule.exitCode
+    && failure.completeEventCount === 1
+    && parsedInput(failure)?.command === rule.operation
+    && Number.isFinite(failure.startedMs) && Number.isFinite(failure.finishedMs)
+    && failure.finishedMs >= failure.startedMs
+    && Number.isSafeInteger(failure.startEventIndex) && Number.isSafeInteger(failure.completeEventIndex)
+    && failure.completeEventIndex > failure.startEventIndex
+    && calls.slice(index + 1).some(tool => tool.name === rule.toolName
+      && isSuccessfulTool(tool) && tool.exitCode === 0 && tool.completeEventCount === 1
+      && parsedInput(tool)?.command === rule.recoveryOperation
+      && Number.isFinite(tool.startedMs) && Number.isFinite(tool.finishedMs)
+      && tool.startedMs >= failure.finishedMs && tool.finishedMs >= tool.startedMs
+      && Number.isSafeInteger(tool.startEventIndex) && Number.isSafeInteger(tool.completeEventIndex)
+      && tool.completeEventIndex > tool.startEventIndex
+      && ((tool.turnIndex ?? 0) > (failure.turnIndex ?? 0)
+        || ((tool.turnIndex ?? 0) === (failure.turnIndex ?? 0)
+          && tool.startEventIndex > failure.completeEventIndex)));
+  return gradingResult(pass, pass ? '一次声明失败后按序恢复' : '缺少真实退出码或恢复次序不符');
+}
+
 const EVALUATION_PROFILES = Object.freeze({
   'runtime-accuracy': {
     threshold: 1,
@@ -617,6 +652,7 @@ const EVALUATION_PROFILES = Object.freeze({
       ['normal_terminal', 10, accuracyTerminal, true],
       ['boundary_checks', 10, accuracyBoundary, true],
       ['execution_budget', 10, accuracyBudget, true],
+      ['tool_recovery', 0, accuracyTools, true],
     ],
   },
   rustcodegraph: {

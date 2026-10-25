@@ -173,7 +173,7 @@ export function aggregateEvents(events) {
   const steps = new Map();
   const toolCalls = new Map();
 
-  for (const event of events) {
+  for (const [eventIndex, event] of events.entries()) {
     const type = event?.type;
     if (typeof type === 'string') {
       eventTypes.push(type);
@@ -244,8 +244,14 @@ export function aggregateEvents(events) {
         existing.isError = ['failed', 'denied', 'cancelled'].includes(existing.status);
         if (event.kind === 'start' && existing.startedMs === undefined) {
           existing.startedMs = Number(event.occurred_ms);
+          existing.startEventIndex = eventIndex;
         }
         if (event.kind === 'complete') {
+          existing.completeEventIndex = eventIndex;
+          existing.completeEventCount = (existing.completeEventCount ?? 0) + 1;
+          if (Number.isSafeInteger(payload.metadata?.exit_code)) {
+            existing.exitCode = payload.metadata.exit_code;
+          }
           existing.startedMs ??= Number(event.occurred_ms);
           existing.finishedMs = Number(event.occurred_ms);
         }
@@ -310,7 +316,10 @@ export default class VibeWindowProvider {
 
   // runtime-accuracy requires evaluator-owned accuracyAcceptance configuration:
   // definitions is the taskId -> trusted byte definition Map consumed by the
-  // artifact oracle. admit({attemptId, workRoot}) returns the environment proof
+  // artifact oracle. A recovery definition additionally declares expectedFailure:
+  // {toolName: 'bash', operation: <exact command>, exitCode: <positive integer>,
+  // recoveryOperation: <exact command>}. No prompt/context variable grants this
+  // exception; missing structured OS exit codes fail closed. admit({attemptId, workRoot}) returns the environment proof
   // summary below; settle({attemptId, workRoot, sessionId, admission}) attests
   // that all remote writers/descendants exited and reports non_target_files
   // checks linked to that proof's digest. Neither callback reads model claims.
@@ -320,6 +329,8 @@ export default class VibeWindowProvider {
     const data = result.metadata;
     if (data?.evaluationProfile !== 'runtime-accuracy') return result;
     const acceptance = this.config.accuracyAcceptance;
+    // Only the evaluator-owned task definition grants a recovery exception.
+    data.expectedFailure = structuredClone(acceptance?.definitions?.get(data.taskId)?.expectedFailure ?? null);
     data.oracle = { pass: false, checks: [], reason: 'artifact acceptance unavailable' };
     data.boundary = { pass: false };
     data.cleanup = 'cleanup_pending';
@@ -438,6 +449,7 @@ export default class VibeWindowProvider {
         directory = workspace.workRoot;
         attemptMetadata = { evaluationProfile: 'runtime-accuracy', manifest,
           manifestDigest: manifestDigest(manifest), taskId: task.taskId, split: task.split,
+          requiresRecovery: task.category === 'recovery',
           expectedAttempts: manifest.contract.experiment.execution.repeats,
           fixtureDigest: workspace.inputDigest, attemptId: workspace.attemptId,
           workRoot: workspace.workRoot, cleanupPolicy: workspace.cleanupPolicy };

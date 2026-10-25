@@ -37,6 +37,33 @@ mod tests {
         })
     }
 
+    #[tokio::test]
+    async fn shell_call_preserves_real_exit_code_without_parsing_output() {
+        for (command, expected) in
+            [("grep '[' missing-recovery-fixture", 2), ("echo exit_code=2", 0)]
+        {
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Full,
+                workspace_only: false,
+                workspace_dir: std::env::temp_dir(),
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
+            let result = tool.call(json!({ "command": command, "description": "verify process status", "approved": true })).await.unwrap();
+            assert_eq!(result.data["exit_code"], expected, "{:?}", result.data);
+            assert_eq!(result.render_metadata()["exit_code"], expected);
+            assert_eq!(result.is_success(), expected == 0);
+        }
+        let tool = ShellTool::new(test_security(AutonomyLevel::ReadOnly), test_runtime());
+        let result = tool
+            .call(json!({ "command": "touch denied", "description": "verify denied operation" }))
+            .await
+            .unwrap();
+        assert!(!result.is_success());
+        assert!(result.data.get("exit_code").is_none());
+        assert!(result.render_metadata().get("exit_code").is_none());
+    }
+
     #[test]
     fn shell_full_access_disables_workspace_sandbox() {
         let security = Arc::new(SecurityPolicy {

@@ -321,7 +321,8 @@ fn completed_tool_payload_for_ui(
     output: &str,
 ) -> serde_json::Value {
     let mut payload = serde_json::Map::new();
-    payload.insert("status".to_string(), string_value("completed"));
+    let status = if tool_name == "bash" && !result.is_success() { "failed" } else { "completed" };
+    payload.insert("status".to_string(), string_value(status));
     payload.insert("input".to_string(), string_value(input));
     payload.insert("title".to_string(), string_value(&result.render_title(tool_name)));
     payload.insert("metadata".to_string(), result.render_metadata());

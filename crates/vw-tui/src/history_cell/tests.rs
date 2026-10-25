@@ -151,3 +151,26 @@ fn v3_display_event_history_snapshot() {
         .join("\n");
     insta::assert_snapshot!(rendered);
 }
+
+#[test]
+fn system_history_preserves_help_lines_and_chinese_text() {
+    let text = "/help — 显示当前命令及可用状态\n/status — 显示当前会话与 Gateway 状态\n\n会话设置已更新，将从下一条请求开始生效。";
+    let event = V3DisplayEvent::System { text: text.into() };
+    let lines = render_display_event(&event, 120);
+    assert_eq!(
+        lines.iter().map(Line::to_string).collect::<Vec<_>>(),
+        vec![
+            "system: /help — 显示当前命令及可用状态",
+            "  /status — 显示当前会话与 Gateway 状态",
+            "  ",
+            "  会话设置已更新，将从下一条请求开始生效。",
+        ]
+    );
+    for width in [24, 40] {
+        let lines = render_display_event(&event, width);
+        assert!(lines.iter().all(|line| line.width() <= usize::from(width)));
+        let rendered = lines.iter().map(Line::to_string).collect::<Vec<_>>().join("\n");
+        assert!(rendered.contains("\n  /status"));
+        assert!(!rendered.contains("会 话"));
+    }
+}

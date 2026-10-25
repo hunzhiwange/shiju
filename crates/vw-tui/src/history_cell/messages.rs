@@ -106,13 +106,16 @@ impl PlainHistoryCell {
 impl HistoryCell for PlainHistoryCell {
     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
         let prefix = format!("{}: ", self.label);
-        let content_width = usize::from(width).saturating_sub(prefix.chars().count()).max(1);
-        let source = Line::from(self.text.clone());
-        let lines = adaptive_wrap_line(&source, RtOptions::new(content_width))
-            .into_iter()
-            .map(|line| crate::render::line_utils::line_to_static(&line));
+        let content_width =
+            usize::from(width).saturating_sub(Line::from(prefix.clone()).width()).max(1);
+        let lines = self.text.split('\n').flat_map(|source| {
+            let line = Line::from(source.trim_end_matches('\r').to_string());
+            adaptive_wrap_line(&line, RtOptions::new(content_width))
+                .into_iter()
+                .map(|line| crate::render::line_utils::line_to_static(&line))
+                .collect::<Vec<_>>()
+        });
         lines
-            .into_iter()
             .enumerate()
             .map(|(index, line)| {
                 let prefix = if index == 0 { prefix.clone() } else { "  ".to_string() };

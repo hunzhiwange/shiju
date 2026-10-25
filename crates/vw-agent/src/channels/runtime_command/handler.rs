@@ -150,6 +150,11 @@ pub(crate) async fn handle_runtime_command_if_needed(
     }
 
     let response = match command {
+        ChannelRuntimeCommand::ListProjects
+        | ChannelRuntimeCommand::ShowProject
+        | ChannelRuntimeCommand::SelectProject(_) => {
+            super::project_commands::handle_project_command(ctx, msg).await
+        }
         ChannelRuntimeCommand::ShowProviders => handle_show_providers(&current),
         ChannelRuntimeCommand::SetProvider(raw_provider) => {
             handle_set_provider(ctx, &sender_key, &mut current, raw_provider).await

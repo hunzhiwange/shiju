@@ -8,6 +8,9 @@ use super::super::*;
 /// 通道运行时可识别的控制命令。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ChannelRuntimeCommand {
+    ListProjects,
+    ShowProject,
+    SelectProject(String),
     /// 展示可用 provider。
     ShowProviders,
     /// 切换当前会话 provider。
@@ -78,6 +81,9 @@ pub(crate) fn parse_runtime_command(
 
     // Telegram bot 命令可能带有 `@bot_name` 后缀，解析时只比较基础命令名。
     match base_command.as_str() {
+        "/projects" => Some(ChannelRuntimeCommand::ListProjects),
+        "/project" if tail.is_empty() => Some(ChannelRuntimeCommand::ShowProject),
+        "/project" => Some(ChannelRuntimeCommand::SelectProject(tail)),
         "/new" | "/clear" | "/session" => Some(ChannelRuntimeCommand::NewSession),
         "/task" => Some(ChannelRuntimeCommand::TaskMode),
         "/approve-all-once" => Some(ChannelRuntimeCommand::RequestAllToolsOnce),

@@ -37,6 +37,33 @@ pub(crate) async fn process_channel_message(
     if let Err(err) = maybe_apply_runtime_config_update(ctx.as_ref()).await {
         tracing::warn!("Failed to apply runtime config update: {err}");
     }
+    // 项目命令必须能修复不可用绑定，不依赖当前项目解析成功。
+    if matches!(
+        parse_runtime_command(&msg.channel, &msg.content),
+        Some(
+            ChannelRuntimeCommand::ListProjects
+                | ChannelRuntimeCommand::ShowProject
+                | ChannelRuntimeCommand::SelectProject(_)
+        )
+    ) {
+        handle_runtime_command_if_needed(ctx.as_ref(), &msg, target_channel.as_ref()).await;
+        return;
+    }
+    let gate = channel_chat_gate(ctx.as_ref(), &msg);
+    let _chat_guard = match gate.try_read() {
+        Ok(guard) => guard,
+        Err(_) => {
+            if let Some(channel) = &target_channel {
+                let _ = channel
+                    .send(
+                        &SendMessage::new("当前聊天繁忙，请先使用 /stop", &msg.reply_target)
+                            .in_thread(msg.thread_ts.clone()),
+                    )
+                    .await;
+            }
+            return;
+        }
+    };
     let snapshot = match resolve_channel_message_snapshot(ctx.as_ref(), &msg).await {
         Ok(snapshot) => snapshot,
         Err(err) => {

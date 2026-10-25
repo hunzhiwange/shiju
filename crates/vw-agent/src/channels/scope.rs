@@ -54,11 +54,12 @@ pub(crate) struct ChannelMessageSnapshot {
     pub(crate) source: ChannelProjectSource,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct ChannelProjectState {
     pub(crate) tenant: TenantScope,
     pub(crate) config: crate::app::agent::config::ChannelsConfig,
     pub(crate) selections: HashMap<ChannelChatScope, String>,
+    gates: HashMap<ChannelChatScope, std::sync::Weak<tokio::sync::RwLock<()>>>,
 }
 
 pub(crate) async fn resolve_channel_message_snapshot(
@@ -153,4 +154,30 @@ pub(crate) fn channel_for_message(
             (msg.instance_id == "default").then(|| ctx.channels_by_name.get(&msg.channel)).flatten()
         })
         .cloned()
+}
+
+/// 使用运行时固定租户，避免依赖调用者线程的租户上下文。
+pub(crate) fn channel_chat_scope(
+    ctx: &ChannelRuntimeContext,
+    msg: &traits::ChannelMessage,
+) -> ChannelChatScope {
+    let mut chat = ChannelChatScope::from_message(msg);
+    chat.tenant = ctx.project_state.lock().unwrap_or_else(|e| e.into_inner()).tenant.clone();
+    chat
+}
+
+/// 模型执行和项目切换共用锁；弱引用不保留已退出的聊天。
+pub(crate) fn channel_chat_gate(
+    ctx: &ChannelRuntimeContext,
+    msg: &traits::ChannelMessage,
+) -> Arc<tokio::sync::RwLock<()>> {
+    let chat = channel_chat_scope(ctx, msg);
+    let mut state = ctx.project_state.lock().unwrap_or_else(|e| e.into_inner());
+    state.gates.retain(|_, gate| gate.strong_count() > 0);
+    if let Some(gate) = state.gates.get(&chat).and_then(std::sync::Weak::upgrade) {
+        return gate;
+    }
+    let gate = Arc::new(tokio::sync::RwLock::new(()));
+    state.gates.insert(chat, Arc::downgrade(&gate));
+    gate
 }

@@ -159,8 +159,16 @@ pub(crate) async fn run_message_dispatch_loop(
             // 持有信号量许可，任务完成时自动释放
             let _permit = permit;
             // 检查是否启用中断机制（仅对 Telegram 通道启用）
-            let interrupt_enabled =
-                worker_ctx.interrupt_on_new_message && msg.channel == "telegram";
+            let interrupt_enabled = worker_ctx.interrupt_on_new_message
+                && msg.channel == "telegram"
+                && !matches!(
+                    parse_runtime_command(&msg.channel, &msg.content),
+                    Some(
+                        ChannelRuntimeCommand::ListProjects
+                            | ChannelRuntimeCommand::ShowProject
+                            | ChannelRuntimeCommand::SelectProject(_)
+                    )
+                );
             // 生成中断作用域键，用于标识同一发送者的任务
             let sender_scope_key = interruption_scope_key(&msg);
             // 创建取消令牌，用于中断正在执行的任务

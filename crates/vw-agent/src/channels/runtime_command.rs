@@ -7,6 +7,7 @@ mod approval_commands;
 mod approval_config;
 mod command;
 mod handler;
+pub(crate) mod project_commands;
 mod session_commands;
 mod task_mode;
 

@@ -130,6 +130,12 @@ struct ActiveHookMutation {
 pub(crate) type EditorAction = dyn Fn(&str) -> Result<Option<String>, String> + Send + Sync;
 
 enum HostMessage {
+    SessionTitleGenerated {
+        directory: PathBuf,
+        session_id: String,
+        previous_title: String,
+        result: Result<String, String>,
+    },
     SessionBootstrapFinished(Result<Box<TuiState>, String>),
     DirectorySwitchFinished {
         generation: u64,
@@ -1348,6 +1354,41 @@ impl ActiveRunner {
     fn drain_host_messages(&mut self, app: &mut V3GatewayApp) -> bool {
         for _ in 0..HOST_MESSAGE_BUDGET {
             match self.host_receiver.try_recv() {
+                Ok(HostMessage::SessionTitleGenerated {
+                    directory,
+                    session_id,
+                    previous_title,
+                    result,
+                }) => {
+                    if app.runtime().directory() != directory
+                        || app.state.session.session_id.as_deref() != Some(session_id.as_str())
+                        || app.state.session.title != previous_title
+                    {
+                        continue;
+                    }
+                    match result {
+                        Ok(title) if !title.trim().is_empty() => {
+                            if let Err(error) = app.runtime.session_rename_blocking(&title) {
+                                push_runner_error(
+                                    app,
+                                    format!("session title save failed: {error}"),
+                                );
+                                continue;
+                            }
+                            reduce_tui_state(&mut app.state, TuiAction::SessionTitleSet(title));
+                            app.sync_runtime_session_seed();
+                            app.widget.set_session_header(GatewayV3Bridge::session_display_data(
+                                &app.runtime,
+                                &app.state,
+                            ));
+                            if let Err(error) = app.persist_session_snapshot() {
+                                push_runner_error(app, format!("session save failed: {error}"));
+                            }
+                        }
+                        Ok(_) => {}
+                        Err(error) => tracing::warn!(%error, "TUI session title generation failed"),
+                    }
+                }
                 Ok(HostMessage::SessionBootstrapFinished(result)) => {
                     self.session_bootstrap_in_flight = false;
                     match result {
@@ -1905,6 +1946,24 @@ impl ActiveRunner {
             push_runner_error(app, format!("session save failed: {error}"));
         }
         self.active_stream = None;
+        if let Some(body) = session_title_request(&app.state, app.runtime.directory()) {
+            let runtime = app.runtime.clone();
+            let session_id = app.state.session.session_id.clone().expect("title request session");
+            let previous_title = app.state.session.title.clone();
+            let sender = self.host_sender.clone();
+            std::thread::spawn(move || {
+                let result = super::runtime::gateway::block_on_gateway(
+                    runtime.client().session_title_generate(&session_id, &body),
+                )
+                .map(|response| response.title);
+                let _ = sender.send(HostMessage::SessionTitleGenerated {
+                    directory: runtime.directory().to_path_buf(),
+                    session_id,
+                    previous_title,
+                    result,
+                });
+            });
+        }
         self.start_next_queued_prompt(app);
         false
     }
@@ -3612,6 +3671,34 @@ fn empty_session_snapshot(session_id: &str) -> ChatSession {
         created_ms: 0,
         updated_ms: 0,
     }
+}
+
+pub(crate) fn session_title_request(
+    state: &TuiState,
+    directory: &Path,
+) -> Option<vw_gateway_client::GatewaySessionTitleGenerateBody> {
+    state.session.session_id.as_deref().filter(|id| !id.trim().is_empty())?;
+    let title = state.session.title.trim();
+    if !title.is_empty()
+        && title != "新会话"
+        && title != default_session_title(directory)
+        && !vw_shared::session::session_utils::is_default_title(title)
+    {
+        return None;
+    }
+    let mut users = state.messages.iter().filter_map(|message| match message {
+        UiMessage::User(user) => Some(user.text.as_str()),
+        _ => None,
+    });
+    let content = users.next()?;
+    if content.trim().is_empty() || users.next().is_some() {
+        return None;
+    }
+    Some(vw_gateway_client::GatewaySessionTitleGenerateBody {
+        content: content.to_string(),
+        preferred_model: state.session_options.model.clone(),
+        acp_agent: state.session_options.acp_backend.clone(),
+    })
 }
 
 fn default_session_title(directory: &Path) -> String {

@@ -631,6 +631,7 @@ fn test_app(endpoint: GatewayEndpoint) -> V3GatewayApp {
     );
     let mut state = TuiState::default();
     state.session.session_id = Some("runner-session".to_string());
+    state.session.title = "Runner".to_string();
     state.project.workspace_root = Some(PathBuf::from("/workspace"));
     V3GatewayApp::new(runtime, state)
 }
@@ -1102,4 +1103,49 @@ fn write_status_response(stream: &mut TcpStream, status: &str, content_type: &st
         body.len()
     );
     stream.write_all(response.as_bytes()).expect("write gateway response");
+}
+
+#[test]
+fn first_turn_generates_and_persists_session_title() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("title fixture");
+    let port = listener.local_addr().unwrap().port();
+    let (sender, receiver) = mpsc::channel();
+    let server = thread::spawn(move || {
+        for _ in 0..5 {
+            let (mut stream, _) = listener.accept().unwrap();
+            let request = read_request(&mut stream);
+            if request.path.starts_with("/v1/chat/stream") {
+                write_response(
+                    &mut stream,
+                    "text/event-stream",
+                    "data: {\"type\":\"chat.done\",\"finish_reason\":\"stop\"}\n\n",
+                );
+            } else if request.path.ends_with("/title") {
+                write_response(&mut stream, "application/json", r#"{"title":"修复终端标题"}"#);
+            } else if request.path.starts_with("/v1/session/runner-session/ui") {
+                write_response(&mut stream, "application/json", "true");
+            } else if request.path.starts_with("/v1/session/runner-session?") {
+                write_response(&mut stream, "application/json", r#"{"id":"runner-session"}"#);
+            } else {
+                panic!("unexpected title request: {}", request.path);
+            }
+            sender.send(request).unwrap();
+        }
+    });
+    let mut app = test_app(GatewayEndpoint::new("127.0.0.1", port));
+    app.state_mut().session.title = "TUI workspace".to_string();
+    let mut runner = ActiveRunner::new_with_editor(Arc::new(|_| Ok(None)));
+    runner.execute_action(
+        &mut app,
+        V3Action::Submit { text: "修复标题".to_string(), attachments: Vec::new() },
+    );
+    drain_until(&mut runner, &mut app, |_, app| app.state().session.title == "修复终端标题");
+    server.join().unwrap();
+    let requests = receiver.try_iter().collect::<Vec<_>>();
+    let generate = requests.iter().find(|request| request.path.ends_with("/title")).unwrap();
+    let body: serde_json::Value = serde_json::from_str(&generate.body).unwrap();
+    assert_eq!(body["content"], "修复标题");
+    let snapshot: serde_json::Value = serde_json::from_str(&requests.last().unwrap().body).unwrap();
+    assert_eq!(snapshot["title"], "修复终端标题");
+    assert_eq!(app.runtime().title(), Some("修复终端标题"));
 }

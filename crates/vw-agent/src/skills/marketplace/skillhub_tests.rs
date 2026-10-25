@@ -448,7 +448,7 @@ async fn skillhub_provider_maps_all_catalog_responses() {
     let requests = requests.join().expect("join SkillHub fixture");
     assert_eq!(requests.len(), 9);
     assert!(requests[3].starts_with(
-        "GET /api/skills?page=1&pageSize=1&sortBy=downloads&order=desc&category=development HTTP/1.1\r\n"
+        "GET /api/skills?page=1&pageSize=1&sortBy=score&order=desc&category=development HTTP/1.1\r\n"
     ));
     for request in requests {
         let request = request.to_ascii_lowercase();

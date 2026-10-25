@@ -410,26 +410,8 @@ fn skill_state_content(
 }
 
 fn recommended_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
-    let featured = state.featured(3).into_iter().cloned().collect::<Vec<_>>();
-    let featured_content = if featured.is_empty() {
-        skill_state_content(&state.recommended, true, "暂无精选技能")
-    } else {
-        card_grid(featured, |skill| skill_card(skill, true))
-    };
     let all_content = skill_state_content(&state.recommended, false, "暂无推荐技能");
     column![
-        row![
-            text("精选技能")
-                .size(19)
-                .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
-                .width(Length::Fill),
-            button(text("换一换").size(12))
-                .on_press(public_message(PublicSkillMessage::RotateFeatured))
-                .padding([7, 12])
-                .style(styles::quiet_button_style),
-        ]
-        .align_y(Alignment::Center),
-        featured_content,
         text("推荐技能")
             .size(19)
             .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),

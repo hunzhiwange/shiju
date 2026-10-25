@@ -38,6 +38,7 @@ pub(crate) use public::PublicSkillMessage;
 
 /// 专家中心在主标签栏中的稳定标识。
 pub(crate) const EXPERT_HUB_TAB_ID: &str = "expert_hub";
+pub(crate) use public::selectable_expert_skill;
 /// 专家中心标签的用户可见标题。
 pub(crate) const EXPERT_HUB_TITLE: &str = "专家·技能·连接器";
 /// 识矩技能兼容入口的稳定标签标识。

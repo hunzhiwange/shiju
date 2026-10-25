@@ -375,6 +375,13 @@ impl SessionToolSelectorState {
         }
     }
 
+    pub(crate) fn select_manual_skill(&mut self, skill_id: &str) {
+        let skill_id = skill_id.trim();
+        if !skill_id.is_empty() {
+            self.manual_skills.insert(skill_id.to_string());
+        }
+    }
+
     /// 执行 is_manual_skill_selected 对应的领域操作。
     ///
     /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。

@@ -25,6 +25,88 @@ fn source(source: &str) -> SkillMarketSourceDto {
 }
 
 #[test]
+fn expert_package_selects_installed_main_only() {
+    let (mut app, _) = App::new();
+    app.project_path = Some("/repo/current".to_string());
+    app.open_tabs.push(crate::app::AppTab {
+        id: "project_/repo/current".to_string(),
+        title: "current".to_string(),
+        screen: crate::app::Screen::Project,
+        project_path: Some("/repo/current".to_string()),
+    });
+    app.active_tab_id = Some("expert_hub".to_string());
+    app.expert_hub.section = ExpertHubSection::Experts;
+    loaded_sources(&mut app.expert_hub.public_market);
+    let target = crate::app::skill_hub::PublicDetailTarget::Suite {
+        source: "skillhub".to_string(),
+        slug: "fixture-suite".to_string(),
+    };
+    reduce(
+        &mut app.expert_hub.public_market,
+        PublicSkillMessage::OpenSuiteDetail {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+        },
+    );
+    let detail = app.expert_hub.public_market.detail.as_mut().expect("detail");
+    detail.selected_install_project_path = Some("/repo/current".to_string());
+    detail.suite_detail = LoadState::Loaded(SkillMarketSkillSetDetailDto {
+        skill_set: SkillMarketSkillSetDto {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+            name: "中文专家".to_string(),
+            description: String::new(),
+            author: String::new(),
+            icon: None,
+            member_count: 1,
+            updated_at: String::new(),
+        },
+        members: vec![SkillMarketCoordinateDto {
+            locator: SkillMarketSkillLocatorDto {
+                source: "skillhub".to_string(),
+                namespace: "public".to_string(),
+                slug: "member".to_string(),
+            },
+            version: "1.0.0".to_string(),
+        }],
+        content: "# Main workflow".to_string(),
+    });
+    app.expert_hub.public_market.installed = LoadState::Loaded(vec![DesktopSkillCatalogEntryDto {
+        id: "skillhub--skillset--fixture-suite".to_string(),
+        title: "中文专家".to_string(),
+        description: String::new(),
+        kind: "personal".to_string(),
+        resource_count: 0,
+        installed: true,
+        enabled: true,
+        source: "skillhub".to_string(),
+        source_path: Some(
+            "/repo/current/.agents/skills/skillhub--skillset--fixture-suite".to_string(),
+        ),
+        origin: Some("workspace".to_string()),
+        namespace: Some("skillset".to_string()),
+        package_type: Some("meta-skill".to_string()),
+        source_pack: Some("fixture-suite".to_string()),
+    }]);
+    let _ = update_public(&mut app, PublicSkillMessage::SelectExpertForChat);
+    assert_eq!(
+        app.current_session_runtime().tool_selector.selected_manual_skills(),
+        vec!["skillhub--skillset--fixture-suite".to_string()]
+    );
+    assert_eq!(app.active_tab_id.as_deref(), Some("project_/repo/current"));
+    assert_eq!(app.expert_hub.public_market.detail.as_ref().expect("detail").target, target);
+    app.expert_hub.public_market.detail.as_mut().expect("detail").selected_install_project_path =
+        Some("/repo/other".to_string());
+    assert!(super::public::selectable_expert_skill(&app).is_err());
+    app.expert_hub.public_market.detail.as_mut().expect("detail").selected_install_project_path =
+        Some("/repo/current".to_string());
+    if let LoadState::Loaded(items) = &mut app.expert_hub.public_market.installed {
+        items[0].enabled = false;
+    }
+    assert!(super::public::selectable_expert_skill(&app).is_err());
+}
+
+#[test]
 fn expert_package_section_loads_suites() {
     let (mut app, _) = App::new();
     loaded_sources(&mut app.expert_hub.public_market);

@@ -553,6 +553,18 @@ fn loaded_header(app: &App, detail: &PublicDetailState) -> Option<Element<'stati
     .align_y(Alignment::Center);
     if matches!(detail.target, PublicDetailTarget::Suite { .. }) {
         header = header.push(install_button(app, detail));
+        if app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts {
+            let availability = crate::app::message::skill_hub::selectable_expert_skill(app);
+            let mut select =
+                button(text("本次使用").size(13)).padding([9, 16]).style(primary_action_btn_style);
+            if availability.is_ok() {
+                select = select.on_press(public_message(PublicSkillMessage::SelectExpertForChat));
+            }
+            header = header.push(select);
+            if let Err(reason) = availability {
+                header = header.push(text(reason).size(11).style(styles::muted_text_style));
+            }
+        }
     }
     Some(header.into())
 }

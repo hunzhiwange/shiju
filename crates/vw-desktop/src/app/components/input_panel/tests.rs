@@ -305,6 +305,70 @@ fn selected_context_card_renders_each_manual_selection_shape() {
     assert!(selected_context_card(&app).is_some());
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
+    use iced::advanced::{mouse, renderer};
+    use iced::{Color, Rectangle};
+    use vw_gateway_client::DesktopSkillCatalogEntryDto;
+
+    let mut app = crate::app::App::new().0;
+    let id = "skillhub--skillset--fixture-suite";
+    app.expert_hub.public_market.installed =
+        crate::app::skill_hub::LoadState::Loaded(vec![DesktopSkillCatalogEntryDto {
+            id: id.to_string(),
+            title: "中文专家".to_string(),
+            description: String::new(),
+            kind: "personal".to_string(),
+            resource_count: 0,
+            installed: true,
+            enabled: true,
+            source: "skillhub".to_string(),
+            source_path: None,
+            origin: None,
+            namespace: Some("skillset".to_string()),
+            package_type: Some("meta-skill".to_string()),
+            source_pack: Some("fixture-suite".to_string()),
+        }]);
+    app.current_session_runtime_mut().tool_selector.select_manual_skill(id);
+    assert_eq!(selected_context_summary(&app).as_deref(), Some("技能 1：中文专家"));
+    for theme in [Theme::Light, Theme::Dark] {
+        let mut element = selected_context_card(&app).expect("selected card");
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("renderer");
+        let bounds = Size::new(700.0, 120.0);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        let viewport = Rectangle::with_size(bounds);
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        assert!(
+            renderer
+                .screenshot(Size::new(700, 120), 1.0, Color::TRANSPARENT)
+                .chunks_exact(4)
+                .any(|pixel| pixel[3] > 0)
+        );
+    }
+    let _ = crate::app::message::chat::session::update(
+        &mut app,
+        crate::app::message::chat::ChatMessage::SessionSkillSelected(id.to_string()),
+    );
+    assert!(selected_context_card(&app).is_none());
+}
+
 #[test]
 fn selected_context_card_includes_multiple_shiju_functions() {
     let mut app = crate::app::App::new().0;

@@ -342,6 +342,12 @@ pub(super) fn skill_title(app: &App, skill_id: &str) -> String {
         .iter()
         .find(|skill| skill.id == skill_id)
         .map(|skill| skill.title.clone())
+        .or_else(|| match &app.expert_hub.public_market.installed {
+            crate::app::skill_hub::LoadState::Loaded(items) => {
+                items.iter().find(|item| item.id == skill_id).map(|item| item.title.clone())
+            }
+            _ => None,
+        })
         .unwrap_or_else(|| skill_id.to_string())
 }
 
@@ -386,18 +392,34 @@ pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Mess
     .spacing(8)
     .align_y(Alignment::Center);
 
-    Some(
-        container(
-            button(content)
+    let selected_expert = app
+        .current_session_runtime()
+        .tool_selector
+        .selected_manual_skills()
+        .into_iter()
+        .find(|id| id.contains("--skillset--"));
+    let mut controls = row![
+        button(content)
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(styles::manual_context_card_button_style)
+            .on_press(Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover))
+    ]
+    .align_y(Alignment::Center);
+    if let Some(id) = selected_expert {
+        controls = controls.push(
+            button(text("取消专家").size(11))
                 .padding([8, 10])
-                .width(Length::Fill)
                 .style(styles::manual_context_card_button_style)
-                .on_press(Message::View(message::ViewMessage::ToggleSessionToolSelectorPopover)),
-        )
-        .padding(0)
-        .width(Length::Fill)
-        .style(styles::manual_context_card_style)
-        .into(),
+                .on_press(Message::Chat(message::ChatMessage::SessionSkillSelected(id))),
+        );
+    }
+    Some(
+        container(controls)
+            .padding(0)
+            .width(Length::Fill)
+            .style(styles::manual_context_card_style)
+            .into(),
     )
 }
 

@@ -63,6 +63,7 @@ pub(crate) enum PublicSkillMessage {
     CancelExpertInstall,
     InstallCurrent,
     SkillDetailLoaded {
+    SelectExpertForChat,
         locator: SkillMarketSkillLocatorDto,
         generation: u64,
         result: Result<SkillMarketSkillDetailDto, String>,
@@ -202,6 +203,21 @@ pub(crate) enum PublicRequest {
 /// 归约公共市场消息，并批量派发其产生的网关请求。
 pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message> {
     if let PublicSkillMessage::SelectDetailInstallProject(project_path) = &message {
+    if matches!(message, PublicSkillMessage::SelectExpertForChat) {
+        let skill_id = match selectable_expert_skill(app) {
+            Ok(id) => id,
+            Err(reason) => return app.show_warning_toast(reason),
+        };
+        app.current_session_runtime_mut().tool_selector.select_manual_skill(&skill_id);
+        if let Some(tab) = app.open_tabs.iter().find(|tab| {
+            tab.project_path.as_deref() == app.project_path.as_deref()
+                && tab.screen == crate::app::Screen::Project
+        }) {
+            app.active_tab_id = Some(tab.id.clone());
+            app.screen = crate::app::Screen::Project;
+        }
+        return Task::none();
+    }
         let project_path = project_path.trim();
         if project_path.is_empty() || !known_install_project(app, project_path) {
             return app.show_warning_toast("请选择当前或最近使用的项目");
@@ -382,6 +398,43 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
 }
 
 /// 在公共市场尚未初始化时加载来源与当前页，已加载时保持状态不变。
+pub(crate) fn selectable_expert_skill(app: &App) -> Result<String, &'static str> {
+    let detail = app.expert_hub.public_market.detail.as_ref().ok_or("请先打开专家详情")?;
+    let crate::app::skill_hub::PublicDetailTarget::Suite { source, slug } = &detail.target else {
+        return Err("当前详情不是专家包");
+    };
+    if !matches!(detail.suite_detail, LoadState::Loaded(_)) {
+        return Err("专家包详情尚未加载完成");
+    }
+    let project_path = app.project_path.as_deref().ok_or("请先打开项目聊天")?;
+    if !app.open_tabs.iter().any(|tab| {
+        tab.project_path.as_deref() == Some(project_path)
+            && tab.screen == crate::app::Screen::Project
+    }) {
+        return Err("请先打开当前项目的聊天标签");
+    }
+    if detail.selected_install_project_path.as_deref() != Some(project_path) {
+        return Err("专家包安装项目与当前聊天项目不一致");
+    }
+    let expected = format!("{source}--skillset--{slug}");
+    match &app.expert_hub.public_market.installed {
+        LoadState::Loaded(items) => items
+            .iter()
+            .find(|item| {
+                item.id == expected
+                    && item.installed
+                    && item.enabled
+                    && item.source == *source
+                    && item.namespace.as_deref() == Some("skillset")
+                    && item.package_type.as_deref() == Some("meta-skill")
+                    && item.source_pack.as_deref() == Some(slug.as_str())
+            })
+            .map(|item| item.id.clone())
+            .ok_or("请先在当前项目安装并启用该专家包"),
+        _ => Err("当前项目的安装状态尚未确认"),
+    }
+}
+
 pub(crate) fn ensure_loaded(app: &mut App) -> Task<Message> {
     if matches!(app.expert_hub.public_market.sources, LoadState::Idle | LoadState::Error(_)) {
         update(app, PublicSkillMessage::LoadSources)
@@ -510,6 +563,7 @@ pub(crate) fn reduce(
                 && matches!(detail.target, PublicDetailTarget::Suite { .. })
                 && !detail.install_is_busy()
                 && matches!(detail.install, PublicInstallState::Idle)
+        | PublicSkillMessage::SelectExpertForChat
             {
                 detail.install_confirmation_open = true;
             }

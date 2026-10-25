@@ -132,6 +132,17 @@ fn tool_selector_tracks_multiple_shiju_functions_and_reset() {
 }
 
 #[test]
+fn expert_package_selection_is_visible_and_cancellable() {
+    let mut selector = SessionToolSelectorState::default();
+    let id = "skillhub--skillset--fixture-suite";
+    selector.select_manual_skill(id);
+    selector.select_manual_skill(id);
+    assert_eq!(selector.selected_manual_skills(), vec![id.to_string()]);
+    selector.toggle_manual_skill(id);
+    assert!(selector.selected_manual_skills().is_empty());
+}
+
+#[test]
 fn tool_selector_filters_tools_by_explicit_selection() {
     let mut selector = SessionToolSelectorState::default();
     let tools = vec!["read".to_string(), "apply_patch".to_string(), "bash".to_string()];

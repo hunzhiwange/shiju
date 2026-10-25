@@ -1471,6 +1471,42 @@ fn send_current_session_input_starts_existing_session_with_selected_context_and_
 }
 
 #[test]
+fn expert_package_selection_is_consumed_once() {
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/repo".to_string());
+    app.active_session_id = Some("expert-session".to_string());
+    app.sessions = vec![session_info("expert-session", "Expert", "/repo")];
+    let id = "skillhub--skillset--fixture-suite";
+    {
+        let runtime = app.get_session_runtime_mut("expert-session");
+        runtime.input_editor = iced::widget::text_editor::Content::with_text("review this");
+        runtime.tool_selector.select_manual_skill(id);
+    }
+    let _ = super::send_current_session_input(&mut app);
+    assert!(app.chat[0].content.contains(&format!("技能：{id}")));
+    assert!(!app.chat[0].content.contains("技能：skillhub--public--member"));
+    assert!(
+        app.get_session_runtime("expert-session").tool_selector.selected_manual_skills().is_empty()
+    );
+}
+
+#[test]
+fn expert_package_selection_does_not_leak_between_sessions() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("first".to_string());
+    app.get_session_runtime_mut("first")
+        .tool_selector
+        .select_manual_skill("skillhub--skillset--fixture-suite");
+    app.active_session_id = Some("second".to_string());
+    assert!(app.current_session_runtime().tool_selector.selected_manual_skills().is_empty());
+    app.active_session_id = Some("first".to_string());
+    assert_eq!(
+        app.current_session_runtime().tool_selector.selected_manual_skills(),
+        vec!["skillhub--skillset--fixture-suite".to_string()]
+    );
+}
+
+#[test]
 fn send_current_session_input_disables_workflow_mode_for_plan_run_child_session() {
     let (mut app, _task) = crate::app::App::new();
     let mut child = session_info("child", "Child", "/repo");

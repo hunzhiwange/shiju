@@ -125,3 +125,23 @@ fn channel_name_distinguishes_interactive_and_daemon_modes() {
     assert_eq!(setup_channel_name(true), "cli");
     assert_eq!(setup_channel_name(false), "daemon");
 }
+
+#[test]
+fn interactive_setup_allows_missing_default_provider() {
+    let workspace = tempfile::tempdir().expect("workspace");
+    let mut config = crate::app::agent::config::Config {
+        workspace_dir: workspace.path().to_path_buf(),
+        config_path: workspace.path().join("vibewindow.json"),
+        default_provider: Some("token-plan".to_string()),
+        default_model: Some("token-plan/qwen3.7-plus".to_string()),
+        ..Default::default()
+    };
+    config.memory.backend = "none".to_string();
+    config.providers.clear();
+
+    let setup = super::setup::setup_cli(&config, true, None, None)
+        .expect("missing provider must not prevent opening the model picker");
+
+    assert_eq!(setup.provider_name, "token-plan");
+    assert!(super::setup::setup_cli(&config, false, None, None).is_err());
+}

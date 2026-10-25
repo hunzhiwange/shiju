@@ -369,8 +369,12 @@ pub(crate) fn setup_cli(
         model_support_vision: config.model_support_vision, // 模型视觉支持
     };
 
-    // 创建 Provider 实例，支持路由和重试机制
-    let provider: Box<dyn Provider> =
+    // 交互界面允许先进入再选择模型；实际请求由 gateway 解析和校验 Provider。
+    let provider: Box<dyn Provider> = if interactive {
+        Box::new(crate::app::agent::providers::session_llm::SessionLlmProvider::with_options(
+            &provider_runtime_options,
+        ))
+    } else {
         crate::app::agent::providers::create_routed_provider_with_options(
             &provider_name,
             config.api_key.as_deref(),
@@ -379,7 +383,8 @@ pub(crate) fn setup_cli(
             &config.model_routes,
             &model_name,
             &provider_runtime_options,
-        )?;
+        )?
+    };
 
     // 记录代理启动事件到观测系统
     observer.record_event(&ObserverEvent::AgentStart {

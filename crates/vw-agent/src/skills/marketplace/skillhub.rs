@@ -402,22 +402,48 @@ impl SkillMarketProvider for SkillHubProvider {
             ));
         }
 
-        let download_url = self.endpoint(&["api", "v1", "skillsets", slug, "download"])?;
-        let archive = self.get_artifact_bytes(download_url).await?;
-        let mut members = Vec::with_capacity(detail.skills.len());
-        for member in detail.skills {
+        let mut coordinates = Vec::with_capacity(detail.skills.len());
+        for (index, member) in detail.skills.into_iter().enumerate() {
+            let member_name = if member.slug.trim().is_empty() {
+                format!("#{}", index + 1)
+            } else {
+                member.slug.clone()
+            };
+            let missing = |field| {
+                SkillMarketProviderError::InvalidResponse(format!(
+                    "SkillHub skill-set member {member_name} is missing {field}"
+                ))
+            };
             let locator = SkillMarketSkillLocatorDto {
                 source: SOURCE.to_string(),
-                namespace: required_value(&member.namespace, "member namespace")?.to_string(),
-                slug: required_value(&member.slug, "member slug")?.to_string(),
+                namespace: required_value(&member.namespace, "namespace")
+                    .map_err(|_| missing("namespace"))?
+                    .to_string(),
+                slug: required_value(&member.slug, "slug")
+                    .map_err(|_| missing("slug"))?
+                    .to_string(),
             };
             let coordinate = if let Some(version) =
                 member.version.filter(|version| !version.trim().is_empty())
             {
                 SkillMarketCoordinateDto { locator, version }
             } else {
-                self.skill_detail(&locator).await?.skill.coordinate
+                let resolved = self.skill_detail(&locator).await?.skill.coordinate;
+                if resolved.locator != locator {
+                    return Err(SkillMarketProviderError::InvalidResponse(format!(
+                        "SkillHub skill-set member {member_name} detail does not match its namespace and slug"
+                    )));
+                }
+                required_value(&resolved.version, "version").map_err(|_| missing("version"))?;
+                resolved
             };
+            coordinates.push(coordinate);
+        }
+
+        let download_url = self.endpoint(&["api", "v1", "skillsets", slug, "download"])?;
+        let archive = self.get_artifact_bytes(download_url).await?;
+        let mut members = Vec::with_capacity(coordinates.len());
+        for coordinate in coordinates {
             let member_artifact = self.skill_artifact(&coordinate).await?;
             members
                 .push(SkillMarketSkillSetMemberArtifact { coordinate, artifact: member_artifact });
@@ -892,6 +918,8 @@ struct RawSkillSet {
 #[derive(Deserialize)]
 struct RawSkillSetMember {
     slug: String,
+    // Unresolved catalog members have no namespace; installation validates it separately.
+    #[serde(default, deserialize_with = "deserialize_null_default")]
     namespace: String,
     version: Option<String>,
 }

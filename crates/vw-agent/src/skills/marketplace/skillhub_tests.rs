@@ -18,15 +18,30 @@ struct FixtureResponse {
     status: &'static str,
     content_type: &'static str,
     body: String,
+    location: Option<&'static str>,
 }
 
 impl FixtureResponse {
     fn json(body: serde_json::Value) -> Self {
-        Self { status: "200 OK", content_type: "application/json", body: body.to_string() }
+        Self {
+            status: "200 OK",
+            content_type: "application/json",
+            body: body.to_string(),
+            location: None,
+        }
     }
 
     fn raw(status: &'static str, content_type: &'static str, body: &str) -> Self {
-        Self { status, content_type, body: body.to_string() }
+        Self { status, content_type, body: body.to_string(), location: None }
+    }
+
+    fn redirect(location: &'static str) -> Self {
+        Self {
+            status: "302 Found",
+            content_type: "text/plain",
+            body: String::new(),
+            location: Some(location),
+        }
     }
 }
 
@@ -53,11 +68,14 @@ fn respond(listener: &TcpListener, response: FixtureResponse) -> String {
             break;
         }
     }
+    let location =
+        response.location.map(|location| format!("location: {location}\r\n")).unwrap_or_default();
     let reply = format!(
-        "HTTP/1.1 {}\r\ncontent-type: {}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{}",
+        "HTTP/1.1 {}\r\ncontent-type: {}\r\ncontent-length: {}\r\nconnection: close\r\n{}\r\n{}",
         response.status,
         response.content_type,
         response.body.len(),
+        location,
         response.body
     );
     stream.write_all(reply.as_bytes()).expect("write SkillHub response");
@@ -204,6 +222,160 @@ fn skill_set() -> serde_json::Value {
         "skillCount": 1,
         "updatedAt": 1785369600000_u64
     })
+}
+
+// Public API contract rechecked 2026-10-25: skill-set members may omit version,
+// and unresolved catalog entries may have a null namespace. API ZIP contains
+// manifest.json and identify.md; these fixtures retain only relevant fields.
+#[tokio::test(flavor = "multi_thread")]
+async fn expert_package_rejects_unresolved_members_before_download() {
+    for member in [
+        json!({"slug": "unresolved-null", "namespace": null}),
+        json!({"slug": "unresolved-empty", "namespace": ""}),
+        json!({"slug": "", "namespace": "fixture"}),
+    ] {
+        let mut suite = skill_set();
+        suite["skills"] =
+            json!([{"slug": "valid-first", "namespace": "fixture", "version": "1.0.0"}, member]);
+        let (base_url, requests) = fixture_sequence(vec![FixtureResponse::json(suite)]);
+        let error = provider(&base_url)
+            .skill_set_artifact("skillhub", "fixture-suite")
+            .await
+            .expect_err("all members must pass before any download");
+        let message = match error {
+            SkillMarketProviderError::InvalidResponse(message) => message,
+            other => panic!("expected member error, got {other}"),
+        };
+        assert!(message.contains("member"), "{message}");
+        assert!(
+            message.contains(member["slug"].as_str().unwrap_or("")) || message.contains("#2"),
+            "{message}"
+        );
+        assert_eq!(requests.join().expect("join fixture").len(), 1);
+    }
+
+    let mut suite = skill_set();
+    suite["slug"] = json!("another-suite");
+    let (base_url, requests) = fixture_sequence(vec![FixtureResponse::json(suite)]);
+    let error = provider(&base_url)
+        .skill_set_artifact("skillhub", "fixture-suite")
+        .await
+        .expect_err("detail slug must match");
+    assert!(matches!(error, SkillMarketProviderError::InvalidResponse(message)
+        if message.contains("slug")));
+    assert_eq!(requests.join().expect("join fixture").len(), 1);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn expert_package_resolves_and_pins_member_versions() {
+    let mut suite = skill_set();
+    suite["skills"] = json!([
+        {"slug": "fixture-skill", "namespace": "fixture", "version": "1.1.0"},
+        {"slug": "resolved-skill", "namespace": "fixture"}
+    ]);
+    let mut resolved = skill_detail();
+    resolved["skill"]["slug"] = json!("resolved-skill");
+    resolved["latestVersion"]["version"] = json!("2.0.0");
+    let (base_url, requests) = fixture_sequence(vec![
+        FixtureResponse::json(suite),
+        FixtureResponse::json(resolved),
+        FixtureResponse::raw("200 OK", "application/zip", "suite-zip"),
+        FixtureResponse::raw("200 OK", "application/zip", "first-zip"),
+        FixtureResponse::json(json!({"content_hash":"hash","signed":false})),
+        FixtureResponse::raw("200 OK", "application/zip", "second-zip"),
+        FixtureResponse::json(json!({"content_hash":"hash","signed":false})),
+    ]);
+    let artifact = provider(&base_url)
+        .skill_set_artifact("skillhub", "fixture-suite")
+        .await
+        .expect("complete package");
+    assert_eq!(
+        artifact
+            .members
+            .iter()
+            .map(|member| member.coordinate.version.as_str())
+            .collect::<Vec<_>>(),
+        ["1.1.0", "2.0.0"]
+    );
+    let requests = requests.join().expect("join fixture");
+    assert_eq!(requests.len(), 7);
+    assert!(requests[1].starts_with("GET /api/v1/skills/resolved-skill?namespace=fixture "));
+    assert!(requests[2].starts_with("GET /api/v1/skillsets/fixture-suite/download "));
+    assert!(
+        requests[3].starts_with(
+            "GET /api/v1/download?slug=fixture-skill&version=1.1.0&namespace=fixture "
+        )
+    );
+    assert!(
+        requests[5].starts_with(
+            "GET /api/v1/download?slug=resolved-skill&version=2.0.0&namespace=fixture "
+        )
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn expert_package_rejects_mismatched_resolution_and_download_redirect() {
+    let mut detail = skill_detail();
+    detail["skill"]["slug"] = json!("another-skill");
+    let (base_url, requests) =
+        fixture_sequence(vec![FixtureResponse::json(skill_set()), FixtureResponse::json(detail)]);
+    let error = provider(&base_url)
+        .skill_set_artifact("skillhub", "fixture-suite")
+        .await
+        .expect_err("resolved slug must match member");
+    assert!(matches!(error, SkillMarketProviderError::InvalidResponse(message)
+        if message.contains("fixture-skill") && message.contains("slug")));
+    assert_eq!(requests.join().expect("join fixture").len(), 2);
+
+    let mut suite = skill_set();
+    suite["skills"][0]["version"] = json!("1.2.3");
+    let (base_url, requests) = fixture_sequence(vec![
+        FixtureResponse::json(suite),
+        FixtureResponse::redirect("http://untrusted.example/skills/fixture-skill/1.2.3.zip"),
+    ]);
+    let error = provider(&base_url)
+        .skill_set_artifact("skillhub", "fixture-suite")
+        .await
+        .expect_err("untrusted download redirect must fail");
+    assert!(matches!(error, SkillMarketProviderError::InvalidResponse(message)
+        if message.contains("redirect target is not trusted")));
+    assert_eq!(requests.join().expect("join fixture").len(), 2);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn skillhub_provider_displays_unresolved_skillset_members_but_rejects_installation() {
+    let mut suite = skill_set();
+    suite["skills"] = json!([
+        {"slug": "fixture-skill", "namespace": "fixture"},
+        {"slug": "unresolved-skill", "namespace": null},
+        {"slug": "missing-namespace"}
+    ]);
+    suite["skillCount"] = json!(3);
+    let (base_url, requests) = fixture_sequence(vec![
+        FixtureResponse::json(json!({"skillSets": [suite.clone()], "total": 1})),
+        FixtureResponse::json(suite.clone()),
+    ]);
+    let provider = provider(&base_url);
+    let page = provider.skill_sets(&SkillMarketSkillQuery::default()).await.expect("catalog");
+    assert_eq!(page.total, 1);
+    assert_eq!(page.skillsets[0].member_count, 3);
+    let detail = provider.skill_set_detail("skillhub", "fixture-suite").await.expect("detail");
+    assert_eq!(detail.members.len(), 3);
+    assert_eq!(detail.members[0].locator.namespace, "fixture");
+    assert!(detail.members[1].locator.namespace.is_empty());
+    assert!(detail.members[2].locator.namespace.is_empty());
+    requests.join().expect("join catalog fixture");
+
+    suite["skills"] = json!([{"slug": "unresolved-skill", "namespace": null}]);
+    let (base_url, requests) = fixture_sequence(vec![FixtureResponse::json(suite)]);
+    let error = self::provider(&base_url)
+        .skill_set_artifact("skillhub", "fixture-suite")
+        .await
+        .err()
+        .expect("unresolved member must not install");
+    assert!(matches!(error, SkillMarketProviderError::InvalidResponse(message)
+        if message.contains("unresolved-skill") && message.contains("namespace")));
+    assert_eq!(requests.join().expect("join artifact fixture").len(), 1);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -411,8 +583,8 @@ async fn skillhub_provider_preserves_unsigned_artifact_for_explicit_rejection() 
 async fn skillhub_provider_resolves_skillset_and_member_artifacts() {
     let (base_url, requests) = fixture_sequence(vec![
         FixtureResponse::json(skill_set()),
-        FixtureResponse::raw("200 OK", "application/zip", "fixture-suite-zip"),
         FixtureResponse::json(skill_detail()),
+        FixtureResponse::raw("200 OK", "application/zip", "fixture-suite-zip"),
         FixtureResponse::raw("200 OK", "application/zip", "fixture-member-zip"),
         FixtureResponse::json(json!({
             "content_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -444,10 +616,10 @@ async fn skillhub_provider_resolves_skillset_and_member_artifacts() {
     assert_eq!(artifact.members[0].artifact.archive, b"fixture-member-zip");
     let requests = requests.join().expect("join SkillHub fixture");
     assert!(requests[0].starts_with("GET /api/v1/skillsets/fixture-suite HTTP/1.1\r\n"));
-    assert!(requests[1].starts_with("GET /api/v1/skillsets/fixture-suite/download HTTP/1.1\r\n"));
     assert!(
-        requests[2].starts_with("GET /api/v1/skills/fixture-skill?namespace=fixture HTTP/1.1\r\n")
+        requests[1].starts_with("GET /api/v1/skills/fixture-skill?namespace=fixture HTTP/1.1\r\n")
     );
+    assert!(requests[2].starts_with("GET /api/v1/skillsets/fixture-suite/download HTTP/1.1\r\n"));
     assert!(requests[3].starts_with(
         "GET /api/v1/download?slug=fixture-skill&version=1.2.3&namespace=fixture HTTP/1.1\r\n"
     ));

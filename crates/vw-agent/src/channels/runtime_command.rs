@@ -8,6 +8,7 @@ mod approval_config;
 pub(crate) mod catalog;
 mod command;
 mod handler;
+mod history_commands;
 pub(crate) mod project_commands;
 mod session_commands;
 mod session_lifecycle;

@@ -720,3 +720,7 @@ mod channel_command_catalog_tests;
 
 #[cfg(test)]
 include!("channel_session_lifecycle_tests.rs");
+
+#[cfg(test)]
+#[path = "runtime_command/history_commands_tests.rs"]
+mod channel_session_history_tests;

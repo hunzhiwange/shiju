@@ -101,6 +101,25 @@ fn current_test_global_database_home() -> PathBuf {
     TEST_GLOBAL_DATABASE_HOME.with(|test_home| test_home.path().to_path_buf())
 }
 
+/// 让阻塞边界继承测试调用者的数据库，退出或 panic 时恢复线程原有隔离环境。
+#[cfg(test)]
+pub(crate) fn inherit_test_database_context<T>(
+    operation: impl FnOnce() -> T,
+) -> impl FnOnce() -> T {
+    let home = current_test_global_database_home();
+    move || {
+        struct Restore(Option<PathBuf>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                TEST_GLOBAL_DATABASE_HOME_OVERRIDE.with(|slot| *slot.borrow_mut() = self.0.take());
+            }
+        }
+        let _restore =
+            Restore(TEST_GLOBAL_DATABASE_HOME_OVERRIDE.with(|slot| slot.replace(Some(home))));
+        operation()
+    }
+}
+
 impl GlobalDatabase {
     /// 从用户主目录加载后端配置并取得可复用数据库实例。
     pub fn for_home(home: impl AsRef<Path>) -> Result<Self> {

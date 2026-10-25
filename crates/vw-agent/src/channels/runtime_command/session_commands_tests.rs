@@ -324,7 +324,8 @@ async fn set_catalog_model(
         .await
 }
 
-async fn lifecycle_fixture() -> (tempfile::TempDir, ChannelRuntimeContext, traits::ChannelMessage) {
+pub(crate) async fn lifecycle_fixture()
+-> (tempfile::TempDir, ChannelRuntimeContext, traits::ChannelMessage) {
     let temp = tempfile::tempdir().unwrap();
     let mut ctx = context(temp.path(), "default-provider", "default-model");
     let msg = message("/new");
@@ -408,7 +409,7 @@ async fn lifecycle_call(
     super::session_lifecycle::handle_session_lifecycle_command(ctx, &msg, command).await
 }
 
-fn lifecycle_id(ctx: &ChannelRuntimeContext) -> String {
+pub(crate) fn lifecycle_id(ctx: &ChannelRuntimeContext) -> String {
     sender_session_store()
         .lock()
         .unwrap()
@@ -604,7 +605,7 @@ impl Channel for LifecycleChannel {
     }
 }
 
-async fn lifecycle_dispatch(
+pub(crate) async fn lifecycle_dispatch(
     ctx: &ChannelRuntimeContext,
     msg: &traits::ChannelMessage,
     text: &str,

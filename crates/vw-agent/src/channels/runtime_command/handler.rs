@@ -190,7 +190,10 @@ pub(crate) async fn handle_runtime_command_if_needed(
             | ChannelRuntimeCommand::ResumeSession(_)
             | ChannelRuntimeCommand::ContinueSession
             | ChannelRuntimeCommand::RenameSession(_)
-            | ChannelRuntimeCommand::ArchiveSession(_)) => {
+            | ChannelRuntimeCommand::ArchiveSession(_)
+            | ChannelRuntimeCommand::ForkSession(_)
+            | ChannelRuntimeCommand::CompactSession(_)
+            | ChannelRuntimeCommand::ResetSession(_)) => {
                 Box::pin(super::session_lifecycle::handle_session_lifecycle_command(
                     ctx, msg, command,
                 ))

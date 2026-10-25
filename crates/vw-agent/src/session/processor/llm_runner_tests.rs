@@ -13,6 +13,27 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 use std::time::Duration;
 
+pub(crate) struct RecordedLlmRequest {
+    pub(crate) directory: String,
+    pub(crate) tenant: vw_api_types::id::TenantScope,
+    pub(crate) messages: Vec<serde_json::Value>,
+}
+type RecordedMessages = std::collections::HashMap<String, Vec<RecordedLlmRequest>>;
+static TEST_LLM_MESSAGES: std::sync::LazyLock<std::sync::Mutex<RecordedMessages>> =
+    std::sync::LazyLock::new(|| std::sync::Mutex::new(Default::default()));
+
+pub(super) fn record_test_llm_messages(session: String, messages: Vec<serde_json::Value>) {
+    TEST_LLM_MESSAGES.lock().unwrap().entry(session).or_default().push(RecordedLlmRequest {
+        directory: crate::project::instance::directory(),
+        tenant: crate::session::ui_store::current_tenant_scope(),
+        messages,
+    });
+}
+
+pub(crate) fn take_test_llm_messages(session: &str) -> Vec<RecordedLlmRequest> {
+    TEST_LLM_MESSAGES.lock().unwrap().remove(session).unwrap_or_default()
+}
+
 static TEST_LLM_STREAMS: std::sync::LazyLock<std::sync::Mutex<VecDeque<Vec<llm::StreamEvent>>>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(VecDeque::new()));
 
@@ -25,6 +46,7 @@ static TEST_LLM_STREAM_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
 pub(crate) fn test_llm_stream_guard() -> std::sync::MutexGuard<'static, ()> {
     let guard = TEST_LLM_STREAM_LOCK.lock().expect("lock scripted LLM stream tests");
     TEST_LLM_STREAMS.lock().expect("lock scripted LLM streams").clear();
+    TEST_LLM_MESSAGES.lock().unwrap().clear();
     TEST_LLM_STREAM_TOOL_IDS.lock().expect("lock scripted LLM tool ids").clear();
     guard
 }

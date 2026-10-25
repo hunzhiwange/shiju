@@ -164,8 +164,8 @@ fn emit_stream_event(
 
 #[cfg(test)]
 fn spawn_llm_stream_thread(
-    _session_id: String,
-    _messages: Vec<serde_json::Value>,
+    session_id: String,
+    messages: Vec<serde_json::Value>,
     _system: Vec<String>,
     _model: Option<String>,
     _options: serde_json::Value,
@@ -173,6 +173,7 @@ fn spawn_llm_stream_thread(
     abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
 ) {
+    llm_runner_tests::record_test_llm_messages(session_id, messages);
     llm_runner_tests::spawn_test_llm_stream_thread(tools, abort_rx, tx);
 }
 
@@ -686,5 +687,6 @@ mod llm_runner_tests;
 
 #[cfg(test)]
 pub(crate) use llm_runner_tests::{
-    enqueue_test_llm_stream, take_test_llm_stream_tool_ids, test_llm_stream_guard,
+    enqueue_test_llm_stream, take_test_llm_messages, take_test_llm_stream_tool_ids,
+    test_llm_stream_guard,
 };

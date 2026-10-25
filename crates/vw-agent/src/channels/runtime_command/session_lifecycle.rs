@@ -44,6 +44,7 @@ fn archive_confirmations() -> &'static Mutex<HashMap<ChannelMessageScope, Archiv
 
 pub(super) fn invalidate_archive(snapshot: &ChannelMessageSnapshot) {
     archive_confirmations().lock().unwrap_or_else(|e| e.into_inner()).remove(&snapshot.scope);
+    super::history_commands::invalidate_history(snapshot);
 }
 
 pub(crate) fn is_session_lifecycle_command(command: &ChannelRuntimeCommand) -> bool {
@@ -56,6 +57,9 @@ pub(crate) fn is_session_lifecycle_command(command: &ChannelRuntimeCommand) -> b
             | ChannelRuntimeCommand::ContinueSession
             | ChannelRuntimeCommand::RenameSession(_)
             | ChannelRuntimeCommand::ArchiveSession(_)
+            | ChannelRuntimeCommand::ForkSession(_)
+            | ChannelRuntimeCommand::CompactSession(_)
+            | ChannelRuntimeCommand::ResetSession(_)
     )
 }
 
@@ -205,6 +209,11 @@ async fn session_lifecycle_command(
             set_sender_task_mode(ctx, &key, false);
             invalidate_archive(snapshot);
             Ok(format!("会话 {id} 已归档，历史已保留。"))
+        }
+        command @ (ChannelRuntimeCommand::ForkSession(_)
+        | ChannelRuntimeCommand::CompactSession(_)
+        | ChannelRuntimeCommand::ResetSession(_)) => {
+            super::history_commands::handle_history_command(ctx, command).await
         }
         _ => anyhow::bail!("未知会话命令"),
     }

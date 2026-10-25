@@ -32,6 +32,9 @@ pub(crate) enum ChannelRuntimeCommand {
     ContinueSession,
     RenameSession(String),
     ArchiveSession(String),
+    ForkSession(String),
+    CompactSession(String),
+    ResetSession(String),
     /// 进入或处理任务模式。
     TaskMode,
     /// 请求一次性允许所有工具/命令。
@@ -100,6 +103,9 @@ pub(crate) fn parse_runtime_command(
         "archive" => {
             ChannelRuntimeCommand::Error("用法：/archive 或 /archive confirm <当前会话ID>。".into())
         }
+        "fork" => ChannelRuntimeCommand::ForkSession(tail),
+        "compact" => ChannelRuntimeCommand::CompactSession(tail),
+        "reset" => ChannelRuntimeCommand::ResetSession(tail),
         "task" => ChannelRuntimeCommand::TaskMode,
         "models" if tail.is_empty() => ChannelRuntimeCommand::ShowProviders,
         "models" => ChannelRuntimeCommand::SetProvider(tail),

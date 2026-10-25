@@ -127,7 +127,7 @@ pub(crate) struct ChannelSessionOwnership {
     pub(crate) route: Option<ChannelRouteSelection>,
 }
 
-fn ownership_scope_key(snapshot: &ChannelMessageSnapshot) -> String {
+pub(super) fn ownership_scope_key(snapshot: &ChannelMessageSnapshot) -> String {
     use sha2::{Digest, Sha256};
     hex::encode(Sha256::digest(snapshot.scope.key().as_bytes()))
 }
@@ -272,13 +272,36 @@ pub(crate) async fn run_session_processor_for_channel(
         crate::app::agent::session::processor::StreamEvent,
     >();
 
-    // 在阻塞任务中运行处理器
+    // 阻塞线程不会继承 task-local 项目上下文；按请求目录和租户重新绑定，
+    // 否则项目专属模型在下一条聊天中会退回全局目录查询。
     let tenant = crate::session::ui_store::current_tenant_scope();
-    tokio::task::spawn_blocking(move || {
+    let instance_context = if let Some(directory) = req.root.as_deref() {
+        let (project, worktree) =
+            crate::project::from_directory(&tenant, Path::new(directory)).await?;
+        if let Some(scope) = &req.app_session_scope {
+            anyhow::ensure!(scope == &project.id, "channel processor project scope mismatch");
+        }
+        Some(crate::project::instance::Context { directory: directory.into(), worktree, project })
+    } else {
+        None
+    };
+    let run_processor = move || {
         block_on_future(crate::session::ui_store::with_tenant_scope(tenant, async move {
-            crate::app::agent::session::processor::run(req, move |ev| event_tx.send(ev).is_ok());
+            let run = async move {
+                crate::app::agent::session::processor::run(req, move |ev| {
+                    event_tx.send(ev).is_ok()
+                });
+            };
+            if let Some(context) = instance_context {
+                crate::project::instance::provide_context(context, run).await;
+            } else {
+                run.await;
+            }
         }));
-    });
+    };
+    #[cfg(test)]
+    let run_processor = crate::global_database::inherit_test_database_context(run_processor);
+    tokio::task::spawn_blocking(run_processor);
 
     // 处理流式事件
     let mut output = String::new();

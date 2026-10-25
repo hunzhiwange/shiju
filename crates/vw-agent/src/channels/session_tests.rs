@@ -24,7 +24,7 @@ impl Provider for StaticProvider {
     }
 }
 
-fn channel_message(thread_ts: Option<&str>) -> traits::ChannelMessage {
+pub(crate) fn channel_message(thread_ts: Option<&str>) -> traits::ChannelMessage {
     traits::ChannelMessage {
         instance_id: "default".to_string(),
         id: "msg-1".to_string(),
@@ -40,6 +40,8 @@ fn channel_message(thread_ts: Option<&str>) -> traits::ChannelMessage {
 fn test_context() -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -92,63 +94,6 @@ fn processor_request(root: &std::path::Path) -> crate::app::agent::session::proc
     }
 }
 
-/// 测试 `clear_sender_session_id_for_scope` 只移除目标范围键
-///
-/// 验证：
-/// - 清除操作只影响指定的项目范围
-/// - 其他项目范围的会话映射保持不变
-#[test]
-fn clear_sender_session_id_for_scope_removes_only_target_scope_key() {
-    let project_scope_a = "scope-a";
-    let project_scope_b = "scope-b";
-    let sender_key = "telegram_user-1";
-    let key_a = format!("{}::{}", project_scope_a, sender_key);
-    let key_b = format!("{}::{}", project_scope_b, sender_key);
-
-    // 准备测试数据
-    let mut store = sender_session_store().lock().unwrap_or_else(|e| e.into_inner());
-    store.insert(key_a.clone(), "ses_a".to_string());
-    store.insert(key_b.clone(), "ses_b".to_string());
-    drop(store);
-
-    // 执行清除操作
-    clear_sender_session_id_for_scope(project_scope_a, sender_key);
-
-    // 验证结果
-    let store = sender_session_store().lock().unwrap_or_else(|e| e.into_inner());
-    assert!(!store.contains_key(&key_a));
-    assert!(store.contains_key(&key_b));
-    drop(store);
-    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key_b);
-}
-
-#[test]
-fn channel_project_directory_uses_workspace_dir_without_override() {
-    let workspace = tempfile::tempdir().expect("workspace temp dir");
-    let mut ctx = test_context();
-    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
-
-    channel_project_dir_override_store().lock().unwrap_or_else(|e| e.into_inner()).take();
-    assert_eq!(channel_project_directory(&ctx), workspace.path().to_path_buf());
-}
-
-#[test]
-fn channel_project_directory_prefers_override_over_workspace_dir() {
-    let workspace = tempfile::tempdir().expect("workspace temp dir");
-    let override_dir = tempfile::tempdir().expect("override temp dir");
-    let mut ctx = test_context();
-    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
-
-    channel_project_dir_override_store()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .replace(override_dir.path().to_path_buf());
-
-    assert_eq!(channel_project_directory(&ctx), override_dir.path().to_path_buf());
-
-    channel_project_dir_override_store().lock().unwrap_or_else(|e| e.into_inner()).take();
-}
-
 #[test]
 fn initial_session_title_normalizes_truncates_and_falls_back_to_channel_sender() {
     let mut msg = channel_message(None);
@@ -175,101 +120,6 @@ fn initial_session_title_truncates_on_char_boundary_after_trimming() {
 }
 
 #[tokio::test]
-async fn clear_sender_session_id_removes_mapping_for_resolved_project_scope() {
-    let workspace = tempfile::tempdir().expect("workspace temp dir");
-    let mut ctx = test_context();
-    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
-    let msg = channel_message(Some("thread-9"));
-    let sender_key = sender_session_key(&msg);
-    let scope = resolve_channel_project_scope_id(&ctx).await;
-    let key = format!("{scope}::{sender_key}");
-    sender_session_store()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(key.clone(), "session-1".to_string());
-
-    clear_sender_session_id(&ctx, &msg).await;
-
-    assert!(!sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).contains_key(&key));
-}
-
-#[tokio::test]
-async fn resolve_or_create_sender_session_id_replaces_invalid_mapping_then_reuses_session() {
-    let workspace = tempfile::tempdir().expect("workspace temp dir");
-    let mut ctx = test_context();
-    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
-    let mut msg = channel_message(None);
-    msg.content = "first channel request".to_string();
-    let sender_key = sender_session_key(&msg);
-    let scope = resolve_channel_project_scope_id(&ctx).await;
-    let key = format!("{scope}::{sender_key}");
-    let missing_session_id = format!("missing-session-{}", std::process::id());
-    sender_session_store()
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .insert(key.clone(), missing_session_id.clone());
-
-    let created = resolve_or_create_sender_session_id(&ctx, &msg).await;
-    let reused = resolve_or_create_sender_session_id(&ctx, &msg).await;
-
-    assert_ne!(created, missing_session_id);
-    assert_eq!(created, reused);
-    assert_eq!(
-        sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).get(&key),
-        Some(&created)
-    );
-
-    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
-}
-
-#[tokio::test]
-async fn resolve_or_create_sender_session_id_reuses_preexisting_valid_mapping() {
-    let workspace = tempfile::tempdir().expect("workspace temp dir");
-    let mut ctx = test_context();
-    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
-    let msg = channel_message(None);
-
-    let created = resolve_or_create_sender_session_id(&ctx, &msg).await;
-    let sender_key = sender_session_key(&msg);
-    let scope = resolve_channel_project_scope_id(&ctx).await;
-    let key = format!("{scope}::{sender_key}");
-
-    let reused = resolve_or_create_sender_session_id(&ctx, &msg).await;
-
-    assert_eq!(reused, created);
-    assert_eq!(
-        sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).get(&key),
-        Some(&created)
-    );
-
-    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
-}
-
-#[tokio::test]
-async fn resolve_or_create_sender_session_id_separates_thread_scoped_senders() {
-    let workspace = tempfile::tempdir().expect("workspace temp dir");
-    let mut ctx = test_context();
-    ctx.workspace_dir = Arc::new(workspace.path().to_path_buf());
-    let msg_without_thread = channel_message(None);
-    let msg_with_thread = channel_message(Some("thread-1"));
-
-    let session_without_thread =
-        resolve_or_create_sender_session_id(&ctx, &msg_without_thread).await;
-    let session_with_thread = resolve_or_create_sender_session_id(&ctx, &msg_with_thread).await;
-
-    assert_ne!(session_without_thread, session_with_thread);
-
-    let scope = resolve_channel_project_scope_id(&ctx).await;
-    let key_without_thread = format!("{scope}::{}", sender_session_key(&msg_without_thread));
-    let key_with_thread = format!("{scope}::{}", sender_session_key(&msg_with_thread));
-    let mut store = sender_session_store().lock().unwrap_or_else(|e| e.into_inner());
-    assert_eq!(store.get(&key_without_thread), Some(&session_without_thread));
-    assert_eq!(store.get(&key_with_thread), Some(&session_with_thread));
-    store.remove(&key_without_thread);
-    store.remove(&key_with_thread);
-}
-
-#[tokio::test]
 async fn spawn_channel_session_title_refresh_ignores_empty_title_source() {
     spawn_channel_session_title_refresh(
         "missing-channel-session".to_string(),
@@ -282,6 +132,7 @@ async fn spawn_channel_session_title_refresh_ignores_empty_title_source() {
 
 #[tokio::test]
 async fn run_session_processor_for_channel_accumulates_and_forwards_docs_output() {
+    if isolated_processor_fixture("channels::session::session_tests::run_session_processor_for_channel_accumulates_and_forwards_docs_output").await { return; }
     let workspace = tempfile::tempdir().expect("workspace temp dir");
     let docs_dir = workspace.path().join("docs");
     std::fs::create_dir(&docs_dir).expect("create docs dir");
@@ -300,6 +151,13 @@ async fn run_session_processor_for_channel_accumulates_and_forwards_docs_output(
 
 #[tokio::test]
 async fn run_session_processor_for_channel_propagates_docs_error() {
+    if isolated_processor_fixture(
+        "channels::session::session_tests::run_session_processor_for_channel_propagates_docs_error",
+    )
+    .await
+    {
+        return;
+    }
     let workspace = tempfile::tempdir().expect("workspace temp dir");
 
     let error = run_session_processor_for_channel(processor_request(workspace.path()), None)
@@ -328,4 +186,318 @@ fn to_session_history_maps_known_roles_and_skips_unknown_roles() {
     assert!(matches!(history[2].role, crate::session::ui_types::ChatRole::Assistant));
     assert!(matches!(history[3].role, crate::session::ui_types::ChatRole::Tool));
     assert!(history.iter().all(|message| message.think_timing.is_empty()));
+}
+
+#[test]
+pub(crate) fn channel_project_scope_rooms_have_independent_history() {
+    let a = channel_message(None);
+    let mut b = a.clone();
+    b.reply_target = "room-2".into();
+    assert_ne!(conversation_history_key(&a), conversation_history_key(&b));
+}
+
+#[test]
+pub(crate) fn channel_project_scope_instances_have_independent_history() {
+    let a = channel_message(None);
+    let mut b = a.clone();
+    b.instance_id = "second".into();
+    assert_ne!(conversation_history_key(&a), conversation_history_key(&b));
+}
+
+#[test]
+pub(crate) fn channel_project_scope_threads_have_independent_history() {
+    let a = channel_message(None);
+    let mut b = a.clone();
+    b.thread_ts = Some("thread-2".into());
+    assert_ne!(conversation_history_key(&a), conversation_history_key(&b));
+}
+
+#[test]
+pub(crate) fn channel_project_scope_senders_have_independent_history() {
+    let a = channel_message(None);
+    let mut b = a.clone();
+    b.sender = "sender-2".into();
+    assert_ne!(conversation_history_key(&a), conversation_history_key(&b));
+}
+
+#[test]
+pub(crate) fn channel_project_scope_identity_delimiters_do_not_collide() {
+    let mut a = channel_message(None);
+    a.channel = "a_b".into();
+    a.sender = "c".into();
+    let mut b = a.clone();
+    b.channel = "a".into();
+    b.sender = "b_c".into();
+    assert_ne!(conversation_history_key(&a), conversation_history_key(&b));
+}
+
+pub(crate) async fn registered_context()
+-> (tempfile::TempDir, ChannelRuntimeContext, crate::project::Info) {
+    let temp = tempfile::tempdir().unwrap();
+    let mut ctx = test_context();
+    ctx.workspace_dir = Arc::new(temp.path().to_path_buf());
+    let (project, _) = crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        temp.path(),
+    )
+    .await
+    .unwrap();
+    (temp, ctx, project)
+}
+
+pub(crate) async fn channel_project_scope_binding_priority_and_immutable_snapshot() {
+    let (_a, ctx, a) = registered_context().await;
+    let (_b, _, b) = registered_context().await;
+    let msg = channel_message(None);
+    let fallback = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    assert_eq!(fallback.scope.project, a.id);
+    assert_eq!(fallback.source, ChannelProjectSource::Workspace);
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), b.id.clone());
+    let default = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    assert_eq!(default.scope.project, b.id);
+    assert_eq!(default.source, ChannelProjectSource::Instance);
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .selections
+        .insert(ChannelChatScope::from_message(&msg), a.id.clone());
+    let explicit = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    assert_eq!(explicit.source, ChannelProjectSource::Chat);
+    assert_eq!(explicit.scope.project, a.id);
+    assert_eq!(default.scope.project, b.id);
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), "missing".into());
+    assert_eq!(resolve_channel_message_snapshot(&ctx, &msg).await.unwrap().scope.project, a.id);
+}
+
+pub(crate) async fn channel_project_scope_invalid_binding_preserves_state() {
+    let (_a, ctx, _) = registered_context().await;
+    let msg = channel_message(None);
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), "missing-project-for-scope".into());
+    append_sender_turn(&ctx, "keep", ChatMessage::user("keep"));
+    assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
+    assert_eq!(ctx.conversation_histories.lock().unwrap()["keep"].len(), 1);
+    assert!(ctx.project_state.lock().unwrap().selections.is_empty());
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .selections
+        .insert(ChannelChatScope::from_message(&msg), "missing-explicit".into());
+    ctx.project_state.lock().unwrap().config.instance_default_projects.clear();
+    assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
+}
+
+pub(crate) async fn channel_project_scope_sessions_follow_snapshot_and_isolate_rooms() {
+    let (_a, ctx, _) = registered_context().await;
+    let (_b, _, b) = registered_context().await;
+    let msg = channel_message(None);
+    let a = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let session_a = resolve_or_create_sender_session_id(&a, &msg).await.unwrap();
+    assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg).await.unwrap());
+    let info = crate::session::session::get_any(&session_a).await.unwrap();
+    assert_eq!(info.project_id, a.scope.project);
+    assert_eq!(Path::new(&info.directory), a.directory);
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), b.id);
+    let selected_b = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    assert_ne!(session_a, resolve_or_create_sender_session_id(&selected_b, &msg).await.unwrap());
+    let mut other = msg.clone();
+    other.reply_target = "other-room".into();
+    let room = resolve_channel_message_snapshot(&ctx, &other).await.unwrap();
+    assert_ne!(
+        resolve_or_create_sender_session_id(&selected_b, &msg).await.unwrap(),
+        resolve_or_create_sender_session_id(&room, &other).await.unwrap()
+    );
+    // 旧快照不受后续默认项目更新影响。
+    assert_eq!(session_a, resolve_or_create_sender_session_id(&a, &msg).await.unwrap());
+}
+
+pub(crate) async fn channel_project_scope_project_history_and_routes_are_independent() {
+    let (_a, ctx, _) = registered_context().await;
+    let (_b, _, b) = registered_context().await;
+    let msg = channel_message(None);
+    let a = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), b.id);
+    let b = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let mut route = get_route_selection(&ctx, &a.scope.key());
+    route.model = "chosen-model".into();
+    route.task_mode_enabled = true;
+    set_route_selection(&ctx, &a.scope.key(), route);
+    assert_ne!(get_route_selection(&ctx, &b.scope.key()).model, "chosen-model");
+    assert!(!get_route_selection(&ctx, &b.scope.key()).task_mode_enabled);
+    append_sender_turn(&ctx, &a.scope.key(), ChatMessage::user("keep a"));
+    clear_sender_history(&ctx, &b.scope.key());
+    assert_eq!(ctx.conversation_histories.lock().unwrap()[&a.scope.key()][0].content, "keep a");
+}
+
+pub(crate) async fn channel_project_scope_unavailable_directory_does_not_cache_fake_session() {
+    let (temp, ctx, _) = registered_context().await;
+    let msg = channel_message(None);
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    temp.close().unwrap();
+    assert!(resolve_or_create_sender_session_id(&snapshot, &msg).await.is_err());
+    assert!(!sender_session_store().lock().unwrap().contains_key(&snapshot.scope));
+    assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
+}
+
+pub(crate) async fn channel_project_scope_tenant_cannot_resolve_other_tenant_binding() {
+    let (_a, ctx, a) = registered_context().await;
+    let msg = channel_message(None);
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), a.id);
+    let first = ChannelChatScope::from_message(&msg);
+    crate::session::ui_store::with_tenant_scope(
+        vw_api_types::id::TenantScope::new("scope-platform", "scope-company").unwrap(),
+        async {
+            assert_ne!(first, ChannelChatScope::from_message(&msg));
+            ctx.project_state.lock().unwrap().tenant =
+                crate::session::ui_store::current_tenant_scope();
+            assert!(resolve_channel_message_snapshot(&ctx, &msg).await.is_err());
+        },
+    )
+    .await;
+}
+
+pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {
+    if isolated_processor_fixture(
+        "channels::channel_project_scope_processor_uses_captured_directory",
+    )
+    .await
+    {
+        return;
+    }
+    let (temp_a, ctx, _) = registered_context().await;
+    let (temp_b, _, b) = registered_context().await;
+    for (temp, name) in [(&temp_a, "a.md"), (&temp_b, "b.md")] {
+        std::fs::create_dir(temp.path().join("docs")).unwrap();
+        std::fs::write(temp.path().join("docs").join(name), "# Guide").unwrap();
+    }
+    let mut msg = channel_message(None);
+    msg.content = "请读取 docs 文件列表".into();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), b.id);
+    let route = ChannelRouteSelection {
+        provider: "channel-scope-fixture".into(),
+        model: "scope-model".into(),
+        task_mode_enabled: false,
+    };
+    let result = run_message_execution(
+        &ctx,
+        &msg,
+        &route,
+        &snapshot,
+        Vec::new(),
+        None,
+        30,
+        &CancellationToken::new(),
+    )
+    .await;
+    let output = match result {
+        LlmExecutionResult::Completed(Ok(result)) => result.expect("docs processor result"),
+        LlmExecutionResult::Completed(Err(err)) => panic!("docs processor timed out: {err}"),
+        LlmExecutionResult::Cancelled => panic!("docs processor cancelled"),
+    };
+    assert!(output.contains("docs/a.md"), "{output}");
+    assert!(!output.contains("docs/b.md"));
+    let session = resolve_or_create_sender_session_id(&snapshot, &msg).await.unwrap();
+    let info = crate::session::session::get_any(&session).await.unwrap();
+    assert_eq!(Path::new(&info.directory), snapshot.directory);
+    assert_eq!(info.project_id, snapshot.scope.project);
+}
+
+pub(crate) async fn channel_project_scope_memory_reads_only_matching_scope() {
+    let (temp_a, mut ctx, _) = registered_context().await;
+    let (_temp_b, _, b) = registered_context().await;
+    ctx.memory = Arc::new(crate::memory::sqlite::SqliteMemory::new(temp_a.path()).unwrap());
+    ctx.auto_save_memory = true;
+    let mut msg = channel_message(None);
+    let a = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("telegram:default".into(), b.id);
+    let b = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let mut scoped = ctx.clone();
+    scoped.message_snapshot = Some(a.clone());
+    msg.content = "shared memory alpha private project detail".into();
+    maybe_auto_save_message(&scoped, &msg).await;
+    scoped.message_snapshot = Some(b.clone());
+    msg.content = "shared memory beta private project detail".into();
+    maybe_auto_save_message(&scoped, &msg).await;
+    for (snapshot, own, other) in [(a, "alpha", "beta"), (b, "beta", "alpha")] {
+        scoped.message_snapshot = Some(snapshot.clone());
+        append_sender_turn(&scoped, &snapshot.scope.key(), ChatMessage::user("shared memory"));
+        let turns = load_prior_turns(&scoped, &snapshot.scope.key(), "shared memory", false).await;
+        assert!(turns[0].content.contains(own), "{}", turns[0].content);
+        assert!(!turns[0].content.contains(other), "{}", turns[0].content);
+    }
+}
+
+pub(crate) async fn channel_project_scope_snapshot_rejects_different_sender() {
+    let (_temp, ctx, _) = registered_context().await;
+    let mut msg = channel_message(None);
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    msg.sender = "another-sender".into();
+    assert!(resolve_or_create_sender_session_id(&snapshot, &msg).await.is_err());
+    assert!(!sender_session_store().lock().unwrap().contains_key(&snapshot.scope));
+}
+
+/// 子进程隔离模型目录与配置数据库，避免修改维护者配置或并行测试的环境。
+async fn isolated_processor_fixture(test: &str) -> bool {
+    if std::env::var("VW_CHANNEL_SCOPE_PROCESSOR_TEST").as_deref() == Ok(test) {
+        crate::config::update(serde_json::json!({
+            "providers": {"channel-scope-fixture": {"models": {"scope-model": {"status": "active"}}}}
+        })).await.unwrap();
+        return false;
+    }
+    let home = tempfile::tempdir().unwrap();
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", test, "--nocapture"])
+        .env("VW_CHANNEL_SCOPE_PROCESSOR_TEST", test)
+        .env("HOME", home.path())
+        .env("VIBEWINDOW_CONFIG_DIR", home.path().join("config"))
+        .env("VIBEWINDOW_WORKSPACE", home.path().join("workspace"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "isolated processor fixture failed: {}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    true
 }

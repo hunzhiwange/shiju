@@ -212,6 +212,8 @@ fn test_context(
 ) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("test-provider".to_string()),
@@ -414,7 +416,10 @@ async fn maybe_auto_save_message_records_conversation_memory_with_threaded_key()
     assert_eq!(memory.stores.load(Ordering::SeqCst), 1);
     let records = memory.stored_records();
     assert_eq!(records.len(), 1);
-    assert_eq!(records[0].key, "test_thread_sender_msg-1");
+    assert_eq!(
+        records[0].key,
+        conversation_memory_key(&channel_message("this message is long enough"))
+    );
     assert_eq!(records[0].content, "this message is long enough");
     assert_eq!(records[0].category, MemoryCategory::Conversation);
     assert!(records[0].session_id.is_none());

@@ -152,6 +152,7 @@ pub(crate) mod prompt;
 pub(crate) mod routing;
 /// 运行时命令处理
 pub(crate) mod runtime_command;
+pub(crate) mod scope;
 /// 会话状态管理
 pub(crate) mod session;
 
@@ -168,6 +169,7 @@ pub use manager::*;
 pub use prompt::*;
 pub(crate) use routing::*;
 pub(crate) use runtime_command::*;
+pub(crate) use scope::*;
 pub(crate) use session::*;
 
 #[cfg(test)]
@@ -476,6 +478,8 @@ pub(crate) struct RuntimeAutonomyPolicy {
 /// 使用 `Arc` 包装以实现高效的共享所有权。
 #[derive(Clone)]
 pub(crate) struct ChannelRuntimeContext {
+    pub(crate) project_state: Arc<Mutex<ChannelProjectState>>,
+    pub(crate) message_snapshot: Option<ChannelMessageSnapshot>,
     /// 按名称索引的通道实例映射
     pub(crate) channels_by_name: Arc<HashMap<String, Arc<dyn Channel>>>,
     /// 当前使用的服务提供者
@@ -697,3 +701,9 @@ mod tests;
 #[cfg(test)]
 #[path = "manager/channels_config_tests.rs"]
 mod channel_project_binding_tests;
+
+#[cfg(test)]
+include!("channel_project_scope_tests.rs");
+
+#[cfg(test)]
+include!("scope_delivery_tests.rs");

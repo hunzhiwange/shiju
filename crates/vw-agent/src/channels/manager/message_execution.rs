@@ -66,67 +66,75 @@ fn channel_request_reliability(
 ///     &cancel_token,
 /// ).await;
 /// ```
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_message_execution(
     ctx: &ChannelRuntimeContext,
     msg: &traits::ChannelMessage,
     route: &ChannelRouteSelection,
+    snapshot: &ChannelMessageSnapshot,
     session_history: Vec<crate::session::ui_types::ChatMessage>,
     delta_tx: Option<tokio::sync::mpsc::Sender<String>>,
     timeout_budget_secs: u64,
     cancellation_token: &CancellationToken,
 ) -> LlmExecutionResult {
-    // 解析现有会话 ID 或为该发送者创建新会话
-    let session_id = resolve_or_create_sender_session_id(ctx, msg).await;
-
-    // 获取通道关联的项目目录，作为请求的工作根目录
-    let request_root_dir = channel_project_directory(ctx);
+    if cancellation_token.is_cancelled() {
+        return LlmExecutionResult::Cancelled;
+    }
+    let session_id = match resolve_or_create_sender_session_id(snapshot, msg).await {
+        Ok(id) => id,
+        Err(err) => return LlmExecutionResult::Completed(Ok(Err(err))),
+    };
+    let request_root_dir = &snapshot.directory;
     let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
     // 使用 select! 同时监听取消信号和执行结果
     // 优先响应取消信号，确保快速终止
-    tokio::select! {
-        // 如果收到取消信号，立即返回 Cancelled
-        () = cancellation_token.cancelled() => LlmExecutionResult::Cancelled,
+    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
+        tokio::select! {
+            // 如果收到取消信号，立即返回 Cancelled
+            () = cancellation_token.cancelled() => LlmExecutionResult::Cancelled,
 
-        // 在指定的超时时间内执行会话处理器
-        result = tokio::time::timeout(
-            Duration::from_secs(timeout_budget_secs),
-            run_session_processor_for_channel(
-                // 构建会话处理器请求
-                crate::app::agent::session::processor::Request {
-                    // 使用当前时间戳作为流标识
-                    stream: crate::app::agent::session::session::now_ms(),
-                    // 使用解析或创建的会话 ID
-                    session: session_id,
-                    // 用户消息内容
-                    query: msg.content.clone(),
-                    // 设置请求的工作目录
-                    root: Some(request_root_dir.to_string_lossy().to_string()),
-                    // 指定使用的模型
-                    model: Some(channel_model_request_model(&route.provider, &route.model)),
-                    reliability: channel_request_reliability(ctx),
-                    options: channel_session_options(),
-                    approval: Some(ctx.approval_manager.clone()),
-                    channel_name: Some(msg.channel.clone()),
-                    non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
-                        sender: msg.sender.clone(),
-                        reply_target: msg.reply_target.clone(),
-                        prompt_tx: approval_prompt_tx,
-                    }),
-                    assistant_message_id: None,
-                    // 传入会话历史以保持上下文连续性
-                    history: session_history,
-                    // 持久化会话工件（如日志、中间结果等）
-                    persist_app_session_artifacts: true,
-                    app_session_scope: None,
-                    abort_token: None,
-                    session_tools: crate::session::runtime::SessionToolset::default(),
-                },
-                // 传入增量文本通道，用于流式输出
-                delta_tx,
-            ),
-        ) => LlmExecutionResult::Completed(result),
-    }
+            // 在指定的超时时间内执行会话处理器
+            result = tokio::time::timeout(
+                Duration::from_secs(timeout_budget_secs),
+                run_session_processor_for_channel(
+                    // 构建会话处理器请求
+                    crate::app::agent::session::processor::Request {
+                        // 使用当前时间戳作为流标识
+                        stream: crate::app::agent::session::session::now_ms(),
+                        // 使用解析或创建的会话 ID
+                        session: session_id,
+                        // 用户消息内容
+                        query: msg.content.clone(),
+                        // 设置请求的工作目录
+                        root: Some(request_root_dir.to_string_lossy().to_string()),
+                        // 指定使用的模型
+                        model: Some(channel_model_request_model(&route.provider, &route.model)),
+                        reliability: channel_request_reliability(ctx),
+                        options: channel_session_options(),
+                        approval: Some(ctx.approval_manager.clone()),
+                        channel_name: Some(msg.channel.clone()),
+                        non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
+                            sender: msg.sender.clone(),
+                            reply_target: msg.reply_target.clone(),
+                            prompt_tx: approval_prompt_tx,
+                        }),
+                        assistant_message_id: None,
+                        // 传入会话历史以保持上下文连续性
+                        history: session_history,
+                        // 持久化会话工件（如日志、中间结果等）
+                        persist_app_session_artifacts: true,
+                        app_session_scope: Some(snapshot.scope.project.clone()),
+                        abort_token: None,
+                        session_tools: crate::session::runtime::SessionToolset::default(),
+                    },
+                    // 传入增量文本通道，用于流式输出
+                    delta_tx,
+                ),
+            ) => LlmExecutionResult::Completed(result),
+        }
+    })
+    .await
 }
 
 #[cfg(test)]

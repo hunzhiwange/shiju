@@ -58,6 +58,8 @@ impl Provider for StaticProvider {
 fn context(default_provider: &str) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new(default_provider.to_string()),

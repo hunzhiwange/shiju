@@ -48,7 +48,7 @@ pub(crate) async fn handle_runtime_command_if_needed(
     msg: &traits::ChannelMessage,
     target_channel: Option<&Arc<dyn Channel>>,
 ) -> bool {
-    let sender_key = conversation_history_key(msg);
+    let sender_key = scoped_history_key(ctx, msg);
     if parse_runtime_command(&msg.channel, &msg.content).is_none() {
         return handle_task_mode_message_if_needed(ctx, msg, &sender_key, target_channel).await;
     }

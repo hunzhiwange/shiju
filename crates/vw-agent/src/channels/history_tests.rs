@@ -42,6 +42,8 @@ fn channel_message(thread_ts: Option<&str>) -> traits::ChannelMessage {
 fn test_context() -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -78,13 +80,14 @@ fn conversation_keys_include_thread_when_present() {
     let threaded = channel_message(Some("thread-9"));
     let unthreaded = channel_message(None);
 
-    assert_eq!(conversation_memory_key(&threaded), "telegram_thread-9_sender-1_msg-1");
-    assert_eq!(conversation_history_key(&threaded), "telegram_thread-9_sender-1");
-    assert_eq!(sender_session_key(&threaded), "telegram_thread-9_sender-1");
+    assert_ne!(conversation_memory_key(&threaded), conversation_memory_key(&unthreaded));
+    assert_ne!(conversation_history_key(&threaded), conversation_history_key(&unthreaded));
+    let identity: serde_json::Value =
+        serde_json::from_str(&conversation_history_key(&threaded)).unwrap();
+    assert_eq!(identity["thread"], "thread-9");
+    assert_eq!(identity["reply_target"], "room-1");
+    assert_eq!(identity["instance"], "default");
     assert_eq!(interruption_scope_key(&threaded), "telegram_room-1_sender-1");
-
-    assert_eq!(conversation_memory_key(&unthreaded), "telegram_sender-1_msg-1");
-    assert_eq!(conversation_history_key(&unthreaded), "telegram_sender-1");
 }
 
 #[test]

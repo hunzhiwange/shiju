@@ -155,6 +155,8 @@ fn context(
 ) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(channels_by_name),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -226,16 +228,21 @@ async fn process_channel_message_stops_when_hook_cancels_message() {
 async fn process_channel_message_consumes_runtime_command_before_model_execution() {
     let channel = Arc::new(RecordingChannel::new(false));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(
-        HashMap::from([("telegram".to_string(), Arc::clone(&channel_dyn))]),
-        None,
-    ));
+    let mut ctx =
+        context(HashMap::from([("telegram".to_string(), Arc::clone(&channel_dyn))]), None);
+    let temp = tempfile::tempdir().unwrap();
+    ctx.workspace_dir = Arc::new(temp.path().to_path_buf());
+    crate::project::from_directory(&crate::session::ui_store::current_tenant_scope(), temp.path())
+        .await
+        .unwrap();
+    let ctx = Arc::new(ctx);
     let msg = message("/model gpt-4.1", "telegram");
 
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     process_channel_message(Arc::clone(&ctx), msg.clone(), CancellationToken::new()).await;
 
     assert!(ctx.conversation_histories.lock().unwrap().is_empty());
-    assert_eq!(get_route_selection(ctx.as_ref(), &conversation_history_key(&msg)).model, "gpt-4.1");
+    assert_eq!(get_route_selection(ctx.as_ref(), &snapshot.scope.key()).model, "gpt-4.1");
     assert_eq!(channel.sent_contents().await.len(), 1);
 }
 
@@ -243,13 +250,18 @@ async fn process_channel_message_consumes_runtime_command_before_model_execution
 async fn process_channel_message_notifies_provider_initialization_failure() {
     let channel = Arc::new(RecordingChannel::new(false));
     let channel_dyn: Arc<dyn Channel> = channel.clone();
-    let ctx = Arc::new(context(
-        HashMap::from([("telegram".to_string(), Arc::clone(&channel_dyn))]),
-        None,
-    ));
+    let mut ctx =
+        context(HashMap::from([("telegram".to_string(), Arc::clone(&channel_dyn))]), None);
+    let temp = tempfile::tempdir().unwrap();
+    ctx.workspace_dir = Arc::new(temp.path().to_path_buf());
+    crate::project::from_directory(&crate::session::ui_store::current_tenant_scope(), temp.path())
+        .await
+        .unwrap();
+    let ctx = Arc::new(ctx);
     let msg = message("hello", "telegram");
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     ctx.route_overrides.lock().unwrap().insert(
-        conversation_history_key(&msg),
+        snapshot.scope.key(),
         ChannelRouteSelection {
             provider: "missing-provider".to_string(),
             model: "model".to_string(),

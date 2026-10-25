@@ -284,12 +284,20 @@ pub(crate) async fn handle_llm_result(
 
             // 如果这是新会话的第一条消息，触发会话标题刷新
             if !had_prior_history {
-                let session_id = resolve_or_create_sender_session_id(ctx, &msg).await;
-                spawn_channel_session_title_refresh(
-                    session_id,
-                    msg.content.clone(),
-                    Some(route.model.clone()),
-                );
+                let session_id = ctx.message_snapshot.as_ref().and_then(|snapshot| {
+                    sender_session_store()
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .get(&snapshot.scope)
+                        .cloned()
+                });
+                if let Some(session_id) = session_id {
+                    spawn_channel_session_title_refresh(
+                        session_id,
+                        msg.content.clone(),
+                        Some(route.model.clone()),
+                    );
+                }
             }
 
             // 在控制台打印响应摘要

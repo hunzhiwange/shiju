@@ -53,6 +53,8 @@ fn context(
     excluded_tools: &[&str],
 ) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::new(StaticProvider),
         default_provider: Arc::new("provider".to_string()),

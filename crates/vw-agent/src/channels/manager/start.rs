@@ -99,10 +99,6 @@ pub(super) async fn run_channels(
     let timezone =
         crate::app::agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
 
-    // 设置项目目录覆盖存储，允许通道访问项目目录配置
-    *channel_project_dir_override_store().lock().unwrap_or_else(|e| e.into_inner()) =
-        config.channels_config.project_dir.clone();
-
     // 解析默认 Provider 名称和模型
     let provider_name = resolved_default_provider(&config);
     let model = resolved_default_model(&config);
@@ -296,7 +292,7 @@ pub(super) async fn run_channels(
     drop(tx); // 释放我们的副本，以便在所有通道停止时关闭 rx
 
     // 构建通道名称到通道实例的映射
-    let channels_by_name = build_channels_by_name(&channels);
+    let channels_by_name = build_channels_by_name(&configured_channels);
 
     // 计算最大并发消息数
     let max_in_flight_messages = compute_max_in_flight_messages(channels.len());
@@ -312,6 +308,8 @@ pub(super) async fn run_channels(
 
     // 构建通道运行时上下文
     let runtime_ctx = Arc::new(ChannelRuntimeContext {
+        project_state: listeners.configure_project_state(&config),
+        message_snapshot: None,
         channels_by_name,
         provider: Arc::clone(&provider),
         default_provider: Arc::new(provider_name),
@@ -457,12 +455,19 @@ fn channel_listener_backoff_secs(config: &Config) -> (u64, u64) {
     )
 }
 
-fn build_channels_by_name(channels: &[Arc<dyn Channel>]) -> Arc<HashMap<String, Arc<dyn Channel>>> {
+fn build_channels_by_name(
+    channels: &[ConfiguredChannel],
+) -> Arc<HashMap<String, Arc<dyn Channel>>> {
     Arc::new(
         channels
             .iter()
-            .map(|ch| (ch.name().to_string(), Arc::clone(ch)))
-            .collect::<HashMap<_, _>>(),
+            .map(|configured| {
+                (
+                    channel_instance_key(configured.channel.name(), &configured.instance_id),
+                    configured.channel.clone(),
+                )
+            })
+            .collect(),
     )
 }
 

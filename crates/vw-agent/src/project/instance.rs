@@ -78,6 +78,14 @@ pub async fn provide<R>(
     Ok(CONTEXT.scope((*ctx).clone(), async move { f().await }).await)
 }
 
+/// 在调用方已验证的注册项目快照中执行，不自动发现或创建项目。
+pub(crate) async fn provide_context<R>(
+    context: Context,
+    future: impl std::future::Future<Output = R>,
+) -> R {
+    CONTEXT.scope(context, future).await
+}
+
 /// 返回当前上下文的调用目录。
 ///
 /// 未处于项目上下文时返回空字符串。

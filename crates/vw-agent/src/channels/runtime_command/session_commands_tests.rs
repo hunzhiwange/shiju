@@ -45,6 +45,8 @@ fn context(
     default_model: &str,
 ) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::new(StaticProvider),
         default_provider: Arc::new(default_provider.to_string()),
@@ -262,9 +264,12 @@ async fn handle_new_session_clears_session_history_and_disables_task_mode() {
     let temp = tempfile::tempdir().expect("temp dir");
     let ctx = context(temp.path(), "default-provider", "default-model");
     let msg = message("/new");
-    let sender_key = sender_session_key(&msg);
-    let scope = resolve_channel_project_scope_id(&ctx).await;
-    let session_key = format!("{scope}::{sender_key}");
+    let sender_key = conversation_history_key(&msg);
+    crate::project::from_directory(&crate::session::ui_store::current_tenant_scope(), temp.path())
+        .await
+        .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let session_key = snapshot.scope;
     sender_session_store().lock().unwrap().insert(session_key.clone(), "session-1".to_string());
     ctx.conversation_histories
         .lock()
@@ -285,9 +290,12 @@ async fn handle_task_mode_clears_session_history_and_enables_task_mode() {
     let temp = tempfile::tempdir().expect("temp dir");
     let ctx = context(temp.path(), "default-provider", "default-model");
     let msg = message("/task");
-    let sender_key = sender_session_key(&msg);
-    let scope = resolve_channel_project_scope_id(&ctx).await;
-    let session_key = format!("{scope}::{sender_key}");
+    let sender_key = conversation_history_key(&msg);
+    crate::project::from_directory(&crate::session::ui_store::current_tenant_scope(), temp.path())
+        .await
+        .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let session_key = snapshot.scope;
     sender_session_store().lock().unwrap().insert(session_key.clone(), "session-1".to_string());
     ctx.conversation_histories
         .lock()

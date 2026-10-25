@@ -7,9 +7,20 @@ use crate::app::agent::config::schema::ChannelsConfigExt;
 #[derive(Default)]
 pub(super) struct ChannelListeners {
     pub(super) handles: Vec<tokio::task::JoinHandle<()>>,
+    project_state: Arc<Mutex<ChannelProjectState>>,
 }
 
 impl ChannelListeners {
+    pub(super) fn configure_project_state(
+        &self,
+        config: &Config,
+    ) -> Arc<Mutex<ChannelProjectState>> {
+        let mut state = self.project_state.lock().unwrap_or_else(|e| e.into_inner());
+        state.tenant = crate::session::ui_store::current_tenant_scope();
+        state.config = config.channels_config.clone();
+        self.project_state.clone()
+    }
+
     pub(super) async fn stop(&mut self) {
         for handle in &self.handles {
             handle.abort();

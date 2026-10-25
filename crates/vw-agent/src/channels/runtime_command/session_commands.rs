@@ -149,7 +149,9 @@ pub(super) async fn handle_new_session(
     msg: &traits::ChannelMessage,
     sender_key: &str,
 ) -> String {
-    clear_sender_session_id(ctx, msg).await;
+    if let Err(err) = clear_sender_session_id(ctx, msg).await {
+        return format!("项目不可用：{err}");
+    }
     clear_sender_history(ctx, sender_key);
     set_sender_task_mode(ctx, sender_key, false);
     "会话已重置. 开始新会话.".to_string()
@@ -169,7 +171,9 @@ pub(super) async fn handle_task_mode(
     msg: &traits::ChannelMessage,
     sender_key: &str,
 ) -> String {
-    clear_sender_session_id(ctx, msg).await;
+    if let Err(err) = clear_sender_session_id(ctx, msg).await {
+        return format!("项目不可用：{err}");
+    }
     clear_sender_history(ctx, sender_key);
     set_sender_task_mode(ctx, sender_key, true);
     "我进入了任务模式。".to_string()

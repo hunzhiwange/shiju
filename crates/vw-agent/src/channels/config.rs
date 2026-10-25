@@ -429,7 +429,11 @@ pub(crate) fn decrypt_optional_secret_for_runtime_reload(
 /// - 解密失败会返回明确的错误信息
 pub(crate) async fn load_runtime_defaults_from_config_file(
     path: &Path,
-) -> Result<(ChannelRuntimeDefaults, RuntimeAutonomyPolicy)> {
+) -> Result<(
+    ChannelRuntimeDefaults,
+    RuntimeAutonomyPolicy,
+    crate::app::agent::config::ChannelsConfig,
+)> {
     // WASM 环境不支持配置加载
     #[cfg(target_arch = "wasm32")]
     anyhow::bail!("Config loading not supported in WASM");
@@ -467,7 +471,11 @@ pub(crate) async fn load_runtime_defaults_from_config_file(
         apply_env_overrides(&mut parsed);
 
         // 构建并返回默认值和策略
-        Ok((runtime_defaults_from_config(&parsed), runtime_autonomy_policy_from_config(&parsed)))
+        Ok((
+            runtime_defaults_from_config(&parsed),
+            runtime_autonomy_policy_from_config(&parsed),
+            parsed.channels_config,
+        ))
     }
 }
 
@@ -538,7 +546,7 @@ pub(crate) async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContex
     }
 
     // 加载新的配置文件
-    let (next_defaults, next_autonomy_policy) =
+    let (next_defaults, next_autonomy_policy, next_channels_config) =
         load_runtime_defaults_from_config_file(&config_path).await?;
 
     // 创建新的 Provider 实例（带弹性策略）
@@ -559,6 +567,8 @@ pub(crate) async fn maybe_apply_runtime_config_update(ctx: &ChannelRuntimeContex
             "Provider warmup failed after config reload: {err}"
         );
     }
+
+    ctx.project_state.lock().unwrap_or_else(|e| e.into_inner()).config = next_channels_config;
 
     // 更新 Provider 缓存
     {

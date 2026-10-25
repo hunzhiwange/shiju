@@ -325,9 +325,17 @@ pub(crate) async fn maybe_auto_save_message(
     msg: &traits::ChannelMessage,
 ) {
     if ctx.auto_save_memory && msg.content.chars().count() >= AUTOSAVE_MIN_MESSAGE_CHARS {
-        let autosave_key = conversation_memory_key(msg);
-        let _ =
-            ctx.memory.store(&autosave_key, &msg.content, MemoryCategory::Conversation, None).await;
+        let scope_key = ctx.message_snapshot.as_ref().map(|snapshot| snapshot.scope.key());
+        let autosave_key = match scope_key.as_deref() {
+            Some(scope) => {
+                serde_json::to_string(&(scope, &msg.id)).expect("serializable memory identity")
+            }
+            None => conversation_memory_key(msg),
+        };
+        let _ = ctx
+            .memory
+            .store(&autosave_key, &msg.content, MemoryCategory::Conversation, scope_key.as_deref())
+            .await;
     }
 }
 
@@ -408,9 +416,13 @@ pub(crate) async fn load_prior_turns(
 
     // 首次对话时注入记忆上下文
     if !had_prior_history {
-        let memory_context =
-            build_memory_context(ctx.memory.as_ref(), user_turn_content, ctx.min_relevance_score)
-                .await;
+        let memory_context = build_memory_context(
+            ctx.memory.as_ref(),
+            user_turn_content,
+            ctx.min_relevance_score,
+            ctx.message_snapshot.as_ref().map(|_| history_key),
+        )
+        .await;
         // 如果最后一轮是用户消息，在其前面追加记忆上下文
         if let Some(last_turn) = prior_turns.last_mut() {
             if last_turn.role == "user" && !memory_context.is_empty() {

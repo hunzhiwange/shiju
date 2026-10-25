@@ -121,6 +121,8 @@ fn context(
     autonomy: AutonomyConfig,
 ) -> ChannelRuntimeContext {
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::new(StaticProvider),
         default_provider: Arc::new("provider".to_string()),
@@ -187,6 +189,12 @@ fn create_pending(ctx: &ChannelRuntimeContext, tool_name: &str) -> String {
 }
 
 async fn dispatch(ctx: &ChannelRuntimeContext, channel: &Arc<dyn Channel>, content: &str) -> bool {
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
     handle_runtime_command_if_needed(ctx, &message(content), Some(channel)).await
 }
 

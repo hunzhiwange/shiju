@@ -125,6 +125,8 @@ fn context(
     }
 
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(channels_by_name),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),

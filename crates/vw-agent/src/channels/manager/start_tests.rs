@@ -182,13 +182,22 @@ fn bootstrap_and_listener_backoff_use_runtime_defaults() {
 fn channels_by_name_and_provider_cache_seed_clone_shared_handles() {
     let alpha: Arc<dyn Channel> = Arc::new(NamedChannel("alpha"));
     let beta: Arc<dyn Channel> = Arc::new(NamedChannel("beta"));
-    let channels = vec![Arc::clone(&alpha), Arc::clone(&beta)];
+    let channels = vec![
+        ConfiguredChannel::new("alpha", Arc::clone(&alpha)),
+        ConfiguredChannel::new("beta", Arc::clone(&beta)),
+    ];
 
     let by_name = build_channels_by_name(&channels);
 
     assert_eq!(by_name.len(), 2);
-    assert!(Arc::ptr_eq(by_name.get("alpha").expect("alpha channel"), &alpha));
-    assert!(Arc::ptr_eq(by_name.get("beta").expect("beta channel"), &beta));
+    assert!(Arc::ptr_eq(
+        by_name.get(&channel_instance_key("alpha", "default")).expect("alpha channel"),
+        &alpha
+    ));
+    assert!(Arc::ptr_eq(
+        by_name.get(&channel_instance_key("beta", "default")).expect("beta channel"),
+        &beta
+    ));
 
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     let cache = seed_provider_cache("default-provider", &provider);
@@ -296,12 +305,22 @@ fn channel_tool_descriptions_disable_browser_open_case_insensitively() {
 }
 
 #[test]
-fn channels_by_name_keep_last_channel_for_duplicate_name() {
+fn channels_by_name_preserve_distinct_instances_for_same_platform() {
     let first: Arc<dyn Channel> = Arc::new(NamedChannel("duplicate"));
     let second: Arc<dyn Channel> = Arc::new(NamedChannel("duplicate"));
 
-    let by_name = build_channels_by_name(&[Arc::clone(&first), Arc::clone(&second)]);
+    let by_name = build_channels_by_name(&[
+        ConfiguredChannel::new("first", Arc::clone(&first)),
+        ConfiguredChannel::new("second", Arc::clone(&second)).with_instance_id("second"),
+    ]);
 
-    assert_eq!(by_name.len(), 1);
-    assert!(Arc::ptr_eq(by_name.get("duplicate").expect("duplicate channel"), &second));
+    assert_eq!(by_name.len(), 2);
+    assert!(Arc::ptr_eq(
+        by_name.get(&channel_instance_key("duplicate", "default")).unwrap(),
+        &first
+    ));
+    assert!(Arc::ptr_eq(
+        by_name.get(&channel_instance_key("duplicate", "second")).unwrap(),
+        &second
+    ));
 }

@@ -339,19 +339,24 @@ pub(crate) async fn build_memory_context(
     mem: &dyn Memory,
     user_msg: &str,
     min_relevance_score: f64,
+    scope: Option<&str>,
 ) -> String {
     let mut context = String::new();
 
     // 从记忆存储中检索最多 5 条相关记忆
-    if let Ok(entries) = mem.recall(user_msg, 5, None).await {
+    if let Ok(entries) = mem.recall(user_msg, 5, scope).await {
         let mut included = 0usize;
         let mut used_chars = 0usize;
 
         // 过滤并遍历相关性评分达标的记忆条目
-        for entry in entries.iter().filter(|e| match e.score {
-            Some(score) => score >= min_relevance_score,
-            None => true, // 保留没有评分的条目（例如非向量后端）
-        }) {
+        for entry in entries
+            .iter()
+            .filter(|e| scope.is_none_or(|scope| e.session_id.as_deref() == Some(scope)))
+            .filter(|e| match e.score {
+                Some(score) => score >= min_relevance_score,
+                None => true, // 保留没有评分的条目（例如非向量后端）
+            })
+        {
             // 检查是否达到最大条目数限制
             if included >= MEMORY_CONTEXT_MAX_ENTRIES {
                 break;

@@ -30,6 +30,8 @@ impl Provider for StaticProvider {
 fn context(workspace_dir: PathBuf) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("provider".to_string()),
@@ -105,9 +107,7 @@ fn channel_request_uses_runtime_reliability_snapshot() {
 }
 
 async fn cleanup_sender_session(ctx: &ChannelRuntimeContext, msg: &traits::ChannelMessage) {
-    let scope = resolve_channel_project_scope_id(ctx).await;
-    let key = format!("{scope}::{}", sender_session_key(msg));
-    sender_session_store().lock().unwrap_or_else(|e| e.into_inner()).remove(&key);
+    let _ = clear_sender_session_id(ctx, msg).await;
 }
 
 #[tokio::test]
@@ -122,8 +122,16 @@ async fn run_message_execution_returns_cancelled_when_token_is_already_cancelled
     let cancellation = CancellationToken::new();
     cancellation.cancel();
 
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     let result =
-        run_message_execution(&ctx, &msg, &route, Vec::new(), None, 30, &cancellation).await;
+        run_message_execution(&ctx, &msg, &route, &snapshot, Vec::new(), None, 30, &cancellation)
+            .await;
 
     assert!(matches!(result, LlmExecutionResult::Cancelled));
     cleanup_sender_session(&ctx, &msg).await;
@@ -139,8 +147,16 @@ async fn run_message_execution_wraps_timeout_as_completed_result() {
     };
     let cancellation = CancellationToken::new();
 
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     let result =
-        run_message_execution(&ctx, &msg, &route, Vec::new(), None, 0, &cancellation).await;
+        run_message_execution(&ctx, &msg, &route, &snapshot, Vec::new(), None, 0, &cancellation)
+            .await;
 
     assert!(matches!(result, LlmExecutionResult::Completed(Err(_))));
     cleanup_sender_session(&ctx, &msg).await;

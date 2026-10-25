@@ -19,77 +19,17 @@
 
 use super::*;
 
-/// 生成单条消息的对话记忆键
-///
-/// 该函数为单条消息生成一个唯一的标识符，用于细粒度的消息级别存储。
-/// 在论坛群组中，通过包含 `thread_ts` 实现按主题隔离记忆。
-///
-/// # 参数
-///
-/// - `msg`: 通道消息引用，包含通道、发送者、消息ID和可选的线程时间戳
-///
-/// # 返回值
-///
-/// 返回格式化的唯一键字符串，格式为：
-/// - 有线程时：`{channel}_{thread_ts}_{sender}_{message_id}`
-/// - 无线程时：`{channel}_{sender}_{message_id}`
-///
-/// # 示例
-///
-/// ```ignore
-/// let key = conversation_memory_key(&msg);
-/// // 可能返回: "general_1234567890.123_user_42"
-/// ```
+/// 消息级记忆键包含完整聊天身份和平台消息 ID。
 pub(crate) fn conversation_memory_key(msg: &traits::ChannelMessage) -> String {
-    // 在论坛群组中包含 thread_ts 以实现按主题的记忆隔离
-    match &msg.thread_ts {
-        Some(tid) => format!("{}_{}_{}_{}", msg.channel, tid, msg.sender, msg.id),
-        None => format!("{}_{}_{}", msg.channel, msg.sender, msg.id),
-    }
+    serde_json::to_string(&(ChannelChatScope::from_message(msg), &msg.id))
+        .expect("channel memory identity contains only serializable fields")
 }
 
-/// 生成会话历史记录键
-///
-/// 该函数为会话历史生成标识符，用于追踪特定通道中特定用户的历史对话。
-/// 在论坛群组中，通过 `thread_ts` 实现按主题隔离会话。
-///
-/// # 参数
-///
-/// - `msg`: 通道消息引用，用于提取通道、线程和发送者信息
-///
-/// # 返回值
-///
-/// 返回格式化的会话键字符串，格式为：
-/// - 有线程时：`{channel}_{thread_ts}_{sender}`
-/// - 无线程时：`{channel}_{sender}`
-///
-/// # 示例
-///
-/// ```ignore
-/// let key = conversation_history_key(&msg);
-/// // 可能返回: "general_user123" 或 "general_1234567890.123_user123"
-/// ```
+/// 聊天身份包含租户、实例、房间、主题和发送者，结构化编码保留字段边界。
+/// 执行路径使用 `scoped_history_key` 再加入已解析的项目 ID。
 pub(crate) fn conversation_history_key(msg: &traits::ChannelMessage) -> String {
-    // 在论坛群组中包含 thread_ts 以实现按主题的会话隔离
-    match &msg.thread_ts {
-        Some(tid) => format!("{}_{}_{}", msg.channel, tid, msg.sender),
-        None => format!("{}_{}", msg.channel, msg.sender),
-    }
-}
-
-/// 生成发送者会话键
-///
-/// 该函数是 `conversation_history_key` 的别名，用于获取发送者的会话标识符。
-///
-/// # 参数
-///
-/// - `msg`: 通道消息引用
-///
-/// # 返回值
-///
-/// 返回与 `conversation_history_key` 相同格式的会话键
-pub(crate) fn sender_session_key(msg: &traits::ChannelMessage) -> String {
-    conversation_history_key(msg)
+    serde_json::to_string(&ChannelChatScope::from_message(msg))
+        .expect("channel identity contains only serializable fields")
 }
 
 /// 生成中断范围键
@@ -192,7 +132,7 @@ pub(crate) fn normalize_cached_channel_turns(turns: Vec<ChatMessage>) -> Vec<Cha
 /// # 参数
 ///
 /// - `ctx`: 通道运行时上下文引用，包含会话历史存储
-/// - `sender_key`: 发送者会话键，通常通过 `sender_session_key` 生成
+/// - `sender_key`: 发送者会话键，通常通过 `scoped_history_key` 生成
 ///
 /// # 线程安全
 ///
@@ -202,7 +142,7 @@ pub(crate) fn normalize_cached_channel_turns(turns: Vec<ChatMessage>) -> Vec<Cha
 /// # 示例
 ///
 /// ```ignore
-/// let sender_key = sender_session_key(&msg);
+/// let sender_key = scoped_history_key(&ctx, &msg);
 /// clear_sender_history(&ctx, &sender_key);
 /// ```
 pub(crate) fn clear_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str) {

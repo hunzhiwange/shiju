@@ -33,10 +33,30 @@ pub(crate) async fn process_channel_message(
         None => return,
     };
 
-    let target_channel = ctx.channels_by_name.get(&msg.channel).cloned();
+    let target_channel = channel_for_message(ctx.as_ref(), &msg);
     if let Err(err) = maybe_apply_runtime_config_update(ctx.as_ref()).await {
         tracing::warn!("Failed to apply runtime config update: {err}");
     }
+    let snapshot = match resolve_channel_message_snapshot(ctx.as_ref(), &msg).await {
+        Ok(snapshot) => snapshot,
+        Err(err) => {
+            if let Some(channel) = &target_channel {
+                let _ = channel
+                    .send(
+                        &SendMessage::new(format!("项目不可用：{err}"), &msg.reply_target)
+                            .in_thread(msg.thread_ts.clone()),
+                    )
+                    .await;
+            }
+            return;
+        }
+    };
+    tracing::debug!(project = %snapshot.scope.project, source = ?snapshot.source, "Resolved channel project");
+    let mut scoped_ctx = ctx.as_ref().clone();
+    scoped_ctx.workspace_dir = Arc::new(snapshot.directory.clone());
+    scoped_ctx.message_snapshot = Some(snapshot.clone());
+    let ctx = Arc::new(scoped_ctx);
+    crate::session::ui_store::with_tenant_scope(snapshot.scope.chat.tenant.clone(), async {
     // 运行时命令需要优先截获，避免 `/approve`、`/model` 等控制指令进入模型上下文。
     if handle_runtime_command_if_needed(ctx.as_ref(), &msg, target_channel.as_ref()).await {
         return;
@@ -49,7 +69,7 @@ pub(crate) async fn process_channel_message(
             None => return,
         };
 
-    let history_key = conversation_history_key(&msg);
+    let history_key = snapshot.scope.key();
     let route = classify_message_route(ctx.as_ref(), &msg.content)
         .unwrap_or_else(|| get_route_selection(ctx.as_ref(), &history_key));
     let active_provider = match get_or_create_provider(ctx.as_ref(), &route.provider).await {
@@ -127,6 +147,7 @@ pub(crate) async fn process_channel_message(
         ctx.as_ref(),
         &msg,
         &route,
+        &snapshot,
         session_history,
         delta_tx,
         timeout_budget_secs,
@@ -156,6 +177,7 @@ pub(crate) async fn process_channel_message(
         &canary_guard,
     )
     .await;
+    }).await;
 }
 
 struct StreamingUiState {

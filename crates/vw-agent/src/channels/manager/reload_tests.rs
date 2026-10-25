@@ -18,7 +18,8 @@ async fn listener() -> (tokio::task::JoinHandle<()>, SocketAddr) {
 async fn channel_reload_waits_for_old_listeners_to_exit() {
     let (first, first_address) = listener().await;
     let (second, second_address) = listener().await;
-    let mut listeners = ChannelListeners { handles: vec![first, second] };
+    let mut listeners = ChannelListeners::default();
+    listeners.handles = vec![first, second];
     assert!(tokio::net::TcpListener::bind(first_address).await.is_err());
     listeners.stop().await;
     let _first = tokio::net::TcpListener::bind(first_address).await.unwrap();
@@ -30,7 +31,9 @@ async fn channel_reload_waits_for_old_listeners_to_exit() {
 #[tokio::test]
 async fn channel_runtime_cancellation_aborts_owned_listeners() {
     let (handle, address) = listener().await;
-    drop(ChannelListeners { handles: vec![handle] });
+    let mut listeners = ChannelListeners::default();
+    listeners.handles.push(handle);
+    drop(listeners);
     tokio::time::timeout(Duration::from_secs(1), async {
         loop {
             if let Ok(_listener) = tokio::net::TcpListener::bind(address).await {
@@ -105,4 +108,29 @@ async fn channel_reload_starts_from_empty_and_rotates_live_telegram_credentials(
     let _ = runtime.await;
     server.abort();
     let _ = server.await;
+}
+
+#[test]
+fn channel_reload_preserves_explicit_project_selection() {
+    let listeners = ChannelListeners::default();
+    let mut config = Config::default();
+    let state = listeners.configure_project_state(&config);
+    let chat = ChannelChatScope {
+        tenant: crate::session::ui_store::current_tenant_scope(),
+        channel: "telegram".into(),
+        instance: "default".into(),
+        reply_target: "room".into(),
+        thread: None,
+        sender: "sender".into(),
+    };
+    state.lock().unwrap().selections.insert(chat.clone(), "explicit-project".into());
+    config
+        .channels_config
+        .instance_default_projects
+        .insert("telegram:default".into(), "new-default".into());
+    let reloaded = listeners.configure_project_state(&config);
+    assert!(Arc::ptr_eq(&state, &reloaded));
+    let reloaded = reloaded.lock().unwrap();
+    assert_eq!(reloaded.selections[&chat], "explicit-project");
+    assert_eq!(reloaded.config.instance_default_projects["telegram:default"], "new-default");
 }

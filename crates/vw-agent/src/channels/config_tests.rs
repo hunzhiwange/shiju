@@ -95,6 +95,8 @@ impl Provider for StaticProvider {
 fn context(vibewindow_dir: Option<PathBuf>, excluded_tools: Vec<String>) -> ChannelRuntimeContext {
     let provider: Arc<dyn Provider> = Arc::new(StaticProvider);
     ChannelRuntimeContext {
+        project_state: Default::default(),
+        message_snapshot: None,
         channels_by_name: Arc::new(HashMap::new()),
         provider: Arc::clone(&provider),
         default_provider: Arc::new("ctx-provider".to_string()),
@@ -435,7 +437,7 @@ async fn load_runtime_defaults_reads_toml_config_and_policy() {
     let path = dir.path().join(".vibewindow.json");
     tokio::fs::write(&path, toml::to_string(&config).unwrap()).await.unwrap();
 
-    let (defaults, policy) = load_runtime_defaults_from_config_file(&path).await.unwrap();
+    let (defaults, policy, _) = load_runtime_defaults_from_config_file(&path).await.unwrap();
 
     assert_eq!(defaults.default_provider, "openrouter");
     assert_eq!(defaults.model, "runtime-model");

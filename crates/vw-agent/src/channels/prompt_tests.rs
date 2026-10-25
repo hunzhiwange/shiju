@@ -280,7 +280,7 @@ async fn memory_context_filters_scores_special_keys_and_truncates_long_entries()
         fail: false,
     };
 
-    let context = build_memory_context(&mem, "query", 0.5).await;
+    let context = build_memory_context(&mem, "query", 0.5, None).await;
 
     assert!(context.starts_with("[Memory context]\n"));
     assert!(context.contains("- keep: useful\n"));
@@ -294,11 +294,11 @@ async fn memory_context_filters_scores_special_keys_and_truncates_long_entries()
 #[tokio::test]
 async fn memory_context_is_empty_when_recall_fails_or_filters_everything() {
     let failing = FakeMemory { entries: Vec::new(), fail: true };
-    assert_eq!(build_memory_context(&failing, "query", 0.0).await, "");
+    assert_eq!(build_memory_context(&failing, "query", 0.0, None).await, "");
 
     let filtered =
         FakeMemory { entries: vec![memory_entry("low", "hidden", Some(0.1))], fail: false };
-    assert_eq!(build_memory_context(&filtered, "query", 0.9).await, "");
+    assert_eq!(build_memory_context(&filtered, "query", 0.9, None).await, "");
 }
 
 #[tokio::test]
@@ -314,7 +314,7 @@ async fn memory_context_limits_included_entries_to_maximum() {
         fail: false,
     };
 
-    let context = build_memory_context(&mem, "query", 0.0).await;
+    let context = build_memory_context(&mem, "query", 0.0, None).await;
 
     assert!(context.contains("- one: 1\n"));
     assert!(context.contains("- four: 4\n"));
@@ -334,7 +334,7 @@ async fn memory_context_stops_when_total_character_budget_would_be_exceeded() {
         fail: false,
     };
 
-    let context = build_memory_context(&mem, "query", 0.0).await;
+    let context = build_memory_context(&mem, "query", 0.0, None).await;
 
     assert!(context.contains(&format!("- {long_key}-1: short\n")));
     assert!(context.contains(&format!("- {long_key}-2: short\n")));

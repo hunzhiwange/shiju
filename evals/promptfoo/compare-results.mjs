@@ -76,6 +76,7 @@ function normalizeRow(row, sourceName, index) {
 
   return {
     raw: row,
+    rowIndex: index + 1,
     key: `${provider}\u0000${task}`,
     displayKey: `${provider} :: ${task}`,
     provider,
@@ -217,6 +218,8 @@ export function compareResults(beforeDocument, afterDocument) {
       afterPassCount: afterRow.passCount,
       beforePassRate: beforeRow.passRate,
       afterPassRate: afterRow.passRate,
+      beforeRowIndices: beforeRow.attempts.map((row) => row.rowIndex),
+      afterRowIndices: afterRow.attempts.map((row) => row.rowIndex),
       beforeRows: beforeRow.attempts.map((row) => row.raw),
       afterRows: afterRow.attempts.map((row) => row.raw),
       beforePass: beforeRow.pass,
@@ -298,6 +301,79 @@ function deltaPoints(value) {
   return value > 0 ? `+${score}` : score;
 }
 
+// Promptfoo 0.122.0 ResultFailureReason: ASSERT=1, ERROR=2.
+// Unclassified failures remain unknown; error text alone is not infrastructure evidence.
+function failureCategory(row) {
+  return row.failureReason === 2 ? 'infrastructure'
+    : row.failureReason === 1 ? 'assertion' : 'unknown';
+}
+
+function completeNumbers(rows, select, summarize) {
+  const values = rows.map(select);
+  if (values.some(value => typeof value !== 'number' || !Number.isFinite(value) || value < 0)) {
+    return '不可用';
+  }
+  return summarize(values);
+}
+
+function diagnosticLines(comparison) {
+  const groups = [];
+  for (const provider of comparison.providers) {
+    const tasks = comparison.tasks.filter(task => task.provider === provider.provider);
+    groups.push({ provider: provider.provider, task: '全部', tasks });
+    for (const task of tasks) groups.push({ provider: task.provider, task: task.task, tasks: [task] });
+  }
+  const accuracy = [];
+  const efficiency = [];
+  const failures = [];
+  for (const group of groups) {
+    for (const side of ['before', 'after']) {
+      const rows = group.tasks.flatMap(task => task[`${side}Rows`]);
+      const passed = group.tasks.reduce((sum, task) => sum + task[`${side}PassCount`], 0);
+      const allThree = group.tasks.filter(task => task[`${side}AttemptCount`] === 3
+        && task[`${side}PassCount`] === 3).length;
+      const threeTasks = group.tasks.filter(task => task[`${side}AttemptCount`] === 3).length;
+      const failed = rows.filter(row => !normalizeRow(row, side, 0).pass);
+      const counts = ['infrastructure', 'assertion', 'unknown'].map(category =>
+        failed.filter(row => failureCategory(row) === category).length);
+      const prefix = `| ${tableCell(group.provider)} | ${tableCell(group.task)} | ${side} |`;
+      accuracy.push(`${prefix} ${passed}/${rows.length} (${points(passed / rows.length)}%) | ${allThree}/${threeTasks} | ${counts.join(' | ')} |`);
+      const sum = values => values.reduce((total, value) => total + value, 0);
+      const tools = completeNumbers(rows, row => {
+        const calls = row.metadata?.toolCalls ?? row.response?.metadata?.toolCalls;
+        return Array.isArray(calls) ? calls.length : undefined;
+      }, sum);
+      // Provider usage excludes assertion/judge usage; never substitute grading tokens.
+      const input = completeNumbers(rows, row => row.response?.tokenUsage?.prompt, sum);
+      const output = completeNumbers(rows, row => row.response?.tokenUsage?.completion, sum);
+      const median = completeNumbers(rows, row => row.latencyMs, values => {
+        values.sort((a, b) => a - b);
+        const middle = Math.floor(values.length / 2);
+        return values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
+      });
+      const maximum = completeNumbers(rows, row => row.latencyMs, values => Math.max(...values));
+      efficiency.push(`${prefix} ${tools} | ${input} | ${output} | ${median} | ${maximum} |`);
+    }
+  }
+  for (const task of comparison.tasks) {
+    for (const side of ['before', 'after']) {
+      for (const [index, raw] of task[`${side}Rows`].entries()) {
+        const row = normalizeRow(raw, side, index);
+        if (!row.pass) failures.push(`- ${side} 行 ${task[`${side}RowIndices`][index]} / ${tableCell(task.provider)} / ${tableCell(task.task)} / ${failureCategory(raw)}：${tableCell(row.reason)}`);
+      }
+    }
+  }
+  return [
+    '## 尝试成功率与错误分类', '',
+    '| 模型 | 任务 | 侧 | 通过/全部尝试 | 三次全成功题/三次题 | infrastructure | assertion | unknown |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |', ...accuracy, '',
+    '## 效率（用量合计；延迟 ms）', '',
+    '| 模型 | 任务 | 侧 | 工具数 | 输入 token | 输出 token | 延迟中位数 | 延迟最大值 |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |', ...efficiency, '',
+    '## 原始失败行（各侧导出中从 1 起算）', '', ...(failures.length ? failures : ['无。']), '',
+  ];
+}
+
 export function renderMarkdownReport(comparison, options = {}) {
   const beforeName = options.beforeName ?? 'before';
   const afterName = options.afterName ?? 'after';
@@ -335,7 +411,8 @@ export function renderMarkdownReport(comparison, options = {}) {
         `| ${tableCell(row.provider)} | ${tableCell(row.metric)} | ${points(row.beforeScore)} | ${points(row.afterScore)} | ${deltaPoints(row.delta)} |`,
     ),
     '',
-    '## after 失败任务明细',
+    ...diagnosticLines(comparison),
+    '## 源码身份',
     '',
   ];
 
@@ -343,15 +420,6 @@ export function renderMarkdownReport(comparison, options = {}) {
     lines.push(`- 源码身份 ${tableCell(task.provider)} / ${tableCell(task.task)}：before ${tableCell(JSON.stringify(task.beforeSourceIdentities))}；after ${tableCell(JSON.stringify(task.afterSourceIdentities))}`);
   }
 
-  if (comparison.failures.length === 0) {
-    lines.push('无。');
-  } else {
-    for (const failure of comparison.failures) {
-      lines.push(
-        `- ${tableCell(failure.provider)} / ${tableCell(failure.task)}：${tableCell(failure.reason)}`,
-      );
-    }
-  }
   return `${lines.join('\n')}\n`;
 }
 

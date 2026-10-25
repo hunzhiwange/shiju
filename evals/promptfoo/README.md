@@ -109,9 +109,25 @@ npx --yes promptfoo@0.122.0 view
 `before` 和 `after` 默认每项执行三次。缩小矩阵时，两次必须传入完全相同的筛选参数，
 例如都使用 `--suite selection --batch 4`。
 
-对比脚本以 Provider `label` 和测试 `description` 组成稳定键，输出模型平均总分、逐任务
-总分、逐命名 metric 的 before/after/delta，以及 after 的失败任务原因。任一侧缺少记录、
-出现重复记录或 metric 集不一致时会明确失败，避免比较不同矩阵。
+对比脚本以 Provider `label`（缺失时用 id）和测试 `description` 分组，保留所有重复
+尝试。模型总分和命名 metric 是各题平均分的均值；成功率另按成功尝试数 / 全部尝试数
+计算，infrastructure 错误也保留在分母中。效率、预算或工具数不能抵消结果失败。
+报告同时显示总体和逐题成功率、三次全成功题数 / 恰有三次尝试的题数，以及各侧原始
+失败行号（从 1 起算）、原因和分类。非三次题不进入三次题分母。
+
+错误分类来自 Promptfoo 0.122.0 的 `failureReason`：1 为 assertion，2 为
+infrastructure（导出中的 ERROR，只表示执行错误，不能据此断定底层根因）；其它失败
+保留为 unknown，不凭错误文本猜测。效率表汇总 `response.metadata.toolCalls`（兼容
+`row.metadata.toolCalls`）长度、Provider 的 `response.tokenUsage.prompt/completion`，
+以及原始 `latencyMs` 的中位数和最大值；不累计裁判 token，不接实时价格。
+某指标只要有一条尝试缺失或数值无效，就显示“不可用”，不填零或只报部分合计。
+显式零值有效；Provider 自身若已把缺失用量归一化为零，报告无法恢复上游缺失信息。
+
+任一侧缺题或 metric 集不一致会拒绝比较。runtime-accuracy 还要求冻结 manifest
+摘要相同且各题尝试数等于契约指定次数；两侧同时缺样也拒绝。源码身份显式展示，
+允许优化前后不同。导出行不提供跨导入稳定的尝试身份，不能检测重复导入。
+三次运行只描述该样本的成功率及自然波动，不能称为统计显著；比较优化效果应冻结
+题目、oracle、模型和预算，再独立复测。
 
 最后运行 viewer，下钻失败任务的回答、断言和真实工具轨迹：
 

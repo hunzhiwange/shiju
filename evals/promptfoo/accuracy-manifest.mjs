@@ -52,6 +52,7 @@ export function validateManifest(manifest) {
   for (const [key, value] of Object.entries(e.budget)) integer(value, 'budget.' + key);
   object(e.parameters, ['temperature', 'top_p', 'seed', 'max_output_tokens'], 'parameters');
   for (const [key, value] of Object.entries(e.parameters)) {
+    if (value === 'provider-default') continue;
     if (!frozen && value === 'unknown') continue;
     if (!Number.isFinite(value)) throw new Error('parameters.' + key + ' must be known and finite');
     if (key === 'temperature' && value < 0) throw new Error('invalid temperature');

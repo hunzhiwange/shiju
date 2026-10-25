@@ -438,7 +438,7 @@ export default class VibeWindowProvider {
     let failureKind = 'configuration';
     let sessionId;
     try {
-      if (this.config.evaluationProfile === 'runtime-accuracy') {
+      if (['runtime-accuracy', 'runtime-accuracy-unisolated'].includes(this.config.evaluationProfile)) {
         // Only trusted provider configuration supplies identity and public inputs.
         const manifest = validateManifest(structuredClone(this.config.manifest));
         const task = manifest.contract.tasks.find(task => task.taskId === this.config.taskId);
@@ -447,7 +447,7 @@ export default class VibeWindowProvider {
           fixtureFiles: this.config.fixtureFiles });
         this.attempts.set(workspace.attemptId, workspace);
         directory = workspace.workRoot;
-        attemptMetadata = { evaluationProfile: 'runtime-accuracy', manifest,
+        attemptMetadata = { evaluationProfile: this.config.evaluationProfile, manifest,
           manifestDigest: manifestDigest(manifest), taskId: task.taskId, split: task.split,
           requiresRecovery: task.category === 'recovery',
           expectedAttempts: manifest.contract.experiment.execution.repeats,
@@ -457,7 +457,7 @@ export default class VibeWindowProvider {
           throw new Error('runtime-accuracy fixtureDigest mismatch');
         }
       }
-      if (attemptMetadata) {
+      if (attemptMetadata && this.config.evaluationProfile === 'runtime-accuracy') {
         const admit = this.config.accuracyAcceptance?.admit;
         if (typeof admit !== 'function') throw new Error('runtime-accuracy admission evidence required');
         const proof = structuredClone(await admit({ attemptId: attemptMetadata.attemptId, workRoot: directory }));
@@ -492,9 +492,15 @@ export default class VibeWindowProvider {
           options: { max_output_tokens: 0 },
           messages,
         };
+        const cumulative = this.config.evaluationProfile === 'runtime-accuracy-unisolated';
+        const previousSteps = cumulative ? turns.reduce((n,t)=>n+t.metadata.steps.length,0) : 0;
+        const previousTools = cumulative ? turns.reduce((n,t)=>n+t.metadata.toolCalls.length,0) : 0;
+        if (cumulative && (previousSteps >= maxIterations || previousTools >= maxToolCalls)) {
+          attemptMetadata.budgetStopped = true; throw new Error('aggregate attempt budget exhausted');
+        }
         const turnStartedAt = performance.now();
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        const timeout = setTimeout(() => controller.abort(), cumulative ? Math.max(1, timeoutMs - (performance.now() - startedAt)) : timeoutMs);
 
         try {
           failureKind = 'transport';
@@ -536,8 +542,8 @@ export default class VibeWindowProvider {
               completedToolCalls.add(String(event.call_id ?? ''));
             }
             const reachedIterationLimit =
-              event?.type === 'chat.step_finish' && steps.size >= maxIterations;
-            const reachedToolCallLimit = completedToolCalls.size >= maxToolCalls;
+              event?.type === 'chat.step_finish' && steps.size + previousSteps >= maxIterations;
+            const reachedToolCallLimit = completedToolCalls.size + previousTools >= maxToolCalls;
             if (!stopRequested && (reachedIterationLimit || reachedToolCallLimit)) {
               stopRequested = true;
               if (attemptMetadata) attemptMetadata.budgetStopped = true;

@@ -6,9 +6,9 @@ import { loadManifest, manifestDigest, validateManifest } from './accuracy-manif
 
 const defaultRoot = dirname(fileURLToPath(import.meta.url));
 const categories = ['facts', 'edit', 'recovery', 'state', 'finish'];
-const evaluatorFiles = ['artifact-oracle.mjs', 'assertions.mjs', 'attempt-workspace.mjs',
+export const evaluatorFiles = ['artifact-oracle.mjs', 'assertions.mjs', 'attempt-workspace.mjs',
   'vibewindow-provider.mjs', 'accuracy-manifest.mjs', 'compare-results.mjs', 'freeze-accuracy.mjs',
-  'promptfooconfig.yaml', 'score.sh'];
+  'promptfooconfig.yaml', 'score.sh', 'baseline.mjs', 'baseline-prepare.py'];
 const budget = { iterations: 24, toolCalls: 32, wallTimeMs: 900000 };
 
 function safePath(file) {
@@ -40,7 +40,7 @@ function digestPaths(root, files) {
 
 // Restricted YAML reader for these five suites. Accept only the existing mapping,
 // folded task and JSON string/list forms; reject aliases, tags and unknown fields.
-function parseSuite(source) {
+export function parseSuite(source) {
   return source.trim().split(/\n(?=- description: )/).map(block => {
     const lines = block.split('\n');
     const description = lines.shift().match(/^- description: ([^\n]+)$/)?.[1];

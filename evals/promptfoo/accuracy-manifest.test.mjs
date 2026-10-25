@@ -115,3 +115,16 @@ test('manifest_rejects_unknown_schema_run_and_execution_fields', () => {
     const value = frozen(); mutate(value); assert.throws(() => validateManifest(value));
   }
 });
+
+test('manifest_frozen_parameters_distinguish_explicit_provider_defaults_from_unknown_values', () => {
+  const value = frozen();
+  for (const key of Object.keys(value.contract.experiment.parameters)) {
+    value.contract.experiment.parameters[key] = 'provider-default';
+  }
+  assert.doesNotThrow(() => validateManifest(value));
+  for (const unsupported of ['unknown', 'default', null]) {
+    const invalid = structuredClone(value);
+    invalid.contract.experiment.parameters.seed = unsupported;
+    assert.throws(() => validateManifest(invalid));
+  }
+});

@@ -50,6 +50,15 @@ require_value() {
 run_eval() {
   local mode=$1
   shift
+  local previous="" argument
+  for argument in "$@"; do
+    if [[ "$previous" == "--suite" && "$argument" == "runtime-accuracy" ]]; then
+      cd "$REPO_ROOT"
+      node "$SCRIPT_DIR/baseline.mjs" "$mode" "$@"
+      return
+    fi
+    previous=$argument
+  done
 
   local repeat=1
   local output=""

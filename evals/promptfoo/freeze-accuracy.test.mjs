@@ -4,14 +4,12 @@ import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync, symlinkSync }
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { freeze, verify, collect } from './freeze-accuracy.mjs';
+import { freeze, verify, collect, evaluatorFiles } from './freeze-accuracy.mjs';
 import { manifestDigest } from './accuracy-manifest.mjs';
 import { prepare, cleanup } from './attempt-workspace.mjs';
 
 const categories = ['facts', 'edit', 'recovery', 'state', 'finish'];
-const evaluatorFiles = ['artifact-oracle.mjs', 'assertions.mjs', 'attempt-workspace.mjs',
-  'vibewindow-provider.mjs', 'accuracy-manifest.mjs', 'compare-results.mjs', 'freeze-accuracy.mjs',
-  'promptfooconfig.yaml', 'score.sh'];
+
 function sandbox(fn) {
   const root = mkdtempSync(join(tmpdir(), 'accuracy-freeze-'));
   try {

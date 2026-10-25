@@ -355,12 +355,14 @@ async fn expert_package_selection_is_visible_and_cancellable_in_both_themes() {
             mouse::Cursor::Unavailable,
             &viewport,
         );
-        assert!(
-            renderer
-                .screenshot(Size::new(700, 120), 1.0, Color::TRANSPARENT)
-                .chunks_exact(4)
-                .any(|pixel| pixel[3] > 0)
-        );
+        let pixels = renderer.screenshot(Size::new(700, 120), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        if let Ok(dir) = std::env::var("VW_EXPERT_SCREENSHOT_DIR") {
+            let name = if theme == Theme::Light { "light" } else { "dark" };
+            let path = std::path::Path::new(&dir).join(format!("expert-input-{name}.png"));
+            image::save_buffer(path, &pixels, 700, 120, image::ColorType::Rgba8)
+                .expect("expert input screenshot");
+        }
     }
     let _ = crate::app::message::chat::session::update(
         &mut app,

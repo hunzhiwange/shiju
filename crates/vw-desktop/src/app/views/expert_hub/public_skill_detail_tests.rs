@@ -242,5 +242,11 @@ async fn expert_package_install_modal_renders_chinese_in_both_themes() {
         );
         let pixels = renderer.screenshot(Size::new(900, 720), 1.0, Color::TRANSPARENT);
         assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        if let Ok(dir) = std::env::var("VW_EXPERT_SCREENSHOT_DIR") {
+            let name = if theme == Theme::Light { "light" } else { "dark" };
+            let path = std::path::Path::new(&dir).join(format!("expert-install-{name}.png"));
+            image::save_buffer(path, &pixels, 900, 720, image::ColorType::Rgba8)
+                .expect("expert install screenshot");
+        }
     }
 }

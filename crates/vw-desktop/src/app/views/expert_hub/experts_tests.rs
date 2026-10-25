@@ -3,6 +3,7 @@
 use iced::advanced::renderer::Headless;
 use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
 use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use vw_gateway_client::{
     SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,
     SkillMarketSourceDto,
@@ -39,6 +40,7 @@ fn app() -> App {
 }
 
 async fn assert_draws(app: &App, theme: &Theme) {
+    static SCREENSHOT_INDEX: AtomicUsize = AtomicUsize::new(0);
     let mut element = view(app);
     let mut renderer =
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
@@ -62,6 +64,12 @@ async fn assert_draws(app: &App, theme: &Theme) {
     );
     let pixels = renderer.screenshot(Size::new(720, 800), 1.0, Color::TRANSPARENT);
     assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    if let Ok(dir) = std::env::var("VW_EXPERT_SCREENSHOT_DIR") {
+        let index = SCREENSHOT_INDEX.fetch_add(1, Ordering::Relaxed);
+        let path = std::path::Path::new(&dir).join(format!("experts-{index:02}.png"));
+        image::save_buffer(path, &pixels, 720, 800, image::ColorType::Rgba8)
+            .expect("expert screenshot");
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

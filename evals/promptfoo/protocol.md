@@ -66,3 +66,20 @@ Primary outcome 是四个维度全部通过；任一失败或未知均不能算�
 分别报告 token、耗时和预算用量的样本数、缺失数及统计口径；缺失不填零。价格不可获得或模型计价规则不受支持时，成本记 `N/A（不可用）`，不能推算为零成本。价格可用时记录价格来源、时间、币种与计算规则。
 
 每次实验报告冻结摘要、确切命令、退出码、有效尝试数/预期尝试数、输入/输出摘要及失败原因。含源码、原始工具载荷或配置的运行证据只写入已忽略的 `evals/promptfoo/results/`，签入材料只保留脱敏摘要。环境启动成功、零测试或仅有轨迹均不构成准确度验收证据。
+
+## 已审计题集 v1（2026-10-25）
+
+题集版本为 `runtime-accuracy-v1`，冻结日期为 2026-10-25。`accuracy-manifest.json` 已列出五类各四题，共 20 题、15 dev、5 holdout；description 包含 taskId，保持 `--pattern` 可定位。五类独立测试逐题执行参考正例与错误反例，不调用模型；这证明验收器行为，不表示 Agent 准确率。公开文件严格对应 oracle 声明的 fixtureFiles；参考答案、变异答案与验收源码保留在 evaluator 侧，不复制进隔离目录。finish 题面直接指定的目标字节和已完成输入属于题意，不属于隐藏答案泄漏。
+
+```bash
+node evals/promptfoo/freeze-accuracy.mjs freeze
+node evals/promptfoo/freeze-accuracy.mjs verify
+```
+
+`freeze` 仅在空题集清单中写入映射与摘要；已有清单只验证，任何题面、fixture、oracle 或评测实现变化均拒绝覆盖。`verify` 只读、不写文件，两种模式均输出 `accuracy-manifest.mjs` 的 `manifestDigest`，与 Provider/compare 使用相同算法。题集、oracle、预算和拆分变更必须另建版本并重新审计，禁止因跑分结果改写保留集或直接刷新摘要。脚本仅支持当前五份 YAML 使用的受限语法（映射、折叠 task、JSON 字符串/列表及已有只读断言）；重复字段、未知字段、别名或其他语法直接报错，无额外解析依赖。
+
+fixtureDigest 按排序后的公开相对文件名、字节长度和原始字节计算，与 `attempt-workspace.prepare` 一致，保留 CRLF、UTF-8 及末尾换行差异。oracleDigest 包含该类题面 YAML、私有 definitions、独立产物验收器及断言源码。evaluatorDigest 进一步包含五类 YAML/definitions、隔离准备、Provider、清单/比较/冻结脚本、score.sh 和 Promptfoo 配置；生产优化阶段不得改动这些评测材料。脚本只读取这些指定文件及公开 allowlist，拒绝路径穿越和符号链接，不遍历用户配置或工作区源码。
+
+本次原始比较契约摘要（SHA-256）：`30beee04a8c0a7a2aa6814a0fc8100389ee1e311760c0293f10328bb3b1f5213`。原始清单文件字节摘要：`7e53fe9941d8aad00f4e16af5a89654e3f05a71d8921c3c297b03be1386d83e3`。模型、实际参数、环境、上下文与权限尚未采集，本次只冻结题集；实验 stage 保持 `draft`，这些字段保留 `unknown`，compare 继续拒绝严格比较。采样前仍须记录实际生效值并建立完整 frozen 实验契约，其摘要会随实验身份变化；不能把离线审计结果当成模型/环境已冻结。
+
+预算验收按各轮聚合后的 SSE steps 和 toolCalls 数量累计，失败调用不扣除；墙钟按整次尝试 latencyMs 计。Provider 的累计验收要求迭代 ≤24、工具 ≤32、墙钟 ≤900000ms，预算停止、超时或错误均失败。流内停止按每轮唯一 step_index 和已完成 call_id 计数，在 step_finish 或工具完成达到该轮限额时调用 request ID 对应的 stop 端点；超时 AbortController 中止该轮请求。当前流内停止与定时器按轮设置，整次尝试预算由累计验收兜底，不保证在多轮累计耗尽的瞬间停止。严格采样前仍须由独立环境监督整次预算及远端退出；缺失 admission/settlement 或无法证明边界时保持失败或未知，不能把离线冻结视为这些运行保障已验证。

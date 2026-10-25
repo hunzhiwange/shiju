@@ -257,7 +257,7 @@ test('provider_isolates_attempt_directories_and_keeps_turn_session', async () =>
     assert.equal(results[2].metadata.failureKind, 'stream');
     assert.equal(results[2].metadata.events[0].delta, 'partial');
     assert.equal(results[2].metadata.events[1].error, 'stream failed');
-    provider.config.manifest.contract.tasks[0].fixtureDigest = 'b'.repeat(64);
+    provider.config.manifest.contract.tasks.find(task => task.taskId === 'edit-1').fixtureDigest = 'b'.repeat(64);
     results.push(await provider.callApi('must not run'));
     assert.match(results[3].error, /fixtureDigest mismatch/);
     assert.equal(results[3].metadata.failureKind, 'configuration');

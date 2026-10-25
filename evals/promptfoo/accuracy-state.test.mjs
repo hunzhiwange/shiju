@@ -61,8 +61,7 @@ test('state_provider_replays_two_turns_and_isolates_each_attempt', async () => {
       const fixtureDigest = probe.inputDigest;
       await cleanup(probe);
       const manifest = loadManifest(new URL('./accuracy-manifest.json', import.meta.url));
-      manifest.contract.tasks.push({ taskId: c.taskId, description: c.taskId,
-        category: 'state', split: c.split, fixtureDigest, oracleDigest: 'a'.repeat(64) });
+      assert.equal(manifest.contract.tasks.find(task => task.taskId === c.taskId)?.fixtureDigest, fixtureDigest);
       const provider = new Provider({ config: { evaluationProfile: 'runtime-accuracy',
         manifest, taskId: c.taskId, fixtureRoot: c.fixtureRoot, fixtureFiles: c.fixtureFiles,
         timeoutMs: 1000, accuracyAcceptance: { definitions,

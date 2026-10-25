@@ -10,12 +10,13 @@ mod command;
 mod handler;
 pub(crate) mod project_commands;
 mod session_commands;
+mod session_lifecycle;
 mod task_mode;
 
 #[cfg(test)]
 mod handler_tests;
 #[cfg(test)]
-mod session_commands_tests;
+pub(crate) mod session_commands_tests;
 #[cfg(test)]
 mod task_mode_tests;
 
@@ -36,3 +37,5 @@ pub(crate) use handler::handle_runtime_command_if_needed;
 #[cfg(test)]
 #[path = "runtime_command_tests.rs"]
 mod runtime_command_tests;
+
+pub(crate) use session_lifecycle::{is_session_lifecycle_command, persist_current_route};

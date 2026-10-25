@@ -2,8 +2,8 @@
 
 use super::super::*;
 use super::session_commands::{
-    handle_new_session, handle_set_model, handle_set_provider, handle_show_model, handle_task_mode,
-    with_test_provider_init_error,
+    handle_clear_session, handle_new_session, handle_set_model, handle_set_provider,
+    handle_show_model, handle_task_mode, with_test_provider_init_error,
 };
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{AutonomyConfig, ReliabilityConfig};
@@ -252,7 +252,7 @@ async fn handle_set_provider_reports_sanitized_init_error_without_mutating_state
 }
 
 #[tokio::test]
-async fn handle_new_session_clears_session_history_and_disables_task_mode() {
+async fn handle_clear_session_clears_session_history_and_disables_task_mode() {
     let temp = tempfile::tempdir().expect("temp dir");
     let ctx = context(temp.path(), "default-provider", "default-model");
     let msg = message("/new");
@@ -269,7 +269,7 @@ async fn handle_new_session_clears_session_history_and_disables_task_mode() {
         .insert(sender_key.clone(), vec![ChatMessage::user("old turn")]);
     set_route_selection(&ctx, &sender_key, route("default-provider", "default-model", true));
 
-    let response = handle_new_session(&ctx, &msg, &sender_key).await;
+    let response = handle_clear_session(&ctx, &msg, &sender_key).await;
 
     assert_eq!(response, "会话已重置. 开始新会话.");
     assert!(!sender_session_store().lock().unwrap().contains_key(&session_key));
@@ -322,4 +322,445 @@ async fn set_catalog_model(
     };
     crate::project::instance::provide_context(context, handle_set_model(ctx, key, current, model))
         .await
+}
+
+async fn lifecycle_fixture() -> (tempfile::TempDir, ChannelRuntimeContext, traits::ChannelMessage) {
+    let temp = tempfile::tempdir().unwrap();
+    let mut ctx = context(temp.path(), "default-provider", "default-model");
+    let msg = message("/new");
+    crate::config::update_project_for_tenant(
+        &crate::session::ui_store::current_tenant_scope(),
+        &std::fs::canonicalize(temp.path()).unwrap(),
+        serde_json::json!({"providers": {"default-provider": {"api": "https://example.test/v1", "models": {"default-model": {"status": "active"}}}}}),
+    ).await.unwrap();
+    crate::project::from_directory(&crate::session::ui_store::current_tenant_scope(), temp.path())
+        .await
+        .unwrap();
+    ctx.message_snapshot = Some(resolve_channel_message_snapshot(&ctx, &msg).await.unwrap());
+    (temp, ctx, msg)
+}
+
+pub(crate) async fn channel_session_lifecycle_new_preserves_old() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    let snapshot = ctx.message_snapshot.as_ref().unwrap();
+    let old = resolve_or_create_sender_session_id(snapshot, &msg).await.unwrap();
+    let response = handle_new_session(&ctx, &msg, &snapshot.scope.key()).await;
+    let next = sender_session_store()
+        .lock()
+        .unwrap()
+        .get(&snapshot.scope)
+        .cloned()
+        .expect("/new must create immediately");
+    assert_ne!(old, next);
+    assert!(response.contains(&next));
+    assert!(crate::session::session::get_any(&old).await.is_ok());
+}
+
+pub(crate) fn channel_session_lifecycle_lists_are_parsed() {
+    for text in ["/sessions", "/resume", "/continue"] {
+        assert!(
+            !matches!(parse_runtime_command("lark", text), Some(ChannelRuntimeCommand::Error(_))),
+            "{text}"
+        );
+    }
+}
+
+pub(crate) fn channel_session_lifecycle_mutations_are_parsed() {
+    for text in ["/resume ses-owned", "/rename 新标题", "/archive", "/archive confirm ses-owned"]
+    {
+        assert!(
+            !matches!(parse_runtime_command("qq", text), Some(ChannelRuntimeCommand::Error(_))),
+            "{text}"
+        );
+    }
+}
+
+pub(crate) fn channel_session_lifecycle_clear_is_separate() {
+    assert_ne!(parse_runtime_command("lark", "/clear"), parse_runtime_command("lark", "/new"));
+    assert_eq!(parse_runtime_command("lark", "/session"), parse_runtime_command("lark", "/new"));
+}
+
+pub(crate) async fn channel_session_lifecycle_new_clears_cache() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
+    ctx.conversation_histories.lock().unwrap().insert(key.clone(), vec![ChatMessage::user("old")]);
+    set_route_selection(&ctx, &key, route("default-provider", "default-model", true));
+    let result = handle_new_session(&ctx, &msg, &key).await;
+    assert!(result.contains("ses_"), "{result}");
+    assert!(!ctx.conversation_histories.lock().unwrap().contains_key(&key));
+    assert!(!get_route_selection(&ctx, &key).task_mode_enabled);
+}
+
+pub(crate) fn channel_session_lifecycle_help_explains_clear() {
+    let help = super::catalog::help_messages("clear", true).join("\n");
+    assert!(help.contains("重置"));
+    assert!(super::catalog::help_messages("sessions", true).join("\n").contains("/resume"));
+}
+
+async fn lifecycle_call(
+    ctx: &ChannelRuntimeContext,
+    msg: &traits::ChannelMessage,
+    text: &str,
+) -> String {
+    let mut msg = msg.clone();
+    msg.content = text.into();
+    let command = parse_runtime_command(&msg.channel, text).expect("parsed command");
+    super::session_lifecycle::handle_session_lifecycle_command(ctx, &msg, command).await
+}
+
+fn lifecycle_id(ctx: &ChannelRuntimeContext) -> String {
+    sender_session_store()
+        .lock()
+        .unwrap()
+        .get(&ctx.message_snapshot.as_ref().unwrap().scope)
+        .cloned()
+        .expect("bound session")
+}
+
+async fn lifecycle_save_history(ctx: &ChannelRuntimeContext, id: &str, content: &str) {
+    let snapshot = ctx.message_snapshot.as_ref().unwrap();
+    let tenant = snapshot.scope.chat.tenant.clone();
+    let project = snapshot.scope.project.clone();
+    let session = crate::session::ui_types::ChatSession {
+        id: id.into(),
+        title: "历史".into(),
+        messages: to_session_history(&[
+            ChatMessage::user(content),
+            ChatMessage::assistant("answer"),
+        ]),
+        message_ids: Vec::new(),
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 1,
+        updated_ms: 2,
+    };
+    crate::global_database::run_isolated(move || {
+        crate::session::ui_store::save_session_scoped_for_tenant(&tenant, &session, Some(&project))
+            .expect("persist UI history");
+    })
+    .await
+    .unwrap();
+}
+
+pub(crate) async fn channel_session_lifecycle_resume_reloads_persisted_state() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let old = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &old, "persisted old history").await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
+    ctx.conversation_histories
+        .lock()
+        .unwrap()
+        .insert(key.clone(), vec![ChatMessage::user("wrong cache")]);
+    set_route_selection(&ctx, &key, route("wrong", "wrong", true));
+    let result = lifecycle_call(&ctx, &msg, &format!("/resume {old}")).await;
+    assert!(result.contains("已恢复"), "{result}");
+    assert_eq!(lifecycle_id(&ctx), old);
+    assert_eq!(
+        ctx.conversation_histories.lock().unwrap()[&key][0].content,
+        "persisted old history"
+    );
+    assert_eq!(get_route_selection(&ctx, &key), route("default-provider", "default-model", false));
+    // 模拟重启后映射和路由均丢失，持久化所有权仍提供候选。
+    sender_session_store().lock().unwrap().remove(&ctx.message_snapshot.as_ref().unwrap().scope);
+    ctx.route_overrides.lock().unwrap().clear();
+    let list = lifecycle_call(&ctx, &msg, "/resume").await;
+    assert!(list.contains(&old));
+    assert!(lifecycle_call(&ctx, &msg, &format!("/resume {old}")).await.contains("已恢复"));
+}
+
+pub(crate) async fn channel_session_lifecycle_resume_rejects_unowned_and_invalid_ids() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let old = lifecycle_id(&ctx);
+    let snapshot = ctx.message_snapshot.as_ref().unwrap();
+    let context = crate::project::instance::Context {
+        directory: snapshot.directory.to_string_lossy().into(),
+        worktree: snapshot.project.worktree.clone(),
+        project: snapshot.project.clone(),
+    };
+    let unowned = crate::project::instance::provide_context(
+        context,
+        crate::session::session::create_next(crate::session::session::CreateInput {
+            directory: snapshot.directory.to_string_lossy().into(),
+            ..Default::default()
+        }),
+    )
+    .await
+    .unwrap();
+    for id in [&unowned.id, "missing", "../../outside"] {
+        let result = lifecycle_call(&ctx, &msg, &format!("/resume {id}")).await;
+        assert!(result.contains("失败"), "{result}");
+        assert_eq!(lifecycle_id(&ctx), old);
+    }
+    assert!(!lifecycle_call(&ctx, &msg, "/sessions").await.contains(&unowned.id));
+}
+
+pub(crate) async fn channel_session_lifecycle_resume_isolates_all_chat_dimensions() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let id = lifecycle_id(&ctx);
+    for dimension in 0..5 {
+        let mut other = msg.clone();
+        match dimension {
+            0 => other.channel = "qq".into(),
+            1 => other.instance_id = "another".into(),
+            2 => other.reply_target = "another".into(),
+            3 => other.thread_ts = Some("another".into()),
+            _ => other.sender = "another".into(),
+        }
+        let mut candidate = ctx.clone();
+        candidate.message_snapshot = None;
+        let result = lifecycle_call(&candidate, &other, &format!("/resume {id}")).await;
+        assert!(result.contains("失败"), "dimension={dimension}: {result}");
+        assert!(!lifecycle_call(&candidate, &other, "/sessions").await.contains(&id));
+        assert_eq!(lifecycle_id(&ctx), id);
+    }
+}
+
+pub(crate) async fn channel_session_lifecycle_archive_requires_matching_confirmation_and_preserves_history()
+ {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let id = lifecycle_id(&ctx);
+    lifecycle_save_history(&ctx, &id, "keep history").await;
+    assert!(lifecycle_call(&ctx, &msg, &format!("/archive confirm {id}")).await.contains("失败"));
+    assert!(
+        lifecycle_call(&ctx, &msg, "/archive").await.contains(&format!("/archive confirm {id}"))
+    );
+    assert!(lifecycle_call(&ctx, &msg, "/archive confirm wrong").await.contains("失败"));
+    assert_eq!(lifecycle_id(&ctx), id);
+    assert!(lifecycle_call(&ctx, &msg, &format!("/archive confirm {id}")).await.contains("已归档"));
+    assert!(crate::session::session::get_any(&id).await.unwrap().time.archived.is_some());
+    assert!(!lifecycle_call(&ctx, &msg, "/sessions").await.contains(&id));
+    assert!(lifecycle_call(&ctx, &msg, &format!("/resume {id}")).await.contains("失败"));
+    let project = ctx.message_snapshot.as_ref().unwrap().scope.project.clone();
+    let loaded = crate::global_database::run_isolated(move || {
+        crate::session::ui_store::load_session_scoped(&id, Some(&project))
+    })
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(loaded.messages[0].content, "keep history");
+}
+
+pub(crate) async fn channel_session_lifecycle_archive_rejects_stale_and_busy_state() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let old = lifecycle_id(&ctx);
+    lifecycle_call(&ctx, &msg, "/archive").await;
+    lifecycle_call(&ctx, &msg, "/rename changed").await;
+    assert!(lifecycle_call(&ctx, &msg, &format!("/archive confirm {old}")).await.contains("失败"));
+    lifecycle_call(&ctx, &msg, "/archive").await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let next = lifecycle_id(&ctx);
+    assert!(lifecycle_call(&ctx, &msg, &format!("/archive confirm {old}")).await.contains("失败"));
+    let gate = channel_chat_gate(&ctx, &msg);
+    let guard = gate.read().await;
+    for command in ["/new", "/clear", "/rename blocked", "/archive"] {
+        assert!(lifecycle_call(&ctx, &msg, command).await.contains("繁忙"));
+        assert_eq!(lifecycle_id(&ctx), next);
+    }
+    drop(guard);
+    crate::session::status::set(&next, crate::session::status::Info::Busy);
+    assert!(lifecycle_call(&ctx, &msg, "/archive").await.contains("繁忙"));
+    crate::session::status::set(&next, crate::session::status::Info::Idle);
+    assert!(crate::session::session::get_any(&old).await.unwrap().time.archived.is_none());
+}
+
+pub(crate) async fn channel_session_lifecycle_continue_and_rename_use_owned_sessions() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    assert!(lifecycle_call(&ctx, &msg, "/continue").await.contains("失败"));
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let old = lifecycle_id(&ctx);
+    assert!(lifecycle_call(&ctx, &msg, "/rename 调试 记录").await.contains("已重命名"));
+    assert_eq!(crate::session::session::get_any(&old).await.unwrap().title, "调试 记录");
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let next = lifecycle_id(&ctx);
+    lifecycle_call(&ctx, &msg, "/archive").await;
+    lifecycle_call(&ctx, &msg, &format!("/archive confirm {next}")).await;
+    let result = lifecycle_call(&ctx, &msg, "/continue").await;
+    assert!(result.contains("已恢复"), "{result}");
+    assert_eq!(lifecycle_id(&ctx), old);
+}
+
+#[derive(Default)]
+struct LifecycleChannel(tokio::sync::Mutex<Vec<SendMessage>>);
+#[async_trait::async_trait]
+impl Channel for LifecycleChannel {
+    fn name(&self) -> &str {
+        "lark"
+    }
+    async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
+        self.0.lock().await.push(message.clone());
+        Ok(())
+    }
+    async fn listen(
+        &self,
+        _tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
+    ) -> anyhow::Result<()> {
+        Ok(())
+    }
+}
+
+async fn lifecycle_dispatch(
+    ctx: &ChannelRuntimeContext,
+    msg: &traits::ChannelMessage,
+    text: &str,
+) -> String {
+    let channel = Arc::new(LifecycleChannel::default());
+    let target: Arc<dyn Channel> = channel.clone();
+    let mut msg = msg.clone();
+    msg.content = text.into();
+    let mut ctx = ctx.clone();
+    ctx.channels_by_name =
+        Arc::new(HashMap::from([(channel_instance_key(&msg.channel, &msg.instance_id), target)]));
+    Box::pin(super::super::manager::process_channel_message(
+        Arc::new(ctx),
+        msg.clone(),
+        tokio_util::sync::CancellationToken::new(),
+    ))
+    .await;
+    let sent = channel.0.lock().await;
+    assert_eq!(sent.len(), 1, "each command sends a response");
+    assert_eq!(sent[0].recipient, msg.reply_target);
+    assert_eq!(sent[0].thread_ts, msg.thread_ts);
+    sent[0].content.clone()
+}
+
+pub(crate) async fn channel_session_lifecycle_pipeline_persists_and_refreshes_model_options() {
+    let (_temp, mut ctx, msg) =
+        super::super::channel_command_catalog_tests::catalog_context().await;
+    ctx.message_snapshot = Some(resolve_channel_message_snapshot(&ctx, &msg).await.unwrap());
+    assert!(lifecycle_dispatch(&ctx, &msg, "/new").await.contains("已创建"));
+    let old = lifecycle_id(&ctx);
+    assert!(lifecycle_dispatch(&ctx, &msg, "/model known").await.contains("Model switched"));
+    assert!(lifecycle_dispatch(&ctx, &msg, "/effort high").await.contains("已切换"));
+    lifecycle_save_history(&ctx, &old, "persisted model history").await;
+    lifecycle_dispatch(&ctx, &msg, "/new").await;
+    let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
+    assert_eq!(get_route_selection(&ctx, &key).reasoning_effort.as_deref(), Some("high"));
+    lifecycle_dispatch(&ctx, &msg, "/model other").await;
+    let result = lifecycle_dispatch(&ctx, &msg, &format!("/resume {old}")).await;
+    assert!(result.contains("已恢复"), "{result}");
+    let route = get_route_selection(&ctx, &key);
+    assert_eq!(route.model, "known");
+    assert_eq!(route.reasoning_effort.as_deref(), Some("high"));
+    assert_eq!(
+        ctx.conversation_histories.lock().unwrap()[&key][0].content,
+        "persisted model history"
+    );
+}
+
+pub(crate) async fn channel_session_lifecycle_resume_isolates_projects_and_tenants() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let id = lifecycle_id(&ctx);
+    let (_other_temp, mut other, mut other_msg) = lifecycle_fixture().await;
+    other_msg.channel = msg.channel.clone();
+    other_msg.sender = msg.sender.clone();
+    other_msg.reply_target = msg.reply_target.clone();
+    other_msg.thread_ts = msg.thread_ts.clone();
+    other.message_snapshot = None;
+    assert!(lifecycle_call(&other, &other_msg, &format!("/resume {id}")).await.contains("失败"));
+    let tenant = vw_api_types::id::TenantScope::new(
+        format!("lifecycle-{}", std::process::id()),
+        format!("user-{id}"),
+    )
+    .unwrap();
+    crate::project::from_directory(&tenant, ctx.workspace_dir.as_ref()).await.unwrap();
+    let mut foreign = ctx.clone();
+    foreign.project_state = Arc::new(Mutex::new(Default::default()));
+    foreign.project_state.lock().unwrap().tenant = tenant;
+    foreign.message_snapshot = None;
+    assert!(lifecycle_call(&foreign, &msg, &format!("/resume {id}")).await.contains("失败"));
+    assert!(!lifecycle_call(&foreign, &msg, "/sessions").await.contains(&id));
+    assert_eq!(lifecycle_id(&ctx), id);
+}
+
+pub(crate) async fn channel_session_lifecycle_failed_creation_and_rename_preserve_binding() {
+    let (temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let id = lifecycle_id(&ctx);
+    let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
+    ctx.conversation_histories.lock().unwrap().insert(key.clone(), vec![ChatMessage::user("keep")]);
+    let result = lifecycle_call(&ctx, &msg, &format!("/rename {}", "长".repeat(101))).await;
+    assert!(result.contains("失败"));
+    assert_eq!(lifecycle_id(&ctx), id);
+    temp.close().unwrap();
+    assert!(lifecycle_call(&ctx, &msg, "/new").await.contains("失败"));
+    assert_eq!(lifecycle_id(&ctx), id);
+    assert_eq!(ctx.conversation_histories.lock().unwrap()[&key][0].content, "keep");
+}
+
+pub(crate) async fn channel_session_lifecycle_invalid_saved_model_preserves_current_state() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let old = lifecycle_id(&ctx);
+    let snapshot = ctx.message_snapshot.as_ref().unwrap();
+    save_channel_session_route(snapshot, &old, &route("missing-provider", "missing-model", false))
+        .await
+        .unwrap();
+    // 移除当前映射，避免离开旧会话时写回其当前合法设置。
+    sender_session_store().lock().unwrap().remove(&snapshot.scope);
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let current = lifecycle_id(&ctx);
+    let key = snapshot.scope.key();
+    ctx.conversation_histories
+        .lock()
+        .unwrap()
+        .insert(key.clone(), vec![ChatMessage::user("retain")]);
+    let before = get_route_selection(&ctx, &key);
+    let response = lifecycle_call(&ctx, &msg, &format!("/resume {old}")).await;
+    assert!(response.contains("失败"), "{response}");
+    assert_eq!(lifecycle_id(&ctx), current);
+    assert_eq!(get_route_selection(&ctx, &key), before);
+    assert_eq!(ctx.conversation_histories.lock().unwrap()[&key][0].content, "retain");
+}
+
+pub(crate) async fn channel_session_lifecycle_lists_are_stable_bounded_and_owned() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    let snapshot = ctx.message_snapshot.as_ref().unwrap();
+    let mut ids = Vec::new();
+    for _ in 0..22 {
+        lifecycle_call(&ctx, &msg, "/new").await;
+        ids.push(lifecycle_id(&ctx));
+    }
+    let first = lifecycle_call(&ctx, &msg, "/sessions").await;
+    assert_eq!(first, lifecycle_call(&ctx, &msg, "/sessions").await);
+    assert_eq!(first.lines().filter(|line| line.starts_with("ses_")).count(), 20);
+    assert!(first.contains("最多显示 20 项"));
+    assert!(first.chars().count() < 3000);
+    let list = owned_channel_sessions(snapshot).await.unwrap();
+    let recent = list.first().unwrap().id.clone();
+    sender_session_store().lock().unwrap().remove(&snapshot.scope);
+    assert!(lifecycle_call(&ctx, &msg, "/continue").await.contains(&recent));
+    assert_eq!(lifecycle_id(&ctx), recent);
+}
+
+pub(crate) async fn channel_session_lifecycle_new_rejects_invalid_model_options() {
+    let (_temp, ctx, msg) = lifecycle_fixture().await;
+    lifecycle_call(&ctx, &msg, "/new").await;
+    let old = lifecycle_id(&ctx);
+    let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
+    for mut invalid in [
+        route("missing-provider", "missing-model", true),
+        route("default-provider", "default-model", true),
+    ] {
+        invalid.reasoning_effort = Some("unsupported".into());
+        set_route_selection(&ctx, &key, invalid.clone());
+        ctx.conversation_histories
+            .lock()
+            .unwrap()
+            .insert(key.clone(), vec![ChatMessage::user("keep invalid-route context")]);
+        let result = lifecycle_call(&ctx, &msg, "/new").await;
+        assert!(result.contains("失败"), "{result}");
+        assert_eq!(lifecycle_id(&ctx), old);
+        assert_eq!(get_route_selection(&ctx, &key), invalid);
+        assert_eq!(
+            ctx.conversation_histories.lock().unwrap()[&key][0].content,
+            "keep invalid-route context"
+        );
+    }
 }

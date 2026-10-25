@@ -51,6 +51,13 @@ pub(crate) async fn process_channel_message(
         handle_runtime_command_if_needed(ctx.as_ref(), &msg, target_channel.as_ref()).await;
         return;
     }
+    if parse_runtime_command(&msg.channel, &msg.content)
+        .as_ref()
+        .is_some_and(is_session_lifecycle_command)
+    {
+        handle_runtime_command_if_needed(ctx.as_ref(), &msg, target_channel.as_ref()).await;
+        return;
+    }
     let gate = channel_chat_gate(ctx.as_ref(), &msg);
     let _chat_guard = match gate.try_read() {
         Ok(guard) => guard,

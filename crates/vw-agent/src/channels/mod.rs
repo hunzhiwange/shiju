@@ -375,7 +375,7 @@ pub enum ChannelCommands {
 ///
 /// 记录为特定会话选择的服务提供者和模型信息，
 /// 以及是否启用了任务模式。用于消息路由决策。
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub(crate) struct ChannelRouteSelection {
     /// 选中的服务提供者名称
     pub(crate) provider: String,
@@ -717,3 +717,6 @@ mod channel_project_select_tests;
 #[cfg(test)]
 #[path = "runtime_command/command_tests.rs"]
 mod channel_command_catalog_tests;
+
+#[cfg(test)]
+include!("channel_session_lifecycle_tests.rs");

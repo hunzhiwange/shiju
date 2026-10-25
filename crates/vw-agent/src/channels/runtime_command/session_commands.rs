@@ -5,6 +5,7 @@
 //! 并在影响上下文连续性时清理会话历史，避免新配置沿用旧上下文造成混淆。
 
 use super::super::*;
+use super::session_lifecycle::{invalidate_archive, persist_current_route};
 use super::task_mode::set_sender_task_mode;
 
 #[cfg(test)]
@@ -55,8 +56,13 @@ pub(super) async fn handle_set_provider(
         Some(provider_name) => match get_or_create_session_provider(ctx, &provider_name).await {
             Ok(_) => {
                 if provider_name != current.provider {
-                    current.provider = provider_name.clone();
-                    current.reasoning_effort = None;
+                    let mut next = current.clone();
+                    next.provider = provider_name.clone();
+                    next.reasoning_effort = None;
+                    if persist_current_route(ctx, &next).await.is_err() {
+                        return "模型选项保存失败，路由与历史保持不变。".into();
+                    }
+                    *current = next;
                     set_route_selection(ctx, sender_key, current.clone());
                     // provider 变化后旧对话可能包含不兼容的模型假设，清理历史能让新路由从干净上下文开始。
                     clear_sender_history(ctx, sender_key);
@@ -122,8 +128,13 @@ pub(super) async fn handle_set_model(
         if current.model == model {
             return format!("Current model: `{model}`");
         }
-        current.reasoning_effort = None;
-        current.model = model.clone();
+        let mut next = current.clone();
+        next.reasoning_effort = None;
+        next.model = model.clone();
+        if persist_current_route(ctx, &next).await.is_err() {
+            return "模型选项保存失败，路由与历史保持不变。".into();
+        }
+        *current = next;
         set_route_selection(ctx, sender_key, current.clone());
         // 模型切换会改变后续推理能力和上下文解释方式，因此重置历史保持行为确定。
         clear_sender_history(ctx, sender_key);
@@ -144,7 +155,7 @@ pub(super) async fn handle_set_model(
 ///
 /// # 返回值
 /// 返回会话已重置的用户提示文本。
-pub(super) async fn handle_new_session(
+pub(super) async fn handle_clear_session(
     ctx: &ChannelRuntimeContext,
     msg: &traits::ChannelMessage,
     sender_key: &str,
@@ -155,6 +166,53 @@ pub(super) async fn handle_new_session(
     clear_sender_history(ctx, sender_key);
     set_sender_task_mode(ctx, sender_key, false);
     "会话已重置. 开始新会话.".to_string()
+}
+
+/// 立即创建并持久化新会话，写入失败不替换旧绑定。
+pub(super) async fn handle_new_session(
+    ctx: &ChannelRuntimeContext,
+    msg: &traits::ChannelMessage,
+    sender_key: &str,
+) -> String {
+    let result = async {
+        let snapshot = resolve_channel_message_snapshot(ctx, msg).await?;
+        let mut route = get_route_selection(ctx, sender_key);
+        route.task_mode_enabled = false;
+        let context = crate::project::instance::Context {
+            directory: snapshot.directory.to_string_lossy().into(),
+            worktree: snapshot.project.worktree.clone(),
+            project: snapshot.project.clone(),
+        };
+        crate::session::ui_store::with_tenant_scope(
+            snapshot.scope.chat.tenant.clone(),
+            crate::project::instance::provide_context(context, async {
+                let model = Box::pin(provider::get_model(&route.provider, &route.model))
+                    .await
+                    .context("当前模型已不可用，请先选择有效模型")?;
+                anyhow::ensure!(model.status != "deprecated", "当前模型已停用");
+                if let Some(effort) = &route.reasoning_effort {
+                    anyhow::ensure!(
+                        effort_levels(&model).contains(effort),
+                        "当前推理强度已不可用，请先使用 /effort default"
+                    );
+                }
+                persist_current_route(ctx, &get_route_selection(ctx, sender_key)).await?;
+                let id = create_channel_session(&snapshot, msg, Some(route.clone())).await?;
+                clear_sender_history(ctx, sender_key);
+                set_route_selection(ctx, sender_key, route);
+                invalidate_archive(&snapshot);
+                Ok::<_, anyhow::Error>(format!("已创建新会话 {id}；旧会话已保留。"))
+            }),
+        )
+        .await
+    }
+    .await;
+    result.unwrap_or_else(|err| {
+        format!(
+            "创建会话失败，原绑定保持不变：{}",
+            crate::providers::sanitize_api_error(&err.to_string())
+        )
+    })
 }
 
 /// 重置当前发送者并进入任务模式。
@@ -199,7 +257,7 @@ pub(super) async fn handle_models(current: &ChannelRouteSelection) -> String {
     )
 }
 
-fn effort_levels(model: &vw_shared::provider::types::Model) -> Vec<String> {
+pub(super) fn effort_levels(model: &vw_shared::provider::types::Model) -> Vec<String> {
     if !model.capabilities.reasoning {
         return Vec::new();
     }
@@ -221,7 +279,12 @@ pub(super) async fn handle_effort(
 ) -> String {
     let level = level.to_ascii_lowercase();
     if level == "default" {
-        current.reasoning_effort = None;
+        let mut next = current.clone();
+        next.reasoning_effort = None;
+        if persist_current_route(ctx, &next).await.is_err() {
+            return "模型选项保存失败，路由与历史保持不变。".into();
+        }
+        *current = next;
         set_route_selection(ctx, key, current.clone());
         return "推理强度已恢复默认。".into();
     }
@@ -242,7 +305,12 @@ pub(super) async fn handle_effort(
             levels.join(", ")
         );
     }
-    current.reasoning_effort = Some(level.clone());
+    let mut next = current.clone();
+    next.reasoning_effort = Some(level.clone());
+    if persist_current_route(ctx, &next).await.is_err() {
+        return "模型选项保存失败，路由与历史保持不变。".into();
+    }
+    *current = next;
     set_route_selection(ctx, key, current.clone());
     format!("推理强度已切换为 {level}。")
 }

@@ -26,6 +26,12 @@ pub(crate) enum ChannelRuntimeCommand {
     SetModel(String),
     /// 开启新会话并清理当前上下文。
     NewSession,
+    ClearSession,
+    ListSessions,
+    ResumeSession(String),
+    ContinueSession,
+    RenameSession(String),
+    ArchiveSession(String),
     /// 进入或处理任务模式。
     TaskMode,
     /// 请求一次性允许所有工具/命令。
@@ -83,6 +89,17 @@ pub(crate) fn parse_runtime_command(
         "project" if tail.is_empty() => ChannelRuntimeCommand::ShowProject,
         "project" => ChannelRuntimeCommand::SelectProject(tail),
         "new" => ChannelRuntimeCommand::NewSession,
+        "clear" => ChannelRuntimeCommand::ClearSession,
+        "sessions" => ChannelRuntimeCommand::ListSessions,
+        "resume" => ChannelRuntimeCommand::ResumeSession(tail),
+        "continue" => ChannelRuntimeCommand::ContinueSession,
+        "rename" => ChannelRuntimeCommand::RenameSession(tail),
+        "archive" if tail.is_empty() || (args.len() == 2 && args[0] == "confirm") => {
+            ChannelRuntimeCommand::ArchiveSession(tail)
+        }
+        "archive" => {
+            ChannelRuntimeCommand::Error("用法：/archive 或 /archive confirm <当前会话ID>。".into())
+        }
         "task" => ChannelRuntimeCommand::TaskMode,
         "models" if tail.is_empty() => ChannelRuntimeCommand::ShowProviders,
         "models" => ChannelRuntimeCommand::SetProvider(tail),

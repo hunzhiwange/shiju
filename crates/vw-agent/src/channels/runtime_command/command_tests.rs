@@ -39,7 +39,7 @@ fn parse_runtime_command_handles_session_task_and_telegram_bot_suffixes() {
     assert_eq!(parse_runtime_command("telegram", "/new"), Some(ChannelRuntimeCommand::NewSession));
     assert_eq!(
         parse_runtime_command("telegram", "/clear@vibe_bot"),
-        Some(ChannelRuntimeCommand::NewSession)
+        Some(ChannelRuntimeCommand::ClearSession)
     );
     assert_eq!(
         parse_runtime_command("telegram", "/session"),

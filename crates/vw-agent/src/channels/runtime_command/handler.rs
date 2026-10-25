@@ -15,7 +15,7 @@ use super::command::{
 };
 use super::non_cli_natural_language_mode_label;
 use super::session_commands::{
-    handle_new_session, handle_set_model, handle_set_provider, handle_show_model, handle_task_mode,
+    handle_set_model, handle_set_provider, handle_show_model, handle_task_mode,
 };
 use super::task_mode::handle_task_mode_message_if_needed;
 
@@ -184,7 +184,18 @@ pub(crate) async fn handle_runtime_command_if_needed(
             ChannelRuntimeCommand::SetModel(raw_model) => {
                 handle_set_model(ctx, &sender_key, &mut current, raw_model).await
             }
-            ChannelRuntimeCommand::NewSession => handle_new_session(ctx, msg, &sender_key).await,
+            command @ (ChannelRuntimeCommand::NewSession
+            | ChannelRuntimeCommand::ClearSession
+            | ChannelRuntimeCommand::ListSessions
+            | ChannelRuntimeCommand::ResumeSession(_)
+            | ChannelRuntimeCommand::ContinueSession
+            | ChannelRuntimeCommand::RenameSession(_)
+            | ChannelRuntimeCommand::ArchiveSession(_)) => {
+                Box::pin(super::session_lifecycle::handle_session_lifecycle_command(
+                    ctx, msg, command,
+                ))
+                .await
+            }
             ChannelRuntimeCommand::TaskMode => handle_task_mode(ctx, msg, &sender_key).await,
             ChannelRuntimeCommand::RequestAllToolsOnce => {
                 handle_request_all_tools_once(ctx, sender, source_channel, reply_target)

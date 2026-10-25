@@ -86,6 +86,9 @@ pub(crate) async fn run_message_execution(
         Ok(id) => id,
         Err(err) => return LlmExecutionResult::Completed(Ok(Err(err))),
     };
+    if let Err(err) = persist_current_route(ctx, route).await {
+        return LlmExecutionResult::Completed(Ok(Err(err)));
+    }
     let request_root_dir = &snapshot.directory;
     let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 

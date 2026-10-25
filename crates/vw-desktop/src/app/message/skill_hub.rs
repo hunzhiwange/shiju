@@ -341,13 +341,24 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             finish_shiju_package_version_refresh(app, generation, result)
         }
         SkillHubMessage::SelectSection(section) => {
+            if app.expert_hub.section != section {
+                app.expert_hub.public_market.close_detail();
+            }
             app.expert_hub.install_guide.close();
             app.expert_hub.close_mine_filter_menu();
             if app.expert_hub.skill_tab == SkillTab::Install {
                 app.expert_hub.skill_tab = SkillTab::Marketplace;
             }
             app.expert_hub.section = section;
-            if section == ExpertHubSection::Skills {
+            if section == ExpertHubSection::Experts {
+                let suites = public::update(
+                    app,
+                    public::PublicSkillMessage::SelectTab(
+                        crate::app::skill_hub::PublicSkillTab::Suites,
+                    ),
+                );
+                Task::batch([suites, public::ensure_loaded(app)])
+            } else if section == ExpertHubSection::Skills {
                 public::ensure_loaded(app)
             } else {
                 Task::none()

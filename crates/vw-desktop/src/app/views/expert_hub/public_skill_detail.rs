@@ -25,8 +25,9 @@ fn public_message(message: PublicSkillMessage) -> Message {
     Message::SkillHub(SkillHubMessage::Public(message))
 }
 
-fn back_button() -> Element<'static, Message> {
-    button(text("← 返回技能").size(13))
+fn back_button(experts: bool) -> Element<'static, Message> {
+    let label = if experts { "← 返回专家" } else { "← 返回技能" };
+    button(text(label).size(13))
         .on_press(public_message(PublicSkillMessage::CloseDetail))
         .padding([7, 11])
         .style(styles::quiet_button_style)
@@ -491,7 +492,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         _ => status_panel("正在同步详情信息…"),
     };
     let mut page = column![
-        back_button(),
+        back_button(app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts),
         header,
         container(Space::new())
             .height(Length::Fixed(1.0))

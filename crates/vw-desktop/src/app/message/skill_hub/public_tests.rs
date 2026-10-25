@@ -5,7 +5,8 @@ use vw_gateway_client::{
     DesktopSkillCatalogEntryDto, SkillMarketCoordinateDto, SkillMarketInstallScopeDto,
     SkillMarketInstallSelectionDto, SkillMarketInstallTargetDto, SkillMarketSkillDetailDto,
     SkillMarketSkillDto, SkillMarketSkillFileDto, SkillMarketSkillLocatorDto,
-    SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto, SkillMarketSourceDto,
+    SkillMarketSkillSetDetailDto, SkillMarketSkillSetDto, SkillMarketSkillSetPageDto,
+    SkillMarketSourceDto,
 };
 
 use super::public::{
@@ -13,13 +14,94 @@ use super::public::{
     update as update_public,
 };
 use crate::app::App;
+use crate::app::message::skill_hub::{SkillHubMessage, update as update_hub};
 use crate::app::skill_hub::{
-    LoadState, PublicBatchActionKind, PublicInstallState, PublicSkillMarketState,
-    SkillInstallScope, SkillInstallTarget,
+    ExpertHubSection, LoadState, PublicBatchActionKind, PublicInstallState, PublicSkillMarketState,
+    PublicSkillTab, SkillInstallScope, SkillInstallTarget,
 };
 
 fn source(source: &str) -> SkillMarketSourceDto {
     SkillMarketSourceDto { source: source.to_string(), display_name: source.to_uppercase() }
+}
+
+#[test]
+fn expert_package_section_loads_suites() {
+    let (mut app, _) = App::new();
+    loaded_sources(&mut app.expert_hub.public_market);
+    app.expert_hub.public_market.tab = PublicSkillTab::SkillHub;
+
+    let _ = update_hub(&mut app, SkillHubMessage::SelectSection(ExpertHubSection::Experts));
+
+    assert_eq!(app.expert_hub.section, ExpertHubSection::Experts);
+    assert_eq!(app.expert_hub.public_market.tab, PublicSkillTab::Suites);
+    assert!(matches!(app.expert_hub.public_market.suites, LoadState::Loading { .. }));
+}
+
+#[test]
+fn expert_package_navigation_ignores_stale_results() {
+    let mut state = PublicSkillMarketState::default();
+    loaded_sources(&mut state);
+    let old_generation = match reduce(
+        &mut state,
+        PublicSkillMessage::SelectTab(PublicSkillTab::Suites),
+    )
+    .as_slice()
+    {
+        [PublicRequest::Suites { generation, .. }] => *generation,
+        requests => panic!("expected suite request: {requests:?}"),
+    };
+    reduce(&mut state, PublicSkillMessage::QueryDraftChanged("中文专家".to_string()));
+    let new_generation = match reduce(&mut state, PublicSkillMessage::SubmitQuery).as_slice() {
+        [PublicRequest::Suites { generation, query, .. }] => {
+            assert_eq!(query.keyword.as_deref(), Some("中文专家"));
+            *generation
+        }
+        requests => panic!("expected search request: {requests:?}"),
+    };
+    assert_ne!(old_generation, new_generation);
+    reduce(
+        &mut state,
+        PublicSkillMessage::SuitesLoaded {
+            source: "skillhub".to_string(),
+            generation: old_generation,
+            result: Err("stale failure".to_string()),
+        },
+    );
+    assert!(
+        matches!(state.suites, LoadState::Loading { generation } if generation == new_generation)
+    );
+
+    reduce(
+        &mut state,
+        PublicSkillMessage::SuitesLoaded {
+            source: "skillhub".to_string(),
+            generation: new_generation,
+            result: Ok(SkillMarketSkillSetPageDto {
+                skillsets: Vec::new(),
+                total: 48,
+                page: 1,
+                page_size: 24,
+            }),
+        },
+    );
+    let page_generation = match reduce(&mut state, PublicSkillMessage::NextPage).as_slice() {
+        [PublicRequest::Suites { generation, query, .. }] => {
+            assert_eq!(query.page, 2);
+            *generation
+        }
+        requests => panic!("expected next page request: {requests:?}"),
+    };
+    reduce(
+        &mut state,
+        PublicSkillMessage::SuitesLoaded {
+            source: "skillhub".to_string(),
+            generation: page_generation,
+            result: Err("network unavailable".to_string()),
+        },
+    );
+    assert!(matches!(state.suites, LoadState::Error(_)));
+    assert!(matches!(reduce(&mut state, PublicSkillMessage::Retry).as_slice(),
+        [PublicRequest::Suites { query, .. }] if query.page == 2));
 }
 
 fn skill(source: &str, slug: &str) -> SkillMarketSkillDto {

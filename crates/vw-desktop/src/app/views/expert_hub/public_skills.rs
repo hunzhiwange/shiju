@@ -95,7 +95,7 @@ fn tab_button(
         .into()
 }
 
-fn source_selector(state: &PublicSkillMarketState) -> Element<'static, Message> {
+pub(super) fn source_selector(state: &PublicSkillMarketState) -> Element<'static, Message> {
     if !source_selector_visible(&state.sources) {
         return Space::new().width(Length::Shrink).into();
     }
@@ -349,7 +349,7 @@ where
     .into()
 }
 
-fn loading_view() -> Element<'static, Message> {
+pub(super) fn loading_view() -> Element<'static, Message> {
     column![
         container(Space::new())
             .height(Length::Fixed(120.0))
@@ -373,7 +373,7 @@ fn empty_view(label: &'static str) -> Element<'static, Message> {
         .into()
 }
 
-fn error_view(error: &str) -> Element<'static, Message> {
+pub(super) fn error_view(error: &str) -> Element<'static, Message> {
     container(
         column![
             text("加载失败").size(16),
@@ -495,7 +495,7 @@ fn market_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
     column![category_controls(state), content].spacing(12).into()
 }
 
-fn suites_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
+pub(super) fn suites_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
     match &state.suites {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
         LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),

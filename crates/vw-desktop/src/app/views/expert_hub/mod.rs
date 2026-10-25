@@ -7,6 +7,7 @@ use iced::widget::{button, column, container, row, text};
 use iced::{Element, Length};
 
 mod detail;
+mod experts;
 mod install_guide;
 mod installed_skills;
 mod list;
@@ -49,10 +50,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     .spacing(8);
 
     let body: Element<'_, Message> = match app.expert_hub.section {
-        ExpertHubSection::Experts => container(text("专家能力即将接入").size(16))
-            .center_x(Length::Fill)
-            .center_y(Length::Fill)
-            .into(),
+        ExpertHubSection::Experts => experts::view(app),
         ExpertHubSection::Connectors => container(text("连接器能力即将接入").size(16))
             .center_x(Length::Fill)
             .center_y(Length::Fill)
@@ -84,6 +82,8 @@ pub(crate) fn shiju_skills_view(app: &App) -> Element<'_, Message> {
 
 #[cfg(test)]
 mod detail_tests;
+#[cfg(test)]
+mod experts_tests;
 #[cfg(test)]
 mod install_guide_tests;
 #[cfg(test)]

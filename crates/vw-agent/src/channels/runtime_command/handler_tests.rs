@@ -17,6 +17,20 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 struct StaticProvider;
+struct CountingProvider(Arc<std::sync::atomic::AtomicUsize>);
+#[async_trait::async_trait]
+impl Provider for CountingProvider {
+    async fn chat_with_system(
+        &self,
+        _system: Option<&str>,
+        _message: &str,
+        _model: &str,
+        _temperature: f64,
+    ) -> anyhow::Result<String> {
+        self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        Ok("unexpected model call".into())
+    }
+}
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait::async_trait)]
@@ -412,10 +426,10 @@ async fn slash_command_dispatch_covers_session_model_and_approval_variants() {
     }
 
     let sent = channel.sent_contents().await;
-    assert!(sent.iter().any(|text| text.contains("Available providers:")));
+    assert!(sent.iter().any(|text| text.contains("无可用模型目录")));
     assert!(sent.iter().any(|text| text.contains("Unknown provider")));
     assert!(sent.iter().any(|text| text.contains("Current model")));
-    assert!(sent.iter().any(|text| text.contains("Model switched to `gpt-next`")));
+    assert!(sent.iter().any(|text| text.contains("模型未在当前 provider 目录中声明")));
     assert!(sent.iter().any(|text| text.contains("会话已重置")));
     assert!(sent.iter().any(|text| text.contains("我进入了任务模式")));
     assert!(sent.iter().any(|text| text.contains("One-time all-tools approval request created.")));
@@ -455,4 +469,151 @@ async fn send_failure_still_consumes_runtime_command() {
     let channel_dyn: Arc<dyn Channel> = channel.clone();
 
     assert!(dispatch(&ctx, &channel_dyn, "/approvals").await);
+}
+
+async fn help_reply(
+    platform: &str,
+    content: &str,
+    restricted: bool,
+) -> (Vec<SendMessage>, ChannelRuntimeContext) {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut ctx = context(
+        tmp.path(),
+        &[],
+        autonomy_config(
+            &[],
+            if restricted { &["lark:private-admin"] } else { &[] },
+            NonCliNaturalLanguageApprovalMode::Direct,
+        ),
+    );
+    let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    ctx.provider = Arc::new(CountingProvider(calls.clone()));
+    let channel = Arc::new(RecordingChannel::new());
+    let target: Arc<dyn Channel> = channel.clone();
+    let mut msg = message_in_channel(platform, content);
+    msg.instance_id = "work".into();
+    assert!(handle_runtime_command_if_needed(&ctx, &msg, Some(&target)).await);
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+    let sent = channel.sent.lock().await.clone();
+    (sent, ctx)
+}
+#[tokio::test]
+async fn channel_command_help_lark_complete_outbound() {
+    let (sent, ctx) = help_reply("lark", "/help", false).await;
+    let text = sent.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n");
+    for name in [
+        "/projects",
+        "/project",
+        "/new",
+        "/task",
+        "/help",
+        "/status",
+        "/settings",
+        "/models",
+        "/model",
+        "/effort",
+        "/approve-all-once",
+        "/approve-request",
+        "/approve-confirm",
+        "/approve-allow",
+        "/approve-deny",
+        "/approve-pending",
+        "/approve",
+        "/unapprove",
+        "/approvals",
+    ] {
+        assert!(text.contains(name), "missing {name}");
+    }
+    assert!(ctx.route_overrides.lock().unwrap().is_empty());
+    assert!(ctx.conversation_histories.lock().unwrap().is_empty());
+}
+#[tokio::test]
+async fn channel_command_help_detail_and_unknown() {
+    let (sent, _) = help_reply("lark", "/help approve-confirm", false).await;
+    assert!(sent[0].content.contains("/approve-confirm <request-id>"));
+    assert!(sent[0].content.contains("示例"));
+    let (sent, _) = help_reply("lark", "/help absent", false).await;
+    assert!(sent[0].content.contains("未知"));
+    assert!(sent[0].content.contains("/help"));
+}
+#[tokio::test]
+async fn channel_command_help_permission_does_not_expose_approvers() {
+    let (sent, _) = help_reply("lark", "/help", true).await;
+    let text = sent.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n");
+    assert!(text.contains("无权执行"));
+    assert!(!text.contains("private-admin"));
+}
+#[tokio::test]
+async fn channel_command_help_named_instance_preserves_addressing() {
+    let (sent, _) = help_reply("lark", "/help", false).await;
+    assert!(!sent.is_empty());
+    for msg in sent {
+        assert_eq!(msg.recipient, "chat-1");
+        assert_eq!(msg.thread_ts.as_deref(), Some("thread-1"));
+    }
+}
+#[tokio::test]
+async fn channel_command_help_long_output_has_complete_entries() {
+    let (sent, _) = help_reply("lark", "/help", false).await;
+    assert!(sent.len() > 1);
+    let text = sent.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n\n");
+    for msg in &sent {
+        assert!(msg.content.len() <= 4000);
+        assert!(msg.content.contains("示例"));
+    }
+    assert_eq!(text.matches("/approve-confirm <request-id>").count(), 1);
+}
+
+#[tokio::test]
+async fn channel_command_help_pipeline_routes_named_instance_without_project_or_model() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut ctx = context(
+        tmp.path(),
+        &[],
+        autonomy_config(&[], &[], NonCliNaturalLanguageApprovalMode::Direct),
+    );
+    let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    ctx.provider = Arc::new(CountingProvider(calls.clone()));
+    let selected = Arc::new(RecordingChannel::new());
+    let other = Arc::new(RecordingChannel::new());
+    ctx.channels_by_name = Arc::new(HashMap::from([
+        (super::super::channel_instance_key("lark", "work"), selected.clone() as Arc<dyn Channel>),
+        (super::super::channel_instance_key("lark", "default"), other.clone() as Arc<dyn Channel>),
+    ]));
+    let mut msg = message_in_channel("lark", "/help");
+    msg.instance_id = "work".into();
+    // Help remains available when a configured project binding is invalid.
+    ctx.project_state
+        .lock()
+        .unwrap()
+        .config
+        .instance_default_projects
+        .insert("lark:work".into(), "missing-project".into());
+    super::super::process_channel_message(
+        Arc::new(ctx),
+        msg,
+        tokio_util::sync::CancellationToken::new(),
+    )
+    .await;
+    let sent = selected.sent_contents().await.join("\n");
+    assert!(sent.contains("全部已接通命令"));
+    assert!(sent.contains("/approve-confirm <request-id>"));
+    assert!(other.sent_contents().await.is_empty());
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
+async fn channel_command_help_text_channels_share_catalog() {
+    for platform in ["lark", "qq", "dingtalk", "slack"] {
+        let (sent, _) = help_reply(platform, "/help", false).await;
+        let text = sent.iter().map(|m| m.content.as_str()).collect::<Vec<_>>().join("\n");
+        for meta in super::catalog::COMMANDS {
+            assert_eq!(
+                text.lines().filter(|line| *line == meta.usage).count(),
+                1,
+                "{platform}: {}",
+                meta.name
+            );
+        }
+    }
 }

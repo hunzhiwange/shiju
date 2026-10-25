@@ -41,7 +41,9 @@ pub(crate) async fn process_channel_message(
     if matches!(
         parse_runtime_command(&msg.channel, &msg.content),
         Some(
-            ChannelRuntimeCommand::ListProjects
+            ChannelRuntimeCommand::Help(_)
+                | ChannelRuntimeCommand::Error(_)
+                | ChannelRuntimeCommand::ListProjects
                 | ChannelRuntimeCommand::ShowProject
                 | ChannelRuntimeCommand::SelectProject(_)
         )

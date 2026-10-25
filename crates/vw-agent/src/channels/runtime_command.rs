@@ -5,6 +5,7 @@
 
 mod approval_commands;
 mod approval_config;
+pub(crate) mod catalog;
 mod command;
 mod handler;
 pub(crate) mod project_commands;
@@ -28,7 +29,7 @@ pub(crate) use command::{
     ChannelRuntimeCommand, approval_target_label, contains_any_fragment,
     extract_runtime_tail_token, is_approval_management_command,
     is_natural_language_all_tools_once_intent, is_runtime_token,
-    parse_natural_language_runtime_command, parse_runtime_command, supports_runtime_model_switch,
+    parse_natural_language_runtime_command, parse_runtime_command,
 };
 pub(crate) use handler::handle_runtime_command_if_needed;
 

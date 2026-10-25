@@ -381,6 +381,8 @@ pub(crate) struct ChannelRouteSelection {
     pub(crate) provider: String,
     /// 选中的模型标识符
     pub(crate) model: String,
+    /// 当前作用域选择的推理强度；None 使用 provider 默认值。
+    pub(crate) reasoning_effort: Option<String>,
     /// 是否启用了任务模式
     pub(crate) task_mode_enabled: bool,
 }
@@ -711,3 +713,7 @@ include!("scope_delivery_tests.rs");
 #[cfg(test)]
 #[path = "runtime_command/project_commands_tests.rs"]
 mod channel_project_select_tests;
+
+#[cfg(test)]
+#[path = "runtime_command/command_tests.rs"]
+mod channel_command_catalog_tests;

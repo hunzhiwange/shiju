@@ -68,9 +68,31 @@ struct ConfigFingerprint(u64);
 static CONFIG_FINGERPRINTS: LazyLock<Mutex<HashMap<String, ConfigFingerprint>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
+// Provider 能力必须来自当前租户及项目；目录相同的不同租户也不能共用缓存。
+fn provider_scope_key() -> String {
+    serde_json::to_string(&(
+        crate::session::ui_store::current_tenant_scope(),
+        instance::directory(),
+    ))
+    .expect("serializable provider scope")
+}
+
+async fn provider_config() -> config::Config {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let directory = instance::directory();
+    let result = if directory.is_empty() {
+        config::get_global_for_tenant(&tenant).await
+    } else {
+        config::get_project_for_tenant(&tenant, std::path::Path::new(&directory)).await
+    };
+    // 配置加载失败时无已启用模型，不能退回其他租户或全局目录能力。
+    result.unwrap_or_default()
+}
+
 fn instance_state()
 -> impl Fn() -> crate::app::agent::project::BoxFuture<Arc<State>> + Send + Sync + 'static {
-    instance::state(
+    crate::project::state::create(
+        provider_scope_key,
         "provider",
         || async { load_state_filtered().await },
         None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
@@ -87,7 +109,8 @@ fn instance_state()
 /// 返回一个闭包，调用它会返回 `Arc<State>` 的 Future
 fn instance_state_for_settings()
 -> impl Fn() -> crate::app::agent::project::BoxFuture<Arc<State>> + Send + Sync + 'static {
-    instance::state(
+    crate::project::state::create(
+        provider_scope_key,
         "provider_settings",
         || async { load_state_for_settings().await },
         None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
@@ -117,7 +140,7 @@ pub async fn list_for_settings() -> HashMap<String, Info> {
 /// 清除 provider 状态的缓存，强制下次访问时重新加载。
 /// 通常在配置变更后调用。
 pub async fn invalidate_cache() {
-    let directory = instance::directory();
+    let directory = provider_scope_key();
     if let Ok(mut guard) = CONFIG_FINGERPRINTS.lock() {
         guard.remove(&directory);
     }
@@ -125,7 +148,7 @@ pub async fn invalidate_cache() {
 }
 
 async fn current_config_fingerprint() -> ConfigFingerprint {
-    config_fingerprint(&config::get().await)
+    config_fingerprint(&provider_config().await)
 }
 
 fn config_fingerprint(config: &config::Config) -> ConfigFingerprint {
@@ -145,7 +168,7 @@ fn config_fingerprint_with_shiju_auth(
 }
 
 async fn invalidate_cache_if_config_changed() {
-    let directory = instance::directory();
+    let directory = provider_scope_key();
     let next = current_config_fingerprint().await;
     let changed = {
         let mut guard = CONFIG_FINGERPRINTS.lock().unwrap_or_else(|e| e.into_inner());
@@ -254,7 +277,7 @@ pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, Model
 /// - 没有可用提供商时返回 "没有可用的 provider"
 /// - 提供商没有模型时返回 "没有可用的模型"
 pub async fn default_model() -> Result<ParsedModelRef, String> {
-    let cfg = config::get().await;
+    let cfg = provider_config().await;
 
     // 优先使用配置中的默认模型
     if let Some(m) = cfg.default_model.as_deref() {
@@ -302,7 +325,7 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
 /// 对于特定提供商会有调整（如 GitHub Copilot 会优先使用 GPT Mini）
 pub async fn get_small_model(provider_id: &str) -> Option<Model> {
     invalidate_cache_if_config_changed().await;
-    let _cfg = config::get().await;
+    let _cfg = provider_config().await;
     let state = instance_state()().await;
     let provider = state.providers.get(provider_id)?;
 
@@ -353,7 +376,7 @@ fn suggest(query: &str, candidates: Vec<&str>) -> Vec<String> {
 }
 
 async fn load_provider_overrides() -> Vec<(String, Value)> {
-    config::get()
+    provider_config()
         .await
         .providers
         .into_iter()
@@ -375,7 +398,7 @@ fn unique_provider_api(models: &HashMap<String, Model>) -> Option<(String, Strin
 async fn load_state_impl(apply_enabled_filter: bool) -> State {
     // 初始化模型基线数据源
     super::models::init();
-    let _cfg = config::get().await;
+    let _cfg = provider_config().await;
     let models_dev = super::models::get().await;
 
     // 将模型基线数据转换为内部格式

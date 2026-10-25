@@ -15,8 +15,7 @@ use super::command::{
 };
 use super::non_cli_natural_language_mode_label;
 use super::session_commands::{
-    handle_new_session, handle_set_model, handle_set_provider, handle_show_model,
-    handle_show_providers, handle_task_mode,
+    handle_new_session, handle_set_model, handle_set_provider, handle_show_model, handle_task_mode,
 };
 use super::task_mode::handle_task_mode_message_if_needed;
 
@@ -149,58 +148,101 @@ pub(crate) async fn handle_runtime_command_if_needed(
         }
     }
 
-    let response = match command {
-        ChannelRuntimeCommand::ListProjects
-        | ChannelRuntimeCommand::ShowProject
-        | ChannelRuntimeCommand::SelectProject(_) => {
-            super::project_commands::handle_project_command(ctx, msg).await
+    if let ChannelRuntimeCommand::Help(query) = &command {
+        let allowed =
+            ctx.approval_manager.is_non_cli_approval_actor_allowed(source_channel, sender);
+        for response in super::catalog::help_messages(query, allowed) {
+            send_runtime_command_response(channel, msg, response).await;
         }
-        ChannelRuntimeCommand::ShowProviders => handle_show_providers(&current),
-        ChannelRuntimeCommand::SetProvider(raw_provider) => {
-            handle_set_provider(ctx, &sender_key, &mut current, raw_provider).await
-        }
-        ChannelRuntimeCommand::ShowModel => {
-            handle_show_model(&current, ctx.workspace_dir.as_path())
-        }
-        ChannelRuntimeCommand::SetModel(raw_model) => {
-            handle_set_model(ctx, &sender_key, &mut current, raw_model)
-        }
-        ChannelRuntimeCommand::NewSession => handle_new_session(ctx, msg, &sender_key).await,
-        ChannelRuntimeCommand::TaskMode => handle_task_mode(ctx, msg, &sender_key).await,
-        ChannelRuntimeCommand::RequestAllToolsOnce => {
-            handle_request_all_tools_once(ctx, sender, source_channel, reply_target)
-        }
-        ChannelRuntimeCommand::RequestToolApproval(raw_tool_name) => {
-            handle_request_tool_approval(ctx, sender, source_channel, reply_target, raw_tool_name)
-        }
-        ChannelRuntimeCommand::ApprovePendingRequest(raw_request_id) => {
-            handle_approve_pending_request(
-                ctx,
-                sender,
-                source_channel,
-                reply_target,
-                raw_request_id,
-            )
-        }
-        ChannelRuntimeCommand::ConfirmToolApproval(raw_request_id) => {
-            handle_confirm_tool_approval(ctx, sender, source_channel, reply_target, raw_request_id)
+        return true;
+    }
+
+    let response_future = async {
+        match command {
+            ChannelRuntimeCommand::Help(_) => unreachable!("help already sent"),
+            ChannelRuntimeCommand::Error(error) => error,
+            ChannelRuntimeCommand::Status | ChannelRuntimeCommand::Settings => {
+                super::session_commands::handle_status(ctx, msg, &current).await
+            }
+            ChannelRuntimeCommand::Effort(level) => {
+                super::session_commands::handle_effort(ctx, &sender_key, &mut current, &level).await
+            }
+            ChannelRuntimeCommand::ListProjects
+            | ChannelRuntimeCommand::ShowProject
+            | ChannelRuntimeCommand::SelectProject(_) => {
+                super::project_commands::handle_project_command(ctx, msg).await
+            }
+            ChannelRuntimeCommand::ShowProviders => {
+                super::session_commands::handle_models(&current).await
+            }
+            ChannelRuntimeCommand::SetProvider(raw_provider) => {
+                handle_set_provider(ctx, &sender_key, &mut current, raw_provider).await
+            }
+            ChannelRuntimeCommand::ShowModel => {
+                handle_show_model(&current, ctx.workspace_dir.as_path())
+            }
+            ChannelRuntimeCommand::SetModel(raw_model) => {
+                handle_set_model(ctx, &sender_key, &mut current, raw_model).await
+            }
+            ChannelRuntimeCommand::NewSession => handle_new_session(ctx, msg, &sender_key).await,
+            ChannelRuntimeCommand::TaskMode => handle_task_mode(ctx, msg, &sender_key).await,
+            ChannelRuntimeCommand::RequestAllToolsOnce => {
+                handle_request_all_tools_once(ctx, sender, source_channel, reply_target)
+            }
+            ChannelRuntimeCommand::RequestToolApproval(raw_tool_name) => {
+                handle_request_tool_approval(
+                    ctx,
+                    sender,
+                    source_channel,
+                    reply_target,
+                    raw_tool_name,
+                )
+            }
+            ChannelRuntimeCommand::ApprovePendingRequest(raw_request_id) => {
+                handle_approve_pending_request(
+                    ctx,
+                    sender,
+                    source_channel,
+                    reply_target,
+                    raw_request_id,
+                )
+            }
+            ChannelRuntimeCommand::ConfirmToolApproval(raw_request_id) => {
+                handle_confirm_tool_approval(
+                    ctx,
+                    sender,
+                    source_channel,
+                    reply_target,
+                    raw_request_id,
+                )
                 .await
+            }
+            ChannelRuntimeCommand::DenyToolApproval(raw_request_id) => {
+                handle_deny_tool_approval(ctx, sender, source_channel, reply_target, raw_request_id)
+            }
+            ChannelRuntimeCommand::ListPendingApprovals => {
+                handle_list_pending_approvals(ctx, sender, source_channel, reply_target)
+            }
+            ChannelRuntimeCommand::ApproveTool(raw_tool_name) => {
+                handle_approve_tool(ctx, raw_tool_name).await
+            }
+            ChannelRuntimeCommand::UnapproveTool(raw_tool_name) => {
+                handle_unapprove_tool(ctx, raw_tool_name).await
+            }
+            ChannelRuntimeCommand::ListApprovals => {
+                handle_list_approvals(ctx, sender, source_channel, reply_target).await
+            }
         }
-        ChannelRuntimeCommand::DenyToolApproval(raw_request_id) => {
-            handle_deny_tool_approval(ctx, sender, source_channel, reply_target, raw_request_id)
-        }
-        ChannelRuntimeCommand::ListPendingApprovals => {
-            handle_list_pending_approvals(ctx, sender, source_channel, reply_target)
-        }
-        ChannelRuntimeCommand::ApproveTool(raw_tool_name) => {
-            handle_approve_tool(ctx, raw_tool_name).await
-        }
-        ChannelRuntimeCommand::UnapproveTool(raw_tool_name) => {
-            handle_unapprove_tool(ctx, raw_tool_name).await
-        }
-        ChannelRuntimeCommand::ListApprovals => {
-            handle_list_approvals(ctx, sender, source_channel, reply_target).await
-        }
+    };
+    let response = if let Some(snapshot) = &ctx.message_snapshot {
+        let context = crate::project::instance::Context {
+            directory: snapshot.directory.to_string_lossy().to_string(),
+            worktree: snapshot.project.worktree.clone(),
+            project: snapshot.project.clone(),
+        };
+        crate::project::instance::provide_context(context, response_future).await
+    } else {
+        response_future.await
     };
 
     send_runtime_command_response(channel, msg, response).await;

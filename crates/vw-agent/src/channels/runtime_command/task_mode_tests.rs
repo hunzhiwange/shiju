@@ -72,6 +72,7 @@ fn route(provider: &str, model: &str, task_mode_enabled: bool) -> ChannelRouteSe
     ChannelRouteSelection {
         provider: provider.to_string(),
         model: model.to_string(),
+        reasoning_effort: None,
         task_mode_enabled,
     }
 }

@@ -86,7 +86,13 @@ fn setup() -> (TempDir, ChannelRuntimeContext, traits::ChannelMessage) {
 
 #[test]
 fn channel_session_options_enable_full_access() {
-    let options = channel_session_options();
+    let route = ChannelRouteSelection {
+        provider: "provider".into(),
+        model: "model".into(),
+        reasoning_effort: None,
+        task_mode_enabled: false,
+    };
+    let options = channel_session_options(&route);
 
     assert_eq!(options.get("full_access").and_then(serde_json::Value::as_bool), Some(true));
 }
@@ -117,6 +123,7 @@ async fn run_message_execution_returns_cancelled_when_token_is_already_cancelled
     let route = ChannelRouteSelection {
         provider: "provider".to_string(),
         model: "model".to_string(),
+        reasoning_effort: None,
         task_mode_enabled: false,
     };
     let cancellation = CancellationToken::new();
@@ -143,6 +150,7 @@ async fn run_message_execution_wraps_timeout_as_completed_result() {
     let route = ChannelRouteSelection {
         provider: "provider".to_string(),
         model: "model".to_string(),
+        reasoning_effort: None,
         task_mode_enabled: false,
     };
     let cancellation = CancellationToken::new();
@@ -160,4 +168,20 @@ async fn run_message_execution_wraps_timeout_as_completed_result() {
 
     assert!(matches!(result, LlmExecutionResult::Completed(Err(_))));
     cleanup_sender_session(&ctx, &msg).await;
+}
+
+#[test]
+fn channel_command_catalog_effort_is_forwarded_without_permission_changes() {
+    let mut route = ChannelRouteSelection {
+        provider: "provider".into(),
+        model: "model".into(),
+        reasoning_effort: None,
+        task_mode_enabled: false,
+    };
+    let defaults = channel_session_options(&route);
+    route.reasoning_effort = Some("high".into());
+    let mut selected = channel_session_options(&route);
+    assert_eq!(selected["reasoning_effort"], "high");
+    selected.as_object_mut().unwrap().remove("reasoning_effort");
+    assert_eq!(selected, defaults);
 }

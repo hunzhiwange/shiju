@@ -34,6 +34,7 @@ fn route(provider: &str, model: &str, task_mode_enabled: bool) -> ChannelRouteSe
     ChannelRouteSelection {
         provider: provider.to_string(),
         model: model.to_string(),
+        reasoning_effort: None,
         task_mode_enabled,
     }
 }
@@ -259,17 +260,4 @@ fn build_models_help_response_includes_cached_models_or_refresh_hint() {
     assert!(cached.contains("Cached model IDs (top 2):"));
     assert!(cached.contains("- `gpt-5`"));
     assert!(cached.contains("- `gpt-5-mini`"));
-}
-
-#[test]
-fn build_providers_help_response_lists_current_route_and_commands() {
-    let response = build_providers_help_response(&route("openai", "gpt-5", false));
-
-    assert!(response.contains("Current provider: `openai`"));
-    assert!(response.contains("Switch provider with `/models <provider>`"));
-    assert!(response.contains("Request supervised tool approval"));
-    assert!(response.contains("Available providers:"));
-    for provider_id in available_provider_ids() {
-        assert!(response.contains(&format!("- {provider_id}")));
-    }
 }

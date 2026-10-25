@@ -32,17 +32,6 @@ async fn get_or_create_session_provider(
     get_or_create_provider(ctx, provider_name).await
 }
 
-/// 构建当前 provider 列表与选中状态的帮助文本。
-///
-/// # 参数
-/// - `current`: 当前发送者会话的路由选择。
-///
-/// # 返回值
-/// 返回可直接发送给用户的 provider 帮助文本。
-pub(super) fn handle_show_providers(current: &ChannelRouteSelection) -> String {
-    build_providers_help_response(current)
-}
-
 /// 切换当前发送者会话使用的 provider。
 ///
 /// # 参数
@@ -67,6 +56,7 @@ pub(super) async fn handle_set_provider(
             Ok(_) => {
                 if provider_name != current.provider {
                     current.provider = provider_name.clone();
+                    current.reasoning_effort = None;
                     set_route_selection(ctx, sender_key, current.clone());
                     // provider 变化后旧对话可能包含不兼容的模型假设，清理历史能让新路由从干净上下文开始。
                     clear_sender_history(ctx, sender_key);
@@ -113,7 +103,7 @@ pub(super) fn handle_show_model(current: &ChannelRouteSelection, workspace_dir: 
 ///
 /// # 返回值
 /// 返回用户可读的切换结果；模型 ID 为空时返回提示文本。
-pub(super) fn handle_set_model(
+pub(super) async fn handle_set_model(
     ctx: &ChannelRuntimeContext,
     sender_key: &str,
     current: &mut ChannelRouteSelection,
@@ -123,6 +113,16 @@ pub(super) fn handle_set_model(
     if model.is_empty() {
         "Model ID cannot be empty. Use `/model <model-id>`.".to_string()
     } else {
+        let Ok(declared) = provider::get_model(&current.provider, &model).await else {
+            return "模型未在当前 provider 目录中声明。使用 /models 查看可用模型；路由与历史保持不变。".into();
+        };
+        if declared.status == "deprecated" {
+            return "该模型已停用。使用 /models 查看可用模型；路由与历史保持不变。".into();
+        }
+        if current.model == model {
+            return format!("Current model: `{model}`");
+        }
+        current.reasoning_effort = None;
         current.model = model.clone();
         set_route_selection(ctx, sender_key, current.clone());
         // 模型切换会改变后续推理能力和上下文解释方式，因此重置历史保持行为确定。
@@ -177,4 +177,108 @@ pub(super) async fn handle_task_mode(
     clear_sender_history(ctx, sender_key);
     set_sender_task_mode(ctx, sender_key, true);
     "我进入了任务模式。".to_string()
+}
+
+/// 查询真实 provider 目录；不把本地预览缓存当作能力凭据。
+pub(super) async fn handle_models(current: &ChannelRouteSelection) -> String {
+    let Some(info) = provider::get_provider(&current.provider).await else {
+        return "当前 provider 无可用模型目录。请联系维护者配置；使用 /help 查看命令。".into();
+    };
+    let mut ids = info
+        .models
+        .values()
+        .filter(|m| m.status != "deprecated")
+        .map(|m| m.id.as_str())
+        .collect::<Vec<_>>();
+    ids.sort_unstable();
+    format!(
+        "Current provider: `{}`\nCurrent model: `{}`\n可用模型：\n{}\n使用 /model <ID>；/models <provider> 切换 provider。",
+        current.provider,
+        current.model,
+        ids.join("\n")
+    )
+}
+
+fn effort_levels(model: &vw_shared::provider::types::Model) -> Vec<String> {
+    if !model.capabilities.reasoning {
+        return Vec::new();
+    }
+    vw_shared::provider::reasoning::reasoning_levels(
+        &model.api.id,
+        &model.api.adapter,
+        &model.provider_id,
+        &model.api.url,
+        model.capabilities.reasoning_options.as_deref(),
+    )
+}
+
+/// 校验后只更新当前路由，不清历史；default 清除当前覆盖。
+pub(super) async fn handle_effort(
+    ctx: &ChannelRuntimeContext,
+    key: &str,
+    current: &mut ChannelRouteSelection,
+    level: &str,
+) -> String {
+    let level = level.to_ascii_lowercase();
+    if level == "default" {
+        current.reasoning_effort = None;
+        set_route_selection(ctx, key, current.clone());
+        return "推理强度已恢复默认。".into();
+    }
+    let Ok(model) = provider::get_model(&current.provider, &current.model).await else {
+        return "当前模型无能力目录，无法设置推理强度；路由与历史保持不变。".into();
+    };
+    let levels = effort_levels(&model);
+    if level.is_empty() {
+        return format!(
+            "当前推理强度：{}\n可用强度：{}；default 恢复默认。",
+            current.reasoning_effort.as_deref().unwrap_or("default"),
+            levels.join(", ")
+        );
+    }
+    if !levels.contains(&level) {
+        return format!(
+            "不支持的推理强度；可用：{}。路由与历史保持不变。使用 /effort。",
+            levels.join(", ")
+        );
+    }
+    current.reasoning_effort = Some(level.clone());
+    set_route_selection(ctx, key, current.clone());
+    format!("推理强度已切换为 {level}。")
+}
+
+/// 状态查询只读取当前完整消息作用域，不创建会话或枚举其他聊天。
+pub(super) async fn handle_status(
+    ctx: &ChannelRuntimeContext,
+    msg: &traits::ChannelMessage,
+    current: &ChannelRouteSelection,
+) -> String {
+    let snapshot = match resolve_channel_message_snapshot(ctx, msg).await {
+        Ok(snapshot) => snapshot,
+        Err(err) => return format!("项目不可用：{err}"),
+    };
+    let session = sender_session_store()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(&snapshot.scope)
+        .cloned();
+    let status = session
+        .as_deref()
+        .map(crate::session::status::get)
+        .unwrap_or(crate::session::status::Info::Idle);
+    let status = match status {
+        crate::session::status::Info::Idle => "空闲",
+        crate::session::status::Info::Busy => "运行中",
+        crate::session::status::Info::Retry { .. } => "重试中",
+    };
+    format!(
+        "当前项目：{}\n会话：{}\nProvider：{}\n模型：{}\n推理强度：{}\n运行状态：{}\n任务模式：{}\n设置仅对当前作用域生效；权限由现有策略控制。",
+        snapshot.project.id,
+        session.as_deref().unwrap_or("未创建"),
+        current.provider,
+        current.model,
+        current.reasoning_effort.as_deref().unwrap_or("default"),
+        status,
+        if current.task_mode_enabled { "开启" } else { "关闭" }
+    )
 }

@@ -12,10 +12,12 @@
 
 use super::*;
 
-fn channel_session_options() -> serde_json::Value {
-    serde_json::json!({
-        "full_access": true,
-    })
+fn channel_session_options(route: &ChannelRouteSelection) -> serde_json::Value {
+    let mut options = serde_json::json!({ "full_access": true });
+    if let Some(effort) = &route.reasoning_effort {
+        options["reasoning_effort"] = serde_json::json!(effort);
+    }
+    options
 }
 
 fn channel_request_reliability(
@@ -111,7 +113,7 @@ pub(crate) async fn run_message_execution(
                         // 指定使用的模型
                         model: Some(channel_model_request_model(&route.provider, &route.model)),
                         reliability: channel_request_reliability(ctx),
-                        options: channel_session_options(),
+                        options: channel_session_options(route),
                         approval: Some(ctx.approval_manager.clone()),
                         channel_name: Some(msg.channel.clone()),
                         non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {

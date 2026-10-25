@@ -8,6 +8,11 @@ use super::super::*;
 /// 通道运行时可识别的控制命令。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ChannelRuntimeCommand {
+    Help(String),
+    Status,
+    Settings,
+    Effort(String),
+    Error(String),
     ListProjects,
     ShowProject,
     SelectProject(String),
@@ -43,75 +48,57 @@ pub(crate) enum ChannelRuntimeCommand {
     ListApprovals,
 }
 
-/// 判断指定通道是否支持运行时模型/provider 切换。
-///
-/// 参数：`channel_name` 是通道注册名。
-///
-/// 返回值：支持 `/model` 和 `/models` 时返回 `true`。
-///
-/// 错误处理：该函数不产生错误，未知通道按不支持处理。
-pub(crate) fn supports_runtime_model_switch(channel_name: &str) -> bool {
-    matches!(channel_name, "telegram" | "discord")
-}
-
-/// 把用户消息解析为运行时命令。
-///
-/// 参数：
-/// - `channel_name`：消息来源通道，用于判断通道能力。
-/// - `content`：原始消息正文。
-///
-/// 返回值：识别成功返回命令枚举，否则返回 `None`。
-///
-/// 错误处理：解析失败不会报错，避免普通聊天消息被当作异常路径。
+/// 先用帮助目录校验参数，再转换为显式命令；所有斜杠错误均被消费。
 pub(crate) fn parse_runtime_command(
-    channel_name: &str,
+    _channel_name: &str,
     content: &str,
 ) -> Option<ChannelRuntimeCommand> {
     let trimmed = content.trim();
     if !trimmed.starts_with('/') {
         return parse_natural_language_runtime_command(trimmed);
     }
-
     let mut parts = trimmed.split_whitespace();
-    let command_token = parts.next()?;
-    let base_command =
-        command_token.split('@').next().unwrap_or(command_token).to_ascii_lowercase();
-    let args: Vec<&str> = parts.collect();
-    let tail = args.join(" ").trim().to_string();
-
-    // Telegram bot 命令可能带有 `@bot_name` 后缀，解析时只比较基础命令名。
-    match base_command.as_str() {
-        "/projects" => Some(ChannelRuntimeCommand::ListProjects),
-        "/project" if tail.is_empty() => Some(ChannelRuntimeCommand::ShowProject),
-        "/project" => Some(ChannelRuntimeCommand::SelectProject(tail)),
-        "/new" | "/clear" | "/session" => Some(ChannelRuntimeCommand::NewSession),
-        "/task" => Some(ChannelRuntimeCommand::TaskMode),
-        "/approve-all-once" => Some(ChannelRuntimeCommand::RequestAllToolsOnce),
-        "/approve-request" => Some(ChannelRuntimeCommand::RequestToolApproval(tail)),
-        "/approve-confirm" => Some(ChannelRuntimeCommand::ConfirmToolApproval(tail)),
-        "/approve-allow" => Some(ChannelRuntimeCommand::ApprovePendingRequest(tail)),
-        "/approve-deny" => Some(ChannelRuntimeCommand::DenyToolApproval(tail)),
-        "/approve-pending" => Some(ChannelRuntimeCommand::ListPendingApprovals),
-        "/approve" => Some(ChannelRuntimeCommand::ApproveTool(tail)),
-        "/unapprove" => Some(ChannelRuntimeCommand::UnapproveTool(tail)),
-        "/approvals" => Some(ChannelRuntimeCommand::ListApprovals),
-        "/models" if supports_runtime_model_switch(channel_name) => {
-            if let Some(provider) = args.first() {
-                Some(ChannelRuntimeCommand::SetProvider(provider.trim().to_string()))
-            } else {
-                Some(ChannelRuntimeCommand::ShowProviders)
-            }
-        }
-        "/model" if supports_runtime_model_switch(channel_name) => {
-            let model = tail;
-            if model.is_empty() {
-                Some(ChannelRuntimeCommand::ShowModel)
-            } else {
-                Some(ChannelRuntimeCommand::SetModel(model))
-            }
-        }
-        _ => None,
+    let token = parts.next()?;
+    let name =
+        token.split('@').next().unwrap_or(token).trim_start_matches('/').to_ascii_lowercase();
+    let args: Vec<_> = parts.collect();
+    let Some(meta) = super::catalog::find_command(&name) else {
+        return Some(ChannelRuntimeCommand::Error(format!(
+            "未知或不支持的命令 /{name}。使用 /help 查看已接通命令；CLI 管理命令暂不开放。"
+        )));
+    };
+    if args.len() < meta.min_args || args.len() > meta.max_args {
+        return Some(ChannelRuntimeCommand::Error(format!(
+            "参数错误。用法：{}。使用 /help {} 查看详情。",
+            meta.usage, meta.name
+        )));
     }
+    let tail = args.join(" ");
+    Some(match meta.name {
+        "help" => ChannelRuntimeCommand::Help(tail),
+        "status" => ChannelRuntimeCommand::Status,
+        "settings" => ChannelRuntimeCommand::Settings,
+        "effort" => ChannelRuntimeCommand::Effort(tail),
+        "projects" => ChannelRuntimeCommand::ListProjects,
+        "project" if tail.is_empty() => ChannelRuntimeCommand::ShowProject,
+        "project" => ChannelRuntimeCommand::SelectProject(tail),
+        "new" => ChannelRuntimeCommand::NewSession,
+        "task" => ChannelRuntimeCommand::TaskMode,
+        "models" if tail.is_empty() => ChannelRuntimeCommand::ShowProviders,
+        "models" => ChannelRuntimeCommand::SetProvider(tail),
+        "model" if tail.is_empty() => ChannelRuntimeCommand::ShowModel,
+        "model" => ChannelRuntimeCommand::SetModel(tail),
+        "approve-all-once" => ChannelRuntimeCommand::RequestAllToolsOnce,
+        "approve-request" => ChannelRuntimeCommand::RequestToolApproval(tail),
+        "approve-confirm" => ChannelRuntimeCommand::ConfirmToolApproval(tail),
+        "approve-allow" => ChannelRuntimeCommand::ApprovePendingRequest(tail),
+        "approve-deny" => ChannelRuntimeCommand::DenyToolApproval(tail),
+        "approve-pending" => ChannelRuntimeCommand::ListPendingApprovals,
+        "approve" => ChannelRuntimeCommand::ApproveTool(tail),
+        "unapprove" => ChannelRuntimeCommand::UnapproveTool(tail),
+        "approvals" => ChannelRuntimeCommand::ListApprovals,
+        _ => ChannelRuntimeCommand::Error("该命令尚未接通。使用 /help。".into()),
+    })
 }
 
 /// 判断字符串是否可作为运行时命令尾部 token。
@@ -283,7 +270,3 @@ pub(crate) fn is_approval_management_command(command: &ChannelRuntimeCommand) ->
             | ChannelRuntimeCommand::ListApprovals
     )
 }
-
-#[cfg(test)]
-#[path = "command_tests.rs"]
-mod command_tests;

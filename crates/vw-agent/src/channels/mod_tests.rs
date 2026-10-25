@@ -121,6 +121,7 @@ fn channel_route_selection_equality() {
     let a = ChannelRouteSelection {
         provider: "anthropic".to_string(),
         model: "claude".to_string(),
+        reasoning_effort: None,
         task_mode_enabled: true,
     };
     let b = a.clone();

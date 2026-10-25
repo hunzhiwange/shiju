@@ -411,6 +411,7 @@ pub(crate) async fn channel_project_scope_processor_uses_captured_directory() {
     let route = ChannelRouteSelection {
         provider: "channel-scope-fixture".into(),
         model: "scope-model".into(),
+        reasoning_effort: None,
         task_mode_enabled: false,
     };
     let result = run_message_execution(

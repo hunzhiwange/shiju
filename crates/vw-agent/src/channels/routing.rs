@@ -14,7 +14,6 @@
 //! - [`set_route_selection`] - 设置指定发送者的路由选择
 //! - [`classify_message_route`] - 根据消息内容分类并返回路由选择
 //! - [`build_models_help_response`] - 构建模型帮助响应文本
-//! - [`build_providers_help_response`] - 构建 Provider 帮助响应文本
 
 use super::*;
 
@@ -138,6 +137,7 @@ pub(crate) fn default_route_selection(ctx: &ChannelRuntimeContext) -> ChannelRou
     ChannelRouteSelection {
         provider: defaults.default_provider,
         model: defaults.model,
+        reasoning_effort: None,
         task_mode_enabled: false,
     }
 }
@@ -243,6 +243,7 @@ pub(crate) fn classify_message_route(
     Some(ChannelRouteSelection {
         provider: route.provider.clone(),
         model: route.model.clone(),
+        reasoning_effort: None,
         task_mode_enabled: false,
     })
 }
@@ -428,76 +429,6 @@ pub(crate) fn build_models_help_response(
         }
     }
 
-    response
-}
-
-/// 构建 Provider 帮助命令的响应文本
-///
-/// 生成包含当前路由状态、所有可用 Provider 列表和命令说明的帮助信息。
-/// 此响应通常用于 `/providers` 或初始帮助命令的回复。
-///
-/// # 参数
-///
-/// * `current` - 当前的路由选择配置
-///
-/// # 返回值
-///
-/// 返回格式化的帮助文本字符串，包含以下内容：
-///
-/// ## 基础信息
-/// - 当前使用的 Provider 和 Model
-///
-/// ## 命令说明
-/// - `/models <provider>` - 切换 Provider
-/// - `/model <model-id>` - 切换模型
-/// - 所有授权相关命令（同 [`build_models_help_response`]）
-///
-/// ## 自然语言授权
-/// - `direct` 模式：立即授权
-/// - `request_confirm` 模式：请求后确认授权
-///
-/// ## Provider 列表
-/// - 列出所有可用的 Provider ID
-///
-/// # 使用场景
-///
-/// 当用户执行 `/providers` 命令或请求查看可用 Provider 时调用。
-///
-/// # 与 models_help 的区别
-///
-/// - 此函数不加载模型缓存，而是列出所有 Provider
-/// - [`build_models_help_response`] 则列出当前 Provider 的模型
-pub(crate) fn build_providers_help_response(current: &ChannelRouteSelection) -> String {
-    let mut response = String::new();
-    // 添加当前路由状态信息
-    let _ = writeln!(
-        response,
-        "Current provider: `{}`\nCurrent model: `{}`",
-        current.provider, current.model
-    );
-    // 添加 Provider 和模型切换命令说明
-    response.push_str("\nSwitch provider with `/models <provider>`.\n");
-    response.push_str("Switch model with `/model <model-id>`.\n\n");
-    // 添加授权相关命令说明
-    response.push_str("Request supervised tool approval with `/approve-request <tool-name>`.\n");
-    response.push_str("Request one-time all-tools approval with `/approve-all-once`.\n");
-    response.push_str("Confirm approval with `/approve-confirm <request-id>`.\n");
-    response.push_str("Deny approval with `/approve-deny <request-id>`.\n");
-    response.push_str("List pending requests with `/approve-pending`.\n");
-    response.push_str("Approve supervised tools with `/approve <tool-name>`.\n");
-    response.push_str("Revoke approval with `/unapprove <tool-name>`.\n");
-    response.push_str("List approval state with `/approvals`.\n");
-    // 添加自然语言授权模式的说明
-    response.push_str(
-        "Natural language also works (policy controlled).\n\
-         - `direct` mode (default): `授权工具 shell` grants immediately.\n\
-         - `request_confirm` mode: `授权工具 shell` then `确认授权 apr-xxxxxx`.\n\n",
-    );
-    // 列出所有可用的 Provider
-    response.push_str("Available providers:\n");
-    for id in available_provider_ids() {
-        let _ = writeln!(response, "- {id}");
-    }
     response
 }
 

@@ -18,16 +18,15 @@ impl Channel for ScopeRecordingChannel {
 
 #[tokio::test]
 async fn channel_project_scope_instance_reply_and_route_stay_with_sender() {
-    let (_temp, mut ctx, _) = session::session_tests::registered_context().await;
+    let (_temp, mut ctx, mut msg) = channel_command_catalog_tests::catalog_context().await;
     let first = Arc::new(ScopeRecordingChannel::default());
     let second = Arc::new(ScopeRecordingChannel::default());
     ctx.channels_by_name = Arc::new(HashMap::from([
-        (channel_instance_key("telegram", "default"), first.clone() as Arc<dyn Channel>),
-        (channel_instance_key("telegram", "second"), second.clone() as Arc<dyn Channel>),
+        (channel_instance_key("lark", "default"), first.clone() as Arc<dyn Channel>),
+        (channel_instance_key("lark", "second"), second.clone() as Arc<dyn Channel>),
     ]));
-    let mut msg = session::session_tests::channel_message(Some("thread"));
     msg.instance_id = "second".into();
-    msg.content = "/model selected-model".into();
+    msg.content = "/model known".into();
     let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
     let mut first_msg = msg.clone();
     first_msg.instance_id = "default".into();
@@ -39,7 +38,7 @@ async fn channel_project_scope_instance_reply_and_route_stay_with_sender() {
     assert_eq!(sent.len(), 1);
     assert_eq!(sent[0].recipient, msg.reply_target);
     assert_eq!(sent[0].thread_ts, msg.thread_ts);
-    assert!(sent[0].content.contains("selected-model"));
-    assert_eq!(get_route_selection(&ctx, &snapshot.scope.key()).model, "selected-model");
-    assert_ne!(get_route_selection(&ctx, &first_scope.scope.key()).model, "selected-model");
+    assert!(sent[0].content.contains("known"));
+    assert_eq!(get_route_selection(&ctx, &snapshot.scope.key()).model, "known");
+    assert_ne!(get_route_selection(&ctx, &first_scope.scope.key()).model, "known");
 }

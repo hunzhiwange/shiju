@@ -2,8 +2,8 @@
 
 use super::super::*;
 use super::session_commands::{
-    handle_new_session, handle_set_model, handle_set_provider, handle_show_model,
-    handle_show_providers, handle_task_mode, with_test_provider_init_error,
+    handle_new_session, handle_set_model, handle_set_provider, handle_show_model, handle_task_mode,
+    with_test_provider_init_error,
 };
 use crate::app::agent::approval::ApprovalManager;
 use crate::app::agent::config::{AutonomyConfig, ReliabilityConfig};
@@ -35,6 +35,7 @@ fn route(provider: &str, model: &str, task_mode_enabled: bool) -> ChannelRouteSe
     ChannelRouteSelection {
         provider: provider.to_string(),
         model: model.to_string(),
+        reasoning_effort: None,
         task_mode_enabled,
     }
 }
@@ -92,16 +93,6 @@ fn message(content: &str) -> traits::ChannelMessage {
 }
 
 #[test]
-fn handle_show_providers_marks_current_provider() {
-    let current = route("openai", "gpt-4.1", false);
-
-    let response = handle_show_providers(&current);
-
-    assert!(response.contains("openai"));
-    assert!(response.contains("gpt-4.1"));
-}
-
-#[test]
 fn handle_show_model_includes_current_model() {
     let current = route("openai", "gpt-4.1", false);
 
@@ -110,53 +101,54 @@ fn handle_show_model_includes_current_model() {
     assert!(response.contains("gpt-4.1"));
 }
 
-#[test]
-fn handle_set_model_rejects_blank_model_without_mutating_route() {
+#[tokio::test]
+async fn handle_set_model_rejects_blank_model_without_mutating_route() {
     let temp = tempfile::tempdir().expect("temp dir");
     let ctx = context(temp.path(), "default-provider", "default-model");
     let mut current = route("default-provider", "default-model", false);
 
-    let response = handle_set_model(&ctx, "sender", &mut current, "  `  `  ".to_string());
+    let response = handle_set_model(&ctx, "sender", &mut current, "  `  `  ".to_string()).await;
 
     assert_eq!(response, "Model ID cannot be empty. Use `/model <model-id>`.");
     assert_eq!(current, route("default-provider", "default-model", false));
     assert!(ctx.route_overrides.lock().unwrap().is_empty());
 }
 
-#[test]
+#[tokio::test]
 // 模型切换同步持久化路由并清空旧历史，避免上下文串用。
-fn handle_set_model_trims_backticks_persists_route_and_clears_history() {
+async fn handle_set_model_trims_backticks_persists_route_and_clears_history() {
     let temp = tempfile::tempdir().expect("temp dir");
-    let ctx = context(temp.path(), "default-provider", "default-model");
+    let ctx = context(temp.path(), "catalog", "default-model");
     ctx.conversation_histories
         .lock()
         .unwrap()
         .insert("sender".to_string(), vec![ChatMessage::user("old turn")]);
-    let mut current = route("default-provider", "default-model", false);
+    let mut current = route("catalog", "default-model", false);
 
-    let response = handle_set_model(&ctx, "sender", &mut current, "  `gpt-5`  ".to_string());
+    let response = set_catalog_model(&ctx, "sender", &mut current, "  `gpt-5`  ".to_string()).await;
 
     assert!(response.contains("Model switched to `gpt-5`"));
-    assert_eq!(current, route("default-provider", "gpt-5", false));
+    assert_eq!(current, route("catalog", "gpt-5", false));
     assert_eq!(get_route_selection(&ctx, "sender"), current);
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key("sender"));
 }
 
-#[test]
-fn handle_set_model_updates_only_target_sender_and_preserves_task_mode() {
+#[tokio::test]
+async fn handle_set_model_updates_only_target_sender_and_preserves_task_mode() {
     let temp = tempfile::tempdir().expect("temp dir");
-    let ctx = context(temp.path(), "default-provider", "default-model");
+    let ctx = context(temp.path(), "catalog", "default-model");
     ctx.conversation_histories
         .lock()
         .unwrap()
         .insert("other-sender".to_string(), vec![ChatMessage::user("other turn")]);
     set_route_selection(&ctx, "other-sender", route("other-provider", "other-model", false));
-    let mut current = route("default-provider", "default-model", true);
+    let mut current = route("catalog", "default-model", true);
 
-    let response = handle_set_model(&ctx, "target-sender", &mut current, "next-model".to_string());
+    let response =
+        set_catalog_model(&ctx, "target-sender", &mut current, "gpt-5".to_string()).await;
 
-    assert!(response.contains("Model switched to `next-model`"));
-    assert_eq!(current, route("default-provider", "next-model", true));
+    assert!(response.contains("Model switched to `gpt-5`"));
+    assert_eq!(current, route("catalog", "gpt-5", true));
     assert_eq!(
         get_route_selection(&ctx, "other-sender"),
         route("other-provider", "other-model", false)
@@ -308,4 +300,26 @@ async fn handle_task_mode_clears_session_history_and_enables_task_mode() {
     assert!(!sender_session_store().lock().unwrap().contains_key(&session_key));
     assert!(!ctx.conversation_histories.lock().unwrap().contains_key(&sender_key));
     assert!(get_route_selection(&ctx, &sender_key).task_mode_enabled);
+}
+
+async fn set_catalog_model(
+    ctx: &ChannelRuntimeContext,
+    key: &str,
+    current: &mut ChannelRouteSelection,
+    model: String,
+) -> String {
+    crate::config::update_project_for_tenant(&crate::session::ui_store::current_tenant_scope(), ctx.workspace_dir.as_ref(), serde_json::json!({"providers": {"catalog": {"api": "https://example.test/v1", "models": {"gpt-5": {"status": "active"}}}}})).await.unwrap();
+    let (project, _) = crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
+    let context = crate::project::instance::Context {
+        directory: ctx.workspace_dir.to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project,
+    };
+    crate::project::instance::provide_context(context, handle_set_model(ctx, key, current, model))
+        .await
 }

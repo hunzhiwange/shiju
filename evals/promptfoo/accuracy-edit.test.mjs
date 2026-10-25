@@ -7,6 +7,22 @@ import { createArtifactOracle } from './artifact-oracle.mjs';
 import { prepare, cleanup } from './attempt-workspace.mjs';
 import { cases, definitions } from './fixtures/runtime-accuracy/edit/oracle/definitions.mjs';
 
+test('edit_fixtures_preserve_original_crlf_bytes_before_and_after_preparation', async () => {
+  const originals = [
+    ['edit-01', 'notes.txt', 'keep bytes\r\n'],
+    ['edit-02', 'routes.txt', 'north\r\n# INSERT ROUTE HERE\r\nsouth\r\n'],
+  ];
+  for (const [taskId, file, original] of originals) {
+    const c = cases.find(c => c.taskId === taskId);
+    const expected = Buffer.from(original);
+    assert.deepEqual(await readFile(join(c.fixtureRoot, file)), expected, `${taskId}: source bytes`);
+    const workspace = await prepare(c);
+    try {
+      assert.deepEqual(await readFile(join(workspace.workRoot, file)), expected, `${taskId}: prepared bytes`);
+    } finally { await cleanup(workspace); }
+  }
+});
+
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 test('edit_oracle_accepts_four_reference_results_and_rejects_mutations', async () => {
   assert.equal(cases.length, 4);

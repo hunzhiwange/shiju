@@ -84,8 +84,18 @@ use super::*;
 /// 11. **消息总线创建**：创建单消息总线用于所有通道的消息传输
 /// 12. **监听器启动**：为每个通道启动监督监听器任务
 /// 13. **分发循环运行**：运行消息分发循环，处理来自所有通道的消息
-#[allow(clippy::too_many_lines)]
 pub async fn start_channels(config: Config) -> Result<()> {
+    #[cfg(not(target_arch = "wasm32"))]
+    return super::reload::start_channels_with_reload(config).await;
+    #[cfg(target_arch = "wasm32")]
+    run_channels(config, &mut super::reload::ChannelListeners::default()).await
+}
+
+#[allow(clippy::too_many_lines)]
+pub(super) async fn run_channels(
+    config: Config,
+    listeners: &mut super::reload::ChannelListeners,
+) -> Result<()> {
     let timezone =
         crate::app::agent::util::locale::parse_timezone(&config.app_ui.system_settings.timezone)?;
 
@@ -275,9 +285,8 @@ pub async fn start_channels(config: Config) -> Result<()> {
     let (tx, rx) = tokio::sync::mpsc::channel::<traits::ChannelMessage>(100);
 
     // 为每个通道启动监督监听器任务
-    let mut handles = Vec::new();
     for ch in &channels {
-        handles.push(spawn_supervised_listener(
+        listeners.handles.push(spawn_supervised_listener(
             ch.clone(),
             tx.clone(),
             initial_backoff_secs,
@@ -339,9 +348,7 @@ pub async fn start_channels(config: Config) -> Result<()> {
     run_message_dispatch_loop(rx, runtime_ctx, max_in_flight_messages).await;
 
     // 等待所有通道任务完成
-    for h in handles {
-        let _ = h.await;
-    }
+    listeners.stop().await;
 
     Ok(())
 }

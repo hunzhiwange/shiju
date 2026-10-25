@@ -53,7 +53,6 @@ async fn agent_endpoint_requires_bearer_token_when_pairing_enabled() {
         temperature: 0.0,
         mem: memory,
         auto_save: false,
-        webhook_secret_hash: None,
         // 启用配对功能，并设置已配对令牌列表
         pairing: Arc::new(PairingGuard::new(true, std::slice::from_ref(&paired_token))),
         trust_forwarded_headers: false,
@@ -62,15 +61,6 @@ async fn agent_endpoint_requires_bearer_token_when_pairing_enabled() {
         // 配置幂等性存储（300秒过期，最多1000条记录）
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
         // 各通道配置均为 None（本测试不需要）
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         // 使用空操作观察器（不记录日志）
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         // 工具注册表为空（本测试不需要工具）
@@ -81,6 +71,7 @@ async fn agent_endpoint_requires_bearer_token_when_pairing_enabled() {
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: Default::default(),
     };
 
     // 构造请求体，包含简单的测试消息

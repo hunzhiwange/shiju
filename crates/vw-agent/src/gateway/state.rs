@@ -81,11 +81,6 @@ pub struct AppState {
     /// 是否启用自动保存功能
     pub auto_save: bool,
 
-    /// `X-Webhook-Secret` 的 SHA-256 哈希值（十六进制编码）
-    ///
-    /// **安全注意**: 绝不存储明文密钥，仅存储哈希值用于验证
-    pub webhook_secret_hash: Option<Arc<str>>,
-
     /// 配对守卫，管理设备配对和授权状态
     pub pairing: Arc<PairingGuard>,
 
@@ -98,32 +93,8 @@ pub struct AppState {
     /// 幂等性存储，用于请求去重和防止重复处理
     pub idempotency_store: Arc<super::IdempotencyStore>,
 
-    /// WhatsApp 通道实例（可选）
-    pub whatsapp: Option<Arc<WhatsAppChannel>>,
-
-    /// WhatsApp 应用密钥，用于 Webhook 签名验证（`X-Hub-Signature-256` 头部）
-    pub whatsapp_app_secret: Option<Arc<str>>,
-
-    /// Linq 通道实例（可选）
-    pub linq: Option<Arc<LinqChannel>>,
-
-    /// Linq Webhook 签名密钥，用于验证请求来源
-    pub linq_signing_secret: Option<Arc<str>>,
-
-    /// Nextcloud Talk 通道实例（可选）
-    pub nextcloud_talk: Option<Arc<NextcloudTalkChannel>>,
-
-    /// Nextcloud Talk Webhook 密钥，用于签名验证
-    pub nextcloud_talk_webhook_secret: Option<Arc<str>>,
-
-    /// Wati 通道实例（可选）
-    pub wati: Option<Arc<WatiChannel>>,
-
-    /// QQ 通道实例（可选）
-    pub qq: Option<Arc<QQChannel>>,
-
-    /// 是否启用 QQ Webhook 功能
-    pub qq_webhook_enabled: bool,
+    /// 原子替换的通道连接与校验凭据；请求使用同一份快照。
+    pub(crate) channels: Arc<Mutex<GatewayChannels>>,
 
     /// 可观测性后端，用于指标采集和监控
     pub observer: Arc<dyn Observer>,
@@ -153,3 +124,39 @@ pub struct AppState {
 #[cfg(test)]
 #[path = "state_tests.rs"]
 mod state_tests;
+
+/// Webhook 请求的通道快照，连接与签名凭据始终来自同一版配置。
+#[derive(Clone, Default)]
+pub(crate) struct GatewayChannels {
+    /// `X-Webhook-Secret` 的 SHA-256 哈希值（十六进制编码）
+    ///
+    /// **安全注意**: 绝不存储明文密钥，仅存储哈希值用于验证
+    pub webhook_secret_hash: Option<Arc<str>>,
+
+    /// WhatsApp 通道实例（可选）
+    pub whatsapp: Option<Arc<WhatsAppChannel>>,
+
+    /// WhatsApp 应用密钥，用于 Webhook 签名验证（`X-Hub-Signature-256` 头部）
+    pub whatsapp_app_secret: Option<Arc<str>>,
+
+    /// Linq 通道实例（可选）
+    pub linq: Option<Arc<LinqChannel>>,
+
+    /// Linq Webhook 签名密钥，用于验证请求来源
+    pub linq_signing_secret: Option<Arc<str>>,
+
+    /// Nextcloud Talk 通道实例（可选）
+    pub nextcloud_talk: Option<Arc<NextcloudTalkChannel>>,
+
+    /// Nextcloud Talk Webhook 密钥，用于签名验证
+    pub nextcloud_talk_webhook_secret: Option<Arc<str>>,
+
+    /// Wati 通道实例（可选）
+    pub wati: Option<Arc<WatiChannel>>,
+
+    /// QQ 通道实例（可选）
+    pub qq: Option<Arc<QQChannel>>,
+
+    /// 是否启用 QQ Webhook 功能
+    pub qq_webhook_enabled: bool,
+}

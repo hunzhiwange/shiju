@@ -109,20 +109,10 @@ fn state() -> AppState {
         temperature: 0.0,
         mem: Arc::new(NoneMemory::new()),
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1_000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -131,6 +121,7 @@ fn state() -> AppState {
         event_tx: tokio::sync::broadcast::channel(1).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: Default::default(),
     }
 }
 
@@ -328,8 +319,8 @@ async fn whatsapp_verify_returns_not_found_when_unconfigured() {
 
 #[tokio::test]
 async fn whatsapp_verify_echoes_challenge_for_matching_token() {
-    let mut state = state();
-    state.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+    let state = state();
+    state.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
@@ -351,8 +342,8 @@ async fn whatsapp_verify_echoes_challenge_for_matching_token() {
 
 #[tokio::test]
 async fn whatsapp_verify_rejects_bad_or_incomplete_verification() {
-    let mut state = state();
-    state.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+    let state = state();
+    state.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
@@ -384,8 +375,8 @@ async fn whatsapp_verify_rejects_bad_or_incomplete_verification() {
 
 #[tokio::test]
 async fn whatsapp_verify_requires_subscribe_mode_and_token() {
-    let mut configured = state();
-    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+    let configured = state();
+    configured.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
@@ -424,14 +415,14 @@ async fn whatsapp_message_validates_configuration_signature_json_and_empty_paylo
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "WhatsApp not configured");
 
-    let mut configured = state();
-    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+    let configured = state();
+    configured.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
         vec!["*".into()],
     )));
-    configured.whatsapp_app_secret = Some(Arc::from("secret"));
+    configured.channels.lock().whatsapp_app_secret = Some(Arc::from("secret"));
 
     let (status, body) = response_json(
         handle_whatsapp_message(State(configured.clone()), HeaderMap::new(), Bytes::from("{}"))
@@ -455,7 +446,7 @@ async fn whatsapp_message_validates_configuration_signature_json_and_empty_paylo
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["status"], "ok");
 
-    configured.whatsapp_app_secret = None;
+    configured.channels.lock().whatsapp_app_secret = None;
     let (status, body) = response_json(
         handle_whatsapp_message(State(configured), HeaderMap::new(), Bytes::from("{")).await,
     )
@@ -466,14 +457,14 @@ async fn whatsapp_message_validates_configuration_signature_json_and_empty_paylo
 
 #[tokio::test]
 async fn whatsapp_message_valid_signature_does_not_hide_invalid_json() {
-    let mut configured = state();
-    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+    let configured = state();
+    configured.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
         vec!["*".into()],
     )));
-    configured.whatsapp_app_secret = Some(Arc::from("secret"));
+    configured.channels.lock().whatsapp_app_secret = Some(Arc::from("secret"));
 
     let payload = b"{";
     let mut headers = HeaderMap::new();
@@ -492,14 +483,14 @@ async fn whatsapp_message_valid_signature_does_not_hide_invalid_json() {
 
 #[tokio::test]
 async fn whatsapp_message_rejects_present_invalid_signature() {
-    let mut configured = state();
-    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new(
+    let configured = state();
+    configured.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
         vec!["*".into()],
     )));
-    configured.whatsapp_app_secret = Some(Arc::from("secret"));
+    configured.channels.lock().whatsapp_app_secret = Some(Arc::from("secret"));
 
     let mut headers = HeaderMap::new();
     headers.insert("X-Hub-Signature-256", HeaderValue::from_static("sha256=00"));
@@ -518,8 +509,8 @@ async fn whatsapp_message_acknowledges_nonempty_payload_after_local_send_failure
     let original_proxy = runtime_proxy_config();
     set_runtime_proxy_config(ProxyConfig::default());
 
-    let mut configured = state();
-    configured.whatsapp = Some(Arc::new(WhatsAppChannel::new_with_api_base_url(
+    let configured = state();
+    configured.channels.lock().whatsapp = Some(Arc::new(WhatsAppChannel::new_with_api_base_url(
         "access".into(),
         "phone-id".into(),
         "verify-token".into(),
@@ -550,10 +541,10 @@ async fn linq_webhook_handles_configuration_signature_json_and_empty_messages() 
             .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
-    let mut configured = state();
-    configured.linq =
+    let configured = state();
+    configured.channels.lock().linq =
         Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
-    configured.linq_signing_secret = Some(Arc::from("secret"));
+    configured.channels.lock().linq_signing_secret = Some(Arc::from("secret"));
 
     let (status, body) = response_json(
         handle_linq_webhook(State(configured.clone()), HeaderMap::new(), Bytes::from("{}")).await,
@@ -562,7 +553,7 @@ async fn linq_webhook_handles_configuration_signature_json_and_empty_messages() 
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert_eq!(body["error"], "Invalid signature");
 
-    configured.linq_signing_secret = None;
+    configured.channels.lock().linq_signing_secret = None;
     let (status, body) = response_json(
         handle_linq_webhook(State(configured.clone()), HeaderMap::new(), Bytes::from("{")).await,
     )
@@ -585,10 +576,10 @@ async fn linq_webhook_handles_configuration_signature_json_and_empty_messages() 
 
 #[tokio::test]
 async fn linq_webhook_accepts_valid_signature_before_empty_message_ack() {
-    let mut configured = state();
-    configured.linq =
+    let configured = state();
+    configured.channels.lock().linq =
         Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
-    configured.linq_signing_secret = Some(Arc::from("secret"));
+    configured.channels.lock().linq_signing_secret = Some(Arc::from("secret"));
 
     let body = r#"{"event_type":"delivery.updated"}"#;
     let timestamp = chrono::Utc::now().timestamp().to_string();
@@ -608,10 +599,10 @@ async fn linq_webhook_accepts_valid_signature_before_empty_message_ack() {
 
 #[tokio::test]
 async fn linq_webhook_rejects_present_invalid_signature() {
-    let mut configured = state();
-    configured.linq =
+    let configured = state();
+    configured.channels.lock().linq =
         Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
-    configured.linq_signing_secret = Some(Arc::from("secret"));
+    configured.channels.lock().linq_signing_secret = Some(Arc::from("secret"));
 
     let mut headers = HeaderMap::new();
     headers.insert("X-Webhook-Timestamp", HeaderValue::from_static("123"));
@@ -626,8 +617,8 @@ async fn linq_webhook_rejects_present_invalid_signature() {
 
 #[tokio::test]
 async fn linq_webhook_acknowledges_unactionable_message_received_event() {
-    let mut configured = state();
-    configured.linq =
+    let configured = state();
+    configured.channels.lock().linq =
         Some(Arc::new(LinqChannel::new("token".into(), "+15550000000".into(), vec!["*".into()])));
 
     let (status, body) = response_json(
@@ -665,8 +656,8 @@ async fn wati_verify_and_webhook_cover_error_and_empty_paths() {
     .await;
     assert_eq!(response_text(verify_missing).await.0, StatusCode::NOT_FOUND);
 
-    let mut configured = state();
-    configured.wati = Some(Arc::new(WatiChannel::new(
+    let configured = state();
+    configured.channels.lock().wati = Some(Arc::new(WatiChannel::new(
         "token".into(),
         "https://wati.example".into(),
         None,
@@ -703,8 +694,8 @@ async fn wati_verify_and_webhook_cover_error_and_empty_paths() {
 
 #[tokio::test]
 async fn wati_verify_echoes_empty_challenge() {
-    let mut configured = state();
-    configured.wati = Some(Arc::new(WatiChannel::new(
+    let configured = state();
+    configured.channels.lock().wati = Some(Arc::new(WatiChannel::new(
         "token".into(),
         "https://wati.example".into(),
         None,
@@ -726,7 +717,7 @@ async fn wati_webhook_processes_messages_and_handles_provider_errors() {
     );
 
     let mut configured = state();
-    configured.wati = Some(Arc::new(WatiChannel::new(
+    configured.channels.lock().wati = Some(Arc::new(WatiChannel::new(
         "token".into(),
         "http://127.0.0.1:9".into(),
         Some("tenant".into()),
@@ -752,13 +743,13 @@ async fn nextcloud_talk_webhook_handles_security_and_empty_payloads() {
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
-    let mut configured = state();
-    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+    let configured = state();
+    configured.channels.lock().nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
         "https://cloud.example".into(),
         "app-token".into(),
         vec!["*".into()],
     )));
-    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+    configured.channels.lock().nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
 
     let (status, body) = response_json(
         handle_nextcloud_talk_webhook(
@@ -772,7 +763,7 @@ async fn nextcloud_talk_webhook_handles_security_and_empty_payloads() {
     assert_eq!(status, StatusCode::UNAUTHORIZED);
     assert_eq!(body["error"], "Invalid signature");
 
-    configured.nextcloud_talk_webhook_secret = None;
+    configured.channels.lock().nextcloud_talk_webhook_secret = None;
     let (status, body) = response_json(
         handle_nextcloud_talk_webhook(
             State(configured.clone()),
@@ -810,12 +801,12 @@ async fn nextcloud_talk_webhook_accepts_valid_signature_and_processes_messages()
     );
 
     let mut configured = state();
-    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+    configured.channels.lock().nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
         "http://127.0.0.1:9".into(),
         "app-token".into(),
         vec!["*".into()],
     )));
-    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+    configured.channels.lock().nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
 
     let (status, body_json) = response_json(
         handle_nextcloud_talk_webhook(
@@ -849,13 +840,13 @@ async fn nextcloud_talk_valid_signature_does_not_hide_invalid_json() {
         HeaderValue::from_str(&valid_nextcloud_talk_signature("secret", random, body)).unwrap(),
     );
 
-    let mut configured = state();
-    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+    let configured = state();
+    configured.channels.lock().nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
         "https://cloud.example".into(),
         "app-token".into(),
         vec!["*".into()],
     )));
-    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+    configured.channels.lock().nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
 
     let (status, body_json) = response_json(
         handle_nextcloud_talk_webhook(State(configured), headers, Bytes::from(body)).await,
@@ -867,13 +858,13 @@ async fn nextcloud_talk_valid_signature_does_not_hide_invalid_json() {
 
 #[tokio::test]
 async fn nextcloud_talk_webhook_rejects_present_invalid_signature() {
-    let mut configured = state();
-    configured.nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
+    let configured = state();
+    configured.channels.lock().nextcloud_talk = Some(Arc::new(NextcloudTalkChannel::new(
         "https://cloud.example".into(),
         "app-token".into(),
         vec!["*".into()],
     )));
-    configured.nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
+    configured.channels.lock().nextcloud_talk_webhook_secret = Some(Arc::from("secret"));
 
     let mut headers = HeaderMap::new();
     headers.insert("X-Nextcloud-Talk-Random", HeaderValue::from_static("nonce"));
@@ -894,8 +885,8 @@ async fn qq_webhook_handles_configuration_validation_and_empty_events() {
             .await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 
-    let mut configured = state();
-    configured.qq =
+    let configured = state();
+    configured.channels.lock().qq =
         Some(Arc::new(QQChannel::new("app-id".into(), "secret".into(), vec!["*".into()])));
 
     let (status, body) = response_json(
@@ -905,7 +896,7 @@ async fn qq_webhook_handles_configuration_validation_and_empty_events() {
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["error"], "QQ webhook mode not enabled");
 
-    configured.qq_webhook_enabled = true;
+    configured.channels.lock().qq_webhook_enabled = true;
     let mut headers = HeaderMap::new();
     headers.insert("X-Bot-Appid", HeaderValue::from_static("other-app"));
     let (status, body) = response_json(
@@ -942,10 +933,10 @@ async fn qq_webhook_handles_configuration_validation_and_empty_events() {
 
 #[tokio::test]
 async fn qq_webhook_accepts_matching_app_id_with_whitespace() {
-    let mut configured = state();
-    configured.qq =
+    let configured = state();
+    configured.channels.lock().qq =
         Some(Arc::new(QQChannel::new("app-id".into(), "secret".into(), vec!["*".into()])));
-    configured.qq_webhook_enabled = true;
+    configured.channels.lock().qq_webhook_enabled = true;
 
     let mut headers = HeaderMap::new();
     headers.insert("X-Bot-Appid", HeaderValue::from_static(" app-id "));
@@ -960,10 +951,10 @@ async fn qq_webhook_accepts_matching_app_id_with_whitespace() {
 
 #[tokio::test]
 async fn qq_webhook_matching_app_id_does_not_hide_invalid_json() {
-    let mut configured = state();
-    configured.qq =
+    let configured = state();
+    configured.channels.lock().qq =
         Some(Arc::new(QQChannel::new("app-id".into(), "secret".into(), vec!["*".into()])));
-    configured.qq_webhook_enabled = true;
+    configured.channels.lock().qq_webhook_enabled = true;
 
     let mut headers = HeaderMap::new();
     headers.insert("X-Bot-Appid", HeaderValue::from_static("app-id"));
@@ -972,4 +963,80 @@ async fn qq_webhook_matching_app_id_does_not_hide_invalid_json() {
         response_json(handle_qq_webhook(State(configured), headers, Bytes::from("{")).await).await;
     assert_eq!(status, StatusCode::BAD_REQUEST);
     assert_eq!(body["error"], "Invalid JSON payload");
+}
+
+#[tokio::test]
+async fn channel_reload_saved_credentials_update_existing_webhook_router() {
+    use crate::app::agent::config::{SystemConfigStore, schema::ChannelConfigWatcher};
+    use crate::global_database::GlobalDatabase;
+    use tower::ServiceExt;
+    use vw_api_types::id::TenantScope;
+
+    let temp = tempfile::TempDir::new().unwrap();
+    let store =
+        SystemConfigStore::new(GlobalDatabase::new(temp.path().join("config.sqlite3")).unwrap())
+            .unwrap();
+    let mut config = Config::default();
+    config.config_path = temp.path().join("vibewindow.json");
+    let state = state();
+    let router = super::super::bootstrap::external_router().with_state(state.clone());
+    let source = ChannelConfigWatcher::from_store(store.clone(), &config, false).unwrap();
+    let mut watcher =
+        tokio::spawn(super::super::channel_reload::watch_gateway_channels_with_source(
+            state.clone(),
+            config.clone(),
+            source,
+        ));
+
+    async fn verify(router: &axum::Router, token: &str) -> StatusCode {
+        router
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri(format!(
+                        "/v1/whatsapp?hub.mode=subscribe&hub.verify_token={token}&hub.challenge=ok"
+                    ))
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap()
+            .status()
+    }
+    assert_eq!(verify(&router, "first").await, StatusCode::NOT_FOUND);
+    for token in ["first", "second"] {
+        config.channels_config.whatsapp = Some(
+            serde_json::from_value(serde_json::json!({
+                "access_token":"access", "phone_number_id":"phone", "verify_token":token
+            }))
+            .unwrap(),
+        );
+        let mut encrypted = config.clone();
+        crate::app::agent::config::schema::encrypt_config_secrets(&mut encrypted).unwrap();
+        store.upsert(&TenantScope::default(), &serde_json::to_string(&encrypted).unwrap()).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                tokio::select! {
+                    result = &mut watcher => panic!("watcher exited: {result:?}"),
+                    _ = tokio::time::sleep(Duration::from_millis(10)) => {
+                        if verify(&router, token).await == StatusCode::OK { break; }
+                    }
+                }
+            }
+        })
+        .await
+        .unwrap();
+    }
+    assert_eq!(verify(&router, "first").await, StatusCode::FORBIDDEN);
+    config.channels_config.whatsapp = None;
+    store.upsert(&TenantScope::default(), &serde_json::to_string(&config).unwrap()).unwrap();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while verify(&router, "second").await != StatusCode::NOT_FOUND {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .unwrap();
+    watcher.abort();
+    let _ = watcher.await;
 }

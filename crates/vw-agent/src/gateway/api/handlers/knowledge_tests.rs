@@ -985,7 +985,6 @@ async fn knowledge_store_helper_uses_state_config() {
         temperature: 0.0,
         mem: std::sync::Arc::new(crate::app::agent::memory::NoneMemory::new()),
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: std::sync::Arc::new(crate::app::agent::security::PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
         rate_limiter: std::sync::Arc::new(crate::app::agent::gateway::GatewayRateLimiter::new(
@@ -995,15 +994,6 @@ async fn knowledge_store_helper_uses_state_config() {
             std::time::Duration::from_secs(60),
             10,
         )),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: std::sync::Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: std::sync::Arc::new(Vec::new()),
         tools_registry_exec: std::sync::Arc::new(Vec::new()),
@@ -1012,6 +1002,7 @@ async fn knowledge_store_helper_uses_state_config() {
         event_tx,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: Default::default(),
     };
 
     let tenant = TenantScope::new("platform-knowledge", "company-knowledge").expect("tenant");

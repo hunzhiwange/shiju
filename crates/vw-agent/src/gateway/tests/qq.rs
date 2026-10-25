@@ -60,20 +60,10 @@ async fn qq_webhook_returns_not_found_when_not_configured() {
         temperature: 0.0,
         mem: memory,
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,                  // QQ 渠道未配置
-        qq_webhook_enabled: false, // QQ Webhook 未启用
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -82,6 +72,20 @@ async fn qq_webhook_returns_not_found_when_not_configured() {
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: std::sync::Arc::new(parking_lot::Mutex::new(
+            crate::app::agent::gateway::state::GatewayChannels {
+                webhook_secret_hash: None,
+                whatsapp: None,
+                whatsapp_app_secret: None,
+                linq: None,
+                linq_signing_secret: None,
+                nextcloud_talk: None,
+                nextcloud_talk_webhook_secret: None,
+                wati: None,
+                qq: None,                  // QQ 渠道未配置
+                qq_webhook_enabled: false, // QQ Webhook 未启用
+            },
+        )),
     };
 
     // 调用 QQ Webhook 处理器，发送一个模拟的验证请求体
@@ -150,20 +154,10 @@ async fn qq_webhook_validation_returns_signed_challenge() {
         temperature: 0.0,
         mem: memory,
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: Some(qq),             // QQ 渠道已配置
-        qq_webhook_enabled: true, // QQ Webhook 已启用
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -172,6 +166,20 @@ async fn qq_webhook_validation_returns_signed_challenge() {
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: std::sync::Arc::new(parking_lot::Mutex::new(
+            crate::app::agent::gateway::state::GatewayChannels {
+                webhook_secret_hash: None,
+                whatsapp: None,
+                whatsapp_app_secret: None,
+                linq: None,
+                linq_signing_secret: None,
+                nextcloud_talk: None,
+                nextcloud_talk_webhook_secret: None,
+                wati: None,
+                qq: Some(qq),             // QQ 渠道已配置
+                qq_webhook_enabled: true, // QQ Webhook 已启用
+            },
+        )),
     };
 
     // 构建请求头，包含 X-Bot-Appid 用于验证请求来源

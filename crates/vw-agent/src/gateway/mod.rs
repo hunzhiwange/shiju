@@ -15,6 +15,7 @@ mod agent;
 pub mod api;
 mod approval_state;
 mod bootstrap;
+mod channel_reload;
 mod chat;
 mod error;
 mod handlers;

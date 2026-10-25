@@ -115,6 +115,8 @@ pub(crate) async fn process_channel_message(
 
     let (typing_cancellation, typing_task) =
         start_typing_feedback(target_channel.as_ref(), msg.reply_target.clone());
+    // 重载会释放消息 Future，仍须通知后台输入状态任务退出。
+    let _typing_guard = typing_cancellation.clone().map(CancellationToken::drop_guard);
 
     let history_len_before_tools = history.len();
 

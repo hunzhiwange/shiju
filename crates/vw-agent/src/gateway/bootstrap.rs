@@ -1,11 +1,8 @@
 use super::{
     AppState, GatewayRateLimiter, IDEMPOTENCY_MAX_KEYS_DEFAULT, IdempotencyStore, MAX_BODY_SIZE,
-    RATE_LIMIT_MAX_KEYS_DEFAULT, agent, api, handlers, hash_webhook_secret, health, middleware,
-    node_control, normalize_max_keys, openai_compat, request_timeout_middleware,
-    skey_auth_middleware, sse, webhook, ws,
-};
-use crate::app::agent::channels::{
-    LinqChannel, NextcloudTalkChannel, QQChannel, WatiChannel, WhatsAppChannel,
+    RATE_LIMIT_MAX_KEYS_DEFAULT, agent, api, handlers, health, middleware, node_control,
+    normalize_max_keys, openai_compat, request_timeout_middleware, skey_auth_middleware, sse,
+    webhook, ws,
 };
 use crate::app::agent::config::{self, Config};
 use crate::app::agent::memory::{self, Memory};
@@ -145,114 +142,7 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     let multimodal_config = config.multimodal.clone();
 
     let (event_tx, _event_rx) = tokio::sync::broadcast::channel::<serde_json::Value>(256);
-    let webhook_secret_hash: Option<Arc<str>> =
-        config.channels_config.webhook.as_ref().and_then(|webhook| {
-            webhook.secret.as_ref().and_then(|raw_secret| {
-                let trimmed_secret = raw_secret.trim();
-                (!trimmed_secret.is_empty())
-                    .then(|| Arc::<str>::from(hash_webhook_secret(trimmed_secret)))
-            })
-        });
-
-    let whatsapp_channel: Option<Arc<WhatsAppChannel>> =
-        config.channels_config.whatsapp.as_ref().filter(|wa| wa.is_cloud_config()).map(|wa| {
-            Arc::new(WhatsAppChannel::new(
-                wa.access_token.clone().unwrap_or_default(),
-                wa.phone_number_id.clone().unwrap_or_default(),
-                wa.verify_token.clone().unwrap_or_default(),
-                wa.allowed_numbers.clone(),
-            ))
-        });
-
-    let whatsapp_app_secret: Option<Arc<str>> = std::env::var("VIBEWINDOW_WHATSAPP_APP_SECRET")
-        .ok()
-        .and_then(|secret| {
-            let secret = secret.trim();
-            (!secret.is_empty()).then(|| secret.to_owned())
-        })
-        .or_else(|| {
-            config.channels_config.whatsapp.as_ref().and_then(|wa| {
-                wa.app_secret
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|secret| !secret.is_empty())
-                    .map(ToOwned::to_owned)
-            })
-        })
-        .map(Arc::from);
-
-    let linq_channel: Option<Arc<LinqChannel>> = config.channels_config.linq.as_ref().map(|lq| {
-        Arc::new(LinqChannel::new(
-            lq.api_token.clone(),
-            lq.from_phone.clone(),
-            lq.allowed_senders.clone(),
-        ))
-    });
-
-    let linq_signing_secret: Option<Arc<str>> = std::env::var("VIBEWINDOW_LINQ_SIGNING_SECRET")
-        .ok()
-        .and_then(|secret| {
-            let secret = secret.trim();
-            (!secret.is_empty()).then(|| secret.to_owned())
-        })
-        .or_else(|| {
-            config.channels_config.linq.as_ref().and_then(|lq| {
-                lq.signing_secret
-                    .as_deref()
-                    .map(str::trim)
-                    .filter(|secret| !secret.is_empty())
-                    .map(ToOwned::to_owned)
-            })
-        })
-        .map(Arc::from);
-
-    let wati_channel: Option<Arc<WatiChannel>> =
-        config.channels_config.wati.as_ref().map(|wati_cfg| {
-            Arc::new(WatiChannel::new(
-                wati_cfg.api_token.clone(),
-                wati_cfg.api_url.clone(),
-                wati_cfg.tenant_id.clone(),
-                wati_cfg.allowed_numbers.clone(),
-            ))
-        });
-
-    let qq_channel: Option<Arc<QQChannel>> = config.channels_config.qq.as_ref().map(|qq_cfg| {
-        Arc::new(QQChannel::new(
-            qq_cfg.app_id.clone(),
-            qq_cfg.app_secret.clone(),
-            qq_cfg.allowed_users.clone(),
-        ))
-    });
-    let qq_webhook_enabled = config.channels_config.qq.as_ref().is_some_and(|qq| {
-        qq.receive_mode == crate::app::agent::config::schema::QQReceiveMode::Webhook
-    });
-
-    let nextcloud_talk_channel: Option<Arc<NextcloudTalkChannel>> =
-        config.channels_config.nextcloud_talk.as_ref().map(|nc| {
-            Arc::new(NextcloudTalkChannel::new(
-                nc.base_url.clone(),
-                nc.app_token.clone(),
-                nc.allowed_users.clone(),
-            ))
-        });
-
-    let nextcloud_talk_webhook_secret: Option<Arc<str>> =
-        std::env::var("VIBEWINDOW_NEXTCLOUD_TALK_WEBHOOK_SECRET")
-            .ok()
-            .and_then(|secret| {
-                let secret = secret.trim();
-                (!secret.is_empty()).then(|| secret.to_owned())
-            })
-            .or_else(|| {
-                config.channels_config.nextcloud_talk.as_ref().and_then(|nc| {
-                    nc.webhook_secret
-                        .as_deref()
-                        .map(str::trim)
-                        .filter(|secret| !secret.is_empty())
-                        .map(ToOwned::to_owned)
-                })
-            })
-            .map(Arc::from);
+    let channels = super::channel_reload::build_gateway_channels(&config.channels_config);
 
     let gateway_skeys = config.gateway.skeys.clone();
     let pairing = Arc::new(PairingGuard::from_skeys(config.gateway.auth_enabled, &gateway_skeys));
@@ -292,11 +182,11 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         println!("  Public URL: {url}");
     }
     for line in gateway_route_summary(GatewayRouteSummaryOptions {
-        whatsapp_enabled: whatsapp_channel.is_some(),
-        linq_enabled: linq_channel.is_some(),
-        wati_enabled: wati_channel.is_some(),
-        nextcloud_talk_enabled: nextcloud_talk_channel.is_some(),
-        qq_webhook_enabled,
+        whatsapp_enabled: channels.whatsapp.is_some(),
+        linq_enabled: channels.linq.is_some(),
+        wati_enabled: channels.wati.is_some(),
+        nextcloud_talk_enabled: channels.nextcloud_talk.is_some(),
+        qq_webhook_enabled: channels.qq_webhook_enabled,
         node_control_enabled: config.gateway.node_control.enabled,
     }) {
         println!("{line}");
@@ -330,20 +220,11 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
         temperature,
         mem,
         auto_save: config.memory.auto_save,
-        webhook_secret_hash,
         pairing,
         trust_forwarded_headers: config.gateway.trust_forwarded_headers,
         rate_limiter,
         idempotency_store,
-        whatsapp: whatsapp_channel,
-        whatsapp_app_secret,
-        linq: linq_channel,
-        linq_signing_secret,
-        nextcloud_talk: nextcloud_talk_channel,
-        nextcloud_talk_webhook_secret,
-        wati: wati_channel,
-        qq: qq_channel,
-        qq_webhook_enabled,
+        channels: Arc::new(Mutex::new(channels)),
         observer: broadcast_observer,
         tools_registry,
         tools_registry_exec,
@@ -365,12 +246,15 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     let app = Router::<AppState>::new()
         .merge(external_router())
         .merge(client_router(state.clone(), openai_compat_route, dashboard_config_route))
-        .with_state(state)
+        .with_state(state.clone())
         .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
         .layer(from_fn(request_timeout_middleware))
         .layer(cors);
 
-    axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
+    tokio::select! {
+        result = axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()) => result?,
+        result = super::channel_reload::watch_gateway_channels(state, config) => result?,
+    }
 
     Ok(())
 }

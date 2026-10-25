@@ -322,9 +322,10 @@ fn authorize_webhook_request(
     peer_addr: SocketAddr,
     headers: &HeaderMap,
 ) -> Option<(StatusCode, Json<Value>)> {
+    let channels = state.channels.lock().clone();
     // 检查是否需要认证：非本地请求且未配置任何认证机制时拒绝
     if !state.pairing.auth_enabled()
-        && state.webhook_secret_hash.is_none()
+        && channels.webhook_secret_hash.is_none()
         && !peer_addr.ip().is_loopback()
     {
         tracing::warn!(
@@ -353,7 +354,7 @@ fn authorize_webhook_request(
     }
 
     // 如果配置了 Webhook 密钥，验证 X-Webhook-Secret 头（使用常量时间比较防止时序攻击）
-    if let Some(ref secret_hash) = state.webhook_secret_hash {
+    if let Some(ref secret_hash) = channels.webhook_secret_hash {
         match extract_webhook_secret_header_hash(headers) {
             Some(header_hash) if constant_time_eq(&header_hash, secret_hash.as_ref()) => {}
             _ => {

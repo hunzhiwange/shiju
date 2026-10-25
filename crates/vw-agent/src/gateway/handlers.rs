@@ -142,7 +142,8 @@ pub async fn handle_whatsapp_verify(
     State(state): State<AppState>,
     Query(params): Query<WhatsAppVerifyQuery>,
 ) -> Response {
-    let Some(ref wa) = state.whatsapp else {
+    let channels = state.channels.lock().clone();
+    let Some(ref wa) = channels.whatsapp else {
         return (StatusCode::NOT_FOUND, "WhatsApp not configured".to_string()).into_response();
     };
 
@@ -193,7 +194,8 @@ pub async fn handle_whatsapp_message(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let Some(ref wa) = state.whatsapp else {
+    let channels = state.channels.lock().clone();
+    let Some(ref wa) = channels.whatsapp else {
         return (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "WhatsApp not configured"})),
@@ -202,7 +204,7 @@ pub async fn handle_whatsapp_message(
     };
 
     // ── Security: Verify X-Hub-Signature-256 if app_secret is configured ──
-    if let Some(ref app_secret) = state.whatsapp_app_secret {
+    if let Some(ref app_secret) = channels.whatsapp_app_secret {
         let signature =
             headers.get("X-Hub-Signature-256").and_then(|v| v.to_str().ok()).unwrap_or("");
 
@@ -257,7 +259,8 @@ pub async fn handle_linq_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let Some(ref linq) = state.linq else {
+    let channels = state.channels.lock().clone();
+    let Some(ref linq) = channels.linq else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "Linq not configured"})))
             .into_response();
     };
@@ -265,7 +268,7 @@ pub async fn handle_linq_webhook(
     let body_str = String::from_utf8_lossy(&body);
 
     // ── Security: Verify X-Webhook-Signature if signing_secret is configured ──
-    if let Some(ref signing_secret) = state.linq_signing_secret {
+    if let Some(ref signing_secret) = channels.linq_signing_secret {
         let timestamp =
             headers.get("X-Webhook-Timestamp").and_then(|v| v.to_str().ok()).unwrap_or("");
 
@@ -336,7 +339,8 @@ pub async fn handle_wati_verify(
     State(state): State<AppState>,
     Query(params): Query<WatiVerifyQuery>,
 ) -> Response {
-    if state.wati.is_none() {
+    let channels = state.channels.lock().clone();
+    if channels.wati.is_none() {
         return (StatusCode::NOT_FOUND, "WATI not configured".to_string()).into_response();
     }
 
@@ -359,7 +363,8 @@ pub struct WatiVerifyQuery {
 
 /// 解析并处理 WATI 入站消息。
 pub async fn handle_wati_webhook(State(state): State<AppState>, body: Bytes) -> Response {
-    let Some(ref wati) = state.wati else {
+    let channels = state.channels.lock().clone();
+    let Some(ref wati) = channels.wati else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "WATI not configured"})))
             .into_response();
     };
@@ -401,7 +406,8 @@ pub async fn handle_nextcloud_talk_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let Some(ref nextcloud_talk) = state.nextcloud_talk else {
+    let channels = state.channels.lock().clone();
+    let Some(ref nextcloud_talk) = channels.nextcloud_talk else {
         return (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "Nextcloud Talk not configured"})),
@@ -412,7 +418,7 @@ pub async fn handle_nextcloud_talk_webhook(
     let body_str = String::from_utf8_lossy(&body);
 
     // ── Security: Verify Nextcloud Talk HMAC signature if secret is configured ──
-    if let Some(ref webhook_secret) = state.nextcloud_talk_webhook_secret {
+    if let Some(ref webhook_secret) = channels.nextcloud_talk_webhook_secret {
         let random =
             headers.get("X-Nextcloud-Talk-Random").and_then(|v| v.to_str().ok()).unwrap_or("");
 
@@ -473,12 +479,13 @@ pub async fn handle_qq_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    let Some(ref qq) = state.qq else {
+    let channels = state.channels.lock().clone();
+    let Some(ref qq) = channels.qq else {
         return (StatusCode::NOT_FOUND, Json(serde_json::json!({"error": "QQ not configured"})))
             .into_response();
     };
 
-    if !state.qq_webhook_enabled {
+    if !channels.qq_webhook_enabled {
         return (
             StatusCode::NOT_FOUND,
             Json(serde_json::json!({"error": "QQ webhook mode not enabled"})),

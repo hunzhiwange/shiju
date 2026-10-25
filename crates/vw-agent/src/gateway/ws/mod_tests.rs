@@ -129,7 +129,6 @@ fn authenticated_state() -> AppState {
         temperature: 0.0,
         mem: Arc::new(NoneMemory::new()),
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(true, &["paired-token".to_string()])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(super::super::GatewayRateLimiter::new(100, 100, 100)),
@@ -137,15 +136,6 @@ fn authenticated_state() -> AppState {
             Duration::from_secs(300),
             1000,
         )),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -154,6 +144,7 @@ fn authenticated_state() -> AppState {
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: Default::default(),
     }
 }
 

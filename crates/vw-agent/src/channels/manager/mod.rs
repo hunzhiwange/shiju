@@ -17,6 +17,7 @@ mod message_helpers;
 mod message_response;
 mod message_result;
 mod provider;
+mod reload;
 mod start;
 mod telegram;
 mod typing;

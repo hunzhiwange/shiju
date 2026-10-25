@@ -140,20 +140,10 @@ fn state_with_memory(mem: Arc<RecordingMemory>, require_pairing: bool) -> AppSta
         temperature: 0.0,
         mem,
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(require_pairing, &[])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -162,6 +152,7 @@ fn state_with_memory(mem: Arc<RecordingMemory>, require_pairing: bool) -> AppSta
         event_tx,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: Default::default(),
     }
 }
 

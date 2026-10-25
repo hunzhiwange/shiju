@@ -1,3 +1,8 @@
+#[cfg(not(target_arch = "wasm32"))]
+mod channel_reload;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use channel_reload::ChannelConfigWatcher;
+
 pub mod automation;
 pub mod channels;
 pub mod provider;

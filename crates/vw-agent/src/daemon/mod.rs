@@ -23,6 +23,7 @@
 //! 4. 超时后强制中止未完成的任务
 
 use crate::app::agent::config::Config;
+#[cfg(test)]
 use crate::app::agent::config::schema::ChannelsConfigExt;
 use anyhow::Result;
 use chrono::Utc;
@@ -218,33 +219,14 @@ pub async fn run(config: Config, host: String, port: u16) -> Result<()> {
         ));
     }
 
-    // 启动通道组件监督器（如果配置了实时通道）
-    {
-        if has_supervised_channels(&config) {
-            let channels_cfg = config.clone();
-            handles.push(tokio::spawn(async move {
-                match crate::app::agent::channels::start_channels(channels_cfg).await {
-                    Ok(()) => {
-                        crate::app::agent::health::mark_component_ok("channels");
-                        tracing::info!("Optional channels component stopped");
-                    }
-                    Err(error) => {
-                        crate::app::agent::health::mark_component_error(
-                            "channels",
-                            error.to_string(),
-                        );
-                        tracing::warn!(
-                            "Optional channels component is unavailable and will remain disabled: {error}"
-                        );
-                    }
-                }
-            }));
-        } else {
-            // 没有配置实时通道，标记为健康状态并记录日志
-            crate::app::agent::health::mark_component_ok("channels");
-            tracing::info!("No real-time channels configured; channel supervisor disabled");
+    // 即使启动时没有通道，也持续监测保存后的配置。
+    let channels_cfg = config.clone();
+    handles.push(tokio::spawn(async move {
+        if let Err(_error) = crate::app::agent::channels::start_channels(channels_cfg).await {
+            crate::app::agent::health::mark_component_error("channels", "channel runtime stopped");
+            tracing::warn!("Channel configuration watcher stopped");
         }
-    }
+    }));
 
     // 启动心跳组件监督器（如果启用了心跳功能）
     if config.heartbeat.enabled {
@@ -759,6 +741,7 @@ fn validate_heartbeat_channel_config(config: &Config, channel: &str) -> Result<(
 /// # 返回值
 ///
 /// 如果存在至少一个启用的非 webhook 通道，返回 `true`，否则返回 `false`
+#[cfg(test)]
 fn has_supervised_channels(config: &Config) -> bool {
     config.channels_config.channels_except_webhook().iter().any(|(_, ok)| *ok)
 }

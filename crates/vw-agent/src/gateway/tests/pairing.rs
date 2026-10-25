@@ -54,20 +54,10 @@ fn make_pair_state(pairing: PairingGuard, rate_limit: u32) -> AppState {
         temperature: 0.0,
         mem: Arc::new(MockMemory),
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(pairing),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(rate_limit, 100, 1_000)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1_000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None,
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(vec![]),
         tools_registry_exec: Arc::new(vec![]),
@@ -76,6 +66,7 @@ fn make_pair_state(pairing: PairingGuard, rate_limit: u32) -> AppState {
         event_tx: tokio::sync::broadcast::channel(1).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: Default::default(),
     }
 }
 

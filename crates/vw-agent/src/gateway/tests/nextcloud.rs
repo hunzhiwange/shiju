@@ -82,20 +82,10 @@ async fn nextcloud_talk_webhook_returns_not_found_when_not_configured() {
         temperature: 0.0,
         mem: memory,
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: None, // 未配置 Nextcloud Talk
-        nextcloud_talk_webhook_secret: None,
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -104,6 +94,20 @@ async fn nextcloud_talk_webhook_returns_not_found_when_not_configured() {
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: std::sync::Arc::new(parking_lot::Mutex::new(
+            crate::app::agent::gateway::state::GatewayChannels {
+                webhook_secret_hash: None,
+                whatsapp: None,
+                whatsapp_app_secret: None,
+                linq: None,
+                linq_signing_secret: None,
+                nextcloud_talk: None, // 未配置 Nextcloud Talk
+                nextcloud_talk_webhook_secret: None,
+                wati: None,
+                qq: None,
+                qq_webhook_enabled: false,
+            },
+        )),
     };
 
     // 调用 webhook 处理器，传入空请求头和测试请求体
@@ -167,20 +171,10 @@ async fn nextcloud_talk_webhook_rejects_invalid_signature() {
         temperature: 0.0,
         mem: memory,
         auto_save: false,
-        webhook_secret_hash: None,
         pairing: Arc::new(PairingGuard::new(false, &[])),
         trust_forwarded_headers: false,
         rate_limiter: Arc::new(GatewayRateLimiter::new(100, 100, 100)),
         idempotency_store: Arc::new(IdempotencyStore::new(Duration::from_secs(300), 1000)),
-        whatsapp: None,
-        whatsapp_app_secret: None,
-        linq: None,
-        linq_signing_secret: None,
-        nextcloud_talk: Some(channel), // 已配置 Nextcloud Talk
-        nextcloud_talk_webhook_secret: Some(Arc::from(secret)), // 已设置密钥
-        wati: None,
-        qq: None,
-        qq_webhook_enabled: false,
         observer: Arc::new(crate::app::agent::observability::NoopObserver),
         tools_registry: Arc::new(Vec::new()),
         tools_registry_exec: Arc::new(Vec::new()),
@@ -189,6 +183,20 @@ async fn nextcloud_talk_webhook_rejects_invalid_signature() {
         event_tx: tokio::sync::broadcast::channel(16).0,
         session_query_engines: Default::default(),
         hook_runtime: None,
+        channels: std::sync::Arc::new(parking_lot::Mutex::new(
+            crate::app::agent::gateway::state::GatewayChannels {
+                webhook_secret_hash: None,
+                whatsapp: None,
+                whatsapp_app_secret: None,
+                linq: None,
+                linq_signing_secret: None,
+                nextcloud_talk: Some(channel), // 已配置 Nextcloud Talk
+                nextcloud_talk_webhook_secret: Some(Arc::from(secret)), // 已设置密钥
+                wati: None,
+                qq: None,
+                qq_webhook_enabled: false,
+            },
+        )),
     };
 
     // 构建请求头，携带随机值和无效签名

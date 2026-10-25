@@ -44,6 +44,7 @@ pub(crate) enum PublicSkillMessage {
     QueryDraftChanged(String),
     SubmitQuery,
     SelectCategory(Option<String>),
+    SelectSuiteCategory(Option<String>),
     SelectSort(SkillMarketSort),
     PreviousPage,
     NextPage,
@@ -508,6 +509,13 @@ pub(crate) fn reduce(
             state.submit_query();
             load_current_tab(state, true)
         }
+        PublicSkillMessage::SelectSuiteCategory(category) => {
+            state.suites_category = category.filter(|category| !category.trim().is_empty());
+            state.suites_page = 1;
+            state.suites_generation = state.suites_generation.wrapping_add(1);
+            state.suites = LoadState::Idle;
+            load_current_tab(state, true)
+        }
         PublicSkillMessage::SelectSort(sort) => {
             state.query.sort = sort;
             state.submit_query();
@@ -775,7 +783,10 @@ fn load_current_tab(state: &mut PublicSkillMarketState, force: bool) -> Vec<Publ
                 vec![PublicRequest::Suites {
                     source,
                     generation,
-                    query: market_query(state, state.suites_page),
+                    query: SkillMarketSkillQuery {
+                        category: state.suites_category.clone(),
+                        ..market_query(state, state.suites_page)
+                    },
                 }]
             }
         }

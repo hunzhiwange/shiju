@@ -280,6 +280,7 @@ pub(crate) struct PublicSkillMarketState {
     pub(crate) last_batch_summary: Option<PublicBatchSummary>,
     pub(crate) query: PublicMarketQuery,
     pub(crate) suites_page: u32,
+    pub(crate) suites_category: Option<String>,
     pub(crate) featured_offset: usize,
     pub(crate) sources_generation: u64,
     pub(crate) recommended_generation: u64,
@@ -338,6 +339,7 @@ impl PublicSkillMarketState {
         self.detail = None;
         self.query = PublicMarketQuery::default();
         self.suites_page = 1;
+        self.suites_category = None;
         self.featured_offset = 0;
     }
 
@@ -489,6 +491,7 @@ impl Default for PublicSkillMarketState {
             last_batch_summary: None,
             query: PublicMarketQuery::default(),
             suites_page: 1,
+            suites_category: None,
             featured_offset: 0,
             sources_generation: 0,
             recommended_generation: 0,

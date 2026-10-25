@@ -375,6 +375,41 @@ fn loaded_sources(state: &mut PublicSkillMarketState) {
     );
 }
 
+#[test]
+fn suite_categories_reset_pagination_and_keep_skill_categories_independent() {
+    use crate::app::skill_hub::PublicSkillTab;
+
+    let mut state = PublicSkillMarketState::default();
+    loaded_sources(&mut state);
+    state.query.category = Some("development".to_string());
+    state.query.keyword_draft = "review".to_string();
+    reduce(&mut state, PublicSkillMessage::SubmitQuery);
+    reduce(&mut state, PublicSkillMessage::SelectTab(PublicSkillTab::Suites));
+    state.suites_page = 3;
+    let requests =
+        reduce(&mut state, PublicSkillMessage::SelectSuiteCategory(Some("tech".to_string())));
+    let [PublicRequest::Suites { query, .. }] = requests.as_slice() else {
+        panic!("expected suite request: {requests:?}");
+    };
+    assert_eq!(query.category.as_deref(), Some("tech"));
+    assert_eq!(query.keyword.as_deref(), Some("review"));
+    assert_eq!(query.page, 1);
+    assert_eq!(state.query.category.as_deref(), Some("development"));
+
+    let requests = reduce(&mut state, PublicSkillMessage::SelectTab(PublicSkillTab::SkillHub));
+    assert!(requests.iter().any(|request| matches!(request,
+        PublicRequest::Market { query, .. } if query.category.as_deref() == Some("development")
+    )));
+    reduce(&mut state, PublicSkillMessage::SelectTab(PublicSkillTab::Suites));
+    let requests = reduce(&mut state, PublicSkillMessage::SelectSuiteCategory(None));
+    assert!(matches!(requests.as_slice(), [PublicRequest::Suites { query, .. }]
+        if query.category.is_none() && query.page == 1));
+
+    reduce(&mut state, PublicSkillMessage::SelectSuiteCategory(Some("finance".to_string())));
+    reduce(&mut state, PublicSkillMessage::SelectSource("second".to_string()));
+    assert!(state.suites_category.is_none());
+}
+
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]

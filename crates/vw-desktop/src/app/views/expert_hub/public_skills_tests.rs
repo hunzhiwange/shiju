@@ -128,7 +128,7 @@ fn featured_skill_cards_keep_the_recommended_card_background() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn public_skill_page_renders_chinese_in_both_themes() {
     for tab in [PublicSkillTab::Recommended, PublicSkillTab::SkillHub, PublicSkillTab::Suites] {
         let app = populated_app(tab);

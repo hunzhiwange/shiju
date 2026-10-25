@@ -496,7 +496,7 @@ fn market_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
 }
 
 pub(super) fn suites_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
-    match &state.suites {
+    let content = match &state.suites {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
         LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
         LoadState::Error(error) => error_view(error),
@@ -507,7 +507,40 @@ pub(super) fn suites_content(state: &PublicSkillMarketState) -> Element<'static,
         ]
         .spacing(12)
         .into(),
-    }
+    };
+    column![suite_category_controls(state), content].spacing(12).into()
+}
+
+fn suite_category_controls(state: &PublicSkillMarketState) -> Element<'static, Message> {
+    // SkillHub expert-package scenes differ from individual skill categories.
+    let categories = [
+        (None, "全部"),
+        (Some("finance"), "金融"),
+        (Some("tech"), "科技"),
+        (Some("design"), "设计"),
+        (Some("marketing"), "营销"),
+        (Some("legal"), "法律"),
+        (Some("academic"), "学术"),
+        (Some("education"), "教育"),
+        (Some("hr"), "人力"),
+        (Some("ecommerce"), "电商"),
+        (Some("media"), "媒体"),
+        (Some("healthcare"), "医疗"),
+        (Some("mysticism"), "玄学"),
+    ];
+    row(categories.into_iter().map(|(category, label)| {
+        let selected = state.suites_category.as_deref() == category;
+        button(text(label).size(12))
+            .on_press(public_message(PublicSkillMessage::SelectSuiteCategory(
+                category.map(str::to_string),
+            )))
+            .padding([7, 12])
+            .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
+            .into()
+    }))
+    .spacing(6)
+    .wrap()
+    .into()
 }
 
 /// 构建公共市场页签、来源、搜索、列表与分页界面。

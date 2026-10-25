@@ -2409,7 +2409,12 @@ impl V3GatewayApp {
     }
 
     fn open_effort_picker(&mut self) {
-        if self.state.session_capabilities.efforts.is_empty() {
+        if self
+            .state
+            .session_capabilities
+            .efforts_for_model(self.state.session_options.model.as_deref())
+            .is_empty()
+        {
             push_runner_error(self, "当前 provider 没有声明推理强度能力");
             return;
         }
@@ -2417,7 +2422,7 @@ impl V3GatewayApp {
         let items = self
             .state
             .session_capabilities
-            .efforts
+            .efforts_for_model(self.state.session_options.model.as_deref())
             .iter()
             .copied()
             .map(|effort| {
@@ -2505,6 +2510,14 @@ impl V3GatewayApp {
     fn apply_model(&mut self, model: String) {
         let mut values = self.settings_values();
         values.model = Some(model);
+        if !self
+            .state
+            .session_capabilities
+            .efforts_for_model(values.model.as_deref())
+            .contains(&values.effort)
+        {
+            values.effort = ReasoningEffort::Auto;
+        }
         self.apply_settings_or_report(values);
     }
 
@@ -2606,7 +2619,8 @@ impl V3GatewayApp {
             return Err(format!("Gateway 未声明模型能力：{model}"));
         }
         if values.effort != self.state.session_options.effort
-            && !capabilities.efforts.contains(&values.effort)
+            && values.effort != ReasoningEffort::Auto
+            && !capabilities.efforts_for_model(values.model.as_deref()).contains(&values.effort)
         {
             return Err(format!("Gateway 未声明推理强度：{}", effort_id(values.effort)));
         }
@@ -3456,6 +3470,9 @@ fn selectable_item(id: &str, label: &str, description: &str) -> V3SelectionItem 
 
 fn effort_id(effort: ReasoningEffort) -> &'static str {
     match effort {
+        ReasoningEffort::Auto => "auto",
+        ReasoningEffort::None => "none",
+        ReasoningEffort::Max => "max",
         ReasoningEffort::Minimal => "minimal",
         ReasoningEffort::Low => "low",
         ReasoningEffort::Medium => "medium",
@@ -3670,13 +3687,26 @@ pub(crate) fn gateway_stream_request_from_state(
         messages,
         system,
         model: submission.model.clone(),
-        reasoning_effort: Some(match submission.execution.effort {
-            ReasoningEffort::Minimal => vw_gateway_client::vw_api_types::ReasoningEffortDto::Minimal,
-            ReasoningEffort::Low => vw_gateway_client::vw_api_types::ReasoningEffortDto::Low,
-            ReasoningEffort::Medium => vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium,
-            ReasoningEffort::High => vw_gateway_client::vw_api_types::ReasoningEffortDto::High,
-            ReasoningEffort::XHigh => vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh,
-        }),
+        reasoning_effort: match submission.execution.effort {
+            ReasoningEffort::Auto => None,
+            ReasoningEffort::None => {
+                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::None)
+            }
+            ReasoningEffort::Max => Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Max),
+            ReasoningEffort::Minimal => {
+                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Minimal)
+            }
+            ReasoningEffort::Low => Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Low),
+            ReasoningEffort::Medium => {
+                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium)
+            }
+            ReasoningEffort::High => {
+                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High)
+            }
+            ReasoningEffort::XHigh => {
+                Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Xhigh)
+            }
+        },
         agent: submission.execution.delegate_agent.clone(),
         allowed_tools,
         acp_agent,

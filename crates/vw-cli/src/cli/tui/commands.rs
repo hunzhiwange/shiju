@@ -618,7 +618,10 @@ fn route_settings_target(item_id: &str) -> Result<CommandRoute, String> {
 
 fn parse_effort(value: &str) -> Result<ReasoningEffort, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "minimal" | "none" => Ok(ReasoningEffort::Minimal),
+        "auto" => Ok(ReasoningEffort::Auto),
+        "none" => Ok(ReasoningEffort::None),
+        "minimal" => Ok(ReasoningEffort::Minimal),
+        "max" => Ok(ReasoningEffort::Max),
         "low" => Ok(ReasoningEffort::Low),
         "medium" => Ok(ReasoningEffort::Medium),
         "high" => Ok(ReasoningEffort::High),

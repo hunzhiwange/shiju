@@ -59,7 +59,7 @@ impl Default for SettingsValues {
             subagent_mode_enabled: false,
             workflow_mode: WorkflowMode::Disabled,
             goal_mode: GoalMode::Enabled,
-            effort: ReasoningEffort::Medium,
+            effort: ReasoningEffort::Auto,
             fast: false,
             theme: "Dark".to_string(),
             permission_mode: PermissionMode::Default,
@@ -191,7 +191,11 @@ impl SettingsPanel {
                 {
                     Some("Gateway 安全配置未声明完整访问能力".to_string())
                 }
-                SettingKey::Effort if capabilities.efforts.is_empty() => {
+                SettingKey::Effort
+                    if capabilities
+                        .efforts_for_model(panel.pending.model.as_deref())
+                        .is_empty() =>
+                {
                     Some("当前 provider 未声明推理强度能力".to_string())
                 }
                 SettingKey::Fast if !capabilities.supports_fast => {

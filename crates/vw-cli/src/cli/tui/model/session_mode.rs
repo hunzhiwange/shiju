@@ -1,11 +1,14 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) enum ReasoningEffort {
+    #[default]
+    Auto,
+    None,
     Minimal,
     Low,
-    #[default]
     Medium,
     High,
     XHigh,
+    Max,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -93,6 +96,7 @@ pub(crate) enum GoalMode {
 pub(crate) struct SessionCapabilityMatrix {
     pub(crate) models: Vec<String>,
     pub(crate) efforts: Vec<ReasoningEffort>,
+    pub(crate) model_efforts: std::collections::HashMap<String, Vec<ReasoningEffort>>,
     pub(crate) supports_thinking: bool,
     pub(crate) supports_fast: bool,
     pub(crate) permission_modes: Vec<PermissionMode>,
@@ -100,11 +104,21 @@ pub(crate) struct SessionCapabilityMatrix {
     pub(crate) acp_backends: Vec<AcpBackendOption>,
 }
 
+impl SessionCapabilityMatrix {
+    pub(crate) fn efforts_for_model(&self, model: Option<&str>) -> &[ReasoningEffort] {
+        model
+            .and_then(|model| self.model_efforts.get(model))
+            .map(Vec::as_slice)
+            .unwrap_or(&self.efforts)
+    }
+}
+
 impl Default for SessionCapabilityMatrix {
     fn default() -> Self {
         Self {
             models: Vec::new(),
             efforts: Vec::new(),
+            model_efforts: std::collections::HashMap::new(),
             supports_thinking: false,
             supports_fast: false,
             permission_modes: vec![PermissionMode::Default],

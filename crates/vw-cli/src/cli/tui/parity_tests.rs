@@ -41,6 +41,33 @@ const SCENARIOS: [&str; 10] = [
 ];
 
 #[test]
+fn tui_deepseek_request_preserves_auto_and_explicit_effort() {
+    for (effort, expected) in [
+        (super::model::ReasoningEffort::Auto, None),
+        (
+            super::model::ReasoningEffort::High,
+            Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::High),
+        ),
+    ] {
+        let mut app = gateway_app();
+        let state = app.state_mut();
+        state.session_options.model = Some("shiju/deepseek-v4-flash".to_string());
+        state.status.model_name = state.session_options.model.clone();
+        state.session_options.effort = effort;
+        state.session_options.select_acp_backend(None);
+        let submit = app
+            .handle_action(V3Action::Submit {
+                text: "你是谁？".to_string(),
+                attachments: Vec::new(),
+            })
+            .expect("submit DeepSeek prompt");
+        let request = app.request_for_command(&submit).expect("build DeepSeek request");
+        assert_eq!(request.model.as_deref(), Some("shiju/deepseek-v4-flash"));
+        assert_eq!(request.reasoning_effort, expected);
+    }
+}
+
+#[test]
 fn tui_real_gateway_pipeline_preserves_v2_semantics() {
     let mut app = gateway_app();
 
@@ -55,10 +82,7 @@ fn tui_real_gateway_pipeline_preserves_v2_semantics() {
         .expect("the existing request builder must create the Gateway request");
     assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), Some("session-17"));
     assert_eq!(request.model.as_deref(), Some("openai/gpt-5.6"));
-    assert_eq!(
-        request.reasoning_effort,
-        Some(vw_gateway_client::vw_api_types::ReasoningEffortDto::Medium)
-    );
+    assert_eq!(request.reasoning_effort, None);
     assert_eq!(request.agent.as_deref(), Some("researcher"));
     assert_eq!(request.acp_agent.as_deref(), Some("codex"));
     assert_eq!(request.allowed_tools, Some(vec!["AgentTool".to_string(), "todowrite".to_string()]));

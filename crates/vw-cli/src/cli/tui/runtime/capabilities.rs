@@ -44,7 +44,9 @@ pub(crate) async fn load_session_capabilities(
                 provider_models.sort_by(|left, right| left.id.cmp(&right.id));
                 for model in provider_models {
                     supports_reasoning |= model.capabilities.reasoning;
-                    models.push(format!("{}/{}", provider.id, model.id));
+                    let qualified = format!("{}/{}", provider.id, model.id);
+                    matrix.model_efforts.insert(qualified.clone(), model_efforts(&model));
+                    models.push(qualified);
                 }
             }
             models.sort();
@@ -56,15 +58,6 @@ pub(crate) async fn load_session_capabilities(
                 matrix.models.iter().any(|candidate| candidate == &qualified).then_some(qualified)
             });
             matrix.supports_thinking = supports_reasoning;
-            if supports_reasoning {
-                matrix.efforts = vec![
-                    ReasoningEffort::Minimal,
-                    ReasoningEffort::Low,
-                    ReasoningEffort::Medium,
-                    ReasoningEffort::High,
-                    ReasoningEffort::XHigh,
-                ];
-            }
             if matrix.models.is_empty() {
                 warnings.push("Gateway 未返回已连接 provider 的可选模型".to_string());
             }
@@ -154,3 +147,33 @@ fn config_allows_dangerous_access(config: &Value) -> bool {
         && autonomy.and_then(|value| value.get("workspace_only")).and_then(Value::as_bool)
             == Some(false)
 }
+
+fn model_efforts(model: &vw_shared::provider::types::Model) -> Vec<ReasoningEffort> {
+    let mut efforts = vec![ReasoningEffort::Auto];
+    if model.capabilities.reasoning {
+        for level in vw_shared::provider::reasoning::reasoning_levels(
+            &model.api.id,
+            &model.api.adapter,
+            &model.provider_id,
+            &model.api.url,
+            model.capabilities.reasoning_options.as_deref(),
+        ) {
+            let effort = match level.as_str() {
+                "none" => ReasoningEffort::None,
+                "minimal" => ReasoningEffort::Minimal,
+                "low" => ReasoningEffort::Low,
+                "medium" => ReasoningEffort::Medium,
+                "high" => ReasoningEffort::High,
+                "xhigh" => ReasoningEffort::XHigh,
+                "max" => ReasoningEffort::Max,
+                _ => continue,
+            };
+            efforts.push(effort);
+        }
+    }
+    efforts
+}
+
+#[cfg(test)]
+#[path = "capabilities_tests.rs"]
+mod tests;

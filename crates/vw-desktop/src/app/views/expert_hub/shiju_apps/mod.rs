@@ -93,6 +93,10 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .into()
     };
 
-    let base = container(content).width(Length::Fill).height(Length::Fill).padding([24, 28]).into();
+    let base = container(column![super::section_tabs(app), content].spacing(24))
+        .width(Length::Fill)
+        .height(Length::Fill)
+        .padding([24, 28])
+        .into();
     api_key_binding::with_overlay(app, base)
 }

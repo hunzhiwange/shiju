@@ -342,6 +342,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             finish_shiju_package_version_refresh(app, generation, result)
         }
         SkillHubMessage::SelectSection(section) => {
+            open_expert_hub_tab(app);
             if app.expert_hub.section != section {
                 app.expert_hub.public_market.close_detail();
             }

@@ -241,13 +241,17 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(16)
     .width(Length::Fill);
-    scrollable(page)
-        .direction(Direction::Vertical(
-            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-        ))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    scrollable(container(page).padding(iced::Padding {
+        left: 7.0,
+        right: SCROLLBAR_WIDTH as f32 + 7.0,
+        ..iced::Padding::default()
+    }))
+    .direction(Direction::Vertical(
+        Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+    ))
+    .width(Length::Fill)
+    .height(Length::Fill)
+    .into()
 }
 
 /// 在批量删除请求存在时叠加不可逆操作确认框。

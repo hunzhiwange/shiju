@@ -30,7 +30,7 @@ Provider 的 `callApi` 只返回 `fixed` 与合成 tokenUsage，无网络代码�
 `/Users/xiangmin/.npm/_npx/3f410cde517faec3/node_modules/.bin/promptfoo`；
 运行 cwd 和配置目录由 Python `tempfile.TemporaryDirectory` 提供，结束即删除。
 
-`eval.log` 为真实 CLI 输出（仓库绝对路径替换为 `<repo>`），退出码 **100**：
+`eval.txt` 为真实 CLI 输出（仓库绝对路径替换为 `<repo>`），退出码 **100**：
 6 次尝试，3 通过、3 断言失败、0 错误；故意失败的第二题验证失败字段，
 不是环境失败。Provider 合成用量合计 18（输入 12、输出 6），不是实际模型用量。
 
@@ -75,7 +75,7 @@ attempt 身份。本次 `testIdx` 为 0、1、2（case-pass），3、4、5（cas
 并发、恢复或多 Provider 场景的顺序。
 
 现有比较器对两个样本各自与自身比较，确切命令和输出见
-`one-case-compare.log`、`two-cases-compare.log`，均退出 **1**：
+`one-case-compare.txt`、`two-cases-compare.txt`，均退出 **1**：
 
 ```text
 对比失败：before 结果包含重复记录：offline-fixed :: case-pass

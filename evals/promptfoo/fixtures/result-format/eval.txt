@@ -1,0 +1,22 @@
+Cache is disabled.
+Starting evaluation eval-ccn-2026-10-25T01:23:21
+[Evaluation] Starting 6 test cases...
+Running 6 test cases (up to 1 at a time)...
+[Evaluation] ✓ 50% complete (3/6) - 0s elapsed
+[Evaluation] ✓ Complete! 6/6 tests in 0s
+✓ Eval complete
+
+Total Tokens: 18
+  Eval: 18 (12 prompt, 6 completion)
+
+Results:
+  ✓ 3 passed (50.00%)
+  ✗ 3 failed (50.00%)
+  0 errors (0%)
+Duration: 0s (concurrency: 1)
+
+Writing output to <repo>/evals/promptfoo/fixtures/result-format/two-cases.json
+(node:22963) ExperimentalWarning: DecompressInterceptor is experimental and subject to change
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+exitCode=100

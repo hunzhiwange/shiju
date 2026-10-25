@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { assertComparable } from './accuracy-manifest.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
@@ -86,15 +87,42 @@ function normalizeRow(row, sourceName, index) {
   };
 }
 
+function accuracyMetadata(row, sourceName) {
+  const metadata = row.raw.metadata ?? row.raw.response?.metadata;
+  const profile = row.raw.testCase?.metadata?.evaluationProfile;
+  if (profile !== 'runtime-accuracy' && row.raw.testCase?.metadata?.suite !== 'runtime-accuracy'
+      && metadata?.evaluationProfile !== 'runtime-accuracy') return undefined;
+  const fail = (field) => { throw new Error(`${sourceName} 契约 ${field} 无效：${row.displayKey}`); };
+  let digest;
+  try { digest = assertComparable(metadata?.manifest); } catch { fail('manifest'); }
+  if (metadata.manifestDigest !== digest) fail('manifestDigest');
+  if (metadata.expectedAttempts !== metadata.manifest.contract.experiment.execution.repeats) fail('expectedAttempts');
+  if (!metadata.manifest.contract.tasks.some(task => task.description === row.task)) fail('tasks');
+  const { sourceCommit, sourceDiffDigest } = metadata.manifest.run;
+  if (!sourceCommit || !sourceDiffDigest) fail('run.sourceIdentity');
+  return { digest, expectedAttempts: metadata.expectedAttempts, sourceIdentity: { sourceCommit, sourceDiffDigest } };
+}
+
+function assertAccuracyContract(before, after) {
+  if (!before.accuracy && !after.accuracy) return;
+  if (!before.accuracy || !after.accuracy || before.accuracy.digest !== after.accuracy.digest) {
+    throw new Error(`契约 manifestDigest 不一致：${before.displayKey}`);
+  }
+}
+
 function indexRows(document, sourceName) {
   const rows = extractRows(document, sourceName).map((row, index) =>
     normalizeRow(row, sourceName, index),
   );
   const indexed = new Map();
+  for (const row of rows) row.accuracy = accuracyMetadata(row, sourceName);
+  const accuracyRow = rows.find(row => row.accuracy);
+  if (accuracyRow) for (const row of rows) assertAccuracyContract(accuracyRow, row);
   for (const row of rows) {
     const group = indexed.get(row.key);
     if (group) {
       assertSameMetrics(group, row);
+      assertAccuracyContract(group, row);
       group.attempts.push(row);
     } else {
       indexed.set(row.key, { ...row, attempts: [row] });
@@ -104,6 +132,13 @@ function indexRows(document, sourceName) {
   // record, including identical records; this does not detect duplicate imports.
   for (const group of indexed.values()) {
     group.attemptCount = group.attempts.length;
+    if (group.accuracy && group.attemptCount !== group.accuracy.expectedAttempts) {
+      throw new Error(`${sourceName} 缺样或样本数超出 expectedAttempts：${group.displayKey}`);
+    }
+    if (group.accuracy) {
+      group.sourceIdentities = [...new Map(group.attempts.map(row =>
+        [JSON.stringify(row.accuracy.sourceIdentity), row.accuracy.sourceIdentity])).values()];
+    }
     group.passCount = group.attempts.filter((row) => row.pass).length;
     group.passRate = group.passCount / group.attemptCount;
     group.pass = group.passCount === group.attemptCount;
@@ -166,10 +201,13 @@ export function compareResults(beforeDocument, afterDocument) {
   for (const key of sorted(before.keys())) {
     const beforeRow = before.get(key);
     const afterRow = after.get(key);
+    assertAccuracyContract(beforeRow, afterRow);
     const metrics = assertSameMetrics(beforeRow, afterRow);
     tasks.push({
       provider: beforeRow.provider,
       task: beforeRow.task,
+      beforeSourceIdentities: beforeRow.sourceIdentities,
+      afterSourceIdentities: afterRow.sourceIdentities,
       beforeScore: beforeRow.score,
       afterScore: afterRow.score,
       delta: round(afterRow.score - beforeRow.score),
@@ -300,6 +338,10 @@ export function renderMarkdownReport(comparison, options = {}) {
     '## after 失败任务明细',
     '',
   ];
+
+  for (const task of comparison.tasks.filter(row => row.beforeSourceIdentities)) {
+    lines.push(`- 源码身份 ${tableCell(task.provider)} / ${tableCell(task.task)}：before ${tableCell(JSON.stringify(task.beforeSourceIdentities))}；after ${tableCell(JSON.stringify(task.afterSourceIdentities))}`);
+  }
 
   if (comparison.failures.length === 0) {
     lines.push('无。');

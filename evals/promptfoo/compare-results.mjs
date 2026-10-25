@@ -50,7 +50,10 @@ function normalizeRow(row, sourceName, index) {
 
   const namedScores = {};
   for (const metric of sorted(Object.keys(row.namedScores))) {
-    const metricScore = Number(row.namedScores[metric]);
+    const value = row.namedScores[metric];
+    const metricScore = typeof value === 'number' || (typeof value === 'string' && value.trim())
+      ? Number(value)
+      : NaN;
     if (!Number.isFinite(metricScore)) {
       throw new Error(
         `${sourceName} 记录 ${provider} :: ${task} 的 metric ${metric} 不是有限数字`,
@@ -71,6 +74,7 @@ function normalizeRow(row, sourceName, index) {
     '未提供失败原因';
 
   return {
+    raw: row,
     key: `${provider}\u0000${task}`,
     displayKey: `${provider} :: ${task}`,
     provider,
@@ -88,10 +92,26 @@ function indexRows(document, sourceName) {
   );
   const indexed = new Map();
   for (const row of rows) {
-    if (indexed.has(row.key)) {
-      throw new Error(`${sourceName} 结果包含重复记录：${row.displayKey}`);
+    const group = indexed.get(row.key);
+    if (group) {
+      assertSameMetrics(group, row);
+      group.attempts.push(row);
+    } else {
+      indexed.set(row.key, { ...row, attempts: [row] });
     }
-    indexed.set(row.key, row);
+  }
+  // The export provides no guaranteed attempt identity across imports. Count every
+  // record, including identical records; this does not detect duplicate imports.
+  for (const group of indexed.values()) {
+    group.attemptCount = group.attempts.length;
+    group.passCount = group.attempts.filter((row) => row.pass).length;
+    group.passRate = group.passCount / group.attemptCount;
+    group.pass = group.passCount === group.attemptCount;
+    group.score = average(group.attempts.reduce((sum, row) => sum + row.score, 0), group.attemptCount);
+    group.namedScores = Object.fromEntries(Object.keys(group.namedScores).map((metric) => [
+      metric,
+      average(group.attempts.reduce((sum, row) => sum + row.namedScores[metric], 0), group.attemptCount),
+    ]));
   }
   return indexed;
 }
@@ -153,6 +173,14 @@ export function compareResults(beforeDocument, afterDocument) {
       beforeScore: beforeRow.score,
       afterScore: afterRow.score,
       delta: round(afterRow.score - beforeRow.score),
+      beforeAttemptCount: beforeRow.attemptCount,
+      afterAttemptCount: afterRow.attemptCount,
+      beforePassCount: beforeRow.passCount,
+      afterPassCount: afterRow.passCount,
+      beforePassRate: beforeRow.passRate,
+      afterPassRate: afterRow.passRate,
+      beforeRows: beforeRow.attempts.map((row) => row.raw),
+      afterRows: afterRow.attempts.map((row) => row.raw),
       beforePass: beforeRow.pass,
       afterPass: afterRow.pass,
     });
@@ -182,11 +210,11 @@ export function compareResults(beforeDocument, afterDocument) {
       metricTotals.set(metricKey, metricTotal);
     }
 
-    if (!afterRow.pass) {
+    for (const attempt of afterRow.attempts.filter((row) => !row.pass)) {
       failures.push({
         provider: afterRow.provider,
         task: afterRow.task,
-        reason: afterRow.reason,
+        reason: attempt.reason,
       });
     }
   }

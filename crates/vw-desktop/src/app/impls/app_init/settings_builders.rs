@@ -12,6 +12,12 @@ pub(super) fn build_channels_settings(
             .as_ref()
             .map(|path| path.to_string_lossy().to_string())
             .unwrap_or_default(),
+        instance_default_projects: channels_cfg.instance_default_projects.clone(),
+        project_choices: Vec::new(),
+        project_choices_error: None,
+        project_choices_request: None,
+        project_choices_generation: 0,
+        project_choices_loading: false,
         text_inputs: std::collections::HashMap::new(),
         text_editors: std::collections::HashMap::new(),
         cli: channels_cfg.cli,
@@ -47,3 +53,7 @@ pub(super) fn build_channels_settings(
     channels_settings.refresh_text_inputs();
     channels_settings
 }
+
+#[cfg(test)]
+#[path = "settings_builders_tests.rs"]
+mod settings_builders_tests;

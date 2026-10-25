@@ -211,3 +211,49 @@ fn enabled_channels_returns_empty_when_every_channel_is_disabled() {
 
     assert!(enabled_channels(&app).is_empty());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+    let (mut app, _) = App::new();
+    app.channels_settings.qq = Some(QQConfig {
+        app_id: "app".into(),
+        app_secret: "secret".into(),
+        allowed_users: vec![],
+        receive_mode: QQReceiveMode::Webhook,
+    });
+    let generation = app.channels_settings.begin_project_choices("tenant", "qq:default");
+    app.channels_settings.finish_project_choices(
+        "tenant",
+        "qq:default",
+        generation,
+        Ok(vec![("project-one".into(), "中文项目：研究与开发".into())]),
+    );
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut element = super::common::default_project_selectors(&app);
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        let bounds = Size::new(960.0, 500.0);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(bounds),
+        );
+        let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+    }
+}

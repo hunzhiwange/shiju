@@ -143,7 +143,25 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     };
 
+    if matches!(
+        &message,
+        ChannelsMessage::InstanceAdded(_)
+            | ChannelsMessage::InstanceRemoved(_, _)
+            | ChannelsMessage::EnabledToggled(_, _)
+            | ChannelsMessage::TabSelected(_)
+            | ChannelsMessage::Refresh
+    ) || matches!(&message, ChannelsMessage::TextChanged(key, _) if key.ends_with(".id"))
+    {
+        app.channels_settings.invalidate_project_choices();
+    }
     match message {
+        ChannelsMessage::ProjectChoicesRequested(instance) => super::projects::load(app, instance),
+        ChannelsMessage::ProjectChoicesLoaded { tenant, instance, generation, result } => {
+            super::projects::loaded(app, tenant, instance, generation, result)
+        }
+        ChannelsMessage::DefaultProjectSelected { instance, project } => {
+            super::projects::select(app, instance, project)
+        }
         ChannelsMessage::Refresh => {
             app.channels_settings.save_error = None;
             Task::none()
@@ -175,6 +193,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if let Some(tab) = crate::app::state::ChannelsSettingsTab::from_channel_id(&channel) {
                 app.channels_settings.active_tab = tab;
             }
+            super::projects::retain_configured_bindings(app);
             app.channels_settings.refresh_text_inputs();
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }
@@ -183,17 +202,20 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if let Some(tab) = crate::app::state::ChannelsSettingsTab::from_channel_id(&channel) {
                 app.channels_settings.active_tab = tab;
             }
+            super::projects::retain_configured_bindings(app);
             app.channels_settings.refresh_text_inputs();
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }
         ChannelsMessage::InstanceRemoved(channel, index) => {
             remove_channel_instance(app, &channel, index);
+            super::projects::retain_configured_bindings(app);
             app.channels_settings.refresh_text_inputs();
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }
         ChannelsMessage::TextChanged(key, value) => {
             app.channels_settings.text_inputs.insert(key.clone(), value.clone());
             apply_text_change(app, &key, value);
+            super::projects::retain_configured_bindings(app);
             persist_channels_settings(app).unwrap_or_else(Task::none)
         }
         ChannelsMessage::TextEditorAction(key, action) => {

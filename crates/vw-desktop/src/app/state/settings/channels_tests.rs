@@ -143,3 +143,70 @@ fn refresh_text_inputs_inserts_empty_group_reply_for_other_optional_group_config
         assert_eq!(state.text_editors[key].text(), "", "unexpected editor for {key}");
     }
 }
+
+fn project_settings() -> ChannelsSettingsState {
+    ChannelsSettingsState::default()
+}
+
+#[test]
+fn channel_default_project_selection_isolated_by_instance() {
+    let mut state = project_settings();
+    state.begin_project_choices("tenant", "feishu:team");
+    state.finish_project_choices(
+        "tenant",
+        "feishu:team",
+        1,
+        Ok(vec![("p1".into(), "中文项目".into())]),
+    );
+    state.select_default_project("tenant", "feishu:team", Some("p1")).unwrap();
+    state.begin_project_choices("tenant", "qq:default");
+    state.finish_project_choices(
+        "tenant",
+        "qq:default",
+        2,
+        Ok(vec![("p2".into(), "另一项目".into())]),
+    );
+    state.select_default_project("tenant", "qq:default", Some("p2")).unwrap();
+    assert_eq!(state.instance_default_projects["feishu:team"], "p1");
+    assert_eq!(state.instance_default_projects["qq:default"], "p2");
+}
+
+#[test]
+fn channel_default_project_unknown_selection_preserves_binding() {
+    let mut state = project_settings();
+    state.instance_default_projects.insert("qq:default".into(), "previous".into());
+    state.begin_project_choices("tenant", "qq:default");
+    state.finish_project_choices("tenant", "qq:default", 1, Ok(vec![("p1".into(), "项目".into())]));
+    assert!(state.select_default_project("tenant", "qq:default", Some("missing")).is_err());
+    assert_eq!(state.instance_default_projects["qq:default"], "previous");
+}
+
+#[test]
+fn channel_default_project_stale_or_cross_tenant_result_ignored() {
+    let mut state = project_settings();
+    state.begin_project_choices("tenant", "qq:default");
+    for (tenant, key, generation) in
+        [("other", "qq:default", 1), ("tenant", "feishu:team", 1), ("tenant", "qq:default", 0)]
+    {
+        assert!(!state.finish_project_choices(
+            tenant,
+            key,
+            generation,
+            Ok(vec![("bad".into(), "错误".into())])
+        ));
+    }
+    assert!(state.select_default_project("other", "qq:default", None).is_err());
+    assert!(state.project_choices.is_empty());
+}
+
+#[test]
+fn channel_default_project_load_failure_keeps_deleted_binding_and_unbinds_explicitly() {
+    let mut state = project_settings();
+    state.instance_default_projects.insert("qq:default".into(), "deleted".into());
+    state.begin_project_choices("tenant", "qq:default");
+    state.finish_project_choices("tenant", "qq:default", 1, Err("加载失败".into()));
+    assert_eq!(state.instance_default_projects["qq:default"], "deleted");
+    assert!(state.project_choices_error.is_some());
+    state.select_default_project("tenant", "qq:default", None).unwrap();
+    assert!(!state.instance_default_projects.contains_key("qq:default"));
+}

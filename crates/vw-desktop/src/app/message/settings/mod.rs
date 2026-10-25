@@ -432,3 +432,5 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ProxyHelpClose => proxy::update(app, message),
     }
 }
+
+pub(crate) use channels::persist::build_channels_config_from_settings;

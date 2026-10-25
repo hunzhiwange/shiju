@@ -166,6 +166,12 @@ impl ChannelsSettingsTab {
 #[derive(Debug, Clone)]
 /// 表示 ChannelsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct ChannelsSettingsState {
+    pub(crate) instance_default_projects: std::collections::BTreeMap<String, String>,
+    pub(crate) project_choices: Vec<(String, String)>,
+    pub(crate) project_choices_error: Option<String>,
+    pub(crate) project_choices_request: Option<(String, String, u64)>,
+    pub(crate) project_choices_generation: u64,
+    pub(crate) project_choices_loading: bool,
     pub(crate) project_dir_input: String,
     pub(crate) text_inputs: HashMap<String, String>,
     pub(crate) text_editors: HashMap<String, text_editor::Content>,
@@ -203,6 +209,12 @@ pub(crate) struct ChannelsSettingsState {
 impl Default for ChannelsSettingsState {
     fn default() -> Self {
         Self {
+            instance_default_projects: Default::default(),
+            project_choices: Vec::new(),
+            project_choices_error: None,
+            project_choices_request: None,
+            project_choices_generation: 0,
+            project_choices_loading: false,
             project_dir_input: String::new(),
             text_inputs: HashMap::new(),
             text_editors: HashMap::new(),
@@ -505,3 +517,6 @@ impl crate::app::App {
 #[cfg(test)]
 #[path = "channels_tests.rs"]
 mod channels_tests;
+
+#[path = "channel_projects.rs"]
+mod channel_projects;

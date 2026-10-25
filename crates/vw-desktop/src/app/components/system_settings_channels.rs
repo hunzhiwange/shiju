@@ -436,7 +436,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if let Some(error) = &app.channels_settings.save_error {
         content = content.push(settings_error_banner(error));
     }
-    content = content.push(selected_panel);
+    content = content.push(selected_panel).push(common::default_project_selectors(app));
 
     container(content)
         .padding(iced::Padding { left: 12.0, right: 12.0, ..Default::default() })

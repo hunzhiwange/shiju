@@ -81,12 +81,12 @@ fn enabled_channels(settings: &ChannelsSettingsState) -> Vec<&'static str> {
 #[path = "persist_tests.rs"]
 mod persist_tests;
 
-pub(super) fn build_channels_config_from_settings(
+pub(crate) fn build_channels_config_from_settings(
     settings: &ChannelsSettingsState,
 ) -> Result<ChannelsConfig, String> {
     let channels = ChannelsConfig {
         project_dir: settings.project_dir(),
-        instance_default_projects: Default::default(),
+        instance_default_projects: settings.instance_default_projects.clone(),
         cli: settings.cli,
         telegram: settings.telegram.clone(),
         discord: settings.discord.clone(),
@@ -133,7 +133,7 @@ pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> 
         return None;
     }
 
-    let mut channels_config = match build_channels_config_from_settings(settings) {
+    let channels_config = match build_channels_config_from_settings(settings) {
         Ok(channels_config) => channels_config,
         Err(err) => {
             app.channels_settings.save_error = Some(err);
@@ -143,7 +143,6 @@ pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> 
 
     app.channels_settings.save_error = None;
     Some(update_channels_config_async(move |channels| {
-        channels_config.instance_default_projects.clone_from(&channels.instance_default_projects);
         *channels = channels_config;
     }))
 }

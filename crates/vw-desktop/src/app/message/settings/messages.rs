@@ -252,6 +252,17 @@ pub enum HttpRequestMessage {
 /// 渠道设置页消息。
 #[derive(Debug, Clone)]
 pub enum ChannelsMessage {
+    ProjectChoicesRequested(String),
+    ProjectChoicesLoaded {
+        tenant: String,
+        instance: String,
+        generation: u64,
+        result: Result<Vec<(String, String)>, String>,
+    },
+    DefaultProjectSelected {
+        instance: String,
+        project: Option<String>,
+    },
     Refresh,
     TabSelected(ChannelsSettingsTab),
     CliToggled(bool),

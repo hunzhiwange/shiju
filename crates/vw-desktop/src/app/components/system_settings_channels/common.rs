@@ -718,3 +718,98 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
     }
     items
 }
+
+/// 每个配置实例独立选择项目；候选只来自 Gateway。
+pub(super) fn default_project_selectors(app: &App) -> Element<'_, Message> {
+    let s = &app.channels_settings;
+    let config = match crate::app::message::settings::build_channels_config_from_settings(s) {
+        Ok(config) => config,
+        Err(error) => return text(format!("默认项目：{error}")).into(),
+    };
+    let profiles = match config.resolve_channel_instance_profiles() {
+        Ok(profiles) => profiles,
+        Err(error) => return text(format!("默认项目：{error}")).into(),
+    };
+    let mut content =
+        column![text("实例默认项目").size(14), hint_row("未绑定时沿用工作区默认项目。")]
+            .spacing(12);
+    for profile in profiles {
+        let key = profile.profile_ref;
+        let current = s.instance_default_projects.get(&key);
+        let active =
+            s.project_choices_request.as_ref().is_some_and(|(_, instance, _)| instance == &key);
+        let status = match current {
+            None => "未绑定（工作区默认）".to_string(),
+            Some(id) => match s
+                .project_choices
+                .iter()
+                .find(|(candidate, _)| candidate == id)
+                .filter(|_| active)
+            {
+                Some((_, name)) => format!("{name} · {id}"),
+                None => format!("已绑定：{id}（请加载项目核对）"),
+            },
+        };
+        content = content.push(
+            row![
+                text(key.clone()).size(13).width(Length::Fixed(LABEL_WIDTH)),
+                text(status).width(Length::Fill),
+                button(text("选择项目"))
+                    .on_press(Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::ProjectChoicesRequested(key.clone())
+                    )))
+                    .style(rounded_action_btn_style)
+            ]
+            .spacing(16)
+            .align_y(Alignment::Center),
+        );
+        if active {
+            let mut choices = column![
+                button(text("未绑定（工作区默认）"))
+                    .on_press(Message::Settings(SettingsMessage::Channels(
+                        ChannelsMessage::DefaultProjectSelected {
+                            instance: key.clone(),
+                            project: None
+                        }
+                    )))
+                    .style(rounded_action_btn_style)
+            ]
+            .spacing(8);
+            if s.project_choices_loading {
+                choices = choices.push(text("正在加载项目…"));
+            } else if let Some(error) = &s.project_choices_error {
+                choices = choices.push(text(format!("项目加载失败：{error}；请重新加载")));
+            } else {
+                if s.project_choices.is_empty() {
+                    choices = choices.push(text("暂无项目，请先创建项目。"));
+                }
+                if let Some(id) = current
+                    && !s.project_choices.iter().any(|(candidate, _)| candidate == id)
+                {
+                    choices = choices
+                        .push(text("已绑定项目已删除或当前租户不可访问，请重新选择或解除绑定。"));
+                }
+                for (id, name) in &s.project_choices {
+                    choices = choices.push(
+                        button(row![text(name.clone()), text(id.clone()).size(12)].spacing(12))
+                            .on_press(Message::Settings(SettingsMessage::Channels(
+                                ChannelsMessage::DefaultProjectSelected {
+                                    instance: key.clone(),
+                                    project: Some(id.clone()),
+                                },
+                            )))
+                            .style(rounded_action_btn_style),
+                    );
+                }
+            }
+            content = content.push(
+                iced::widget::scrollable(choices).height(Length::Fixed(180.0)).direction(
+                    iced::widget::scrollable::Direction::Vertical(
+                        iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+                    ),
+                ),
+            );
+        }
+    }
+    settings_panel(content).into()
+}

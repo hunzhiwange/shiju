@@ -2,7 +2,8 @@
 
 mod changes;
 mod helpers;
-mod persist;
+pub(crate) mod persist;
+mod projects;
 mod toggles;
 mod updates;
 

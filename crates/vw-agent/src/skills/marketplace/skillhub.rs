@@ -416,26 +416,36 @@ impl SkillMarketProvider for SkillHubProvider {
             };
             let locator = SkillMarketSkillLocatorDto {
                 source: SOURCE.to_string(),
-                namespace: required_value(&member.namespace, "namespace")
-                    .map_err(|_| missing("namespace"))?
-                    .to_string(),
+                namespace: member.namespace,
                 slug: required_value(&member.slug, "slug")
                     .map_err(|_| missing("slug"))?
                     .to_string(),
             };
-            let coordinate = if let Some(version) =
-                member.version.filter(|version| !version.trim().is_empty())
-            {
-                SkillMarketCoordinateDto { locator, version }
-            } else {
-                let resolved = self.skill_detail(&locator).await?.skill.coordinate;
-                if resolved.locator != locator {
+            let version = member.version.filter(|version| !version.trim().is_empty());
+            let coordinate = if locator.namespace.trim().is_empty() || version.is_none() {
+                // SkillHub can omit a suite member's namespace while its public detail
+                // endpoint still resolves the canonical coordinate by slug.
+                let mut url = self.endpoint(&["api", "v1", "skills", &locator.slug])?;
+                if !locator.namespace.trim().is_empty() {
+                    url.query_pairs_mut().append_pair("namespace", &locator.namespace);
+                }
+                let raw: RawSkillDetail = self.get_json(url).await?;
+                let mut resolved = map_skill_detail(raw)?.skill.coordinate;
+                if resolved.locator.slug != locator.slug
+                    || (!locator.namespace.trim().is_empty()
+                        && resolved.locator.namespace != locator.namespace)
+                {
                     return Err(SkillMarketProviderError::InvalidResponse(format!(
                         "SkillHub skill-set member {member_name} detail does not match its namespace and slug"
                     )));
                 }
+                if let Some(version) = version {
+                    resolved.version = version;
+                }
                 required_value(&resolved.version, "version").map_err(|_| missing("version"))?;
                 resolved
+            } else {
+                SkillMarketCoordinateDto { locator, version: version.expect("checked version") }
             };
             coordinates.push(coordinate);
         }

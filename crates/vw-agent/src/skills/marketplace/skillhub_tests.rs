@@ -230,8 +230,6 @@ fn skill_set() -> serde_json::Value {
 #[tokio::test(flavor = "multi_thread")]
 async fn expert_package_rejects_unresolved_members_before_download() {
     for member in [
-        json!({"slug": "unresolved-null", "namespace": null}),
-        json!({"slug": "unresolved-empty", "namespace": ""}),
         json!({"slug": "", "namespace": "fixture"}),
     ] {
         let mut suite = skill_set();
@@ -314,6 +312,35 @@ async fn expert_package_resolves_and_pins_member_versions() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn expert_package_resolves_missing_namespaces_and_preserves_pinned_versions() {
+    for namespace in [serde_json::Value::Null, json!("")] {
+        for version in [serde_json::Value::Null, json!("0.9.0")] {
+            let mut suite = skill_set();
+            suite["skills"] = json!([{
+                "slug": "fixture-skill", "namespace": namespace, "version": version
+            }]);
+            let (base_url, requests) = fixture_sequence(vec![
+                FixtureResponse::json(suite),
+                FixtureResponse::json(skill_detail()),
+                FixtureResponse::raw("200 OK", "application/zip", "suite-zip"),
+                FixtureResponse::raw("200 OK", "application/zip", "member-zip"),
+                FixtureResponse::json(json!({"content_hash": "hash", "signed": false})),
+            ]);
+            let artifact = provider(&base_url)
+                .skill_set_artifact("skillhub", "fixture-suite")
+                .await
+                .expect("resolve canonical member");
+            let coordinate = &artifact.members[0].coordinate;
+            assert_eq!(coordinate.locator.namespace, "fixture");
+            assert_eq!(coordinate.version, version.as_str().unwrap_or("1.2.3"));
+            let requests = requests.join().expect("join fixture");
+            assert!(requests[1].starts_with("GET /api/v1/skills/fixture-skill HTTP/1.1"));
+            assert!(requests[3].contains("&namespace=fixture "));
+        }
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn expert_package_rejects_mismatched_resolution_and_download_redirect() {
     let mut detail = skill_detail();
     detail["skill"]["slug"] = json!("another-skill");
@@ -367,15 +394,20 @@ async fn skillhub_provider_displays_unresolved_skillset_members_but_rejects_inst
     requests.join().expect("join catalog fixture");
 
     suite["skills"] = json!([{"slug": "unresolved-skill", "namespace": null}]);
-    let (base_url, requests) = fixture_sequence(vec![FixtureResponse::json(suite)]);
+    let mut unresolved = skill_detail();
+    unresolved["namespace"] = json!({});
+    let (base_url, requests) = fixture_sequence(vec![
+        FixtureResponse::json(suite),
+        FixtureResponse::json(unresolved),
+    ]);
     let error = self::provider(&base_url)
         .skill_set_artifact("skillhub", "fixture-suite")
         .await
         .err()
         .expect("unresolved member must not install");
     assert!(matches!(error, SkillMarketProviderError::InvalidResponse(message)
-        if message.contains("unresolved-skill") && message.contains("namespace")));
-    assert_eq!(requests.join().expect("join artifact fixture").len(), 1);
+        if message.contains("namespace")));
+    assert_eq!(requests.join().expect("join artifact fixture").len(), 2);
 }
 
 #[tokio::test(flavor = "multi_thread")]

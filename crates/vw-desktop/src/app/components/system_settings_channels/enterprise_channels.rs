@@ -13,9 +13,9 @@ use iced::{Element, Length};
 
 use super::common::{
     GROUP_REPLY_MODE_OPTIONS, LARK_RECEIVE_MODE_OPTIONS, QQ_RECEIVE_MODE_OPTIONS, add_instance_row,
-    bool_row, group_reply_mode_value, instance_title_row, lark_receive_mode_value, number_row,
-    number_row_with_hint, number_row_with_key, panel, pick_row, pick_row_with_key,
-    qq_receive_mode_value, text_row, text_row_with_key,
+    bool_row, default_project_selector, group_reply_mode_value, instance_title_row,
+    lark_receive_mode_value, number_row, number_row_with_hint, number_row_with_key, panel,
+    pick_row, pick_row_with_key, qq_receive_mode_value, text_row, text_row_with_key,
 };
 
 fn qr_authorization<'a>(app: &'a App, channel: &'static str) -> Element<'a, Message> {
@@ -166,7 +166,14 @@ pub(super) fn lark_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("lark", "Lark", "国际版 Lark 的 app、接收模式与草稿编辑节流。", s.lark.is_some(), body)
+    panel(
+        app,
+        "lark",
+        "Lark",
+        "国际版 Lark 的 app、接收模式与草稿编辑节流。",
+        s.lark.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `feishu_panel` 对应的界面片段与交互数据。
@@ -189,6 +196,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
 
     if let Some(cfg) = s.feishu.as_ref() {
         body = body
+            .push(default_project_selector(app, "feishu:default".into()))
             .push(settings_section_card(
                 "飞书详细配置",
                 "覆盖 app_id、app_secret、加密字段、接收模式、端口和草稿编辑参数。",
@@ -282,6 +290,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
         };
         body = body
             .push(instance_title_row(title, "feishu", index))
+            .push(default_project_selector(app, format!("feishu:{}", instance.id)))
             .push(text_row_with_key(
                 app,
                 "instance_id",
@@ -378,7 +387,7 @@ pub(super) fn feishu_panel(app: &App) -> Element<'_, Message> {
 
     body = body.push(add_instance_row("feishu", "新增飞书实例"));
 
-    panel("feishu", "飞书", "国内版飞书详细配置。", enabled, body.into())
+    panel(app, "feishu", "飞书", "国内版飞书详细配置。", enabled, body.into())
 }
 
 /// 构建或处理 `dingtalk_panel` 对应的界面片段与交互数据。
@@ -401,6 +410,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
 
     if let Some(cfg) = s.dingtalk.as_ref() {
         body = body
+            .push(default_project_selector(app, "dingtalk:default".into()))
             .push(text_row(
                 app,
                 "client_id",
@@ -436,6 +446,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
         };
         body = body
             .push(instance_title_row(title, "dingtalk", index))
+            .push(default_project_selector(app, format!("dingtalk:{}", instance.id)))
             .push(text_row_with_key(
                 app,
                 "instance_id",
@@ -473,6 +484,7 @@ pub(super) fn dingtalk_panel(app: &App) -> Element<'_, Message> {
     body = body.push(add_instance_row("dingtalk", "新增钉钉实例"));
 
     panel(
+        app,
         "dingtalk",
         "钉钉",
         "钉钉 Stream 模式鉴权；白名单为空时拒绝所有用户，* 表示允许所有用户。",
@@ -499,6 +511,7 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = if let Some(cfg) = s.qq.as_ref() {
         column![
             qr_authorization(app, "qq"),
+            default_project_selector(app, "qq:default".into()),
             text_row(app, "app_id", "QQ app id", &cfg.app_id, "qq.app_id", true),
             text_row(app, "app_secret", "QQ app secret", &cfg.app_secret, "qq.app_secret", true),
             text_row(
@@ -522,7 +535,7 @@ pub(super) fn qq_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("qq", "QQ", "QQ 官方机器人 app 信息与接收模式。", s.qq.is_some(), body)
+    panel(app, "qq", "QQ", "QQ 官方机器人 app 信息与接收模式。", s.qq.is_some(), body)
 }
 
 pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
@@ -530,6 +543,7 @@ pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = if let Some(cfg) = s.wecom.as_ref() {
         column![
             qr_authorization(app, "wecom"),
+            default_project_selector(app, "wecom:default".into()),
             text_row(app, "bot_id", "企业微信 Bot ID", &cfg.bot_id, "wecom.bot_id", false),
             text_row(app, "secret", "企业微信 Secret", &cfg.secret, "wecom.secret", true),
         ]
@@ -538,7 +552,7 @@ pub(super) fn wecom_panel(app: &App) -> Element<'_, Message> {
     } else {
         column![].into()
     };
-    panel("wecom", "企业微信", "企业微信 AI 机器人长连接凭据。", s.wecom.is_some(), body)
+    panel(app, "wecom", "企业微信", "企业微信 AI 机器人长连接凭据。", s.wecom.is_some(), body)
 }
 
 pub(super) fn wechat_panel(app: &App) -> Element<'_, Message> {
@@ -546,6 +560,7 @@ pub(super) fn wechat_panel(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = if let Some(cfg) = s.wechat.as_ref() {
         column![
             qr_authorization(app, "wechat"),
+            default_project_selector(app, "wechat:default".into()),
             text_row(app, "bot_token", "微信 Bot Token", &cfg.bot_token, "wechat.bot_token", true,),
             text_row(app, "base_url", "可信 iLink 地址", &cfg.base_url, "wechat.base_url", false,),
         ]
@@ -554,7 +569,7 @@ pub(super) fn wechat_panel(app: &App) -> Element<'_, Message> {
     } else {
         column![].into()
     };
-    panel("wechat", "微信", "微信 iLink 机器人凭据与可信平台地址。", s.wechat.is_some(), body)
+    panel(app, "wechat", "微信", "微信 iLink 机器人凭据与可信平台地址。", s.wechat.is_some(), body)
 }
 
 /// 构建或处理 `nostr_panel` 对应的界面片段与交互数据。
@@ -591,7 +606,7 @@ pub(super) fn nostr_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("nostr", "Nostr", "私钥、中继列表和允许的公钥白名单。", s.nostr.is_some(), body)
+    panel(app, "nostr", "Nostr", "私钥、中继列表和允许的公钥白名单。", s.nostr.is_some(), body)
 }
 
 /// 构建或处理 `clawdtalk_panel` 对应的界面片段与交互数据。
@@ -652,6 +667,7 @@ pub(super) fn clawdtalk_panel(app: &App) -> Element<'_, Message> {
     };
 
     panel(
+        app,
         "clawdtalk",
         "ClawdTalk",
         "Telnyx 语音通道的 API 鉴权与目的地限制。",

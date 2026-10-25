@@ -171,7 +171,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.channels_settings.qr_flow.close();
             }
             app.channels_settings.active_tab = tab;
-            Task::none()
+            super::projects::load_active(app)
         }
         ChannelsMessage::CliToggled(value) => {
             app.channels_settings.cli = value;

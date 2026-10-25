@@ -82,7 +82,14 @@ pub(super) fn telegram_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("telegram", "Telegram", "机器人令牌、群聊行为与白名单控制。", s.telegram.is_some(), body)
+    panel(
+        app,
+        "telegram",
+        "Telegram",
+        "机器人令牌、群聊行为与白名单控制。",
+        s.telegram.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `discord_panel` 对应的界面片段与交互数据。
@@ -152,7 +159,14 @@ pub(super) fn discord_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("discord", "Discord", "机器人令牌、服务器限制与群聊回复控制。", s.discord.is_some(), body)
+    panel(
+        app,
+        "discord",
+        "Discord",
+        "机器人令牌、服务器限制与群聊回复控制。",
+        s.discord.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `slack_panel` 对应的界面片段与交互数据。
@@ -211,7 +225,14 @@ pub(super) fn slack_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("slack", "Slack", "机器人令牌、Socket Mode 应用令牌与频道限制。", s.slack.is_some(), body)
+    panel(
+        app,
+        "slack",
+        "Slack",
+        "机器人令牌、Socket Mode 应用令牌与频道限制。",
+        s.slack.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `mattermost_panel` 对应的界面片段与交互数据。
@@ -297,6 +318,7 @@ pub(super) fn mattermost_panel(app: &App) -> Element<'_, Message> {
     };
 
     panel(
+        app,
         "mattermost",
         "Mattermost",
         "服务器地址、机器人令牌、线程回复与仅提及时回复。",
@@ -338,7 +360,7 @@ pub(super) fn webhook_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("webhook", "Webhook", "接收入站网络事件的轻量端点。", s.webhook.is_some(), body)
+    panel(app, "webhook", "Webhook", "接收入站网络事件的轻量端点。", s.webhook.is_some(), body)
 }
 
 /// 构建或处理 `imessage_panel` 对应的界面片段与交互数据。
@@ -371,7 +393,7 @@ pub(super) fn imessage_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("imessage", "iMessage", "macOS 下允许接入的联系人列表。", s.imessage.is_some(), body)
+    panel(app, "imessage", "iMessage", "macOS 下允许接入的联系人列表。", s.imessage.is_some(), body)
 }
 
 /// 构建或处理 `signal_panel` 对应的界面片段与交互数据。
@@ -428,5 +450,12 @@ pub(super) fn signal_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("signal", "Signal", "signal-cli HTTP daemon 地址与来源过滤。", s.signal.is_some(), body)
+    panel(
+        app,
+        "signal",
+        "Signal",
+        "signal-cli HTTP daemon 地址与来源过滤。",
+        s.signal.is_some(),
+        body,
+    )
 }

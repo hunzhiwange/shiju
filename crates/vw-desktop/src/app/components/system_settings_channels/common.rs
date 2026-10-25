@@ -600,6 +600,7 @@ pub(super) fn hint_row<'a>(message: &'a str) -> Element<'a, Message> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn panel<'a>(
+    app: &'a App,
     id: &'static str,
     title: &'static str,
     description: &'static str,
@@ -624,7 +625,20 @@ pub(super) fn panel<'a>(
     .align_y(Alignment::Center);
 
     let content = if enabled {
-        column![header, settings_divider(), body].spacing(12)
+        {
+            let mut content = column![header, settings_divider()].spacing(12);
+            if !matches!(id, "feishu" | "dingtalk" | "qq" | "wecom" | "wechat") {
+                let channel = if id == "lark"
+                    && app.channels_settings.lark.as_ref().is_some_and(|cfg| cfg.use_feishu)
+                {
+                    "feishu"
+                } else {
+                    id
+                };
+                content = content.push(default_project_selector(app, format!("{channel}:default")));
+            }
+            content.push(body)
+        }
     } else {
         column![header, settings_divider(), hint_row("启用后显示该通道的详细配置表单。")]
             .spacing(12)
@@ -719,97 +733,69 @@ pub(super) fn enabled_channels(app: &App) -> Vec<&'static str> {
     items
 }
 
-/// 每个配置实例独立选择项目；候选只来自 Gateway。
-pub(super) fn default_project_selectors(app: &App) -> Element<'_, Message> {
+#[derive(Clone, PartialEq, Eq)]
+struct ProjectOption {
+    id: Option<String>,
+    label: String,
+}
+
+impl std::fmt::Display for ProjectOption {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.label)
+    }
+}
+
+/// 在连接实例内选择默认项目，打开下拉框时加载当前租户的候选。
+pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Message> {
     let s = &app.channels_settings;
-    let config = match crate::app::message::settings::build_channels_config_from_settings(s) {
-        Ok(config) => config,
-        Err(error) => return text(format!("默认项目：{error}")).into(),
-    };
-    let profiles = match config.resolve_channel_instance_profiles() {
-        Ok(profiles) => profiles,
-        Err(error) => return text(format!("默认项目：{error}")).into(),
-    };
-    let mut content =
-        column![text("实例默认项目").size(14), hint_row("未绑定时沿用工作区默认项目。")]
-            .spacing(12);
-    for profile in profiles {
-        let key = profile.profile_ref;
-        let current = s.instance_default_projects.get(&key);
-        let active =
-            s.project_choices_request.as_ref().is_some_and(|(_, instance, _)| instance == &key);
-        let status = match current {
-            None => "未绑定（工作区默认）".to_string(),
-            Some(id) => match s
-                .project_choices
+    let active =
+        s.project_choices_request.as_ref().is_some_and(|(_, instance, _)| instance == &key);
+    let current = s.instance_default_projects.get(&key);
+    let mut options = vec![ProjectOption { id: None, label: "不指定项目".into() }];
+    if active && !s.project_choices_loading && s.project_choices_error.is_none() {
+        options.extend(
+            s.project_choices
                 .iter()
-                .find(|(candidate, _)| candidate == id)
-                .filter(|_| active)
-            {
-                Some((_, name)) => format!("{name} · {id}"),
-                None => format!("已绑定：{id}（请加载项目核对）"),
-            },
-        };
-        content = content.push(
-            row![
-                text(key.clone()).size(13).width(Length::Fixed(LABEL_WIDTH)),
-                text(status).width(Length::Fill),
-                button(text("选择项目"))
-                    .on_press(Message::Settings(SettingsMessage::Channels(
-                        ChannelsMessage::ProjectChoicesRequested(key.clone())
-                    )))
-                    .style(rounded_action_btn_style)
-            ]
+                .map(|(id, name)| ProjectOption { id: Some(id.clone()), label: name.clone() }),
+        );
+    }
+    let selected = match options.iter().find(|option| option.id.as_ref() == current) {
+        Some(option) => option.clone(),
+        None => ProjectOption {
+            id: current.cloned(),
+            label: format!("已绑定：{}", current.map(String::as_str).unwrap_or_default()),
+        },
+    };
+    let instance = key.clone();
+    let mut picker = pick_list(options, Some(selected), move |option| {
+        Message::Settings(SettingsMessage::Channels(ChannelsMessage::DefaultProjectSelected {
+            instance: instance.clone(),
+            project: option.id,
+        }))
+    })
+    .padding([10, 14])
+    .text_size(13)
+    .width(Length::Fill)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style);
+    if !active || s.project_choices_error.is_some() {
+        picker = picker.on_open(Message::Settings(SettingsMessage::Channels(
+            ChannelsMessage::ProjectChoicesRequested(key.clone()),
+        )));
+    }
+    let mut content = column![
+        row![text("工作项目").size(13).width(Length::Fixed(LABEL_WIDTH)), picker]
             .spacing(16)
             .align_y(Alignment::Center),
-        );
-        if active {
-            let mut choices = column![
-                button(text("未绑定（工作区默认）"))
-                    .on_press(Message::Settings(SettingsMessage::Channels(
-                        ChannelsMessage::DefaultProjectSelected {
-                            instance: key.clone(),
-                            project: None
-                        }
-                    )))
-                    .style(rounded_action_btn_style)
-            ]
-            .spacing(8);
-            if s.project_choices_loading {
-                choices = choices.push(text("正在加载项目…"));
-            } else if let Some(error) = &s.project_choices_error {
-                choices = choices.push(text(format!("项目加载失败：{error}；请重新加载")));
-            } else {
-                if s.project_choices.is_empty() {
-                    choices = choices.push(text("暂无项目，请先创建项目。"));
-                }
-                if let Some(id) = current
-                    && !s.project_choices.iter().any(|(candidate, _)| candidate == id)
-                {
-                    choices = choices
-                        .push(text("已绑定项目已删除或当前租户不可访问，请重新选择或解除绑定。"));
-                }
-                for (id, name) in &s.project_choices {
-                    choices = choices.push(
-                        button(row![text(name.clone()), text(id.clone()).size(12)].spacing(12))
-                            .on_press(Message::Settings(SettingsMessage::Channels(
-                                ChannelsMessage::DefaultProjectSelected {
-                                    instance: key.clone(),
-                                    project: Some(id.clone()),
-                                },
-                            )))
-                            .style(rounded_action_btn_style),
-                    );
-                }
-            }
-            content = content.push(
-                iced::widget::scrollable(choices).height(Length::Fixed(180.0)).direction(
-                    iced::widget::scrollable::Direction::Vertical(
-                        iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
-                    ),
-                ),
-            );
-        }
+        hint_row("从系统项目列表选择，该连接的聊天将在所选项目下工作；可不选。"),
+    ]
+    .spacing(8);
+    if active && s.project_choices_loading {
+        content = content.push(hint_row("正在加载项目…"));
+    } else if active && s.project_choices_error.is_some() {
+        content = content.push(hint_row("项目加载失败，请重新打开下拉框重试。"));
+    } else if active && s.project_choices.is_empty() {
+        content = content.push(hint_row("暂无项目，请先创建项目。"));
     }
-    settings_panel(content).into()
+    content.into()
 }

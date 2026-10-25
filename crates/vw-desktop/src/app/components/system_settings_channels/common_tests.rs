@@ -200,8 +200,9 @@ fn multiline_text_row_rejects_missing_editor_state() {
 
 #[test]
 fn panel_builds_collapsed_disabled_and_expanded_enabled_content() {
-    keep_element(panel("x", "标题", "说明", false, text("body").into()));
-    keep_element(panel("x", "标题", "说明", true, text("body").into()));
+    let app = test_app();
+    keep_element(panel(&app, "x", "标题", "说明", false, text("body").into()));
+    keep_element(panel(&app, "x", "标题", "说明", true, text("body").into()));
 }
 
 #[test]
@@ -231,8 +232,11 @@ async fn channel_default_project_chinese_dynamic_panel_draws_in_both_themes() {
         generation,
         Ok(vec![("project-one".into(), "中文项目：研究与开发".into())]),
     );
+    app.channels_settings
+        .instance_default_projects
+        .insert("qq:default".into(), "project-one".into());
     for theme in [Theme::Dark, Theme::Light] {
-        let mut element = super::common::default_project_selectors(&app);
+        let mut element = super::common::default_project_selector(&app, "qq:default".into());
         let mut renderer =
             <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                 .await

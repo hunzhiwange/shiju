@@ -3,7 +3,10 @@ use super::persist::{build_channels_config_from_settings, persist_channels_setti
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{GatewayClient, vw_api_types::project::ListProjectsRequest};
+use vw_gateway_client::{
+    GatewayClient,
+    vw_api_types::project::{ListProjectsRequest, ProjectDto},
+};
 
 fn tenant(client: &GatewayClient) -> Result<String, String> {
     serde_json::to_string(client.endpoint().tenant_scope()).map_err(|err| err.to_string())
@@ -20,6 +23,40 @@ fn configured(app: &App, instance: &str) -> Result<(), String> {
         return Err("通道实例已删除或 ID 无效，请重新选择实例".into());
     }
     Ok(())
+}
+
+/// 与首页项目列表使用相同的可见性和排序规则，排除内部运行时工作区。
+fn project_choices(mut projects: Vec<ProjectDto>) -> Vec<(String, String)> {
+    projects.sort_by(|left, right| {
+        right
+            .updated_at_ms
+            .0
+            .cmp(&left.updated_at_ms.0)
+            .then_with(|| left.name.cmp(&right.name))
+            .then_with(|| left.directory.cmp(&right.directory))
+            .then_with(|| left.id.0.cmp(&right.id.0))
+    });
+    projects
+        .into_iter()
+        .filter(|project| crate::app::projects::is_visible_recent_project_path(&project.directory))
+        .map(|project| (project.id.0, project.name))
+        .collect()
+}
+
+pub(super) fn load_active(app: &mut App) -> Task<Message> {
+    let instance = build_channels_config_from_settings(&app.channels_settings)
+        .ok()
+        .and_then(|config| config.resolve_channel_instance_profiles().ok())
+        .and_then(|profiles| {
+            profiles.into_iter().find(|profile| {
+                crate::app::state::ChannelsSettingsTab::from_channel_id(profile.channel_type)
+                    == Some(app.channels_settings.active_tab)
+            })
+        });
+    match instance {
+        Some(profile) => load(app, profile.profile_ref),
+        None => Task::none(),
+    }
 }
 
 pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
@@ -40,7 +77,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
             let mut projects = Vec::new();
             loop {
                 let page = client.project_list(client.endpoint().tenant_scope(), &request).await?;
-                projects.extend(page.items.into_iter().map(|project| (project.id.0, project.name)));
+                projects.extend(page.items);
                 match page.next_cursor {
                     Some(cursor) if request.cursor.as_ref() == Some(&cursor) => {
                         return Err("项目分页游标未前进".into());
@@ -49,7 +86,7 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
                     None => break,
                 }
             }
-            Ok(projects)
+            Ok(project_choices(projects))
         },
         move |result| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectChoicesLoaded {
@@ -107,3 +144,7 @@ pub(super) fn retain_configured_bindings(app: &mut App) {
             .retain(|key, _| profiles.iter().any(|profile| &profile.profile_ref == key));
     }
 }
+
+#[cfg(test)]
+#[path = "projects_tests.rs"]
+mod tests;

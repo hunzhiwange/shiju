@@ -98,6 +98,7 @@ pub(super) fn whatsapp_panel(app: &App) -> Element<'_, Message> {
     };
 
     panel(
+        app,
         "whatsapp",
         "WhatsApp",
         "Cloud API 或 Web 模式字段共用一组表单。",
@@ -141,7 +142,7 @@ pub(super) fn linq_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("linq", "Linq", "Partner API、发信号码与签名校验。", s.linq.is_some(), body)
+    panel(app, "linq", "Linq", "Partner API、发信号码与签名校验。", s.linq.is_some(), body)
 }
 
 /// 构建或处理 `wati_panel` 对应的界面片段与交互数据。
@@ -186,7 +187,7 @@ pub(super) fn wati_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("wati", "WATI", "第三方 WhatsApp Business API 集成。", s.wati.is_some(), body)
+    panel(app, "wati", "WATI", "第三方 WhatsApp Business API 集成。", s.wati.is_some(), body)
 }
 
 /// 构建或处理 `nextcloud_talk_panel` 对应的界面片段与交互数据。
@@ -246,6 +247,7 @@ pub(super) fn nextcloud_talk_panel(app: &App) -> Element<'_, Message> {
     };
 
     panel(
+        app,
         "nextcloud_talk",
         "Nextcloud Talk",
         "基础地址、应用 token 与 webhook 密钥。",
@@ -332,7 +334,7 @@ pub(super) fn email_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("email", "Email", "IMAP / SMTP 收发邮件配置。", s.email.is_some(), body)
+    panel(app, "email", "Email", "IMAP / SMTP 收发邮件配置。", s.email.is_some(), body)
 }
 
 /// 构建或处理 `irc_panel` 对应的界面片段与交互数据。
@@ -402,5 +404,5 @@ pub(super) fn irc_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel("irc", "IRC", "IRC over TLS、自动加入频道和认证口令。", s.irc.is_some(), body)
+    panel(app, "irc", "IRC", "IRC over TLS、自动加入频道和认证口令。", s.irc.is_some(), body)
 }

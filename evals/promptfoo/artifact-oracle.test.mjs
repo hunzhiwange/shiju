@@ -94,3 +94,26 @@ test('oracle_compares_nested_binary_files_and_bounds_diagnostics', async t => {
   assert.ok(result.checks.length <= 100);
   assert.ok(JSON.stringify(result).length < 6000);
 });
+
+test('oracle_compares_exact_json_fields_and_rejects_ambiguous_answers', async t => {
+  const f = await fixture(t);
+  const expectedJson = { port: 6287, region: '华东二区' };
+  const verify = createArtifactOracle(new Map([['json', { expectedFiles: {},
+    unchangedFiles: {}, expectedJson, allowExtraFiles: true }]]));
+  expectedJson.port = 0;
+  const input = { taskId: 'json', workRoot: f.workRoot };
+  assert.equal((await verify({ ...input, response: ' \n { "region": "华东二区", "port": 6287 }\t' })).pass, true);
+  for (const response of [undefined, 'null', '[]', '{}', '{"port":"6287","region":"华东二区"}',
+    '{"port":6287,"region":"华东二区","extra":true}',
+    '{"port":1,"port":6287,"region":"华东二区"}',
+    '{"port":1,"p\\u006frt":6287,"region":"华东二区"}',
+    '{"port":6287,"region":"华东二区"} {}',
+    '```json\n{"port":6287,"region":"华东二区"}\n```',
+    '{"port":6287,"region":"华东二区",}', '{"port":{"value":6287},"region":"华东二区"}']) {
+    assert.equal((await verify({ ...input, response })).pass, false);
+  }
+  for (const expectedJson of [{}, [], { nested: {} }, { invalid: NaN }]) {
+    assert.throws(() => createArtifactOracle(new Map([['bad', { expectedFiles: {}, unchangedFiles: {},
+      expectedJson, allowExtraFiles: false }]])), /configuration/);
+  }
+});

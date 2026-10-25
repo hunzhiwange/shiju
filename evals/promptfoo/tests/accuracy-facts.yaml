@@ -1,0 +1,75 @@
+- description: facts-01 · 指定版本端口
+  metadata:
+    suite: runtime-accuracy
+    batch: 13
+    category: facts
+    split: dev
+    taskId: facts-01
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: facts-01
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["release-old.json", "release-current.json"]
+    task: >-
+      读取 release-old.json 与 release-current.json，返回 version 为 2.1 的 port。返回字段 port（整数）。 公开输入仅为 release-old.json、release-current.json。只读任务，禁止创建、修改或删除任何文件，禁止网络访问。
+      最终回答必须只有一个 JSON 对象，字段必须完全匹配要求，不加解释或 Markdown。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。
+
+- description: facts-02 · 状态过滤求和
+  metadata:
+    suite: runtime-accuracy
+    batch: 13
+    category: facts
+    split: dev
+    taskId: facts-02
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: facts-02
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["records.csv"]
+    task: >-
+      读取 records.csv，仅选 status 严格等于 accepted 的三行，将 count 整数相加。返回字段 total（整数）。 公开输入仅为 records.csv。只读任务，禁止创建、修改或删除任何文件，禁止网络访问。
+      最终回答必须只有一个 JSON 对象，字段必须完全匹配要求，不加解释或 Markdown。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。
+
+- description: facts-03 · 同名符号模块路径
+  metadata:
+    suite: runtime-accuracy
+    batch: 13
+    category: facts
+    split: dev
+    taskId: facts-03
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: facts-03
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["modules/network.txt", "modules/storage.txt"]
+    task: >-
+      检索 modules 文本目录中的 resolve_endpoint，返回 storage 模块声明的 module 路径。返回字段 modulePath（字符串）。 公开输入仅为 modules/network.txt、modules/storage.txt。只读任务，禁止创建、修改或删除任何文件，禁止网络访问。
+      最终回答必须只有一个 JSON 对象，字段必须完全匹配要求，不加解释或 Markdown。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。
+
+- description: facts-04 · UTF-8 中文键值
+  metadata:
+    suite: runtime-accuracy
+    batch: 13
+    category: facts
+    split: holdout
+    taskId: facts-04
+  vars:
+    evaluationProfile: runtime-accuracy
+    taskId: facts-04
+    maxIterations: 24
+    maxToolCalls: 32
+    timeoutMs: 900000
+    fixtureFiles: ["设置.txt"]
+    task: >-
+      以 UTF-8 读取 设置.txt，返回键“监听区域”的原始值。返回字段“监听区域”（字符串）。 公开输入仅为 设置.txt。只读任务，禁止创建、修改或删除任何文件，禁止网络访问。
+      最终回答必须只有一个 JSON 对象，字段必须完全匹配要求，不加解释或 Markdown。
+      预算：最多 24 次迭代、32 次工具调用、900000 毫秒。

@@ -333,6 +333,19 @@ test('accuracy_provider_verifies_artifacts_and_cleans_only_after_writer_exit', a
   assert.equal(correct.metadata.oracle.pass, true);
   assert.equal(score(correct).pass, true);
   assert.equal(correct.metadata.cleanup, 'cleaned');
+  // Real HTTP/SSE boundary replay: only the final answer reaches JSON acceptance.
+  const fileDefinition = config.accuracyAcceptance.definitions.get('edit-test');
+  config.accuracyAcceptance.definitions.set('edit-test', {
+    ...fileDefinition, expectedJson: { port: 6287 },
+  });
+  const wrongJson = await run();
+  assert.equal(wrongJson.metadata.oracle.pass, false);
+  events = turnEvents({ sessionId: 'session', messageId: 'answer',
+    output: '{"port":6287}', callId: 'c', toolName: 'read_file' });
+  const correctJson = await run();
+  assert.equal(correctJson.metadata.oracle.pass, true);
+  assert.equal(score(correctJson).pass, true);
+  config.accuracyAcceptance.definitions.set('edit-test', fileDefinition);
   manifest.contract.experiment.budget.wallTimeMs = 1;
   const overBudget = await run();
   assert.equal(score(overBudget).namedScores.execution_budget, 0);
@@ -393,5 +406,5 @@ test('accuracy_provider_verifies_artifacts_and_cleans_only_after_writer_exit', a
   assert.match(invalidProof.error, /admission evidence invalid/);
   assert.equal(invalidProof.metadata.cleanup, 'cleaned');
   assert.equal(await readFile(join(root, 'answer.txt'), 'utf8'), 'input');
-  assert.equal(requests, 11);
+  assert.equal(requests, 13);
 });

@@ -12,6 +12,33 @@ function validPath(path) {
     && path.split('/').every(part => part && part !== '.' && part !== '..');
 }
 
+// A single flat JSON object with scalar fields. Inspect tokens as well as parsing so
+// duplicate (including escaped-equivalent) keys cannot silently overwrite values.
+function exactJson(response, expected) {
+  if (typeof response !== 'string') return false;
+  try {
+    const parsed = JSON.parse(response);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return false;
+    const token = /\s*("(?:[^"\\\x00-\x1f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*")\s*:\s*("(?:[^"\\\x00-\x1f]|\\(?:["\\/bfnrt]|u[0-9a-fA-F]{4}))*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null)\s*([,}])/y;
+    const source = response.trim();
+    const keys = new Set();
+    let offset = 1;
+    if (!source.startsWith('{')) return false;
+    while (offset < source.length) {
+      token.lastIndex = offset;
+      const match = token.exec(source);
+      if (!match) return false;
+      const key = JSON.parse(match[1]);
+      if (keys.has(key)) return false;
+      keys.add(key);
+      offset = token.lastIndex;
+      if (match[3] === '}') break;
+    }
+    return offset === source.length && keys.size === Object.keys(expected).length
+      && [...keys].every(key => Object.hasOwn(expected, key) && parsed[key] === expected[key]);
+  } catch { return false; }
+}
+
 /** Evaluator-only registry. Definitions contain trusted bytes, never model paths
  * or executable verifiers. Keep answer material outside the attempt workspace.
  * Run after all workspace writers exit: this is not a concurrent-process sandbox.
@@ -31,7 +58,13 @@ export function createArtifactOracle(definitions) {
         files.set(path, { bytes: Buffer.from(bytes), kind: field });
       }
     }
-    if (!Object.keys(definition.expectedFiles).length) configError();
+    const expectedJson = definition.expectedJson;
+    if (expectedJson !== undefined && (!expectedJson || Array.isArray(expectedJson)
+        || typeof expectedJson !== 'object' || !Object.keys(expectedJson).length
+        || Object.values(expectedJson).some(value => (value !== null
+          && !['string', 'number', 'boolean'].includes(typeof value))
+          || (typeof value === 'number' && !Number.isFinite(value))))) configError();
+    if (!Object.keys(definition.expectedFiles).length && expectedJson === undefined) configError();
     const directories = new Set();
     for (const path of files.keys()) {
       const parts = path.split('/');
@@ -43,9 +76,9 @@ export function createArtifactOracle(definitions) {
         parts.pop();
       }
     }
-    registry.set(taskId, { files, directories, allowExtraFiles: definition.allowExtraFiles });
+    registry.set(taskId, { files, directories, expectedJson: expectedJson === undefined ? undefined : structuredClone(expectedJson), allowExtraFiles: definition.allowExtraFiles });
   }
-  return async function verifyArtifact({ taskId, workRoot }) {
+  return async function verifyArtifact({ taskId, workRoot, response }) {
     const definition = registry.get(taskId);
     if (!definition) configError();
     const checks = [];
@@ -57,6 +90,7 @@ export function createArtifactOracle(definitions) {
       // No file contents, filesystem error messages or untrusted names in diagnostics.
       if (checks.length < 100) checks.push({ kind, pass });
     }
+    if (definition.expectedJson !== undefined) check('final_json', exactJson(response, definition.expectedJson));
     try {
       if (typeof workRoot !== 'string' || !isAbsolute(workRoot)) throw new Error('root');
       // Reject symlinks in every component before enumerating or reading the tree.

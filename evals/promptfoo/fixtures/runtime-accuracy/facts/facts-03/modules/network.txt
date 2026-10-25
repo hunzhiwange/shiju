@@ -1,0 +1,2 @@
+module: services/network
+symbol: resolve_endpoint

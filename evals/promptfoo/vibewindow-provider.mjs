@@ -349,7 +349,7 @@ export default class VibeWindowProvider {
       }
       if (safeToClean && data.admission) {
         const verify = createArtifactOracle(acceptance?.definitions);
-        data.oracle = await verify({ taskId: data.taskId, workRoot: data.workRoot });
+        data.oracle = await verify({ taskId: data.taskId, workRoot: data.workRoot, response: result.output });
       }
     } catch {
       // Preserve the transport error and never include supervisor payloads or

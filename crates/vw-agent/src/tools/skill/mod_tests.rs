@@ -10,9 +10,132 @@ use super::{
 };
 use crate::app::agent::skills::Skill;
 use crate::app::agent::tools::context::{ToolUseContext, scope_tool_use_context};
+use crate::app::agent::tools::traits::Tool;
 use serde_json::json;
 use std::path::PathBuf;
 use std::sync::Arc;
+
+fn expert_package_fixture() -> (tempfile::TempDir, Arc<crate::config::Config>) {
+    let workspace = tempfile::tempdir().expect("expert workspace");
+    for (id, body) in
+        [("expert-main", "MAIN_WORKFLOW_ONLY"), ("expert-child", "CHILD_WORKFLOW_ONLY")]
+    {
+        let path = workspace.path().join("skills").join(id).join("SKILL.md");
+        std::fs::create_dir_all(path.parent().expect("skill parent")).expect("skill directory");
+        std::fs::write(
+            path,
+            format!("---\nname: {id}\ndescription: Expert package fixture\n---\n# {id}\n{body}\n"),
+        )
+        .expect("skill file");
+    }
+    (workspace, Arc::new(crate::config::Config::default()))
+}
+
+#[tokio::test]
+async fn expert_package_main_skill_is_explicitly_invocable() {
+    let (workspace, config) = expert_package_fixture();
+    let loaded = crate::app::agent::skills::load_skills_full_with_config(workspace.path(), &config);
+    let main = loaded
+        .iter()
+        .find(|item| skill_file_id(item).as_deref() == Some("expert-main"))
+        .expect("installed main skill");
+    let requested = explicitly_referenced_skill_names(&loaded, ["请使用 expert-main 技能"]);
+    assert!(requested.contains(&main.name));
+    assert!(requested.contains("expert-main"));
+
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::app::agent::security::SecurityPolicy::default()),
+        "expert-test".to_string(),
+        false,
+        workspace.path().to_path_buf(),
+        config,
+    );
+    let context = Arc::new(
+        ToolUseContext::new("expert-test", Some(workspace.path().display().to_string()))
+            .with_explicitly_requested_skills(requested),
+    );
+    let result =
+        scope_tool_use_context(context, tool.invoke(json!({"skill": "expert-main"}))).await;
+    assert_eq!(result.data["success"], true);
+    assert!(
+        result.extra_messages[0]
+            .content
+            .as_str()
+            .is_some_and(|body| body.contains("MAIN_WORKFLOW_ONLY"))
+    );
+    assert!(
+        !result.extra_messages[0]
+            .content
+            .as_str()
+            .is_some_and(|body| body.contains("CHILD_WORKFLOW_ONLY"))
+    );
+    assert_eq!(result.context_updates[0].key, "skill.name");
+}
+
+#[tokio::test]
+async fn expert_package_children_load_on_demand() {
+    let (workspace, config) = expert_package_fixture();
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::app::agent::security::SecurityPolicy::default()),
+        "expert-child-test".to_string(),
+        false,
+        workspace.path().to_path_buf(),
+        config,
+    );
+    let context = Arc::new(
+        ToolUseContext::new("expert-child-test", Some(workspace.path().display().to_string()))
+            .with_explicitly_requested_skills(["expert-main", "expert-child"]),
+    );
+    scope_tool_use_context(context, async {
+        let main = tool.invoke(json!({"skill": "expert-main"})).await;
+        let child = tool.invoke(json!({"skill": "expert-child"})).await;
+        assert_eq!(main.data["success"], true);
+        assert_eq!(child.data["success"], true);
+        assert!(
+            !main.extra_messages[0]
+                .content
+                .as_str()
+                .is_some_and(|body| body.contains("CHILD_WORKFLOW_ONLY"))
+        );
+        assert!(
+            child.extra_messages[0]
+                .content
+                .as_str()
+                .is_some_and(|body| body.contains("CHILD_WORKFLOW_ONLY"))
+        );
+        let missing = tool.invoke(json!({"skill": "expert-missing"})).await;
+        assert_eq!(missing.data["success"], false);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn expert_package_body_does_not_expand_permissions() {
+    let (workspace, config) = expert_package_fixture();
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::app::agent::security::SecurityPolicy::default()),
+        "expert-policy-test".to_string(),
+        false,
+        workspace.path().to_path_buf(),
+        config,
+    );
+    let context = Arc::new(
+        ToolUseContext::new("expert-policy-test", Some(workspace.path().display().to_string()))
+            .with_explicitly_requested_skills(["expert-main"])
+            .with_delegate_skill_policy(
+                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                ["expert-main"],
+            ),
+    );
+    scope_tool_use_context(context, async {
+        let main = tool.invoke(json!({"skill": "expert-main"})).await;
+        assert_eq!(main.data["success"], true);
+        let child = tool.invoke(json!({"skill": "expert-child"})).await;
+        assert_eq!(child.data["success"], false);
+        assert!(child.data["error"].as_str().is_some_and(|error| error.contains("未找到技能")));
+    })
+    .await;
+}
 
 fn skill(name: &str, location: Option<PathBuf>, prompts: Vec<&str>) -> Skill {
     Skill {

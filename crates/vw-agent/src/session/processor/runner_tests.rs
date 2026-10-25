@@ -146,6 +146,47 @@ fn agents_referenced_skill_is_preloaded_before_first_user_request() {
 }
 
 #[test]
+fn expert_package_protocol_replays_main_before_child() {
+    let workspace = tempfile::tempdir().expect("expert workspace");
+    for (name, marker) in
+        [("expert-main", "MAIN_WORKFLOW_ONLY"), ("expert-child", "CHILD_WORKFLOW_ONLY")]
+    {
+        let path = workspace.path().join("skills").join(name).join("SKILL.md");
+        std::fs::create_dir_all(path.parent().expect("skill parent")).expect("skill directory");
+        std::fs::write(
+            path,
+            format!("---\nname: {name}\ndescription: Expert fixture\n---\n# {name}\n{marker}\n"),
+        )
+        .expect("skill file");
+    }
+    let config = crate::config::Config::default();
+    let skills = crate::app::agent::skills::load_skills_full_with_config(workspace.path(), &config);
+    let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 20_000);
+    for name in ["expert-main", "expert-child"] {
+        let path = workspace.path().join("skills").join(name).join("SKILL.md");
+        let record = crate::app::agent::skills::InvokedSkillRecord::new(name, &path, None)
+            .expect("installed skill record");
+        assert!(protocol.skill_state.register_invoked("main", record));
+    }
+
+    let history = vec![serde_json::json!({"role": "user", "content": "continue"})];
+    let replay = protocol.assemble(&history, &[], true).expect("protocol replay");
+    let main = replay
+        .iter()
+        .position(|message| {
+            message["content"].as_str().is_some_and(|body| body.contains("MAIN_WORKFLOW_ONLY"))
+        })
+        .expect("main replay");
+    let child = replay
+        .iter()
+        .position(|message| {
+            message["content"].as_str().is_some_and(|body| body.contains("CHILD_WORKFLOW_ONLY"))
+        })
+        .expect("child replay");
+    assert!(main < child);
+}
+
+#[test]
 fn delegate_skill_policy_keeps_all_skills_visible_and_preloads_defaults() {
     let workspace = tempfile::tempdir().expect("skill workspace");
     let default_path = workspace.path().join("default/SKILL.md");

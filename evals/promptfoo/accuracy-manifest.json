@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "stage": "draft",
+  "contract": {
+    "experiment": {
+      "model": "unknown",
+      "label": "runtime-accuracy",
+      "endpoint": "unknown",
+      "budget": { "iterations": 24, "toolCalls": 32, "wallTimeMs": 900000 },
+      "parameters": { "temperature": "unknown", "top_p": "unknown", "seed": "unknown", "max_output_tokens": "unknown" },
+      "environmentDigest": "unknown",
+      "contextDigest": "unknown",
+      "permissionsDigest": "unknown",
+      "evaluatorDigest": "unknown",
+      "execution": { "repeats": 3, "concurrency": 1, "cache": false }
+    },
+    "tasks": []
+  },
+  "run": {}
+}

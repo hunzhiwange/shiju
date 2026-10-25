@@ -5,20 +5,22 @@ import { readFile, writeFile, rename, copyFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { grade, loadTasks } from './baseline.mjs';
+import { campaignPaths } from './recheck.mjs';
 import { readOnlyTrajectory } from './assertions.mjs';
 import { verify } from './freeze-accuracy.mjs';
 import { manifestDigest } from './accuracy-manifest.mjs';
 const root=dirname(fileURLToPath(import.meta.url)), results=join(root,'results/accuracy-baseline');
+const campaign=campaignPaths(process.argv[2]);
 verify();
 const rescoreScriptSha256=createHash('sha256').update(await readFile(fileURLToPath(import.meta.url))).digest('hex');
 const gradeSourceFileSha256=createHash('sha256').update(await readFile(join(root,'baseline.mjs'))).digest('hex');
 const manifest=JSON.parse(await readFile(join(results,'before-manifest.json'))), digest=manifestDigest(manifest);
-const sourceIdentity=JSON.parse(await readFile(join(results,'source-identity.json')));
+const sourceIdentity=JSON.parse(await readFile(join(results,campaign.name==='before'?'source-identity.json':'recheck-source-identity.json')));
 const tasks=await loadTasks(), saved=new Map();
 for(const task of tasks){
  const values=[];
  for(let index=1;index<=3;index++){
-  const record=JSON.parse(await readFile(join(results,'attempts',`${task.taskId}-${index}`,'result.json')));
+  const record=JSON.parse(await readFile(join(campaign.attempts,`${task.taskId}-${index}`,'result.json')));
   if(record.metadata.taskId!==task.taskId||record.metadata.manifestDigest!==digest)throw Error('attempt identity or contract mismatch');
   if(record.metadata.fixtureDigest!==manifest.contract.tasks.find(t=>t.taskId===task.taskId).fixtureDigest)throw Error('fixture mismatch');
   values.push(record);
@@ -29,7 +31,7 @@ const records=[...saved.values()].flat();
 for(const field of ['attemptId','workRoot'])if(new Set(records.map(r=>r.metadata[field])).size!==45)throw Error('attempts not independent');
 const sessions=records.map(r=>r.sessionId).filter(id=>typeof id==='string'&&id);
 if(new Set(sessions).size!==sessions.length)throw Error('duplicate observed session identities');
-const source=join(results,'before.json'), raw=JSON.parse(await readFile(source));
+const source=campaign.output, raw=JSON.parse(await readFile(source));
 const rows=raw.results.results;
 if(rows.length!==45)throw Error('expected 45 raw Promptfoo rows');
 const used=new Map();let recovered=0,successes=0,failures=0,errors=0,terminalCorrections=0;
@@ -54,6 +56,7 @@ for(const row of rows){
  const infrastructureError=Boolean(record.error)&&record.metadata.budgetStopped!==true;
  row.metadata={...record.metadata,sourceIdentityScope:sourceIdentity.scope,sourceIdentityDigestKind:sourceIdentity.digestKind,originalSamplingRun:record.metadata.manifest.run};
  row.metadata.manifest=structuredClone(record.metadata.manifest);
+ row.metadata.manifest.run.sourceCommit=sourceIdentity.sourceCommit;
  row.metadata.manifest.run.sourceDiffDigest=sourceIdentity.sourceDiffDigest;
  const originalError=row.error??null;
  if(originalError){recovered++;row.metadata={...row.metadata,originalPromptfooGradingError:originalError};}
@@ -77,11 +80,11 @@ for(const prompt of raw.results.prompts){
   assertPassCount:components.filter(c=>c.pass).length,assertFailCount:components.filter(c=>!c.pass).length});
 }
 raw.metadata={...raw.metadata,offlineRescore:{reason:'Promptfoo named-export loader TypeError; same frozen grade function called directly',
- originalExport:'before.promptfoo-raw.json',frozenEvaluatorDigest:manifest.contract.experiment.evaluatorDigest,
+ originalExport:`${campaign.name}.promptfoo-raw.json`,frozenEvaluatorDigest:manifest.contract.experiment.evaluatorDigest,
  modelAttemptsAdded:0,networkRequests:0,gradingErrorsRecovered:recovered,rescoreScriptSha256,gradeSourceFileSha256,terminalFlagsCheckedAgainstAllTurns:true,terminalCorrections,observedSessionIds:sessions.length,sessionIdsMissing:45-sessions.length,mode:'unisolated-user-requested',
  isolationVerified:false,backgroundSettlement:'unverified',sharedPersistentState:'unverified-not-isolated'}};
-await copyFile(source,join(results,'before.promptfoo-raw.json'),constants.COPYFILE_EXCL);
-const temporary=join(results,'before.rescored.tmp');
+await copyFile(source,join(results,`${campaign.name}.promptfoo-raw.json`),constants.COPYFILE_EXCL);
+const temporary=join(results,`${campaign.name}.rescored.tmp`);
 await writeFile(temporary,JSON.stringify(raw,null,2),{flag:'wx'});
 await rename(temporary,source);
 console.log(JSON.stringify({attempts:45,tasks:15,successes,failures,errors,gradingErrorsRecovered:recovered,manifestDigest:digest}));

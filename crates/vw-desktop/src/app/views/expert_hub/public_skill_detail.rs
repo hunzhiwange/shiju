@@ -12,7 +12,8 @@ use super::install_guide::{
 use super::public_skills::SCROLLBAR_WIDTH;
 use super::styles;
 use crate::app::components::system_settings_common::{
-    settings_pick_list_menu_style, settings_pick_list_style,
+    primary_action_btn_style, rounded_action_btn_style, settings_close_button, settings_modal_card,
+    settings_modal_overlay, settings_pick_list_menu_style, settings_pick_list_style,
 };
 use crate::app::message::skill_hub::{PublicSkillMessage, SkillHubMessage};
 use crate::app::skill_hub::{
@@ -57,12 +58,27 @@ fn installed_id(target: &PublicDetailTarget) -> String {
     }
 }
 
-fn installed_in_catalog(market: &PublicSkillMarketState, target: &PublicDetailTarget) -> bool {
+pub(super) fn installed_in_catalog(
+    market: &PublicSkillMarketState,
+    target: &PublicDetailTarget,
+) -> bool {
     let expected = installed_id(target);
     matches!(
         &market.installed,
         LoadState::Loaded(items)
-            if items.iter().any(|item| item.installed && item.id == expected)
+            if items.iter().any(|item| match target {
+                PublicDetailTarget::Suite { source, slug } => item.installed
+                    && item.id == expected
+                    && item.source == *source
+                    && item.namespace.as_deref() == Some("skillset")
+                    && item.package_type.as_deref() == Some("meta-skill")
+                    && item.source_pack.as_deref() == Some(slug.as_str()),
+                PublicDetailTarget::Skill(locator) => item.installed
+                    && item.id == expected
+                    && item.source == locator.source
+                    && item.namespace.as_deref() == Some(locator.namespace.as_str())
+                    && item.package_type.as_deref() == Some("skill"),
+            })
     )
 }
 
@@ -105,6 +121,8 @@ pub(super) fn detail_project_action_message(
 }
 
 fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Message> {
+    let expert = app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts
+        && matches!(detail.target, PublicDetailTarget::Suite { .. });
     let catalog_installed = selected_catalog_install(detail)
         && installed_in_catalog(&app.expert_hub.public_market, &detail.target);
     let project_required = matches!(detail.target, PublicDetailTarget::Suite { .. })
@@ -116,6 +134,7 @@ fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Mes
         PublicInstallState::Idle if catalog_installed => ("已安装", false),
         PublicInstallState::Idle
             if project_required
+                && !expert
                 && detail
                     .selected_install_project_path
                     .as_deref()
@@ -127,9 +146,68 @@ fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Mes
     };
     let mut action = button(text(label).size(13)).padding([9, 18]).style(styles::pill_button_style);
     if enabled {
-        action = action.on_press(public_message(PublicSkillMessage::InstallCurrent));
+        action = action.on_press(public_message(if expert {
+            PublicSkillMessage::OpenExpertInstall
+        } else {
+            PublicSkillMessage::InstallCurrent
+        }));
     }
     action.into()
+}
+
+fn with_expert_install_confirmation<'a>(
+    app: &'a App,
+    detail: &'a PublicDetailState,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    if app.expert_hub.section != crate::app::skill_hub::ExpertHubSection::Experts
+        || !detail.install_confirmation_open
+    {
+        return base;
+    }
+    let cancel = public_message(PublicSkillMessage::CancelExpertInstall);
+    let selected = detail.selected_install_project_path.as_deref();
+    let has_project = selected.is_some_and(|path| {
+        !path.trim().is_empty() && install_project_options(app).iter().any(|option| option == path)
+    });
+    let title = row![
+        column![
+            text("安装专家包").size(20),
+            text("选择项目后安装；安装器会校验每个成员和主工作流。")
+                .size(12)
+                .style(styles::muted_text_style),
+        ]
+        .spacing(5)
+        .width(Length::Fill),
+        settings_close_button(cancel.clone()),
+    ]
+    .align_y(Alignment::Center);
+    let mut install =
+        button(text("安装到项目").size(13)).padding([9, 16]).style(primary_action_btn_style);
+    if has_project && !detail.install_is_busy() {
+        install = install.on_press(public_message(PublicSkillMessage::InstallCurrent));
+    }
+    let card = settings_modal_card(
+        column![
+            title,
+            project_selector(detail, install_project_options(app)),
+            text("全局安装和第三方 Agent 目标暂不支持。").size(12).style(styles::muted_text_style),
+            row![
+                Space::new().width(Length::Fill),
+                button(text("取消").size(13))
+                    .on_press(cancel.clone())
+                    .padding([9, 16])
+                    .style(rounded_action_btn_style),
+                install,
+            ]
+            .spacing(10)
+            .align_y(Alignment::Center),
+        ]
+        .spacing(18)
+        .width(Length::Fill),
+    )
+    .width(Length::Fixed(540.0));
+    settings_modal_overlay(Some(base), cancel, card)
 }
 
 fn project_selector(detail: &PublicDetailState, options: Vec<String>) -> Element<'static, Message> {
@@ -503,11 +581,13 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         page = page.push(options);
     }
     page = page.push(information).push(content_panel(app, detail)).spacing(18).width(Length::Fill);
-    scrollable(container(page).width(Length::Fill).max_width(1180).center_x(Length::Fill))
-        .direction(Direction::Vertical(
-            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-        ))
-        .width(Length::Fill)
-        .height(Length::Fill)
-        .into()
+    let base =
+        scrollable(container(page).width(Length::Fill).max_width(1180).center_x(Length::Fill))
+            .direction(Direction::Vertical(
+                Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
+            ))
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .into();
+    with_expert_install_confirmation(app, detail, base)
 }

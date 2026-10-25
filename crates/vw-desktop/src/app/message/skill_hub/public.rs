@@ -59,6 +59,8 @@ pub(crate) enum PublicSkillMessage {
     SelectDetailInstallScope(SkillInstallScope),
     SelectDetailInstallProject(String),
     ToggleDetailInstallTarget(SkillInstallTarget),
+    OpenExpertInstall,
+    CancelExpertInstall,
     InstallCurrent,
     SkillDetailLoaded {
         locator: SkillMarketSkillLocatorDto,
@@ -223,6 +225,18 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
         });
     }
     if matches!(message, PublicSkillMessage::InstallCurrent) {
+        if app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts {
+            let valid = app.expert_hub.public_market.detail.as_ref().is_some_and(|detail| {
+                matches!(detail.target, PublicDetailTarget::Suite { .. })
+                    && detail.install_confirmation_open
+                    && detail.selected_install_project_path.as_deref().is_some_and(|path| {
+                        known_install_project(app, path) && !path.trim().is_empty()
+                    })
+            });
+            if !valid {
+                return app.show_warning_toast("请在安装弹窗选择当前或最近使用的项目");
+            }
+        }
         let project_path = app
             .expert_hub
             .public_market
@@ -230,7 +244,12 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
             .as_ref()
             .and_then(|detail| detail.selected_install_project_path.clone());
         return match begin_install(&mut app.expert_hub.public_market, project_path.as_deref()) {
-            Ok(request) => dispatch(request),
+            Ok(request) => {
+                if let Some(detail) = app.expert_hub.public_market.detail.as_mut() {
+                    detail.install_confirmation_open = false;
+                }
+                dispatch(request)
+            }
             Err(error) => app.show_warning_toast(error),
         };
     }
@@ -273,7 +292,10 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
         PublicSkillMessage::InstallFinished { target, generation, result, .. }
             if install_response_is_current(&app.expert_hub.public_market, target, *generation) =>
         {
-            Some(result.as_ref().map(|_| ()).map_err(Clone::clone))
+            Some((
+                matches!(target, PublicDetailTarget::Suite { .. }),
+                result.as_ref().map(|_| ()).map_err(Clone::clone),
+            ))
         }
         _ => None,
     };
@@ -315,10 +337,7 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
             detail.selected_install_project_path = default_project_path.clone();
         }
     }
-    if detail_opened
-        && matches!(app.expert_hub.public_market.installed, LoadState::Idle | LoadState::Error(_))
-        && let Some(project_path) = default_project_path
-    {
+    if detail_opened && let Some(project_path) = default_project_path {
         app.expert_hub.public_market.installed_generation =
             app.expert_hub.public_market.installed_generation.wrapping_add(1);
         let generation = app.expert_hub.public_market.installed_generation;
@@ -336,9 +355,11 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
         });
     }
     let mut tasks = requests.into_iter().map(dispatch).collect::<Vec<_>>();
-    if let Some(result) = install_feedback {
+    if let Some((expert, result)) = install_feedback {
         tasks.push(match result {
+            Ok(()) if expert => app.show_success_toast("专家包安装成功"),
             Ok(()) => app.show_success_toast("技能安装成功"),
+            Err(error) if expert => app.show_error_toast(format!("专家包安装失败：{error}")),
             Err(error) => app.show_error_toast(format!("技能安装失败：{error}")),
         });
     }
@@ -484,6 +505,22 @@ pub(crate) fn reduce(
         | PublicSkillMessage::StartBatchEnabled(_)
         | PublicSkillMessage::ToggleInstalled { .. }
         | PublicSkillMessage::ConfirmBatchDelete => Vec::new(),
+        PublicSkillMessage::OpenExpertInstall => {
+            if let Some(detail) = state.detail.as_mut()
+                && matches!(detail.target, PublicDetailTarget::Suite { .. })
+                && !detail.install_is_busy()
+                && matches!(detail.install, PublicInstallState::Idle)
+            {
+                detail.install_confirmation_open = true;
+            }
+            Vec::new()
+        }
+        PublicSkillMessage::CancelExpertInstall => {
+            if let Some(detail) = state.detail.as_mut() {
+                detail.install_confirmation_open = false;
+            }
+            Vec::new()
+        }
         PublicSkillMessage::OpenSkillDetail(locator) => {
             if state.current_source.as_deref() != Some(&locator.source) {
                 return Vec::new();

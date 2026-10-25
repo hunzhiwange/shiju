@@ -1,11 +1,16 @@
 // 覆盖技能市场提供商路由、查询校验及安装目标解析。
 
+use std::io::{Cursor, Write};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use axum::body::{Body, to_bytes};
 use axum::http::{Request, StatusCode};
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use ring::signature::{Ed25519KeyPair, KeyPair};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use tower::ServiceExt;
 use vw_gateway_client::{
     SkillMarketCategoryDto, SkillMarketCoordinateDto, SkillMarketInstallScopeDto,
@@ -14,10 +19,12 @@ use vw_gateway_client::{
     SkillMarketSkillPageDto, SkillMarketSkillQuery, SkillMarketSkillSetDetailDto,
     SkillMarketSkillSetDto, SkillMarketSkillSetPageDto, SkillMarketSourceDto,
 };
+use zip::write::SimpleFileOptions;
+use zip::{CompressionMethod, ZipWriter};
 
 use crate::app::agent::skills::marketplace::provider::{
     SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketProvider, SkillMarketProviderError,
-    SkillMarketProviderRegistry, SkillMarketSkillSetArtifact,
+    SkillMarketProviderRegistry, SkillMarketSkillSetArtifact, SkillMarketSkillSetMemberArtifact,
     SkillMarketSkillSetVerificationPolicy,
 };
 
@@ -25,6 +32,7 @@ struct RecordingProvider {
     source: SkillMarketSourceDto,
     calls: Arc<Mutex<Vec<String>>>,
     error: Option<SkillMarketProviderError>,
+    artifact: Option<SkillMarketSkillSetArtifact>,
 }
 
 impl RecordingProvider {
@@ -36,6 +44,7 @@ impl RecordingProvider {
             },
             calls,
             error: None,
+            artifact: None,
         }
     }
 
@@ -47,6 +56,7 @@ impl RecordingProvider {
             },
             calls: Arc::new(Mutex::new(Vec::new())),
             error: Some(error),
+            artifact: None,
         }
     }
 
@@ -180,6 +190,9 @@ impl SkillMarketProvider for RecordingProvider {
         slug: &str,
     ) -> Result<SkillMarketSkillSetArtifact, SkillMarketProviderError> {
         self.record(format!("skill_set_artifact:{source}:{slug}"))?;
+        if let Some(artifact) = &self.artifact {
+            return Ok(artifact.clone());
+        }
         Ok(SkillMarketSkillSetArtifact {
             source: source.to_string(),
             slug: slug.to_string(),
@@ -460,6 +473,130 @@ async fn skill_market_skillset_install_delegates_only_source_and_slug() {
         calls.lock().expect("calls lock").as_slice(),
         ["skill_set_artifact:fixture:fixture-suite"]
     );
+}
+
+fn expert_fixture_zip(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut writer = ZipWriter::new(Cursor::new(Vec::new()));
+    for (name, content) in files {
+        writer
+            .start_file(
+                *name,
+                SimpleFileOptions::default()
+                    .compression_method(CompressionMethod::Deflated)
+                    .unix_permissions(0o100644),
+            )
+            .expect("fixture ZIP entry");
+        writer.write_all(content).expect("fixture ZIP content");
+    }
+    writer.finish().expect("fixture ZIP").into_inner()
+}
+
+fn valid_expert_fixture() -> SkillMarketSkillSetArtifact {
+    let identify = "---\nname: fixture-suite\ndescription: Fixture suite\nversion: 3.0.0\nmetadata:\n  package_type: meta-skill\norchestration:\n  children: [first-skill]\n---\n# Workflow\n";
+    let coordinate = SkillMarketCoordinateDto {
+        locator: SkillMarketSkillLocatorDto {
+            source: "fixture".to_string(),
+            namespace: "public".to_string(),
+            slug: "first-skill".to_string(),
+        },
+        version: "1.0.0".to_string(),
+    };
+    let member_skill = "---\nname: first-skill\ndescription: First\n---\n# First\n";
+    let file_hash = hex::encode(Sha256::digest(member_skill.as_bytes()));
+    let content_hash = hex::encode(Sha256::digest(format!("SKILL.md:{file_hash}\n")));
+    let payload = format!(
+        r#"{{"content_hash":"{content_hash}","skill_slug":"first-skill","skill_version":"1.0.0","v":1}}"#
+    );
+    let key_pair = Ed25519KeyPair::from_seed_unchecked(&[7; 32]).expect("fixture signing key");
+    let manifest = json!({
+        "manifestVersion": "1",
+        "type": "skillset",
+        "slug": "fixture-suite",
+        "skillSlugs": ["first-skill"],
+        "skills": [{"slug": "first-skill"}],
+        "files": [{
+            "path": "identify.md",
+            "sha256": hex::encode(Sha256::digest(identify.as_bytes())),
+            "size": identify.len()
+        }]
+    });
+    let manifest_bytes = serde_json::to_vec(&manifest).expect("suite manifest");
+    SkillMarketSkillSetArtifact {
+        source: "fixture".to_string(),
+        slug: "fixture-suite".to_string(),
+        verification: SkillMarketSkillSetVerificationPolicy::TransportAndAudit,
+        archive: expert_fixture_zip(&[
+            ("manifest.json", &manifest_bytes),
+            ("identify.md", identify.as_bytes()),
+        ]),
+        members: vec![SkillMarketSkillSetMemberArtifact {
+            coordinate,
+            artifact: SkillMarketArtifact {
+                archive: expert_fixture_zip(&[("SKILL.md", member_skill.as_bytes())]),
+                proof: SkillMarketArtifactProof {
+                    signed: true,
+                    payload: payload.clone(),
+                    signature_b64: STANDARD.encode(key_pair.sign(payload.as_bytes()).as_ref()),
+                    content_hash,
+                    key_id: "fixture-key-v1".to_string(),
+                    public_key_b64: STANDARD.encode(key_pair.public_key().as_ref()),
+                },
+            },
+        }],
+    }
+}
+
+#[tokio::test]
+async fn expert_package_install_succeeds_without_connector_credentials() {
+    let calls = Arc::new(Mutex::new(Vec::new()));
+    let mut provider = RecordingProvider::new("fixture", Arc::clone(&calls));
+    provider.artifact = Some(valid_expert_fixture());
+    let registry = registry(provider);
+    let project = tempfile::tempdir().expect("fixture project");
+    let (status, body) = post_response(
+        "/skill-market/skillsets/install",
+        json!({
+            "project_path": project.path(),
+            "source": "fixture",
+            "slug": "fixture-suite"
+        }),
+        registry,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK, "{body}");
+    let root = project.path().join(".vibewindow/skills");
+    assert!(root.join("fixture--skillset--fixture-suite/SKILL.md").is_file());
+    assert!(root.join("fixture--public--first-skill/SKILL.md").is_file());
+    assert_eq!(
+        calls.lock().expect("calls lock").as_slice(),
+        ["skill_set_artifact:fixture:fixture-suite"]
+    );
+}
+
+#[tokio::test]
+async fn expert_package_install_invalid_archive_reports_reason_without_partial_install() {
+    let registry = registry(RecordingProvider::new("fixture", Arc::new(Mutex::new(Vec::new()))));
+    let project = tempfile::tempdir().expect("fixture project");
+    let (status, body) = post_response(
+        "/skill-market/skillsets/install",
+        json!({
+            "project_path": project.path(),
+            "source": "fixture",
+            "slug": "fixture-suite"
+        }),
+        registry,
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+    assert!(body.to_string().contains("artifact is not a ZIP"), "{body}");
+    for root in [".vibewindow/skills", ".codex/skills", ".agents/skills"] {
+        for package in ["fixture--skillset--fixture-suite", "fixture--public--fixture-skill"] {
+            assert!(
+                !project.path().join(root).join(package).exists(),
+                "failed install must not publish {package}"
+            );
+        }
+    }
 }
 
 #[tokio::test]

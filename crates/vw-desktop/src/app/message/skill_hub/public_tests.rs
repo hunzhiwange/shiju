@@ -104,6 +104,157 @@ fn expert_package_navigation_ignores_stale_results() {
         [PublicRequest::Suites { query, .. }] if query.page == 2));
 }
 
+#[test]
+fn expert_package_install_requires_project() {
+    let mut state = PublicSkillMarketState::default();
+    loaded_sources(&mut state);
+    reduce(
+        &mut state,
+        PublicSkillMessage::OpenSuiteDetail {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+        },
+    );
+    reduce(&mut state, PublicSkillMessage::OpenExpertInstall);
+    assert!(state.detail.as_ref().expect("detail").install_confirmation_open);
+    assert_eq!(
+        begin_install(&mut state, None).expect_err("project required"),
+        "请先选择项目再安装技能"
+    );
+}
+
+fn loaded_expert_package() -> PublicSkillMarketState {
+    let mut state = PublicSkillMarketState::default();
+    loaded_sources(&mut state);
+    reduce(
+        &mut state,
+        PublicSkillMessage::OpenSuiteDetail {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+        },
+    );
+    let generation = state.detail_generation;
+    reduce(
+        &mut state,
+        PublicSkillMessage::SuiteDetailLoaded {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+            generation,
+            result: Ok(SkillMarketSkillSetDetailDto {
+                skill_set: SkillMarketSkillSetDto {
+                    source: "skillhub".to_string(),
+                    slug: "fixture-suite".to_string(),
+                    name: "Fixture Suite".to_string(),
+                    description: String::new(),
+                    author: String::new(),
+                    icon: None,
+                    member_count: 1,
+                    updated_at: String::new(),
+                },
+                members: vec![SkillMarketCoordinateDto {
+                    locator: SkillMarketSkillLocatorDto {
+                        source: "skillhub".to_string(),
+                        namespace: "public".to_string(),
+                        slug: "member".to_string(),
+                    },
+                    version: "1.0.0".to_string(),
+                }],
+                content: "# Workflow".to_string(),
+            }),
+        },
+    );
+    state
+}
+
+#[test]
+fn expert_package_install_failure_preserves_reason() {
+    let mut state = loaded_expert_package();
+    reduce(&mut state, PublicSkillMessage::OpenExpertInstall);
+    let request = begin_install(&mut state, Some("/project")).expect("start install");
+    let PublicRequest::InstallSuite { target, generation, project_path, .. } = request else {
+        panic!("expected suite installation");
+    };
+    let reason = "成员 member 签名校验失败".to_string();
+    let requests = reduce(
+        &mut state,
+        PublicSkillMessage::InstallFinished {
+            target,
+            generation,
+            project_path,
+            result: Err(reason.clone()),
+        },
+    );
+    assert!(requests.is_empty());
+    assert!(matches!(state.detail.as_ref().expect("detail").install, PublicInstallState::Idle));
+    assert!(begin_install(&mut state, Some("/project")).is_ok(), "failure must allow retry");
+    assert_eq!(reason, "成员 member 签名校验失败");
+}
+
+#[test]
+fn expert_package_install_success_refreshes_catalog() {
+    let mut state = loaded_expert_package();
+    let request = begin_install(&mut state, Some("/project")).expect("start install");
+    let PublicRequest::InstallSuite { target, generation, project_path, .. } = request else {
+        panic!("expected suite installation");
+    };
+    let requests = reduce(
+        &mut state,
+        PublicSkillMessage::InstallFinished {
+            target: target.clone(),
+            generation,
+            project_path: project_path.clone(),
+            result: Ok(vec![
+                "/project/.agents/skills/skillhub--skillset--fixture-suite".to_string(),
+            ]),
+        },
+    );
+    assert!(
+        matches!(requests.as_slice(), [PublicRequest::RefreshInstalled { project_path: path, .. }] if path == &project_path)
+    );
+    assert!(matches!(
+        state.detail.as_ref().expect("detail").install,
+        PublicInstallState::Installed { .. }
+    ));
+    reduce(&mut state, PublicSkillMessage::CloseDetail);
+    let ignored = reduce(
+        &mut state,
+        PublicSkillMessage::InstallFinished {
+            target,
+            generation,
+            project_path,
+            result: Err("late failure".to_string()),
+        },
+    );
+    assert!(ignored.is_empty());
+}
+
+#[test]
+fn expert_package_install_reopens_with_project_catalog_refresh() {
+    let (mut app, _) = App::new();
+    app.project_path = Some("/project/current".to_string());
+    loaded_sources(&mut app.expert_hub.public_market);
+    app.expert_hub.public_market.installed =
+        LoadState::Loaded(vec![installed("skillhub--skillset--fixture-suite")]);
+    let _ = update_public(
+        &mut app,
+        PublicSkillMessage::OpenSuiteDetail {
+            source: "skillhub".to_string(),
+            slug: "fixture-suite".to_string(),
+        },
+    );
+    assert!(matches!(app.expert_hub.public_market.installed, LoadState::Loading { .. }));
+    assert_eq!(
+        app.expert_hub
+            .public_market
+            .detail
+            .as_ref()
+            .expect("detail")
+            .selected_install_project_path
+            .as_deref(),
+        Some("/project/current")
+    );
+}
+
 fn skill(source: &str, slug: &str) -> SkillMarketSkillDto {
     SkillMarketSkillDto {
         coordinate: SkillMarketCoordinateDto {
@@ -362,7 +513,7 @@ fn market_detail_installs_skill_or_suite_through_gateway() {
 
     assert_eq!(
         begin_install(&mut state, None).expect_err("project is required"),
-        "请先打开项目再安装技能"
+        "请先选择项目再安装技能"
     );
 }
 

@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { prepare, cleanup } from './attempt-workspace.mjs';
+import { validateManifest, manifestDigest } from './accuracy-manifest.mjs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
@@ -289,10 +291,19 @@ export default class VibeWindowProvider {
   constructor(options = {}) {
     this.providerId = options.id || 'vibewindow-agent';
     this.config = options.config || {};
+    this.attempts = new Map();
   }
 
   id() {
     return this.providerId;
+  }
+
+  // The verifier calls this only after all directory users and descendants exit.
+  async cleanupAttempt(attemptId) {
+    const workspace = this.attempts.get(attemptId);
+    if (!workspace) throw new Error('unknown provider attempt');
+    await cleanup(workspace);
+    this.attempts.delete(attemptId);
   }
 
   async callApi(prompt, context = {}) {
@@ -301,7 +312,7 @@ export default class VibeWindowProvider {
       { config: 'endpoint', environment: 'VIBEWINDOW_EVAL_ENDPOINT' },
       DEFAULT_ENDPOINT,
     );
-    const directory = path.resolve(
+    let directory = path.resolve(
       REPOSITORY_ROOT,
       setting(
         this.config,
@@ -340,11 +351,32 @@ export default class VibeWindowProvider {
     };
     const startedAt = performance.now();
 
+    let attemptMetadata;
+    const turns = [];
+    const receivedEvents = [];
+    let failureKind = 'configuration';
+    let sessionId;
     try {
+      if (this.config.evaluationProfile === 'runtime-accuracy') {
+        // Only trusted provider configuration supplies identity and public inputs.
+        const manifest = validateManifest(structuredClone(this.config.manifest));
+        const task = manifest.contract.tasks.find(task => task.taskId === this.config.taskId);
+        if (!task) throw new Error('runtime-accuracy task is missing from manifest');
+        const workspace = await prepare({ fixtureRoot: this.config.fixtureRoot,
+          fixtureFiles: this.config.fixtureFiles });
+        this.attempts.set(workspace.attemptId, workspace);
+        directory = workspace.workRoot;
+        attemptMetadata = { evaluationProfile: 'runtime-accuracy', manifest,
+          manifestDigest: manifestDigest(manifest), taskId: task.taskId, split: task.split,
+          expectedAttempts: manifest.contract.experiment.execution.repeats,
+          fixtureDigest: workspace.inputDigest, attemptId: workspace.attemptId,
+          workRoot: workspace.workRoot, cleanupPolicy: workspace.cleanupPolicy };
+        if (task.fixtureDigest !== workspace.inputDigest) {
+          throw new Error('runtime-accuracy fixtureDigest mismatch');
+        }
+      }
       const prompts = [prompt, ...followupPrompts(context.vars?.turns)];
       const messages = [];
-      const turns = [];
-      let sessionId;
 
       for (const turnPrompt of prompts) {
         messages.push({ role: 'user', content: turnPrompt });
@@ -363,6 +395,7 @@ export default class VibeWindowProvider {
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
         try {
+          failureKind = 'transport';
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -377,12 +410,14 @@ export default class VibeWindowProvider {
           });
 
           if (!response.ok) {
+            failureKind = 'http';
             const body = (await response.text()).slice(0, MAX_ERROR_BODY_CHARS);
             throw new Error(
               `VibeWindow gateway returned ${response.status} ${response.statusText}: ${body}`.trim(),
             );
           }
 
+          failureKind = 'stream';
           const events = [];
           const steps = new Set();
           const completedToolCalls = new Set();
@@ -390,6 +425,7 @@ export default class VibeWindowProvider {
           for await (const event of parseSseStream(response.body)) {
             reportProgress(event);
             events.push(event);
+            receivedEvents.push(event);
             if (event?.type === 'chat.step_start') {
               steps.add(Number(event.step_index));
             }
@@ -417,6 +453,7 @@ export default class VibeWindowProvider {
             latencyMs: Math.round(performance.now() - turnStartedAt),
             metadata: {
               ...result.metadata,
+              ...attemptMetadata,
               endpoint,
               directory,
               model,
@@ -456,6 +493,7 @@ export default class VibeWindowProvider {
         prompt,
         latencyMs: Math.round(performance.now() - startedAt),
         metadata: {
+          ...attemptMetadata,
           messageId: finalTurn.metadata.messageId,
           parentMessageId: finalTurn.metadata.parentMessageId,
           contextPaths: [...new Set(turns.flatMap((turn) => turn.metadata.contextPaths))],
@@ -483,6 +521,9 @@ export default class VibeWindowProvider {
             : String(error);
       return {
         error: message,
+        ...(attemptMetadata ? { sessionId, metadata: { ...attemptMetadata,
+          endpoint, directory, model, agent, turns, events: receivedEvents,
+          failureKind: error?.name === 'AbortError' ? 'timeout' : failureKind } } : {}),
         latencyMs: Math.round(performance.now() - startedAt),
       };
     }

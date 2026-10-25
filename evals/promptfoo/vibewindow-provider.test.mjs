@@ -216,7 +216,8 @@ test('provider_isolates_attempt_directories_and_keeps_turn_session', async () =>
     manifest.contract.tasks.push({ taskId: 'edit-1', description: 'edit input', category: 'edit',
       split: 'dev', fixtureDigest, oracleDigest: 'a'.repeat(64) });
     provider = new VibeWindowProvider({ config: { evaluationProfile: 'runtime-accuracy', manifest,
-      taskId: 'edit-1', fixtureRoot: root, fixtureFiles: ['input.txt'], timeoutMs: 1000 } });
+      taskId: 'edit-1', fixtureRoot: root, fixtureFiles: ['input.txt'], timeoutMs: 1000,
+      accuracyAcceptance: { admit: async ({ workRoot }) => admission(workRoot) } } });
     const requests = [];
     globalThis.fetch = async (_url, options) => {
       requests.push({ body: JSON.parse(options.body), directory: options.headers['X-VibeWindow-Directory'] });
@@ -263,7 +264,134 @@ test('provider_isolates_attempt_directories_and_keeps_turn_session', async () =>
     assert.equal(requests.length, 5);
   } finally {
     globalThis.fetch = originalFetch;
-    for (const result of results) if (result.metadata?.attemptId) await provider.cleanupAttempt(result.metadata.attemptId);
+    for (const result of results) if (provider.attempts.has(result.metadata?.attemptId)) await provider.cleanupAttempt(result.metadata.attemptId);
     await rm(root, { recursive: true, force: true });
   }
+});
+
+// The callbacks replace only the external environment supervisor. Artifact
+// verification and evidence archival use the real filesystem and oracle.
+function admission(workRoot) {
+  return { workRoot, mode: 'restricted-sandbox', configurationDigest: 'b'.repeat(64),
+    forbiddenWriteScopes: ['/repository'], evidencePath: '/trusted/admission.json',
+    verifiedAt: '2026-10-25T00:00:00Z', digest: 'c'.repeat(64) };
+}
+
+test('accuracy_provider_verifies_artifacts_and_cleans_only_after_writer_exit', async t => {
+  const { mkdtemp, writeFile, readFile, access, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const { prepare, cleanup } = await import('./attempt-workspace.mjs');
+  const { loadManifest } = await import('./accuracy-manifest.mjs');
+  const { evaluate } = await import('./assertions.mjs');
+  const root = await mkdtemp(join(tmpdir(), 'accuracy-integration-'));
+  const originalFetch = globalThis.fetch;
+  t.after(async () => { globalThis.fetch = originalFetch; await rm(root, { recursive: true, force: true }); });
+  await writeFile(join(root, 'answer.txt'), 'input');
+  const initial = await prepare({ fixtureRoot: root, fixtureFiles: ['answer.txt'] });
+  const fixtureDigest = initial.inputDigest;
+  await cleanup(initial);
+  const manifest = loadManifest(new URL('./accuracy-manifest.json', import.meta.url));
+  manifest.contract.tasks.push({ taskId: 'edit-test', description: 'edit', category: 'edit', split: 'dev',
+    fixtureDigest, oracleDigest: 'a'.repeat(64) });
+  const config = { evaluationProfile: 'runtime-accuracy', manifest, taskId: 'edit-test',
+    fixtureRoot: root, fixtureFiles: ['answer.txt'], timeoutMs: 1000,
+    accuracyAcceptance: {
+      definitions: new Map([['edit-test', { expectedFiles: { 'answer.txt': Buffer.from('correct') },
+        unchangedFiles: {}, allowExtraFiles: false }]]),
+      admit: async ({ workRoot }) => admission(workRoot),
+      settle: async ({ admission }) => ({ writersExited: true, admissionDigest: admission.digest,
+        checks: [{ kind: 'non_target_files', pass: true }] }),
+    } };
+  let content = 'wrong';
+  let events = turnEvents({ sessionId: 'session', messageId: 'answer', output: 'pass: true', callId: 'c', toolName: 'write_file' });
+  let httpError = false;
+  let requests = 0;
+  globalThis.fetch = async (_url, options) => {
+    requests++;
+    if (manifest.contract.experiment.budget.wallTimeMs === 1) await new Promise(resolve => setTimeout(resolve, 5));
+    await writeFile(join(options.headers['X-VibeWindow-Directory'], 'answer.txt'), content);
+    return httpError ? new Response('unavailable', { status: 503 }) : sseResponse(events);
+  };
+  const score = result => evaluate(result.output, { vars: { evaluationProfile: 'runtime-accuracy' }, providerResponse: result });
+  const provider = new VibeWindowProvider({ config });
+  const results = [];
+  t.after(async () => {
+    for (const result of results) if (provider.attempts.has(result.metadata?.attemptId)) await provider.cleanupAttempt(result.metadata.attemptId);
+  });
+  const run = async () => { const result = await provider.callApi('edit'); results.push(result); return result; };
+  const wrong = await run();
+  assert.equal(wrong.metadata.oracle.pass, false);
+  assert.equal(score(wrong).pass, false);
+  assert.equal(wrong.metadata.cleanup, 'cleaned');
+  await assert.rejects(access(wrong.metadata.workRoot));
+  const archived = JSON.parse(await readFile(wrong.metadata.evidencePath, 'utf8'));
+  assert.equal(archived.oracle.pass, false);
+  assert.equal(archived.admission.digest, 'c'.repeat(64));
+  content = 'correct';
+  const correct = await run();
+  assert.equal(correct.metadata.oracle.pass, true);
+  assert.equal(score(correct).pass, true);
+  assert.equal(correct.metadata.cleanup, 'cleaned');
+  manifest.contract.experiment.budget.wallTimeMs = 1;
+  const overBudget = await run();
+  assert.equal(score(overBudget).namedScores.execution_budget, 0);
+  manifest.contract.experiment.budget.wallTimeMs = 900000;
+  const definitions = config.accuracyAcceptance.definitions;
+  delete config.accuracyAcceptance.definitions;
+  const missing = await run();
+  assert.equal(missing.metadata.oracle.pass, false);
+  assert.equal(score(missing).pass, false);
+  config.accuracyAcceptance.definitions = new Map([['unknown', definitions.get('edit-test')]]);
+  const unknown = await run();
+  assert.equal(unknown.metadata.oracle.pass, false);
+  assert.equal(unknown.metadata.cleanup, 'cleaned');
+  config.accuracyAcceptance.definitions = definitions;
+  httpError = true;
+  const completedHttpError = await run();
+  assert.match(completedHttpError.error, /503/);
+  assert.equal(completedHttpError.metadata.cleanup, 'cleaned');
+  assert.equal(score(completedHttpError).pass, false);
+  httpError = false;
+  config.accuracyAcceptance.settle = async () => ({ writersExited: false });
+  const pending = await run();
+  assert.equal(pending.metadata.cleanup, 'cleanup_pending');
+  assert.equal(await readFile(join(pending.metadata.workRoot, 'answer.txt'), 'utf8'), 'correct');
+  assert.equal(pending.metadata.oracle.pass, false);
+  config.accuracyAcceptance.settle = async () => { throw new Error('supervisor unavailable'); };
+  httpError = true;
+  const failed = await run();
+  assert.match(failed.error, /503/);
+  assert.equal(failed.metadata.cleanup, 'cleanup_pending');
+  assert.equal(await readFile(join(failed.metadata.workRoot, 'answer.txt'), 'utf8'), 'correct');
+  config.accuracyAcceptance.settle = async ({ admission }) => ({ writersExited: true,
+    admissionDigest: admission.digest, checks: [{ kind: 'non_target_files', pass: false }] });
+  httpError = false;
+  const boundary = await run();
+  assert.equal(boundary.metadata.oracle.pass, true);
+  assert.equal(score(boundary).pass, false);
+  assert.equal(score(boundary).namedScores.boundary_checks, 0);
+  events = events.filter(event => event.type !== 'chat.done');
+  const truncated = await run();
+  assert.equal(score(truncated).pass, false);
+  assert.equal(score(truncated).namedScores.result_correct, 1);
+  assert.equal(score(truncated).namedScores.normal_terminal, 0);
+  // A failed archive must preserve both the workspace and existing evidence.
+  config.accuracyAcceptance.admit = async ({ workRoot, attemptId }) => {
+    await writeFile(new URL(`./results/accuracy-evidence/${attemptId}.json`, import.meta.url), 'archive canary');
+    return admission(workRoot);
+  };
+  const archiveFailure = await run();
+  assert.equal(archiveFailure.metadata.cleanup, 'cleanup_pending');
+  assert.equal(await readFile(join(archiveFailure.metadata.workRoot, 'answer.txt'), 'utf8'), 'correct');
+  assert.equal(await readFile(new URL(`./results/accuracy-evidence/${archiveFailure.metadata.attemptId}.json`, import.meta.url), 'utf8'), 'archive canary');
+  delete config.accuracyAcceptance.admit;
+  const denied = await run();
+  assert.match(denied.error, /admission/);
+  config.accuracyAcceptance.admit = async ({ workRoot }) => ({ ...admission(workRoot), workRoot: root });
+  const invalidProof = await run();
+  assert.match(invalidProof.error, /admission evidence invalid/);
+  assert.equal(invalidProof.metadata.cleanup, 'cleaned');
+  assert.equal(await readFile(join(root, 'answer.txt'), 'utf8'), 'input');
+  assert.equal(requests, 11);
 });

@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { createArtifactOracle } from './artifact-oracle.mjs';
 import { prepare, cleanup } from './attempt-workspace.mjs';
 import { validateManifest, manifestDigest } from './accuracy-manifest.mjs';
 import { randomUUID } from 'node:crypto';
@@ -306,7 +308,75 @@ export default class VibeWindowProvider {
     this.attempts.delete(attemptId);
   }
 
+  // runtime-accuracy requires evaluator-owned accuracyAcceptance configuration:
+  // definitions is the taskId -> trusted byte definition Map consumed by the
+  // artifact oracle. admit({attemptId, workRoot}) returns the environment proof
+  // summary below; settle({attemptId, workRoot, sessionId, admission}) attests
+  // that all remote writers/descendants exited and reports non_target_files
+  // checks linked to that proof's digest. Neither callback reads model claims.
+  // Missing/failed settlement retains the workspace for supervised recovery.
   async callApi(prompt, context = {}) {
+    const result = await this.runApi(prompt, context);
+    const data = result.metadata;
+    if (data?.evaluationProfile !== 'runtime-accuracy') return result;
+    const acceptance = this.config.accuracyAcceptance;
+    data.oracle = { pass: false, checks: [], reason: 'artifact acceptance unavailable' };
+    data.boundary = { pass: false };
+    data.cleanup = 'cleanup_pending';
+    const turns = data.turns ?? [result];
+    data.terminal = { pass: !result.error && turns.every(turn =>
+      turn.metadata.eventTypes?.includes('chat.done') &&
+      !turn.metadata.eventTypes?.includes('chat.error') &&
+      [undefined, 'stop', 'end_turn', 'completed'].includes(turn.finishReason)) };
+    const budget = data.manifest.contract.experiment.budget;
+    data.budget = { pass: !result.error && !data.budgetStopped && result.latencyMs <= budget.wallTimeMs &&
+      turns.reduce((n, turn) => n + (turn.metadata.steps?.length ?? 0), 0) <= budget.iterations &&
+      turns.reduce((n, turn) => n + (turn.metadata.toolCalls?.length ?? 0), 0) <= budget.toolCalls };
+    let safeToClean = data.remoteStarted !== true;
+    try {
+      // SSE completion is not proof that remote children have exited. Only the
+      // trusted environment supervisor can attest their complete lifecycle.
+      if (!safeToClean && typeof acceptance?.settle === 'function') {
+        const settled = await acceptance.settle({ attemptId: data.attemptId,
+          workRoot: data.workRoot, sessionId: result.sessionId,
+          admission: structuredClone(data.admission) });
+        safeToClean = settled?.writersExited === true;
+        data.boundary = { pass: safeToClean && settled.admissionDigest === data.admission.digest &&
+          Array.isArray(settled.checks) && settled.checks.length > 0 &&
+          settled.checks.some(check => check.kind === 'non_target_files') &&
+          settled.checks.every(check => check.pass === true),
+          admissionDigest: data.admission.digest };
+      }
+      if (safeToClean && data.admission) {
+        const verify = createArtifactOracle(acceptance?.definitions);
+        data.oracle = await verify({ taskId: data.taskId, workRoot: data.workRoot });
+      }
+    } catch {
+      // Preserve the transport error and never include supervisor payloads or
+      // expected file contents in diagnostics.
+      data.acceptanceError = 'trusted acceptance unavailable';
+    }
+    try {
+      const evidenceDirectory = path.join(REPOSITORY_ROOT, 'evals/promptfoo/results/accuracy-evidence');
+      await mkdir(evidenceDirectory, { recursive: true });
+      const evidencePath = path.join(evidenceDirectory, `${data.attemptId}.json`);
+      await writeFile(evidencePath, JSON.stringify({ attemptId: data.attemptId,
+        taskId: data.taskId, manifestDigest: data.manifestDigest, admission: data.admission,
+        oracle: data.oracle, boundary: data.boundary, terminal: data.terminal, budget: data.budget,
+        failureKind: data.failureKind, acceptanceError: data.acceptanceError,
+        cleanup: safeToClean ? 'eligible_after_archive' : 'cleanup_pending' }), { flag: 'wx' });
+      data.evidencePath = evidencePath;
+      if (safeToClean) {
+        await this.cleanupAttempt(data.attemptId);
+        data.cleanup = 'cleaned';
+      }
+    } catch {
+      data.cleanup = 'cleanup_pending';
+    }
+    return result;
+  }
+
+  async runApi(prompt, context = {}) {
     const endpoint = setting(
       this.config,
       { config: 'endpoint', environment: 'VIBEWINDOW_EVAL_ENDPOINT' },
@@ -375,6 +445,26 @@ export default class VibeWindowProvider {
           throw new Error('runtime-accuracy fixtureDigest mismatch');
         }
       }
+      if (attemptMetadata) {
+        const admit = this.config.accuracyAcceptance?.admit;
+        if (typeof admit !== 'function') throw new Error('runtime-accuracy admission evidence required');
+        const proof = structuredClone(await admit({ attemptId: attemptMetadata.attemptId, workRoot: directory }));
+        if (!proof || proof.workRoot !== directory ||
+            !['restricted-sandbox', 'pollution-only-directory'].includes(proof.mode) ||
+            !/^[a-f0-9]{64}$/.test(proof.digest ?? '') ||
+            !/^[a-f0-9]{64}$/.test(proof.configurationDigest ?? '') ||
+            !Array.isArray(proof.forbiddenWriteScopes) || !proof.forbiddenWriteScopes.length ||
+            !proof.forbiddenWriteScopes.every(scope => typeof scope === 'string' && path.isAbsolute(scope)) ||
+            typeof proof.evidencePath !== 'string' || !path.isAbsolute(proof.evidencePath) ||
+            typeof proof.verifiedAt !== 'string' || !Number.isFinite(Date.parse(proof.verifiedAt))) {
+          throw new Error('runtime-accuracy admission evidence invalid');
+        }
+        // Keep only the declared proof summary; supervisor payloads are not logs.
+        attemptMetadata.admission = Object.fromEntries([
+          'workRoot', 'mode', 'configurationDigest', 'forbiddenWriteScopes',
+          'evidencePath', 'verifiedAt', 'digest',
+        ].map(key => [key, proof[key]]));
+      }
       const prompts = [prompt, ...followupPrompts(context.vars?.turns)];
       const messages = [];
 
@@ -396,6 +486,7 @@ export default class VibeWindowProvider {
 
         try {
           failureKind = 'transport';
+          if (attemptMetadata) attemptMetadata.remoteStarted = true;
           const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
@@ -437,6 +528,7 @@ export default class VibeWindowProvider {
             const reachedToolCallLimit = completedToolCalls.size >= maxToolCalls;
             if (!stopRequested && (reachedIterationLimit || reachedToolCallLimit)) {
               stopRequested = true;
+              if (attemptMetadata) attemptMetadata.budgetStopped = true;
               const reason = reachedIterationLimit
                 ? `${maxIterations} iterations`
                 : `${maxToolCalls} tool calls`;

@@ -131,3 +131,24 @@ test('thread_profile_rejects_wrong_create_or_list_result_and_false_handoff_succe
   handoffSucceeded.splice(-1, 1, call('handoff_thread', { thread_id: THREAD_ID }, {}));
   assert.equal(threadScore(handoffSucceeded).pass, false);
 });
+
+test('accuracy_profile_requires_evaluator_oracle', () => {
+  const metadata = { evaluationProfile: 'runtime-accuracy', eventTypes: ['chat.done'],
+    terminal: { pass: true }, budget: { pass: true },
+    boundary: { pass: true, admissionDigest: 'a'.repeat(64) } };
+  const score = () => evaluate('pass: true; completed', {
+    vars: { evaluationProfile: 'runtime-accuracy' }, providerResponse: { metadata },
+  });
+  assert.equal(score().pass, false);
+  assert.equal(score().namedScores.result_correct, 0);
+  const spoofed = evaluate('completed', { vars: { evaluationProfile: 'coding' },
+    providerResponse: { metadata } });
+  assert.equal(spoofed.namedScores.result_correct, 0);
+  metadata.oracle = { pass: false, checks: [{ pass: false }], reason: 'wrong bytes' };
+  assert.equal(score().pass, false);
+  metadata.oracle = { pass: true, checks: [{ pass: true }], reason: 'verified' };
+  assert.equal(score().pass, true);
+  delete metadata.boundary.admissionDigest;
+  assert.equal(score().pass, false);
+  assert.equal(score().namedScores.boundary_checks, 0);
+});

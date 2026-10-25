@@ -588,7 +588,37 @@ export function expectedFactsScore(output, context) {
   );
 }
 
+function artifactResult(_output, context) {
+  const oracle = metadata(context).oracle;
+  const pass = oracle?.pass === true && Array.isArray(oracle.checks) &&
+    oracle.checks.length > 0 && oracle.checks.every(check => check.pass === true);
+  return gradingResult(pass, pass ? '可信产物验收通过' : '缺少可信 oracle 或产物验收失败');
+}
+
+function accuracyTerminal(_output, context) {
+  return gradingResult(metadata(context).terminal?.pass === true, '正常终态验收');
+}
+
+function accuracyBoundary(_output, context) {
+  const boundary = metadata(context).boundary;
+  return gradingResult(boundary?.pass === true && /^[a-f0-9]{64}$/.test(boundary.admissionDigest ?? ''),
+    '环境准入证明与非目标文件边界验收');
+}
+
+function accuracyBudget(_output, context) {
+  return gradingResult(metadata(context).budget?.pass === true, '冻结预算验收');
+}
+
 const EVALUATION_PROFILES = Object.freeze({
+  'runtime-accuracy': {
+    threshold: 1,
+    checks: [
+      ['result_correct', 70, artifactResult, true],
+      ['normal_terminal', 10, accuracyTerminal, true],
+      ['boundary_checks', 10, accuracyBoundary, true],
+      ['execution_budget', 10, accuracyBudget, true],
+    ],
+  },
   rustcodegraph: {
     threshold: 0.7,
     checks: [
@@ -627,6 +657,7 @@ const EVALUATION_PROFILES = Object.freeze({
 });
 
 function evaluationProfile(context) {
+  if (metadata(context).evaluationProfile === 'runtime-accuracy') return 'runtime-accuracy';
   const explicit = context?.vars?.evaluationProfile;
   if (typeof explicit === 'string' && explicit.trim()) {
     return explicit.trim();

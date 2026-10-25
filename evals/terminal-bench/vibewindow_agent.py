@@ -14,12 +14,12 @@ import shlex
 import tempfile
 import uuid
 
-from harbor.agents.installed.base import BaseInstalledAgent
+from harbor.agents.installed.base import BaseInstalledAgent, NonZeroAgentExitCodeError
 
 
 class VibeWindowAgent(BaseInstalledAgent):
     def __init__(self, logs_dir, *, task_id, runtime_dir=None,
-                 config_directory=None, model_name=None, **kwargs):
+                 config_directory=None, profile_path=None, model_name=None, **kwargs):
         manifest = json.loads(Path(__file__).with_name('manifest.json').read_text())
         tasks = [task for task in manifest['tasks'] if task['taskId'] == task_id]
         if len(tasks) != 1:
@@ -31,6 +31,7 @@ class VibeWindowAgent(BaseInstalledAgent):
         self.task = tasks[0]
         self.manifest = manifest
         self.runtime_dir = Path(runtime_dir) if runtime_dir else None
+        self.profile_path = Path(profile_path) if profile_path else None
         self.remote = '/tmp/vw-harbor-' + uuid.uuid4().hex
         self.config_directory = config_directory or self.remote + '/config'
         self.runtime_env = {
@@ -45,7 +46,7 @@ class VibeWindowAgent(BaseInstalledAgent):
         return 'vibewindow'
 
     def version(self):
-        return 'task27-harbor-0.24.0'
+        return 'task29-harbor-0.24.0'
 
     async def _execute(self, environment, command, *, timeout_sec=15):
         # Use the environment with its configured default agent user.
@@ -72,6 +73,30 @@ class VibeWindowAgent(BaseInstalledAgent):
         if result.return_code:
             raise RuntimeError('runtime installation failed')
 
+    async def _bind_profile(self, environment, remote):
+        if self.profile_path is None:
+            return False
+        profile = json.loads(self.profile_path.read_text())
+        provider, auth = profile['provider'], profile['auth']
+        if (set(provider) - {'api', 'adapter', 'models'}
+                or set(provider.get('models', {})) != {'deepseek-v4-flash-0731'}
+                or not provider.get('api') or set(auth) != {'type', 'key'}
+                or auth.get('type') != 'api' or not auth.get('key')):
+            raise ValueError('profile must contain only the frozen provider/model and API auth')
+        with tempfile.TemporaryDirectory() as temp:
+            for name, payload in (('provider.json', {'providers': {'token-plan': provider}}),
+                                  ('auth.json', auth)):
+                path = Path(temp) / name
+                path.write_text(json.dumps(payload, ensure_ascii=True))
+                path.chmod(0o600)
+                await environment.upload_file(path, remote + '/' + name)
+            await environment.upload_file(Path(__file__).with_name('bind-profile.sh'),
+                                          remote + '/bind-profile.sh')
+        bound = await self._execute(environment, 'bash ' + remote + '/bind-profile.sh ' + remote)
+        if bound.return_code:
+            raise RuntimeError('container profile binding failed')
+        return True
+
     async def run(self, instruction, environment, context):
         attempt = uuid.uuid4().hex
         directory = Path(self.logs_dir) / attempt
@@ -87,7 +112,7 @@ class VibeWindowAgent(BaseInstalledAgent):
         client = (shlex.quote(binary) + ' realtime --host 127.0.0.1 --port 42619 '
                   '--directory ' + shlex.quote(self.task['workingDirectory']) + ' --output jsonl --yes ')
         try:
-            preparation = await self._execute(environment, 'mkdir -p ' + shlex.quote(remote))
+            preparation = await self._execute(environment, 'umask 077; mkdir -p ' + shlex.quote(remote))
             if preparation.return_code:
                 raise RuntimeError('attempt directory creation failed')
             body = {'session_id': attempt, 'model': self.model_name,
@@ -113,6 +138,7 @@ class VibeWindowAgent(BaseInstalledAgent):
                 "then exit 0; fi; sleep 1; done; exit 1'", timeout_sec=40)
             if health.return_code:
                 raise RuntimeError('Gateway not ready')
+            result['profile_bound'] = await self._bind_profile(environment, remote)
             command = (client + 'chat-stream --request-id ' + attempt + ' --input '
                        + remote + '/request.json > ' + remote + '/events.jsonl 2> '
                        + remote + '/client.stderr; code=$?; cat ' + remote
@@ -150,7 +176,9 @@ class VibeWindowAgent(BaseInstalledAgent):
             raise
         except Exception as error:
             result['error'] = type(error).__name__
-            raise
+            if isinstance(error, ValueError):
+                raise
+            raise NonZeroAgentExitCodeError('VibeWindow request failed: ' + type(error).__name__) from error
         finally:
             (directory / 'events.jsonl').write_text(raw)
             try:
@@ -175,7 +203,13 @@ class VibeWindowAgent(BaseInstalledAgent):
                     await environment.download_file(remote + '/' + name, directory / name)
                 except (AttributeError, FileNotFoundError, RuntimeError) as error:
                     result.setdefault('archive_missing', {})[name] = type(error).__name__
+            try:
+                removed = await self._execute(environment, 'rm -rf -- ' + shlex.quote(self.remote))
+                result['profile_cleanup_exit_code'] = removed.return_code
+            except Exception as error:
+                result['profile_cleanup_error'] = type(error).__name__
             if result['status'] == 'completed' and (
+                    result.get('profile_cleanup_exit_code') != 0 or
                     result.get('cleanup_exit_code') != 0 or 'cleanup_error' in result):
                 result['status'] = 'failed'
             (directory / 'result.json').write_text(json.dumps(result, indent=2))
@@ -187,4 +221,4 @@ class VibeWindowAgent(BaseInstalledAgent):
                     if source in result['usage']:
                         setattr(context, target, result['usage'][source])
         if result['status'] != 'completed':
-            raise RuntimeError('Gateway cleanup failed')
+            raise NonZeroAgentExitCodeError('Gateway cleanup failed')

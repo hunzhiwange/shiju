@@ -20,6 +20,7 @@ except ImportError:
         async def exec_as_agent(self, environment, **kwargs):
             return await environment.exec(**kwargs)
     boundary.BaseInstalledAgent = BaseInstalledAgent
+    boundary.NonZeroAgentExitCodeError = type("NonZeroAgentExitCodeError", (RuntimeError,), {})
     sys.modules['harbor.agents.installed.base'] = boundary
 
 
@@ -65,6 +66,42 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         paths = list(self.logs.glob('*/result.json'))
         self.assertEqual(len(paths), 1)
         return json.loads(paths[0].read_text())
+    async def test_profile_binding_uses_only_frozen_provider_and_cleans_payloads(self):
+        profile = self.logs / 'profile.json'
+        profile.write_text(json.dumps({'provider': {'api': 'https://example.test/v1',
+            'adapter': 'openai-compatible', 'models': {'deepseek-v4-flash-0731': {}}},
+            'auth': {'type': 'api', 'key': 'fixture-secret'}}))
+        self.agent = self.module.VibeWindowAgent(logs_dir=self.logs, task_id='fix-git',
+                                               profile_path=str(profile))
+        env = Environment()
+        await self.agent.run('task', env, self.context)
+        uploaded = {p.rsplit('/', 1)[-1]: v for p, v in env.uploads.items()}
+        self.assertEqual(json.loads(uploaded['auth.json'])['key'], 'fixture-secret')
+        self.assertEqual(list(json.loads(uploaded['provider.json'])['providers']), ['token-plan'])
+        self.assertTrue(any('bind-profile.sh' in c[0] for c in env.calls))
+        self.assertFalse(any('fixture-secret' in c[0] for c in env.calls))
+        self.assertTrue(any('rm -rf' in c[0] and self.agent.remote in c[0] for c in env.calls))
+        self.assertTrue(self.result()['profile_bound'])
+
+    async def test_profile_rejects_extra_models_before_upload(self):
+        profile = self.logs / 'bad-profile.json'
+        profile.write_text(json.dumps({'provider': {'api': 'https://example.test/v1',
+            'models': {'other': {}}}, 'auth': {'type': 'api', 'key': 'fixture-secret'}}))
+        self.agent = self.module.VibeWindowAgent(logs_dir=self.logs, task_id='fix-git',
+                                               profile_path=str(profile))
+        env = Environment()
+        with self.assertRaises(ValueError):
+            await self.agent.run('task', env, self.context)
+        self.assertFalse(any(p.endswith('/auth.json') for p in env.uploads))
+        self.assertTrue(any('rm -rf' in c[0] for c in env.calls))
+
+    async def test_failed_agent_maps_to_harbor_scored_failure(self):
+        from harbor.agents.installed.base import NonZeroAgentExitCodeError
+        with self.assertRaises(NonZeroAgentExitCodeError):
+            await self.agent.run('task', Environment(code=7), self.context)
+        self.assertEqual(self.result()['exit_code'], 7)
+        self.assertEqual(self.result()['status'], 'failed')
+
     async def test_install_requires_verified_runtime(self):
         with self.assertRaises(ValueError):
             await self.agent.install(Environment())

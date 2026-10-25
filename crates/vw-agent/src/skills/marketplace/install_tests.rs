@@ -21,6 +21,8 @@ use super::provider::{
     SkillMarketArtifact, SkillMarketArtifactProof, SkillMarketSkillSetArtifact,
     SkillMarketSkillSetMemberArtifact, SkillMarketSkillSetVerificationPolicy,
 };
+use crate::app::agent::skills::loader::load_skills_from_directory;
+use crate::app::agent::skills::types::SkillLoadMode;
 
 const TEST_SEED: [u8; 32] = [7; 32];
 
@@ -491,11 +493,92 @@ fn market_skillset_install_is_atomic_and_records_source_membership() {
     assert_no_staging_residue(&policy_root);
 }
 
+fn expert_fixture(identify: &str) -> SkillMarketSkillSetArtifact {
+    let member = SkillMarketCoordinateDto {
+        locator: SkillMarketSkillLocatorDto {
+            source: "fixture".to_string(),
+            namespace: "public".to_string(),
+            slug: "first-skill".to_string(),
+        },
+        version: "1.0.0".to_string(),
+    };
+    fixture_skill_set_artifact_with_identify(
+        &[member],
+        &[vec![FixtureEntry::file(
+            "SKILL.md",
+            "---\nname: first-skill\ndescription: First\n---\n# First\n",
+        )]],
+        identify,
+    )
+}
+
+#[test]
+fn expert_package_rejects_mismatched_meta_identity() {
+    let project = tempfile::tempdir().expect("fixture project");
+    let root = skills_root(project.path());
+    let identify = "---\nname: wrong-suite\ndescription: Fixture\nversion: 3.0.0\nmetadata:\n  package_type: meta-skill\norchestration:\n  children: [first-skill]\n---\n# Workflow\n";
+    let error =
+        install_verified_market_skill_set(&root, expert_fixture(identify), &default_security())
+            .expect_err("mismatched meta identity must fail");
+    assert!(error.to_string().contains("name"), "{error:#}");
+    assert!(!root.join("fixture--skillset--fixture-suite").exists());
+    assert!(!root.join("fixture--public--first-skill").exists());
+    assert_no_staging_residue(&root);
+}
+
+#[test]
+fn expert_package_rejects_mismatched_children() {
+    for children in ["[other-skill]", "[first-skill, first-skill]"] {
+        let project = tempfile::tempdir().expect("fixture project");
+        let root = skills_root(project.path());
+        let identify = format!(
+            "---\nname: fixture-suite\ndescription: Fixture\nversion: 3.0.0\nmetadata:\n  package_type: meta-skill\norchestration:\n  children: {children}\n---\n# Workflow\n"
+        );
+        let error = install_verified_market_skill_set(
+            &root,
+            expert_fixture(&identify),
+            &default_security(),
+        )
+        .expect_err("mismatched children must fail");
+        assert!(error.to_string().contains("children"), "{error:#}");
+        assert!(!root.join("fixture--skillset--fixture-suite").exists());
+        assert!(!root.join("fixture--public--first-skill").exists());
+        assert_no_staging_residue(&root);
+    }
+}
+
+#[test]
+fn expert_package_installs_valid_meta_and_members() {
+    let project = tempfile::tempdir().expect("fixture project");
+    let root = skills_root(project.path());
+    let identify = "---\nname: fixture-suite\ndescription: Fixture\nversion: 3.0.0\nmetadata:\n  package_type: meta-skill\norchestration:\n  children: [first-skill]\n---\n# Workflow\n";
+    let installed =
+        install_verified_market_skill_set(&root, expert_fixture(identify), &default_security())
+            .expect("valid expert package must install");
+    assert_eq!(installed.len(), 2);
+    let meta = root.join("fixture--skillset--fixture-suite");
+    let loaded = load_skills_from_directory(&root, SkillLoadMode::Full, &default_security());
+    assert!(loaded.iter().any(|skill| {
+        skill.name == "fixture--skillset--fixture-suite"
+            && skill.location.as_deref() == Some(meta.join("SKILL.md").as_path())
+    }));
+    assert!(root.join("fixture--public--first-skill/SKILL.md").is_file());
+    assert_no_staging_residue(&root);
+}
+
 fn fixture_skill_set_artifact(
     coordinates: &[SkillMarketCoordinateDto],
     member_entries: &[Vec<FixtureEntry>],
 ) -> SkillMarketSkillSetArtifact {
-    let identify = "---\nname: fixture-suite\ndescription: Fixture suite\nversion: 3.0.0\npackage_type: meta-skill\n---\n# Fixture Suite\n";
+    let identify = "---\nname: fixture-suite\ndescription: Fixture suite\nversion: 3.0.0\nmetadata:\n  package_type: meta-skill\norchestration:\n  children:\n    - first-skill\n    - second-skill\n---\n# Fixture Suite\n";
+    fixture_skill_set_artifact_with_identify(coordinates, member_entries, identify)
+}
+
+fn fixture_skill_set_artifact_with_identify(
+    coordinates: &[SkillMarketCoordinateDto],
+    member_entries: &[Vec<FixtureEntry>],
+    identify: &str,
+) -> SkillMarketSkillSetArtifact {
     let identify_hash = hex::encode(Sha256::digest(identify.as_bytes()));
     let manifest = serde_json::json!({
         "manifestVersion": "1",

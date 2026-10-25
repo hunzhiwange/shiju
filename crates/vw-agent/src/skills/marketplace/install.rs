@@ -187,7 +187,7 @@ pub(crate) fn install_verified_market_skill_set(
     let identify_path = suite_archive.join("identify.md");
     let identify =
         fs::read_to_string(&identify_path).context("skill-set identify.md is not valid UTF-8")?;
-    let version = meta_skill_version(&identify)?;
+    let version = validate_meta_skill(&identify, &artifact.slug, &member_slugs)?;
     let meta_coordinate = SkillMarketCoordinateDto { version, ..meta_coordinate };
     validate_market_coordinate(&meta_coordinate)?;
 
@@ -684,10 +684,27 @@ fn unique_values(values: &[String], field: &str) -> Result<BTreeSet<String>> {
 
 #[derive(Deserialize)]
 struct MetaSkillFrontmatter {
+    name: String,
     version: String,
+    metadata: MetaSkillMetadata,
+    orchestration: MetaSkillOrchestration,
 }
 
-fn meta_skill_version(content: &str) -> Result<String> {
+#[derive(Deserialize)]
+struct MetaSkillMetadata {
+    package_type: String,
+}
+
+#[derive(Deserialize)]
+struct MetaSkillOrchestration {
+    children: Vec<String>,
+}
+
+fn validate_meta_skill(
+    content: &str,
+    expected_name: &str,
+    expected_children: &BTreeSet<String>,
+) -> Result<String> {
     let mut lines = content.lines();
     if lines.next().map(str::trim) != Some("---") {
         bail!("skill-set identify.md must contain YAML frontmatter");
@@ -695,10 +712,20 @@ fn meta_skill_version(content: &str) -> Result<String> {
     let mut yaml = String::new();
     for line in lines {
         if line.trim() == "---" {
-            let frontmatter: MetaSkillFrontmatter =
-                serde_yaml::from_str(&yaml).context("skill-set frontmatter is invalid")?;
+            let frontmatter: MetaSkillFrontmatter = serde_yaml::from_str(&yaml)
+                .context("unsupported skill-set meta-skill frontmatter")?;
+            if frontmatter.metadata.package_type != "meta-skill" {
+                bail!("skill-set frontmatter package_type must be meta-skill");
+            }
+            if frontmatter.name != expected_name {
+                bail!("skill-set frontmatter name does not match suite slug");
+            }
             if frontmatter.version.trim().is_empty() {
                 bail!("skill-set frontmatter version is required");
+            }
+            let children = unique_values(&frontmatter.orchestration.children, "children")?;
+            if &children != expected_children {
+                bail!("skill-set frontmatter children do not match suite members");
             }
             return Ok(frontmatter.version);
         }

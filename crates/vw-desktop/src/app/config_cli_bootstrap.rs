@@ -77,6 +77,12 @@ pub async fn bootstrap_cli_service_async() -> Result<(), String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn bootstrap_cli_service() -> Result<(), String> {
+    // 开发环境由开发者运行 gateway，不能安装 CLI 或注册常驻服务抢占端口。
+    if cfg!(debug_assertions) {
+        tracing::debug!(target: "vw_desktop", "development build uses a manually started gateway");
+        return Ok(());
+    }
+
     let home = resolve_home_dir()?;
     let config_dir = vw_config_types::paths::home_config_dir(&home);
     let cli = ensure_cli_installed(&home)?;

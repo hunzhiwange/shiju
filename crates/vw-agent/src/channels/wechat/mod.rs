@@ -101,6 +101,7 @@ impl WeChatChannel {
         let id = message.get("msg_id").and_then(Value::as_str).unwrap_or(context_token).to_string();
         Ok(Some((
             ChannelMessage {
+                instance_id: "default".into(),
                 id,
                 sender: sender.to_string(),
                 reply_target: sender.to_string(),

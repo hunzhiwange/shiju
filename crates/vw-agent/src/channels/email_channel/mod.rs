@@ -628,6 +628,7 @@ impl EmailChannel {
 
             // 构造通道消息
             let msg = ChannelMessage {
+                instance_id: "default".to_string(),
                 id: email.msg_id,
                 reply_target: email.sender.clone(),
                 sender: email.sender,

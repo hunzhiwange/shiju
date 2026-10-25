@@ -638,6 +638,7 @@ impl Channel for DiscordChannel {
 
                     // 构建 ChannelMessage 并发送给消费者
                     let channel_msg = ChannelMessage {
+                        instance_id: "default".to_string(),
                         id: if message_id.is_empty() {
                             Uuid::new_v4().to_string()
                         } else {

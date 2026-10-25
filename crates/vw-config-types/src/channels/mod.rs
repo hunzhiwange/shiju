@@ -20,3 +20,7 @@ pub use other::*;
 pub use types::*;
 pub use wechat::*;
 pub use wecom::*;
+
+#[cfg(test)]
+#[path = "chat_tests.rs"]
+mod channel_project_binding_tests;

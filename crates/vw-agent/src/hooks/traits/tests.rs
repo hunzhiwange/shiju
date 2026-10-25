@@ -128,6 +128,7 @@ mod tests {
 
     fn channel_message(content: &str) -> ChannelMessage {
         ChannelMessage {
+            instance_id: "default".to_string(),
             id: "msg-1".to_string(),
             sender: "sender".to_string(),
             reply_target: "reply".to_string(),
@@ -216,6 +217,7 @@ mod tests {
             "nested": {"text": "值"}
         });
         let message = ChannelMessage {
+            instance_id: "default".to_string(),
             id: "message-id".to_string(),
             sender: "sender-id".to_string(),
             reply_target: "reply-id".to_string(),

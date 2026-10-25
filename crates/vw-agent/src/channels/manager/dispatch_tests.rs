@@ -158,6 +158,7 @@ fn context(
 
 fn message(id: &str, channel: &str, sender: &str, reply_target: &str) -> traits::ChannelMessage {
     traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: id.to_string(),
         sender: sender.to_string(),
         reply_target: reply_target.to_string(),

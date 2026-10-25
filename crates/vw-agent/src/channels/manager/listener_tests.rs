@@ -112,7 +112,7 @@ async fn supervised_listener_exits_after_listener_returns_when_receiver_is_close
     drop(rx);
 
     let handle = spawn_supervised_listener_with_health_interval(
-        channel_dyn,
+        ConfiguredChannel::new("test", channel_dyn),
         tx,
         0,
         0,
@@ -130,7 +130,7 @@ async fn supervised_listener_default_entry_exits_when_receiver_is_closed() {
     let (tx, rx) = tokio::sync::mpsc::channel(1);
     drop(rx);
 
-    let handle = spawn_supervised_listener(channel_dyn, tx, 0, 0);
+    let handle = spawn_supervised_listener(ConfiguredChannel::new("test", channel_dyn), tx, 0, 0);
 
     handle.await.expect("listener task should finish");
     assert_eq!(channel.listens.load(Ordering::SeqCst), 1);
@@ -148,7 +148,7 @@ async fn supervised_listener_restarts_after_clean_exit_and_resets_error_on_next_
     let (tx, rx) = tokio::sync::mpsc::channel(1);
 
     let handle = spawn_supervised_listener_with_health_interval(
-        channel_dyn,
+        ConfiguredChannel::new("test", channel_dyn),
         tx,
         0,
         0,
@@ -187,7 +187,7 @@ async fn supervised_listener_records_errors_and_retries_with_minimum_backoff() {
     let (tx, rx) = tokio::sync::mpsc::channel(1);
 
     let handle = spawn_supervised_listener_with_health_interval(
-        channel_dyn,
+        ConfiguredChannel::new("test", channel_dyn),
         tx,
         0,
         0,
@@ -221,7 +221,7 @@ async fn supervised_listener_marks_health_while_listening() {
     let (tx, rx) = tokio::sync::mpsc::channel(1);
 
     let handle = spawn_supervised_listener_with_health_interval(
-        channel_dyn,
+        ConfiguredChannel::new("test", channel_dyn),
         tx,
         1,
         2,

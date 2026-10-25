@@ -63,6 +63,7 @@ fn context(workspace_dir: PathBuf) -> ChannelRuntimeContext {
 
 fn message(sender: &str) -> traits::ChannelMessage {
     traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: "msg".to_string(),
         sender: sender.to_string(),
         reply_target: "reply".to_string(),

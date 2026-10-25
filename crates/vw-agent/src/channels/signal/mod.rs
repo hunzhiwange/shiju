@@ -478,6 +478,7 @@ impl SignalChannel {
 
         // 构建 ChannelMessage
         Some(ChannelMessage {
+            instance_id: "default".to_string(),
             id: format!("sig_{timestamp}"),
             sender: sender.clone(),
             reply_target: target,

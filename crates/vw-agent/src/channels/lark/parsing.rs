@@ -512,6 +512,7 @@ impl LarkChannel {
 
         // 构造消息对象
         messages.push(super::ChannelMessage {
+            instance_id: "default".to_string(),
             id: Uuid::new_v4().to_string(),
             sender: chat_id.to_string(),
             reply_target: chat_id.to_string(),
@@ -673,6 +674,7 @@ impl LarkChannel {
 
         // 构造消息对象
         messages.push(super::ChannelMessage {
+            instance_id: "default".to_string(),
             id: Uuid::new_v4().to_string(),
             sender: chat_id.to_string(),
             reply_target: chat_id.to_string(),

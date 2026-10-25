@@ -1,3 +1,4 @@
+use super::manager::{append_nostr_channel_if_available, collect_configured_channels};
 use super::*;
 use crate::app::agent::config::schema::{
     DingTalkConfig, DingTalkInstanceConfig, DiscordConfig, EmailConfig, FeishuConfig,
@@ -426,4 +427,74 @@ async fn append_nostr_channel_if_available_reports_invalid_private_key() {
 
     assert!(channels.is_empty());
     assert!(reason.is_some_and(|message| message.contains("Nostr init failed during startup")));
+}
+
+#[cfg(feature = "channel-lark")]
+#[tokio::test]
+async fn channel_project_binding_factory_preserves_named_identity_in_inbound_messages() {
+    let mut config = Config::default();
+    config
+        .channels_config
+        .feishu_instances
+        .push(FeishuInstanceConfig { id: "team".into(), config: feishu_config() });
+    config
+        .channels_config
+        .dingtalk_instances
+        .push(DingTalkInstanceConfig { id: "team".into(), config: dingtalk_config() });
+    let channels = collect_configured_channels(&config, "test");
+    assert_eq!(channels.len(), 2);
+    for configured in &channels {
+        assert_eq!(configured.instance_id, "team");
+        let message = traits::ChannelMessage {
+            instance_id: "default".to_string(),
+            id: "message".into(),
+            sender: "sender".into(),
+            reply_target: "chat".into(),
+            content: "hello".into(),
+            channel: configured.channel.name().to_string(),
+            timestamp: 1,
+            thread_ts: Some("thread".into()),
+        };
+        let channel_type = configured.channel.name().to_string();
+        let mut configured = configured.clone();
+        configured.channel = Arc::new(InboundFixture(message));
+        let (tx, mut rx) = tokio::sync::mpsc::channel(1);
+        configured.listen(tx).await.unwrap();
+        let message = rx.recv().await.unwrap();
+        assert_eq!(message.instance_id, "team");
+        assert_eq!(message.channel, channel_type);
+        assert_eq!(message.reply_target, "chat");
+        assert_eq!(message.thread_ts.as_deref(), Some("thread"));
+        assert_eq!(message.content, "hello");
+    }
+}
+
+#[tokio::test]
+async fn channel_project_binding_qq_webhook_uses_default_instance() {
+    let channel = super::qq::QQChannel::new("app".into(), "secret".into(), vec!["*".into()]);
+    let messages = channel.parse_webhook_payload(&serde_json::json!({"op": 0, "t": "C2C_MESSAGE_CREATE", "d": {"id": "msg", "content": "hello", "author": {"user_openid": "user"}}})).await;
+    let message = &messages[0];
+    assert_eq!(message.instance_id, "default");
+    assert_eq!(message.channel, "qq");
+}
+
+#[cfg(feature = "channel-lark")]
+struct InboundFixture(traits::ChannelMessage);
+
+#[cfg(feature = "channel-lark")]
+#[async_trait::async_trait]
+impl Channel for InboundFixture {
+    fn name(&self) -> &str {
+        "feishu"
+    }
+    async fn send(&self, _: &SendMessage) -> anyhow::Result<()> {
+        Ok(())
+    }
+    async fn listen(
+        &self,
+        tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
+    ) -> anyhow::Result<()> {
+        tx.send(self.0.clone()).await?;
+        Ok(())
+    }
 }

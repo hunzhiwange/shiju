@@ -120,6 +120,7 @@ pub(super) fn build_channel_message(
     msg_id: &str,
 ) -> ChannelMessage {
     ChannelMessage {
+        instance_id: "default".to_string(),
         id: Uuid::new_v4().to_string(),
         sender: sender.to_string(),
         reply_target,

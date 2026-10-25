@@ -169,6 +169,7 @@ mod tests {
     fn channel_message_struct() {
         // 创建包含所有字段的消息实例
         let msg = ChannelMessage {
+            instance_id: "default".to_string(),
             id: "test-id".into(),
             sender: "user".into(),
             reply_target: "user".into(),
@@ -201,6 +202,7 @@ mod tests {
     fn channel_message_clone() {
         // 创建原始消息
         let msg = ChannelMessage {
+            instance_id: "default".to_string(),
             id: "id".into(),
             sender: "s".into(),
             reply_target: "s".into(),

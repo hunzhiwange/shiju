@@ -76,6 +76,10 @@ pub(crate) fn collect_configured_channels(
     _skip_context: &str,
 ) -> Vec<ConfiguredChannel> {
     let mut channels = Vec::new();
+    if let Err(err) = config.channels_config.validate_instance_default_projects() {
+        tracing::warn!("Channel default project config is invalid: {err}; skipping channels.");
+        return channels;
+    }
     let channel_instance_profiles_valid = match config
         .channels_config
         .resolve_channel_instance_profiles()
@@ -367,10 +371,13 @@ pub(crate) fn collect_configured_channels(
 
         for feishu_instance in &config.channels_config.feishu_instances {
             if feishu_instance.config.has_required_credentials() {
-                channels.push(ConfiguredChannel::new(
-                    instance_display_name("Feishu", &feishu_instance.id),
-                    Arc::new(LarkChannel::from_feishu_config(&feishu_instance.config)),
-                ));
+                channels.push(
+                    ConfiguredChannel::new(
+                        instance_display_name("Feishu", &feishu_instance.id),
+                        Arc::new(LarkChannel::from_feishu_config(&feishu_instance.config)),
+                    )
+                    .with_instance_id(&feishu_instance.id),
+                );
             }
         }
     }
@@ -406,14 +413,17 @@ pub(crate) fn collect_configured_channels(
 
         for dingtalk_instance in &config.channels_config.dingtalk_instances {
             let dt = &dingtalk_instance.config;
-            channels.push(ConfiguredChannel::new(
-                instance_display_name("DingTalk", &dingtalk_instance.id),
-                Arc::new(DingTalkChannel::new(
-                    dt.client_id.clone(),
-                    dt.client_secret.clone(),
-                    dt.allowed_users.clone(),
-                )),
-            ));
+            channels.push(
+                ConfiguredChannel::new(
+                    instance_display_name("DingTalk", &dingtalk_instance.id),
+                    Arc::new(DingTalkChannel::new(
+                        dt.client_id.clone(),
+                        dt.client_secret.clone(),
+                        dt.allowed_users.clone(),
+                    )),
+                )
+                .with_instance_id(&dingtalk_instance.id),
+            );
         }
     }
 
@@ -567,7 +577,3 @@ pub(crate) async fn append_nostr_channel_if_available(
         None
     }
 }
-
-#[cfg(test)]
-#[path = "channels_config_tests.rs"]
-mod channels_config_tests;

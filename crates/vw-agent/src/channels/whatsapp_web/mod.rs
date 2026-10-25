@@ -534,6 +534,7 @@ impl Channel for WhatsAppWebChannel {
 
                                 if let Err(e) = tx_inner
                                     .send(ChannelMessage {
+                                        instance_id: "default".to_string(),
                                         id: uuid::Uuid::new_v4().to_string(),
                                         channel: "whatsapp".to_string(),
                                         sender: normalized.clone(),

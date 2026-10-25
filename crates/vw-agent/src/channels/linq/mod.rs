@@ -337,6 +337,7 @@ impl LinqChannel {
 
         // 构建标准化的渠道消息
         messages.push(ChannelMessage {
+            instance_id: "default".to_string(),
             id: Uuid::new_v4().to_string(),
             reply_target,
             sender: normalized_from,

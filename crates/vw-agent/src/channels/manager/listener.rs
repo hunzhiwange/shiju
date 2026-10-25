@@ -6,7 +6,7 @@ use super::*;
 
 /// 使用生产健康心跳间隔启动受监督的通道监听任务。
 pub(crate) fn spawn_supervised_listener(
-    ch: Arc<dyn Channel>,
+    ch: ConfiguredChannel,
     tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
@@ -22,7 +22,7 @@ pub(crate) fn spawn_supervised_listener(
 
 /// 使用显式心跳间隔启动监听任务，主要供可控时钟测试复用。
 pub(crate) fn spawn_supervised_listener_with_health_interval(
-    ch: Arc<dyn Channel>,
+    ch: ConfiguredChannel,
     tx: tokio::sync::mpsc::Sender<traits::ChannelMessage>,
     initial_backoff_secs: u64,
     max_backoff_secs: u64,
@@ -32,7 +32,7 @@ pub(crate) fn spawn_supervised_listener_with_health_interval(
         if health_interval.is_zero() { Duration::from_secs(1) } else { health_interval };
 
     crate::app::agent::util::spawn(async move {
-        let component = format!("channel:{}", ch.name());
+        let component = format!("channel:{}", ch.channel.name());
         let mut backoff = initial_backoff_secs.max(1);
         let max_backoff = max_backoff_secs.max(backoff);
 
@@ -60,7 +60,7 @@ pub(crate) fn spawn_supervised_listener_with_health_interval(
 
             match result {
                 Ok(()) => {
-                    tracing::warn!("Channel {} exited unexpectedly; restarting", ch.name());
+                    tracing::warn!("Channel {} exited unexpectedly; restarting", ch.channel.name());
                     crate::app::agent::health::mark_component_error(
                         &component,
                         "listener exited unexpectedly",
@@ -69,7 +69,7 @@ pub(crate) fn spawn_supervised_listener_with_health_interval(
                     backoff = initial_backoff_secs.max(1);
                 }
                 Err(e) => {
-                    tracing::error!("Channel {} error: {e}; restarting", ch.name());
+                    tracing::error!("Channel {} error: {e}; restarting", ch.channel.name());
                     crate::app::agent::health::mark_component_error(&component, e.to_string());
                 }
             }

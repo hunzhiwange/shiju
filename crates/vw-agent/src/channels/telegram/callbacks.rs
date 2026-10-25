@@ -247,6 +247,7 @@ impl TelegramChannel {
 
         // 构造并返回通道消息
         Some(ChannelMessage {
+            instance_id: "default".into(),
             // 生成唯一的消息 ID，包含聊天、消息和回调信息
             id: format!("telegram_cb_{chat_id}_{message_id}_{callback_id}"),
             sender: sender_identity,

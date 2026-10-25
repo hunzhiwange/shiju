@@ -152,6 +152,7 @@ impl Tool for NamedTool {
 
 fn message(channel: &str) -> traits::ChannelMessage {
     traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: "msg".to_string(),
         sender: "sender".to_string(),
         reply_target: "recipient".to_string(),

@@ -110,6 +110,7 @@ impl WeComChannel {
 
         Ok(Some((
             ChannelMessage {
+                instance_id: "default".to_string(),
                 id: message_id.to_string(),
                 sender: sender.to_string(),
                 reply_target: chat_id.to_string(),

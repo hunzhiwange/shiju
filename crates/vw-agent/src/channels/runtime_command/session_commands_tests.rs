@@ -78,6 +78,7 @@ fn context(
 
 fn message(content: &str) -> traits::ChannelMessage {
     traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: "msg-1".to_string(),
         sender: "sender-1".to_string(),
         reply_target: "room-1".to_string(),

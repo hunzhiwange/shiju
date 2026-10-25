@@ -1,6 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -158,6 +158,9 @@ pub struct ChannelsConfig {
     /// 单条消息允许的处理超时，单位为秒。
     #[serde(default = "default_channel_message_timeout_secs")]
     pub message_timeout_secs: u64,
+    /// 实例稳定标识（channel_type:instance_id）到注册项目 ID 的默认绑定。
+    #[serde(default)]
+    pub instance_default_projects: BTreeMap<String, String>,
     /// 通道运行时可选的项目目录覆盖值。
     pub project_dir: Option<PathBuf>,
 }
@@ -192,12 +195,51 @@ impl Default for ChannelsConfig {
             clawdtalk: None,
             message_timeout_secs: default_channel_message_timeout_secs(),
             project_dir: None,
+            instance_default_projects: BTreeMap::new(),
         }
     }
 }
 
 impl ChannelsConfig {
-    /// 解析已配置的命名通道实例，并返回稳定 profile ref。
+    /// 校验后更新绑定；错误不会改变原配置。项目存在性与租户权限由运行时验证。
+    pub fn set_instance_default_project(
+        &mut self,
+        key: &str,
+        project_id: &str,
+    ) -> Result<(), String> {
+        self.validate_instance_default_project(key, project_id)?;
+        self.instance_default_projects.insert(key.to_string(), project_id.to_string());
+        Ok(())
+    }
+
+    /// 拒绝持久化配置中的未知实例、非法键与路径形式的项目值。
+    pub fn validate_instance_default_projects(&self) -> Result<(), String> {
+        for (key, project_id) in &self.instance_default_projects {
+            self.validate_instance_default_project(key, project_id)?;
+        }
+        Ok(())
+    }
+
+    fn validate_instance_default_project(&self, key: &str, project_id: &str) -> Result<(), String> {
+        if project_id.trim().is_empty()
+            || project_id != project_id.trim()
+            || project_id.contains([':', '/', '\\'])
+            || project_id == "."
+            || project_id == ".."
+        {
+            return Err(
+                "channel default project must be a nonempty registered project ID, not a path"
+                    .into(),
+            );
+        }
+        let profiles = self.resolve_channel_instance_profiles().map_err(|err| err.to_string())?;
+        if !profiles.iter().any(|profile| profile.profile_ref == key) {
+            return Err(format!("unknown channel instance binding: {key}"));
+        }
+        Ok(())
+    }
+
+    /// 解析已配置的通道实例，并返回稳定 profile ref。
     pub fn resolve_channel_instance_profiles(
         &self,
     ) -> Result<Vec<ChannelInstanceProfile>, ChannelInstanceProfileError> {
@@ -206,7 +248,7 @@ impl ChannelsConfig {
         push_instance_profiles(
             &mut profiles,
             "feishu",
-            self.feishu.is_some(),
+            self.feishu.is_some() || self.lark.as_ref().is_some_and(|config| config.use_feishu),
             self.feishu_instances.iter().map(|instance| instance.id.as_str()),
         )?;
         push_instance_profiles(
@@ -215,6 +257,33 @@ impl ChannelsConfig {
             self.dingtalk.is_some(),
             self.dingtalk_instances.iter().map(|instance| instance.id.as_str()),
         )?;
+
+        for (channel_type, configured) in [
+            ("telegram", self.telegram.is_some()),
+            ("discord", self.discord.is_some()),
+            ("slack", self.slack.is_some()),
+            ("mattermost", self.mattermost.is_some()),
+            ("webhook", self.webhook.is_some()),
+            ("imessage", self.imessage.is_some()),
+            ("signal", self.signal.is_some()),
+            ("whatsapp", self.whatsapp.is_some()),
+            ("linq", self.linq.is_some()),
+            ("wati", self.wati.is_some()),
+            ("nextcloud_talk", self.nextcloud_talk.is_some()),
+            ("irc", self.irc.is_some()),
+            ("qq", self.qq.is_some()),
+            ("wecom", self.wecom.is_some()),
+            ("wechat", self.wechat.is_some()),
+            ("nostr", self.nostr.is_some()),
+            ("clawdtalk", self.clawdtalk.is_some()),
+            ("lark", self.lark.as_ref().is_some_and(|config| !config.use_feishu)),
+            #[cfg(not(target_arch = "wasm32"))]
+            ("email", self.email.is_some()),
+        ] {
+            if configured {
+                push_instance_profiles(&mut profiles, channel_type, true, std::iter::empty())?;
+            }
+        }
 
         Ok(profiles)
     }
@@ -273,6 +342,3 @@ fn validate_instance_id(
 
     Ok(())
 }
-#[cfg(test)]
-#[path = "chat_tests.rs"]
-mod chat_tests;

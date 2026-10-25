@@ -121,6 +121,7 @@ async fn listen_from_reader(
         }
 
         let msg = ChannelMessage {
+            instance_id: "default".to_string(),
             id: Uuid::new_v4().to_string(),
             sender: "user".to_string(),
             reply_target: "user".to_string(),

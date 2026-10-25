@@ -51,6 +51,7 @@ impl Channel for RecordingChannel {
 // 构造统一渠道消息，便于比较成功回复和错误降级是否保留线程上下文。
 fn channel_message() -> ChannelMessage {
     ChannelMessage {
+        instance_id: "default".to_string(),
         id: "message-1".to_string(),
         sender: "sender-1".to_string(),
         reply_target: "target-1".to_string(),

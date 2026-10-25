@@ -422,6 +422,7 @@ impl Channel for SlackChannel {
                         last_ts_by_channel.insert(channel_id.clone(), ts.to_string());
 
                         let channel_msg = ChannelMessage {
+                            instance_id: "default".to_string(),
                             id: format!("slack_{channel_id}_{ts}"),
                             sender: user.to_string(),
                             reply_target: channel_id.clone(),

@@ -84,6 +84,8 @@ pub struct ChannelMessage {
     pub content: String,
     /// 消息所属的通道标识符
     pub channel: String,
+    /// 稳定入站实例 ID；单实例为 default，由配置监听入口覆盖命名实例。
+    pub instance_id: String,
     /// 消息时间戳（Unix 时间戳，毫秒）
     pub timestamp: u64,
     /// 平台线程标识符（如 Slack 的 `ts`、Discord 的线程 ID）

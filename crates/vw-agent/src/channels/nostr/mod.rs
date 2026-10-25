@@ -550,6 +550,7 @@ impl Channel for NostrChannel {
                     // 如果成功解析消息，转发到输出通道
                     if let Some((id, sender_hex, content, timestamp)) = result {
                         let msg = ChannelMessage {
+                            instance_id: "default".into(),
                             id,
                             sender: sender_hex.clone(),
                             reply_target: sender_hex,

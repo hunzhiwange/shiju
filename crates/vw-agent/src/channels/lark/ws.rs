@@ -476,6 +476,7 @@ impl LarkChannel {
 
                     // 构造通道消息，发送给上层处理
                     let channel_msg = super::ChannelMessage {
+                        instance_id: "default".to_string(),
                         id: Uuid::new_v4().to_string(),
                         sender: lark_msg.chat_id.clone(),
                         reply_target: lark_msg.chat_id.clone(),

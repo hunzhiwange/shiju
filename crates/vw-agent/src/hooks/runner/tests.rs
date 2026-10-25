@@ -201,6 +201,7 @@ mod tests {
 
     fn message(content: &str) -> ChannelMessage {
         ChannelMessage {
+            instance_id: "default".to_string(),
             id: "msg-1".to_string(),
             sender: "user-1".to_string(),
             reply_target: "thread-1".to_string(),

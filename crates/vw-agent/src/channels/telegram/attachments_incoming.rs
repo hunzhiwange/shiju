@@ -330,6 +330,7 @@ impl TelegramChannel {
 
         // 构建并返回标准化的通道消息对象
         Some(ChannelMessage {
+            instance_id: "default".into(),
             // 唯一消息标识符
             id: format!("telegram_{chat_id}_{message_id}"),
             // 发送者身份

@@ -183,6 +183,7 @@ impl HookHandler for CancelHook {
 
 fn channel_message(content: &str) -> traits::ChannelMessage {
     traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: "msg-1".to_string(),
         sender: "sender".to_string(),
         reply_target: "recipient".to_string(),

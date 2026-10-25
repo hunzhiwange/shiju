@@ -466,6 +466,7 @@ impl NextcloudTalkChannel {
 
         // 构建标准通道消息
         messages.push(ChannelMessage {
+            instance_id: "default".to_string(),
             id: message_id,
             reply_target: room_token.to_string(),
             sender: sender_id.to_string(),

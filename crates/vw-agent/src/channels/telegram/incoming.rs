@@ -218,6 +218,7 @@ impl TelegramChannel {
         };
 
         Some(ChannelMessage {
+            instance_id: "default".to_string(),
             id: format!("telegram_{chat_id}_{message_id}"),
             sender: sender_identity,
             reply_target,

@@ -256,7 +256,7 @@ pub(super) async fn run_channels(
 
     // 提取通道实例
     let channels: Vec<Arc<dyn Channel>> =
-        configured_channels.into_iter().map(|configured| configured.channel).collect();
+        configured_channels.iter().map(|configured| Arc::clone(&configured.channel)).collect();
 
     // 显示启动信息
     println!("VibeWindow Channel Server");
@@ -285,7 +285,7 @@ pub(super) async fn run_channels(
     let (tx, rx) = tokio::sync::mpsc::channel::<traits::ChannelMessage>(100);
 
     // 为每个通道启动监督监听器任务
-    for ch in &channels {
+    for ch in &configured_channels {
         listeners.handles.push(spawn_supervised_listener(
             ch.clone(),
             tx.clone(),

@@ -16,6 +16,7 @@ impl Channel for DummyChannel {
 
     async fn listen(&self, tx: tokio::sync::mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
         tx.send(ChannelMessage {
+            instance_id: "default".to_string(),
             id: "1".into(),
             sender: "tester".into(),
             reply_target: "tester".into(),
@@ -72,6 +73,7 @@ impl Channel for FailingSendChannel {
 #[test]
 fn channel_message_clone_preserves_fields() {
     let message = ChannelMessage {
+        instance_id: "default".to_string(),
         id: "42".into(),
         sender: "alice".into(),
         reply_target: "alice-thread".into(),
@@ -252,6 +254,7 @@ async fn default_approval_prompt_keeps_full_args_at_boundary() {
 #[test]
 fn channel_message_debug_includes_fields() {
     let message = ChannelMessage {
+        instance_id: "default".to_string(),
         id: "id-1".into(),
         sender: "sender-1".into(),
         reply_target: "reply-1".into(),

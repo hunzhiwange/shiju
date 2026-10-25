@@ -86,6 +86,7 @@ pub(super) fn build_channels_config_from_settings(
 ) -> Result<ChannelsConfig, String> {
     let channels = ChannelsConfig {
         project_dir: settings.project_dir(),
+        instance_default_projects: Default::default(),
         cli: settings.cli,
         telegram: settings.telegram.clone(),
         discord: settings.discord.clone(),
@@ -132,7 +133,7 @@ pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> 
         return None;
     }
 
-    let channels_config = match build_channels_config_from_settings(settings) {
+    let mut channels_config = match build_channels_config_from_settings(settings) {
         Ok(channels_config) => channels_config,
         Err(err) => {
             app.channels_settings.save_error = Some(err);
@@ -142,6 +143,7 @@ pub(super) fn persist_channels_settings(app: &mut App) -> Option<Task<Message>> 
 
     app.channels_settings.save_error = None;
     Some(update_channels_config_async(move |channels| {
+        channels_config.instance_default_projects.clone_from(&channels.instance_default_projects);
         *channels = channels_config;
     }))
 }

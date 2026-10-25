@@ -37,6 +37,7 @@ fn webhook_memory_key_is_unique() {
 fn whatsapp_memory_key_includes_sender_and_message_id() {
     // 构造测试用的 WhatsApp 消息
     let msg = crate::app::agent::channels::traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: "wamid-123".into(),             // WhatsApp 消息 ID
         sender: "+1234567890".into(),       // 发送者手机号
         reply_target: "+1234567890".into(), // 回复目标（同发送者）
@@ -64,6 +65,7 @@ fn whatsapp_memory_key_includes_sender_and_message_id() {
 fn qq_memory_key_includes_sender_and_message_id() {
     // 构造测试用的 QQ 消息
     let msg = crate::app::agent::channels::traits::ChannelMessage {
+        instance_id: "default".to_string(),
         id: "msg-123".into(),                    // QQ 消息 ID
         sender: "user_openid".into(),            // 发送者 OpenID
         reply_target: "user:user_openid".into(), // 回复目标（QQ 特有格式）

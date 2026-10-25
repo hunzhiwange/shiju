@@ -297,6 +297,7 @@ async fn forward_imessage_messages(
 
         let reply_target = sender.clone();
         let msg = ChannelMessage {
+            instance_id: "default".to_string(),
             id: rowid.to_string(),
             sender,
             reply_target,

@@ -79,11 +79,7 @@ pub(super) fn todo_status_pill_colors(
 }
 
 pub(super) fn todo_task_text_color(theme: &Theme, is_completed: bool) -> Color {
-    if is_completed {
-        theme.palette().text.scale_alpha(0.78)
-    } else {
-        theme.palette().text
-    }
+    if is_completed { theme.palette().text.scale_alpha(0.78) } else { theme.palette().text }
 }
 
 /// 计算待办面板数据

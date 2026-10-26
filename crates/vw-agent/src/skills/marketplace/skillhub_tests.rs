@@ -229,9 +229,7 @@ fn skill_set() -> serde_json::Value {
 // manifest.json and identify.md; these fixtures retain only relevant fields.
 #[tokio::test(flavor = "multi_thread")]
 async fn expert_package_rejects_unresolved_members_before_download() {
-    for member in [
-        json!({"slug": "", "namespace": "fixture"}),
-    ] {
+    for member in [json!({"slug": "", "namespace": "fixture"})] {
         let mut suite = skill_set();
         suite["skills"] =
             json!([{"slug": "valid-first", "namespace": "fixture", "version": "1.0.0"}, member]);
@@ -396,10 +394,8 @@ async fn skillhub_provider_displays_unresolved_skillset_members_but_rejects_inst
     suite["skills"] = json!([{"slug": "unresolved-skill", "namespace": null}]);
     let mut unresolved = skill_detail();
     unresolved["namespace"] = json!({});
-    let (base_url, requests) = fixture_sequence(vec![
-        FixtureResponse::json(suite),
-        FixtureResponse::json(unresolved),
-    ]);
+    let (base_url, requests) =
+        fixture_sequence(vec![FixtureResponse::json(suite), FixtureResponse::json(unresolved)]);
     let error = self::provider(&base_url)
         .skill_set_artifact("skillhub", "fixture-suite")
         .await

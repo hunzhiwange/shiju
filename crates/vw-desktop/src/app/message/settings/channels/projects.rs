@@ -1,12 +1,9 @@
-//! 通过当前 Gateway 租户加载项目，不接受目录或跨实例异步结果。
+//! 从项目管理列表加载工作项目，并在当前 Gateway 租户解析会话归属。
 use super::persist::{build_channels_config_from_settings, persist_channels_settings};
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::Task;
-use vw_gateway_client::{
-    GatewayClient,
-    vw_api_types::project::{ListProjectsRequest, ProjectDto},
-};
+use vw_gateway_client::{GatewayClient, vw_api_types::project::ResolveProjectRequest};
 
 fn tenant(client: &GatewayClient) -> Result<String, String> {
     serde_json::to_string(client.endpoint().tenant_scope()).map_err(|err| err.to_string())
@@ -25,21 +22,32 @@ fn configured(app: &App, instance: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// 与首页项目列表使用相同的可见性和排序规则，排除内部运行时工作区。
-fn project_choices(mut projects: Vec<ProjectDto>) -> Vec<(String, String)> {
-    projects.sort_by(|left, right| {
-        right
-            .updated_at_ms
-            .0
-            .cmp(&left.updated_at_ms.0)
-            .then_with(|| left.name.cmp(&right.name))
-            .then_with(|| left.directory.cmp(&right.directory))
-            .then_with(|| left.id.0.cmp(&right.id.0))
-    });
-    projects
-        .into_iter()
-        .filter(|project| crate::app::projects::is_visible_recent_project_path(&project.directory))
-        .map(|project| (project.id.0, project.name))
+/// 使用项目管理中的名称和顺序，不枚举 Gateway 的工作区登记记录。
+fn project_choices(app: &App) -> Vec<(String, String)> {
+    app.recent_projects
+        .iter()
+        .enumerate()
+        .map(|(index, path)| {
+            let name = app
+                .recent_projects_edits
+                .get(index)
+                .filter(|name| !name.trim().is_empty())
+                .cloned()
+                .or_else(|| {
+                    app.recent_projects_meta
+                        .iter()
+                        .find(|meta| meta.path == *path && !meta.name.trim().is_empty())
+                        .map(|meta| meta.name.clone())
+                })
+                .unwrap_or_else(|| {
+                    std::path::Path::new(path)
+                        .file_name()
+                        .and_then(|name| name.to_str())
+                        .unwrap_or(path)
+                        .to_owned()
+                });
+            (path.clone(), name)
+        })
         .collect()
 }
 
@@ -70,23 +78,21 @@ pub(super) fn load(app: &mut App, instance: String) -> Task<Message> {
         Err(error) => return app.show_error_toast(error),
     };
     let generation = app.channels_settings.begin_project_choices(&scope, &instance);
+    let choices = project_choices(app);
     Task::perform(
         async move {
             let client = client?;
-            let mut request = ListProjectsRequest { limit: Some(100), ..Default::default() };
-            let mut projects = Vec::new();
-            loop {
-                let page = client.project_list(client.endpoint().tenant_scope(), &request).await?;
-                projects.extend(page.items);
-                match page.next_cursor {
-                    Some(cursor) if request.cursor.as_ref() == Some(&cursor) => {
-                        return Err("项目分页游标未前进".into());
-                    }
-                    Some(cursor) => request.cursor = Some(cursor),
-                    None => break,
-                }
+            let mut projects = Vec::with_capacity(choices.len());
+            for (directory, name) in choices {
+                let response = client
+                    .project_resolve(
+                        client.endpoint().tenant_scope(),
+                        &ResolveProjectRequest { directory, create_if_missing: true },
+                    )
+                    .await?;
+                projects.push((response.project.id.0, name));
             }
-            Ok(project_choices(projects))
+            Ok(projects)
         },
         move |result| {
             Message::Settings(SettingsMessage::Channels(ChannelsMessage::ProjectChoicesLoaded {

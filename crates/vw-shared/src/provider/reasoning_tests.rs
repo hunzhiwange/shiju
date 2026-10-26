@@ -54,6 +54,9 @@ fn declared_reasoning_levels_override_inference_and_preserve_empty_controls() {
 
 #[test]
 fn reasoning_budget_metadata_accepts_provider_auto_sentinel() {
-    let option: ReasoningOption = serde_json::from_value(serde_json::json!({"type": "budget_tokens", "min": -1, "max": 32768})).unwrap();
+    let option: ReasoningOption = serde_json::from_value(
+        serde_json::json!({"type": "budget_tokens", "min": -1, "max": 32768}),
+    )
+    .unwrap();
     assert_eq!(option, ReasoningOption::BudgetTokens { min: Some(-1), max: Some(32768) });
 }

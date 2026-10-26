@@ -1,23 +1,23 @@
-//! 通道工作项目与首页项目列表保持一致，不展示内部 workspace。
+//! 通道候选直接使用项目管理列表，保留名称与顺序。
 use super::project_choices;
-use vw_gateway_client::vw_api_types::project::ProjectDto;
+use crate::app::App;
 
-fn project(id: &str, name: &str, directory: &str, updated: u64) -> ProjectDto {
-    serde_json::from_value(serde_json::json!({
-        "id": id, "name": name, "directory": directory, "display_path": directory,
-        "status": "ready", "created_at_ms": 0, "updated_at_ms": updated,
-        "git": {"is_repo": false, "has_uncommitted_changes": false}
-    }))
-    .unwrap()
+#[test]
+fn project_choices_uses_managed_projects_names_and_order() {
+    let mut app = App::new().0;
+    app.recent_projects = vec!["/data/two".into(), "/data/one".into()];
+    app.recent_projects_edits = vec!["项目二".into(), "项目一".into()];
+    assert_eq!(
+        project_choices(&app),
+        vec![("/data/two".into(), "项目二".into()), ("/data/one".into(), "项目一".into()),]
+    );
 }
 
 #[test]
-fn project_choices_lists_two_user_projects_without_internal_workspaces() {
-    let choices = project_choices(vec![
-        project("internal", "workspace", "/data/.workspace", 30),
-        project("one", "项目一", "/data/one", 10),
-        project("two", "项目二", "/data/two", 20),
-        project("runtime", "runtime", "/data/.runtime", 40),
-    ]);
-    assert_eq!(choices, vec![("two".into(), "项目二".into()), ("one".into(), "项目一".into())]);
+fn project_choices_uses_directory_name_when_managed_name_is_blank() {
+    let mut app = App::new().0;
+    app.recent_projects = vec!["/data/one".into()];
+    app.recent_projects_edits = vec![" ".into()];
+    app.recent_projects_meta.clear();
+    assert_eq!(project_choices(&app), vec![("/data/one".into(), "one".into())]);
 }

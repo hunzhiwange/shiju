@@ -1,8 +1,8 @@
 // 覆盖 JSON、TOML 与租户存储配置的加载、合并及错误传播。
 
 use super::config_load::{
-    config_json_path, load_config_for_tenant_from_store, load_config_from_json_root,
-    load_config_from_toml_path, is_retired_agent_tool_policy,
+    config_json_path, is_retired_agent_tool_policy, load_config_for_tenant_from_store,
+    load_config_from_json_root, load_config_from_toml_path,
 };
 use super::workspace::ConfigResolutionSource;
 use crate::app::agent::config::SystemConfigStore;

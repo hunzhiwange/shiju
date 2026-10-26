@@ -67,3 +67,7 @@ done
 Harbor的LiteLLM无法识别自定义模型前缀时会发出警告并将模型原样传给适配器；不改用其他模型。VibeWindow由容器Gateway+SSE实际处理题目，未使用其他内置Agent代跑。参考解 `--agent oracle` 与空解 `--agent nop` 仅属于此前独立校准，不能计作VibeWindow成绩。官方verifier在Agent阶段结束后上传tests并输出reward/CTRF；Agent自述、CLI退出0和Gateway终态均不能代替评分。
 
 正式对照需同模型完整版本、provider参数、任务Git tree、v3环境身份、工具权限、900秒预算、并发与重试规则，并分别报告基础设施失败、缺失usage和统计不确定性。本次不自动启动额外付费实验。
+
+## 延期回归（v4）
+
+新运行时修复SHA1DC对齐访问，regex-log修复官方APT依赖下载；详细构建、依赖身份、红绿证据及重新校准见 [regression-runtime.md](regression-runtime.md)。使用 [v4 manifest](calibration-manifest-v4.json)、`regression/runtime`及`regression/pilot/tasks`，追加适配器参数 `runtime_manifest`，新job名为`<task>-vibewindow-regression-1`。本页上面的v3命令与历史失败继续保留；回归不会覆盖其产物，也不合并公共题与内部题的统计。

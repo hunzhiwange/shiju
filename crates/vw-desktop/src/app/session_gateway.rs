@@ -495,17 +495,14 @@ pub async fn gateway_session_message_delta_async(
     match client.session_message_delta(session_id, directory, delta).await {
         Ok(_) => Ok(()),
         Err(error) if error.contains("409 Conflict") => {
-            let summary = client
-                .session_ui_summary(session_id, directory)
-                .await
-                .map_err(|refresh_error| {
+            let summary = client.session_ui_summary(session_id, directory).await.map_err(
+                |refresh_error| {
                     SessionMessageDeltaSaveError::Other(format!(
                         "{error}; failed to refresh stale session version: {refresh_error}"
                     ))
-                })?;
-            Err(SessionMessageDeltaSaveError::Stale {
-                stored_updated_ms: summary.updated_ms,
-            })
+                },
+            )?;
+            Err(SessionMessageDeltaSaveError::Stale { stored_updated_ms: summary.updated_ms })
         }
         Err(error) => Err(SessionMessageDeltaSaveError::Other(error)),
     }

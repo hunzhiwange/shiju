@@ -25,9 +25,7 @@ use crate::app::agent::session::llm::types::{Error, StreamEvent};
 use crate::app::agent::session::message::AssistantError;
 use crate::app::agent::tools;
 
-use super::{
-    aisdk_stream_chunk_error, do_stream_request_aisdk_with_model, normalize_tool_call_id,
-};
+use super::{aisdk_stream_chunk_error, do_stream_request_aisdk_with_model, normalize_tool_call_id};
 
 type ChunkResult = aisdk::Result<Vec<AiStreamChunk>>;
 type BoxedProviderStream = Pin<Box<dyn Stream<Item = ChunkResult> + Send>>;

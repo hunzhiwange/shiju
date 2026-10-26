@@ -9,8 +9,8 @@
 //! - `state`：从原始清单构造运行时状态的转换函数
 //! - `types`：对外暴露的提供商与模型协议类型
 
-pub mod reasoning;
 pub mod models;
+pub mod reasoning;
 pub mod state;
 pub mod types;
 

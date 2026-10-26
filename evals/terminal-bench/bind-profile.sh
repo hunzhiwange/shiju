@@ -6,7 +6,7 @@ request() {
   local method=$1 path=$2 file=$3 body status
   body=$(cat "$file")
   exec 3<>/dev/tcp/127.0.0.1/42619
-  LC_ALL=C printf '%s %s HTTP/1.1\r\nHost: localhost\r\nX-Platform-ID: local\r\nX-Company-ID: local\r\nContent-Type: application/json\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' \
+  LC_ALL=C printf '%s %s HTTP/1.1\r\nHost: localhost\r\nX-Platform-ID: 10000\r\nX-Company-ID: 100000000\r\nContent-Type: application/json\r\nContent-Length: %s\r\nConnection: close\r\n\r\n%s' \
     "$method" "$path" "${#body}" "$body" >&3
   IFS= read -r status <&3
   cat <&3 >/dev/null

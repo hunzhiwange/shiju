@@ -15,8 +15,7 @@ use std::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::Instant;
 
-const DEFAULT_RELEASE_API: &str =
-    "https://api.github.com/repos/hunzhiwange/shiju/releases/latest";
+const DEFAULT_RELEASE_API: &str = "https://api.github.com/repos/hunzhiwange/shiju/releases/latest";
 const APP_UPDATE_API_ENV: &str = "VIBEWINDOW_APP_UPDATE_API";
 
 #[derive(Debug, Clone)]

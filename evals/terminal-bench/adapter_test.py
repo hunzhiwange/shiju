@@ -102,6 +102,37 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.result()['exit_code'], 7)
         self.assertEqual(self.result()['status'], 'failed')
 
+    async def test_explicit_runtime_manifest_preserves_frozen_task_and_model(self):
+        manifest = json.loads(Path(self.module.__file__).with_name('manifest.json').read_text())
+        manifest['runtime']['binarySha256'] = '0' * 64
+        path = self.logs / 'runtime-manifest.json'
+        path.write_text(json.dumps(manifest))
+        agent = self.module.VibeWindowAgent(logs_dir=self.logs, task_id='fix-git',
+                                           runtime_manifest=str(path))
+        self.assertEqual(agent.manifest['runtime']['binarySha256'], '0' * 64)
+        self.assertEqual(agent.model_name, 'token-plan/deepseek-v4-flash-0731')
+        self.assertEqual(agent.task['agentTimeoutSec'], 900)
+        self.assertNotEqual(self.agent.manifest['runtime']['binarySha256'], '0' * 64)
+
+    async def test_runtime_manifest_rejects_different_model(self):
+        manifest = json.loads(Path(self.module.__file__).with_name('manifest.json').read_text())
+        manifest['model']['id'] = 'other/model'
+        path = self.logs / 'runtime-manifest.json'
+        path.write_text(json.dumps(manifest))
+        with self.assertRaises(ValueError):
+            self.module.VibeWindowAgent(logs_dir=self.logs, task_id='fix-git',
+                                       runtime_manifest=str(path))
+
+    async def test_parser_uses_jsonl_file_without_exec_diagnostics(self):
+        class NoisyEnvironment(Environment):
+            async def exec(self, command, **kwargs):
+                result = await super().exec(command, **kwargs)
+                if 'chat-stream ' in command:
+                    result.stdout = 'runtime diagnostic on exec output'
+                return result
+        await self.agent.run('task', NoisyEnvironment(), self.context)
+        self.assertEqual(self.result()['status'], 'completed')
+
     async def test_install_requires_verified_runtime(self):
         with self.assertRaises(ValueError):
             await self.agent.install(Environment())

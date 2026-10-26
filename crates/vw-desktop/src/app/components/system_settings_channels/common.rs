@@ -767,7 +767,7 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
         },
     };
     let instance = key.clone();
-    let mut picker = pick_list(options, Some(selected), move |option| {
+    let picker = pick_list(options, Some(selected), move |option| {
         Message::Settings(SettingsMessage::Channels(ChannelsMessage::DefaultProjectSelected {
             instance: instance.clone(),
             project: option.id,
@@ -777,12 +777,10 @@ pub(super) fn default_project_selector(app: &App, key: String) -> Element<'_, Me
     .text_size(13)
     .width(Length::Fill)
     .style(settings_pick_list_style)
-    .menu_style(settings_pick_list_menu_style);
-    if !active || s.project_choices_error.is_some() {
-        picker = picker.on_open(Message::Settings(SettingsMessage::Channels(
-            ChannelsMessage::ProjectChoicesRequested(key.clone()),
-        )));
-    }
+    .menu_style(settings_pick_list_menu_style)
+    .on_open(Message::Settings(SettingsMessage::Channels(
+        ChannelsMessage::ProjectChoicesRequested(key.clone()),
+    )));
     let mut content = column![
         row![text("工作项目").size(13).width(Length::Fixed(LABEL_WIDTH)), picker]
             .spacing(16)

@@ -63,8 +63,8 @@ pub(crate) enum PublicSkillMessage {
     OpenExpertInstall,
     CancelExpertInstall,
     InstallCurrent,
-    SkillDetailLoaded {
     SelectExpertForChat,
+    SkillDetailLoaded {
         locator: SkillMarketSkillLocatorDto,
         generation: u64,
         result: Result<SkillMarketSkillDetailDto, String>,
@@ -203,7 +203,6 @@ pub(crate) enum PublicRequest {
 
 /// 归约公共市场消息，并批量派发其产生的网关请求。
 pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message> {
-    if let PublicSkillMessage::SelectDetailInstallProject(project_path) = &message {
     if matches!(message, PublicSkillMessage::SelectExpertForChat) {
         let skill_id = match selectable_expert_skill(app) {
             Ok(id) => id,
@@ -219,6 +218,7 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
         }
         return Task::none();
     }
+    if let PublicSkillMessage::SelectDetailInstallProject(project_path) = &message {
         let project_path = project_path.trim();
         if project_path.is_empty() || !known_install_project(app, project_path) {
             return app.show_warning_toast("请选择当前或最近使用的项目");
@@ -398,7 +398,6 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
     Task::batch(tasks)
 }
 
-/// 在公共市场尚未初始化时加载来源与当前页，已加载时保持状态不变。
 pub(crate) fn selectable_expert_skill(app: &App) -> Result<String, &'static str> {
     let detail = app.expert_hub.public_market.detail.as_ref().ok_or("请先打开专家详情")?;
     let crate::app::skill_hub::PublicDetailTarget::Suite { source, slug } = &detail.target else {
@@ -436,6 +435,7 @@ pub(crate) fn selectable_expert_skill(app: &App) -> Result<String, &'static str>
     }
 }
 
+/// 在公共市场尚未初始化时加载来源与当前页，已加载时保持状态不变。
 pub(crate) fn ensure_loaded(app: &mut App) -> Task<Message> {
     if matches!(app.expert_hub.public_market.sources, LoadState::Idle | LoadState::Error(_)) {
         update(app, PublicSkillMessage::LoadSources)
@@ -563,6 +563,7 @@ pub(crate) fn reduce(
             Vec::new()
         }
         PublicSkillMessage::InstallCurrent
+        | PublicSkillMessage::SelectExpertForChat
         | PublicSkillMessage::StartBatchEnabled(_)
         | PublicSkillMessage::ToggleInstalled { .. }
         | PublicSkillMessage::ConfirmBatchDelete => Vec::new(),
@@ -571,7 +572,6 @@ pub(crate) fn reduce(
                 && matches!(detail.target, PublicDetailTarget::Suite { .. })
                 && !detail.install_is_busy()
                 && matches!(detail.install, PublicInstallState::Idle)
-        | PublicSkillMessage::SelectExpertForChat
             {
                 detail.install_confirmation_open = true;
             }

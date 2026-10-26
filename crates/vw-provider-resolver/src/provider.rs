@@ -305,7 +305,8 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
             .map(|(k, v)| (k, from_models_dev_provider(v)))
             .collect::<HashMap<_, _>>();
 
-        let reasoning_model_ids = vw_shared::provider::state::catalog_reasoning_model_ids(&database);
+        let reasoning_model_ids =
+            vw_shared::provider::state::catalog_reasoning_model_ids(&database);
 
         for provider in database.values_mut() {
             for model in provider.models.values_mut() {

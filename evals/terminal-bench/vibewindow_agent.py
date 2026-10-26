@@ -19,8 +19,14 @@ from harbor.agents.installed.base import BaseInstalledAgent, NonZeroAgentExitCod
 
 class VibeWindowAgent(BaseInstalledAgent):
     def __init__(self, logs_dir, *, task_id, runtime_dir=None,
-                 config_directory=None, profile_path=None, model_name=None, **kwargs):
+                 config_directory=None, profile_path=None, runtime_manifest=None, model_name=None, **kwargs):
         manifest = json.loads(Path(__file__).with_name('manifest.json').read_text())
+        if runtime_manifest is not None:
+            candidate = json.loads(Path(runtime_manifest).read_text())
+            if candidate['model']['id'] != manifest['model']['id']:
+                raise ValueError('runtime manifest differs from the frozen model')
+            # Only runtime identity may change; task instruction/budgets stay frozen.
+            manifest['runtime'] = candidate['runtime']
         tasks = [task for task in manifest['tasks'] if task['taskId'] == task_id]
         if len(tasks) != 1:
             raise ValueError('task_id must identify one frozen manifest task')
@@ -46,7 +52,7 @@ class VibeWindowAgent(BaseInstalledAgent):
         return 'vibewindow'
 
     def version(self):
-        return 'task29-harbor-0.24.0'
+        return 'task29-regression-harbor-0.24.0'
 
     async def _execute(self, environment, command, *, timeout_sec=15):
         # Use the environment with its configured default agent user.
@@ -110,7 +116,8 @@ class VibeWindowAgent(BaseInstalledAgent):
         raw = ''
         started = False
         client = (shlex.quote(binary) + ' realtime --host 127.0.0.1 --port 42619 '
-                  '--directory ' + shlex.quote(self.task['workingDirectory']) + ' --output jsonl --yes ')
+                  '--directory ' + shlex.quote(self.task['workingDirectory'])
+                  + ' --platform 10000 --company 100000000 --output jsonl --yes ')
         try:
             preparation = await self._execute(environment, 'umask 077; mkdir -p ' + shlex.quote(remote))
             if preparation.return_code:
@@ -145,7 +152,9 @@ class VibeWindowAgent(BaseInstalledAgent):
                        + '/events.jsonl; cat ' + remote + '/client.stderr >&2; exit "$code"')
             execution = await asyncio.wait_for(
                 self._execute(environment, command, timeout_sec=timeout), timeout=timeout)
-            raw = execution.stdout or ''
+            # Harbor may merge exec diagnostics; parse only the client's JSONL file.
+            await environment.download_file(remote + '/events.jsonl', directory / 'events.jsonl')
+            raw = (directory / 'events.jsonl').read_text()
             result['exit_code'] = execution.return_code
             (directory / 'client.stderr').write_text(execution.stderr or '')
             try:

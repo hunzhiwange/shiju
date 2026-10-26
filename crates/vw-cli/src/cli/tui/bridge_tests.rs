@@ -582,10 +582,7 @@ fn tui_explicit_resume_restores_gateway_session_title_history_and_identity() {
     let persisted_after_ms = app.state().session.updated_ms;
     assert!(persisted_after_ms > snapshot.updated_ms);
     let save_request = requests.recv().expect("save request");
-    assert_eq!(
-        save_request.path,
-        "/v1/session/session-restored/ui?directory=%2Fworkspace"
-    );
+    assert_eq!(save_request.path, "/v1/session/session-restored/ui?directory=%2Fworkspace");
     let saved_snapshot: ChatSession =
         serde_json::from_slice(&save_request.body).expect("saved session snapshot");
     assert_eq!(saved_snapshot.updated_ms, persisted_after_ms);

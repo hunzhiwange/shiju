@@ -417,13 +417,18 @@ async fn agent_custom_provider_reasoning_inherits_catalog_for_shiju_and_token_pl
             "glm-5.2": {"status": "active", "reasoning": false},
             "wan2.7-image": {"status": "active"}
         }}
-    }})).await.expect("save config");
+    }}))
+    .await
+    .expect("save config");
     let state = load_state_impl(false).await;
     assert!(state.providers["shiju"].models["deepseek-v4-flash"].capabilities.reasoning);
     for id in ["deepseek-v4-flash", "deepseek-v4-pro", "glm-5.2"] {
         let model = &state.providers["shiju"].models[id];
-        assert_eq!(serde_json::to_value(&model.capabilities.reasoning_options).unwrap(),
-            serde_json::json!([{"type": "effort", "values": ["high", "max"]}]), "{id}");
+        assert_eq!(
+            serde_json::to_value(&model.capabilities.reasoning_options).unwrap(),
+            serde_json::json!([{"type": "effort", "values": ["high", "max"]}]),
+            "{id}"
+        );
     }
 
     let models = &state.providers["token-plan"].models;

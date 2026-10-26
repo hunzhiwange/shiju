@@ -453,8 +453,7 @@ fn push_conversation(widget: &mut ChatWidget) {
         attachments: Vec::new(),
     });
     widget.push_history(V3DisplayEvent::Assistant {
-        markdown: "The **Codex-derived** ChatWidget is connected to ShiJu Gateway."
-            .to_string(),
+        markdown: "The **Codex-derived** ChatWidget is connected to ShiJu Gateway.".to_string(),
     });
 }
 

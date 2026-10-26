@@ -64,7 +64,7 @@ fn catalog_card(index: usize, app: &ShijuCatalogAppDto) -> Element<'static, Mess
     container(card)
         .padding(16)
         .width(Length::Fixed(310.0))
-        .height(Length::Fixed(184.0))
+        .height(Length::Shrink)
         .style(styles::card_style)
         .into()
 }

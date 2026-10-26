@@ -266,8 +266,14 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
         }
 
         let (reasoning_effort, reasoning_body) = super::reasoning::reasoning_request_config(
-            &provider_id, &request_url, &model_name, obj,
-        ).map_err(|error| Error::Api(super::error::assistant_error_from_aisdk(&provider_id, error)))?;
+            &provider_id,
+            &request_url,
+            &model_name,
+            obj,
+        )
+        .map_err(|error| {
+            Error::Api(super::error::assistant_error_from_aisdk(&provider_id, error))
+        })?;
         request_body.extend(reasoning_body);
         builder.reasoning_effort = reasoning_effort;
 

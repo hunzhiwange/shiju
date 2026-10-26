@@ -31,14 +31,14 @@ use super::*;
 /// 此版本仅在非 WASM 平台编译，WASM 平台使用 [`available_provider_ids`]
 /// 的另一个无操作版本。
 #[cfg(not(target_arch = "wasm32"))]
-pub(crate) fn available_provider_ids() -> Vec<String> {
+pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogError> {
     // 异步阻塞调用 provider 模块获取所有已注册的提供者
-    let providers = block_on_future(provider::list());
+    let providers = block_on_future(provider::list())?;
     // 提取所有键（Provider ID）并收集为向量
     let mut ids = providers.into_keys().collect::<Vec<_>>();
     // 按字母顺序排序，确保返回结果的一致性和可预测性
     ids.sort();
-    ids
+    Ok(ids)
 }
 
 /// 获取当前可用的 Provider ID 列表（WASM 平台）
@@ -55,8 +55,8 @@ pub(crate) fn available_provider_ids() -> Vec<String> {
 /// 此版本仅在 WASM 平台编译，非 WASM 平台使用功能完整的
 /// [`available_provider_ids`] 版本。
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn available_provider_ids() -> Vec<String> {
-    Vec::new()
+pub(crate) fn available_provider_ids() -> Result<Vec<String>, provider::CatalogError> {
+    Ok(Vec::new())
 }
 
 /// 解析 Provider 别名为规范的 Provider ID
@@ -89,24 +89,24 @@ pub(crate) fn available_provider_ids() -> Vec<String> {
 /// 2. 检查处理后的字符串是否为空
 /// 3. 遍历所有可用的 Provider ID，执行不区分大小写的匹配
 /// 4. 返回第一个匹配的规范 ID（保持原始大小写）
-pub(crate) fn resolve_provider_alias(name: &str) -> Option<String> {
+pub(crate) fn resolve_provider_alias(name: &str) -> Result<Option<String>, provider::CatalogError> {
     // 去除输入名称的首尾空白字符
     let candidate = name.trim();
     // 空字符串直接返回 None，避免无意义的匹配
     if candidate.is_empty() {
-        return None;
+        return Ok(None);
     }
 
     // 遍历所有可用的 Provider ID 进行不区分大小写的匹配
-    for id in available_provider_ids() {
+    for id in available_provider_ids()? {
         if id.eq_ignore_ascii_case(candidate) {
             // 返回规范化的 Provider ID（保持原始注册时的大小写）
-            return Some(id);
+            return Ok(Some(id));
         }
     }
 
     // 未找到匹配项
-    None
+    Ok(None)
 }
 
 /// 构建默认的路由选择配置

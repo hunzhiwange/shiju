@@ -35,7 +35,7 @@ use std::collections::HashMap;
 #[cfg(not(target_arch = "wasm32"))]
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, LazyLock, Mutex};
+use std::sync::{Arc, LazyLock};
 #[cfg(not(target_arch = "wasm32"))]
 use vw_provider_resolver::remote_models::{discover_and_merge_provider, is_real_bearer};
 
@@ -65,8 +65,22 @@ static LOGGER: LazyLock<log::Logger> = LazyLock::new(|| {
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct ConfigFingerprint(u64);
 
-static CONFIG_FINGERPRINTS: LazyLock<Mutex<HashMap<String, ConfigFingerprint>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+/// 目录读取失败和真实模型缺失是不同的边界，调用者无需匹配错误文字。
+#[derive(Debug, thiserror::Error)]
+pub enum CatalogError {
+    #[error("模型配置读取失败：{0}")]
+    Configuration(#[from] config::Error),
+    #[error(transparent)]
+    ModelNotFound(#[from] ModelNotFoundError),
+}
+
+struct CatalogSnapshot {
+    fingerprint: ConfigFingerprint,
+    filtered: Arc<State>,
+    settings: Arc<State>,
+}
+
+type CatalogCell = tokio::sync::Mutex<Option<CatalogSnapshot>>;
 
 // Provider 能力必须来自当前租户及项目；目录相同的不同租户也不能共用缓存。
 fn provider_scope_key() -> String {
@@ -77,7 +91,12 @@ fn provider_scope_key() -> String {
     .expect("serializable provider scope")
 }
 
-async fn provider_config() -> config::Config {
+#[cfg(test)]
+tokio::task_local! {
+    static CONFIG_READ_BOUNDARY: Arc<dyn Fn() -> crate::project::BoxFuture<()> + Send + Sync>;
+}
+
+async fn provider_config() -> Result<config::Config, config::Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let directory = instance::directory();
     let result = if directory.is_empty() {
@@ -85,70 +104,60 @@ async fn provider_config() -> config::Config {
     } else {
         config::get_project_for_tenant(&tenant, std::path::Path::new(&directory)).await
     };
-    // 配置加载失败时无已启用模型，不能退回其他租户或全局目录能力。
-    result.unwrap_or_default()
+    #[cfg(test)]
+    if let Ok(boundary) = CONFIG_READ_BOUNDARY.try_with(Arc::clone) {
+        boundary().await;
+    }
+    result
 }
 
 fn instance_state()
--> impl Fn() -> crate::app::agent::project::BoxFuture<Arc<State>> + Send + Sync + 'static {
+-> impl Fn() -> crate::project::BoxFuture<Arc<CatalogCell>> + Send + Sync + 'static {
     crate::project::state::create(
         provider_scope_key,
-        "provider",
-        || async { load_state_filtered().await },
-        None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
+        "provider_catalog",
+        || async { CatalogCell::new(None) },
+        None::<fn(Arc<CatalogCell>) -> crate::project::BoxFuture<()>>,
     )
 }
 
-/// 创建设置页面的 provider 状态访问器
-///
-/// 与 `instance_state` 类似，但不会过滤掉 disabled 的模型，
-/// 用于设置页面显示所有可用模型（包括未启用的）。
-///
-/// # 返回值
-///
-/// 返回一个闭包，调用它会返回 `Arc<State>` 的 Future
-fn instance_state_for_settings()
--> impl Fn() -> crate::app::agent::project::BoxFuture<Arc<State>> + Send + Sync + 'static {
-    crate::project::state::create(
-        provider_scope_key,
-        "provider_settings",
-        || async { load_state_for_settings().await },
-        None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
-    )
-}
-
-pub async fn list() -> HashMap<String, Info> {
-    invalidate_cache_if_config_changed().await;
-    instance_state()().await.providers.clone()
-}
-
-/// 获取设置页面用的提供商列表
-///
-/// 与 `list` 类似，但包含所有模型（包括未启用的），
-/// 用于设置界面显示完整选项。
-///
-/// # 返回值
-///
-/// 返回提供商 ID 到提供商信息的映射
-pub async fn list_for_settings() -> HashMap<String, Info> {
-    invalidate_cache_if_config_changed().await;
-    instance_state_for_settings()().await.providers.clone()
-}
-
-/// 使缓存失效
-///
-/// 清除 provider 状态的缓存，强制下次访问时重新加载。
-/// 通常在配置变更后调用。
-pub async fn invalidate_cache() {
-    let directory = provider_scope_key();
-    if let Ok(mut guard) = CONFIG_FINGERPRINTS.lock() {
-        guard.remove(&directory);
+async fn catalog_state(apply_enabled_filter: bool) -> Result<Arc<State>, CatalogError> {
+    let cell = instance_state()().await;
+    // 同作用域从读取到发布串行执行；旧初始化不能覆盖较新的配置快照。
+    let mut cached = cell.lock().await;
+    let config = provider_config().await?;
+    let fingerprint = config_fingerprint(&config);
+    if cached.as_ref().is_none_or(|state| state.fingerprint != fingerprint) {
+        // 指纹和目录构建共用本次读取，失败不会初始化为空目录。
+        let settings = Arc::new(load_state_from_config(config, false).await);
+        let mut providers = settings.providers.clone();
+        providers.retain(|_, provider| {
+            provider.models.retain(|_, model| model.status == "active");
+            !provider.models.is_empty()
+        });
+        *cached = Some(CatalogSnapshot {
+            fingerprint,
+            filtered: Arc::new(State { providers }),
+            settings,
+        });
     }
-    crate::app::agent::project::state::dispose(&directory).await;
+    let snapshot = cached.as_ref().expect("successful catalog initialization");
+    Ok(if apply_enabled_filter { snapshot.filtered.clone() } else { snapshot.settings.clone() })
 }
 
-async fn current_config_fingerprint() -> ConfigFingerprint {
-    config_fingerprint(&provider_config().await)
+/// 获取当前作用域内已启用的提供商；配置读取失败时返回原始配置错误。
+pub async fn list() -> Result<HashMap<String, Info>, CatalogError> {
+    Ok(catalog_state(true).await?.providers.clone())
+}
+
+/// 获取包含未启用模型的设置页目录。
+pub async fn list_for_settings() -> Result<HashMap<String, Info>, CatalogError> {
+    Ok(catalog_state(false).await?.providers.clone())
+}
+
+/// 撤销当前作用域的目录缓存；等待进行中的初始化结束后再清除。
+pub async fn invalidate_cache() {
+    *instance_state()().await.lock().await = None;
 }
 
 fn config_fingerprint(config: &config::Config) -> ConfigFingerprint {
@@ -167,21 +176,6 @@ fn config_fingerprint_with_shiju_auth(
     ConfigFingerprint(hasher.finish())
 }
 
-async fn invalidate_cache_if_config_changed() {
-    let directory = provider_scope_key();
-    let next = current_config_fingerprint().await;
-    let changed = {
-        let mut guard = CONFIG_FINGERPRINTS.lock().unwrap_or_else(|e| e.into_inner());
-        let changed = guard.get(&directory).is_some_and(|current| current != &next);
-        guard.insert(directory.clone(), next);
-        changed
-    };
-
-    if changed {
-        crate::app::agent::project::state::dispose(&directory).await;
-    }
-}
-
 /// 获取指定提供商信息
 ///
 /// # 参数
@@ -190,10 +184,9 @@ async fn invalidate_cache_if_config_changed() {
 ///
 /// # 返回值
 ///
-/// 如果找到则返回 `Some(Info)`，否则返回 `None`
-pub async fn get_provider(provider_id: &str) -> Option<Info> {
-    invalidate_cache_if_config_changed().await;
-    instance_state()().await.providers.get(provider_id).cloned()
+/// 配置加载成功时返回 `Ok(Some(Info))` 或 `Ok(None)`；加载失败返回配置错误。
+pub async fn get_provider(provider_id: &str) -> Result<Option<Info>, CatalogError> {
+    Ok(catalog_state(true).await?.providers.get(provider_id).cloned())
 }
 
 /// 获取指定模型信息
@@ -208,15 +201,14 @@ pub async fn get_provider(provider_id: &str) -> Option<Info> {
 ///
 /// # 返回值
 ///
-/// 成功返回 `Ok(Model)`，失败返回 `ModelNotFoundError`
+/// 成功返回 `Ok(Model)`；配置读取失败和模型缺失分别返回 `CatalogError` 的对应变体
 ///
 /// # 错误
 ///
 /// - 提供商不存在时返回错误，并包含相似提供商建议
 /// - 模型不存在时返回错误，并包含相似模型建议
-pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, ModelNotFoundError> {
-    invalidate_cache_if_config_changed().await;
-    let state = instance_state()().await;
+pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, CatalogError> {
+    let state = catalog_state(true).await?;
 
     // 首先查找提供商
     let Some(provider) = state.providers.get(provider_id) else {
@@ -226,7 +218,8 @@ pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, Model
             provider_id: provider_id.to_string(),
             model_id: model_id.to_string(),
             suggestions,
-        });
+        }
+        .into());
     };
 
     // 尝试通过模型 ID 查找
@@ -256,7 +249,8 @@ pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, Model
             provider_id: provider_id.to_string(),
             model_id: model_id.to_string(),
             suggestions,
-        });
+        }
+        .into());
     };
 
     Ok(model)
@@ -277,7 +271,7 @@ pub async fn get_model(provider_id: &str, model_id: &str) -> Result<Model, Model
 /// - 没有可用提供商时返回 "没有可用的 provider"
 /// - 提供商没有模型时返回 "没有可用的模型"
 pub async fn default_model() -> Result<ParsedModelRef, String> {
-    let cfg = provider_config().await;
+    let cfg = provider_config().await.map_err(|error| error.to_string())?;
 
     // 优先使用配置中的默认模型
     if let Some(m) = cfg.default_model.as_deref() {
@@ -285,7 +279,7 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
     }
 
     // 回退到第一个可用提供商的第一个模型
-    let providers = list().await;
+    let providers = list().await.map_err(|error| error.to_string())?;
     let mut candidates = providers.values().collect::<Vec<_>>();
     candidates.sort_by(|a, b| a.id.cmp(&b.id));
 
@@ -314,7 +308,7 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
 ///
 /// # 返回值
 ///
-/// 如果找到小型模型返回 `Some(Model)`，否则返回 `None`
+/// 配置加载成功时返回 `Ok(Some(Model))` 或 `Ok(None)`；加载失败返回配置错误。
 ///
 /// # 优先级顺序
 ///
@@ -323,11 +317,9 @@ pub async fn default_model() -> Result<ParsedModelRef, String> {
 /// 3. GPT Nano 系列
 ///
 /// 对于特定提供商会有调整（如 GitHub Copilot 会优先使用 GPT Mini）
-pub async fn get_small_model(provider_id: &str) -> Option<Model> {
-    invalidate_cache_if_config_changed().await;
-    let _cfg = provider_config().await;
-    let state = instance_state()().await;
-    let provider = state.providers.get(provider_id)?;
+pub async fn get_small_model(provider_id: &str) -> Result<Option<Model>, CatalogError> {
+    let state = catalog_state(true).await?;
+    let Some(provider) = state.providers.get(provider_id) else { return Ok(None) };
 
     // 根据提供商类型设置优先级列表
     let mut priority = vec![
@@ -355,12 +347,12 @@ pub async fn get_small_model(provider_id: &str) -> Option<Model> {
     for item in priority {
         for (id, model) in &provider.models {
             if id.contains(item) {
-                return Some(model.clone());
+                return Ok(Some(model.clone()));
             }
         }
     }
 
-    None
+    Ok(None)
 }
 
 fn suggest(query: &str, candidates: Vec<&str>) -> Vec<String> {
@@ -375,9 +367,8 @@ fn suggest(query: &str, candidates: Vec<&str>) -> Vec<String> {
     scored.into_iter().take(3).map(|(c, _)| c.to_string()).collect()
 }
 
-async fn load_provider_overrides() -> Vec<(String, Value)> {
-    provider_config()
-        .await
+fn load_provider_overrides(config: config::Config) -> Vec<(String, Value)> {
+    config
         .providers
         .into_iter()
         .filter_map(|(provider_id, provider_cfg)| {
@@ -395,10 +386,18 @@ fn unique_provider_api(models: &HashMap<String, Model>) -> Option<(String, Strin
     api_candidates.all(|candidate| candidate == first).then_some(first)
 }
 
+#[cfg(test)]
 async fn load_state_impl(apply_enabled_filter: bool) -> State {
+    load_state_from_config(
+        provider_config().await.expect("test configuration"),
+        apply_enabled_filter,
+    )
+    .await
+}
+
+async fn load_state_from_config(config: config::Config, apply_enabled_filter: bool) -> State {
     // 初始化模型基线数据源
     super::models::init();
-    let _cfg = provider_config().await;
     let models_dev = super::models::get().await;
 
     // 将模型基线数据转换为内部格式
@@ -417,7 +416,7 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
     }
 
     let mut providers: HashMap<String, Info> = HashMap::new();
-    let config_providers: Vec<(String, serde_json::Value)> = load_provider_overrides().await;
+    let config_providers: Vec<(String, serde_json::Value)> = load_provider_overrides(config);
 
     // 处理配置文件中的提供商覆盖
     for (provider_id, provider) in config_providers.iter() {
@@ -724,28 +723,6 @@ async fn load_state_impl(apply_enabled_filter: bool) -> State {
     }
 
     State { providers }
-}
-
-/// 加载过滤后的状态
-///
-/// 只包含 status 为 "active" 的模型，用于正常运行时。
-///
-/// # 返回值
-///
-/// 返回过滤后的 `State`
-async fn load_state_filtered() -> State {
-    load_state_impl(true).await
-}
-
-/// 加载设置页面用的状态
-///
-/// 包含所有模型（包括 disabled），用于设置界面显示完整选项。
-///
-/// # 返回值
-///
-/// 返回包含所有模型的 `State`
-async fn load_state_for_settings() -> State {
-    load_state_impl(false).await
 }
 
 /// 初始化 provider 模块

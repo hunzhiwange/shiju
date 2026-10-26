@@ -440,3 +440,176 @@ async fn agent_custom_provider_reasoning_inherits_catalog_for_shiju_and_token_pl
         assert!(!models[id].capabilities.reasoning, "{id}");
     }
 }
+
+#[tokio::test]
+async fn provider_catalog_read_failure_preserves_config_error_and_recovers() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    config::update(serde_json::json!({"providers": {"catalog-recovery": {
+        "api": "https://example.test/v1", "models": {"original": {"status": "active"}}
+    }}}))
+    .await
+    .unwrap();
+    invalidate_cache().await;
+    assert!(get_model("catalog-recovery", "original").await.is_ok());
+    let unavailable = home.path().join("not-a-directory");
+    std::fs::write(&unavailable, "storage unavailable").unwrap();
+    {
+        let _fault = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", unavailable.as_os_str());
+        assert!(
+            config::get_global_for_tenant(&vw_api_types::id::TenantScope::default()).await.is_err()
+        );
+        let error = get_model("catalog-recovery", "original").await.unwrap_err();
+        assert!(matches!(error, CatalogError::Configuration(_)), "{error}");
+        assert!(std::error::Error::source(&error).is_some());
+        assert!(matches!(list().await, Err(CatalogError::Configuration(_))));
+        assert!(matches!(list_for_settings().await, Err(CatalogError::Configuration(_))));
+        assert!(matches!(
+            get_provider("catalog-recovery").await,
+            Err(CatalogError::Configuration(_))
+        ));
+        assert!(matches!(
+            get_small_model("catalog-recovery").await,
+            Err(CatalogError::Configuration(_))
+        ));
+        invalidate_cache().await;
+        assert!(matches!(
+            get_model("catalog-recovery", "original").await,
+            Err(CatalogError::Configuration(_))
+        ));
+    }
+    assert!(get_model("catalog-recovery", "original").await.is_ok());
+    invalidate_cache().await;
+}
+
+#[tokio::test]
+async fn provider_catalog_interleaved_config_uses_one_snapshot() {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    config::update(serde_json::json!({"providers": {"catalog-interleaved": {
+        "api": "https://example.test/v1", "models": {"original": {"status": "active"}}
+    }}}))
+    .await
+    .unwrap();
+    invalidate_cache().await;
+    let entered = Arc::new(tokio::sync::Notify::new());
+    let resume = Arc::new(tokio::sync::Notify::new());
+    let first = Arc::new(AtomicBool::new(true));
+    let hook = {
+        let entered = entered.clone();
+        let resume = resume.clone();
+        Arc::new(move || -> crate::project::BoxFuture<()> {
+            let entered = entered.clone();
+            let resume = resume.clone();
+            let first = first.swap(false, Ordering::SeqCst);
+            Box::pin(async move {
+                if first {
+                    entered.notify_one();
+                    resume.notified().await;
+                }
+            })
+        }) as Arc<dyn Fn() -> crate::project::BoxFuture<()> + Send + Sync>
+    };
+    let reading = CONFIG_READ_BOUNDARY.scope(hook, get_model("catalog-interleaved", "original"));
+    let updating = async {
+        entered.notified().await;
+        config::update(serde_json::json!({"providers": {"catalog-interleaved": {
+            "models": {"original": null, "replacement": {"status": "active"}}
+        }}}))
+        .await
+        .unwrap();
+        resume.notify_one();
+    };
+    let (result, ()) = tokio::join!(reading, updating);
+    assert!(result.is_ok(), "fingerprint snapshot was not used to build the catalog: {result:?}");
+    assert!(get_model("catalog-interleaved", "original").await.is_err());
+    assert!(get_model("catalog-interleaved", "replacement").await.is_ok());
+    invalidate_cache().await;
+}
+
+#[tokio::test]
+async fn provider_catalog_disable_and_delete_revoke_cached_models() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    config::update(serde_json::json!({"providers": {"catalog-revocation": {
+        "api": "https://example.test/v1", "models": {"original": {"status": "active"}}
+    }}}))
+    .await
+    .unwrap();
+    invalidate_cache().await;
+    assert!(get_model("catalog-revocation", "original").await.is_ok());
+    config::update(serde_json::json!({"providers": {"catalog-revocation": {
+        "models": {"original": {"status": "disabled"}}
+    }}}))
+    .await
+    .unwrap();
+    assert!(get_model("catalog-revocation", "original").await.is_err());
+    config::update(serde_json::json!({"providers": {"catalog-revocation": {
+        "models": {"original": {"status": "active"}}
+    }}}))
+    .await
+    .unwrap();
+    assert!(get_model("catalog-revocation", "original").await.is_ok());
+    config::update(serde_json::json!({"providers": {"catalog-revocation": null}})).await.unwrap();
+    assert!(get_model("catalog-revocation", "original").await.is_err());
+    invalidate_cache().await;
+}
+
+#[tokio::test]
+async fn provider_catalog_same_path_tenants_stay_isolated_on_worker() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let config_dir = home.path().join("config");
+    let _home = EnvGuard::set("HOME", home.path().as_os_str());
+    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let project_root = home.path().join("project");
+    std::fs::create_dir(&project_root).unwrap();
+    for model in ["tenant-a", "tenant-b", "tenant-a"] {
+        let tenant = vw_api_types::id::TenantScope::new("catalog", model).unwrap();
+        let (project, _) = crate::project::from_directory(&tenant, &project_root).await.unwrap();
+        config::update_project_for_tenant(
+            &tenant,
+            &project_root,
+            serde_json::json!({
+                "providers": {"scoped": {"api": "https://example.test/v1",
+                    "models": {model: {"status": "active"}}}}
+            }),
+        )
+        .await
+        .unwrap();
+        let context = instance::Context {
+            directory: project_root.to_string_lossy().into_owned(),
+            worktree: project.worktree.clone(),
+            project,
+        };
+        // 与 LLM 工作线程相同的显式 task-local 上下文恢复路径。
+        let worker = std::thread::spawn(move || {
+            tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap().block_on(
+                crate::session::ui_store::with_tenant_scope(
+                    tenant,
+                    instance::provide_context(context, async move {
+                        let resolved = get_model("scoped", model).await.unwrap();
+                        assert_eq!(resolved.id, model);
+                        let other = if model == "tenant-a" { "tenant-b" } else { "tenant-a" };
+                        assert!(get_model("scoped", other).await.is_err());
+                    }),
+                ),
+            );
+        });
+        worker.join().unwrap();
+    }
+}

@@ -181,7 +181,7 @@ async fn handle_set_provider_reports_unknown_provider_without_mutating_state() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn handle_set_provider_uses_default_provider_without_initializing_new_provider() {
-    let Some(provider_name) = available_provider_ids().into_iter().next() else {
+    let Some(provider_name) = available_provider_ids().unwrap().into_iter().next() else {
         return;
     };
     let temp = tempfile::tempdir().expect("temp dir");
@@ -204,7 +204,7 @@ async fn handle_set_provider_uses_default_provider_without_initializing_new_prov
 
 #[tokio::test(flavor = "multi_thread")]
 async fn handle_set_provider_leaves_history_when_provider_is_already_selected() {
-    let Some(provider_name) = available_provider_ids().into_iter().next() else {
+    let Some(provider_name) = available_provider_ids().unwrap().into_iter().next() else {
         return;
     };
     let temp = tempfile::tempdir().expect("temp dir");
@@ -225,7 +225,7 @@ async fn handle_set_provider_leaves_history_when_provider_is_already_selected() 
 
 #[tokio::test(flavor = "multi_thread")]
 async fn handle_set_provider_reports_sanitized_init_error_without_mutating_state() {
-    let Some(provider_name) = available_provider_ids().into_iter().next() else {
+    let Some(provider_name) = available_provider_ids().unwrap().into_iter().next() else {
         return;
     };
     let temp = tempfile::tempdir().expect("temp dir");

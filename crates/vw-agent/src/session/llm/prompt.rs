@@ -88,7 +88,7 @@ async fn resolve_model(model: Option<String>) -> Result<provider::Model, String>
     // 处理用户提供的模型标识符：去除空白并检查是否非空
     if let Some(s) = model.as_deref().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) {
         // 获取所有可用的 provider 列表
-        let providers = provider::list().await;
+        let providers = provider::list().await.map_err(|error| error.to_string())?;
 
         // 如果标识符包含 `/`，按 provider/model 格式解析
         if s.contains('/') {
@@ -164,7 +164,7 @@ async fn resolve_auto_model(
     needs_tools: bool,
 ) -> Result<provider::Model, String> {
     let config = crate::app::agent::config::get().await;
-    let providers = provider::list().await;
+    let providers = provider::list().await.map_err(|error| error.to_string())?;
     let candidates = providers
         .values()
         .flat_map(|provider| provider.models.values())

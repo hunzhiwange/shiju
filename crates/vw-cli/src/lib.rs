@@ -573,7 +573,7 @@ pub async fn run() -> Result<()> {
         // 处理 Providers 命令：列出支持的 AI 提供者
         Commands::Providers => {
             // 获取所有可用的提供者列表
-            let provider_map = provider::list().await;
+            let provider_map = provider::list().await?;
             let mut providers = provider_map.values().collect::<Vec<_>>();
             // 按提供者 ID 排序
             providers.sort_by(|a, b| a.id.cmp(&b.id));

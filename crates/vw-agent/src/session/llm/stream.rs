@@ -267,7 +267,9 @@ async fn stream_inner(
     // 确保提供商存在，否则返回错误
     let provider_info = resolve_stream_provider_info(
         &input.model.provider_id,
-        provider_info,
+        provider_info.map_err(|error| {
+            Error::Api(message::AssistantError::Unknown { message: error.to_string() })
+        })?,
         acp_requested_by_input,
     )?;
 

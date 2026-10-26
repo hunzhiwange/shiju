@@ -300,13 +300,16 @@ impl QueryEngine {
             &parsed_model.provider_id,
             &parsed_model.model_id,
         )
-        .await
-        .map(|model| model.limit)
-        .unwrap_or(crate::app::agent::provider::provider::ModelLimit {
-            context: 0,
-            input: None,
-            output: 0,
-        });
+        .await;
+        let model_limit = match model_limit {
+            Ok(model) => model.limit,
+            Err(error @ crate::provider::provider::CatalogError::Configuration(_)) => {
+                return Err(error.into());
+            }
+            Err(crate::provider::provider::CatalogError::ModelNotFound(_)) => {
+                crate::provider::provider::ModelLimit { context: 0, input: None, output: 0 }
+            }
+        };
 
         Ok(Self {
             session_id: session_id.to_string(),

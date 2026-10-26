@@ -172,7 +172,9 @@ async fn config_providers(
     let dir = resolve_directory(&query, &headers);
     let result = with_instance(dir, move || {
         Box::pin(async move {
-            let providers = provider::provider::list().await;
+            let providers = provider::provider::list()
+                .await
+                .map_err(|error| ApiError::internal(error.to_string()))?;
             let mut out = Vec::new();
             let mut defaults = std::collections::HashMap::new();
             for p in providers.values() {

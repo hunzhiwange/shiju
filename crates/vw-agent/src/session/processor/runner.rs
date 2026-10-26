@@ -301,7 +301,8 @@ fn resolve_request_model(
         ));
     }
 
-    let providers = prompt::block_on(crate::app::agent::provider::provider::list());
+    let providers = prompt::block_on(crate::app::agent::provider::provider::list())
+        .map_err(|error| error.to_string())?;
     let candidates =
         providers.values().flat_map(|info| info.models.values()).cloned().collect::<Vec<_>>();
     let selected = if is_auto_model_request(req.model.as_deref()) {

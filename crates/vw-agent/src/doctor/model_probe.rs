@@ -82,13 +82,13 @@ pub(super) fn resolve_model_probe_targets(
     providers
 }
 
-pub(super) async fn doctor_model_targets(provider_override: Option<&str>) -> Vec<String> {
+pub(super) async fn doctor_model_targets(provider_override: Option<&str>) -> Result<Vec<String>> {
     if provider_override.map(str::trim).is_some_and(|value| !value.is_empty()) {
-        return resolve_model_probe_targets(provider_override, Vec::<String>::new());
+        return Ok(resolve_model_probe_targets(provider_override, Vec::<String>::new()));
     }
 
-    let providers = crate::app::agent::provider::provider::list().await.into_keys();
-    resolve_model_probe_targets(provider_override, providers)
+    let providers = crate::app::agent::provider::provider::list().await?.into_keys();
+    Ok(resolve_model_probe_targets(provider_override, providers))
 }
 
 pub(super) fn report_model_probe_targets(targets: Vec<String>) -> Result<()> {
@@ -120,6 +120,6 @@ pub async fn run_models(
     provider_override: Option<&str>,
     _use_cache: bool,
 ) -> Result<()> {
-    let targets = doctor_model_targets(provider_override).await;
+    let targets = doctor_model_targets(provider_override).await?;
     report_model_probe_targets(targets)
 }

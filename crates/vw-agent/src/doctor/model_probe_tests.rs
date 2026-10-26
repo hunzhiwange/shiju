@@ -115,14 +115,14 @@ fn report_model_probe_targets_accepts_non_empty_targets() {
 
 #[tokio::test]
 async fn doctor_model_targets_with_override_returns_only_trimmed_provider() {
-    let targets = doctor_model_targets(Some(" openrouter ")).await;
+    let targets = doctor_model_targets(Some(" openrouter ")).await.unwrap();
 
     assert_eq!(targets, vec!["openrouter"]);
 }
 
 #[tokio::test]
 async fn doctor_model_targets_without_override_returns_sorted_provider_keys() {
-    let targets = doctor_model_targets(None).await;
+    let targets = doctor_model_targets(None).await.unwrap();
     let mut sorted = targets.clone();
     sorted.sort();
 

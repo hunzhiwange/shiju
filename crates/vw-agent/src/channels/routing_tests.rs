@@ -77,21 +77,24 @@ fn context(workspace_dir: &Path) -> ChannelRuntimeContext {
 
 #[test]
 fn resolve_provider_alias_normalizes_known_provider_id_case() {
-    let ids = available_provider_ids();
+    let ids = available_provider_ids().unwrap();
     if let Some(first) = ids.first() {
-        assert_eq!(resolve_provider_alias(&first.to_ascii_uppercase()), Some(first.clone()));
+        assert_eq!(
+            resolve_provider_alias(&first.to_ascii_uppercase()).unwrap(),
+            Some(first.clone())
+        );
     }
-    assert_eq!(resolve_provider_alias("unknown-provider"), None);
+    assert_eq!(resolve_provider_alias("unknown-provider").unwrap(), None);
 }
 
 #[test]
 fn resolve_provider_alias_rejects_blank_input() {
-    assert_eq!(resolve_provider_alias("   "), None);
+    assert_eq!(resolve_provider_alias("   ").unwrap(), None);
 }
 
 #[test]
 fn available_provider_ids_is_sorted() {
-    let ids = available_provider_ids();
+    let ids = available_provider_ids().unwrap();
     let mut sorted = ids.clone();
     sorted.sort();
 

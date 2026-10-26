@@ -329,7 +329,7 @@ impl Agent {
             return Ok(self.model_name.clone());
         }
 
-        let providers = crate::app::agent::provider::provider::list().await;
+        let providers = crate::app::agent::provider::provider::list().await?;
         let models = providers
             .values()
             .flat_map(|provider| provider.models.values())

@@ -38,7 +38,9 @@ async fn provider_list(
     let dir = resolve_directory(&query, &headers);
     let result = with_instance(dir, move || {
         Box::pin(async move {
-            let providers = provider::provider::list_for_settings().await;
+            let providers = provider::provider::list_for_settings()
+                .await
+                .map_err(|error| ApiError::internal(error.to_string()))?;
             let mut out = Vec::new();
             let mut defaults = HashMap::new();
             let mut connected = Vec::new();

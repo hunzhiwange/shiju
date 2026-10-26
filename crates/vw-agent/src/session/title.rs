@@ -208,20 +208,15 @@ pub async fn generate_from_content(
         if s.contains('/') {
             // 完整格式：直接解析 provider/model
             let parsed = provider::parse_model(s);
-            provider::get_model(&parsed.provider_id, &parsed.model_id).await.ok()
+            match provider::get_model(&parsed.provider_id, &parsed.model_id).await {
+                Ok(model) => Some(model),
+                Err(provider::CatalogError::ModelNotFound(_)) => None,
+                Err(error) => return Err(error.to_string()),
+            }
         } else {
             // 简短格式：遍历所有 provider 查找匹配的模型
-            let providers = provider::list().await;
-            let mut hit: Option<provider::Model> = None;
-            for (provider_id, info) in providers {
-                if info.models.contains_key(s)
-                    && let Ok(model) = provider::get_model(&provider_id, s).await
-                {
-                    hit = Some(model);
-                    break;
-                }
-            }
-            hit
+            let providers = provider::list().await.map_err(|error| error.to_string())?;
+            providers.values().find_map(|info| info.models.get(s).cloned())
         }
     } else {
         None
@@ -233,9 +228,9 @@ pub async fn generate_from_content(
         preferred_resolved
     } else {
         // 优先级 2：系统小型模型（先尝试 Anthropic，再尝试 OpenAI）
-        match provider::get_small_model("anthropic").await {
+        match provider::get_small_model("anthropic").await.map_err(|error| error.to_string())? {
             Some(m) => Some(m),
-            None => provider::get_small_model("openai").await,
+            None => provider::get_small_model("openai").await.map_err(|error| error.to_string())?,
         }
     };
 
@@ -286,9 +281,21 @@ pub(crate) async fn generate_message_title(
         return Ok(None);
     }
 
-    let model = match provider::get_small_model(&user.model.provider_id).await {
+    let model = match provider::get_small_model(&user.model.provider_id).await.map_err(|error| {
+        crate::session::llm::Error::Api(crate::session::message::AssistantError::Unknown {
+            message: error.to_string(),
+        })
+    })? {
         Some(model) => Some(model),
-        None => provider::get_model(&user.model.provider_id, &user.model.model_id).await.ok(),
+        None => match provider::get_model(&user.model.provider_id, &user.model.model_id).await {
+            Ok(model) => Some(model),
+            Err(provider::CatalogError::ModelNotFound(_)) => None,
+            Err(error) => {
+                return Err(crate::session::llm::Error::Api(
+                    crate::session::message::AssistantError::Unknown { message: error.to_string() },
+                ));
+            }
+        },
     };
     let Some(model) = model else { return Ok(None) };
 

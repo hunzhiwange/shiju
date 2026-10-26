@@ -53,35 +53,39 @@ pub(super) async fn handle_set_provider(
     raw_provider: String,
 ) -> String {
     match resolve_provider_alias(&raw_provider) {
-        Some(provider_name) => match get_or_create_session_provider(ctx, &provider_name).await {
-            Ok(_) => {
-                if provider_name != current.provider {
-                    let mut next = current.clone();
-                    next.provider = provider_name.clone();
-                    next.reasoning_effort = None;
-                    if persist_current_route(ctx, &next).await.is_err() {
-                        return "模型选项保存失败，路由与历史保持不变。".into();
+        Err(error) => format!("模型目录不可用：{error}"),
+        Ok(Some(provider_name)) => {
+            match get_or_create_session_provider(ctx, &provider_name).await {
+                Ok(_) => {
+                    if provider_name != current.provider {
+                        let mut next = current.clone();
+                        next.provider = provider_name.clone();
+                        next.reasoning_effort = None;
+                        if persist_current_route(ctx, &next).await.is_err() {
+                            return "模型选项保存失败，路由与历史保持不变。".into();
+                        }
+                        *current = next;
+                        set_route_selection(ctx, sender_key, current.clone());
+                        // provider 变化后旧对话可能包含不兼容的模型假设，清理历史能让新路由从干净上下文开始。
+                        clear_sender_history(ctx, sender_key);
                     }
-                    *current = next;
-                    set_route_selection(ctx, sender_key, current.clone());
-                    // provider 变化后旧对话可能包含不兼容的模型假设，清理历史能让新路由从干净上下文开始。
-                    clear_sender_history(ctx, sender_key);
-                }
 
-                format!(
-                    "Provider switched to `{provider_name}` for this sender session. Current model is `{}`.\nUse `/model <model-id>` to set a provider-compatible model.",
-                    current.model
-                )
+                    format!(
+                        "Provider switched to `{provider_name}` for this sender session. Current model is `{}`.\nUse `/model <model-id>` to set a provider-compatible model.",
+                        current.model
+                    )
+                }
+                Err(err) => {
+                    // provider 错误可能包含 API 返回内容，展示前必须脱敏，避免令牌或敏感载荷进入聊天。
+                    let safe_err =
+                        crate::app::agent::providers::sanitize_api_error(&err.to_string());
+                    format!(
+                        "Failed to initialize provider `{provider_name}`. Route unchanged.\nDetails: {safe_err}"
+                    )
+                }
             }
-            Err(err) => {
-                // provider 错误可能包含 API 返回内容，展示前必须脱敏，避免令牌或敏感载荷进入聊天。
-                let safe_err = crate::app::agent::providers::sanitize_api_error(&err.to_string());
-                format!(
-                    "Failed to initialize provider `{provider_name}`. Route unchanged.\nDetails: {safe_err}"
-                )
-            }
-        },
-        None => {
+        }
+        Ok(None) => {
             format!("Unknown provider `{raw_provider}`. Use `/providers` to list valid providers.")
         }
     }
@@ -119,8 +123,10 @@ pub(super) async fn handle_set_model(
     if model.is_empty() {
         "Model ID cannot be empty. Use `/model <model-id>`.".to_string()
     } else {
-        let Ok(declared) = provider::get_model(&current.provider, &model).await else {
-            return "模型未在当前 provider 目录中声明。使用 /models 查看可用模型；路由与历史保持不变。".into();
+        let declared = match provider::get_model(&current.provider, &model).await {
+            Ok(model) => model,
+            Err(provider::CatalogError::Configuration(error)) => return format!("模型配置读取失败：{error}"),
+            Err(provider::CatalogError::ModelNotFound(_)) => return "模型未在当前 provider 目录中声明。使用 /models 查看可用模型；路由与历史保持不变。".into(),
         };
         if declared.status == "deprecated" {
             return "该模型已停用。使用 /models 查看可用模型；路由与历史保持不变。".into();
@@ -239,8 +245,12 @@ pub(super) async fn handle_task_mode(
 
 /// 查询真实 provider 目录；不把本地预览缓存当作能力凭据。
 pub(super) async fn handle_models(current: &ChannelRouteSelection) -> String {
-    let Some(info) = provider::get_provider(&current.provider).await else {
-        return "当前 provider 无可用模型目录。请联系维护者配置；使用 /help 查看命令。".into();
+    let info = match provider::get_provider(&current.provider).await {
+        Ok(Some(info)) => info,
+        Ok(None) => {
+            return "当前 provider 无可用模型目录。请联系维护者配置；使用 /help 查看命令。".into();
+        }
+        Err(error) => return format!("模型目录不可用：{error}"),
     };
     let mut ids = info
         .models
@@ -288,8 +298,14 @@ pub(super) async fn handle_effort(
         set_route_selection(ctx, key, current.clone());
         return "推理强度已恢复默认。".into();
     }
-    let Ok(model) = provider::get_model(&current.provider, &current.model).await else {
-        return "当前模型无能力目录，无法设置推理强度；路由与历史保持不变。".into();
+    let model = match provider::get_model(&current.provider, &current.model).await {
+        Ok(model) => model,
+        Err(provider::CatalogError::Configuration(error)) => {
+            return format!("模型配置读取失败：{error}");
+        }
+        Err(provider::CatalogError::ModelNotFound(_)) => {
+            return "当前模型无能力目录，无法设置推理强度；路由与历史保持不变。".into();
+        }
     };
     let levels = effort_levels(&model);
     if level.is_empty() {

@@ -146,7 +146,7 @@ async fn run_message_execution_returns_cancelled_when_token_is_already_cancelled
 }
 
 #[tokio::test]
-async fn run_message_execution_wraps_timeout_as_completed_result() {
+async fn run_message_execution_reports_channel_budget_as_completed_error() {
     let (_workspace, ctx, msg) = setup();
     let route = ChannelRouteSelection {
         provider: "provider".to_string(),
@@ -167,7 +167,9 @@ async fn run_message_execution_wraps_timeout_as_completed_result() {
         run_message_execution(&ctx, &msg, &route, &snapshot, Vec::new(), None, 0, &cancellation)
             .await;
 
-    assert!(matches!(result, LlmExecutionResult::Completed(Err(_))));
+    assert!(
+        matches!(result, LlmExecutionResult::Completed(Ok(Err(error))) if error.to_string().contains("channel_message_timeout_budget"))
+    );
     cleanup_sender_session(&ctx, &msg).await;
 }
 
@@ -196,4 +198,165 @@ fn channel_command_cancel_webhook_preserves_supervised_permissions() {
         task_mode_enabled: false,
     };
     assert_eq!(channel_session_options(&route, false)["full_access"], false);
+}
+
+#[tokio::test]
+async fn shell_outer_timeout_explicit_budget_is_reported() {
+    use crate::tools::shell::processes::{ShellProcessScope, ShellProcessState, ShellProcesses};
+    let (_workspace, ctx, msg) = setup();
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let session = resolve_or_create_sender_session_id(&snapshot, &msg).await.unwrap();
+    let scope = ShellProcessScope::new(
+        serde_json::to_string(&snapshot.scope.chat.tenant).unwrap(),
+        &snapshot.directory,
+        session,
+    )
+    .unwrap();
+    let host = ShellProcesses::shared().unwrap();
+    let started = host
+        .start(scope.clone(), || {
+            let mut command = tokio::process::Command::new("sh");
+            command.args(["-c", "printf budget-ready; exec sleep 60"]);
+            Ok(command)
+        })
+        .await
+        .unwrap();
+    let ready = tokio::time::timeout(Duration::from_secs(10), async {
+        loop {
+            let value = host
+                .wait(&scope, &started.process_id, 0, Duration::from_millis(100))
+                .await
+                .unwrap();
+            if value.output.contains("budget-ready") {
+                break value;
+            }
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(ready.state, ShellProcessState::Running);
+    let route = ChannelRouteSelection {
+        provider: "provider".into(),
+        model: "model".into(),
+        reasoning_effort: None,
+        task_mode_enabled: false,
+    };
+    let result = run_message_execution(
+        &ctx,
+        &msg,
+        &route,
+        &snapshot,
+        Vec::new(),
+        None,
+        0,
+        &CancellationToken::new(),
+    )
+    .await;
+    let after = host.snapshot(&scope, &started.process_id).unwrap();
+    // Clean up even when the regression assertion fails.
+    host.cancel_scope(&scope).unwrap();
+    cleanup_sender_session(&ctx, &msg).await;
+    assert_eq!(after.state, ShellProcessState::Cancelled, "channel budget must reap its processes");
+    assert!(after.output.contains("budget-ready"), "tail output remains readable after reaping");
+    let LlmExecutionResult::Completed(Ok(Err(error))) = result else {
+        panic!("expected a channel budget diagnostic distinct from model idle and user stop");
+    };
+    let report = error.to_string();
+    assert!(report.contains("channel_message_timeout_budget"), "{report}");
+    assert!(report.contains("budget_secs=0"), "{report}");
+    assert!(report.contains("elapsed_ms="), "{report}");
+    assert!(report.contains("reaped"), "{report}");
+    eprintln!(
+        "{report}; process={} state={:?} exit_code={:?}; retained tail verified",
+        after.process_id, after.state, after.exit_code
+    );
+}
+
+#[tokio::test]
+async fn shell_outer_timeout_user_stop_preserves_other_sessions() {
+    use crate::tools::shell::processes::{ShellProcessScope, ShellProcessState, ShellProcesses};
+    let (_workspace, ctx, msg) = setup();
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let tenant = serde_json::to_string(&snapshot.scope.chat.tenant).unwrap();
+    let scope =
+        ShellProcessScope::new(tenant.clone(), &snapshot.directory, "channel-stop".into()).unwrap();
+    let foreign =
+        ShellProcessScope::new(tenant, &snapshot.directory, "other-channel-session".into())
+            .unwrap();
+    let host = ShellProcesses::shared().unwrap();
+    let mut ids = Vec::new();
+    for owner in [&scope, &foreign] {
+        let started = host
+            .start(owner.clone(), || {
+                let mut command = tokio::process::Command::new("sh");
+                command.args(["-c", "printf stop-ready; exec sleep 60"]);
+                Ok(command)
+            })
+            .await
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let value = host
+                    .wait(owner, &started.process_id, 0, Duration::from_millis(100))
+                    .await
+                    .unwrap();
+                if value.output.contains("stop-ready") {
+                    break;
+                }
+            }
+        })
+        .await
+        .unwrap();
+        ids.push(started.process_id);
+    }
+    let abort = CancellationToken::new();
+    stop_channel_execution(
+        std::future::ready(Ok(String::new())),
+        &abort,
+        &snapshot,
+        "channel-stop",
+    )
+    .await
+    .unwrap();
+    let own_state = host.snapshot(&scope, &ids[0]).unwrap().state;
+    let foreign_state = host.snapshot(&foreign, &ids[1]).unwrap().state;
+    host.cancel_scope(&foreign).unwrap();
+    assert!(abort.is_cancelled());
+    assert_eq!(own_state, ShellProcessState::Cancelled);
+    assert_eq!(foreign_state, ShellProcessState::Running);
+    eprintln!(
+        "channel user stop reaped {}; other session {} stayed Running and was cleaned up separately",
+        ids[0], ids[1]
+    );
+}
+
+#[tokio::test(start_paused = true)]
+async fn shell_outer_timeout_blocked_delivery_has_bounded_drain() {
+    let (_workspace, ctx, msg) = setup();
+    crate::project::from_directory(
+        &crate::session::ui_store::current_tenant_scope(),
+        ctx.workspace_dir.as_ref(),
+    )
+    .await
+    .unwrap();
+    let snapshot = resolve_channel_message_snapshot(&ctx, &msg).await.unwrap();
+    let abort = CancellationToken::new();
+    let started = tokio::time::Instant::now();
+    stop_channel_execution(std::future::pending(), &abort, &snapshot, "blocked-delivery")
+        .await
+        .unwrap();
+    assert!(abort.is_cancelled());
+    assert_eq!(started.elapsed(), Duration::from_secs(5));
 }

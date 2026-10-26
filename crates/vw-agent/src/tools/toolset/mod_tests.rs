@@ -843,3 +843,52 @@ fn register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools() 
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].name(), "echo");
 }
+
+#[test]
+fn shell_outer_timeout_yield_does_not_cancel_process() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = Some(dir.path().to_string_lossy().to_string());
+    let context = ToolUseContext::new("outer-yield", root.clone()).with_full_access_enabled(true);
+    let ctx = ToolRuntimeContext::new("outer-yield", root).with_tool_use_context(context);
+    let started = execute_tool_call(
+        "bash",
+        &json!({
+            "command": "printf yield-ready; exec sleep 60",
+            "description": "outer timeout regression", "yield_time_ms": 250,
+        })
+        .to_string(),
+        &ctx,
+    )
+    .unwrap();
+    let id = started.data["process_id"].as_str().unwrap();
+    let mut ready = started.clone();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    while !ready.data["output"].as_str().unwrap().contains("yield-ready")
+        && std::time::Instant::now() < deadline
+    {
+        ready = execute_tool_call(
+            "bash_wait",
+            &json!({"process_id": id, "cursor": 0, "yield_time_ms": 250}).to_string(),
+            &ctx,
+        )
+        .unwrap();
+    }
+    // Each synchronous call destroys its bridge runtime and rebuilds its registry.
+    let waiting = execute_tool_call(
+        "bash_wait",
+        &json!({"process_id": id, "cursor": ready.data["next_cursor"], "yield_time_ms": 250})
+            .to_string(),
+        &ctx,
+    )
+    .unwrap();
+    let cancelled =
+        execute_tool_call("bash_cancel", &json!({"process_id": id}).to_string(), &ctx).unwrap();
+    assert_eq!(ready.data["state"], "running");
+    assert!(ready.data["output"].as_str().unwrap().contains("yield-ready"));
+    assert_eq!(waiting.data["state"], "running");
+    assert!(waiting.data["exit_code"].is_null());
+    assert_eq!(cancelled.data["state"], "cancelled");
+    eprintln!(
+        "process={id} survived two yield deadlines and bridge runtimes; cancelled and reaped"
+    );
+}

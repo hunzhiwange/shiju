@@ -26,6 +26,42 @@ fn channel_request_reliability(
     ctx.reliability.as_ref().clone()
 }
 
+// The channel calls the processor directly, bypassing PromptCancelHandle.
+// Reap explicitly here; dropping a response/wait future must not do this.
+fn reap_channel_shell_processes(
+    snapshot: &ChannelMessageSnapshot,
+    session: &str,
+) -> anyhow::Result<()> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(host) = crate::tools::shell::processes::ShellProcesses::existing() {
+        let scope = crate::tools::shell::processes::ShellProcessScope::new(
+            serde_json::to_string(&snapshot.scope.chat.tenant)?,
+            &snapshot.directory,
+            session.to_string(),
+        )?;
+        host.cancel_scope(&scope)?;
+    }
+    #[cfg(target_arch = "wasm32")]
+    let _ = (snapshot, session);
+    Ok(())
+}
+
+async fn stop_channel_execution(
+    execution: impl std::future::Future<Output = anyhow::Result<String>>,
+    abort: &CancellationToken,
+    snapshot: &ChannelMessageSnapshot,
+    session: &str,
+) -> anyhow::Result<()> {
+    abort.cancel();
+    let first_cleanup = reap_channel_shell_processes(snapshot, session);
+    // A full delta channel must not make the deadline wait forever. Dropping
+    // this receiver also stops event delivery from the blocking processor.
+    let _ = tokio::time::timeout(Duration::from_secs(5), execution).await;
+    // Catch a tool that crossed spawn concurrently with cancellation.
+    reap_channel_shell_processes(snapshot, session)?;
+    first_cleanup
+}
+
 /// 执行消息处理流程
 ///
 /// 该函数是通道管理器中处理用户消息的核心入口点，负责将消息
@@ -92,6 +128,7 @@ pub(crate) async fn run_message_execution(
     let request_root_dir = &snapshot.directory;
     let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
+    let execution_started = tokio::time::Instant::now();
     let processor_abort = cancellation_token.child_token();
     let _abort_guard = processor_abort.clone().drop_guard();
     // 使用 select! 同时监听取消信号和执行结果
@@ -103,7 +140,7 @@ pub(crate) async fn run_message_execution(
                         // 使用当前时间戳作为流标识
                         stream: crate::app::agent::session::session::now_ms(),
                         // 使用解析或创建的会话 ID
-                        session: session_id,
+                        session: session_id.clone(),
                         // 用户消息内容
                         query: msg.content.clone(),
                         // 设置请求的工作目录
@@ -135,18 +172,29 @@ pub(crate) async fn run_message_execution(
         tokio::select! {
             biased;
             () = cancellation_token.cancelled() => {
-                processor_abort.cancel();
-                let _ = execution.await;
-                LlmExecutionResult::Cancelled
+                match stop_channel_execution(execution, &processor_abort, snapshot, &session_id).await {
+                    Ok(()) => LlmExecutionResult::Cancelled,
+                    Err(error) => LlmExecutionResult::Completed(Ok(Err(error.context("channel user cancellation: shell cleanup failed")))),
+                }
             }
-            deadline = tokio::time::timeout(Duration::from_secs(timeout_budget_secs), std::future::pending::<()>()) => {
-                processor_abort.cancel();
-                let _ = execution.await;
-                LlmExecutionResult::Completed(Err(deadline.expect_err("pending deadline must time out")))
+            () = tokio::time::sleep(Duration::from_secs(timeout_budget_secs)) => {
+                let elapsed_ms = execution_started.elapsed().as_millis();
+                let cleanup = stop_channel_execution(execution, &processor_abort, snapshot, &session_id).await;
+                let status = match cleanup {
+                    Ok(()) => "owned shell processes reaped; tail output retained for bash_wait".to_string(),
+                    Err(error) => format!("shell cleanup failed: {error}"),
+                };
+                LlmExecutionResult::Completed(Ok(Err(anyhow::anyhow!(
+                    "channel_message_timeout_budget exhausted: budget_secs={timeout_budget_secs}, elapsed_ms={elapsed_ms}; cancellation_reason=channel_deadline; {status}"
+                ))))
             }
             result = &mut execution => {
-                if cancellation_token.is_cancelled() { LlmExecutionResult::Cancelled }
-                else { LlmExecutionResult::Completed(Ok(result)) }
+                if cancellation_token.is_cancelled() {
+                    match stop_channel_execution(std::future::ready(result), &processor_abort, snapshot, &session_id).await {
+                        Ok(()) => LlmExecutionResult::Cancelled,
+                        Err(error) => LlmExecutionResult::Completed(Ok(Err(error.context("channel user cancellation: shell cleanup failed")))),
+                    }
+                } else { LlmExecutionResult::Completed(Ok(result)) }
             }
         }
     })

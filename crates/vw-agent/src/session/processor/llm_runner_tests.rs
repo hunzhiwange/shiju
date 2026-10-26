@@ -1303,3 +1303,60 @@ pub(crate) fn register_channel_cancel_stream(
 ) {
     CHANNEL_CANCEL_STREAMS.lock().unwrap().insert(session.into(), stream);
 }
+
+#[test]
+fn shell_outer_timeout_model_idle_does_not_cover_background_runtime() {
+    use crate::tools::shell::processes::{ShellProcessScope, ShellProcessState, ShellProcesses};
+    let dir = tempfile::tempdir().unwrap();
+    let scope =
+        ShellProcessScope::new("idle-tenant".into(), dir.path(), "idle-session".into()).unwrap();
+    let host = ShellProcesses::new().unwrap();
+    let caller = tokio::runtime::Runtime::new().unwrap();
+    let started = caller
+        .block_on(host.start(scope.clone(), || {
+            let mut command = tokio::process::Command::new("sh");
+            command.args(["-c", "printf idle-ready; exec sleep 60"]);
+            Ok(command)
+        }))
+        .unwrap();
+    let ready = caller
+        .block_on(async {
+            tokio::time::timeout(Duration::from_secs(10), async {
+                loop {
+                    let value = host
+                        .wait(&scope, &started.process_id, 0, Duration::from_millis(100))
+                        .await
+                        .unwrap();
+                    if value.output.contains("idle-ready") {
+                        break value;
+                    }
+                }
+            })
+            .await
+        })
+        .unwrap();
+    assert_eq!(ready.state, ShellProcessState::Running);
+    let (tx, rx) = mpsc::channel();
+    let (abort_tx, abort_rx) = tokio::sync::watch::channel(false);
+    let result = super::collect_llm_step_from_stream(
+        rx,
+        &mut |_| true,
+        &abort_tx,
+        Duration::from_millis(10),
+        None,
+    );
+    drop(tx);
+    let after = host.snapshot(&scope, &started.process_id).unwrap();
+    host.shutdown().unwrap();
+    assert_eq!(result.unwrap_err(), "模型响应超时");
+    assert!(*abort_rx.borrow(), "only the model stream is aborted");
+    assert_eq!(after.state, ShellProcessState::Running);
+    assert_eq!(
+        host.snapshot(&scope, &started.process_id).unwrap().state,
+        ShellProcessState::Cancelled
+    );
+    eprintln!(
+        "model idle expired; process={} remained Running; shutdown reaped it",
+        after.process_id
+    );
+}

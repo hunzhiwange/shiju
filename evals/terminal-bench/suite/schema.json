@@ -1,0 +1,353 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Frozen single-attempt Terminal-Bench experiment record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "experiment_id",
+    "case_id",
+    "attempt_id",
+    "attempt_number",
+    "kind",
+    "model",
+    "max_output_tokens",
+    "input_window_tokens",
+    "hashes",
+    "started_at",
+    "ended_at",
+    "validation_seconds",
+    "usage_status",
+    "usage",
+    "raw_exit_code",
+    "finish_reason",
+    "terminal_event",
+    "stream_terminated",
+    "error_seen",
+    "output_truncated",
+    "status",
+    "score_status",
+    "reward",
+    "failure_class"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "type": "integer"
+    },
+    "experiment_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "attempt_number": {
+      "type": "integer",
+      "const": 1
+    },
+    "kind": {
+      "enum": [
+        "official",
+        "diagnostic",
+        "readiness"
+      ]
+    },
+    "model": {
+      "const": "token-plan/qwen3.8-flash"
+    },
+    "max_output_tokens": {
+      "type": "integer",
+      "const": 32000
+    },
+    "input_window_tokens": {
+      "type": "integer",
+      "const": 200000
+    },
+    "hashes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "runtime",
+        "fixture",
+        "checker",
+        "profile"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "runtime": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "fixture": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "checker": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "profile": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "ended_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "validation_seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "usage_status": {
+      "enum": [
+        "reported",
+        "missing"
+      ]
+    },
+    "usage": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "input_tokens",
+            "output_tokens"
+          ],
+          "properties": {
+            "input_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cached_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "reasoning_tokens": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "raw_exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "finish_reason": {
+      "enum": [
+        null,
+        "stop",
+        "end_turn",
+        "length",
+        "error",
+        "cancelled",
+        "timeout",
+        "tool_calls",
+        "content_filter"
+      ]
+    },
+    "terminal_event": {
+      "enum": [
+        null,
+        "chat.done",
+        "chat.error"
+      ]
+    },
+    "stream_terminated": {
+      "type": "boolean"
+    },
+    "error_seen": {
+      "type": "boolean"
+    },
+    "output_truncated": {
+      "type": "boolean"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed"
+      ]
+    },
+    "score_status": {
+      "enum": [
+        "scored",
+        "unscored"
+      ]
+    },
+    "reward": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "failure_class": {
+      "enum": [
+        "none",
+        "capability",
+        "infrastructure"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "usage_status": {
+            "const": "missing"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "usage": {
+            "type": "null"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "usage": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "score_status": {
+            "const": "scored"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reward": {
+            "type": "number"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "reward": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "raw_exit_code": {
+            "const": 0
+          },
+          "terminal_event": {
+            "const": "chat.done"
+          },
+          "finish_reason": {
+            "enum": [
+              "stop",
+              "end_turn"
+            ]
+          },
+          "stream_terminated": {
+            "const": true
+          },
+          "error_seen": {
+            "const": false
+          },
+          "output_truncated": {
+            "const": false
+          },
+          "score_status": {
+            "const": "scored"
+          },
+          "failure_class": {
+            "enum": [
+              "none",
+              "capability"
+            ]
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "failure_class": {
+            "const": "infrastructure"
+          },
+          "score_status": {
+            "const": "unscored"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "failure_class": {
+            "const": "none"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reward": {
+            "const": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "failure_class": {
+            "const": "capability"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "reward": {
+            "type": "number",
+            "exclusiveMaximum": 1
+          }
+        }
+      }
+    }
+  ]
+}

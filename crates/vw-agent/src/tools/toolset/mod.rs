@@ -32,6 +32,9 @@ pub struct ToolRuntimeContext {
     /// 只属于当前会话的预发现工具。
     #[serde(skip)]
     session_tools: SessionToolset,
+    #[cfg(test)]
+    #[serde(skip)]
+    test_config: Option<Arc<Config>>,
 }
 
 impl Default for ToolRuntimeContext {
@@ -53,6 +56,8 @@ impl ToolRuntimeContext {
             root,
             tool_use_context: Arc::new(tool_use_context),
             session_tools: SessionToolset::default(),
+            #[cfg(test)]
+            test_config: None,
         }
     }
 
@@ -78,6 +83,13 @@ impl ToolRuntimeContext {
     /// 注入只属于当前会话的工具集合。
     pub fn with_session_tools(mut self, session_tools: SessionToolset) -> Self {
         self.session_tools = session_tools;
+        self
+    }
+
+    /// Isolate config storage while exercising the real registry and permission pipeline.
+    #[cfg(test)]
+    pub(crate) fn with_test_config(mut self, config: Config) -> Self {
+        self.test_config = Some(Arc::new(config));
         self
     }
 
@@ -173,6 +185,10 @@ fn execution_environment_for_context(
 }
 
 fn runtime_config_for_context(ctx: &ToolRuntimeContext) -> Arc<Config> {
+    #[cfg(test)]
+    if let Some(config) = &ctx.test_config {
+        return config.clone();
+    }
     let workspace_dir = ctx.tool_use_context().workspace_root().unwrap_or_else(|| {
         ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
             std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."))

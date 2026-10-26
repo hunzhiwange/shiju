@@ -1087,7 +1087,8 @@ fn docs_stream_request(session_id: Option<&str>) -> GatewayChatStreamRequest {
             "role": "user",
             "content": "请列出 docs 文件列表"
         })],
-        model: Some("test-provider/test-model".to_string()),
+        // Resolve a registered model normally before entering the local docs branch.
+        model: None,
         ..GatewayChatStreamRequest::default()
     }
 }

@@ -85,6 +85,21 @@ fn ctx_with_root(session: &str, root: &Path) -> ToolRuntimeContext {
         .with_tool_use_context(ToolUseContext::new(session.to_string(), Some(root)))
 }
 
+fn ctx_requiring_shell_approval(session: &str, root: &Path) -> ToolRuntimeContext {
+    let mut config = crate::config::Config::default();
+    config.autonomy.level = crate::security::AutonomyLevel::Supervised;
+    config.autonomy.workspace_only = true;
+    config.autonomy.allowed_commands = vec!["touch".to_string()];
+    config.autonomy.require_approval_for_medium_risk = true;
+    config.security.bash.enabled = true;
+    ctx_with_root(session, root).with_test_config(config)
+}
+
+fn session_todos(ctx: &ToolRuntimeContext) -> Vec<todo::Todo> {
+    let result = crate::tools::execute_tool_call("todoread", "{}", ctx).expect("scoped todo read");
+    serde_json::from_value(result.data["todos"].clone()).expect("scoped todos")
+}
+
 fn new_state() -> super::super::ToolSessionState {
     super::super::ToolSessionState::default()
 }
@@ -768,8 +783,7 @@ fn run_tool_and_record_rewrites_initial_todowrite_completed_status_until_non_tod
     )
     .expect("todowrite output");
 
-    let todos: Vec<todo::Todo> =
-        serde_json::from_str(&todo::read(&ctx).expect("read todos")).expect("todos json");
+    let todos = session_todos(&ctx);
     assert_eq!(todos[0].status, "pending");
     assert_eq!(state.non_todo_tool_runs, 0);
 
@@ -785,8 +799,7 @@ fn run_tool_and_record_rewrites_initial_todowrite_completed_status_until_non_tod
     )
     .expect("todowrite output");
 
-    let todos: Vec<todo::Todo> =
-        serde_json::from_str(&todo::read(&ctx).expect("read todos")).expect("todos json");
+    let todos = session_todos(&ctx);
     assert_eq!(todos[0].status, "completed");
 }
 
@@ -1084,7 +1097,7 @@ fn run_tool_and_record_records_permission_denial_with_request_context() {
     let dir = tempfile::tempdir().expect("temp dir");
     let session_id = unique_session("tools-single-denied");
     let mut session = Session::new(session_id.clone());
-    let ctx = ctx_with_root(&session_id, dir.path());
+    let ctx = ctx_requiring_shell_approval(&session_id, dir.path());
     let mut state = new_state();
     let mut events = Vec::new();
 
@@ -1102,7 +1115,7 @@ fn run_tool_and_record_records_permission_denial_with_request_context() {
     )
     .expect("denied output");
 
-    assert!(output.contains("Approval required"));
+    assert!(output.contains("Approval required"), "{output}");
     assert!(!dir.path().join("needs-approval").exists());
     assert_eq!(session.messages.len(), 1);
     assert!(session.messages[0].content.contains("\"status\":\"denied\""));
@@ -1187,7 +1200,7 @@ fn run_batch_tool_and_record_records_denied_subtool_with_permission_request() {
     let dir = tempfile::tempdir().expect("temp dir");
     let session_id = unique_session("tools-batch-denied");
     let mut session = Session::new(session_id.clone());
-    let ctx = ctx_with_root(&session_id, dir.path());
+    let ctx = ctx_requiring_shell_approval(&session_id, dir.path());
     let mut state = new_state();
     let mut events = Vec::new();
 
@@ -1209,7 +1222,7 @@ fn run_batch_tool_and_record_records_denied_subtool_with_permission_request() {
     );
 
     assert!(output.contains("已成功执行 0/1 个工具，失败 1 个"));
-    assert!(output.contains("Approval required"));
+    assert!(output.contains("Approval required"), "{output}");
     assert!(!dir.path().join("denied-batch").exists());
     assert_eq!(session.messages.len(), 2);
     assert!(session.messages[0].content.contains("tool bash"));
@@ -1380,9 +1393,7 @@ fn run_batch_tool_and_record_rewrites_todowrite_only_before_non_todo_work() {
         &mut |_event| true,
         &mut initial_state,
     );
-    let initial_todos: Vec<todo::Todo> =
-        serde_json::from_str(&todo::read(&initial_ctx).expect("read rewritten batch todos"))
-            .expect("rewritten batch todos json");
+    let initial_todos = session_todos(&initial_ctx);
     assert_eq!(initial_todos[0].status, "pending");
 
     let worked_session_id = unique_session("tools-batch-todowrite-after-work");
@@ -1399,9 +1410,7 @@ fn run_batch_tool_and_record_rewrites_todowrite_only_before_non_todo_work() {
         &mut |_event| true,
         &mut worked_state,
     );
-    let worked_todos: Vec<todo::Todo> =
-        serde_json::from_str(&todo::read(&worked_ctx).expect("read completed batch todos"))
-            .expect("completed batch todos json");
+    let worked_todos = session_todos(&worked_ctx);
     assert_eq!(worked_todos[0].status, "completed");
     assert_eq!(worked_state.non_todo_tool_runs, 1);
 }

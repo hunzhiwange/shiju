@@ -129,13 +129,14 @@ fn connector_card<'a>(app: &'a App, connector: &'a ShijuConnector) -> Element<'a
                 .style(primary_action_btn_style)
                 .on_press_maybe(idle.then(|| message(ConnectorMessage::Authorize(id)))),
         );
+    } else {
+        actions = actions.push(
+            button(text("手动绑定").size(13))
+                .padding([8, 12])
+                .style(rounded_action_btn_style)
+                .on_press_maybe(idle.then(|| message(ConnectorMessage::Edit(id)))),
+        );
     }
-    actions = actions.push(
-        button(text("手动绑定").size(13))
-            .padding([8, 12])
-            .style(rounded_action_btn_style)
-            .on_press_maybe(idle.then(|| message(ConnectorMessage::Edit(id)))),
-    );
     content = content.push(actions);
     if let Some(operation) = operation {
         let label = match operation.work {

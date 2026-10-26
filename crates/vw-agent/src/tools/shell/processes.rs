@@ -11,6 +11,8 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::{Notify, mpsc, oneshot};
 #[path = "output.rs"]
 mod output;
+#[path = "termination.rs"]
+mod termination;
 use output::{OutputBuffer, OutputDecoder};
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
@@ -67,6 +69,7 @@ struct Entry {
     finished: Option<Instant>,
     output: Arc<Mutex<OutputBuffer>>,
     changed: Arc<Notify>,
+    cancel: CancellationToken,
 }
 
 type Records = Arc<Mutex<HashMap<String, Entry>>>;
@@ -75,6 +78,7 @@ type BuildCommand = Box<dyn FnOnce() -> anyhow::Result<tokio::process::Command> 
 struct Start {
     scope: ShellProcessScope,
     build: BuildCommand,
+    timeout: Option<Duration>,
     reply: oneshot::Sender<anyhow::Result<ShellProcessSnapshot>>,
 }
 
@@ -117,9 +121,19 @@ impl ShellProcesses {
         scope: ShellProcessScope,
         build: impl FnOnce() -> anyhow::Result<tokio::process::Command> + Send + 'static,
     ) -> anyhow::Result<ShellProcessSnapshot> {
+        self.start_with_timeout(scope, None, build).await
+    }
+
+    /// Hard execution budget measured at spawn; independent of each wait call.
+    pub(crate) async fn start_with_timeout(
+        &self,
+        scope: ShellProcessScope,
+        timeout: Option<Duration>,
+        build: impl FnOnce() -> anyhow::Result<tokio::process::Command> + Send + 'static,
+    ) -> anyhow::Result<ShellProcessSnapshot> {
         let (reply, response) = oneshot::channel();
         self.sender
-            .send(Start { scope, build: Box::new(build), reply })
+            .send(Start { scope, build: Box::new(build), timeout, reply })
             .await
             .map_err(|_| anyhow::anyhow!("Shell process host stopped"))?;
         response.await.context("Shell process host stopped")?
@@ -178,6 +192,33 @@ impl ShellProcesses {
         }
     }
 
+    pub(crate) async fn cancel(
+        &self,
+        scope: &ShellProcessScope,
+        process_id: &str,
+    ) -> anyhow::Result<ShellProcessSnapshot> {
+        let changed = {
+            let records = self.records.lock();
+            match records.get(process_id) {
+                Some(entry) if &entry.scope == scope => {
+                    entry.cancel.cancel();
+                    entry.changed.clone()
+                }
+                _ => bail!("Shell process unavailable"),
+            }
+        };
+        loop {
+            let notified = changed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            let snapshot = self.snapshot(scope, process_id)?;
+            if snapshot.state != ShellProcessState::Running {
+                return Ok(snapshot);
+            }
+            notified.await;
+        }
+    }
+
     pub(crate) fn shutdown(&self) -> anyhow::Result<()> {
         self.stopping.cancel();
         if let Some(thread) = self.thread.lock().take() {
@@ -219,7 +260,7 @@ async fn serve(mut receiver: mpsc::Receiver<Start>, records: Records, stopping: 
             _ = cleanup.tick() => prune(&mut records.lock()),
             request = receiver.recv() => {
                 let Some(request) = request else { break };
-                let result = start_child(&request.scope, request.build, &records, &stopping, &mut tasks);
+                let result = start_child(&request.scope, request.build, request.timeout, &records, &stopping, &mut tasks);
                 if let Err(Ok(snapshot)) = request.reply.send(result) {
                     // Detached callers retain their scope and application-owned cleanup.
                     tracing::debug!(process_id = %snapshot.process_id, "shell start caller detached");
@@ -235,6 +276,7 @@ async fn serve(mut receiver: mpsc::Receiver<Start>, records: Records, stopping: 
 fn start_child(
     scope: &ShellProcessScope,
     build: BuildCommand,
+    timeout: Option<Duration>,
     records: &Records,
     stopping: &CancellationToken,
     tasks: &mut JoinSet<()>,
@@ -251,9 +293,9 @@ fn start_child(
     }
     let mut command = build().context("Failed to build shell process")?;
     command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
-    #[cfg(unix)]
-    command.process_group(0);
+    termination::prepare(&mut command)?;
     let mut child = command.spawn().context("Failed to spawn shell process")?;
+    let started_at = tokio::time::Instant::now();
     let pid = child.id();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
@@ -268,6 +310,7 @@ fn start_child(
     };
     let output = Arc::new(Mutex::new(OutputBuffer::default()));
     let changed = Arc::new(Notify::new());
+    let cancel = CancellationToken::new();
     records.lock().insert(
         snapshot.process_id.clone(),
         Entry {
@@ -276,6 +319,7 @@ fn start_child(
             finished: None,
             output: output.clone(),
             changed: changed.clone(),
+            cancel: cancel.clone(),
         },
     );
     let records = records.clone();
@@ -284,17 +328,31 @@ fn start_child(
     tasks.spawn(async move {
         let drain_stdout = tokio::spawn(drain(stdout, output.clone(), changed.clone()));
         let drain_stderr = tokio::spawn(drain(stderr, output, changed.clone()));
-        let (state, status) = tokio::select! {
-            biased;
-            _ = stopping.cancelled() => {
-                kill_group(pid);
-                let _ = child.start_kill();
-                (ShellProcessState::Cancelled, child.wait().await)
+        let deadline = async {
+            match timeout {
+                Some(limit) => tokio::time::sleep_until(started_at + limit).await,
+                None => std::future::pending::<()>().await,
             }
-            status = child.wait() => (ShellProcessState::Exited, status),
         };
-        // A shell may exit while descendants still hold its output pipes open.
-        kill_group(pid);
+        let reason = tokio::select! {
+            biased;
+            status = child.wait() => Ok(status),
+            _ = stopping.cancelled() => Err(ShellProcessState::Cancelled),
+            _ = cancel.cancelled() => Err(ShellProcessState::Cancelled),
+            _ = deadline => Err(ShellProcessState::TimedOut),
+        };
+        let (state, status) = match reason {
+            Ok(status) => (ShellProcessState::Exited, status),
+            Err(reason) => {
+                // Preserve a natural exit that won the race with cancellation.
+                match child.try_wait() {
+                    Ok(Some(status)) => (ShellProcessState::Exited, Ok(status)),
+                    _ => (reason, termination::terminate(&mut child, pid).await),
+                }
+            }
+        };
+        // A shell may exit while descendants still hold output pipes open.
+        termination::signal(pid, true);
         let _ = drain_stdout.await;
         let _ = drain_stderr.await;
         let mut entries = records.lock();
@@ -342,19 +400,6 @@ async fn drain(
     }
 }
 
-fn kill_group(pid: Option<u32>) {
-    #[cfg(unix)]
-    if let Some(pid) = pid.and_then(|pid| i32::try_from(pid).ok()) {
-        // SAFETY: the child was placed in its own process group at spawn. A negative
-        // PID targets only that group; no pointers or shared memory are accessed.
-        unsafe {
-            libc::kill(-pid, libc::SIGKILL);
-        }
-    }
-    #[cfg(not(unix))]
-    let _ = pid;
-}
-
 #[cfg(test)]
 #[path = "processes_tests.rs"]
 mod tests;
@@ -362,3 +407,7 @@ mod tests;
 #[cfg(test)]
 #[path = "output_tests.rs"]
 mod output_tests;
+
+#[cfg(all(test, unix))]
+#[path = "termination_tests.rs"]
+mod termination_tests;

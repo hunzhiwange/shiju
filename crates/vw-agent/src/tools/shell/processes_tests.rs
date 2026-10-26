@@ -1,14 +1,16 @@
 use super::*;
 use std::time::{Duration, Instant};
 
-fn command(script: String) -> impl FnOnce() -> anyhow::Result<tokio::process::Command> + Send {
+pub(super) fn command(
+    script: String,
+) -> impl FnOnce() -> anyhow::Result<tokio::process::Command> + Send {
     move || {
         let mut cmd = tokio::process::Command::new("/bin/sh");
         cmd.arg("-c").arg(script).env_clear();
         Ok(cmd)
     }
 }
-fn wait_for(mut check: impl FnMut() -> bool) {
+pub(super) fn wait_for(mut check: impl FnMut() -> bool) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while !check() {
         assert!(Instant::now() < deadline, "handshake timed out");

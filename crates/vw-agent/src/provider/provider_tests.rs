@@ -114,69 +114,70 @@ async fn agent_provider_without_models_is_kept_for_settings_and_dropped_at_runti
     assert!(!load_state_impl(true).await.providers.contains_key("empty-provider"));
 }
 
-#[tokio::test]
-async fn agent_provider_state_includes_remote_models() {
-    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
-    let home = TempDir::new().expect("temp home should be created");
-    let config_dir = home.path().join("config");
-    let _home = EnvGuard::set("HOME", home.path().as_os_str());
-    let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
-    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
-    let _provider_env = crate::provider::models::get()
-        .await
-        .values()
-        .flat_map(|provider| provider.env.iter().cloned())
-        .collect::<std::collections::HashSet<_>>()
-        .into_iter()
-        .map(EnvGuard::unset_owned)
-        .collect::<Vec<_>>();
-    let _api_key = EnvGuard::set("AGENT_REMOTE_MODELS_KEY", OsStr::new("agent-secret"));
+#[test]
+fn agent_provider_state_includes_remote_models() {
+    let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    // env::all 使用启动快照，测试必须显式注入，避免依赖其他用例的初始化顺序。
+    crate::env::provide_with(
+        HashMap::from([("AGENT_REMOTE_MODELS_KEY".into(), "agent-secret".into())]),
+        || {
+            runtime.block_on(async {
+                let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+                let home = TempDir::new().expect("temp home should be created");
+                let config_dir = home.path().join("config");
+                let _home = EnvGuard::set("HOME", home.path().as_os_str());
+                let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
+                let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
 
-    let listener = TcpListener::bind("127.0.0.1:0").expect("test listener should bind");
-    let address = listener.local_addr().expect("test listener should have an address");
-    let server = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("test server should accept a request");
-        stream
-            .set_read_timeout(Some(Duration::from_secs(2)))
-            .expect("read timeout should be configured");
-        let mut request = [0_u8; 4096];
-        let read = stream.read(&mut request).expect("request should be readable");
-        let request = String::from_utf8_lossy(&request[..read]);
-        assert!(request.starts_with("GET /v1/models HTTP/1.1\r\n"));
-        assert!(
-            request
-                .lines()
-                .any(|line| line.eq_ignore_ascii_case("authorization: Bearer agent-secret"))
-        );
-        let body = r#"{"data":[{"id":"agent-remote-model"}]}"#;
-        let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        stream.write_all(response.as_bytes()).expect("response should be written");
-    });
+                let listener = TcpListener::bind("127.0.0.1:0").expect("test listener should bind");
+                let address = listener.local_addr().expect("test listener should have an address");
+                let server = std::thread::spawn(move || {
+                    let (mut stream, _) =
+                        listener.accept().expect("test server should accept a request");
+                    stream
+                        .set_read_timeout(Some(Duration::from_secs(2)))
+                        .expect("read timeout should be configured");
+                    let mut request = [0_u8; 4096];
+                    let read = stream.read(&mut request).expect("request should be readable");
+                    let request = String::from_utf8_lossy(&request[..read]);
+                    assert!(request.starts_with("GET /v1/models HTTP/1.1\r\n"));
+                    assert!(request.lines().any(|line| {
+                        line.eq_ignore_ascii_case("authorization: Bearer agent-secret")
+                    }));
+                    let body = r#"{"data":[{"id":"agent-remote-model"}]}"#;
+                    let response = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    stream.write_all(response.as_bytes()).expect("response should be written");
+                });
 
-    config::update(serde_json::json!({
-        "providers": {
-            "agent-remote-provider": {
-                "api": format!("http://{address}/v1"),
-                "env": ["AGENT_REMOTE_MODELS_KEY"],
-                "models": {
-                    "configured-model": {"status": "active"}
-                }
-            }
-        }
-    }))
-    .await
-    .expect("isolated provider config should be saved");
+                config::update(serde_json::json!({
+                    "providers": {
+                        "agent-remote-provider": {
+                            "api": format!("http://{address}/v1"),
+                            "env": ["AGENT_REMOTE_MODELS_KEY"],
+                            "models": {
+                                "configured-model": {"status": "active"}
+                            }
+                        }
+                    }
+                }))
+                .await
+                .expect("isolated provider config should be saved");
 
-    let state = load_state_impl(false).await;
-    let provider =
-        state.providers.get("agent-remote-provider").expect("configured provider should resolve");
+                let state = load_state_impl(false).await;
+                let provider = state
+                    .providers
+                    .get("agent-remote-provider")
+                    .expect("configured provider should resolve");
 
-    assert!(provider.models.contains_key("configured-model"));
-    assert!(provider.models.contains_key("agent-remote-model"));
-    server.join().expect("test server should stop");
+                assert!(provider.models.contains_key("configured-model"));
+                assert!(provider.models.contains_key("agent-remote-model"));
+                server.join().expect("test server should stop");
+            })
+        },
+    );
 }
 
 #[tokio::test]
@@ -410,33 +411,53 @@ async fn agent_custom_provider_reasoning_inherits_catalog_for_shiju_and_token_pl
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", config_dir.as_os_str());
     let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
     config::update(serde_json::json!({"providers": {
-        "shiju": {"models": {"deepseek-v4-flash": {"status": "active"}}},
+        "shiju": {"models": {"deepseek-v4.1-flash": {"status": "active"}}},
         "token-plan": {"api": "https://example.test/v1", "models": {
-            "deepseek-v4-flash-0731": {"status": "active"},
+            "deepseek-v4.1-flash-1017": {"status": "active"},
             "alias": {"id": "qwen3.7-plus", "status": "active"},
-            "glm-5.2": {"status": "active", "reasoning": false},
+            "glm-5.3": {"status": "active", "reasoning": false},
             "wan2.7-image": {"status": "active"}
         }}
     }}))
     .await
     .expect("save config");
     let state = load_state_impl(false).await;
-    assert!(state.providers["shiju"].models["deepseek-v4-flash"].capabilities.reasoning);
-    for id in ["deepseek-v4-flash", "deepseek-v4-pro", "glm-5.2"] {
+    assert!(state.providers["shiju"].models["deepseek-v4.1-flash"].capabilities.reasoning);
+    // 使用当前随包目录中的同提供商模型，严格验证覆盖配置保留各自的推理选项。
+    for (id, expected) in [
+        (
+            "deepseek-v4.1-flash",
+            serde_json::json!([
+                {"type": "toggle"}, {"type": "effort", "values": ["low", "high", "max"]}
+            ]),
+        ),
+        (
+            "deepseek-v4-pro-0813",
+            serde_json::json!([
+                {"type": "toggle"}, {"type": "effort", "values": ["high", "max"]}
+            ]),
+        ),
+        (
+            "glm-5.3",
+            serde_json::json!([
+                {"type": "effort", "values": ["low", "high", "max"]}
+            ]),
+        ),
+    ] {
         let model = &state.providers["shiju"].models[id];
         assert_eq!(
             serde_json::to_value(&model.capabilities.reasoning_options).unwrap(),
-            serde_json::json!([{"type": "effort", "values": ["high", "max"]}]),
+            expected,
             "{id}"
         );
     }
 
     let models = &state.providers["token-plan"].models;
-    for id in ["deepseek-v4-flash-0731", "alias"] {
+    for id in ["deepseek-v4.1-flash-1017", "alias"] {
         assert!(models[id].capabilities.reasoning, "{id}");
         assert_eq!(models[id].api.url, "https://example.test/v1");
     }
-    for id in ["glm-5.2", "wan2.7-image"] {
+    for id in ["glm-5.3", "wan2.7-image"] {
         assert!(!models[id].capabilities.reasoning, "{id}");
     }
 }

@@ -133,6 +133,13 @@ fn llm_step_retry_allowed(error: &str, is_acp: bool) -> bool {
         return is_acp_retryable_error(error);
     }
 
+    if matches!(
+        serde_json::from_str::<AssistantError>(error),
+        Ok(AssistantError::APIError { is_retryable: false, .. })
+    ) {
+        return false;
+    }
+
     !is_non_retryable_llm_error(error)
 }
 

@@ -1181,6 +1181,66 @@ fn run_llm_step_with_retry_stops_on_non_retryable_error() {
 }
 
 #[test]
+fn run_llm_step_with_retry_preserves_length_error_without_repeating_partial_output() {
+    let _guard = test_llm_stream_guard();
+    let error = AssistantError::APIError {
+        message: "max_tokens".into(),
+        status_code: None,
+        is_retryable: false,
+        response_headers: None,
+        response_body: Some("max_tokens".into()),
+        metadata: Some(std::collections::HashMap::from([
+            ("stream_failure_kind".into(), "incomplete".into()),
+            ("source".into(), "aisdk".into()),
+        ])),
+    };
+    for _ in 0..4 {
+        enqueue_test_llm_stream(vec![
+            llm::StreamEvent::ReasoningDelta("partial reasoning".into()),
+            llm::StreamEvent::Error(error.clone()),
+        ]);
+    }
+    let mut deltas = Vec::new();
+    let result = super::run_llm_step_with_retry(
+        "session-length-error",
+        &[],
+        &[],
+        None,
+        &serde_json::json!({}),
+        &[],
+        &HashSet::new(),
+        &mut |event| {
+            if let super::StreamEvent::Delta(text) = event {
+                deltas.push(text);
+            }
+            true
+        },
+        3,
+        0,
+        None,
+    );
+    let actual = result.unwrap_err();
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(&actual).unwrap(),
+        serde_json::to_value(error).unwrap()
+    );
+    assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+    assert_eq!(deltas.join(""), "<think>partial reasoning</think>\n\n");
+}
+
+#[test]
+fn llm_step_retry_allowed_respects_structured_api_error_flag() {
+    assert!(!super::llm_step_retry_allowed(
+        r#"{"name":"APIError","message":"temporary timeout","is_retryable":false}"#,
+        false,
+    ));
+    assert!(super::llm_step_retry_allowed(
+        r#"{"name":"APIError","message":"temporary timeout","is_retryable":true}"#,
+        false,
+    ));
+}
+
+#[test]
 fn run_llm_step_with_retry_treats_zero_retries_as_one_attempt() {
     let _guard = test_llm_stream_guard();
     enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {

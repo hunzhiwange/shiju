@@ -172,6 +172,8 @@ pub use screenshot::ScreenshotTool;
 pub use session_tool::SessionTool;
 #[cfg(not(target_arch = "wasm32"))]
 pub use shell::ShellTool;
+#[cfg(not(target_arch = "wasm32"))]
+pub use shell::session_tools::{BashCancelTool, BashWaitTool};
 pub use skill::SkillTool;
 pub use sleep::SleepTool;
 pub use thread_tool::CreateThreadTool;

@@ -3,7 +3,7 @@
 参数：
 - `command`（必填）：要执行的命令
 - `description`（必填）：用 5-10 个词描述命令作用
-- `timeout`（可选）：超时毫秒数，默认 120000
+- `timeout`（可选）：超时毫秒数，无默认期限
 - `workdir`（可选）：工作目录，推荐使用此参数替代 `cd`
 - `approved`（可选）：监督模式下显式批准命令
 
@@ -18,3 +18,9 @@
 - 用 FileEdit 工具替代 `sed`/`awk` 命令
 - 用 FileRead 工具替代 `cat`/`head`/`tail` 命令
 - 用 FileWrite 工具替代 `echo > file` 命令
+
+进程会话：
+- `yield_time_ms` 默认 10000，整数范围为 250–30000，仅控制首次等待；等待到期不会终止进程。
+- `timeout` 是可选正整数执行期限，无默认期限。
+- `state=running` 表示已受理且仍在执行，不代表命令执行成功。请用 `bash_wait` 携带 `process_id` 与 `next_cursor`（作为 `cursor`）续读，不要重复启动编译。
+- 需要中止时调用 `bash_cancel`，等待进程树回收完成。句柄按可信租户、工作区和会话隔离。不支持 stdin 或 PTY。

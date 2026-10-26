@@ -3,7 +3,7 @@ Execute shell commands in a specified working directory, with timeout controls a
 Parameters:
 - `command` (required): The command to execute.
 - `description` (required): Describe what the command does in 5-10 words.
-- `timeout` (optional): Timeout in milliseconds; defaults to 120000.
+- `timeout` (optional): Optional positive execution deadline in milliseconds; no default deadline.
 - `workdir` (optional): Working directory; prefer this parameter over `cd`.
 - `approved` (optional): Explicitly approve the command in supervised mode.
 
@@ -18,3 +18,8 @@ Recommended usage:
 - Use the FileEdit tool instead of `sed`/`awk` commands.
 - Use the FileRead tool instead of `cat`/`head`/`tail` commands.
 - Use the FileWrite tool instead of `echo > file` commands.
+
+Process sessions:
+- `yield_time_ms` defaults to 10000, integer range 250–30000. It controls the initial wait; waiting does not kill a running command.
+- `state=running` means accepted and still running. Use `bash_wait` with `process_id` and `next_cursor` as `cursor`; do not start the same build again.
+- Use `bash_cancel` to stop the process and reap its descendants. Handles belong to the trusted tenant, workspace and session. No stdin or PTY is supported.

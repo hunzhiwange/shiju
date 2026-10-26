@@ -529,6 +529,8 @@ pub fn default_tools_with_runtime(
     #[cfg(not(target_arch = "wasm32"))]
     if has_shell_access {
         tool_arcs.push(Arc::new(ShellTool::new(security.clone(), runtime.clone())));
+        tool_arcs.push(Arc::new(BashWaitTool::new(security.clone())));
+        tool_arcs.push(Arc::new(BashCancelTool::new(security.clone())));
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -643,6 +645,8 @@ pub fn all_tools_with_runtime(
             runtime.clone(),
             Some(syscall_detector.clone()),
         )));
+        tool_arcs.push(Arc::new(BashWaitTool::new(security.clone())));
+        tool_arcs.push(Arc::new(BashCancelTool::new(security.clone())));
         #[cfg(target_os = "windows")]
         tool_arcs.push(Arc::new(PowerShellTool::new(security.clone())));
         tool_arcs

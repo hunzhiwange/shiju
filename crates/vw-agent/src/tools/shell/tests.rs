@@ -39,6 +39,11 @@ mod tests {
 
     #[tokio::test]
     async fn shell_call_preserves_real_exit_code_without_parsing_output() {
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
         for (command, expected) in
             [("grep '[' missing-recovery-fixture", 2), ("echo exit_code=2", 0)]
         {
@@ -62,6 +67,7 @@ mod tests {
         assert!(!result.is_success());
         assert!(result.data.get("exit_code").is_none());
         assert!(result.render_metadata().get("exit_code").is_none());
+        }).await
     }
 
     #[test]
@@ -222,8 +228,8 @@ mod tests {
             Some("inspect files")
         );
         assert_eq!(extract_description_argument(&json!({"description": "  "})), None);
-        assert_eq!(parse_timeout_ms(&json!({})).unwrap(), DEFAULT_TIMEOUT_MS);
-        assert_eq!(parse_timeout_ms(&json!({"timeout": 17})).unwrap(), 17);
+        assert_eq!(parse_timeout_ms(&json!({})).unwrap(), None);
+        assert_eq!(parse_timeout_ms(&json!({"timeout": 17})).unwrap(), Some(17));
         assert!(
             parse_timeout_ms(&json!({"timeout": 0}))
                 .unwrap_err()
@@ -310,14 +316,21 @@ mod tests {
     /// 且输出包含预期内容，无错误信息
     #[tokio::test]
     async fn shell_executes_allowed_command() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "echo hello"}))
-            .await
-            .expect("echo command execution should succeed");
-        assert!(result.success);
-        assert!(result.output.trim().contains("hello"));
-        assert!(result.error.is_none());
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "echo hello"}))
+                .await
+                .expect("echo command execution should succeed");
+            assert!(result.success);
+            assert!(result.output.trim().contains("hello"));
+            assert!(result.error.is_none());
+        })
+        .await
     }
 
     /// 测试通过 cmd 别名执行命令
@@ -325,69 +338,92 @@ mod tests {
     /// 验证使用 `cmd` 字段而非 `command` 字段时，命令仍能正确执行
     #[tokio::test]
     async fn shell_executes_command_from_cmd_alias() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"cmd": "echo alias"}))
-            .await
-            .expect("cmd alias execution should succeed");
-        assert!(result.success);
-        assert!(result.output.trim().contains("alias"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"cmd": "echo alias"}))
+                .await
+                .expect("cmd alias execution should succeed");
+            assert!(result.success);
+            assert!(result.output.trim().contains("alias"));
+        })
+        .await
     }
 
     #[tokio::test]
     async fn shell_workdir_blocks_external_absolute_path_without_allowlist() {
-        let root = tempfile::tempdir().expect("temp root should be created");
-        let workspace = root.path().join("workspace");
-        let outside = root.path().join("outside");
-        std::fs::create_dir_all(&workspace).expect("workspace should exist");
-        std::fs::create_dir_all(&outside).expect("outside dir should exist");
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let root = tempfile::tempdir().expect("temp root should be created");
+            let workspace = root.path().join("workspace");
+            let outside = root.path().join("outside");
+            std::fs::create_dir_all(&workspace).expect("workspace should exist");
+            std::fs::create_dir_all(&outside).expect("outside dir should exist");
 
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Full,
-            workspace_dir: workspace,
-            ..SecurityPolicy::default()
-        });
-        let tool = ShellTool::new(security, test_runtime());
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Full,
+                workspace_dir: workspace,
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
 
-        let result = tool
-            .execute(json!({
-                "command": "pwd",
-                "description": "print current directory",
-                "workdir": outside.to_string_lossy().to_string()
-            }))
-            .await;
+            let result = tool
+                .execute(json!({
+                    "command": "pwd",
+                    "description": "print current directory",
+                    "workdir": outside.to_string_lossy().to_string()
+                }))
+                .await;
 
-        let err = result.expect_err("external workdir must be rejected");
-        assert!(err.to_string().contains("allowed_roots") || err.to_string().contains("workspace"));
+            let err = result.expect_err("external workdir must be rejected");
+            assert!(
+                err.to_string().contains("allowed_roots") || err.to_string().contains("workspace")
+            );
+        })
+        .await
     }
 
     #[tokio::test]
     async fn shell_workdir_allows_absolute_path_in_allowed_roots() {
-        let root = tempfile::tempdir().expect("temp root should be created");
-        let workspace = root.path().join("workspace");
-        let outside = root.path().join("outside");
-        std::fs::create_dir_all(&workspace).expect("workspace should exist");
-        std::fs::create_dir_all(&outside).expect("outside dir should exist");
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let root = tempfile::tempdir().expect("temp root should be created");
+            let workspace = root.path().join("workspace");
+            let outside = root.path().join("outside");
+            std::fs::create_dir_all(&workspace).expect("workspace should exist");
+            std::fs::create_dir_all(&outside).expect("outside dir should exist");
 
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Full,
-            workspace_dir: workspace,
-            allowed_roots: vec![outside.clone()],
-            ..SecurityPolicy::default()
-        });
-        let tool = ShellTool::new(security, test_runtime());
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Full,
+                workspace_dir: workspace,
+                allowed_roots: vec![outside.clone()],
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
 
-        let result = tool
-            .execute(json!({
-                "command": "pwd",
-                "description": "print current directory",
-                "workdir": outside.to_string_lossy().to_string()
-            }))
-            .await
-            .expect("allowed absolute workdir should succeed");
+            let result = tool
+                .execute(json!({
+                    "command": "pwd",
+                    "description": "print current directory",
+                    "workdir": outside.to_string_lossy().to_string()
+                }))
+                .await
+                .expect("allowed absolute workdir should succeed");
 
-        assert!(result.success);
-        assert!(result.output.contains(outside.to_string_lossy().as_ref()));
+            assert!(result.success);
+            assert!(result.output.contains(outside.to_string_lossy().as_ref()));
+        })
+        .await
     }
 
     /// 测试 Shell 工具阻止高风险命令
@@ -396,14 +432,21 @@ mod tests {
     /// 返回失败结果且错误信息包含"not allowed"或"high-risk"
     #[tokio::test]
     async fn shell_blocks_disallowed_command() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "rm -rf /"}))
-            .await
-            .expect("disallowed command execution should return a result");
-        assert!(!result.success);
-        let error = result.error.as_deref().unwrap_or("");
-        assert!(error.contains("not allowed") || error.contains("high-risk"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "rm -rf /"}))
+                .await
+                .expect("disallowed command execution should return a result");
+            assert!(!result.success);
+            let error = result.error.as_deref().unwrap_or("");
+            assert!(error.contains("not allowed") || error.contains("high-risk"));
+        })
+        .await
     }
 
     /// 测试只读模式下显式只读命令自动放行
@@ -411,24 +454,38 @@ mod tests {
     /// 验证在 ReadOnly 自主级别下，`ls` 这类只读命令仍然可以执行
     #[tokio::test]
     async fn shell_allows_readonly_command_in_readonly_mode() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::ReadOnly), test_runtime());
-        let result = tool
-            .execute(json!({"command": "ls", "description": "list files"}))
-            .await
-            .expect("readonly command execution should return a result");
-        assert!(result.success);
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::ReadOnly), test_runtime());
+            let result = tool
+                .execute(json!({"command": "ls", "description": "list files"}))
+                .await
+                .expect("readonly command execution should return a result");
+            assert!(result.success);
+        })
+        .await
     }
 
     /// 测试只读模式下写命令仍然被阻止
     #[tokio::test]
     async fn shell_blocks_non_readonly_command_in_readonly_mode() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::ReadOnly), test_runtime());
-        let result = tool
-            .execute(json!({"command": "touch created-by-test", "description": "create file"}))
-            .await
-            .expect("write command should return a result");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::ReadOnly), test_runtime());
+            let result = tool
+                .execute(json!({"command": "touch created-by-test", "description": "create file"}))
+                .await
+                .expect("write command should return a result");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        })
+        .await
     }
 
     /// 测试缺少命令参数时返回错误
@@ -437,10 +494,17 @@ mod tests {
     /// 且错误信息包含"command"
     #[tokio::test]
     async fn shell_missing_command_param() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool.execute(json!({})).await;
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("command"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool.execute(json!({})).await;
+            assert!(result.is_err());
+            assert!(result.unwrap_err().to_string().contains("command"));
+        })
+        .await
     }
 
     /// 测试命令参数类型错误时的处理
@@ -448,9 +512,16 @@ mod tests {
     /// 验证当 `command` 字段不是字符串类型时，执行失败
     #[tokio::test]
     async fn shell_wrong_type_param() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool.execute(json!({"command": 123})).await;
-        assert!(result.is_err());
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool.execute(json!({"command": 123})).await;
+            assert!(result.is_err());
+        })
+        .await
     }
 
     /// 测试命令执行失败时正确捕获退出码
@@ -458,12 +529,19 @@ mod tests {
     /// 验证当命令访问不存在的路径时，返回失败结果
     #[tokio::test]
     async fn shell_captures_exit_code() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "ls /nonexistent_dir_xyz"}))
-            .await
-            .expect("command with nonexistent path should return a result");
-        assert!(!result.success);
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "ls /nonexistent_dir_xyz"}))
+                .await
+                .expect("command with nonexistent path should return a result");
+            assert!(!result.success);
+        })
+        .await
     }
 
     /// 测试阻止绝对路径参数
@@ -472,13 +550,20 @@ mod tests {
     /// 防止访问工作目录外的敏感文件
     #[tokio::test]
     async fn shell_blocks_absolute_path_argument() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "cat /etc/passwd"}))
-            .await
-            .expect("absolute path argument should be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "cat /etc/passwd"}))
+                .await
+                .expect("absolute path argument should be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        })
+        .await
     }
 
     /// 测试阻止选项赋值形式的路径参数
@@ -486,13 +571,20 @@ mod tests {
     /// 验证以 `--file=` 形式传递的绝对路径也被正确拦截
     #[tokio::test]
     async fn shell_blocks_option_assignment_path_argument() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "grep --file=/etc/passwd root ./src"}))
-            .await
-            .expect("option-assigned forbidden path should be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "grep --file=/etc/passwd root ./src"}))
+                .await
+                .expect("option-assigned forbidden path should be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        })
+        .await
     }
 
     /// 测试阻止短选项紧贴形式的路径参数
@@ -500,13 +592,20 @@ mod tests {
     /// 验证以 `-f/etc/passwd` 形式（无空格）传递的绝对路径也被拦截
     #[tokio::test]
     async fn shell_blocks_short_option_attached_path_argument() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "grep -f/etc/passwd root ./src"}))
-            .await
-            .expect("short option attached forbidden path should be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "grep -f/etc/passwd root ./src"}))
+                .await
+                .expect("short option attached forbidden path should be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        })
+        .await
     }
 
     /// 测试阻止波浪号用户路径参数
@@ -515,13 +614,20 @@ mod tests {
     /// 防止访问其他用户的敏感文件
     #[tokio::test]
     async fn shell_blocks_tilde_user_path_argument() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "cat ~root/.ssh/id_rsa"}))
-            .await
-            .expect("tilde-user path should be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "cat ~root/.ssh/id_rsa"}))
+                .await
+                .expect("tilde-user path should be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("Path blocked"));
+        })
+        .await
     }
 
     /// 测试阻止输入重定向绕过
@@ -529,13 +635,20 @@ mod tests {
     /// 验证通过 `</etc/passwd` 形式的输入重定向访问敏感文件被阻止
     #[tokio::test]
     async fn shell_blocks_input_redirection_path_bypass() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
-        let result = tool
-            .execute(json!({"command": "cat </etc/passwd"}))
-            .await
-            .expect("input redirection bypass should be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Supervised), test_runtime());
+            let result = tool
+                .execute(json!({"command": "cat </etc/passwd"}))
+                .await
+                .expect("input redirection bypass should be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        })
+        .await
     }
 
     /// 测试 Strip 重定向策略允许常见的 stderr 重定向
@@ -545,31 +658,42 @@ mod tests {
     /// - `2>/dev/null`（丢弃 stderr）被允许
     #[tokio::test]
     async fn shell_strip_policy_allows_common_stderr_redirects() {
-        let tool = ShellTool::new(
-            test_security_with_redirect_policy(
-                AutonomyLevel::Supervised,
-                ShellRedirectPolicy::Strip,
-            ),
-            test_runtime(),
-        );
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(
+                test_security_with_redirect_policy(
+                    AutonomyLevel::Supervised,
+                    ShellRedirectPolicy::Strip,
+                ),
+                test_runtime(),
+            );
 
-        // 测试 stderr 合并到 stdout
-        let merged = tool
-            .execute(json!({"command": "echo redirect-ok 2>&1"}))
-            .await
-            .expect("2>&1 should be normalized under strip policy");
-        assert!(merged.success);
-        assert!(merged.output.contains("redirect-ok"));
+            // 测试 stderr 合并到 stdout
+            let merged = tool
+                .execute(json!({"command": "echo redirect-ok 2>&1"}))
+                .await
+                .expect("2>&1 should be normalized under strip policy");
+            assert!(merged.success);
+            assert!(merged.output.contains("redirect-ok"));
 
-        // 测试 stderr 重定向到 /dev/null
-        let devnull = tool
-            .execute(json!({"command": "ls definitely_missing_shell_redirect 2>/dev/null"}))
-            .await
-            .expect("2>/dev/null should be normalized under strip policy");
-        assert!(!devnull.success);
-        assert!(
-            devnull.error.as_deref().unwrap_or("").contains("definitely_missing_shell_redirect")
-        );
+            // 测试 stderr 重定向到 /dev/null
+            let devnull = tool
+                .execute(json!({"command": "ls definitely_missing_shell_redirect 2>/dev/null"}))
+                .await
+                .expect("2>/dev/null should be normalized under strip policy");
+            assert!(!devnull.success);
+            assert!(
+                devnull
+                    .error
+                    .as_deref()
+                    .unwrap_or("")
+                    .contains("definitely_missing_shell_redirect")
+            );
+        })
+        .await
     }
 
     /// 测试 Strip 策略仍阻止不支持的输出重定向
@@ -578,46 +702,60 @@ mod tests {
     /// 仍然被阻止
     #[tokio::test]
     async fn shell_strip_policy_still_blocks_unsupported_redirects() {
-        let tool = ShellTool::new(
-            test_security_with_redirect_policy(
-                AutonomyLevel::Supervised,
-                ShellRedirectPolicy::Strip,
-            ),
-            test_runtime(),
-        );
-        let result = tool
-            .execute(json!({"command": "echo blocked > out.txt"}))
-            .await
-            .expect("unsupported redirect should still be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(
+                test_security_with_redirect_policy(
+                    AutonomyLevel::Supervised,
+                    ShellRedirectPolicy::Strip,
+                ),
+                test_runtime(),
+            );
+            let result = tool
+                .execute(json!({"command": "echo blocked > out.txt"}))
+                .await
+                .expect("unsupported redirect should still be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        })
+        .await
     }
 
     #[tokio::test]
     async fn shell_allow_policy_executes_file_redirect() {
-        let tmp = TempDir::new().unwrap();
-        let output_path = tmp.path().join("allow-output.txt");
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Full,
-            workspace_dir: tmp.path().to_path_buf(),
-            allowed_commands: vec!["printf".into()],
-            forbidden_paths: Vec::new(),
-            require_approval_for_medium_risk: false,
-            block_high_risk_commands: false,
-            allow_unsafe_shell_patterns: true,
-            shell_redirect_policy: ShellRedirectPolicy::Allow,
-            ..SecurityPolicy::default()
-        });
-        let tool = ShellTool::new(security, test_runtime());
-        let command = format!("printf redirected > {}", output_path.display());
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tmp = TempDir::new().unwrap();
+            let output_path = tmp.path().join("allow-output.txt");
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Full,
+                workspace_dir: tmp.path().to_path_buf(),
+                allowed_commands: vec!["printf".into()],
+                forbidden_paths: Vec::new(),
+                require_approval_for_medium_risk: false,
+                block_high_risk_commands: false,
+                allow_unsafe_shell_patterns: true,
+                shell_redirect_policy: ShellRedirectPolicy::Allow,
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
+            let command = format!("printf redirected > {}", output_path.display());
 
-        let result = tool
-            .execute(json!({"command": command}))
-            .await
-            .expect("allow redirect command should execute");
+            let result = tool
+                .execute(json!({"command": command}))
+                .await
+                .expect("allow redirect command should execute");
 
-        assert!(result.success, "{result:?}");
-        assert_eq!(std::fs::read_to_string(output_path).unwrap(), "redirected");
+            assert!(result.success, "{result:?}");
+            assert_eq!(std::fs::read_to_string(output_path).unwrap(), "redirected");
+        })
+        .await
     }
 
     /// 创建允许 env 和 echo 命令的测试安全策略
@@ -692,25 +830,32 @@ mod tests {
     /// 不会出现在 `env` 命令的输出中
     #[tokio::test(flavor = "current_thread")]
     async fn shell_does_not_leak_api_key() {
-        let _lock =
-            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
-        let _g1 = EnvGuard::set("API_KEY", "sk-test-secret-12345");
-        let _g2 = EnvGuard::set("VIBEWINDOW_API_KEY", "sk-test-secret-67890");
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let _lock =
+                crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let _g1 = EnvGuard::set("API_KEY", "sk-test-secret-12345");
+            let _g2 = EnvGuard::set("VIBEWINDOW_API_KEY", "sk-test-secret-67890");
 
-        let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
-        let result = tool
-            .execute(json!({"command": "env"}))
-            .await
-            .expect("env command execution should succeed");
-        assert!(result.success);
-        assert!(
-            !result.output.contains("sk-test-secret-12345"),
-            "API_KEY leaked to shell command output"
-        );
-        assert!(
-            !result.output.contains("sk-test-secret-67890"),
-            "VIBEWINDOW_API_KEY leaked to shell command output"
-        );
+            let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
+            let result = tool
+                .execute(json!({"command": "env"}))
+                .await
+                .expect("env command execution should succeed");
+            assert!(result.success);
+            assert!(
+                !result.output.contains("sk-test-secret-12345"),
+                "API_KEY leaked to shell command output"
+            );
+            assert!(
+                !result.output.contains("sk-test-secret-67890"),
+                "VIBEWINDOW_API_KEY leaked to shell command output"
+            );
+        })
+        .await
     }
 
     /// 测试 Shell 环境保留 PATH 和 HOME 变量
@@ -719,13 +864,26 @@ mod tests {
     /// 在 shell 环境中可用
     #[tokio::test]
     async fn shell_preserves_path_and_home_for_env_command() {
-        let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
 
-        let result =
-            tool.execute(json!({"command": "env"})).await.expect("env command should succeed");
-        assert!(result.success);
-        assert!(result.output.contains("HOME="), "HOME should be available in shell environment");
-        assert!(result.output.contains("PATH="), "PATH should be available in shell environment");
+            let result =
+                tool.execute(json!({"command": "env"})).await.expect("env command should succeed");
+            assert!(result.success);
+            assert!(
+                result.output.contains("HOME="),
+                "HOME should be available in shell environment"
+            );
+            assert!(
+                result.output.contains("PATH="),
+                "PATH should be available in shell environment"
+            );
+        })
+        .await
     }
 
     /// 测试阻止普通变量展开
@@ -733,13 +891,20 @@ mod tests {
     /// 验证 `$HOME` 等变量展开语法被阻止，防止信息泄露
     #[tokio::test]
     async fn shell_blocks_plain_variable_expansion() {
-        let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
-        let result = tool
-            .execute(json!({"command": "echo $HOME"}))
-            .await
-            .expect("plain variable expansion should be blocked");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security_with_env_cmd(), test_runtime());
+            let result = tool
+                .execute(json!({"command": "echo $HOME"}))
+                .await
+                .expect("plain variable expansion should be blocked");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("not allowed"));
+        })
+        .await
     }
 
     /// 测试配置的环境变量透传功能
@@ -747,20 +912,27 @@ mod tests {
     /// 验证在 `shell_env_passthrough` 中配置的变量能够传递到 shell 环境
     #[tokio::test(flavor = "current_thread")]
     async fn shell_allows_configured_env_passthrough() {
-        let _lock =
-            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
-        let _guard = EnvGuard::set("VIBEWINDOW_TEST_PASSTHROUGH", "db://unit-test");
-        let tool = ShellTool::new(
-            test_security_with_env_passthrough(&["VIBEWINDOW_TEST_PASSTHROUGH"]),
-            test_runtime(),
-        );
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let _lock =
+                crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let _guard = EnvGuard::set("VIBEWINDOW_TEST_PASSTHROUGH", "db://unit-test");
+            let tool = ShellTool::new(
+                test_security_with_env_passthrough(&["VIBEWINDOW_TEST_PASSTHROUGH"]),
+                test_runtime(),
+            );
 
-        let result = tool
-            .execute(json!({"command": "env"}))
-            .await
-            .expect("env command execution should succeed");
-        assert!(result.success);
-        assert!(result.output.contains("VIBEWINDOW_TEST_PASSTHROUGH=db://unit-test"));
+            let result = tool
+                .execute(json!({"command": "env"}))
+                .await
+                .expect("env command execution should succeed");
+            assert!(result.success);
+            assert!(result.output.contains("VIBEWINDOW_TEST_PASSTHROUGH=db://unit-test"));
+        })
+        .await
     }
 
     /// 测试无效的环境变量名被过滤
@@ -787,24 +959,31 @@ mod tests {
 
     #[tokio::test(flavor = "current_thread")]
     async fn apply_allowed_shell_environment_injects_effective_path() {
-        let _lock =
-            crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
-        let path_guard = EnvGuard::set("PATH", "/usr/bin:/bin");
-        let expected = allowed_shell_env_value("PATH").expect("effective PATH should resolve");
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let _lock =
+                crate::test_support::global_env_lock().lock().unwrap_or_else(|e| e.into_inner());
+            let path_guard = EnvGuard::set("PATH", "/usr/bin:/bin");
+            let expected = allowed_shell_env_value("PATH").expect("effective PATH should resolve");
 
-        let security = test_security_with_env_cmd();
-        let mut cmd = tokio::process::Command::new("env");
-        apply_allowed_shell_environment(&mut cmd, &security);
-        let output = cmd.output().await.expect("env command should execute");
-        let stdout = String::from_utf8_lossy(&output.stdout);
+            let security = test_security_with_env_cmd();
+            let mut cmd = tokio::process::Command::new("env");
+            apply_allowed_shell_environment(&mut cmd, &security);
+            let output = cmd.output().await.expect("env command should execute");
+            let stdout = String::from_utf8_lossy(&output.stdout);
 
-        drop(path_guard);
+            drop(path_guard);
 
-        let path_line = stdout
-            .lines()
-            .find(|line| line.starts_with("PATH="))
-            .expect("PATH should be present in command environment");
-        assert_eq!(path_line, format!("PATH={expected}"));
+            let path_line = stdout
+                .lines()
+                .find(|line| line.starts_with("PATH="))
+                .expect("PATH should be present in command environment");
+            assert_eq!(path_line, format!("PATH={expected}"));
+        })
+        .await
     }
 
     /// 测试中风险命令需要显式批准
@@ -813,55 +992,61 @@ mod tests {
     /// 需要通过 `approved: true` 参数才能执行
     #[tokio::test]
     async fn shell_requires_approval_for_medium_risk_command() {
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Supervised,
-            allowed_commands: vec!["touch".into()],
-            workspace_dir: std::env::temp_dir(),
-            ..SecurityPolicy::default()
-        });
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Supervised,
+                allowed_commands: vec!["touch".into()],
+                workspace_dir: std::env::temp_dir(),
+                ..SecurityPolicy::default()
+            });
 
-        let tool = ShellTool::new(security.clone(), test_runtime());
+            let tool = ShellTool::new(security.clone(), test_runtime());
 
-        // 未批准时应该被拒绝
-        let denied = tool
-            .execute(json!({"command": "touch vibewindow_shell_approval_test"}))
-            .await
-            .expect("unapproved command should return a result");
-        assert!(!denied.success);
-        assert!(denied.error.as_deref().unwrap_or("").contains("explicit approval"));
+            // 未批准时应该被拒绝
+            let denied = tool
+                .execute(json!({"command": "touch vibewindow_shell_approval_test"}))
+                .await
+                .expect("unapproved command should return a result");
+            assert!(!denied.success);
+            assert!(denied.error.as_deref().unwrap_or("").contains("explicit approval"));
 
-        // 批准后应该成功执行
-        let allowed = tool
-            .execute(json!({
-                "command": "touch vibewindow_shell_approval_test",
-                "approved": true
-            }))
-            .await
-            .expect("approved command execution should succeed");
-        assert!(allowed.success);
+            // 批准后应该成功执行
+            let allowed = tool
+                .execute(json!({
+                    "command": "touch vibewindow_shell_approval_test",
+                    "approved": true
+                }))
+                .await
+                .expect("approved command execution should succeed");
+            assert!(allowed.success);
 
-        // 清理测试文件
-        let _ = tokio::fs::remove_file(std::env::temp_dir().join("vibewindow_shell_approval_test"))
-            .await;
+            // 清理测试文件
+            let _ =
+                tokio::fs::remove_file(std::env::temp_dir().join("vibewindow_shell_approval_test"))
+                    .await;
+        })
+        .await
     }
 
     // ── §5.2 Shell 超时执行测试 ─────────────────
 
     /// 测试 Shell 超时常量值是否合理
     ///
-    /// 验证默认超时为 120000ms，与合并后的 schema 保持一致
+    /// 验证默认等待为 10000ms，与 schema 保持一致
     #[test]
-    fn shell_timeout_constant_is_reasonable() {
-        assert_eq!(DEFAULT_TIMEOUT_MS, 120_000, "shell timeout must default to 120000ms");
+    fn shell_yield_default_is_ten_seconds() {
+        assert_eq!(DEFAULT_YIELD_TIME_MS, 10_000, "shell yield must default to 10000ms");
     }
 
-    /// 测试输出限制为 1MB
-    ///
-    /// 验证 `MAX_OUTPUT_BYTES` 为 1,048,576 字节（1MB），
-    /// 防止命令输出占用过多内存
+    /// 等待期限越界时明确拒绝。
     #[test]
-    fn shell_output_limit_is_1mb() {
-        assert_eq!(MAX_OUTPUT_BYTES, 1_048_576, "max output must be 1 MB to prevent OOM");
+    fn shell_yield_rejects_out_of_range_values() {
+        assert!(parse_yield_time_ms(&json!({"yield_time_ms": 249})).is_err());
+        assert!(parse_yield_time_ms(&json!({"yield_time_ms": 30001})).is_err());
     }
 
     // ── §5.3 非 UTF-8 二进制输出测试 ────────────────────
@@ -896,19 +1081,26 @@ mod tests {
     /// 验证当 `max_actions_per_hour` 为 0 时，所有命令都被阻止
     #[tokio::test]
     async fn shell_blocks_rate_limited() {
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Supervised,
-            max_actions_per_hour: 0,
-            workspace_dir: std::env::temp_dir(),
-            ..SecurityPolicy::default()
-        });
-        let tool = ShellTool::new(security, test_runtime());
-        let result = tool
-            .execute(json!({"command": "echo test"}))
-            .await
-            .expect("rate-limited command should return a result");
-        assert!(!result.success);
-        assert!(result.error.as_deref().unwrap_or("").contains("Rate limit"));
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Supervised,
+                max_actions_per_hour: 0,
+                workspace_dir: std::env::temp_dir(),
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
+            let result = tool
+                .execute(json!({"command": "echo test"}))
+                .await
+                .expect("rate-limited command should return a result");
+            assert!(!result.success);
+            assert!(result.error.as_deref().unwrap_or("").contains("Rate limit"));
+        })
+        .await
     }
 
     /// 测试处理不存在的命令
@@ -916,15 +1108,22 @@ mod tests {
     /// 验证执行不存在的命令时返回失败结果，而非 panic
     #[tokio::test]
     async fn shell_handles_nonexistent_command() {
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Full,
-            workspace_dir: std::env::temp_dir(),
-            ..SecurityPolicy::default()
-        });
-        let tool = ShellTool::new(security, test_runtime());
-        let result =
-            tool.execute(json!({"command": "nonexistent_binary_xyz_12345"})).await.unwrap();
-        assert!(!result.success);
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Full,
+                workspace_dir: std::env::temp_dir(),
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
+            let result =
+                tool.execute(json!({"command": "nonexistent_binary_xyz_12345"})).await.unwrap();
+            assert!(!result.success);
+        })
+        .await
     }
 
     /// 测试捕获 stderr 输出
@@ -932,18 +1131,25 @@ mod tests {
     /// 验证命令的 stderr 输出会合并到 output 中，并进行 CRLF 归一化
     #[tokio::test]
     async fn shell_captures_stderr_output() {
-        let tool = ShellTool::new(test_security(AutonomyLevel::Full), test_runtime());
-        let result = tool
-            .execute(json!({
-                "command": "printf 'out\\r\\n'; printf 'err\\r\\n' >&2",
-                "description": "emit stdout and stderr"
-            }))
-            .await
-            .unwrap();
-        assert!(result.success);
-        assert!(result.output.contains("out\n"));
-        assert!(result.output.contains("err\n"));
-        assert!(result.error.is_none());
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tool = ShellTool::new(test_security(AutonomyLevel::Full), test_runtime());
+            let result = tool
+                .execute(json!({
+                    "command": "printf 'out\\r\\n'; printf 'err\\r\\n' >&2",
+                    "description": "emit stdout and stderr"
+                }))
+                .await
+                .unwrap();
+            assert!(result.success);
+            assert!(result.output.contains("out\n"));
+            assert!(result.output.contains("err\n"));
+            assert!(result.error.is_none());
+        })
+        .await
     }
 
     /// 测试动作配额耗尽时的行为
@@ -951,25 +1157,32 @@ mod tests {
     /// 验证当小时配额耗尽后，后续命令被阻止
     #[tokio::test]
     async fn shell_record_action_budget_exhaustion() {
-        let security = Arc::new(SecurityPolicy {
-            autonomy: AutonomyLevel::Full,
-            max_actions_per_hour: 1,
-            workspace_dir: std::env::temp_dir(),
-            ..SecurityPolicy::default()
-        });
-        let tool = ShellTool::new(security, test_runtime());
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let security = Arc::new(SecurityPolicy {
+                autonomy: AutonomyLevel::Full,
+                max_actions_per_hour: 1,
+                workspace_dir: std::env::temp_dir(),
+                ..SecurityPolicy::default()
+            });
+            let tool = ShellTool::new(security, test_runtime());
 
-        // 第一次执行应该成功
-        let r1 = tool.execute(json!({"command": "echo first"})).await.unwrap();
-        assert!(r1.success);
+            // 第一次执行应该成功
+            let r1 = tool.execute(json!({"command": "echo first"})).await.unwrap();
+            assert!(r1.success);
 
-        // 第二次执行应该因配额耗尽而失败
-        let r2 = tool.execute(json!({"command": "echo second"})).await.unwrap();
-        assert!(!r2.success);
-        assert!(
-            r2.error.as_deref().unwrap_or("").contains("Rate limit")
-                || r2.error.as_deref().unwrap_or("").contains("budget")
-        );
+            // 第二次执行应该因配额耗尽而失败
+            let r2 = tool.execute(json!({"command": "echo second"})).await.unwrap();
+            assert!(!r2.success);
+            assert!(
+                r2.error.as_deref().unwrap_or("").contains("Rate limit")
+                    || r2.error.as_deref().unwrap_or("").contains("budget")
+            );
+        })
+        .await
     }
 
     /// 测试系统调用异常检测器写入异常日志
@@ -978,28 +1191,35 @@ mod tests {
     /// 异常检测器将记录写入日志文件
     #[tokio::test]
     async fn shell_syscall_detector_writes_anomaly_log() {
-        let tmp = tempfile::tempdir().expect("temp dir should be created");
-        let log_path = tmp.path().join("shell-syscall-anomalies.log");
-        let detector = test_syscall_detector(&tmp);
-        let tool = ShellTool::new_with_syscall_detector(
-            test_security(AutonomyLevel::Full),
-            test_runtime(),
-            Some(detector),
-        );
+        let context = Arc::new(crate::tools::context::ToolUseContext::new(
+            uuid::Uuid::new_v4().to_string(),
+            Some(std::env::temp_dir().to_string_lossy().to_string()),
+        ));
+        crate::tools::scope_tool_use_context(context, async {
+            let tmp = tempfile::tempdir().expect("temp dir should be created");
+            let log_path = tmp.path().join("shell-syscall-anomalies.log");
+            let detector = test_syscall_detector(&tmp);
+            let tool = ShellTool::new_with_syscall_detector(
+                test_security(AutonomyLevel::Full),
+                test_runtime(),
+                Some(detector),
+            );
 
-        // 执行会触发 openat 系统调用的命令
-        let result = tool
-            .execute(json!({"command": "echo seccomp denied syscall=openat"}))
-            .await
-            .expect("command execution should return result");
-        assert!(result.success);
-        assert!(result.output.contains("openat"));
+            // 执行会触发 openat 系统调用的命令
+            let result = tool
+                .execute(json!({"command": "echo seccomp denied syscall=openat"}))
+                .await
+                .expect("command execution should return result");
+            assert!(result.success);
+            assert!(result.output.contains("openat"));
 
-        // 验证异常日志被正确写入
-        let log = tokio::fs::read_to_string(&log_path)
-            .await
-            .expect("syscall anomaly log should be written");
-        assert!(log.contains("\"kind\":\"unknown_syscall\""));
-        assert!(log.contains("\"syscall\":\"openat\""));
+            // 验证异常日志被正确写入
+            let log = tokio::fs::read_to_string(&log_path)
+                .await
+                .expect("syscall anomaly log should be written");
+            assert!(log.contains("\"kind\":\"unknown_syscall\""));
+            assert!(log.contains("\"syscall\":\"openat\""));
+        })
+        .await
     }
 }

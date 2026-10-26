@@ -426,6 +426,8 @@ fn default_tools_include_native_capability_tools() {
     let tools = default_tools_with_runtime(Arc::new(SecurityPolicy::default()), runtime);
     let names = tools.iter().map(|tool| tool.name()).collect::<Vec<_>>();
 
+    assert!(names.contains(&"bash_wait"));
+    assert!(names.contains(&"bash_cancel"));
     assert!(names.contains(&"file_read"));
     assert!(names.contains(&"batch"));
 }
@@ -502,6 +504,8 @@ fn all_tools_with_runtime_respects_optional_tool_configurations() {
     );
     let names = tool_names(&tools);
 
+    assert!(names.contains(&"bash_wait"));
+    assert!(names.contains(&"bash_cancel"));
     assert!(!names.contains(&"browser_open"));
     assert!(names.contains(&"browser"));
     assert!(names.contains(&"http_request"));

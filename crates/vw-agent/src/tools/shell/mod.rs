@@ -45,6 +45,8 @@ pub mod readonly;
 pub mod sandbox;
 pub mod security;
 pub mod sed;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod session_tools;
 
 use super::traits::{Tool, ToolResult, ToolSpec};
 use crate::app::agent::runtime::RuntimeAdapter;
@@ -63,14 +65,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
-/// Shell 命令默认超时时间（毫秒）。
-const DEFAULT_TIMEOUT_MS: u64 = 120_000;
-
-/// 最大输出字节数（1MB）
-///
-/// 限制命令输出的大小，防止超大输出导致内存溢出（OOM）。
-/// 当输出超过此限制时，将被自动截断并在末尾添加截断标记。
-const MAX_OUTPUT_BYTES: usize = 1_048_576;
+/// 首次等待输出的默认时间（毫秒），不限制进程执行期限。
+const DEFAULT_YIELD_TIME_MS: u64 = 10_000;
 
 /// 安全的环境变量列表
 ///
@@ -113,13 +109,16 @@ pub struct ShellTool {
     runtime: Arc<dyn RuntimeAdapter>,
     syscall_detector: Option<Arc<SyscallAnomalyDetector>>,
     sandbox_config: SandboxConfig,
+    #[cfg(not(target_arch = "wasm32"))]
+    tenant: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ShellArgs {
     command: String,
     description: String,
-    timeout_ms: u64,
+    timeout_ms: Option<u64>,
+    yield_time_ms: u64,
     workdir: PathBuf,
     approved: bool,
 }
@@ -216,7 +215,14 @@ impl ShellTool {
         syscall_detector: Option<Arc<SyscallAnomalyDetector>>,
         sandbox_config: SandboxConfig,
     ) -> Self {
-        Self { security, runtime, syscall_detector, sandbox_config }
+        Self {
+            security,
+            runtime,
+            syscall_detector,
+            sandbox_config,
+            #[cfg(not(target_arch = "wasm32"))]
+            tenant: session_tools::trusted_tenant(),
+        }
     }
 
     fn parse_args(&self, args: &serde_json::Value) -> anyhow::Result<ShellArgs> {
@@ -225,11 +231,12 @@ impl ShellTool {
         let description =
             extract_description_argument(args).unwrap_or_else(|| format!("run: {command}"));
         let timeout_ms = parse_timeout_ms(args)?;
+        let yield_time_ms = parse_yield_time_ms(args)?;
         let approved = args.get("approved").and_then(|v| v.as_bool()).unwrap_or(false);
         let workdir =
             resolve_workdir(args.get("workdir").and_then(|value| value.as_str()), &self.security)?;
 
-        Ok(ShellArgs { command, description, timeout_ms, workdir, approved })
+        Ok(ShellArgs { command, description, timeout_ms, yield_time_ms, workdir, approved })
     }
 
     fn sandbox_config_for_workdir(&self, workdir: &Path) -> SandboxConfig {
@@ -484,9 +491,9 @@ fn extract_description_argument(args: &serde_json::Value) -> Option<String> {
         .map(ToString::to_string)
 }
 
-fn parse_timeout_ms(args: &serde_json::Value) -> anyhow::Result<u64> {
+fn parse_timeout_ms(args: &serde_json::Value) -> anyhow::Result<Option<u64>> {
     match args.get("timeout") {
-        None => Ok(DEFAULT_TIMEOUT_MS),
+        None => Ok(None),
         Some(value) => {
             let timeout = value
                 .as_u64()
@@ -499,9 +506,22 @@ fn parse_timeout_ms(args: &serde_json::Value) -> anyhow::Result<u64> {
                 anyhow::bail!("'timeout' must be greater than 0");
             }
 
-            Ok(timeout)
+            Ok(Some(timeout))
         }
     }
+}
+
+fn parse_yield_time_ms(args: &serde_json::Value) -> anyhow::Result<u64> {
+    let value = match args.get("yield_time_ms") {
+        None => DEFAULT_YIELD_TIME_MS,
+        Some(value) => {
+            value.as_u64().ok_or_else(|| anyhow::anyhow!("'yield_time_ms' must be an integer"))?
+        }
+    };
+    if !(250..=30_000).contains(&value) {
+        anyhow::bail!("'yield_time_ms' must be between 250 and 30000");
+    }
+    Ok(value)
 }
 
 fn resolve_workdir(raw: Option<&str>, security: &SecurityPolicy) -> anyhow::Result<PathBuf> {
@@ -579,7 +599,7 @@ impl Tool for ShellTool {
     /// JSON Schema 对象，包含以下字段：
     /// - `command`: (必填) 要执行的 Shell 命令字符串
     /// - `description`: (必填) 5-10 个词描述命令作用
-    /// - `timeout`: (可选) 超时毫秒数，默认 120000
+    /// - `timeout`: (可选) 正整数执行期限毫秒数，无默认期限
     /// - `workdir`: (可选) 命令工作目录
     /// - `approved`: (可选) 布尔值，设为 true 可在监督模式下显式批准中/高风险命令
     ///
@@ -615,8 +635,13 @@ impl Tool for ShellTool {
                     "description": "Describe the command's purpose in 5-10 words"
                 },
                 "timeout": {
-                    "type": "number",
-                    "description": "Timeout in milliseconds. Defaults to 120000."
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Optional positive execution deadline in milliseconds; no default deadline."
+                },
+                "yield_time_ms": {
+                    "type": "integer", "minimum": 250, "maximum": 30000, "default": 10000,
+                    "description": "Initial output wait in milliseconds; running processes continue after this wait."
                 },
                 "workdir": {
                     "type": "string",
@@ -659,16 +684,15 @@ impl Tool for ShellTool {
         &self,
         input: serde_json::Value,
     ) -> anyhow::Result<super::traits::ToolCallResult> {
-        let mut exit_code = None;
-        let legacy = self.execute_with_exit_code(input, &mut exit_code).await?;
-        let mut result = super::traits::ToolCallResult::from_legacy_result(legacy);
-        let mut hint = super::traits::ToolRenderHint::titled(self.spec().display_name);
-        if let Some(code) = exit_code {
-            result.data["exit_code"] = json!(code);
-            hint.metadata = json!({ "exit_code": code });
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            self.call_session(input).await
         }
-        result.render_hint = Some(hint);
-        Ok(result)
+        #[cfg(target_arch = "wasm32")]
+        {
+            let _ = input;
+            anyhow::bail!("Shell sessions require a native runtime")
+        }
     }
 
     /// 执行 Shell 命令
@@ -707,7 +731,7 @@ impl Tool for ShellTool {
     /// - 路径访问控制：阻止访问安全策略禁止的路径
     /// - 动作预算管理：限制总操作次数
     /// - 环境变量过滤：只传递白名单中的安全变量
-    /// - 超时保护：60 秒后强制终止命令
+    /// - 显式期限：仅在提供 timeout 时到期终止命令
     /// - 输出截断：限制输出大小为 1MB
     ///
     /// # 错误处理
@@ -736,175 +760,12 @@ impl Tool for ShellTool {
     /// })).await?;
     /// ```
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        self.execute_with_exit_code(args, &mut None).await
-    }
-}
-
-impl ShellTool {
-    #[allow(clippy::incompatible_msrv)]
-    async fn execute_with_exit_code(
-        &self,
-        args: serde_json::Value,
-        exit_code: &mut Option<i32>,
-    ) -> anyhow::Result<ToolResult> {
-        let shell_args = self.parse_args(&args)?;
-        let command = shell_args.command.clone();
-
-        // 检查小时级速率限制
-        if self.security.is_rate_limited() {
-            let msg = "Rate limit exceeded: too many actions in the last hour";
-            tracing::warn!(command = %command, "shell tool: rate limited");
-            return Ok(ToolResult {
-                success: false,
-                output: msg.to_string(),
-                error: Some(msg.into()),
-            });
-        }
-
-        let execution_plan = match self.validate_execution_plan(&shell_args) {
-            Ok(plan) => plan,
-            Err(error) => {
-                let message = error.to_string();
-                tracing::warn!(command = %command, reason = %message, "shell tool: command blocked");
-                return Ok(ToolResult {
-                    success: false,
-                    output: format!("Command blocked: {message}"),
-                    error: Some(message),
-                });
-            }
-        };
-
-        tracing::debug!(
-            command = %command,
-            effective_command = %execution_plan.effective_command,
-            description = %shell_args.description,
-            approved = shell_args.approved,
-            timeout_ms = shell_args.timeout_ms,
-            workdir = %shell_args.workdir.display(),
-            allow_unsafe_shell_patterns = self.security.allow_unsafe_shell_patterns,
-            autonomy = ?self.security.autonomy,
-            "shell tool: executing command"
-        );
-
-        let risk = self.security.command_risk_level(&execution_plan.effective_command);
-        tracing::debug!(
-            command = %command,
-            risk = ?risk,
-            sandboxed = execution_plan.sandbox_decision.use_sandbox,
-            sandbox_reason = ?execution_plan.sandbox_decision.reason,
-            "shell tool: command validated"
-        );
-
-        // 消耗动作预算（检查是否还有剩余预算）
-        if !self.security.record_action() {
-            let msg = "Rate limit exceeded: action budget exhausted";
-            tracing::warn!(command = %command, "shell tool: action budget exhausted");
-            return Ok(ToolResult {
-                success: false,
-                output: msg.to_string(),
-                error: Some(msg.into()),
-            });
-        }
-
-        tracing::debug!(command = %execution_plan.effective_command, "shell tool: executing");
-
-        // 构建命令执行器，使用超时机制防止命令挂起
-        // 清除环境变量以防止泄露 API 密钥等敏感信息（CWE-200）
-        // 然后只重新添加安全的、功能性的环境变量
-        let mut cmd = if execution_plan.sandbox_decision.use_sandbox {
-            match SandboxExecutor::new(execution_plan.sandbox_config.clone()).build_command(
-                self.runtime.as_ref(),
-                &execution_plan.effective_command,
-                &shell_args.workdir,
-            ) {
-                Ok(cmd) => cmd,
-                Err(e) => {
-                    let msg = format!("Failed to build sandboxed command: {e}");
-                    return Ok(ToolResult {
-                        success: false,
-                        output: msg.clone(),
-                        error: Some(msg),
-                    });
-                }
-            }
-        } else {
-            match self
-                .runtime
-                .build_shell_command(&execution_plan.effective_command, &shell_args.workdir)
-            {
-                Ok(cmd) => cmd,
-                Err(e) => {
-                    let msg = format!("Failed to build runtime command: {e}");
-                    return Ok(ToolResult {
-                        success: false,
-                        output: msg.clone(),
-                        error: Some(msg),
-                    });
-                }
-            }
-        };
-
-        // 只注入白名单中的安全环境变量
-        apply_allowed_shell_environment(&mut cmd, &self.security);
-        cmd.kill_on_drop(true);
-
-        // 在超时限制内执行命令
-        let result =
-            tokio::time::timeout(Duration::from_millis(shell_args.timeout_ms), cmd.output()).await;
-
-        match result {
-            Ok(Ok(output)) => {
-                // 命令执行成功，处理输出
-                let mut stdout =
-                    normalize_line_endings(String::from_utf8_lossy(&output.stdout).to_string());
-                let mut stderr =
-                    normalize_line_endings(String::from_utf8_lossy(&output.stderr).to_string());
-
-                // 截断过大的输出以防止内存溢出（OOM）
-                if stdout.len() > MAX_OUTPUT_BYTES {
-                    stdout.truncate(crate::app::agent::util::floor_utf8_char_boundary(
-                        &stdout,
-                        MAX_OUTPUT_BYTES,
-                    ));
-                    stdout.push_str("\n... [output truncated at 1MB]");
-                }
-                if stderr.len() > MAX_OUTPUT_BYTES {
-                    stderr.truncate(crate::app::agent::util::floor_utf8_char_boundary(
-                        &stderr,
-                        MAX_OUTPUT_BYTES,
-                    ));
-                    stderr.push_str("\n... [stderr truncated at 1MB]");
-                }
-
-                // 如果启用了系统调用检测器，检查输出中的可疑模式
-                if let Some(detector) = &self.syscall_detector {
-                    let _ = detector.inspect_command_output(
-                        &execution_plan.effective_command,
-                        &stdout,
-                        &stderr,
-                        output.status.code(),
-                    );
-                }
-
-                let parsed = parse_command(&execution_plan.effective_command);
-                let semantics = ExitSemantics::for_parsed_command(&parsed);
-                *exit_code = output.status.code();
-                let interpretation = semantics.interpret(*exit_code);
-
-                Ok(tool_result_from_interpretation(interpretation, stdout, stderr))
-            }
-            Ok(Err(e)) => {
-                // 命令执行失败（例如：命令不存在）
-                let msg = format!("Failed to execute command: {e}");
-                Ok(ToolResult { success: false, output: msg.clone(), error: Some(msg) })
-            }
-            Err(_) => {
-                // 命令执行超时
-                let msg =
-                    format!("Command timed out after {}ms and was killed", shell_args.timeout_ms);
-                Ok(ToolResult { success: false, output: msg.clone(), error: Some(msg) })
-            }
-        }
+        let result = self.call(args).await?;
+        Ok(ToolResult {
+            success: result.is_success(),
+            output: result.data["output"].as_str().unwrap_or_default().to_string(),
+            error: result.data["error"].as_str().map(str::to_owned),
+        })
     }
 }
 
@@ -958,3 +819,7 @@ fn append_note(mut output: String, note: &str) -> String {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "session_tools_tests.rs"]
+mod session_tools_tests;

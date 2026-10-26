@@ -825,3 +825,6 @@ mod tests;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "session_tools_tests.rs"]
 mod session_tools_tests;
+
+#[cfg(all(test, unix))]
+mod long_running_tests;

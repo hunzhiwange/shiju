@@ -1255,6 +1255,7 @@ pub(super) fn handle_agent_stream_done(
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+    clear_model_recovery(app, &session_id);
     let _ = flush_agent_stream_delta(app, session_id.clone());
     clear_agent_stream_session_save_flush(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);
@@ -1592,18 +1593,32 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
     };
 
     let Some(session_id) = app.find_session_by_request_id(id) else {
-        // 请求态可能已因取消/切会话被清掉；仍用 toast 暴露错误，避免界面“假死”。
         crate::app::state::clear_pending_guide_handoff(id);
         if let Some(active_id) = app.active_session_id.clone() {
             let runtime = app.get_session_runtime_mut(&active_id);
+            // 迟到的旧请求错误不得结束正在运行的新请求。
+            if runtime.active_agent_request.is_some() {
+                return Task::none();
+            }
             if runtime.is_requesting {
                 runtime.is_requesting = false;
                 runtime.has_unseen_success = false;
-                runtime.active_agent_request = None;
                 app.sync_task_pet_from_runtime();
             }
         }
         return app.show_error_toast(display_err);
+    };
+    let recovery = clear_model_recovery(app, &session_id);
+    let display_err = if let Some((request, event)) = recovery
+        && request == id
+        && event.phase == vw_gateway_client::GatewayModelRecoveryPhase::Stopped
+    {
+        format!(
+            "{}\n{display_err}",
+            crate::app::components::chat_panel::message_view::model_recovery_text(&event)
+        )
+    } else {
+        display_err
     };
     settle_interrupted_compaction(
         app,
@@ -1698,3 +1713,56 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
 #[cfg(test)]
 #[path = "stream_events_tests.rs"]
 mod stream_events_tests;
+
+pub(super) fn clear_model_recovery(
+    app: &mut App,
+    session_id: &str,
+) -> Option<(u64, vw_gateway_client::GatewayModelRecoveryEvent)> {
+    let recovery = app.get_session_runtime_mut(session_id).model_recovery.take();
+    if let Some((_, event)) = &recovery
+        && app.active_session_id.as_deref() == Some(session_id)
+        && app.active_toast.as_ref().is_some_and(|toast| {
+            toast.message
+                == crate::app::components::chat_panel::message_view::model_recovery_text(event)
+        })
+    {
+        app.active_toast = None;
+    }
+    recovery
+}
+
+pub(super) fn handle_agent_model_recovery(
+    app: &mut App,
+    id: u64,
+    event: vw_gateway_client::GatewayModelRecoveryEvent,
+) -> Task<Message> {
+    let Some(session_id) = app.find_session_by_request_id(id) else {
+        return Task::none();
+    };
+    if event.session_id != session_id {
+        return Task::none();
+    }
+    let runtime = app.get_session_runtime_mut(&session_id);
+    if runtime
+        .model_recovery
+        .as_ref()
+        .is_some_and(|(request, previous)| *request == id && previous == &event)
+    {
+        return Task::none();
+    }
+    clear_model_recovery(app, &session_id);
+    let text = crate::app::components::chat_panel::message_view::model_recovery_text(&event);
+    let phase = event.phase;
+    app.get_session_runtime_mut(&session_id).model_recovery = Some((id, event));
+    if app.active_session_id.as_deref() != Some(session_id.as_str()) {
+        return Task::none();
+    }
+    match phase {
+        vw_gateway_client::GatewayModelRecoveryPhase::Waiting => {
+            app.show_toast(crate::app::state::ToastKind::Info, text)
+        }
+        vw_gateway_client::GatewayModelRecoveryPhase::Stopped => app.show_error_toast(text),
+        vw_gateway_client::GatewayModelRecoveryPhase::Recovered
+        | vw_gateway_client::GatewayModelRecoveryPhase::Cancelled => Task::none(),
+    }
+}

@@ -137,7 +137,7 @@ pub(crate) fn conversation_reading_column<'a>(
 
 fn chat_global_status_reading_column(app: &App) -> Element<'_, Message> {
     conversation_reading_column(
-        chat_global_status_view(app),
+        column![message_view::recovery_notice_view(app), chat_global_status_view(app)].spacing(6),
         Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
     )
     .into()

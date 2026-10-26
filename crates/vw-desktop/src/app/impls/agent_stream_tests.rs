@@ -2463,3 +2463,18 @@ fn parse_usage_defaults_invalid_and_partial_values() {
     let invalid_desktop = super::parse_usage(Some(&serde_json::json!({"input_tokens": "invalid"})));
     assert_eq!(invalid_desktop, crate::app::models::TokenUsage::default());
 }
+
+#[test]
+fn recovery_notice_gateway_payload_keeps_request_and_rejects_other_session() {
+    let payload = serde_json::json!({"type":"chat.model_recovery", "session_id":"notice", "phase":"waiting", "attempt":1, "max_attempts":3, "wait_ms":500, "reason":"配置暂时不可读", "next_action":"检查模型配置"});
+    let Some(crate::app::Message::Chat(
+        crate::app::message::chat::ChatMessage::AgentModelRecovery(id, event),
+    )) = super::chat_model_recovery_message(42, "notice", &payload)
+    else {
+        panic!("expected recovery message");
+    };
+    assert_eq!(id, 42);
+    assert_eq!(event.reason, "配置暂时不可读");
+    assert!(super::chat_model_recovery_message(42, "other", &payload).is_none());
+    assert!(super::chat_model_recovery_message(42, "notice", &serde_json::json!({})).is_none());
+}

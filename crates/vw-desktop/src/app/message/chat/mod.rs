@@ -425,6 +425,7 @@ pub enum ChatMessage {
 
     /// 自动压缩生命周期状态；`completed` 为真时表示安全替换已经完成。
     AgentCompactionStatus(u64, bool),
+    AgentModelRecovery(u64, vw_gateway_client::GatewayModelRecoveryEvent),
 
     /// SessionTool 创建完成后，从网关读取到的权威可见任务会话元信息。
     VisibleTaskSessionLoaded(Result<vw_shared::session::info::Info, String>),
@@ -1098,6 +1099,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(_, _)
             | ChatMessage::AgentToolLifecycle(_, _)
             | ChatMessage::AgentCompactionStatus(_, _)
+            | ChatMessage::AgentModelRecovery(_, _)
             | ChatMessage::VisibleTaskSessionLoaded(_)
             | ChatMessage::AgentStreamDeltaFlush(_)
     );
@@ -1233,6 +1235,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(_, _)
         | ChatMessage::AgentToolLifecycle(_, _)
         | ChatMessage::AgentCompactionStatus(_, _)
+        | ChatMessage::AgentModelRecovery(_, _)
         | ChatMessage::VisibleTaskSessionLoaded(_)
         | ChatMessage::AgentStreamDeltaFlush(_)
         | ChatMessage::AgentStreamSessionSaveFlush(_)

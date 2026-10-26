@@ -736,3 +736,47 @@ pub(super) fn should_use_user_message_editor(
         && selectable_text_policy(content, false) != SelectableTextPolicy::PreviewWithCopyFallback
         && app.chat_message_editors.get(idx).is_some_and(|editor| !editor.text().trim().is_empty())
 }
+
+pub(crate) fn model_recovery_text(event: &vw_gateway_client::GatewayModelRecoveryEvent) -> String {
+    use vw_gateway_client::GatewayModelRecoveryPhase;
+    match event.phase {
+        GatewayModelRecoveryPhase::Waiting => format!(
+            "正在重试 {}/{}，等待 {}ms，原因：{}",
+            event.attempt, event.max_attempts, event.wait_ms, event.reason
+        ),
+        GatewayModelRecoveryPhase::Stopped => {
+            let attempts = if event.attempt == 0 {
+                "未重试".to_string()
+            } else {
+                format!("已重试 {} 次", event.attempt)
+            };
+            format!("已停止，{attempts}，原因：{}。{}", event.reason, event.next_action)
+        }
+        GatewayModelRecoveryPhase::Recovered => "模型调用已恢复".to_string(),
+        GatewayModelRecoveryPhase::Cancelled => "已取消重试".to_string(),
+    }
+}
+
+pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
+    let runtime = app.current_session_runtime_ref()?;
+    let (id, event) = runtime.model_recovery.as_ref()?;
+    if runtime.active_agent_request.as_ref()?.id != *id
+        || event.phase != vw_gateway_client::GatewayModelRecoveryPhase::Waiting
+    {
+        return None;
+    }
+    Some(model_recovery_text(event))
+}
+
+pub(crate) fn recovery_notice_view(app: &App) -> Element<'_, Message> {
+    let Some(text) = recovery_notice_text(app) else {
+        return iced::widget::Space::new().height(0).into();
+    };
+    container(iced_text(text).size(MESSAGE_META_TEXT_SIZE).style(|theme: &Theme| {
+        iced::widget::text::Style { color: Some(compaction_status_text_color(theme)) }
+    }))
+    .padding([8, 14])
+    .width(Length::Fill)
+    .style(compaction_status_card_style)
+    .into()
+}

@@ -1881,3 +1881,181 @@ fn compaction_error_and_cancel_settle_active_and_background_status() {
         }
     }
 }
+
+fn recovery_notice_event(
+    session: &str,
+    phase: vw_gateway_client::GatewayModelRecoveryPhase,
+    attempt: u64,
+) -> vw_gateway_client::GatewayModelRecoveryEvent {
+    vw_gateway_client::GatewayModelRecoveryEvent {
+        session_id: session.into(),
+        attempt,
+        max_attempts: 3,
+        wait_ms: 500,
+        phase,
+        reason: "配置暂时不可读".into(),
+        next_action: "检查模型配置".into(),
+    }
+}
+
+#[test]
+fn recovery_notice_waiting_deduplicates_and_keeps_request_busy() {
+    use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("notice".into());
+    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
+    app.get_session_runtime_mut("notice").is_requesting = true;
+    let event = recovery_notice_event("notice", Waiting, 1);
+    let _ = super::handle_agent_model_recovery(&mut app, 42, event.clone());
+    let toast = app.active_toast.as_ref().unwrap().clone();
+    assert!(toast.message.contains("正在重试 1/3，等待 500ms，原因：配置暂时不可读"));
+    let _ = super::handle_agent_model_recovery(&mut app, 42, event);
+    assert_eq!(app.active_toast.as_ref().unwrap().id, toast.id);
+    assert!(app.get_session_runtime("notice").is_requesting);
+    assert!(app.chat.is_empty());
+}
+
+#[test]
+fn recovery_notice_recovered_cancelled_and_done_clear_waiting() {
+    use vw_gateway_client::GatewayModelRecoveryPhase::{Cancelled, Recovered, Waiting};
+    for phase in [Recovered, Cancelled] {
+        let (mut app, _) = crate::app::App::new();
+        app.active_session_id = Some("notice".into());
+        app.get_session_runtime_mut("notice").active_agent_request =
+            Some(agent_request(42, "notice"));
+        let _ = super::handle_agent_model_recovery(
+            &mut app,
+            42,
+            recovery_notice_event("notice", Waiting, 1),
+        );
+        let _ = super::handle_agent_model_recovery(
+            &mut app,
+            42,
+            recovery_notice_event("notice", phase, 1),
+        );
+        assert!(
+            crate::app::components::chat_panel::message_view::recovery_notice_text(&app).is_none()
+        );
+        let _ = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
+        assert!(app.get_session_runtime("notice").model_recovery.is_none());
+    }
+}
+
+#[test]
+fn recovery_notice_stopped_preserves_actual_attempts_and_action() {
+    use vw_gateway_client::GatewayModelRecoveryPhase::Stopped;
+    for attempt in [0, 3] {
+        let (mut app, _) = crate::app::App::new();
+        app.active_session_id = Some("notice".into());
+        app.get_session_runtime_mut("notice").active_agent_request =
+            Some(agent_request(42, "notice"));
+        let _ = super::handle_agent_model_recovery(
+            &mut app,
+            42,
+            recovery_notice_event("notice", Stopped, attempt),
+        );
+        let _ = super::handle_agent_stream_error(&mut app, 42, "模型错误".into());
+        let content = &app.chat.last().unwrap().content;
+        assert!(content.contains("检查模型配置"));
+        assert!(content.contains(if attempt == 0 { "未重试" } else { "已重试 3 次" }));
+        assert!(app.get_session_runtime("notice").model_recovery.is_none());
+    }
+}
+
+#[test]
+fn recovery_notice_background_and_old_request_do_not_pollute_active_request() {
+    use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("active".into());
+    app.get_session_runtime_mut("active").active_agent_request = Some(agent_request(43, "active"));
+    app.get_session_runtime_mut("background").active_agent_request =
+        Some(agent_request(42, "background"));
+    let _ = super::handle_agent_model_recovery(
+        &mut app,
+        42,
+        recovery_notice_event("background", Waiting, 1),
+    );
+    assert!(app.active_toast.is_none());
+    assert!(crate::app::components::chat_panel::message_view::recovery_notice_text(&app).is_none());
+    let _ = super::handle_agent_model_recovery(
+        &mut app,
+        43,
+        recovery_notice_event("background", Waiting, 1),
+    );
+    let _ = super::handle_agent_model_recovery(
+        &mut app,
+        41,
+        recovery_notice_event("active", Waiting, 1),
+    );
+    assert!(app.get_session_runtime("active").model_recovery.is_none());
+    assert!(app.get_session_runtime("background").model_recovery.is_some());
+}
+
+#[test]
+fn recovery_notice_cancel_terminal_and_old_error_keep_new_request() {
+    use vw_gateway_client::GatewayModelRecoveryPhase::Waiting;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("notice".into());
+    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
+    let _ = super::handle_agent_model_recovery(
+        &mut app,
+        42,
+        recovery_notice_event("notice", Waiting, 1),
+    );
+    let _ = super::super::handle_agent_stream_cancelled(&mut app, 42);
+    assert!(app.get_session_runtime("notice").model_recovery.is_none());
+    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(43, "notice"));
+    app.get_session_runtime_mut("notice").is_requesting = true;
+    let _ = super::handle_agent_stream_error(&mut app, 42, "旧请求错误".into());
+    assert!(app.get_session_runtime("notice").is_requesting);
+    assert_eq!(app.get_session_runtime("notice").active_agent_request.as_ref().unwrap().id, 43);
+    assert!(app.chat.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn recovery_notice_chinese_text_draws_in_light_and_dark_themes() {
+    use iced::advanced::{Layout, layout, renderer::Headless, widget::Tree};
+    use iced::{Color, Font, Pixels, Size, Theme, mouse};
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("notice".into());
+    app.get_session_runtime_mut("notice").active_agent_request = Some(agent_request(42, "notice"));
+    let _ = super::handle_agent_model_recovery(
+        &mut app,
+        42,
+        recovery_notice_event("notice", vw_gateway_client::GatewayModelRecoveryPhase::Waiting, 1),
+    );
+    for (name, theme) in [("light", Theme::Light), ("dark", Theme::Dark)] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .unwrap();
+        let mut element =
+            crate::app::components::chat_panel::message_view::recovery_notice_view(&app);
+        let mut tree = Tree::new(element.as_widget());
+        let viewport = iced::Rectangle::with_size(Size::new(720.0, 120.0));
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, viewport.size()),
+        );
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &iced::advanced::renderer::Style::default(),
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &viewport,
+        );
+        let pixels = renderer.screenshot(Size::new(720, 120), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        image::save_buffer(
+            format!("/tmp/vw-recovery-notice-{name}.png"),
+            &pixels,
+            720,
+            120,
+            image::ColorType::Rgba8,
+        )
+        .unwrap();
+    }
+}

@@ -2466,6 +2466,11 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                                         .unwrap_or_default()
                                     {
                                         "chat.tool" => chat_tool_message(req.id, &payload),
+                                        "chat.model_recovery" => chat_model_recovery_message(
+                                            req.id,
+                                            &req.session,
+                                            &payload,
+                                        ),
                                         "chat.compaction" => {
                                             chat_compaction_message(req.id, &payload)
                                         }
@@ -2752,3 +2757,14 @@ fn parse_usage(value: Option<&serde_json::Value>) -> crate::app::models::TokenUs
 #[cfg(test)]
 #[path = "agent_stream_tests.rs"]
 mod agent_stream_tests;
+
+fn chat_model_recovery_message(
+    request_id: u64,
+    session_id: &str,
+    payload: &serde_json::Value,
+) -> Option<Message> {
+    let event: vw_gateway_client::GatewayModelRecoveryEvent =
+        serde_json::from_value(payload.clone()).ok()?;
+    (event.session_id == session_id)
+        .then_some(Message::Chat(message::ChatMessage::AgentModelRecovery(request_id, event)))
+}

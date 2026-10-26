@@ -375,6 +375,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 .unwrap_or_else(Task::none);
             Task::batch([timing_task, delta_task, refresh_task])
         }
+        ChatMessage::AgentModelRecovery(id, event) => {
+            stream_events::handle_agent_model_recovery(app, id, event)
+        }
         ChatMessage::AgentCompactionStatus(id, completed) => {
             stream_events::handle_agent_compaction_status(app, id, completed)
         }
@@ -616,6 +619,7 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+    stream_events::clear_model_recovery(app, &session_id);
     stream_events::settle_interrupted_compaction(
         app,
         &session_id,

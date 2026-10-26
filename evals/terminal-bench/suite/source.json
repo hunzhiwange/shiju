@@ -1,0 +1,20 @@
+{
+  "expected_category_count": 16,
+  "expected_task_count": 89,
+  "instruction_transform": {
+    "function": "harbor.models.task.task.strip_canary",
+    "harbor_version": "0.24.0"
+  },
+  "license": {
+    "git_blob": "261eeb9e9f8b2b4b0d119366dda99c6fd7d35c64",
+    "path": "LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "spdx": "Apache-2.0"
+  },
+  "repository": "https://github.com/harbor-framework/terminal-bench-2-1",
+  "revision": "7131e4375048a0e408a8fb404b5f499d726b695b",
+  "root_tree_sha": "ddbd9031e59804a04e24019fc408d51b56a4e773",
+  "scope": "Source task trees only; external images and network downloads are not materialized by this catalog.",
+  "source_directory": "evals/promptfoo/results/qwen38-suite/source/",
+  "tasks_tree_sha": "2f0f5fdc68f0befd9b4745386eb8698264b00d8a"
+}

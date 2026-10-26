@@ -285,6 +285,8 @@ async fn load_or_init_config_for_tenant_with_environment(
     let home = UserDirs::new()
         .map(|dirs| dirs.home_dir().to_path_buf())
         .context("Could not find home directory")?;
+    #[cfg(test)]
+    let home = std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT").map(PathBuf::from).unwrap_or(home);
     if tenant == &TenantScope::default() {
         migrate_user_config(&home)?;
     }

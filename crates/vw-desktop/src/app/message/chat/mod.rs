@@ -590,6 +590,8 @@ pub enum ChatMessage {
 
     /// plan-run 的父请求已被取消，不应按成功或错误收尾。
     AgentStreamCancelled(u64),
+    /// 用户显式停止请求的 Gateway 确认。
+    AgentStreamStopFinished(u64, Result<bool, String>),
 
     /// Agent 流式响应错误
     ///
@@ -1255,6 +1257,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::SessionSaveFailed(_)
         | ChatMessage::AgentStreamDone(_, _, _, _)
         | ChatMessage::AgentStreamCancelled(_)
+        | ChatMessage::AgentStreamStopFinished(_, _)
         | ChatMessage::AgentStreamError(_, _)
         | ChatMessage::SessionTitleGenerated(_, _)
         | ChatMessage::QuestionPollTick

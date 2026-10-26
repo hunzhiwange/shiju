@@ -59,6 +59,14 @@ impl From<directories::BaseDirs> for PlatformDirs {
 #[cfg(not(target_arch = "wasm32"))]
 static PATHS: LazyLock<GlobalPaths> = LazyLock::new(|| {
     let base = directories::BaseDirs::new().map(PlatformDirs::from);
+    #[cfg(test)]
+    if let Some(root) = std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT") {
+        let root = PathBuf::from(root);
+        assert!(root.is_absolute() && root.is_dir(), "window test root must exist and be absolute");
+        let paths = resolve_paths(None, Some(root));
+        prepare_paths(&paths);
+        return paths;
+    }
     // 测试可以通过环境变量隔离 home，避免污染真实用户目录。
     let test_home = std::env::var_os("VIBEWINDOW_TEST_HOME").map(PathBuf::from);
 

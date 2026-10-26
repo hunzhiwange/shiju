@@ -499,6 +499,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::AgentStreamCancelled(id) => handle_agent_stream_cancelled(app, id),
+        ChatMessage::AgentStreamStopFinished(_, result) => match result {
+            Ok(_) => Task::none(),
+            Err(error) => app.show_error_toast(format!("停止后台请求失败：{error}")),
+        },
         ChatMessage::AgentStreamError(id, err) => {
             stream_events::handle_agent_stream_error(app, id, err)
         }
@@ -722,5 +726,30 @@ pub(super) fn maybe_generate_session_title(app: &App) -> Task<Message> {
             }
             Err(_) => Message::None,
         },
+    )
+}
+
+/// 清除重试提示并显式停止对应的可恢复流，不能仅取消本地订阅。
+pub(super) fn stop_agent_stream(app: &mut App, session_id: &str) -> Task<Message> {
+    stream_events::clear_model_recovery(app, session_id);
+    let Some(request) = app.get_session_runtime(session_id).active_agent_request.clone() else {
+        return Task::none();
+    };
+    let request_id = crate::app::impls::desktop_stream_request_id(&request);
+    let workflow = crate::app::impls::task_plan_run_active(
+        request.workflow_mode_enabled,
+        request.resume_history_only,
+    );
+    let id = request.id;
+    Task::perform(
+        async move {
+            let client = crate::app::config::gateway_client()?;
+            if workflow {
+                client.task_plan_run_stream_stop(&request_id).await
+            } else {
+                client.chat_stream_stop(&request_id).await
+            }
+        },
+        move |result| Message::Chat(ChatMessage::AgentStreamStopFinished(id, result)),
     )
 }

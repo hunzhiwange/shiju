@@ -1944,7 +1944,7 @@ fn recovery_notice_recovered_cancelled_and_done_clear_waiting() {
 #[test]
 fn recovery_notice_stopped_preserves_actual_attempts_and_action() {
     use vw_gateway_client::GatewayModelRecoveryPhase::Stopped;
-    for attempt in [0, 3] {
+    for attempt in [0, 1, 3] {
         let (mut app, _) = crate::app::App::new();
         app.active_session_id = Some("notice".into());
         app.get_session_runtime_mut("notice").active_agent_request =
@@ -1957,7 +1957,11 @@ fn recovery_notice_stopped_preserves_actual_attempts_and_action() {
         let _ = super::handle_agent_stream_error(&mut app, 42, "模型错误".into());
         let content = &app.chat.last().unwrap().content;
         assert!(content.contains("检查模型配置"));
-        assert!(content.contains(if attempt == 0 { "未重试" } else { "已重试 3 次" }));
+        assert!(content.contains(if attempt <= 1 {
+            "未重试"
+        } else {
+            "已尝试 3 次（重试 2 次）"
+        }));
         assert!(app.get_session_runtime("notice").model_recovery.is_none());
     }
 }

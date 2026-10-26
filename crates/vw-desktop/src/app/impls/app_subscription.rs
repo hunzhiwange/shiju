@@ -124,21 +124,7 @@ impl App {
     /// 公开函数，执行 subscription 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub fn subscription(&self) -> Subscription<Message> {
-        let agent_reqs = collect_agent_subscription_requests(self);
-
-        let agent = if agent_reqs.is_empty() {
-            Subscription::none()
-        } else {
-            let subs = agent_reqs
-                .into_iter()
-                .map(|req| {
-                    Subscription::run_with(req, |req: &Arc<crate::app::AgentRequest>| {
-                        agent_stream(req)
-                    })
-                })
-                .collect::<Vec<_>>();
-            Subscription::batch(subs)
-        };
+        let agent = self.agent_stream_subscription();
 
         let workflow_run = workflow_run_subscription_request(self)
             .map(|req| Subscription::run_with(req, workflow_run_stream))
@@ -369,3 +355,24 @@ fn workflow_run_stream(req: &WorkflowRunSubscriptionRequest) -> WorkflowRunBoxSt
 #[cfg(test)]
 #[path = "app_subscription_tests.rs"]
 mod app_subscription_tests;
+
+impl App {
+    /// 聊天流订阅同时供真实应用与显式窗口验收使用。
+    pub(crate) fn agent_stream_subscription(&self) -> Subscription<Message> {
+        let agent_reqs = collect_agent_subscription_requests(self);
+
+        if agent_reqs.is_empty() {
+            Subscription::none()
+        } else {
+            let subs = agent_reqs
+                .into_iter()
+                .map(|req| {
+                    Subscription::run_with(req, |req: &Arc<crate::app::AgentRequest>| {
+                        agent_stream(req)
+                    })
+                })
+                .collect::<Vec<_>>();
+            Subscription::batch(subs)
+        }
+    }
+}

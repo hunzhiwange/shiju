@@ -352,3 +352,35 @@ fn shell_session_completed_handle_does_not_cancel_later_prompt_process() {
     assert_eq!(first_state, ShellProcessState::Cancelled);
     assert_eq!(later_state, ShellProcessState::Running);
 }
+
+#[test]
+fn recovery_notice_runtime_forwards_progress_without_closing_consumer() {
+    use crate::session::processor::{ModelRecovery, RecoveryPhase};
+    let turn = start_prompt_with_runner(request(), |_request, mut emit| {
+        for phase in [RecoveryPhase::Waiting, RecoveryPhase::Recovered] {
+            assert!(emit(StreamEvent::ModelRecovery(ModelRecovery {
+                attempt: 1,
+                max_attempts: 3,
+                wait_ms: 10,
+                phase,
+                reason: "temporary".into(),
+                next_action: "continue".into()
+            })));
+        }
+        assert!(emit(StreamEvent::Delta("answer".into())));
+        emit(StreamEvent::Done(TokenUsage::default()));
+    });
+    assert!(
+        matches!(turn.events.recv_timeout(Duration::from_secs(2)).unwrap(), PromptEvent::ModelRecovery(state) if state.phase == RecoveryPhase::Waiting)
+    );
+    assert!(
+        matches!(turn.events.recv_timeout(Duration::from_secs(2)).unwrap(), PromptEvent::ModelRecovery(state) if state.phase == RecoveryPhase::Recovered)
+    );
+    assert!(
+        matches!(turn.events.recv_timeout(Duration::from_secs(2)).unwrap(), PromptEvent::Text(text) if text == "answer")
+    );
+    assert!(matches!(
+        turn.events.recv_timeout(Duration::from_secs(2)).unwrap(),
+        PromptEvent::Terminated(PromptTermination::Completed(_))
+    ));
+}

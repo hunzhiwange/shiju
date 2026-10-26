@@ -1613,10 +1613,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         && request == id
         && event.phase == vw_gateway_client::GatewayModelRecoveryPhase::Stopped
     {
-        format!(
-            "{}\n{display_err}",
-            crate::app::components::chat_panel::message_view::model_recovery_text(&event)
-        )
+        crate::app::components::chat_panel::message_view::model_recovery_text(&event)
     } else {
         display_err
     };

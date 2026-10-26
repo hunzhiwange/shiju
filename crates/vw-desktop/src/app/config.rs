@@ -48,3 +48,7 @@ pub use system_settings::*;
 #[cfg(test)]
 #[path = "config_tests.rs"]
 mod config_tests;
+
+#[cfg(test)]
+#[allow(unused_imports)] // 仅自定义窗口测试目标调用，常规 libtest 不启动窗口。
+pub(crate) use system_settings::install_window_test_bootstrap;

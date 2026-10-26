@@ -27,7 +27,8 @@ fn map_non_terminal(event: StreamEvent) -> Option<PromptEvent> {
         StreamEvent::PostToolRound { step_index } => {
             Some(PromptEvent::PostToolRound { step_index })
         }
-        StreamEvent::ModelRecovery(_) | StreamEvent::Done(_) | StreamEvent::Error(_) => None,
+        StreamEvent::ModelRecovery(state) => Some(PromptEvent::ModelRecovery(state)),
+        StreamEvent::Done(_) | StreamEvent::Error(_) => None,
     }
 }
 

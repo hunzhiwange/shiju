@@ -115,3 +115,10 @@ serde_json = "1"
 
 [dev-dependencies]
 iced_runtime = "0.14"
+
+# 显式运行的原生窗口验收；不加入默认测试，避免无显示器 CI 弹窗。
+[[test]]
+name = "recovery-window"
+path = "src/recovery_window_main.rs"
+harness = false
+test = false

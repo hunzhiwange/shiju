@@ -8,13 +8,17 @@ pub(crate) struct RecoveryConfig {
 impl RecoveryConfig {
     pub(crate) async fn new(api: &str, key: Option<&str>) -> Self {
         let home = tempfile::tempdir().unwrap();
-        let previous =
-            ["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE", "VW_MODEL_RECOVERY_TEST_KEY"]
-                .into_iter()
-                .map(|key| (key, std::env::var_os(key)))
-                .collect();
+        let previous = [
+            "VW_MODEL_RECOVERY_TEST_ROOT",
+            "VIBEWINDOW_CONFIG_DIR",
+            "VIBEWINDOW_WORKSPACE",
+            "VW_MODEL_RECOVERY_TEST_KEY",
+        ]
+        .into_iter()
+        .map(|key| (key, std::env::var_os(key)))
+        .collect();
         unsafe {
-            std::env::set_var("HOME", home.path());
+            std::env::set_var("VW_MODEL_RECOVERY_TEST_ROOT", home.path());
             match key {
                 Some(key) => std::env::set_var("VW_MODEL_RECOVERY_TEST_KEY", key),
                 None => std::env::remove_var("VW_MODEL_RECOVERY_TEST_KEY"),

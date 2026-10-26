@@ -745,10 +745,10 @@ pub(crate) fn model_recovery_text(event: &vw_gateway_client::GatewayModelRecover
             event.attempt, event.max_attempts, event.wait_ms, event.reason
         ),
         GatewayModelRecoveryPhase::Stopped => {
-            let attempts = if event.attempt == 0 {
+            let attempts = if event.attempt <= 1 {
                 "未重试".to_string()
             } else {
-                format!("已重试 {} 次", event.attempt)
+                format!("已尝试 {} 次（重试 {} 次）", event.attempt, event.attempt - 1)
             };
             format!("已停止，{attempts}，原因：{}。{}", event.reason, event.next_action)
         }

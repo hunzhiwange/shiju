@@ -1243,7 +1243,7 @@ fn cancel_pressed_ignores_idle_sessions_and_dispatches_next_queued_item_when_bus
 }
 
 #[test]
-fn cancel_pressed_schedules_session_save_without_blocking_update() {
+fn cancel_pressed_schedules_save_and_gateway_stop_without_blocking_update() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
     app.sessions = vec![session_info("s1", "Session", "/repo")];
@@ -1255,7 +1255,7 @@ fn cancel_pressed_schedules_session_save_without_blocking_update() {
 
     let task = super::update(&mut app, super::ChatMessage::CancelPressed);
 
-    assert_eq!(task.units(), 1);
+    assert_eq!(task.units(), 2);
     assert!(!app.get_session_runtime("s1").is_requesting);
 }
 

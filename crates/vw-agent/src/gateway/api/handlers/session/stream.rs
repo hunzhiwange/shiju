@@ -714,6 +714,9 @@ fn processor_event_from_prompt_event(
         agent_session::runtime::PromptEvent::ContextLoaded { paths } => {
             agent_session::processor::StreamEvent::ContextLoaded { paths }
         }
+        agent_session::runtime::PromptEvent::ModelRecovery(state) => {
+            agent_session::processor::StreamEvent::ModelRecovery(state)
+        }
         agent_session::runtime::PromptEvent::Text(text) => {
             agent_session::processor::StreamEvent::Delta(text)
         }

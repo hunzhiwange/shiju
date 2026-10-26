@@ -132,6 +132,8 @@ pub enum PromptEvent {
         /// 文件路径列表。
         paths: Vec<String>,
     },
+    /// 可恢复模型故障的非终止状态。
+    ModelRecovery(crate::session::processor::ModelRecovery),
     /// 助手文本增量。
     Text(String),
     /// 已净化的类型化工具事件。

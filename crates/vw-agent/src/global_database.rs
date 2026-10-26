@@ -123,6 +123,16 @@ pub(crate) fn inherit_test_database_context<T>(
 impl GlobalDatabase {
     /// 从用户主目录加载后端配置并取得可复用数据库实例。
     pub fn for_home(home: impl AsRef<Path>) -> Result<Self> {
+        // 专用窗口集成测试进程显式指定临时库；不改变 HOME，也不读取真实后端配置。
+        #[cfg(test)]
+        if let Some(root) = std::env::var_os("VW_MODEL_RECOVERY_TEST_ROOT") {
+            let root = PathBuf::from(root);
+            anyhow::ensure!(
+                root.is_absolute() && root.is_dir(),
+                "window test root must exist and be absolute"
+            );
+            return Self::new(vw_config_types::paths::global_database_path(root));
+        }
         let home = home.as_ref();
         #[cfg(test)]
         if option_env!("HOME").is_some_and(|build_home| home == Path::new(build_home)) {

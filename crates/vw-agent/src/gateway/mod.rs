@@ -138,3 +138,6 @@ async fn skey_auth_middleware(
 fn is_public_skey_auth_path(path: &str) -> bool {
     matches!(path, "/v1/global/health" | "/global/health")
 }
+
+#[cfg(test)]
+mod recovery_window_tests;

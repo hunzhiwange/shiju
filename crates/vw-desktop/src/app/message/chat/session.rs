@@ -1128,6 +1128,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 crate::app::state::clear_pending_guide_handoff(request_id);
                 clear_quick_message_handoff_for_request(app, request_id);
             }
+            let stop_task = stream::stop_agent_stream(app, &session_id);
             let completed_ms = crate::app::time::now_ms();
             let elapsed = {
                 let runtime = app.get_session_runtime_mut(&session_id);
@@ -1148,8 +1149,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             session.messages = app.chat.clone();
             session.message_ids = app.chat_message_ids.clone();
             session.updated_ms = completed_ms;
-            let save_task =
-                save_session_task(session, stream::session_directory_for_save(app, &session_id));
+            let save_task = Task::batch([
+                stop_task,
+                save_session_task(session, stream::session_directory_for_save(app, &session_id)),
+            ]);
             {
                 let runtime = app.get_session_runtime_mut(&session_id);
                 runtime.is_requesting = false;

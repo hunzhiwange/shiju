@@ -152,19 +152,26 @@ fn emit_stream_event(
 fn spawn_llm_stream_thread(
     session_id: String,
     messages: Vec<serde_json::Value>,
-    _system: Vec<String>,
-    _model: Option<String>,
-    _options: serde_json::Value,
+    system: Vec<String>,
+    model: Option<String>,
+    options: serde_json::Value,
     tools: std::collections::HashMap<String, ToolSpec>,
     abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
 ) -> std::thread::JoinHandle<()> {
+    if std::env::var_os("VW_RECOVERY_WINDOW_HTTP").is_some() {
+        return spawn_real_llm_stream_thread(
+            session_id, messages, system, model, options, tools, abort_rx, tx,
+        );
+    }
     llm_runner_tests::record_test_llm_messages(session_id.clone(), messages);
     llm_runner_tests::spawn_test_llm_stream_thread(&session_id, tools, abort_rx, tx)
 }
 
 #[cfg(not(test))]
-fn spawn_llm_stream_thread(
+use spawn_real_llm_stream_thread as spawn_llm_stream_thread;
+
+fn spawn_real_llm_stream_thread(
     session_id: String,
     messages: Vec<serde_json::Value>,
     system: Vec<String>,

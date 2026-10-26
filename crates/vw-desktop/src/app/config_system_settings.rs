@@ -51,6 +51,10 @@ const GATEWAY_CLIENT_BOOTSTRAP_STORAGE_KEY: &str = "vibe-window.gateway-client-b
 /// 模块内可见函数，执行 load_gateway_client_bootstrap_config 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSettingsConfig {
+    #[cfg(test)]
+    if let Some(config) = WINDOW_TEST_BOOTSTRAP.get() {
+        return config.clone();
+    }
     #[cfg(target_arch = "wasm32")]
     {
         return web_sys::window()
@@ -80,6 +84,8 @@ pub(super) fn load_gateway_client_bootstrap_config() -> GatewayClientSystemSetti
 /// 模块内可见函数，执行 save_gateway_client_bootstrap_config 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn save_gateway_client_bootstrap_config(config: &GatewayClientSystemSettingsConfig) {
+    #[cfg(test)]
+    assert!(WINDOW_TEST_BOOTSTRAP.get().is_none(), "window fixture must not write bootstrap files");
     #[cfg(target_arch = "wasm32")]
     {
         if let Some(storage) =
@@ -218,3 +224,25 @@ pub fn update_system_settings_config(update: impl FnOnce(&mut AppSystemSettingsC
 #[cfg(test)]
 #[path = "config_system_settings_tests.rs"]
 mod config_system_settings_tests;
+
+/// 仅自定义窗口测试目标使用；端点必须是无生产凭据的本机临时服务。
+#[cfg(test)]
+static WINDOW_TEST_BOOTSTRAP: std::sync::OnceLock<GatewayClientSystemSettingsConfig> =
+    std::sync::OnceLock::new();
+
+#[cfg(test)]
+#[allow(dead_code)] // 由独立的 recovery-window 测试目标调用。
+pub(crate) fn install_window_test_bootstrap(port: u16) {
+    assert_ne!(port, 0);
+    let mut config = GatewayClientSystemSettingsConfig::default();
+    let server = vw_config_types::ui::GatewayClientServerConfig {
+        host: "127.0.0.1".into(),
+        skey: "window-fixture-token".into(),
+        port,
+        platform_id: "recovery-window".into(),
+        company_id: "validation".into(),
+        ..Default::default()
+    };
+    config.set_servers(vec![server], "local".into());
+    WINDOW_TEST_BOOTSTRAP.set(config).expect("install window test endpoint once");
+}

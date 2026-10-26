@@ -1006,3 +1006,117 @@ fn stream_chat_blocking_reports_http_and_json_errors() {
     let _ = json_server.join();
     assert!(json_error.contains("expected ident") || json_error.contains("expected value"));
 }
+
+fn recovery_payload(phase: &str) -> serde_json::Value {
+    json!({"type":"chat.model_recovery","session_id":"session-recovery","attempt":2,"max_attempts":3,"wait_ms":500,"phase":phase,"reason":"temporary","next_action":"retry"})
+}
+
+#[test]
+fn recovery_event_typed_status_is_nonterminal() {
+    for phase in ["waiting", "recovered", "stopped", "cancelled"] {
+        let raw = super::parse_stream_event(recovery_payload(phase));
+        assert!(!super::is_terminal_stream_event(&raw));
+        let super::GatewayTypedChatStreamEvent::ModelRecovery(status) =
+            super::normalize_chat_stream_event(raw)
+        else {
+            panic!("typed recovery missing")
+        };
+        assert_eq!(status.attempt, 2);
+        assert_eq!(status.max_attempts, 3);
+        assert_eq!(status.wait_ms, 500);
+        assert_eq!(status.session_id, "session-recovery");
+        assert_eq!(status.reason, "temporary");
+        assert_eq!(status.next_action, "retry");
+        assert_eq!(serde_json::to_value(status.phase).unwrap(), phase);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn recovery_event_sequences_end_only_at_final_result() {
+    for (phase, terminal) in [
+        ("recovered", json!({"type":"chat.done"})),
+        ("stopped", json!({"type":"chat.error","error":"exhausted"})),
+        ("cancelled", json!({"type":"chat.error","error":"cancelled"})),
+    ] {
+        let body = [recovery_payload("waiting"), recovery_payload(phase), terminal]
+            .iter()
+            .enumerate()
+            .map(|(i, p)| format!("id: {}\ndata: {p}\n\n", i + 1))
+            .collect::<String>();
+        let mut server = StreamServer::respond("200 OK", &body);
+        let mut events = Vec::new();
+        let result = super::stream_chat_resumable(
+            &server.endpoint(),
+            None,
+            &GatewayChatStreamRequest::default(),
+            &GatewayStreamResume { request_id: "recovery-request".into(), last_event_id: None },
+            |event| {
+                events.push(event);
+                true
+            },
+        )
+        .await
+        .unwrap();
+        let request = server.join();
+        assert_eq!(
+            raw_header(&request, "x-vw-stream-request-id").as_deref(),
+            Some("recovery-request")
+        );
+        assert_eq!(result, GatewayStreamAttemptResult::Terminated);
+        assert_eq!(events.iter().map(|e| e.id).collect::<Vec<_>>(), [1, 2, 3]);
+        assert!(matches!(
+            super::normalize_chat_stream_event(events[1].event.clone()),
+            GatewayTypedChatStreamEvent::ModelRecovery(_)
+        ));
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn recovery_event_reconnect_suppresses_duplicate_ids() {
+    let status = recovery_payload("waiting");
+    let mut first = StreamServer::respond("200 OK", &format!("id: 1\ndata: {status}\n\n"));
+    let mut resume =
+        GatewayStreamResume { request_id: "recovery-request".into(), last_event_id: None };
+    let mut events = Vec::new();
+    let result = super::stream_chat_resumable(
+        &first.endpoint(),
+        None,
+        &GatewayChatStreamRequest::default(),
+        &resume,
+        |e| {
+            events.push(e);
+            true
+        },
+    )
+    .await
+    .unwrap();
+    first.join();
+    assert_eq!(result, GatewayStreamAttemptResult::Incomplete);
+    resume.last_event_id = Some(1);
+    let recovered = recovery_payload("recovered");
+    let mut second = StreamServer::respond(
+        "200 OK",
+        &format!(
+            "id: 1\ndata: {status}\n\nid: 2\ndata: {recovered}\n\nid: 2\ndata: {recovered}\n\nid: 3\ndata: {{\"type\":\"chat.done\"}}\n\n"
+        ),
+    );
+    let result = super::stream_chat_resumable(
+        &second.endpoint(),
+        None,
+        &GatewayChatStreamRequest::default(),
+        &resume,
+        |e| {
+            events.push(e);
+            true
+        },
+    )
+    .await
+    .unwrap();
+    let request = second.join();
+    assert_eq!(raw_header(&request, "last-event-id").as_deref(), Some("1"));
+    assert_eq!(raw_header(&request, "x-vw-stream-request-id").as_deref(), Some("recovery-request"));
+    assert_eq!(result, GatewayStreamAttemptResult::Terminated);
+    assert_eq!(events.iter().map(|e| e.id).collect::<Vec<_>>(), [1, 2, 3]);
+}

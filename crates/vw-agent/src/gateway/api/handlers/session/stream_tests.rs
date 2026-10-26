@@ -1542,3 +1542,44 @@ fn shell_session_running_update_retains_gateway_metadata_without_finishing() {
     assert_eq!(event.status, agent_session::processor::ToolCallStatus::Running);
     assert_eq!(recorder.steps[0].tool_timings[0].finished_ms, None);
 }
+
+#[test]
+fn recovery_event_preserves_status_without_assistant_content() {
+    use agent_session::processor::{ModelRecovery, RecoveryPhase, StreamEvent};
+    for (phase, name) in [
+        (RecoveryPhase::Waiting, "waiting"),
+        (RecoveryPhase::Recovered, "recovered"),
+        (RecoveryPhase::Stopped, "stopped"),
+        (RecoveryPhase::Cancelled, "cancelled"),
+    ] {
+        let mut text = String::from("answer");
+        let mut finish = None;
+        let mut model = None;
+        let mut patches = StreamPatchRecorder::default();
+        let payload = stream_payload_for_non_done_event(
+            StreamEvent::ModelRecovery(ModelRecovery {
+                attempt: 2,
+                max_attempts: 3,
+                wait_ms: 500,
+                reason: "temporary".into(),
+                phase,
+                next_action: "retry".into(),
+            }),
+            &mut text,
+            &mut finish,
+            &mut model,
+            &mut patches,
+            "session-recovery",
+            None,
+            ".",
+        )
+        .expect("recovery status must be transmitted");
+        assert_eq!(
+            payload,
+            serde_json::json!({"type":"chat.model_recovery", "session_id":"session-recovery", "attempt":2,"max_attempts":3,"wait_ms":500,"reason":"temporary","phase":name,"next_action":"retry"})
+        );
+        assert_eq!(text, "answer");
+        assert!(finish.is_none() && model.is_none());
+        assert!(patches.parts.is_empty());
+    }
+}

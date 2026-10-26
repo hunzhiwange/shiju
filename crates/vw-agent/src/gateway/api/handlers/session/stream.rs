@@ -595,8 +595,21 @@ fn stream_payload_for_non_done_event(
     root_dir: &str,
 ) -> Option<Value> {
     match ev {
-        agent_session::processor::StreamEvent::LlmRawArtifact(_)
-        | agent_session::processor::StreamEvent::ModelRecovery(_) => None,
+        agent_session::processor::StreamEvent::LlmRawArtifact(_) => None,
+        agent_session::processor::StreamEvent::ModelRecovery(state) => {
+            let phase = match state.phase {
+                agent_session::processor::RecoveryPhase::Waiting => "waiting",
+                agent_session::processor::RecoveryPhase::Recovered => "recovered",
+                agent_session::processor::RecoveryPhase::Stopped => "stopped",
+                agent_session::processor::RecoveryPhase::Cancelled => "cancelled",
+            };
+            Some(serde_json::json!({
+                "type": "chat.model_recovery", "session_id": stream_session_id,
+                "attempt": state.attempt, "max_attempts": state.max_attempts,
+                "wait_ms": state.wait_ms, "phase": phase,
+                "reason": state.reason, "next_action": state.next_action,
+            }))
+        }
         agent_session::processor::StreamEvent::ContextLoaded { paths } => Some(serde_json::json!({
             "type": "chat.context_loaded",
             "paths": paths

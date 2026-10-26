@@ -517,6 +517,9 @@ pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRun
         GatewayTypedChatStreamEvent::UsageUpdated { session_id, usage } => {
             UiRuntimeEvent::UsageUpdated { session_id, usage }
         }
+        GatewayTypedChatStreamEvent::ModelRecovery(_) => {
+            UiRuntimeEvent::Unknown { event_type: Some("chat.model_recovery".into()) }
+        }
         GatewayTypedChatStreamEvent::Unknown { event_type } => {
             UiRuntimeEvent::Unknown { event_type }
         }

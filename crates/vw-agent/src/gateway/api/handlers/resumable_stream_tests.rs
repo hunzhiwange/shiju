@@ -205,3 +205,43 @@ fn shell_session_completed_chat_retains_idempotent_stop_hook() {
     assert!(store.cancel(tenant("company-a"), StreamKind::Chat, "background"));
     assert_eq!(cancellations.load(Ordering::SeqCst), 1);
 }
+
+#[tokio::test]
+async fn recovery_event_resume_keeps_request_and_terminal_error() {
+    let store = ResumableStreamStore::new(8, Duration::from_secs(60));
+    let signature = request_signature(b"recovery request");
+    let mut first = store
+        .open(tenant("company-a"), StreamKind::Chat, "recovery-request", signature.clone(), 0)
+        .unwrap();
+    let producer = first.producer.take().unwrap();
+    let waiting = r#"{"type":"chat.model_recovery","phase":"waiting","attempt":1,"max_attempts":2,"wait_ms":500,"reason":"temporary","next_action":"retry","session_id":"session-recovery"}"#;
+    assert!(producer.publish(waiting, false));
+    let delivered = first.subscription.next().await.unwrap();
+    assert_eq!(delivered.data, waiting);
+    drop(first.subscription);
+    let mut resumed = store
+        .open(
+            tenant("company-a"),
+            StreamKind::Chat,
+            "recovery-request",
+            signature.clone(),
+            delivered.id,
+        )
+        .unwrap();
+    assert!(resumed.producer.is_none());
+    let stopped = waiting.replace("waiting", "stopped");
+    assert!(producer.publish(&stopped, false));
+    assert!(producer.publish(r#"{"type":"chat.error","error":"exhausted"}"#, true));
+    let status = resumed.subscription.next().await.unwrap();
+    let terminal = resumed.subscription.next().await.unwrap();
+    assert_eq!(status.id, 2);
+    assert_eq!(status.data, stopped);
+    assert_eq!(terminal.id, 3);
+    assert!(terminal.data.contains("exhausted"));
+    assert!(resumed.subscription.next().await.is_none());
+    let mut repeated = store
+        .open(tenant("company-a"), StreamKind::Chat, "recovery-request", signature, terminal.id)
+        .unwrap();
+    assert!(repeated.producer.is_none());
+    assert!(repeated.subscription.next().await.is_none());
+}

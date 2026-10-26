@@ -110,12 +110,35 @@ impl GatewayChatToolEvent {
     }
 }
 
+/// 模型恢复进度；所有阶段均等待独立的 done/error 终态。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum GatewayModelRecoveryPhase {
+    Waiting,
+    Recovered,
+    Stopped,
+    Cancelled,
+}
+
+/// 已脱敏的模型恢复状态，独立于模型正文和工具事件。
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct GatewayModelRecoveryEvent {
+    pub session_id: String,
+    pub attempt: u64,
+    pub max_attempts: u64,
+    pub wait_ms: u64,
+    pub phase: GatewayModelRecoveryPhase,
+    pub reason: String,
+    pub next_action: String,
+}
+
 /// 网关流事件经客户端规整后的 typed 结果。
 ///
 /// `GatewayChatStreamEvent` 仍保留原始兼容接口；新调用点应尽量改用
 /// 这里的 typed 结果，避免直接在 UI 层解析 `Other(JSON)`。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GatewayTypedChatStreamEvent {
+    ModelRecovery(GatewayModelRecoveryEvent),
     Delta(String),
     ContextLoaded {
         paths: Vec<String>,
@@ -326,6 +349,14 @@ pub fn normalize_chat_stream_event(event: GatewayChatStreamEvent) -> GatewayType
         GatewayChatStreamEvent::Error(error) => GatewayTypedChatStreamEvent::Error(error),
         GatewayChatStreamEvent::Other(payload) => {
             match payload.get("type").and_then(serde_json::Value::as_str) {
+                Some("chat.model_recovery") => {
+                    match serde_json::from_value::<GatewayModelRecoveryEvent>(payload.clone()) {
+                        Ok(state) => GatewayTypedChatStreamEvent::ModelRecovery(state),
+                        Err(_) => GatewayTypedChatStreamEvent::Unknown {
+                            event_type: Some("chat.model_recovery".into()),
+                        },
+                    }
+                }
                 Some("chat.context_loaded") => GatewayTypedChatStreamEvent::ContextLoaded {
                     paths: payload
                         .get("paths")
@@ -528,6 +559,7 @@ async fn stream_chat_attempt(
 
     let mut bytes_stream = response.bytes_stream();
     let mut sse_buffer = String::new();
+    let mut last_delivered_id = resume.and_then(|resume| resume.last_event_id).unwrap_or(0);
 
     loop {
         #[cfg(not(target_arch = "wasm32"))]
@@ -554,6 +586,12 @@ async fn stream_chat_attempt(
                 continue;
             };
             let id = required_event_id(frame.id, resume.is_some())?;
+            if resume.is_some() {
+                if id <= last_delivered_id {
+                    continue;
+                }
+                last_delivered_id = id;
+            }
 
             let payload: serde_json::Value =
                 serde_json::from_str(&frame.data).map_err(|err| err.to_string())?;

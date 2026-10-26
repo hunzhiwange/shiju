@@ -137,9 +137,10 @@ pub use stream::{ChatStreamEvent, ChatStreamRequest};
 pub use stream::{
     GatewayChatStepFinishEvent, GatewayChatStepStartEvent, GatewayChatStreamEvent,
     GatewayChatStreamRequest, GatewayChatToolEvent, GatewayChatToolEventKind,
-    GatewayChatToolStatus, GatewayChatUsage, GatewayJsonSseEvent, GatewayStreamAttemptResult,
-    GatewayStreamEvent, GatewayStreamResume, GatewayTypedChatStreamEvent, LAST_EVENT_ID_HEADER,
-    STREAM_REQUEST_ID_HEADER, normalize_chat_stream_event, normalize_chat_tool_event,
+    GatewayChatToolStatus, GatewayChatUsage, GatewayJsonSseEvent, GatewayModelRecoveryEvent,
+    GatewayModelRecoveryPhase, GatewayStreamAttemptResult, GatewayStreamEvent, GatewayStreamResume,
+    GatewayTypedChatStreamEvent, LAST_EVENT_ID_HEADER, STREAM_REQUEST_ID_HEADER,
+    normalize_chat_stream_event, normalize_chat_tool_event,
 };
 /// 对外透出共享的 API 类型定义。
 ///

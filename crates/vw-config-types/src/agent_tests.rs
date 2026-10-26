@@ -476,3 +476,30 @@ fn configured_builtin_override_cannot_broaden_role_safety_boundary() {
     assert_eq!(reviewer.provider, "openrouter");
     assert_eq!(reviewer.model, "review-model");
 }
+
+#[test]
+fn merged_builtin_subagent_opt_out_preserves_other_roles() {
+    let configured = HashMap::from([
+        (
+            "researcher".to_string(),
+            super::AgentDefinitionConfig { allow_as_subagent: false, ..Default::default() },
+        ),
+        (
+            "coder".to_string(),
+            super::AgentDefinitionConfig { enabled: false, ..Default::default() },
+        ),
+        (
+            "main".to_string(),
+            super::AgentDefinitionConfig { allow_as_subagent: true, ..Default::default() },
+        ),
+    ]);
+
+    let merged = super::merged_agent_configs(&configured);
+
+    assert!(!merged["researcher"].allow_as_subagent);
+    assert!(merged["researcher"].enabled);
+    assert!(!merged["coder"].enabled);
+    assert!(!merged["main"].allow_as_subagent);
+    assert!(merged["reviewer"].allow_as_subagent);
+    assert!(merged["reviewer"].enabled);
+}

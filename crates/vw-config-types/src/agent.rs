@@ -460,6 +460,7 @@ pub fn merged_agent_configs(
             let mut builtin =
                 builtin_agent_config(spec.key).expect("builtin spec has configuration");
             builtin.enabled &= value.enabled;
+            builtin.allow_as_subagent &= value.allow_as_subagent;
             if spec.allow_as_subagent && !value.allowed_tools.is_empty() {
                 builtin.allowed_tools.retain(|tool| value.allowed_tools.contains(tool));
             }

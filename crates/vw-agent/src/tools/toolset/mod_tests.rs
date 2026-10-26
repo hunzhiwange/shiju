@@ -198,7 +198,8 @@ fn configured_subagent_opt_out_overrides_builtin_default() {
 
     let eligible = enabled_delegate_agents(&agents);
 
-    assert!(eligible.contains_key("main"));
+    assert!(!eligible.contains_key("main"));
+    assert!(eligible.contains_key("reviewer"));
     assert!(!eligible.contains_key("researcher"));
     assert!(!eligible.contains_key("coder"));
 }

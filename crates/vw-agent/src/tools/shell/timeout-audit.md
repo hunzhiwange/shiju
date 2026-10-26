@@ -25,7 +25,7 @@
 
 ## 批次 7 真实入口与统一回归（2026-10-26）
 
-新增 `long_running_tests.rs`，从同步 `execute_tool_call` 入口调用 `bash`、`bash_wait`、`bash_cancel`。每次调用重新创建可信上下文和工具注册，调用桥的 Tokio runtime 随调用销毁；没有修改生产权限、审批、路径、环境或退出语义。
+初次实现新增 `long_running_tests.rs`，从同步 `execute_tool_call` 入口调用 `bash`、`bash_wait`、`bash_cancel`。每次调用重新创建可信上下文和工具注册，调用桥的 Tokio runtime 随调用销毁；没有修改生产权限、审批、路径、环境或退出语义。
 
 旧版本 `8f86a6ce2` 的 `shell/mod.rs` 使用 `DEFAULT_TIMEOUT_MS = 120_000`、`cmd.kill_on_drop(true)` 与包裹 `cmd.output()` 的执行超时。本批次开始时前置实现已经具备会话能力，新增短测试首跑即通过（2 passed、1 ignored，退出 0），作为保护性回归；没有制造人为红灯，也没有将无关失败算作目标行为缺失。首次长测因测试把块游标误认为字节偏移而主动中断，不计为二十分钟证据；修正为验证游标单调与终态空续读后重新计时。
 
@@ -37,7 +37,7 @@
 - 补充诊断槽位 2：`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2`。
 - macOS 的 `/var` 临时路径别名导致 Shell 路径策略用例失败；规范化 `TMPDIR` 后完整 Shell 组通过。`/private/tmp` 虽能通过 Shell 组，但数据库测试拒绝该公共目录（`secure global database directory` / EPERM）；补充阶段采用当前用户临时目录的规范路径 `/private/var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T`，没有放宽目录安全校验。
 
-### 聚焦命令与有效数量
+### 聚焦命令与有效数量（初次阶段记录）
 
 所有命令从仓库根执行、默认 features（Clippy 按要求启用全部 features）。下表只将实际报告通过的测试计入数量。
 
@@ -52,7 +52,7 @@
 | `cargo test -p vw-agent --lib shell_outer_timeout_ -- --nocapture` | 0 | 原环境与用户规范临时目录均为 5 passed、0 failed；公共临时目录的失败不算通过 |
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 仅既有依赖 `block v0.1.6` 的 Cargo future-incompat 提示 |
 
-toolset 既有失败单列，不修改或放宽断言：
+初次 toolset 失败单列，最终修复和完整回归见下节：
 
 1. `configured_subagent_opt_out_overrides_builtin_default` 期待 `main` 出现在可委派列表，但 `BUILTIN_AGENT_SPECS` 的 `main.allow_as_subagent=false`。槽位 2 原有二进制（`--list shell_long_running_` 为零项，证明不含本次测试）单独运行该用例，复现同一断言和 SIGABRT（进程退出 -6）。零项列表仅作基线身份核查，不作行为验收。
 2. `full_access_context_disables_workspace_only_for_tool_security` 期待默认 `workspace_only=true`，而 `AutonomyConfig::default` 已是 false。
@@ -73,4 +73,35 @@ toolset 既有失败单列，不修改或放宽断言：
 - 原始输出：`/tmp/vw-task7-twenty-minutes.log`；主阶段命令退出记录 `/tmp/vw-task7-results.txt`；规范临时目录补充记录 `/tmp/vw-task7-extra-results.txt`。中断的首次长测单独保留在 `/tmp/vw-task7-interrupted-long.log`，不纳入通过证据。
 - 主测试及脚本 PID 已消失，正常测试临时目录由 TempDir 回收；早先中断和既有 suite SIGABRT 遗留的本任务三组 fixture 经核对 cwd、脚本内容及 PID 后清理。槽位 1、2 均已释放，缓存保留。
 
-本批次三个新增测试均取得真实通过证据，Clippy 通过；完整 toolset 仍有上述三项既有失败，因此任务记录保留为“已完成，待回归”。批次 5 的任务文件保持原样，留给原会话最终回归；不宣称整个计划统一回归已全部通过。
+初次阶段三个新增测试取得真实通过证据、Clippy 通过；当时完整 toolset 存在上述三项失败，任务记录保留为“已完成，待回归”。下节记录获得扩大修复授权后的最终回归；本任务不修改其他编号任务文件或 plan.md。
+
+
+## 最终回归与阻塞修复
+
+恢复授权允许修正必要测试夹具及底层问题，并要求不放宽断言、不削弱安全策略。三项 toolset 失败现已解除：
+
+- 两项 full-access 测试显式设置 `config.autonomy.workspace_only=true`，将“带工作区限制的正常上下文”与显式 full-access 上下文作对照；原有拒绝/允许断言全部保留，不改变生产默认值。
+- 子代理测试新增“main 不可委派”及“reviewer 仍可委派”的角色边界断言，保留 researcher 禁用和 coder 停用断言。独立 `vw-config-types` 测试 `merged_builtin_subagent_opt_out_preserves_other_roles` 先复现 researcher 禁用丢失（退出 101，目标断言可见，随后本机 panic runtime SIGABRT），再修正 `merged_agent_configs`：`builtin.allow_as_subagent &= value.allow_as_subagent`。该合并仅允许收窄内置角色的委派权限，不能将 main 提升为可委派。
+- 共享模型恢复实现新增 `StreamEvent::ModelRecovery` 后，CLI 穷尽匹配编译失败。兼容入口将该非终态事件与现有步骤/压缩进度一样显式忽略，保持结果文本与终态语义；只提交该匹配项，不提交其他会话的模型恢复实现。
+- 首次 agent 红灯尝试因共享测试调用缺少新参数而编译失败（E0061），未作为目标红灯证据。真正红灯由上述独立配置 crate 测试获得；后续完整 agent 测试成功编译并通过。
+
+最终聚焦回归不使用 `--skip`：
+
+| 命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| `cargo fmt --all` | 0 | 排除共享工作区无关格式化变更 |
+| `cargo test -p vw-config-types --lib agent::agent_tests -- --nocapture` | 0 | 21 passed、0 failed，含新增禁用与角色隔离测试 |
+| `cargo test -p vw-agent --lib shell_long_running_ -- --nocapture` | 0 | 2 passed、0 failed、1 ignored |
+| `cargo test -p vw-agent --lib tools::shell -- --nocapture` | 0 | 421 passed、0 failed、1 ignored |
+| `cargo test -p vw-agent --lib tools::toolset -- --nocapture` | 0 | 34 passed、0 failed，三项原失败均通过 |
+| `cargo test -p vw-agent --lib shell_session_ -- --nocapture` | 0 | 16 passed、0 failed |
+| `cargo test -p vw-agent --lib shell_outer_timeout_ -- --nocapture` | 0 | 5 passed、0 failed |
+| `cargo test -p vw-cli --lib cli::runtime::processor -- --nocapture` | 0 | 20 passed、0 failed |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 修复 CLI 穷尽匹配后通过；仅既有 block v0.1.6 future-incompat 提示 |
+
+本轮配置、agent 聚焦验证及 Clippy 动态领取槽位 2，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2`；CLI 补充验证动态领取槽位 1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`。均设置同路径 `CARGO_BUILD_BUILD_DIR`，采用当前用户临时目录的规范路径，阶段结束释放本次锁并保留缓存。
+
+最终原始证据：`/tmp/vw-task7-final-regression-results.txt`、`/tmp/vw-task7-config-red.log`、`/tmp/vw-task7-final-config.log`、`/tmp/vw-task7-final-focused.log`、`/tmp/vw-task7-final-shell.log`、`/tmp/vw-task7-final-toolset.log`、`/tmp/vw-task7-final-session.log`、`/tmp/vw-task7-final-outer.log`、`/tmp/vw-task7-compat-clippy.log`。真实二十分钟证据沿用上节已完成的独立运行；本轮没有修改 Shell 宿主和长测代码，不将短回归的 ignored 算作长测通过。
+
+
+CLI 补充验证实际路径为 `cli::runtime::processor`，有效通过 20 项（`/tmp/vw-task7-compat-cli-actual.log`）。此前 `cargo test -p vw-cli --lib cli::processor -- --nocapture` 和 `cargo test -p vw-cli --bin shiju cli::processor -- --nocapture` 各执行零项，仅算编译，不作为行为证据。所有规定聚焦组、补充角色边界与 CLI 测试及全仓 Clippy 已通过，批次 7 任务可完成并删除自身任务文件。最终回收检查无本次占用锁，缓存保留；其他会话的源码、任务文件与锁均不纳入本次提交或清理。

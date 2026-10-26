@@ -11,7 +11,8 @@ use std::path::PathBuf;
 #[test]
 fn full_access_context_disables_workspace_only_for_tool_security() {
     let workspace_dir = PathBuf::from("/tmp/vw-toolset-full-access-workspace");
-    let config = Config { workspace_dir: workspace_dir.clone(), ..Config::default() };
+    let mut config = Config { workspace_dir: workspace_dir.clone(), ..Config::default() };
+    config.autonomy.workspace_only = true;
 
     let security =
         security_for_tool_context(&config, &workspace_dir, &ToolUseContext::new("test", None));
@@ -59,6 +60,7 @@ fn full_access_context_allows_shell_paths_outside_workspace() {
     let workspace_dir = PathBuf::from("/tmp/vw-toolset-full-access-workspace");
     let mut config = Config { workspace_dir: workspace_dir.clone(), ..Config::default() };
     config.security.bash.enabled = true;
+    config.autonomy.workspace_only = true;
     let command = "cat /etc/hosts";
 
     let security =

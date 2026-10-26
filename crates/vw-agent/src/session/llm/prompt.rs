@@ -88,7 +88,7 @@ async fn resolve_model(model: Option<String>) -> Result<provider::Model, String>
     // 处理用户提供的模型标识符：去除空白并检查是否非空
     if let Some(s) = model.as_deref().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()) {
         // 获取所有可用的 provider 列表
-        let providers = provider::list().await.map_err(|error| error.to_string())?;
+        let providers = provider::list().await.map_err(super::types::catalog_error_string)?;
 
         // 如果标识符包含 `/`，按 provider/model 格式解析
         if s.contains('/') {
@@ -102,7 +102,7 @@ async fn resolve_model(model: Option<String>) -> Result<provider::Model, String>
             // 直接获取指定的模型
             return provider::get_model(&parsed.provider_id, &parsed.model_id)
                 .await
-                .map_err(|e| e.to_string());
+                .map_err(super::types::catalog_error_string);
         }
 
         // 纯模型 ID 模式：在所有 provider 中搜索
@@ -134,12 +134,16 @@ async fn resolve_model(model: Option<String>) -> Result<provider::Model, String>
         }
 
         // 唯一匹配，返回该模型
-        return provider::get_model(&candidates[0], &s).await.map_err(|e| e.to_string());
+        return provider::get_model(&candidates[0], &s)
+            .await
+            .map_err(super::types::catalog_error_string);
     }
 
     // 未提供模型标识符，使用系统默认模型
-    let parsed = provider::default_model().await.map_err(|e| e.to_string())?;
-    provider::get_model(&parsed.provider_id, &parsed.model_id).await.map_err(|e| e.to_string())
+    let parsed = provider::default_model().await?;
+    provider::get_model(&parsed.provider_id, &parsed.model_id)
+        .await
+        .map_err(super::types::catalog_error_string)
 }
 
 fn request_options_enable_acp(options: &Value) -> bool {
@@ -164,7 +168,7 @@ async fn resolve_auto_model(
     needs_tools: bool,
 ) -> Result<provider::Model, String> {
     let config = crate::app::agent::config::get().await;
-    let providers = provider::list().await.map_err(|error| error.to_string())?;
+    let providers = provider::list().await.map_err(super::types::catalog_error_string)?;
     let candidates = providers
         .values()
         .flat_map(|provider| provider.models.values())
@@ -485,6 +489,7 @@ pub fn stream_prompt(
             small: false,
             tools: HashMap::new(),
             retries: 0,
+            retry_in_caller: false,
         };
 
         let on_event = std::sync::Arc::new(std::sync::Mutex::new(on_event));
@@ -611,7 +616,9 @@ pub fn stream_prompt_with_tools(
     let model = match block_on(resolve_model(model)) {
         Ok(m) => m,
         Err(e) => {
-            (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown { message: e }));
+            (&mut on_event)(StreamEvent::Error(
+                serde_json::from_str(&e).unwrap_or(message::AssistantError::Unknown { message: e }),
+            ));
             return;
         }
     };
@@ -637,6 +644,7 @@ pub fn stream_prompt_with_tools(
             small: false,
             tools,
             retries: 0,
+            retry_in_caller: false,
         };
 
         let on_event = std::sync::Arc::new(std::sync::Mutex::new(on_event));
@@ -746,6 +754,7 @@ pub fn stream_chat_with_tools_for_session(
         options,
         tools,
         None,
+        false,
         move |ev| (&mut on_event)(ev),
     );
 }
@@ -758,6 +767,7 @@ pub(crate) fn stream_chat_with_tools_for_session_with_abort(
     options: Value,
     tools: HashMap<String, tools::ToolSpec>,
     abort: Option<tokio::sync::watch::Receiver<bool>>,
+    retry_in_caller: bool,
     mut on_event: impl FnMut(StreamEvent) + Send + 'static,
 ) {
     // Web 平台不支持此功能
@@ -787,7 +797,9 @@ pub(crate) fn stream_chat_with_tools_for_session_with_abort(
     }) {
         Ok(m) => m,
         Err(e) => {
-            (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown { message: e }));
+            (&mut on_event)(StreamEvent::Error(
+                serde_json::from_str(&e).unwrap_or(message::AssistantError::Unknown { message: e }),
+            ));
             return;
         }
     };
@@ -817,6 +829,7 @@ pub(crate) fn stream_chat_with_tools_for_session_with_abort(
             small: false,
             tools,
             retries: 0,
+            retry_in_caller,
         };
 
         let on_event = std::sync::Arc::new(std::sync::Mutex::new(on_event));
@@ -926,6 +939,7 @@ pub fn send_prompt(
             small: false,
             tools: HashMap::new(),
             retries: 0,
+            retry_in_caller: false,
         };
 
         // 使用 Arc<Mutex> 共享状态来收集流式输出

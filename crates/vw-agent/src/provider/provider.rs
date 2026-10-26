@@ -96,7 +96,33 @@ tokio::task_local! {
     static CONFIG_READ_BOUNDARY: Arc<dyn Fn() -> crate::project::BoxFuture<()> + Send + Sync>;
 }
 
+#[cfg(test)]
+thread_local! {
+    static CONFIG_READ_FAILURES: std::cell::RefCell<std::collections::VecDeque<std::io::ErrorKind>> = const { std::cell::RefCell::new(std::collections::VecDeque::new()) };
+}
+
+/// 只替换不确定的存储读取边界，目录构建及模型查找仍真实执行。
+#[cfg(test)]
+pub(crate) fn with_config_read_failures<T>(
+    failures: &[std::io::ErrorKind],
+    run: impl FnOnce() -> T,
+) -> T {
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            CONFIG_READ_FAILURES.with(|faults| faults.borrow_mut().clear());
+        }
+    }
+    CONFIG_READ_FAILURES.with(|faults| *faults.borrow_mut() = failures.iter().copied().collect());
+    let _reset = Reset;
+    run()
+}
+
 async fn provider_config() -> Result<config::Config, config::Error> {
+    #[cfg(test)]
+    if let Some(kind) = CONFIG_READ_FAILURES.with(|faults| faults.borrow_mut().pop_front()) {
+        return Err(config::Error::Io(std::io::Error::new(kind, "isolated catalog storage read")));
+    }
     let tenant = crate::session::ui_store::current_tenant_scope();
     let directory = instance::directory();
     let result = if directory.is_empty() {

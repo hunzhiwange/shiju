@@ -59,3 +59,8 @@ pub use prompt::{
 };
 pub use stream::stream;
 pub use types::{AgentInfo, Error, PromptStreamEvent, StreamEvent, StreamInput, ToolCall};
+
+pub(crate) use types::{catalog_error_string, prevent_error_replay};
+
+#[cfg(test)]
+pub(crate) mod recovery_test_support;

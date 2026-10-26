@@ -143,12 +143,35 @@ pub enum CompactionPhase {
     Completed,
 }
 
+/// 模型恢复的非终止状态；最终错误仍由 Error 事件报告。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecoveryPhase {
+    Waiting,
+    Recovered,
+    Stopped,
+    Cancelled,
+}
+
+/// 一次有界恢复状态，不包含原始响应体、请求头或配置内容。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelRecovery {
+    /// 当前已执行的尝试数。
+    pub attempt: u64,
+    pub max_attempts: u64,
+    pub wait_ms: u64,
+    pub reason: String,
+    pub phase: RecoveryPhase,
+    pub next_action: String,
+}
+
 /// 流式事件枚举
 ///
 /// 定义了会话处理过程中可能产生的各种流式事件类型。
 /// 这些事件用于实时通知客户端会话处理的进度和状态变化。
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
+    /// 独立于最终错误和模型文本的恢复进度。
+    ModelRecovery(ModelRecovery),
     /// 仅供 Gateway 暂存、不会编码给客户端的原始 LLM 工件。
     LlmRawArtifact(LlmRawArtifact),
 

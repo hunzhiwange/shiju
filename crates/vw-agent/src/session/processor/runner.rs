@@ -302,7 +302,7 @@ fn resolve_request_model(
     }
 
     let providers = prompt::block_on(crate::app::agent::provider::provider::list())
-        .map_err(|error| error.to_string())?;
+        .map_err(crate::session::llm::catalog_error_string)?;
     let candidates =
         providers.values().flat_map(|info| info.models.values()).cloned().collect::<Vec<_>>();
     let selected = if is_auto_model_request(req.model.as_deref()) {
@@ -432,13 +432,19 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
 
     let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
     let config = prompt::block_on(config::get());
-    let selected_model = match resolve_request_model(&req, &config) {
-        Ok(model) => model,
-        Err(message) => {
-            on_event(StreamEvent::Error(message));
-            return;
-        }
-    };
+    let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
+    let mut initial_budget =
+        super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms);
+    let selected_model =
+        match initial_budget.run(is_acp, req.abort_token.as_ref(), &mut on_event, |_| {
+            resolve_request_model(&req, &config)
+        }) {
+            Ok(model) => model,
+            Err(message) => {
+                on_event(StreamEvent::Error(message));
+                return;
+            }
+        };
     req.model = Some(selected_model.model.clone());
 
     session.messages = req
@@ -655,6 +661,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         }
     }
 
+    let mut initial_budget = Some(initial_budget);
     let mut step = 0usize;
     let mut step_index: u32 = 0;
     let mut total_usage = models::TokenUsage::default();
@@ -791,7 +798,10 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         }
 
         let provider_options = provider_request_options(&req.options);
-        let step_out = match llm_runner::run_llm_step_with_retry(
+        let mut retry_budget = initial_budget.take().unwrap_or_else(|| {
+            super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms)
+        });
+        let step_out = match llm_runner::run_llm_step_with_budget(
             &req.session,
             &provider_messages,
             &system,
@@ -800,8 +810,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &available_tool_specs,
             tools_for_step,
             &mut on_event,
-            provider_retries,
-            provider_backoff_ms,
+            &mut retry_budget,
             req.abort_token.as_ref(),
         ) {
             Ok(output) => {

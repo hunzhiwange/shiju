@@ -388,7 +388,7 @@ fn event_texts(events: &[super::StreamEvent]) -> Vec<String> {
     events
         .iter()
         .filter_map(|event| match event {
-            super::StreamEvent::LlmRawArtifact(_) => None,
+            super::StreamEvent::LlmRawArtifact(_) | super::StreamEvent::ModelRecovery(_) => None,
             super::StreamEvent::Delta(text) => Some(format!("delta:{text}")),
             super::StreamEvent::Tool(event) => {
                 Some(format!("tool:{}:{}", event.name, event.payload))
@@ -1492,4 +1492,129 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
         events[0],
         super::StreamEvent::Compaction { phase: super::CompactionPhase::Started }
     ));
+}
+
+#[test]
+fn model_recovery_preflight_and_network_share_budget() {
+    use crate::provider::provider;
+    use crate::session::processor::{RecoveryPhase, StreamEvent};
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = crate::session::processor::test_llm_stream_guard();
+    let mut req = request_with_session("preflight-budget");
+    req.model = Some("model-recovery/original".into());
+    let mut budget = super::super::recovery::RetryBudget::new(2, 0);
+    let mut events = Vec::new();
+    let mut reads = 0;
+    let selected = provider::with_config_read_failures(&[std::io::ErrorKind::TimedOut], || {
+        budget.run(
+            false,
+            None,
+            &mut |event| {
+                events.push(event);
+                true
+            },
+            |_| {
+                reads += 1;
+                super::resolve_request_model(&req, &crate::config::Config::default())
+            },
+        )
+    })
+    .unwrap();
+    assert_eq!(selected.model, "model-recovery/original");
+    assert_eq!(reads, 2);
+    for _ in 0..2 {
+        crate::session::processor::enqueue_test_llm_stream(vec![
+            crate::session::llm::StreamEvent::Error(
+                crate::session::message::AssistantError::APIError {
+                    message: "temporary network fault".into(),
+                    status_code: Some(503),
+                    is_retryable: true,
+                    response_headers: None,
+                    response_body: None,
+                    metadata: None,
+                },
+            ),
+        ]);
+    }
+    assert!(
+        super::llm_runner::run_llm_step_with_budget(
+            &req.session,
+            &[],
+            &[],
+            Some(selected.model),
+            &serde_json::json!({}),
+            &[],
+            &std::collections::HashSet::new(),
+            &mut |event| {
+                events.push(event);
+                true
+            },
+            &mut budget,
+            None
+        )
+        .is_err()
+    );
+    assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids().len(), 2);
+    let states = events
+        .iter()
+        .filter_map(|event| match event {
+            StreamEvent::ModelRecovery(state) => Some(state),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(states.last().unwrap().phase, RecoveryPhase::Stopped);
+    assert_eq!((states.last().unwrap().attempt, states.last().unwrap().max_attempts), (3, 3));
+}
+
+#[test]
+fn model_recovery_preflight_exhaustion_and_permanent_resolution_stop() {
+    use crate::provider::provider;
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let mut req = request_with_session("preflight-stop");
+    req.model = Some("model-recovery/original".into());
+    let mut budget = super::super::recovery::RetryBudget::new(2, 0);
+    let mut reads = 0;
+    let result = provider::with_config_read_failures(&[std::io::ErrorKind::TimedOut; 3], || {
+        budget.run(false, None, &mut |_| true, |_| {
+            reads += 1;
+            super::resolve_request_model(&req, &crate::config::Config::default())
+        })
+    });
+    assert!(result.is_err());
+    assert_eq!(reads, 3);
+    for model in ["model-recovery/missing", "model-recovery/disabled", "/invalid"] {
+        req.model = Some(model.into());
+        let mut reads = 0;
+        assert!(
+            super::super::recovery::RetryBudget::new(2, 0)
+                .run(false, None, &mut |_| true, |_| {
+                    reads += 1;
+                    super::resolve_request_model(&req, &crate::config::Config::default())
+                })
+                .is_err()
+        );
+        assert_eq!(reads, 1);
+    }
+    let mut reads = 0;
+    let result =
+        provider::with_config_read_failures(&[std::io::ErrorKind::PermissionDenied; 3], || {
+            super::super::recovery::RetryBudget::new(2, 0).run(false, None, &mut |_| true, |_| {
+                reads += 1;
+                super::resolve_request_model(&req, &crate::config::Config::default())
+            })
+        });
+    assert!(result.is_err());
+    assert_eq!(reads, 1);
 }

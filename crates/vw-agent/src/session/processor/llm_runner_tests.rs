@@ -231,13 +231,14 @@ fn acp_retryable_error_matches_timeout_and_disconnect_messages() {
 
 #[test]
 fn non_retryable_llm_error_matches_model_resolution_failures() {
-    assert!(super::is_non_retryable_llm_error(
-        r#"{"name":"Unknown","message":"未找到模型：llama3"}"#
+    assert!(!super::llm_step_retry_allowed(
+        r#"{"name":"Unknown","message":"未找到模型：llama3"}"#,
+        false
     ));
-    assert!(super::is_non_retryable_llm_error("模型格式错误：/llama3，请使用 provider/model"));
-    assert!(super::is_non_retryable_llm_error("模型ID存在歧义：llama3，请使用 provider/model"));
-    assert!(super::is_non_retryable_llm_error("model not found"));
-    assert!(!super::is_non_retryable_llm_error("模型响应超时"));
+    assert!(!super::llm_step_retry_allowed("模型格式错误：/llama3，请使用 provider/model", false));
+    assert!(!super::llm_step_retry_allowed("模型ID存在歧义：llama3，请使用 provider/model", false));
+    assert!(!super::llm_step_retry_allowed("model not found", false));
+    assert!(super::llm_step_retry_allowed("模型响应超时", false));
 }
 
 #[test]
@@ -558,7 +559,7 @@ fn llm_error_message_falls_back_when_json_message_is_not_text() {
     let error = r#"{"message":{"detail":"rate limited"},"code":429}"#;
 
     assert_eq!(super::llm_error_message(error), error);
-    assert!(!super::is_non_retryable_llm_error(error));
+    assert!(!super::llm_step_retry_allowed(error, false));
 }
 
 #[test]
@@ -598,7 +599,7 @@ fn emit_stream_event_stops_when_consumer_returns_false() {
 
 #[test]
 fn non_retryable_llm_error_matches_consumer_stopped_direct_string() {
-    assert!(super::is_non_retryable_llm_error(super::STREAM_CONSUMER_STOPPED_ERR));
+    assert!(!super::llm_step_retry_allowed(super::STREAM_CONSUMER_STOPPED_ERR, false));
 }
 
 // ── collect_llm_step_from_stream additional edge cases ─────────────────────
@@ -711,8 +712,8 @@ fn acp_retryable_error_matches_timeout_word_and_eof_failure() {
 
 #[test]
 fn non_retryable_llm_error_matches_english_model_resolution_failures() {
-    assert!(super::is_non_retryable_llm_error("unknown model: custom/model"));
-    assert!(super::is_non_retryable_llm_error("unsupported model family"));
+    assert!(!super::llm_step_retry_allowed("unknown model: custom/model", false));
+    assert!(!super::llm_step_retry_allowed("unsupported model family", false));
 }
 
 #[test]
@@ -1082,9 +1083,10 @@ fn run_llm_step_uses_scripted_stream_and_filters_allowed_tools() {
 #[test]
 fn run_llm_step_with_retry_retries_retryable_error_then_succeeds() {
     let _guard = test_llm_stream_guard();
-    enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {
-        message: "temporary timeout".to_string(),
-    })]);
+    enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+        "temporary timeout",
+        true,
+    ))]);
     enqueue_test_llm_stream(vec![
         llm::StreamEvent::Delta("second attempt".to_string()),
         llm::StreamEvent::Done { usage: usage(3, 4), finish_reason: Some("stop".to_string()) },
@@ -1121,9 +1123,10 @@ fn run_llm_step_with_retry_retries_retryable_error_then_succeeds() {
 fn configured_provider_retries_control_total_attempts() {
     let _guard = test_llm_stream_guard();
     for _ in 0..3 {
-        enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {
-            message: "temporary timeout".to_string(),
-        })]);
+        enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+            "temporary timeout",
+            true,
+        ))]);
     }
 
     let error = super::run_llm_step_with_retry(
@@ -1243,9 +1246,10 @@ fn llm_step_retry_allowed_respects_structured_api_error_flag() {
 #[test]
 fn run_llm_step_with_retry_treats_zero_retries_as_one_attempt() {
     let _guard = test_llm_stream_guard();
-    enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {
-        message: "temporary timeout".to_string(),
-    })]);
+    enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+        "temporary timeout",
+        true,
+    ))]);
 
     let error = super::run_llm_step_with_retry(
         "session-one-attempt",
@@ -1359,4 +1363,339 @@ fn shell_outer_timeout_model_idle_does_not_cover_background_runtime() {
         "model idle expired; process={} remained Running; shutdown reaped it",
         after.process_id
     );
+}
+
+fn recovery_api_error(message: &str, is_retryable: bool) -> AssistantError {
+    AssistantError::APIError {
+        message: message.into(),
+        status_code: None,
+        is_retryable,
+        response_headers: None,
+        response_body: None,
+        metadata: None,
+    }
+}
+
+#[test]
+fn model_recovery_structured_transient_overrides_model_not_found_text() {
+    let _guard = test_llm_stream_guard();
+    enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+        "model not found during temporary routing failure",
+        true,
+    ))]);
+    enqueue_test_llm_stream(vec![
+        llm::StreamEvent::Delta("recovered".into()),
+        llm::StreamEvent::Done { usage: Default::default(), finish_reason: None },
+    ]);
+    let result = super::run_llm_step_with_retry(
+        "recovery",
+        &[],
+        &[],
+        None,
+        &serde_json::json!({}),
+        &[],
+        &HashSet::new(),
+        &mut |_| true,
+        1,
+        0,
+        None,
+    );
+    assert!(result.is_ok());
+    assert_eq!(take_test_llm_stream_tool_ids().len(), 2);
+}
+
+#[test]
+fn model_recovery_unknown_error_does_not_retry() {
+    let _guard = test_llm_stream_guard();
+    for _ in 0..3 {
+        enqueue_test_llm_stream(vec![llm::StreamEvent::Error(AssistantError::Unknown {
+            message: "unclassified failure".into(),
+        })]);
+    }
+    let result = super::run_llm_step_with_retry(
+        "recovery",
+        &[],
+        &[],
+        None,
+        &serde_json::json!({}),
+        &[],
+        &HashSet::new(),
+        &mut |_| true,
+        2,
+        0,
+        None,
+    );
+    assert!(result.is_err());
+    assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+}
+
+#[test]
+fn model_recovery_partial_text_is_not_replayed() {
+    let _guard = test_llm_stream_guard();
+    for _ in 0..3 {
+        enqueue_test_llm_stream(vec![
+            llm::StreamEvent::Delta("partial".into()),
+            llm::StreamEvent::Error(recovery_api_error("temporarily unavailable", true)),
+        ]);
+    }
+    let mut text = String::new();
+    let result = super::run_llm_step_with_retry(
+        "recovery",
+        &[],
+        &[],
+        None,
+        &serde_json::json!({}),
+        &[],
+        &HashSet::new(),
+        &mut |event| {
+            if let super::StreamEvent::Delta(value) = event {
+                text.push_str(&value);
+            }
+            true
+        },
+        2,
+        0,
+        None,
+    );
+    assert!(result.is_err());
+    assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+    assert_eq!(text, "partial");
+}
+
+fn model_recovery_states(
+    events: Vec<super::StreamEvent>,
+) -> Vec<crate::session::processor::ModelRecovery> {
+    events
+        .into_iter()
+        .filter_map(|event| match event {
+            super::StreamEvent::ModelRecovery(state) => Some(state),
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn model_recovery_reports_wait_and_success_without_terminal_error() {
+    use crate::session::processor::RecoveryPhase;
+    let _guard = test_llm_stream_guard();
+    enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+        "temporary failure",
+        true,
+    ))]);
+    enqueue_test_llm_stream(vec![
+        llm::StreamEvent::Delta("ok".into()),
+        llm::StreamEvent::Done { usage: Default::default(), finish_reason: None },
+    ]);
+    let mut events = Vec::new();
+    assert!(
+        super::run_llm_step_with_retry(
+            "recovery",
+            &[],
+            &[],
+            None,
+            &serde_json::json!({}),
+            &[],
+            &HashSet::new(),
+            &mut |event| {
+                events.push(event);
+                true
+            },
+            1,
+            0,
+            None
+        )
+        .is_ok()
+    );
+    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::Error(_))));
+    let states = model_recovery_states(events);
+    assert_eq!(
+        states.iter().map(|state| state.phase).collect::<Vec<_>>(),
+        [RecoveryPhase::Waiting, RecoveryPhase::Recovered]
+    );
+    assert_eq!((states[0].attempt, states[1].attempt, states[0].max_attempts), (1, 2, 2));
+    assert_eq!(take_test_llm_stream_tool_ids().len(), 2);
+}
+
+#[test]
+fn model_recovery_exhaustion_and_zero_retries_are_bounded() {
+    use crate::session::processor::RecoveryPhase;
+    let _guard = test_llm_stream_guard();
+    for retries in [0, 2] {
+        for _ in 0..=retries {
+            enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+                "temporary failure",
+                true,
+            ))]);
+        }
+        let mut events = Vec::new();
+        assert!(
+            super::run_llm_step_with_retry(
+                "recovery",
+                &[],
+                &[],
+                None,
+                &serde_json::json!({}),
+                &[],
+                &HashSet::new(),
+                &mut |event| {
+                    events.push(event);
+                    true
+                },
+                retries,
+                0,
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(take_test_llm_stream_tool_ids().len(), retries as usize + 1);
+        let states = model_recovery_states(events);
+        assert_eq!(states.len(), retries as usize + 1);
+        let last = states.last().unwrap();
+        assert_eq!(last.phase, RecoveryPhase::Stopped);
+        assert_eq!(last.attempt, u64::from(retries) + 1);
+        assert!(last.next_action.contains("预算已耗尽"));
+    }
+}
+
+#[test]
+fn model_recovery_permanent_errors_make_one_request() {
+    let _guard = test_llm_stream_guard();
+    for error in [
+        recovery_api_error("model not found", false),
+        recovery_api_error("disabled model", false),
+        recovery_api_error("invalid configuration", false),
+        AssistantError::ProviderAuthError {
+            provider_id: "fixture".into(),
+            message: "authentication failed".into(),
+        },
+    ] {
+        enqueue_test_llm_stream(vec![llm::StreamEvent::Error(error)]);
+        assert!(
+            super::run_llm_step_with_retry(
+                "recovery",
+                &[],
+                &[],
+                None,
+                &serde_json::json!({}),
+                &[],
+                &HashSet::new(),
+                &mut |_| true,
+                3,
+                0,
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+    }
+}
+
+#[test]
+fn model_recovery_backoff_cancellation_and_closed_consumer_stop_requests() {
+    use crate::session::processor::RecoveryPhase;
+    let _guard = test_llm_stream_guard();
+    for close_consumer in [false, true] {
+        enqueue_test_llm_stream(vec![llm::StreamEvent::Error(recovery_api_error(
+            "temporary failure",
+            true,
+        ))]);
+        let token = tokio_util::sync::CancellationToken::new();
+        let mut events = Vec::new();
+        let error = super::run_llm_step_with_retry("recovery", &[], &[], None, &serde_json::json!({}), &[], &HashSet::new(), &mut |event| {
+            let waiting = matches!(&event, super::StreamEvent::ModelRecovery(state) if state.phase == RecoveryPhase::Waiting);
+            events.push(event);
+            if waiting { token.cancel(); }
+            !(waiting && close_consumer)
+        }, 2, 5_000, Some(&token)).unwrap_err();
+        assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+        assert_eq!(error, if close_consumer { "stream consumer stopped" } else { "执行已取消" });
+        let states = model_recovery_states(events);
+        assert_eq!(states[0].wait_ms, 5_000);
+        if !close_consumer {
+            assert_eq!(states.last().unwrap().phase, RecoveryPhase::Cancelled);
+            assert_eq!(states.last().unwrap().attempt, 1);
+        }
+    }
+}
+
+#[test]
+fn model_recovery_tool_calls_and_remote_side_effects_are_not_replayed() {
+    let _guard = test_llm_stream_guard();
+    for tool_event in [
+        llm::StreamEvent::ToolCalls(vec![llm::ToolCall {
+            id: "call-1".into(),
+            name: "shell".into(),
+            arguments: "{}".into(),
+        }]),
+        llm::StreamEvent::RemoteToolUpdate {
+            call_id: "call-1".into(),
+            name: "shell".into(),
+            is_initial: true,
+            payload: serde_json::json!({"status":"running"}),
+        },
+    ] {
+        enqueue_test_llm_stream(vec![
+            tool_event,
+            llm::StreamEvent::Error(recovery_api_error("temporary failure", true)),
+        ]);
+        assert!(
+            super::run_llm_step_with_retry(
+                "recovery",
+                &[],
+                &[],
+                None,
+                &serde_json::json!({}),
+                &[],
+                &HashSet::new(),
+                &mut |_| true,
+                2,
+                0,
+                None
+            )
+            .is_err()
+        );
+        assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+    }
+}
+
+#[test]
+fn model_recovery_partial_output_blocks_outer_empty_and_compaction_replay() {
+    let _guard = test_llm_stream_guard();
+    for failure in [
+        vec![
+            llm::StreamEvent::ReasoningDelta("partial thinking".into()),
+            llm::StreamEvent::Done { usage: Default::default(), finish_reason: None },
+        ],
+        vec![
+            llm::StreamEvent::Delta("partial text".into()),
+            llm::StreamEvent::Error(recovery_api_error("context length exceeded", false)),
+        ],
+        vec![
+            llm::StreamEvent::Delta("partial text".into()),
+            llm::StreamEvent::Error(AssistantError::ContextOverflowError {
+                message: "context length exceeded".into(),
+                response_body: None,
+            }),
+        ],
+    ] {
+        enqueue_test_llm_stream(failure);
+        let error = super::run_llm_step_with_retry(
+            "recovery",
+            &[],
+            &[],
+            None,
+            &serde_json::json!({}),
+            &[],
+            &HashSet::new(),
+            &mut |_| true,
+            2,
+            0,
+            None,
+        )
+        .unwrap_err();
+        assert_ne!(error, "模型未返回内容");
+        assert!(!super::is_prompt_too_long_error(&error));
+        assert!(!super::llm_step_retry_allowed(&error, true));
+        assert_eq!(take_test_llm_stream_tool_ids().len(), 1);
+    }
 }

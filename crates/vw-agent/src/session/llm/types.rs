@@ -66,6 +66,8 @@ pub struct StreamInput {
     pub tools: HashMap<String, tools::ToolSpec>,
     /// 重试次数，用于错误恢复策略
     pub retries: u64,
+    /// processor 已持有总预算时，禁用 stream 和 SDK 内部重试。
+    pub retry_in_caller: bool,
 }
 
 /// 流式事件枚举
@@ -197,3 +199,61 @@ impl From<reqwest::Error> for Error {
 #[cfg(test)]
 #[path = "types_tests.rs"]
 mod types_tests;
+
+/// 保留目录错误的结构化分类，不根据展示文字猜测可恢复性。
+impl From<provider::CatalogError> for message::AssistantError {
+    fn from(error: provider::CatalogError) -> Self {
+        use crate::{config, storage};
+        let io = match &error {
+            provider::CatalogError::Configuration(
+                config::Error::Io(io) | config::Error::Storage(storage::Error::Io(io)),
+            ) => Some(io),
+            _ => None,
+        };
+        let is_retryable = io.is_some_and(|io| {
+            matches!(
+                io.kind(),
+                std::io::ErrorKind::Interrupted
+                    | std::io::ErrorKind::WouldBlock
+                    | std::io::ErrorKind::TimedOut
+                    | std::io::ErrorKind::ConnectionReset
+                    | std::io::ErrorKind::ConnectionAborted
+                    | std::io::ErrorKind::NotConnected
+                    | std::io::ErrorKind::UnexpectedEof
+            )
+        });
+        Self::APIError {
+            message: error.to_string(),
+            status_code: None,
+            is_retryable,
+            response_headers: None,
+            response_body: None,
+            metadata: None,
+        }
+    }
+}
+
+pub(crate) fn catalog_error_string(error: provider::CatalogError) -> String {
+    serde_json::to_string(&message::AssistantError::from(error))
+        .expect("assistant error serializes")
+}
+
+/// 标记无法安全重放的响应，让上层压缩与 ACP 恢复也遵守同一边界。
+pub(crate) fn prevent_error_replay(error: &mut message::AssistantError) {
+    if let message::AssistantError::Unknown { message }
+    | message::AssistantError::ContextOverflowError { message, .. } = error
+    {
+        *error = message::AssistantError::APIError {
+            message: message.clone(),
+            status_code: None,
+            is_retryable: false,
+            response_headers: None,
+            response_body: None,
+            metadata: None,
+        };
+    }
+    if let message::AssistantError::APIError { is_retryable, metadata, .. } = error {
+        *is_retryable = false;
+        metadata.get_or_insert_with(HashMap::new).insert("replay_safe".into(), "false".into());
+    }
+}

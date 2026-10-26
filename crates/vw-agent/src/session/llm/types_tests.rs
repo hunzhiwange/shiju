@@ -113,6 +113,7 @@ fn stream_input_keeps_all_request_fields() {
         small: true,
         tools,
         retries: 3,
+        retry_in_caller: false,
     };
 
     assert_eq!(input.user.id, "user-message");
@@ -151,6 +152,7 @@ fn stream_input_clone_preserves_empty_options_and_observes_abort_updates() {
         small: false,
         tools: HashMap::new(),
         retries: 0,
+        retry_in_caller: false,
     };
 
     let cloned = input.clone();

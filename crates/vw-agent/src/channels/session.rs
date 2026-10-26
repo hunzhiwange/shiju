@@ -331,6 +331,7 @@ pub(crate) async fn run_session_processor_for_channel(
             crate::app::agent::session::processor::StreamEvent::StepStart { .. }
             | crate::app::agent::session::processor::StreamEvent::StepFinish { .. }
             | crate::app::agent::session::processor::StreamEvent::PostToolRound { .. }
+            | crate::app::agent::session::processor::StreamEvent::ModelRecovery(_)
             | crate::app::agent::session::processor::StreamEvent::Compaction { .. }
             | crate::app::agent::session::processor::StreamEvent::ContextLoaded { .. } => {}
         }

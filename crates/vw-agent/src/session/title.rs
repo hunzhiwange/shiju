@@ -114,6 +114,7 @@ async fn stream_title(
             small: true,
             tools: Default::default(),
             retries: 1,
+            retry_in_caller: false,
         },
         move |event| {
             if let crate::app::agent::session::llm::StreamEvent::Delta(d) = event

@@ -85,11 +85,12 @@ fn is_acp_request(options: &Value) -> bool {
             .is_some_and(|value| !value.trim().is_empty())
 }
 
-fn is_acp_retryable_error(error: &str) -> bool {
+pub(super) fn is_acp_retryable_error(error: &str) -> bool {
     let normalized = error.to_ascii_lowercase();
     normalized.contains("模型响应超时")
         || normalized.contains("timed out")
         || normalized.contains("timeout")
+        || normalized.contains("acp session changed:")
         || normalized.contains("acp agent disconnected during request")
         || normalized.contains("queue owner disconnected before prompt completion")
         || normalized.contains("error decoding response body")
@@ -103,44 +104,21 @@ fn llm_error_message(error: &str) -> String {
         .unwrap_or_else(|| error.to_string())
 }
 
-fn is_non_retryable_llm_error(error: &str) -> bool {
-    let message = llm_error_message(error);
-    let normalized = message.to_ascii_lowercase();
-    [
-        "未找到模型",
-        "模型格式错误",
-        "模型id存在歧义",
-        "model not found",
-        "unknown model",
-        "unsupported model",
-        STREAM_CONSUMER_STOPPED_ERR,
-    ]
-    .iter()
-    .any(|marker| normalized.contains(marker))
-        || is_prompt_too_long_error(&message)
-}
-
 /// Context overflow needs a compaction retry in the caller, never the generic retry loop.
 pub(crate) fn is_prompt_too_long_error(error: &str) -> bool {
+    if matches!(serde_json::from_str::<AssistantError>(error), Ok(AssistantError::APIError { metadata: Some(metadata), .. }) if metadata.get("replay_safe").is_some_and(|value| value == "false"))
+    {
+        return false;
+    }
     let normalized = llm_error_message(error).to_ascii_lowercase();
     ["context length", "context window", "prompt too long", "too many tokens", "context overflow"]
         .iter()
         .any(|marker| normalized.contains(marker))
 }
 
+#[cfg(test)]
 fn llm_step_retry_allowed(error: &str, is_acp: bool) -> bool {
-    if is_acp {
-        return is_acp_retryable_error(error);
-    }
-
-    if matches!(
-        serde_json::from_str::<AssistantError>(error),
-        Ok(AssistantError::APIError { is_retryable: false, .. })
-    ) {
-        return false;
-    }
-
-    !is_non_retryable_llm_error(error)
+    super::recovery::retry_allowed(error, is_acp)
 }
 
 fn llm_step_idle_timeout(options: &Value) -> Duration {
@@ -227,6 +205,7 @@ fn spawn_llm_stream_thread(
                     options,
                     tools,
                     Some(abort_rx),
+                    true,
                     move |event| {
                         let _ = tx.send(event);
                     },
@@ -433,7 +412,7 @@ fn collect_llm_step_from_stream(
                 break;
             }
             // 处理错误事件
-            llm::StreamEvent::Error(e) => {
+            llm::StreamEvent::Error(mut e) => {
                 // 刷新所有待输出内容
                 if !pending.is_empty() {
                     let chunk = std::mem::take(&mut pending);
@@ -449,6 +428,10 @@ fn collect_llm_step_from_stream(
                         abort_tx,
                         StreamEvent::Delta("</think>\n\n".to_string()),
                     )?;
+                }
+                // 工具调用已经进入响应，禁止重新生成这一调用。
+                if !tool_calls.is_empty() {
+                    llm::prevent_error_replay(&mut e);
                 }
                 // 将错误转换为字符串并返回
                 return Err(
@@ -652,7 +635,7 @@ pub(crate) fn run_llm_step(
 /// # 注意事项
 ///
 /// - 当 `additional_retries` 为 0 时仍会执行首次调用
-/// - 所有尝试都会调用同一个 `on_event` 回调，请注意处理重复事件
+/// - 已输出内容或工具事件后停止自动重放，保留消费者收到的内容
 /// - 退避期间会阻塞当前线程
 pub(crate) fn run_llm_step_with_retry(
     session_id: &str,
@@ -667,18 +650,35 @@ pub(crate) fn run_llm_step_with_retry(
     initial_backoff_ms: u64,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<LlmStep, String> {
-    // 保存最后一次错误信息
-    let mut last_err: Option<String> = None;
-    let is_acp = is_acp_request(options);
+    let mut budget = super::recovery::RetryBudget::new(additional_retries, initial_backoff_ms);
+    run_llm_step_with_budget(
+        session_id,
+        messages,
+        system,
+        model,
+        options,
+        available_tools,
+        allowed_tools,
+        on_event,
+        &mut budget,
+        cancellation,
+    )
+}
 
-    let attempts = (additional_retries as usize).saturating_add(1);
-
-    // 逐次尝试调用
-    for attempt in 1..=attempts {
-        if cancellation.is_some_and(|token| token.is_cancelled()) {
-            return Err("执行已取消".into());
-        }
-        match run_llm_step(
+pub(crate) fn run_llm_step_with_budget(
+    session_id: &str,
+    messages: &[Value],
+    system: &[String],
+    model: Option<String>,
+    options: &Value,
+    available_tools: &[ToolSpec],
+    allowed_tools: &std::collections::HashSet<String>,
+    on_event: &mut dyn FnMut(StreamEvent) -> bool,
+    budget: &mut super::recovery::RetryBudget,
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
+) -> Result<LlmStep, String> {
+    budget.run(is_acp_request(options), cancellation, on_event, |sink| {
+        run_llm_step(
             session_id,
             messages,
             system,
@@ -686,66 +686,10 @@ pub(crate) fn run_llm_step_with_retry(
             options,
             available_tools,
             allowed_tools,
-            on_event,
+            sink,
             cancellation,
-        ) {
-            // 成功则立即返回结果
-            Ok(v) => return Ok(v),
-            // 失败则记录错误并考虑重试
-            Err(e) => {
-                let retry_allowed = llm_step_retry_allowed(&e, is_acp);
-                last_err = Some(e);
-                let error_preview = crate::app::agent::util::truncate_with_ellipsis(
-                    &crate::agent::loop_::scrub_credentials(
-                        last_err.as_deref().unwrap_or_default(),
-                    ),
-                    240,
-                );
-                let acp_retry_allowed =
-                    last_err.as_deref().is_some_and(|err| is_acp && is_acp_retryable_error(err));
-                tracing::warn!(
-                    target: "vw_agent",
-                    session_id,
-                    attempt,
-                    attempts,
-                    is_acp,
-                    retry_allowed,
-                    acp_retry_allowed,
-                    error_preview = %error_preview,
-                    "session processor llm step attempt failed"
-                );
-
-                if !retry_allowed {
-                    break;
-                }
-
-                // 如果已达到最大尝试次数，不再重试
-                if attempt == attempts {
-                    break;
-                }
-
-                // 计算退避时间（指数退避，最大 5000ms）
-                // 公式：min(5000, initial_backoff_ms * 2^(attempt-1))
-                let backoff_ms = provider_retry_backoff_ms(initial_backoff_ms, attempt as u32 - 1);
-
-                // 等待后重试
-                let deadline = std::time::Instant::now() + Duration::from_millis(backoff_ms);
-                while std::time::Instant::now() < deadline {
-                    if cancellation.is_some_and(|token| token.is_cancelled()) {
-                        return Err("执行已取消".into());
-                    }
-                    std::thread::sleep(
-                        deadline
-                            .saturating_duration_since(std::time::Instant::now())
-                            .min(Duration::from_millis(50)),
-                    );
-                }
-            }
-        }
-    }
-
-    // 所有尝试都失败，返回最后一次错误
-    Err(last_err.unwrap_or_else(|| "模型调用失败".to_string()))
+        )
+    })
 }
 
 const MAX_PROVIDER_RETRY_BACKOFF_MS: u64 = 5_000;

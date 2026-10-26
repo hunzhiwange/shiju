@@ -595,7 +595,8 @@ fn stream_payload_for_non_done_event(
     root_dir: &str,
 ) -> Option<Value> {
     match ev {
-        agent_session::processor::StreamEvent::LlmRawArtifact(_) => None,
+        agent_session::processor::StreamEvent::LlmRawArtifact(_)
+        | agent_session::processor::StreamEvent::ModelRecovery(_) => None,
         agent_session::processor::StreamEvent::ContextLoaded { paths } => Some(serde_json::json!({
             "type": "chat.context_loaded",
             "paths": paths

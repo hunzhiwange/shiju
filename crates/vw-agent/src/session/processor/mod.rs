@@ -40,6 +40,7 @@ pub(crate) use llm_runner::{
 mod planning;
 mod prefetch;
 mod prompting;
+mod recovery;
 mod runner;
 mod todo_updates;
 mod todos;
@@ -55,7 +56,10 @@ pub(crate) use types::ToolSessionState;
 pub(crate) use helpers::allowed_tool_ids_for_request_from_specs;
 pub(crate) use helpers::{allowed_tool_ids, should_execute_structured_tool_calls_locally};
 pub use runner::run;
-pub use types::{CompactionPhase, Request, StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
+pub use types::{
+    CompactionPhase, ModelRecovery, RecoveryPhase, Request, StreamEvent, ToolCallStatus, ToolEvent,
+    ToolEventKind,
+};
 
 /// 测试模块
 ///

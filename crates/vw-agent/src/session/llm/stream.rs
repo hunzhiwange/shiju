@@ -268,7 +268,9 @@ async fn stream_inner(
     let provider_info = resolve_stream_provider_info(
         &input.model.provider_id,
         provider_info.map_err(|error| {
-            Error::Api(message::AssistantError::Unknown { message: error.to_string() })
+            let error = message::AssistantError::from(error);
+            on_event(StreamEvent::Error(error.clone()));
+            Error::Api(error)
         })?,
         acp_requested_by_input,
     )?;
@@ -445,7 +447,7 @@ async fn stream_inner(
     let force_acp = request_options_value_enable_acp(&merged_options);
     let is_acp_adapter =
         force_acp || matches!(adapter, "acp" | "agent-client-protocol" | "agent_client_protocol");
-    let request_retries = if is_acp_adapter { 0 } else { retries };
+    let request_retries = if is_acp_adapter || input.retry_in_caller { 0 } else { retries };
     if is_acp_adapter {
         tracing::info!(
             target: "vw_agent",
@@ -547,6 +549,14 @@ async fn stream_inner(
 
             attempt += 1;
 
+            // 一旦输出内容或工具状态，失败后不能安全重放。
+            let mut output_started = false;
+            let mut request_event = |event: StreamEvent| {
+                output_started |= matches!(&event, StreamEvent::Delta(text) | StreamEvent::ReasoningDelta(text) if !text.is_empty())
+                    || matches!(&event, StreamEvent::ToolCalls(calls) if !calls.is_empty())
+                    || matches!(&event, StreamEvent::RemoteToolUpdate { .. });
+                on_event(event);
+            };
             // 执行流式请求
             let res = if is_acp_adapter {
                 do_stream_request_acp(
@@ -557,7 +567,7 @@ async fn stream_inner(
                     &chat_messages,
                     &input.session_id,
                     input.abort.as_ref(),
-                    &mut on_event,
+                    &mut request_event,
                 )
                 .await
             } else {
@@ -572,9 +582,9 @@ async fn stream_inner(
                     temperature,
                     top_p,
                     max_output_tokens,
-                    retries,
+                    0, // SDK 重试由当前层统一计数。
                     input.abort.as_ref(),
-                    &mut on_event,
+                    &mut request_event,
                 )
                 .await
             };
@@ -582,25 +592,25 @@ async fn stream_inner(
             // 处理请求结果
             match res {
                 Ok(()) => return Ok(()), // 请求成功，返回
-                Err(Error::Api(err)) => {
+                Err(Error::Api(mut err)) => {
                     // API 错误：检查是否可重试
                     let retry_allowed = if is_acp_adapter {
                         is_acp_retryable_assistant_error(&err)
                     } else {
                         is_retryable_assistant_error(&err)
                     };
-                    let retry_budget_exhausted = if is_acp_adapter {
-                        attempt > request_retries
-                    } else {
-                        attempt > request_retries.saturating_add(1)
-                    };
-                    if !retry_allowed || retry_budget_exhausted {
+                    if output_started {
+                        super::types::prevent_error_replay(&mut err);
+                    }
+                    let retry_budget_exhausted = attempt > request_retries;
+                    if output_started || !retry_allowed || retry_budget_exhausted {
                         // 不可重试或重试次数耗尽，返回错误
                         on_event(StreamEvent::Error(err.clone()));
                         return Err(Error::Api(err));
                     }
                     // 计算重试延迟（指数退避）
-                    let delay_ms = crate::app::agent::session::retry::delay(attempt, Some(&err));
+                    let delay_ms =
+                        crate::app::agent::session::retry::delay(attempt, Some(&err)).min(5_000);
                     tokio::time::sleep(Duration::from_millis(delay_ms)).await;
                 }
                 Err(e) => return Err(e), // 其他错误直接返回

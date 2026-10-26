@@ -98,6 +98,7 @@ fn test_input(model: provider::Model) -> StreamInput {
         small: false,
         tools: HashMap::new(),
         retries: 0,
+        retry_in_caller: false,
     }
 }
 

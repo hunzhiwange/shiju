@@ -255,7 +255,7 @@ fn task_text_colors_cover_incomplete_and_light_completed_states() {
     assert_eq!(todo_task_text_color(&Theme::Light, false), Theme::Light.palette().text);
     assert_eq!(
         todo_task_text_color(&Theme::Light, true),
-        Theme::Light.extended_palette().secondary.base.text.scale_alpha(0.72)
+        Theme::Light.palette().text.scale_alpha(0.78)
     );
 }
 
@@ -263,15 +263,15 @@ fn task_text_colors_cover_incomplete_and_light_completed_states() {
 fn status_pill_colors_cover_completed_running_and_pending_states() {
     assert_eq!(
         todo_status_pill_colors(&Theme::Light, true, false),
-        (Color::from_rgb8(46, 194, 126), Color::WHITE)
+        (Color::from_rgb8(46, 194, 126), Theme::Light.palette().text)
     );
     assert_eq!(
         todo_status_pill_colors(&Theme::Light, false, true),
-        (Theme::Light.palette().primary, Color::WHITE)
+        (Theme::Light.palette().primary, Theme::Light.palette().text)
     );
     assert_eq!(
         todo_status_pill_colors(&Theme::Light, false, false),
-        (Color::from_rgb8(71, 85, 105), Color::from_rgb8(248, 250, 252))
+        (Color::from_rgb8(71, 85, 105), Theme::Light.palette().text)
     );
     assert_eq!(
         todo_status_pill_colors(&Theme::Dark, false, false),

@@ -61,28 +61,26 @@ pub(super) fn todo_status_pill_colors(
     is_completed: bool,
     is_running: bool,
 ) -> (Color, Color) {
+    let text_color = if todo_panel_is_dark(theme) { Color::WHITE } else { theme.palette().text };
+
     if is_completed {
-        return (Color::from_rgb8(46, 194, 126), Color::WHITE);
+        return (Color::from_rgb8(46, 194, 126), text_color);
     }
 
     if is_running {
-        return (theme.palette().primary, Color::WHITE);
+        return (theme.palette().primary, text_color);
     }
 
     if todo_panel_is_dark(theme) {
         (Color::from_rgb8(96, 165, 250), Color::WHITE)
     } else {
-        (Color::from_rgb8(71, 85, 105), Color::from_rgb8(248, 250, 252))
+        (Color::from_rgb8(71, 85, 105), text_color)
     }
 }
 
 pub(super) fn todo_task_text_color(theme: &Theme, is_completed: bool) -> Color {
     if is_completed {
-        if todo_panel_is_dark(theme) {
-            theme.palette().text.scale_alpha(0.78)
-        } else {
-            theme.extended_palette().secondary.base.text.scale_alpha(0.72)
-        }
+        theme.palette().text.scale_alpha(0.78)
     } else {
         theme.palette().text
     }

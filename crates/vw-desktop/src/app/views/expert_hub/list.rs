@@ -599,9 +599,10 @@ pub(super) fn market_tag_option_style(
     selected: bool,
 ) -> iced::widget::button::Style {
     let mut style = styles::quiet_button_style(theme, iced::widget::button::Status::Active);
-    style.background =
-        selected.then(|| Background::Color(theme.palette().primary.scale_alpha(0.18)));
-    style.text_color = theme.palette().text;
+    let palette = theme.extended_palette();
+    let pair = if selected { palette.primary.weak } else { palette.background.weak };
+    style.background = Some(Background::Color(pair.color));
+    style.text_color = pair.text;
     style.border.color = if selected {
         theme.palette().primary
     } else {

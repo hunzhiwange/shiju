@@ -108,7 +108,12 @@ fn market_tag_rows_show_full_catalogs() {
         let selected = market_tag_option_style(&theme, true);
         let unselected = market_tag_option_style(&theme, false);
         assert_ne!(selected.background, unselected.background);
-        assert_eq!(selected.text_color, theme.palette().text);
+        for style in [selected, unselected] {
+            let Some(iced::Background::Color(background)) = style.background else {
+                panic!("tag filters need a solid background over wallpaper");
+            };
+            assert_eq!(background.a, 1.0);
+        }
     }
 
     let (mut app, _) = App::new();

@@ -2,7 +2,7 @@
 
 [package]
 name = "vw-tui"
-version = "0.5.9"
+version = "0.5.10"
 edition = "2024"
 license = "Apache-2.0"
 autobins = false

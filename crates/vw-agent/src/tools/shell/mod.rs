@@ -41,6 +41,8 @@ pub mod path;
 pub mod permissions;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod processes;
+#[cfg(not(target_arch = "wasm32"))]
+pub use processes::shutdown_shell_processes;
 pub mod readonly;
 pub mod sandbox;
 pub mod security;

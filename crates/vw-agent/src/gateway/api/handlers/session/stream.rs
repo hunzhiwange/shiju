@@ -856,12 +856,14 @@ async fn start_gateway_chat_stream(
     body: GatewayChatStreamRequest,
 ) -> Result<UnboundedReceiver<Value>, ApiError> {
     let (tx, rx) = mpsc::unbounded_channel::<Value>();
-    start_gateway_chat_producer(tenant, dir, body, None, None, move |payload, _terminal| {
+    start_gateway_chat_producer(tenant, dir, body, None, None, None, move |payload, _terminal| {
         tx.send(payload).is_ok()
     })
     .await?;
     Ok(rx)
 }
+
+type SharedPromptCancel = Arc<Mutex<Option<agent_session::runtime::PromptCancelHandle>>>;
 
 async fn start_gateway_chat_producer(
     tenant: TenantScope,
@@ -869,6 +871,7 @@ async fn start_gateway_chat_producer(
     body: GatewayChatStreamRequest,
     delegate_overrides: Option<DelegateRequestOverrides>,
     abort_token: Option<tokio_util::sync::CancellationToken>,
+    prompt_cancel: Option<SharedPromptCancel>,
     send: impl FnMut(Value, bool) -> bool + Send + 'static,
 ) -> Result<(), ApiError> {
     let GatewayChatStreamRequest {
@@ -985,31 +988,37 @@ async fn start_gateway_chat_producer(
             };
             let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
-            let turn = agent_session::runtime::start_prompt(agent_session::processor::Request {
-                stream: 0,
-                session: stream_session_id.clone(),
-                query: query.clone(),
-                root: Some(root_dir.clone()),
-                model: model.clone(),
-                reliability: reliability.clone(),
-                options: options.clone(),
-                approval: Some(approval_manager.clone()),
-                channel_name: Some("desktop".to_string()),
-                non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
-                    sender: "desktop".to_string(),
-                    reply_target: approval_reply_target,
-                    prompt_tx: approval_prompt_tx,
-                }),
-                assistant_message_id: stream_message_ids
-                    .as_ref()
-                    .map(|ids| ids.assistant_id.clone()),
-                history,
-                persist_app_session_artifacts: should_persist_app_session_artifacts,
-                app_session_scope: app_session_scope.clone(),
-                abort_token,
-                session_tools: crate::session::runtime::SessionToolset::default(),
+            let turn = agent_session::ui_store::with_tenant_scope_sync(tenant.clone(), || {
+                agent_session::runtime::start_prompt(agent_session::processor::Request {
+                    stream: 0,
+                    session: stream_session_id.clone(),
+                    query: query.clone(),
+                    root: Some(root_dir.clone()),
+                    model: model.clone(),
+                    reliability: reliability.clone(),
+                    options: options.clone(),
+                    approval: Some(approval_manager.clone()),
+                    channel_name: Some("desktop".to_string()),
+                    non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
+                        sender: "desktop".to_string(),
+                        reply_target: approval_reply_target,
+                        prompt_tx: approval_prompt_tx,
+                    }),
+                    assistant_message_id: stream_message_ids
+                        .as_ref()
+                        .map(|ids| ids.assistant_id.clone()),
+                    history,
+                    persist_app_session_artifacts: should_persist_app_session_artifacts,
+                    app_session_scope: app_session_scope.clone(),
+                    abort_token,
+                    session_tools: crate::session::runtime::SessionToolset::default(),
+                })
             });
             let cancel = turn.cancel.clone();
+            if let Some(handle) = prompt_cancel {
+                *handle.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
+                    Some(cancel.clone());
+            }
             while let Ok(prompt_event) = turn.events.recv() {
                 let mut ev = processor_event_from_prompt_event(prompt_event);
                 if let agent_session::processor::StreamEvent::LlmRawArtifact(artifact) = ev {
@@ -1210,7 +1219,7 @@ async fn start_gateway_chat_producer(
                 }
                 drop(sink);
                 if !accepted {
-                    cancel.cancel();
+                    cancel.interrupt();
                     break;
                 }
                 if terminal {
@@ -1355,13 +1364,25 @@ pub(super) async fn chat_stream(
             if let Some(producer) = opened.producer.take() {
                 let cancellation = tokio_util::sync::CancellationToken::new();
                 let cancellation_for_stop = cancellation.clone();
-                producer.install_cancellation(move || cancellation_for_stop.cancel());
+                let prompt_cancel: SharedPromptCancel = Arc::new(Mutex::new(None));
+                let handle_for_stop = prompt_cancel.clone();
+                producer.install_cancellation(move || {
+                    cancellation_for_stop.cancel();
+                    let handle = handle_for_stop
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .clone();
+                    if let Some(handle) = handle {
+                        handle.cancel();
+                    }
+                });
                 start_gateway_chat_producer(
                     tenant_for_stream,
                     dir,
                     body,
                     Some(delegate_overrides),
                     Some(cancellation),
+                    Some(prompt_cancel),
                     move |payload, terminal| producer.publish(payload.to_string(), terminal),
                 )
                 .await?;

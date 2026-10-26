@@ -516,7 +516,10 @@ async fn start_prompt_core(
         tools,
         config.reliability,
     );
-    let runtime = starter(request);
+    let runtime = crate::session::ui_store::with_tenant_scope(scope.tenant().clone(), async move {
+        starter(request)
+    })
+    .await;
     Ok(bridge_prompt(
         runtime,
         tokio::runtime::Handle::current(),

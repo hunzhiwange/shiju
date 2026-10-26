@@ -174,3 +174,34 @@ fn expired_terminal_run_can_start_again() {
 
     assert!(reopened.producer.is_some());
 }
+
+#[test]
+fn shell_session_completed_chat_retains_idempotent_stop_hook() {
+    let store = ResumableStreamStore::new(8, Duration::from_secs(60));
+    let producer = store
+        .open(
+            tenant("company-a"),
+            StreamKind::Chat,
+            "background",
+            request_signature(b"background"),
+            0,
+        )
+        .unwrap()
+        .producer
+        .unwrap();
+    let cancellations = Arc::new(AtomicUsize::new(0));
+    let observed = cancellations.clone();
+    producer.install_cancellation(move || {
+        observed.fetch_add(1, Ordering::SeqCst);
+    });
+    assert!(producer.publish("done", true));
+    assert_eq!(
+        cancellations.load(Ordering::SeqCst),
+        0,
+        "normal completion preserves background commands"
+    );
+    assert!(!store.cancel(tenant("company-b"), StreamKind::Chat, "background"));
+    assert!(store.cancel(tenant("company-a"), StreamKind::Chat, "background"));
+    assert!(store.cancel(tenant("company-a"), StreamKind::Chat, "background"));
+    assert_eq!(cancellations.load(Ordering::SeqCst), 1);
+}

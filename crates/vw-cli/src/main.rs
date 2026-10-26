@@ -5,7 +5,10 @@ use std::future::Future;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    run_cli(vw_cli::run).await
+    let result = run_cli(vw_cli::run).await;
+    let cleanup =
+        tokio::task::spawn_blocking(vw_agent::tools::shell::shutdown_shell_processes).await?;
+    result.and(cleanup)
 }
 
 async fn run_cli<Run, Fut>(run: Run) -> anyhow::Result<()>

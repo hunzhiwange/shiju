@@ -260,3 +260,41 @@ fn shell_output_real_pipes_support_replay_overflow_and_utf8() {
     eprintln!("real pipes: replay, overflow gap, bounded tail, exit=4");
     host.shutdown().unwrap();
 }
+
+#[test]
+fn shell_session_scope_cleanup_preserves_other_tenants_and_sessions() {
+    let root = tempfile::tempdir().unwrap();
+    let other_root = tempfile::tempdir().unwrap();
+    let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
+    let scopes = [
+        owner.clone(),
+        ShellProcessScope::new("other".into(), root.path(), "session".into()).unwrap(),
+        ShellProcessScope::new("tenant".into(), root.path(), "other".into()).unwrap(),
+        ShellProcessScope::new("tenant".into(), other_root.path(), "session".into()).unwrap(),
+    ];
+    let host = ShellProcesses::new().unwrap();
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let processes: Vec<_> = scopes
+        .iter()
+        .map(|scope| {
+            runtime.block_on(host.start(scope.clone(), command("exec sleep 60".into()))).unwrap()
+        })
+        .collect();
+    host.cancel_scope(&owner).unwrap();
+    for (index, (scope, process)) in scopes.iter().zip(&processes).enumerate() {
+        assert_eq!(
+            host.snapshot(scope, &process.process_id).unwrap().state,
+            if index == 0 { ShellProcessState::Cancelled } else { ShellProcessState::Running }
+        );
+    }
+    host.shutdown().unwrap();
+    for (scope, process) in scopes.iter().zip(&processes) {
+        assert_eq!(
+            host.snapshot(scope, &process.process_id).unwrap().state,
+            ShellProcessState::Cancelled
+        );
+    }
+    eprintln!(
+        "scope cleanup isolated tenant/workspace/session; shutdown reaped all remaining children"
+    );
+}

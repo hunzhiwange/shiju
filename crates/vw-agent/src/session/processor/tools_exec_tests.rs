@@ -1562,3 +1562,197 @@ fn completed_shell_payload_preserves_exit_code_and_failed_status() {
     assert_eq!(payload["status"], "failed");
     assert_eq!(payload["metadata"]["exit_code"], 2);
 }
+
+#[test]
+fn shell_session_running_state_survives_history() {
+    let output =
+        json!({"state":"running", "process_id":"owned-process", "next_cursor":3, "output":"ready"})
+            .to_string();
+    let result = ToolCallResult {
+        data: serde_json::from_str(&output).unwrap(),
+        model_result: serde_json::from_str(&output).unwrap(),
+        render_hint: Some(ToolRenderHint {
+            metadata: serde_json::from_str(&output).unwrap(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let ui = super::completed_tool_payload_for_ui("bash", "{}", &result, &output);
+    assert_eq!(ui["status"], "running");
+    let event = super::tool_update_event("call".into(), "bash", ui);
+    let StreamEvent::Tool(event) = event else { panic!("tool event") };
+    assert_eq!(event.kind, ToolEventKind::Update);
+    let history = super::completed_session_payload("{}", &output);
+    assert_eq!(history["status"], "running");
+}
+
+#[test]
+fn shell_session_metadata_survives_compaction() {
+    for tool in ["bash", "bash_wait", "bash_cancel"] {
+        let body = json!({"state":"exited", "process_id":"owned-process", "next_cursor":42, "exit_code":7, "output":format!("stderr: {}", "x".repeat(80_000))}).to_string();
+        let compact = super::compact_tool_output(tool, &body);
+        let value: Value =
+            serde_json::from_str(&compact).expect("structured shell output survives cropping");
+        assert_eq!(value["process_id"], "owned-process");
+        assert_eq!(value["next_cursor"], 42);
+        assert_eq!(value["exit_code"], 7);
+        assert_eq!(value["state"], "exited");
+        assert!(value["output"].as_str().unwrap().contains("stderr:"));
+        assert!(compact.len() < body.len());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn shell_session_batch_records_real_independent_handles() {
+    use crate::tools::shell::{
+        ShellTool,
+        session_tools::{BashCancelTool, BashWaitTool},
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let id = unique_session("shell-batch");
+    let policy = Arc::new(crate::security::SecurityPolicy {
+        autonomy: crate::security::AutonomyLevel::Full,
+        workspace_only: false,
+        workspace_dir: dir.path().to_path_buf(),
+        allowed_commands: vec!["printf".into(), "sleep".into()],
+        forbidden_paths: vec![],
+        ..Default::default()
+    });
+    let tools: Vec<Arc<dyn crate::tools::Tool>> = vec![
+        Arc::new(ShellTool::new(policy.clone(), Arc::new(crate::runtime::NativeRuntime::new()))),
+        Arc::new(BashWaitTool::new(policy.clone())),
+        Arc::new(BashCancelTool::new(policy)),
+    ];
+    let ctx = ctx_with_root(&id, dir.path())
+        .with_session_tools(crate::session::runtime::SessionToolset::new(tools));
+    let mut history = Session::new(id);
+    let mut state = new_state();
+    let mut events = Vec::new();
+    let output = super::run_batch_tool_and_record(
+        &mut history,
+        &json!({"toolCalls":[
+            {"tool":"bash", "parameters":{"command":"printf first; sleep 60", "yield_time_ms":250}},
+            {"tool":"bash", "parameters":{"command":"printf second; sleep 60", "yield_time_ms":250}}
+        ]})
+        .to_string(),
+        &ctx,
+        true,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut state,
+    );
+    let handles: Vec<_> = history
+        .messages
+        .iter()
+        .filter_map(|message| {
+            let body = message.content.strip_prefix("tool bash\n")?;
+            let payload: Value = serde_json::from_str(body).unwrap();
+            assert_eq!(payload["status"], "running");
+            Some(payload["metadata"]["process_id"].as_str().unwrap().to_string())
+        })
+        .collect();
+    // Reap real children before reporting any assertion failure.
+    for handle in &handles {
+        let cancelled = crate::tools::execute_tool_call(
+            "bash_cancel",
+            &json!({"process_id":handle}).to_string(),
+            &ctx,
+        )
+        .unwrap();
+        assert_eq!(cancelled.data["state"], "cancelled");
+    }
+    assert_eq!(handles.len(), 2);
+    assert_ne!(handles[0], handles[1]);
+    for handle in &handles {
+        assert!(output.contains(handle));
+    }
+    let starts = events.iter().filter(|event| matches!(event, StreamEvent::Tool(tool) if tool.name == "bash" && tool.kind == ToolEventKind::Start)).count();
+    let updates = events.iter().filter(|event| matches!(event, StreamEvent::Tool(tool) if tool.name == "bash" && tool.kind == ToolEventKind::Update && tool.status == ToolCallStatus::Running)).count();
+    let completes = events.iter().filter(|event| matches!(event, StreamEvent::Tool(tool) if tool.name == "bash" && tool.kind == ToolEventKind::Complete)).count();
+    assert_eq!((starts, updates, completes), (2, 2, 0));
+    eprintln!(
+        "real batch: two independent handles retained in model/history; two starts/two running updates/no completion; children reaped"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn shell_session_failed_command_retains_stderr_and_exit_code() {
+    let dir = tempfile::tempdir().unwrap();
+    let id = unique_session("shell-failed");
+    let policy = Arc::new(crate::security::SecurityPolicy {
+        autonomy: crate::security::AutonomyLevel::Full,
+        workspace_only: false,
+        workspace_dir: dir.path().to_path_buf(),
+        allowed_commands: vec!["printf".into(), "exit".into()],
+        forbidden_paths: vec![],
+        ..Default::default()
+    });
+    let tools: Vec<Arc<dyn crate::tools::Tool>> = vec![
+        Arc::new(crate::tools::shell::ShellTool::new(
+            policy.clone(),
+            Arc::new(crate::runtime::NativeRuntime::new()),
+        )),
+        Arc::new(crate::tools::shell::session_tools::BashWaitTool::new(policy)),
+    ];
+    let ctx = ctx_with_root(&id, dir.path())
+        .with_session_tools(crate::session::runtime::SessionToolset::new(tools));
+    let mut history = Session::new(id);
+    let mut state = new_state();
+    let mut events = Vec::new();
+    let mut output = super::run_tool_and_record(
+        &mut history,
+        "bash",
+        &json!({"command":"printf stderr >&2; exit 7", "yield_time_ms":250}).to_string(),
+        &ctx,
+        true,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut state,
+    )
+    .unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+    let mut value: Value = serde_json::from_str(&output).unwrap();
+    while value["state"] == "running" && std::time::Instant::now() < deadline {
+        output = super::run_tool_and_record(
+            &mut history,
+            "bash_wait",
+            &json!({"process_id":value["process_id"], "cursor":0, "yield_time_ms":250}).to_string(),
+            &ctx,
+            true,
+            &mut |event| {
+                events.push(event);
+                true
+            },
+            &mut state,
+        )
+        .unwrap();
+        value = serde_json::from_str(&output).unwrap();
+    }
+    assert_eq!(value["state"], "exited");
+    assert_eq!(value["exit_code"], 7);
+    assert_eq!(value["output"], "stderr");
+    assert_eq!(value["success"], false);
+    let payload: Value = serde_json::from_str(
+        history
+            .messages
+            .last()
+            .unwrap()
+            .content
+            .lines()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim(),
+    )
+    .unwrap();
+    assert_eq!(payload["status"], "failed");
+    assert_eq!(payload["metadata"]["exit_code"], 7);
+    assert!(events.iter().any(|event| matches!(event, StreamEvent::Tool(tool) if tool.kind == ToolEventKind::Complete && tool.status == ToolCallStatus::Failed && tool.payload["metadata"]["exit_code"] == 7)));
+    eprintln!("real command reaped: state=exited exit_code=7 stderr retained in model/history/UI");
+}

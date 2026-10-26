@@ -373,7 +373,16 @@ pub(crate) fn execute_agent_tool_call(
 }
 
 fn finish_tool_call(executed: ExecutedToolCall) -> Result<ToolCallResult, ToolCallError> {
-    if executed.result.is_success() {
+    // A managed process terminal snapshot is protocol data even when the command
+    // failed or was cancelled. Flattening it would discard its handle and stderr.
+    let shell_snapshot =
+        matches!(executed.tool_name.as_str(), "bash" | "bash_wait" | "bash_cancel")
+            && executed.result.data.get("process_id").and_then(Value::as_str).is_some()
+            && matches!(
+                executed.result.data.get("state").and_then(Value::as_str),
+                Some("running" | "exited" | "cancelled" | "timed_out")
+            );
+    if executed.result.is_success() || shell_snapshot {
         return Ok(executed.result);
     }
 

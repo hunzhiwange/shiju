@@ -203,7 +203,7 @@ impl ResumableStreamStore {
 
         let cancellation = {
             let mut state = lock_or_recover(&run.state);
-            if state.terminal || state.cancellation_requested {
+            if state.cancellation_requested {
                 return true;
             }
             state.cancellation_requested = true;
@@ -273,7 +273,11 @@ impl ResumableProducer {
         if terminal {
             state.terminal = true;
             state.completed_at = Some(Instant::now());
-            state.cancellation = None;
+            // Chat turns can leave owned shell processes running after their
+            // stream terminates. Retain their explicit stop hook until eviction.
+            if self.run.key.kind != StreamKind::Chat {
+                state.cancellation = None;
+            }
         }
         drop(state);
 

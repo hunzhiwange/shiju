@@ -706,6 +706,13 @@ pub async fn remove(session_id: &str) -> Result<(), Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     // 先读取会话信息（用于事件发布）
     let info = get(session_id).await?;
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::tools::shell::processes::cancel_session(
+        &serde_json::to_string(&tenant).expect("tenant serialization"),
+        std::path::Path::new(&info.directory),
+        &info.id,
+    )
+    .map_err(Error::Runtime)?;
     // 删除会话主数据
     let session_id = session_id.to_string();
     crate::global_database::run_isolated({
@@ -767,6 +774,13 @@ pub async fn remove_any(session_id: &str) -> Result<(), Error> {
         })));
     };
     let project_id = info.project_id.clone();
+    #[cfg(not(target_arch = "wasm32"))]
+    crate::tools::shell::processes::cancel_session(
+        &serde_json::to_string(&tenant).expect("tenant serialization"),
+        std::path::Path::new(&info.directory),
+        &info.id,
+    )
+    .map_err(Error::Runtime)?;
     // 删除会话主数据
     crate::global_database::run_isolated({
         let tenant = tenant.clone();

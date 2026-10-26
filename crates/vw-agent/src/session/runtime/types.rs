@@ -175,6 +175,10 @@ pub enum PromptEvent {
 /// 显式、幂等的提示取消句柄。
 #[derive(Debug, Clone)]
 pub struct PromptCancelHandle {
+    pub(crate) explicit: Arc<AtomicBool>,
+    pub(crate) shell_cutoff: Arc<std::sync::Mutex<Option<std::time::Instant>>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) shell_scope: Option<crate::tools::shell::processes::ShellProcessScope>,
     pub(crate) token: CancellationToken,
     pub(crate) terminal: Arc<AtomicBool>,
     pub(crate) events: mpsc::Sender<PromptEvent>,
@@ -183,12 +187,43 @@ pub struct PromptCancelHandle {
 impl PromptCancelHandle {
     /// 取消活动轮次；仅首次成功取消返回 `true`。
     pub fn cancel(&self) -> bool {
+        self.explicit.store(true, Ordering::Release);
         self.token.cancel();
+        let cleanup = self.reap_shell_processes();
         if self.terminal.swap(true, Ordering::AcqRel) {
             return false;
         }
-        let _ = self.events.send(PromptEvent::Terminated(PromptTermination::Cancelled));
+        let termination = match cleanup {
+            Ok(()) => PromptTermination::Cancelled,
+            Err(error) => PromptTermination::Failed(error.to_string()),
+        };
+        let _ = self.events.send(PromptEvent::Terminated(termination));
         true
+    }
+
+    /// Stop consuming this prompt without treating transport loss as user stop.
+    pub(crate) fn interrupt(&self) {
+        self.token.cancel();
+    }
+
+    /// A retained stop handle must not cancel commands from a later prompt.
+    pub(crate) fn finish_shell_range(&self) {
+        self.shell_cutoff
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get_or_insert_with(std::time::Instant::now);
+    }
+
+    pub(crate) fn reap_shell_processes(&self) -> anyhow::Result<()> {
+        #[cfg(not(target_arch = "wasm32"))]
+        if let Some(scope) = &self.shell_scope
+            && let Some(host) = crate::tools::shell::processes::ShellProcesses::existing()
+        {
+            let cutoff =
+                *self.shell_cutoff.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            host.cancel_scope_before(scope, cutoff)?;
+        }
+        Ok(())
     }
 
     /// 返回取消是否已被请求。

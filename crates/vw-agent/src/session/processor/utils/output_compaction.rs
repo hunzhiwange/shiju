@@ -268,6 +268,20 @@ pub(crate) fn compact_tool_output(name: &str, output: &str) -> String {
     const MAX_BYTES: usize = 3 * 1024;
     const MAX_BYTES_BASH: usize = 50 * 1024;
 
+    if matches!(name, "bash" | "bash_wait" | "bash_cancel")
+        && let Ok(mut value) = serde_json::from_str::<serde_json::Value>(output)
+        && value.get("process_id").and_then(serde_json::Value::as_str).is_some()
+    {
+        let limit = if name == "bash" { MAX_BYTES_BASH } else { MAX_BYTES };
+        if let Some(text) = value.get("output").and_then(serde_json::Value::as_str) {
+            let compact = truncate_string_middle(text, limit);
+            if compact != text {
+                value["output"] = serde_json::Value::String(compact);
+                value["output_truncated"] = serde_json::Value::Bool(true);
+            }
+        }
+        return value.to_string();
+    }
     let mut s = output.to_string();
     if s.contains("<file_link>") {
         s = compact_file_link(&s);

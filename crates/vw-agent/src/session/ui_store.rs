@@ -128,6 +128,11 @@ pub async fn with_tenant_scope<T>(
     SESSION_TENANT_SCOPE.scope(tenant, future).await
 }
 
+/// Carry trusted tenant identity across a synchronous processor thread boundary.
+pub(crate) fn with_tenant_scope_sync<T>(tenant: TenantScope, operation: impl FnOnce() -> T) -> T {
+    SESSION_TENANT_SCOPE.sync_scope(tenant, operation)
+}
+
 pub(crate) fn current_tenant_scope() -> TenantScope {
     SESSION_TENANT_SCOPE.try_with(Clone::clone).unwrap_or_default()
 }

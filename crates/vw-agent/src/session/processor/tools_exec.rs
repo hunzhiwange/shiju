@@ -213,9 +213,15 @@ fn insert_permission_request(
 
 fn completed_session_payload(input: &str, output: &str) -> serde_json::Value {
     let mut payload = serde_json::Map::new();
-    payload.insert("status".to_string(), string_value("completed"));
+    let status = shell_output_status(output).unwrap_or("completed");
+    payload.insert("status".to_string(), string_value(status));
     payload.insert("input".to_string(), string_value(input));
     payload.insert("output".to_string(), string_value(output));
+    if let Ok(value) = serde_json::from_str::<serde_json::Value>(output)
+        && value.get("process_id").and_then(serde_json::Value::as_str).is_some()
+    {
+        payload.insert("metadata".to_string(), value);
+    }
     serde_json::Value::Object(payload)
 }
 
@@ -314,6 +320,28 @@ fn denied_tool_payload_with_input(input: &str, denied: &ToolCallError) -> serde_
     serde_json::Value::Object(payload)
 }
 
+fn shell_output_status(output: &str) -> Option<&'static str> {
+    let value: serde_json::Value = serde_json::from_str(output).ok()?;
+    value.get("process_id")?.as_str()?;
+    match value.get("state")?.as_str()? {
+        "running" => Some("running"),
+        "cancelled" => Some("cancelled"),
+        "timed_out" => Some("failed"),
+        "exited"
+            if value.get("success").and_then(serde_json::Value::as_bool) == Some(false)
+                || (value.get("success").is_none()
+                    && value
+                        .get("exit_code")
+                        .and_then(serde_json::Value::as_i64)
+                        .is_some_and(|code| code != 0)) =>
+        {
+            Some("failed")
+        }
+        "exited" => Some("completed"),
+        _ => None,
+    }
+}
+
 fn completed_tool_payload_for_ui(
     tool_name: &str,
     input: &str,
@@ -321,7 +349,15 @@ fn completed_tool_payload_for_ui(
     output: &str,
 ) -> serde_json::Value {
     let mut payload = serde_json::Map::new();
-    let status = if tool_name == "bash" && !result.is_success() { "failed" } else { "completed" };
+    let status = if matches!(tool_name, "bash" | "bash_wait" | "bash_cancel") {
+        shell_output_status(&result.model_text()).unwrap_or(if result.is_success() {
+            "completed"
+        } else {
+            "failed"
+        })
+    } else {
+        "completed"
+    };
     payload.insert("status".to_string(), string_value(status));
     payload.insert("input".to_string(), string_value(input));
     payload.insert("title".to_string(), string_value(&result.render_title(tool_name)));
@@ -416,7 +452,6 @@ fn batch_model_output(ran: usize, computed_results: &[BatchComputed]) -> String 
     let mut out = vec![output_message];
     let mut success_outputs: Vec<String> = computed_results
         .iter()
-        .filter(|result| result.success)
         .filter_map(|result| result.output_for_model.as_deref())
         .map(str::trim)
         .filter(|output| !output.is_empty())
@@ -857,11 +892,12 @@ fn record_computed_tool(
     tool_state: &mut super::ToolSessionState,
 ) {
     if emit_ui {
-        on_event(tool_stream_event(
-            computed.call_id.clone(),
-            &computed.tool,
-            computed.ui_payload.clone(),
-        ));
+        let event = if matches!(computed.tool.as_str(), "bash" | "bash_wait" | "bash_cancel") {
+            tool_update_event
+        } else {
+            tool_stream_event
+        };
+        on_event(event(computed.call_id.clone(), &computed.tool, computed.ui_payload.clone()));
     }
     let fp = tool_fingerprint(&computed.tool, &computed.input_sanitized, &computed.session_message);
     if tool_state.seen.insert(fp) {
@@ -1354,7 +1390,7 @@ pub(crate) fn run_batch_tool_and_record(
                             tool,
                             completed_session_payload(&input_ui, &output_session)
                         ),
-                        true,
+                        v.is_success(),
                         Some(output_for_model),
                         None,
                     )
@@ -1537,6 +1573,8 @@ pub(crate) fn run_batch_tool_and_record(
 
         // 非 WASM 环境：使用 tokio 并行执行
         #[cfg(not(target_arch = "wasm32"))]
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        #[cfg(not(target_arch = "wasm32"))]
         let computed = block_on(async move {
             use std::sync::Arc;
 
@@ -1549,16 +1587,20 @@ pub(crate) fn run_batch_tool_and_record(
             for (idx, item) in planned.into_iter().enumerate() {
                 let sem = sem.clone();
                 let ctx = ctx.clone();
+                let tenant = tenant.clone();
                 set.spawn(async move {
                     // 获取信号量许可（限制并发）
                     let _permit =
                         sem.acquire_owned().await.expect("batch semaphore should stay open");
 
                     // 在阻塞线程池中执行工具（避免阻塞异步运行时）
-                    let computed =
-                        tokio::task::spawn_blocking(move || compute_single_tool(item, ctx))
-                            .await
-                            .unwrap_or_else(batch_join_error_computed);
+                    let computed = tokio::task::spawn_blocking(move || {
+                        crate::session::ui_store::with_tenant_scope_sync(tenant, || {
+                            compute_single_tool(item, ctx)
+                        })
+                    })
+                    .await
+                    .unwrap_or_else(batch_join_error_computed);
                     (idx, computed)
                 });
             }

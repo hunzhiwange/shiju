@@ -1520,3 +1520,24 @@ fn stream_ui_commit_does_not_claim_another_turns_identical_answer() {
     assert_eq!(session.message_ids[5], None);
     assert_eq!(session.message_ids[6].as_deref(), Some("assistant-current"));
 }
+
+#[test]
+fn shell_session_running_update_retains_gateway_metadata_without_finishing() {
+    let event = agent_session::processor::ToolEvent {
+        call_id: "bash-call".into(),
+        name: "bash".into(),
+        kind: agent_session::processor::ToolEventKind::Update,
+        status: agent_session::processor::ToolCallStatus::Running,
+        occurred_ms: 10,
+        payload: serde_json::json!({"status":"running", "metadata":{"process_id":"owned", "next_cursor":3, "state":"running"}}),
+    };
+    let mapped =
+        processor_event_from_prompt_event(agent_session::runtime::PromptEvent::Tool(event));
+    let mut recorder = StreamTrajectoryRecorder::new("assistant".into());
+    recorder.record(&mapped);
+    let agent_session::processor::StreamEvent::Tool(event) = mapped else { panic!("tool event") };
+    assert_eq!(event.payload["metadata"]["process_id"], "owned");
+    assert_eq!(event.payload["metadata"]["next_cursor"], 3);
+    assert_eq!(event.status, agent_session::processor::ToolCallStatus::Running);
+    assert_eq!(recorder.steps[0].tool_timings[0].finished_ms, None);
+}

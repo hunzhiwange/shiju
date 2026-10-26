@@ -17,6 +17,8 @@ use output::{OutputBuffer, OutputDecoder};
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
+static HOST: OnceLock<Result<ShellProcesses, String>> = OnceLock::new();
+
 const SESSION_LIMIT: usize = 32;
 const GLOBAL_LIMIT: usize = 128;
 const TERMINAL_LIMIT: usize = 512;
@@ -66,6 +68,7 @@ pub(crate) struct ShellProcessSnapshot {
 struct Entry {
     scope: ShellProcessScope,
     snapshot: ShellProcessSnapshot,
+    started: Instant,
     finished: Option<Instant>,
     output: Arc<Mutex<OutputBuffer>>,
     changed: Arc<Notify>,
@@ -108,10 +111,13 @@ impl ShellProcesses {
 
     /// Shared by rebuilt toolsets; explicit shutdown remains available to the app.
     pub(crate) fn shared() -> anyhow::Result<&'static Self> {
-        static HOST: OnceLock<Result<ShellProcesses, String>> = OnceLock::new();
         HOST.get_or_init(|| Self::new().map_err(|error| error.to_string()))
             .as_ref()
             .map_err(|error| anyhow::anyhow!("Shell process host unavailable: {error}"))
+    }
+
+    pub(crate) fn existing() -> Option<&'static Self> {
+        HOST.get().and_then(|host| host.as_ref().ok())
     }
 
     /// The closure must capture validated policy and environment, never a live child.
@@ -219,6 +225,54 @@ impl ShellProcesses {
         }
     }
 
+    /// Cancel only this trusted session and wait for its children to be reaped.
+    /// Uses the independent host runtime, so callers may be synchronous or async.
+    pub(crate) fn cancel_scope(&self, scope: &ShellProcessScope) -> anyhow::Result<()> {
+        self.cancel_scope_before(scope, None)
+    }
+
+    pub(crate) fn cancel_scope_before(
+        &self,
+        scope: &ShellProcessScope,
+        cutoff: Option<Instant>,
+    ) -> anyhow::Result<()> {
+        let ids: Vec<String> = {
+            let records = self.records.lock();
+            records
+                .iter()
+                .filter_map(|(id, entry)| {
+                    if &entry.scope == scope
+                        && entry.snapshot.state == ShellProcessState::Running
+                        && cutoff.is_none_or(|cutoff| entry.started <= cutoff)
+                    {
+                        entry.cancel.cancel();
+                        Some(id.clone())
+                    } else {
+                        None
+                    }
+                })
+                .collect()
+        };
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let running = {
+                let records = self.records.lock();
+                ids.iter().any(|id| {
+                    records
+                        .get(id)
+                        .is_some_and(|entry| entry.snapshot.state == ShellProcessState::Running)
+                })
+            };
+            if !running {
+                return Ok(());
+            }
+            if Instant::now() >= deadline {
+                bail!("Shell session process cleanup timed out");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
     pub(crate) fn shutdown(&self) -> anyhow::Result<()> {
         self.stopping.cancel();
         if let Some(thread) = self.thread.lock().take() {
@@ -316,6 +370,7 @@ fn start_child(
         Entry {
             scope: scope.clone(),
             snapshot: snapshot.clone(),
+            started: Instant::now(),
             finished: None,
             output: output.clone(),
             changed: changed.clone(),
@@ -411,3 +466,23 @@ mod output_tests;
 #[cfg(all(test, unix))]
 #[path = "termination_tests.rs"]
 mod termination_tests;
+
+/// Reap an existing session without initializing an unused process service.
+pub(crate) fn cancel_session(tenant: &str, workspace: &Path, session: &str) -> anyhow::Result<()> {
+    if let Some(Ok(host)) = HOST.get() {
+        host.cancel_scope(&ShellProcessScope::new(
+            tenant.to_string(),
+            workspace,
+            session.to_string(),
+        )?)?;
+    }
+    Ok(())
+}
+
+/// Explicit application shutdown; static destructors are not an ownership boundary.
+pub fn shutdown_shell_processes() -> anyhow::Result<()> {
+    if let Some(Ok(host)) = HOST.get() {
+        host.shutdown()?;
+    }
+    Ok(())
+}

@@ -256,6 +256,33 @@ pub async fn write<T: Serialize>(key: &[&str], content: &T) -> Result<(), Error>
     Ok(())
 }
 
+/// Publish a complete JSON record with a same-directory atomic rename.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) async fn write_atomic<T: Serialize>(key: &[&str], content: &T) -> Result<(), Error> {
+    let dir = state().await.dir.clone();
+    let target = target_path(&dir, key);
+    let _guard = lock::write(&target.to_string_lossy()).await;
+    if let Some(parent) = target.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let temporary = target.with_extension(format!("{}.tmp", uuid::Uuid::new_v4()));
+    let bytes = serde_json::to_vec(content)?;
+    let result = async {
+        tokio::fs::write(&temporary, bytes).await?;
+        tokio::fs::rename(&temporary, &target).await
+    }
+    .await;
+    if result.is_err() {
+        let _ = tokio::fs::remove_file(&temporary).await;
+    }
+    result.map_err(Error::from)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) async fn write_atomic<T: Serialize>(_key: &[&str], _content: &T) -> Result<(), Error> {
+    Err(Error::NotFound(NotFoundError { message: "Not supported on WASM".into() }))
+}
+
 #[cfg(target_arch = "wasm32")]
 /// WASM 平台的写入占位实现。
 ///

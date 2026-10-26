@@ -102,6 +102,8 @@ pub(crate) use self::styles::{
 };
 pub(crate) const COMPACTION_STARTED_TEXT: &str = "正在压缩会话";
 pub(crate) const COMPACTION_COMPLETED_TEXT: &str = "压缩完成";
+pub(crate) const COMPACTION_FAILED_TEXT: &str = "会话压缩失败";
+pub(crate) const COMPACTION_CANCELLED_TEXT: &str = "会话压缩已取消";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CompactionStatusCardContract {
@@ -113,13 +115,18 @@ pub(crate) struct CompactionStatusCardContract {
 pub(crate) fn compaction_status_card_contract(
     content: &str,
 ) -> Option<CompactionStatusCardContract> {
-    matches!(content, COMPACTION_STARTED_TEXT | COMPACTION_COMPLETED_TEXT).then_some(
-        CompactionStatusCardContract {
-            horizontal_alignment: iced::alignment::Horizontal::Center,
-            vertical_alignment: iced::alignment::Vertical::Center,
-            uses_default_font: true,
-        },
+    matches!(
+        content,
+        COMPACTION_STARTED_TEXT
+            | COMPACTION_COMPLETED_TEXT
+            | COMPACTION_FAILED_TEXT
+            | COMPACTION_CANCELLED_TEXT
     )
+    .then_some(CompactionStatusCardContract {
+        horizontal_alignment: iced::alignment::Horizontal::Center,
+        vertical_alignment: iced::alignment::Vertical::Center,
+        uses_default_font: true,
+    })
 }
 pub(crate) use self::text::estimate_message_height_rough;
 #[cfg(test)]

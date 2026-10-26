@@ -1,13 +1,13 @@
 //! 会话压缩（Compaction）模块
 //!
 //! 本模块提供了会话历史消息的压缩和修剪功能，用于在会话上下文接近模型限制时
-//! 自动清理旧消息，释放上下文空间，确保对话能够持续进行。
+//! 通过独立检查点缩短模型上下文，保留原始聊天记录。
 //!
 //! # 核心功能
 //!
 //! - **溢出检测**：判断当前会话是否接近上下文限制，需要执行压缩
 //! - **消息修剪**：移除旧的、已完成的工具调用输出，减少上下文占用
-//! - **摘要生成**：分块覆盖全部待替换的文本与工具记录，生成会话摘要
+//! - **摘要生成**：通过统一模型请求生成单次交接摘要，成功后原子保存检查点
 //! - **压缩请求创建**：创建新的压缩请求消息，触发压缩流程
 //!
 //! # 压缩策略
@@ -27,7 +27,6 @@ use crate::app::agent::skills::SkillListingSessionState;
 use crate::app::agent::util::token;
 use crate::session::processor::context_governance;
 use serde_json::json;
-use std::collections::HashMap;
 
 /// 压缩相关事件定义
 pub mod event {
@@ -277,7 +276,8 @@ pub struct ProcessInput {
     pub auto: bool,
 }
 
-/// 提取所有待替换消息的文本、工具调用及文件引用；模型请求阶段再分块。
+/// 提取所有待替换消息的文本、工具调用及文件引用；用于验证摘要覆盖范围。
+#[cfg(test)]
 fn extract_compaction_text(messages: &[message::WithParts]) -> String {
     let mut out = String::new();
     for message in messages {
@@ -309,10 +309,9 @@ fn extract_compaction_text(messages: &[message::WithParts]) -> String {
     out
 }
 
-const INTERNAL_COMPACTION_MODE: &str = "chat";
-
 /// Internal request passed to the one-shot summary model.  It deliberately exposes no tool
 /// definitions: compaction must never acquire an interactive agent's capabilities.
+#[cfg(test)]
 #[derive(Debug, Clone)]
 pub(crate) struct InternalCompactionRequest {
     pub(crate) prompt: String,
@@ -333,33 +332,27 @@ pub enum CompactionOutcome {
     Failed { history: Vec<message::WithParts>, error: String },
 }
 
-/// Private runtime profile for compaction. This is not an entry in the user Agent directory.
-pub(crate) fn internal_compaction_profile() -> crate::app::agent::session::llm::AgentInfo {
-    crate::app::agent::session::llm::AgentInfo {
-        name: "session-compaction".to_string(),
-        mode: INTERNAL_COMPACTION_MODE.to_string(),
-        prompt: None,
-        temperature: None,
-        top_p: None,
-        options: HashMap::new(),
-        permission: Default::default(),
-    }
-}
-
-fn build_internal_request(input: &ProcessInput) -> Option<(usize, String)> {
+fn compaction_boundary(input: &ProcessInput) -> Option<usize> {
     let boundary =
         input.messages.iter().position(|message| message.info.id() == input.parent_id)?;
     if !matches!(input.messages[boundary].info, message::Info::User(_)) || boundary == 0 {
         return None;
     }
-    let context = extract_compaction_text(&input.messages[..boundary]);
-    if context.trim().is_empty() {
-        return None;
-    }
-    Some((boundary, context))
+    let has_content = input.messages[..boundary].iter().flat_map(|message| &message.parts).any(
+        |part| match part {
+            message::Part::Text(text) => text.ignored != Some(true) && !text.text.trim().is_empty(),
+            message::Part::Tool(_)
+            | message::Part::File(_)
+            | message::Part::Subtask(_)
+            | message::Part::Patch(_) => true,
+            _ => false,
+        },
+    );
+    has_content.then_some(boundary)
 }
 
 /// Stable, tool-free prompt shared by every internal compaction trigger.
+#[cfg(test)]
 pub(crate) fn internal_summary_prompt(context: &str) -> String {
     format!(
         "Summarize the conversation below for a future continuation. Preserve decisions,\nopen work, constraints, and important technical details. Return only the summary.\n\n---\n{context}\n---"
@@ -374,103 +367,99 @@ fn valid_summary(summary: String) -> Result<String, String> {
     Ok(summary)
 }
 
-fn summary_message(
-    input: &ProcessInput,
-    model: &provider::Model,
-    user: &message::UserInfo,
-    summary: String,
-) -> Result<message::WithParts, crate::app::agent::session::session::Error> {
-    let assistant_id = id::ascending(id::Prefix::Message, None)?;
-    let now = now_ms();
-    let info = message::Info::Assistant(Box::new(message::AssistantInfo {
-        id: assistant_id.clone(),
-        session_id: input.session_id.clone(),
-        time: message::AssistantTime {
-            created: now,
-            completed: Some(now),
-            processing_elapsed_ms: None,
-            llm_elapsed_ms: None,
-        },
-        error: None,
-        parent_id: input.parent_id.clone(),
-        model_id: model.id.clone(),
-        provider_id: model.provider_id.clone(),
-        mode: "compaction".to_string(),
-        agent: user.agent.clone(),
-        path: message::PathInfo { cwd: instance::directory(), root: instance::worktree() },
-        summary: Some(true),
-        cost: 0.0,
-        tokens: message::TokenInfo {
-            total: None,
-            input: 0,
-            output: 0,
-            reasoning: 0,
-            cache: message::TokenCacheInfo { read: 0, write: 0 },
-        },
-        variant: user.variant.clone(),
-        finish: Some("stop".to_string()),
-    }));
-    let boundary = message::Part::Compaction(message::CompactionPart {
-        base: message::PartBase {
-            id: id::ascending(id::Prefix::Part, None)?,
-            session_id: input.session_id.clone(),
-            message_id: assistant_id.clone(),
-        },
-        auto: input.auto,
-    });
-    let text = message::Part::Text(message::TextPart {
-        base: message::PartBase {
-            id: id::ascending(id::Prefix::Part, None)?,
-            session_id: input.session_id.clone(),
-            message_id: assistant_id,
-        },
-        text: summary,
-        synthetic: Some(true),
-        ignored: None,
-        time: Some(message::PartTime { start: now, end: Some(now) }),
-        metadata: None,
-    });
-    Ok(message::WithParts { info, parts: vec![boundary, text] })
+fn model_history(messages: &[message::WithParts]) -> Vec<serde_json::Value> {
+    messages
+        .iter()
+        .map(|message| {
+            let role = match message.info {
+                message::Info::User(_) => "user",
+                message::Info::Assistant(_) => "assistant",
+            };
+            let content = message
+                .parts
+                .iter()
+                .filter_map(|part| match part {
+                    message::Part::Text(text) if text.ignored != Some(true) => {
+                        Some(text.text.clone())
+                    }
+                    message::Part::Tool(_)
+                    | message::Part::File(_)
+                    | message::Part::Subtask(_)
+                    | message::Part::Patch(_) => serde_json::to_string(part).ok(),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            json!({"role": role, "content": content})
+        })
+        .collect()
 }
 
-async fn persist_compaction(
+/// Use the same message projection the desktop sends to the model, when a saved
+/// snapshot has an exact canonical boundary ID. Tool cards can expand one canonical
+/// assistant message into several UI messages, so their text cannot be hashed as one.
+fn checkpoint_source(
     input: &ProcessInput,
     boundary: usize,
-    summary: &message::WithParts,
-) -> Result<(), crate::app::agent::session::session::Error> {
-    // The summary is fully generated and validated before any history mutation. Thus provider
-    // failures cannot leave a partial replacement behind.
-    message::update_message(&summary.info).await?;
-    for part in &summary.parts {
-        message::update_part(part).await?;
-    }
-    for covered in &input.messages[..boundary] {
-        for part in &covered.parts {
-            message::remove_part(&input.session_id, covered.info.id(), part.id()).await?;
+) -> Result<Vec<serde_json::Value>, crate::session::session::Error> {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(project) = instance::project() {
+        let snapshot = super::ui_store::load_session_scoped_for_tenant_fallible(
+            &super::ui_store::current_tenant_scope(),
+            &input.session_id,
+            Some(&project.id),
+        )
+        .map_err(crate::session::session::Error::Runtime)?;
+        if let Some(snapshot) = snapshot {
+            if let Some(source) = snapshot_checkpoint_source(&snapshot, &input.parent_id) {
+                return Ok(source);
+            }
         }
-        message::remove_message(&input.session_id, covered.info.id()).await?;
     }
-    Ok(())
+    Ok(model_history(&input.messages[..boundary]))
+}
+
+fn snapshot_checkpoint_source(
+    snapshot: &super::ui_types::ChatSession,
+    boundary_id: &str,
+) -> Option<Vec<serde_json::Value>> {
+    let boundary = snapshot.message_ids.iter().position(|id| id.as_deref() == Some(boundary_id))?;
+    if boundary == 0 || snapshot.messages.get(boundary)?.role != super::ui_types::ChatRole::User {
+        return None;
+    }
+    Some(
+        snapshot.messages[..boundary]
+            .iter()
+            .map(|message| {
+                let role = match message.role {
+                    super::ui_types::ChatRole::User => "user",
+                    super::ui_types::ChatRole::Assistant | super::ui_types::ChatRole::Tool => {
+                        "assistant"
+                    }
+                    super::ui_types::ChatRole::System => "system",
+                };
+                json!({"role": role, "content": message.content})
+            })
+            .collect(),
+    )
 }
 
 async fn compact_with_summary(
     input: ProcessInput,
-    model: &provider::Model,
     model_result: Result<String, String>,
+    source: &[serde_json::Value],
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
-    let Some((boundary, _)) = build_internal_request(&input) else {
+    let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
     let summary = match model_result.and_then(valid_summary) {
         Ok(summary) => summary,
         Err(error) => return Ok(CompactionOutcome::Failed { history: input.messages, error }),
     };
-    let message::Info::User(user) = &input.messages[boundary].info else { unreachable!() };
-    let summary_message = summary_message(&input, model, user, summary.clone())?;
-    persist_compaction(&input, boundary, &summary_message).await?;
-
-    let mut history = input.messages[boundary..].to_vec();
-    history.push(summary_message);
+    super::compaction_checkpoint::save(&input.session_id, source, &summary, None)
+        .await
+        .map_err(|error| crate::session::session::Error::Runtime(anyhow::anyhow!(error)))?;
+    let history = input.messages.clone();
     Ok(CompactionOutcome::Compacted {
         history,
         stats: CompactionStats {
@@ -484,83 +473,33 @@ async fn compact_with_summary(
     })
 }
 
-async fn stream_internal_summary(
-    input: &ProcessInput,
-    model: &provider::Model,
-    request: &InternalCompactionRequest,
-) -> Result<String, String> {
-    use std::sync::{Arc, Mutex};
-
-    let Some(user) = input
-        .messages
-        .iter()
-        .find_map(|message| {
-            (message.info.id() == input.parent_id).then(|| match &message.info {
-                message::Info::User(user) => Some(user.as_ref().clone()),
-                _ => None,
-            })
-        })
-        .flatten()
-    else {
-        return Err("compaction boundary is not a user message".to_string());
-    };
-    let output = Arc::new(Mutex::new(String::new()));
-    let output_for_events = Arc::clone(&output);
-    let saw_tool_call = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    let saw_tool_call_for_events = Arc::clone(&saw_tool_call);
-    crate::app::agent::session::llm::stream(
-        crate::app::agent::session::llm::StreamInput {
-            agent: internal_compaction_profile(),
-            user,
-            session_id: input.session_id.clone(),
-            model: model.clone(),
-            system: Vec::new(),
-            abort: None,
-            messages: vec![serde_json::json!({ "role": "user", "content": request.prompt })],
-            small: false,
-            tools: Default::default(),
-            retries: 0,
-        },
-        move |event| match event {
-            crate::app::agent::session::llm::StreamEvent::Delta(delta) => {
-                if let Ok(mut output) = output_for_events.lock() {
-                    output.push_str(&delta);
-                }
-            }
-            crate::app::agent::session::llm::StreamEvent::ToolCalls(_) => {
-                saw_tool_call_for_events.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-            _ => {}
-        },
-    )
-    .await
-    .map_err(|error| format!("internal compaction model request failed: {error}"))?;
-    if saw_tool_call.load(std::sync::atomic::Ordering::Relaxed) {
-        return Err("internal compaction rejected a model tool call".to_string());
-    }
-    Ok(output.lock().unwrap_or_else(|error| error.into_inner()).clone())
-}
-
-/// Generate a bounded rolling summary of all covered history before replacing persisted records.
+/// Generate a context checkpoint without deleting any persisted chat records.
 /// Model errors leave the history untouched and return a failed outcome.
 pub async fn process(
     input: ProcessInput,
     model: &provider::Model,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
-    let Some((_, request)) = build_internal_request(&input) else {
+    let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
-    let model_result = async {
-        let mut chunks =
-            super::compaction_summary::SummaryChunks::new(&request, Some(&model.limit))?;
-        while let Some(prompt) = chunks.next_prompt() {
-            let request = InternalCompactionRequest { prompt, tools: Vec::new() };
-            chunks.accept(stream_internal_summary(&input, model, &request).await?)?;
-        }
-        chunks.finish()
-    }
+    let source = checkpoint_source(&input, boundary)?;
+    let context = super::compaction_checkpoint::restore(&input.session_id, &source)
+        .await
+        .map_err(|error| crate::session::session::Error::Runtime(anyhow::anyhow!(error)))?;
+    let cfg = config::get_project_for_tenant(
+        &super::ui_store::current_tenant_scope(),
+        std::path::Path::new(&crate::project::instance::directory()),
+    )
+    .await
+    .map_err(|error| crate::session::session::Error::Runtime(anyhow::anyhow!(error)))?;
+    let model_result = super::compaction_summary::summarize_async(
+        input.session_id.clone(),
+        context,
+        format!("{}/{}", model.provider_id, model.id),
+        cfg.reliability,
+    )
     .await;
-    let outcome = compact_with_summary(input, model, model_result).await?;
+    let outcome = compact_with_summary(input, model_result, &source).await?;
     if matches!(outcome, CompactionOutcome::Compacted { .. }) {
         let session_id = match &outcome {
             CompactionOutcome::Compacted { history, .. } => history
@@ -634,21 +573,19 @@ pub async fn process_session(
 #[cfg(test)]
 async fn process_with_summarizer(
     input: ProcessInput,
-    model: &provider::Model,
+    _model: &provider::Model,
     mut summarize: impl FnMut(&InternalCompactionRequest) -> Result<String, String>,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
-    let Some((_, context)) = build_internal_request(&input) else {
+    let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
-    let result = (|| {
-        let mut chunks =
-            super::compaction_summary::SummaryChunks::new(&context, Some(&model.limit))?;
-        while let Some(prompt) = chunks.next_prompt() {
-            chunks.accept(summarize(&InternalCompactionRequest { prompt, tools: Vec::new() })?)?;
-        }
-        chunks.finish()
-    })();
-    compact_with_summary(input, model, result).await
+    let context = extract_compaction_text(&input.messages[..boundary]);
+    let result = summarize(&InternalCompactionRequest {
+        prompt: internal_summary_prompt(&context),
+        tools: Vec::new(),
+    });
+    let source = model_history(&input.messages[..boundary]);
+    compact_with_summary(input, result, &source).await
 }
 
 /// 创建压缩请求输入参数

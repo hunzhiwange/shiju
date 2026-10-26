@@ -771,7 +771,20 @@ pub(crate) fn stream_chat_with_tools_for_session_with_abort(
     let session_id = session_id.to_string();
 
     // 解析模型标识符
-    let model = match block_on(resolve_model_for_options(model, &options)) {
+    let model = match block_on(async {
+        if let Some(mut cancel) = abort.clone() {
+            if *cancel.borrow() {
+                return Err("执行已取消".to_string());
+            }
+            tokio::select! {
+                biased;
+                _ = cancel.changed() => Err("执行已取消".to_string()),
+                result = resolve_model_for_options(model, &options) => result,
+            }
+        } else {
+            resolve_model_for_options(model, &options).await
+        }
+    }) {
         Ok(m) => m,
         Err(e) => {
             (&mut on_event)(StreamEvent::Error(message::AssistantError::Unknown { message: e }));

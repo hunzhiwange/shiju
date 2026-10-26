@@ -70,6 +70,7 @@ pub(crate) fn interruption_scope_key(msg: &traits::ChannelMessage) -> String {
 /// let normalized = normalize_cached_channel_turns(turns);
 /// // 结果：一个包含合并内容 "Hello\n\nWorld" 的用户消息
 /// ```
+#[cfg(test)]
 pub(crate) fn normalize_cached_channel_turns(turns: Vec<ChatMessage>) -> Vec<ChatMessage> {
     let mut normalized = Vec::with_capacity(turns.len());
     // 状态标志：true 表示期望用户消息，false 表示期望助手消息
@@ -133,113 +134,11 @@ pub(crate) fn clear_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str
     ctx.conversation_histories.lock().unwrap_or_else(|e| e.into_inner()).remove(sender_key);
 }
 
-/// 压缩发送者的历史记录
-///
-/// 对指定发送者的对话历史进行压缩，保留最近的 N 条消息，
-/// 并对过长的消息内容进行截断处理，以控制内存使用和上下文长度。
-///
-/// # 参数
-///
-/// - `ctx`: 通道运行时上下文引用，包含会话历史存储
-/// - `sender_key`: 发送者会话键
-///
-/// # 返回值
-///
-/// 返回 `bool` 表示是否成功执行了压缩操作：
-/// - `true`: 存在历史记录且成功压缩
-/// - `false`: 历史记录不存在、为空或压缩后为空
-///
-/// # 压缩策略
-///
-/// 1. **数量保留**：保留最近的 `CHANNEL_HISTORY_COMPACT_KEEP_MESSAGES` 条消息
-/// 2. **内容截断**：单条消息超过 `CHANNEL_HISTORY_COMPACT_CONTENT_CHARS` 字符时截断
-/// 3. **规范化**：压缩后对轮次进行规范化处理（合并连续消息）
-///
-/// # 性能考虑
-///
-/// 压缩操作会复制部分数据，适用于历史记录较长时的定期清理。
-/// 在高频对话场景中，建议根据触发条件（如消息数量或时间间隔）进行压缩。
-///
-/// # 示例
-///
-/// ```ignore
-/// if turns.len() > MAX_CHANNEL_HISTORY {
-///     compact_sender_history(&ctx, &sender_key);
-/// }
-/// ```
-pub(crate) fn compact_sender_history(ctx: &ChannelRuntimeContext, sender_key: &str) -> bool {
-    let mut histories = ctx.conversation_histories.lock().unwrap_or_else(|e| e.into_inner());
-
-    let Some(turns) = histories.get_mut(sender_key) else {
-        return false;
-    };
-
-    if turns.is_empty() {
-        return false;
-    }
-
-    // 计算保留的起始索引，保留最近 N 条消息
-    let keep_from = turns.len().saturating_sub(CHANNEL_HISTORY_COMPACT_KEEP_MESSAGES);
-    // 提取保留的消息并进行规范化
-    let mut compacted = normalize_cached_channel_turns(turns[keep_from..].to_vec());
-
-    // 对过长的消息内容进行截断
-    for turn in &mut compacted {
-        if turn.content.chars().count() > CHANNEL_HISTORY_COMPACT_CONTENT_CHARS {
-            turn.content =
-                truncate_with_ellipsis(&turn.content, CHANNEL_HISTORY_COMPACT_CONTENT_CHARS);
-        }
-    }
-
-    // 如果压缩后为空，清除历史并返回 false
-    if compacted.is_empty() {
-        turns.clear();
-        return false;
-    }
-
-    // 用压缩后的轮次替换原有历史
-    *turns = compacted;
-    true
-}
-
-/// 追加发送者的对话轮次
-///
-/// 向指定发送者的历史记录中追加一条新的对话消息。
-/// 如果历史记录超过最大限制，会自动移除最早的消息。
-///
-/// # 参数
-///
-/// - `ctx`: 通道运行时上下文引用，包含会话历史存储
-/// - `sender_key`: 发送者会话键
-/// - `turn`: 要追加的聊天消息（用户或助手消息）
-///
-/// # 容量管理
-///
-/// 当历史记录长度超过 `MAX_CHANNEL_HISTORY` 时，会循环移除最早的消息，
-/// 确保历史记录不会无限增长。
-///
-/// # 线程安全
-///
-/// 该函数会锁定 `conversation_histories` 互斥锁进行操作。
-///
-/// # 示例
-///
-/// ```ignore
-/// let turn = ChatMessage {
-///     role: "user".into(),
-///     content: "Hello".into(),
-/// };
-/// append_sender_turn(&ctx, &sender_key, turn);
-/// ```
+/// Append raw history without changing earlier message boundaries or contents.
+/// Model context is bounded by the session processor's checkpoints.
 pub(crate) fn append_sender_turn(ctx: &ChannelRuntimeContext, sender_key: &str, turn: ChatMessage) {
     let mut histories = ctx.conversation_histories.lock().unwrap_or_else(|e| e.into_inner());
-    // 如果键不存在，创建新的历史记录向量
-    let turns = histories.entry(sender_key.to_string()).or_default();
-    turns.push(turn);
-    // 超过最大历史长度时，移除最早的消息（FIFO 队列行为）
-    while turns.len() > MAX_CHANNEL_HISTORY {
-        turns.remove(0);
-    }
+    histories.entry(sender_key.to_string()).or_default().push(turn);
 }
 
 /// 回滚孤立的用户轮次

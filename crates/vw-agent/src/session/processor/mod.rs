@@ -31,7 +31,7 @@ mod artifacts;
 pub(crate) mod context_governance;
 mod helpers;
 pub(crate) mod llm_messages;
-mod llm_runner;
+pub(crate) mod llm_runner;
 #[cfg(test)]
 pub(crate) use llm_runner::{
     ChannelCancelStream, enqueue_test_llm_stream, register_channel_cancel_stream,

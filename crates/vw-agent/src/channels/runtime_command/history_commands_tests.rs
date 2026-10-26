@@ -179,7 +179,7 @@ impl Drop for ModelServer {
     }
 }
 
-// 真正的兼容 OpenAI HTTP 边界：底层压缩服务照常解析模型、构造提示并持久化。
+// 提供项目模型配置；摘要响应由共享 runner 的模型脚本边界提供。
 async fn model_server(
     ctx: &ChannelRuntimeContext,
     summary: &'static str,
@@ -204,6 +204,7 @@ async fn model_server(
     let key = format!("VW_HISTORY_FIXTURE_{}", snapshot.scope.project);
     crate::env::set(&key, "fixture-only");
     crate::config::update_project_for_tenant(&snapshot.scope.chat.tenant, &snapshot.directory, serde_json::json!({
+        "reliability": {"provider_retries":0, "provider_backoff_ms":0},
         "providers": {"default-provider": {"api": format!("http://{address}/v1"), "adapter":"openai-compatible", "env":[key.clone()], "models": {"default-model": {"status":"active", "limit":{"context":1048576, "input":900000,"output":4096}}}}}
     })).await.unwrap();
     (ModelServer { task: server, key }, requests)
@@ -214,20 +215,25 @@ async fn model_server(
 async fn channel_session_history_compact_persists_summary_and_next_chat_reads_it() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
     let (server, requests) = model_server(&ctx, "compressed context").await;
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("compressed context".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
     let prompt = lifecycle_dispatch(&ctx, &msg, &format!("/summarize {}", ids[1])).await;
     assert!(prompt.contains(&format!("/compact confirm {}", ids[1])), "{prompt}");
     let response = lifecycle_dispatch(&ctx, &msg, &format!("/compact confirm {}", ids[1])).await;
     assert!(response.contains("已压缩"), "{response}");
     assert_eq!(lifecycle_id(&ctx), id);
     let persisted = message::messages(&id, None).await.unwrap();
-    assert!(!persisted.iter().any(|m| m.info.id() == ids[0]));
-    assert!(persisted.iter().any(|m| {
-        m.parts
-            .iter()
-            .any(|p| matches!(p, message::Part::Text(t) if t.text == "compressed context"))
-    }));
+    assert!(persisted.iter().any(|m| m.info.id() == ids[0]));
+    let summary_requests = crate::session::processor::take_test_llm_messages(&id);
+    assert_eq!(summary_requests.len(), 1);
+    assert!(serde_json::to_string(&summary_requests[0].messages).unwrap().contains("first turn"));
     let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
-    let _guard = crate::session::processor::test_llm_stream_guard();
     crate::session::processor::enqueue_test_llm_stream(vec![
         crate::session::llm::StreamEvent::Delta("next answer".into()),
         crate::session::llm::StreamEvent::Done {
@@ -251,30 +257,30 @@ async fn channel_session_history_compact_persists_summary_and_next_chat_reads_it
             .iter()
             .any(|m| m.content.contains("next answer"))
     );
-    let requests = requests.lock().unwrap();
-    assert_eq!(requests.len(), 1);
-    let body = requests[0].to_string();
-    assert!(body.contains("first turn"));
-    assert!(!body.contains("second turn"));
-    assert!(
-        requests[0]
-            .get("tools")
-            .is_none_or(|tools| tools.as_array().is_some_and(|items| items.is_empty()))
-    );
+    assert!(requests.lock().unwrap().is_empty());
     server.abort();
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the scripted model boundary.
 async fn channel_session_history_blank_compaction_preserves_persisted_history_and_cache() {
     let (_temp, ctx, msg, id, ids) = fixture().await;
     let (server, requests) = model_server(&ctx, " ").await;
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta(" ".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
     let key = ctx.message_snapshot.as_ref().unwrap().scope.key();
     ctx.conversation_histories.lock().unwrap().insert(key.clone(), vec![ChatMessage::user("keep")]);
     let before = serde_json::to_value(message::messages(&id, None).await.unwrap()).unwrap();
     lifecycle_dispatch(&ctx, &msg, &format!("/compact {}", ids[1])).await;
     let response = lifecycle_dispatch(&ctx, &msg, &format!("/compact confirm {}", ids[1])).await;
     assert!(response.contains("失败") && response.contains("empty summary"), "{response}");
-    assert_eq!(requests.lock().unwrap().len(), 1);
+    assert!(requests.lock().unwrap().is_empty());
     assert_eq!(lifecycle_id(&ctx), id);
     assert_eq!(before, serde_json::to_value(message::messages(&id, None).await.unwrap()).unwrap());
     assert_eq!(ctx.conversation_histories.lock().unwrap()[&key][0].content, "keep");

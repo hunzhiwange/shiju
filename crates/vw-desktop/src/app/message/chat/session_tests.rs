@@ -251,7 +251,7 @@ fn confirmed_compaction_marks_only_the_target_session_in_progress() {
 }
 
 #[test]
-fn compaction_success_preserves_session_id_reloads_and_shows_feedback() {
+fn compaction_success_preserves_session_and_shows_feedback_without_reloading_history() {
     let (mut app, _) = crate::app::App::new();
     let directory = "/workspace/project";
     app.active_session_id = Some("session-1".to_string());
@@ -268,19 +268,10 @@ fn compaction_success_preserves_session_id_reloads_and_shows_feedback() {
         },
     );
 
-    assert_eq!(task.units(), 2);
+    assert_eq!(task.units(), 1);
     assert_eq!(app.active_session_id.as_deref(), Some("session-1"));
     assert!(app.sessions[0].time.compacting.is_none());
     assert!(app.active_toast.as_ref().is_some_and(|toast| toast.message.contains("压缩完成")));
-    assert!(matches!(
-        super::session_compaction_reload_message(
-            "session-1".to_string(),
-            directory.to_string(),
-        ),
-        crate::app::Message::Project(
-            crate::app::message::ProjectMessage::OpenProjectSessionPressed(path, session_id)
-        ) if path == directory && session_id == "session-1"
-    ));
 }
 
 #[test]

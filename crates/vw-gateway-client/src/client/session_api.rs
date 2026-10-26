@@ -423,12 +423,28 @@ impl GatewayClient {
         directory: Option<&str>,
         body: &GatewaySessionSummarizeBody,
     ) -> Result<bool, String> {
-        self.post_json(
-            &format!("{}/summarize", session_path(session_id)?),
-            &directory_query(directory),
-            body,
-        )
-        .await
+        use crate::http::{
+            apply_request_context, log_request, parse_json_response, transport_error,
+        };
+
+        let path = format!("{}/summarize", session_path(session_id)?);
+        let query = directory_query(directory);
+        log_request("POST", &self.endpoint, &path, &query, Some(body));
+        let request = self
+            .client
+            .post(format!("{}{}", self.endpoint.base_url(), path))
+            .query(&query)
+            .json(body);
+        // Use the existing long-running model request transport budget. The server
+        // enforces the shared model idle timeout, cancellation and retry policy.
+        #[cfg(not(target_arch = "wasm32"))]
+        let request = request
+            .timeout(std::time::Duration::from_secs(crate::stream::STREAM_REQUEST_TIMEOUT_SECS));
+        let response = apply_request_context(request, &self.endpoint)
+            .send()
+            .await
+            .map_err(|err| transport_error("POST", &self.endpoint, &path, err))?;
+        parse_json_response("POST", &self.endpoint, &path, response).await
     }
 
     /// 覆盖写入会话待办列表。

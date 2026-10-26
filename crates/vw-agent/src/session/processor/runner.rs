@@ -177,13 +177,13 @@ pub(crate) fn provider_request_options(options: &Value) -> Value {
 }
 
 /// Summarize completed history, including tool rounds after the latest user request.
-/// Preserve that user request verbatim and replace history only after every chunk succeeds.
+/// Preserve that user request verbatim and replace model context only after checkpoint persistence.
 fn compact_transient_history_for_request(
     session_id: &str,
+    checkpoint_source: &[Value],
     llm_messages: &mut Vec<Value>,
     model: &str,
     reliability: &crate::app::agent::config::ReliabilityConfig,
-    model_limit: &crate::app::agent::provider::provider::ModelLimit,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
 ) -> Result<bool, String> {
@@ -196,51 +196,49 @@ fn compact_transient_history_for_request(
     if llm_messages.len() == 1 {
         return Ok(false);
     }
-    // Include structured content and tool arguments as well as text. Every replaced
-    // record must reach the summarizer, including records after the first chunk.
-    let covered = llm_messages
-        .iter()
-        .enumerate()
-        .filter_map(|(index, message)| (index != boundary).then_some(message))
-        .collect::<Vec<_>>();
-    let context = serde_json::to_string(&covered)
-        .map_err(|error| format!("failed to serialize compaction history: {error}"))?;
-    let mut chunks =
-        crate::session::compaction_summary::SummaryChunks::new(&context, Some(model_limit))?;
     if !on_event(StreamEvent::Compaction { phase: CompactionPhase::Started }) {
         return Err("stream consumer stopped".to_string());
     }
-    while let Some(prompt) = chunks.next_prompt() {
-        let mut discard_events = |_| true;
-        let output = llm_runner::run_llm_step_with_retry(
-            session_id,
-            &[json!({ "role": "user", "content": prompt })],
-            &[],
-            Some(model.to_string()),
-            &json!({ "disable_tools": true }),
-            &[],
-            &HashSet::new(),
-            &mut discard_events,
-            reliability.provider_retries,
-            reliability.provider_backoff_ms,
-            cancellation,
-        )?;
-        if !output.tool_calls.is_empty() {
-            return Err("internal compaction rejected a model tool call".to_string());
-        }
-        if output.finish_reason.as_deref() == Some("length") {
-            return Err("internal compaction summary was truncated by the model".to_string());
-        }
-        chunks.accept(output.text)?;
-    }
-    let summary = chunks.finish()?;
+    let summary = crate::session::compaction_summary::summarize(
+        session_id,
+        llm_messages,
+        model,
+        reliability,
+        cancellation,
+    )?;
     let current_user = llm_messages[boundary].clone();
-    *llm_messages = vec![
+    let replacement = vec![
         json!({ "role": "assistant", "content": format!("[Compaction summary]\n{summary}") }),
         current_user,
     ];
+    if cancellation.is_some_and(|token| token.is_cancelled()) {
+        return Err("执行已取消".into());
+    }
+    persist_context_checkpoint(session_id, checkpoint_source, &replacement)?;
+    *llm_messages = replacement;
     on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed });
     Ok(true)
+}
+
+fn persist_context_checkpoint(
+    session: &str,
+    source: &[Value],
+    context: &[Value],
+) -> Result<(), String> {
+    if source.is_empty() {
+        return Ok(());
+    }
+    let summary = context
+        .first()
+        .and_then(|item| item["content"].as_str())
+        .and_then(|text| text.strip_prefix("[Compaction summary]\n"))
+        .ok_or_else(|| "missing compaction summary".to_string())?;
+    prompt::block_on(crate::session::compaction_checkpoint::save(
+        session,
+        source,
+        summary,
+        context.get(1).cloned(),
+    ))
 }
 
 fn request_provider_retry_policy(req: &Request) -> (u32, u64) {
@@ -456,6 +454,17 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         })
         .collect();
 
+    let checkpoint_source = llm_messages::session_messages_to_llm_messages(&session);
+    let restored_context = match prompt::block_on(crate::session::compaction_checkpoint::restore(
+        &req.session,
+        &checkpoint_source,
+    )) {
+        Ok(history) => history,
+        Err(error) => {
+            on_event(StreamEvent::Error(error));
+            return;
+        }
+    };
     let mut tool_use_context = with_request_model_context(
         ToolUseContext::new(req.session.clone(), req.root.clone()),
         selected_model.step_event_model(),
@@ -610,7 +619,10 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(ToOwned::to_owned);
-    let mut llm_messages = llm_messages::session_messages_to_llm_messages(&session);
+    let mut llm_messages = restored_context;
+    let current_messages = llm_messages::session_messages_to_llm_messages(&session);
+    llm_messages.extend_from_slice(&current_messages[checkpoint_source.len()..]);
+    let checkpoint_source = current_messages;
     if let Some(source) = llm_messages::input_source_from_options(&req.options) {
         llm_messages::annotate_current_user_source(&mut llm_messages, source);
     }
@@ -734,10 +746,10 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             );
             match compact_transient_history_for_request(
                 &req.session,
+                &checkpoint_source,
                 &mut llm_messages,
                 &selected_model.model,
                 &req.reliability,
-                &model_limit,
                 &mut on_event,
                 req.abort_token.as_ref(),
             ) {
@@ -811,10 +823,10 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 {
                     match compact_transient_history_for_request(
                         &req.session,
+                        &checkpoint_source,
                         &mut llm_messages,
                         &selected_model.model,
                         &req.reliability,
-                        &model_limit,
                         &mut on_event,
                         req.abort_token.as_ref(),
                     ) {

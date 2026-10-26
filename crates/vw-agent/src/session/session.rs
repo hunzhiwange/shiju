@@ -721,6 +721,9 @@ pub async fn remove(session_id: &str) -> Result<(), Error> {
         }
     })
     .await?;
+    super::compaction_checkpoint::remove(&session_id, &info.directory)
+        .await
+        .map_err(|error| Error::Runtime(anyhow::anyhow!(error)))?;
     // 删除关联的分享信息
     storage::remove(&["share", &session_id]).await.ok();
     // 删除关联的消息和部分
@@ -778,6 +781,9 @@ pub async fn remove_any(session_id: &str) -> Result<(), Error> {
         }
     })
     .await?;
+    super::compaction_checkpoint::remove(&session_id, &info.directory)
+        .await
+        .map_err(|error| Error::Runtime(anyhow::anyhow!(error)))?;
     // 删除关联的分享信息
     storage::remove(&["share", &session_id]).await.ok();
     // 删除关联的消息和部分
@@ -936,6 +942,9 @@ pub(crate) async fn fork_with_parent(
         }
     }
 
+    super::compaction_checkpoint::copy(session_id, &created.id)
+        .await
+        .map_err(|error| Error::Runtime(anyhow::anyhow!(error)))?;
     Ok(created)
 }
 

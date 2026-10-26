@@ -778,6 +778,54 @@ fn upsert_compaction_status(
     chat.len() - 1
 }
 
+pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, content: &str) {
+    let is_active = app.active_session_id.as_deref() == Some(session_id);
+    let mut chat = if is_active {
+        app.chat.clone()
+    } else {
+        app.session_chat_cache
+            .get(session_id)
+            .map(|chat| chat.iter().cloned().collect::<Vec<_>>())
+            .unwrap_or_default()
+    };
+    let mut changed = Vec::new();
+    for (index, message) in chat.iter_mut().enumerate() {
+        if message.role == models::ChatRole::System
+            && message.content
+                == crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
+        {
+            message.content = content.to_string();
+            changed.push(index);
+        }
+    }
+    if changed.is_empty() {
+        return;
+    }
+    let ids = if is_active {
+        app.chat_message_ids.clone()
+    } else {
+        app.session_chat_message_id_cache
+            .get(session_id)
+            .cloned()
+            .unwrap_or_else(|| vec![None; chat.len()])
+    };
+    app.store_session_chat_snapshot(
+        session_id.to_string(),
+        crate::app::session::shared_chat_messages(chat.clone()),
+        ids,
+    );
+    if is_active {
+        app.chat = chat;
+        for index in &changed {
+            app.chat_render_cache.remove(index);
+        }
+        app.sync_active_session_from_chat();
+    }
+    for index in changed {
+        mark_agent_stream_session_dirty(app, session_id, index, now_ms(), None);
+    }
+}
+
 pub(super) fn handle_agent_compaction_status(
     app: &mut App,
     id: u64,
@@ -1557,6 +1605,11 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         }
         return app.show_error_toast(display_err);
     };
+    settle_interrupted_compaction(
+        app,
+        &session_id,
+        crate::app::components::chat_panel::message_view::COMPACTION_FAILED_TEXT,
+    );
     let _ = flush_agent_stream_delta(app, session_id.clone());
     clear_agent_stream_session_save_flush(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);

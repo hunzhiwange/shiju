@@ -429,3 +429,15 @@ fn acp_route_provider_info_has_expected_structure() {
     assert!(info.options.is_empty());
     assert!(info.models.is_empty());
 }
+
+#[tokio::test]
+async fn stream_cancellation_prevents_provider_setup() {
+    let (sender, receiver) = tokio::sync::watch::channel(true);
+    let mut input = test_input("missing-provider");
+    input.abort = Some(receiver);
+    assert!(matches!(
+        super::stream(input, |_| panic!("cancelled request must not emit events")).await,
+        Err(Error::Aborted)
+    ));
+    drop(sender);
+}

@@ -1,40 +1,120 @@
 use super::*;
+use crate::session::{llm, processor};
+
+fn response(text: &str) -> Vec<llm::StreamEvent> {
+    vec![
+        llm::StreamEvent::Delta(text.into()),
+        llm::StreamEvent::Done { finish_reason: Some("stop".into()), usage: Default::default() },
+    ]
+}
+fn reliability() -> ReliabilityConfig {
+    ReliabilityConfig { provider_retries: 0, provider_backoff_ms: 0, ..Default::default() }
+}
 
 #[test]
-fn compaction_chunks_cover_multibyte_source_without_gaps_and_carry_summary() {
-    let transcript = format!("START{}FINAL_DECISION", "中文😀".repeat(10_000));
-    let limit = ModelLimit { context: 8192, input: Some(4096), output: 1024 };
-    let mut chunks = SummaryChunks::new(&transcript, Some(&limit)).unwrap();
-    let mut recovered = String::new();
-    let mut calls = 0;
-    while let Some(prompt) = chunks.next_prompt() {
-        assert!(prompt.len() <= 4096);
-        if calls > 0 {
-            assert!(prompt.contains("remembered decision"));
+fn compaction_single_request_preserves_structured_history() {
+    let _guard = processor::test_llm_stream_guard();
+    processor::enqueue_test_llm_stream(response("checkpoint"));
+    let history = vec![
+        json!({"role":"user","content":"中文😀".repeat(50_000)}),
+        json!({"role":"assistant","tool_calls":[{"id":"call","type":"function","function":{"name":"read","arguments":"{}"}}]}),
+        json!({"role":"tool","tool_call_id":"call","content":"important result"}),
+    ];
+    assert_eq!(
+        summarize("single-summary", &history, "test/model", &reliability(), None).unwrap(),
+        "checkpoint"
+    );
+    let requests = processor::take_test_llm_messages("single-summary");
+    assert_eq!(requests.len(), 1);
+    assert_eq!(&requests[0].messages[..history.len()], history);
+}
+
+#[test]
+fn compaction_overflow_trims_request_copy_and_keeps_tool_pairs() {
+    let _guard = processor::test_llm_stream_guard();
+    processor::enqueue_test_llm_stream(vec![llm::StreamEvent::Error(
+        crate::session::message::AssistantError::Unknown {
+            message: "context window exceeded".into(),
+        },
+    )]);
+    processor::enqueue_test_llm_stream(response("checkpoint"));
+    let history = vec![
+        json!({"role":"assistant","tool_calls":[{"id":"call"}]}),
+        json!({"role":"tool","tool_call_id":"call","content":"old"}),
+        json!({"role":"user","content":"recent"}),
+    ];
+    let before = history.clone();
+    summarize("overflow-summary", &history, "test/model", &reliability(), None).unwrap();
+    let requests = processor::take_test_llm_messages("overflow-summary");
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].messages[0], history[2]);
+    assert_eq!(history, before);
+}
+
+#[test]
+fn compaction_reuses_cancellation_and_retry() {
+    let _guard = processor::test_llm_stream_guard();
+    let token = CancellationToken::new();
+    token.cancel();
+    assert!(
+        summarize(
+            "cancel-summary",
+            &[json!({"role":"user","content":"history"})],
+            "test/model",
+            &reliability(),
+            Some(&token)
+        )
+        .is_err()
+    );
+    assert!(processor::take_test_llm_messages("cancel-summary").is_empty());
+    processor::enqueue_test_llm_stream(vec![llm::StreamEvent::Error(
+        crate::session::message::AssistantError::Unknown {
+            message: "temporary connection failure".into(),
+        },
+    )]);
+    processor::enqueue_test_llm_stream(response("recovered"));
+    let reliability = ReliabilityConfig { provider_retries: 1, ..reliability() };
+    assert_eq!(
+        summarize(
+            "retry-summary",
+            &[json!({"role":"user","content":"history"})],
+            "test/model",
+            &reliability,
+            None
+        )
+        .unwrap(),
+        "recovered"
+    );
+    assert_eq!(processor::take_test_llm_messages("retry-summary").len(), 2);
+}
+
+#[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the scripted model boundary.
+async fn compaction_dropped_async_request_cancels_the_model_worker() {
+    let _guard = processor::test_llm_stream_guard();
+    let session = format!("cancel-summary-{}", uuid::Uuid::new_v4());
+    let stream = std::sync::Arc::new(processor::ChannelCancelStream::default());
+    processor::register_channel_cancel_stream(&session, stream.clone());
+    let task = tokio::spawn(summarize_async(
+        session,
+        vec![json!({"role":"user","content":"history"})],
+        "test/model".into(),
+        reliability(),
+    ));
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while !stream.started.load(std::sync::atomic::Ordering::Acquire) {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
-        let fragment = prompt.split_once("Next conversation fragment:\n").unwrap().1;
-        recovered.push_str(fragment.strip_suffix("\n---").unwrap());
-        chunks.accept("remembered decision".to_string()).unwrap();
-        calls += 1;
-    }
-    assert!(calls > 2);
-    assert_eq!(recovered, transcript);
-    assert_eq!(chunks.finish().unwrap(), "remembered decision");
-}
-
-#[test]
-fn compaction_chunks_reject_empty_oversized_and_incomplete_summaries() {
-    let transcript = "x".repeat(40_000);
-    let mut chunks = SummaryChunks::new(&transcript, None).unwrap();
-    assert!(chunks.next_prompt().is_some());
-    assert!(chunks.accept("  ".to_string()).unwrap_err().contains("empty"));
-    assert!(chunks.accept("x".repeat(32_000)).unwrap_err().contains("budget"));
-    chunks.accept("valid".to_string()).unwrap();
-    assert!(chunks.finish().unwrap_err().contains("all history"));
-}
-
-#[test]
-fn compaction_chunks_reject_unusable_model_window() {
-    let limit = ModelLimit { context: 4096, input: None, output: 4096 };
-    assert!(SummaryChunks::new("history", Some(&limit)).is_err());
+    })
+    .await
+    .expect("model request started");
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while !stream.exited.load(std::sync::atomic::Ordering::Acquire) {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .expect("dropping the compaction future stops its model worker");
 }

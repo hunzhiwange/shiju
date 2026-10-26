@@ -411,8 +411,8 @@ pub(crate) async fn load_prior_turns(
         .cloned()
         .unwrap_or_default();
 
-    // 规范化历史记录格式
-    let mut prior_turns = normalize_cached_channel_turns(prior_turns_raw);
+    // Preserve message boundaries so checkpoint prefix validation can replay raw history.
+    let mut prior_turns = prior_turns_raw;
 
     // 首次对话时注入记忆上下文
     if !had_prior_history {

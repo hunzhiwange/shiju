@@ -1843,3 +1843,41 @@ fn streamed_tail_invalidates_stale_display_and_copy_caches_before_done() {
         assert!(app.get_session_runtime(&session_id).is_requesting);
     }
 }
+
+#[test]
+fn compaction_error_and_cancel_settle_active_and_background_status() {
+    for active in [true, false] {
+        for cancelled in [true, false] {
+            let (mut app, _) = crate::app::App::new();
+            let session_id = "compaction-target".to_string();
+            app.active_session_id =
+                Some(if active { session_id.clone() } else { "other".to_string() });
+            let runtime = app.get_session_runtime_mut(&session_id);
+            runtime.is_requesting = true;
+            runtime.active_agent_request = Some(agent_request(42, &session_id));
+            let _ = super::handle_agent_compaction_status(&mut app, 42, false);
+            if cancelled {
+                let _ = super::super::handle_agent_stream_cancelled(&mut app, 42);
+            } else {
+                let _ = super::handle_agent_stream_error(
+                    &mut app,
+                    42,
+                    "模型响应超时（90 秒无响应）".to_string(),
+                );
+            }
+            let chat = if active {
+                app.chat.clone()
+            } else {
+                app.session_chat_cache.get(&session_id).unwrap().iter().cloned().collect()
+            };
+            assert!(chat.iter().all(|message| message.content != "正在压缩会话"));
+            let expected = if cancelled { "会话压缩已取消" } else { "会话压缩失败" };
+            assert!(chat.iter().any(|message| message.content == expected));
+            assert!(!app.get_session_runtime(&session_id).is_requesting);
+            assert!(app.get_session_runtime(&session_id).active_agent_request.is_none());
+            if !active {
+                assert!(app.chat.is_empty());
+            }
+        }
+    }
+}

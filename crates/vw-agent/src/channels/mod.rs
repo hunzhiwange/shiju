@@ -227,10 +227,6 @@ type RouteSelectionMap = Arc<Mutex<HashMap<String, ChannelRouteSelection>>>;
 // 常量定义
 // ============================================================================
 
-/// 每个发送者保留的最大历史消息数量。
-/// 超过此数量的旧消息将被压缩或丢弃，以控制内存使用。
-const MAX_CHANNEL_HISTORY: usize = 50;
-
 /// 自动保存到记忆的最小用户消息长度（字符数）。
 ///
 /// 短于此长度的消息（如 "好的"、"谢谢"）不会被存储，
@@ -304,14 +300,6 @@ const MEMORY_CONTEXT_ENTRY_MAX_CHARS: usize = 800;
 /// 记忆上下文总字符数上限。
 /// 所有注入记忆片段的总长度限制。
 const MEMORY_CONTEXT_MAX_CHARS: usize = 4_000;
-
-/// 历史压缩时保留的消息数量。
-/// 压缩会话历史时，保留最近 N 条完整消息。
-const CHANNEL_HISTORY_COMPACT_KEEP_MESSAGES: usize = 12;
-
-/// 历史压缩时内容的字符数限制。
-/// 被压缩的消息内容截断到此长度。
-const CHANNEL_HISTORY_COMPACT_CONTENT_CHARS: usize = 600;
 
 /// Hook 修改后的出站消息内容最大字符数。
 /// 防止 Hook 产生过长的输出内容。

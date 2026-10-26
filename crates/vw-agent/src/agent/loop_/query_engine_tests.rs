@@ -260,6 +260,8 @@ fn command_logger_runtime(enabled: bool) -> crate::app::agent::hooks::HookRuntim
 // 查询引擎夹具关闭无关外部能力，只保留可记录供应商与可控记忆。
 fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngine {
     QueryEngine {
+        session_id: format!("query-engine-{}", uuid::Uuid::new_v4()),
+        reliability: crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         history: Vec::new(),
         request_system_prompt: "system prompt".to_string(),
         tools_registry: Vec::new(),
@@ -286,7 +288,16 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the shared scripted model boundary.
 async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("summary".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
     let runtime = command_logger_runtime(true);
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_tool_call("primary-tool")),
@@ -298,6 +309,7 @@ async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
     engine.tools_registry = vec![Box::new(HookProbeTool)];
     engine.compact_context = true;
     engine.hook_runtime = Some(runtime.clone());
+    engine.history.push(ChatMessage::user("prior task"));
 
     let response = engine.submit_message("exercise primary and retry").await.unwrap();
 
@@ -345,7 +357,7 @@ async fn agent_and_query_engine_use_ephemeral_query_engine_context_each_turn() {
 }
 
 #[tokio::test]
-async fn agent_and_query_engine_use_ephemeral_context_after_history_trim() {
+async fn agent_and_query_engine_keep_context_ephemeral_without_trimming_history() {
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_text("first", None)),
         ProviderStep::Response(chat_text("second", None)),
@@ -361,8 +373,9 @@ async fn agent_and_query_engine_use_ephemeral_context_after_history_trim() {
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|request| request[0].content.starts_with("<system-reminder>")));
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 1);
-    assert_eq!(history[0].content, "second");
+    assert_eq!(history.len(), 4);
+    assert!(history[0].content.contains("one"));
+    assert_eq!(history[3].content, "second");
     assert!(history.iter().all(|message| !message.content.contains("<system-reminder>")));
 }
 
@@ -629,7 +642,7 @@ async fn new_rejects_invalid_programmatic_timezone() {
 }
 
 #[tokio::test]
-async fn submit_message_success_trims_history_after_turn() {
+async fn submit_message_success_preserves_raw_history_after_turn() {
     let provider =
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("new answer", None))]);
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
@@ -644,11 +657,12 @@ async fn submit_message_success_trims_history_after_turn() {
 
     assert_eq!(result, "new answer");
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 2);
+    assert_eq!(history.len(), 5);
     assert_eq!(history[0].role, "system");
-    assert_eq!(history[1].content, "new answer");
+    assert_eq!(history[1].content, "old request");
+    assert_eq!(history[4].content, "new answer");
     let state = engine.session_state();
-    assert_eq!(state.budget.non_system_messages, 1);
+    assert_eq!(state.budget.non_system_messages, 4);
     assert_eq!(state.budget.remaining_history_messages, 0);
 }
 
@@ -669,7 +683,16 @@ async fn submit_message_error_rolls_back_history_and_turn_count() {
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the shared scripted model boundary.
 async fn submit_message_compacts_before_the_primary_request() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("summary".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
     let provider =
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
     let provider_handle = provider.clone();
@@ -689,10 +712,20 @@ async fn submit_message_compacts_before_the_primary_request() {
     let primary_request = provider_handle.seen_messages().pop().expect("primary request");
     assert!(primary_request.iter().any(|message| message.content.contains("[Compaction summary]")));
     assert!(!primary_request.iter().any(|message| message.content.contains("message-0")));
+    assert!(engine.history_snapshot().iter().any(|message| message.content.contains("message-0")));
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the shared scripted model boundary.
 async fn prompt_too_long_compacts_and_retries_once() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("summary".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Error("prompt too long"),
         ProviderStep::Response(chat_text("recovered", None)),
@@ -711,7 +744,13 @@ async fn prompt_too_long_compacts_and_retries_once() {
     assert_eq!(response, "recovered");
     assert_eq!(provider_handle.seen_messages().len(), 2);
     assert!(
-        engine
+        provider_handle.seen_messages()[1]
+            .iter()
+            .any(|message| message.content.contains("[Compaction summary]"))
+    );
+    assert!(engine.history_snapshot().iter().any(|message| message.content == "message-0"));
+    assert!(
+        !engine
             .history_snapshot()
             .iter()
             .any(|message| message.content.contains("[Compaction summary]"))
@@ -825,4 +864,33 @@ fn build_tool_descriptions_includes_browser_open_when_enabled() {
 
     assert!(descriptions.iter().any(|(name, _)| *name == "BrowserOpen"));
     assert!(descriptions.iter().any(|(name, _)| *name == "Browser"));
+}
+
+#[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the scripted model boundary.
+async fn repeated_compaction_replays_latest_checkpoint_against_raw_history() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    let mut engine = test_engine(ScriptedProvider::default(), Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.history = vec![ChatMessage::user("original"), ChatMessage::user("next")];
+    for summary in ["first checkpoint", "second checkpoint"] {
+        crate::session::processor::enqueue_test_llm_stream(vec![
+            crate::session::llm::StreamEvent::Delta(summary.into()),
+            crate::session::llm::StreamEvent::Done {
+                usage: Default::default(),
+                finish_reason: Some("stop".into()),
+            },
+        ]);
+        let context = engine.compact_before_primary_request(true).await.unwrap();
+        assert!(context[0].content.contains(summary));
+        engine.history.push(ChatMessage::user("continue"));
+    }
+    let requests = crate::session::processor::take_test_llm_messages(&engine.session_id);
+    assert_eq!(requests.len(), 2);
+    assert!(requests[1].messages[0]["content"].as_str().unwrap().contains("first checkpoint"));
+    engine.compact_context = false;
+    let restored = engine.compact_before_primary_request(false).await.unwrap();
+    assert!(restored[0].content.contains("second checkpoint"));
+    assert_eq!(engine.history[0].content, "original");
+    assert_eq!(engine.history.len(), 4);
 }

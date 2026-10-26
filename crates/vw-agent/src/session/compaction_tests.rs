@@ -308,12 +308,12 @@ fn compaction_text_keeps_all_messages_and_multibyte_tail() {
     let mut messages = (0..25)
         .map(|idx| user_message("long-source", &format!("msg_{idx:02}"), &format!("text-{idx:02}")))
         .collect::<Vec<_>>();
-    messages.push(user_message("long-source", "msg_long", &"中文😀".repeat(5000)));
+    messages.push(user_message("long-source", "msg_long", &"中文😀".repeat(50_000)));
     messages.push(user_message("long-source", "msg_tail", "最终决策必须保留"));
     let text = extract_compaction_text(&messages);
     assert!(text.starts_with("user: text-00"));
     assert!(text.contains("text-24"));
-    assert!(text.contains(&"中文😀".repeat(5000)));
+    assert!(text.contains(&"中文😀".repeat(50_000)));
     assert!(text.ends_with("最终决策必须保留"));
 }
 
@@ -413,23 +413,9 @@ async fn internal_compaction_replaces_covered_history_with_a_model_summary() {
     );
 
     let stored = message::messages(&session_id, None).await.expect("stored history");
-    assert_eq!(stored.len(), 2);
-    assert!(
-        stored
-            .iter()
-            .all(|message| !matches!(message.info.id(), "msg_old_user" | "msg_old_assistant"))
-    );
-    let summary = stored
-        .iter()
-        .find(|message| matches!(&message.info, message::Info::Assistant(info) if info.summary == Some(true)))
-        .expect("summary boundary should be persisted");
-    let parts = message::parts(&session_id, summary.info.id()).await.expect("summary parts");
-    assert!(matches!(
-        &parts[..],
-        [message::Part::Compaction(_), message::Part::Text(text)]
-            if text.text == "Build investigation: ownership error remains."
-    ));
-
+    assert_eq!(stored.len(), 3);
+    assert!(stored.iter().any(|message| message.info.id() == "msg_old_user"));
+    assert!(stored.iter().all(|message| !matches!(&message.info, message::Info::Assistant(info) if info.summary == Some(true))));
     cleanup_session(&session_id).await;
 }
 
@@ -467,15 +453,6 @@ async fn internal_compaction_keeps_history_when_summary_is_blank_or_fails() {
     }
 
     cleanup_session(&session_id).await;
-}
-
-#[test]
-fn internal_compaction_profile_has_no_tool_or_delegation_capability() {
-    let profile = internal_compaction_profile();
-
-    assert_eq!(profile.name, "session-compaction");
-    assert!(profile.prompt.is_none());
-    assert!(profile.options.is_empty());
 }
 
 #[tokio::test]
@@ -840,51 +817,97 @@ async fn prune_skips_unfinished_tool_states() {
 }
 
 #[tokio::test]
-async fn internal_compaction_summarizes_every_chunk_before_replacing_persisted_history() {
+async fn internal_compaction_single_summary_preserves_all_persisted_history() {
     let _storage_lock = COMPACTION_STORAGE_LOCK.lock().await;
-    let session_id = unique_session("compaction-all-chunks");
-    let mut history = (0..25)
-        .map(|index| {
-            user_message(&session_id, &format!("msg_{index:02}"), &format!("decision-{index:02}"))
-        })
-        .collect::<Vec<_>>();
-    history.push(user_message(&session_id, "msg_long", &"中文😀".repeat(5000)));
-    history.push(user_message(&session_id, "msg_tail", "FINAL_DECISION"));
-    history.push(user_message(&session_id, "msg_trigger", "continue"));
+    let session_id = unique_session("compaction-checkpoint");
+    let history = vec![
+        user_message(&session_id, "msg_01", &"中文😀".repeat(50_000)),
+        user_message(&session_id, "msg_02", "FINAL_DECISION"),
+        user_message(&session_id, "msg_03", "continue"),
+    ];
     for message in &history {
         write_message_with_parts(message).await;
     }
-    let input = ProcessInput {
-        parent_id: "msg_trigger".to_string(),
-        messages: history,
-        session_id: session_id.clone(),
-        auto: true,
-    };
-    let model = model_with_limits(128_000, None, 4096);
+    let before = serde_json::to_value(message::messages(&session_id, None).await.unwrap()).unwrap();
     let mut calls = 0;
-    let failed = process_with_summarizer(input.clone(), &model, |_| {
-        calls += 1;
-        if calls == 2 {
-            Err("second chunk failed".to_string())
-        } else {
-            Ok("partial summary".to_string())
-        }
-    })
+    let outcome = process_with_summarizer(
+        ProcessInput {
+            parent_id: "msg_03".into(),
+            messages: history.clone(),
+            session_id: session_id.clone(),
+            auto: false,
+        },
+        &model_with_limits(128_000, None, 4096),
+        |request| {
+            calls += 1;
+            assert!(request.prompt.contains("FINAL_DECISION"));
+            Ok("checkpoint decisions".into())
+        },
+    )
     .await
     .unwrap();
-    assert!(matches!(failed, CompactionOutcome::Failed { .. }));
-    assert_eq!(message::messages(&session_id, None).await.unwrap().len(), input.messages.len());
-    let mut saw_first = false;
-    let mut saw_last = false;
-    let completed = process_with_summarizer(input, &model, |request| {
-        saw_first |= request.prompt.contains("decision-00");
-        saw_last |= request.prompt.contains("FINAL_DECISION");
-        Ok("complete summary".to_string())
-    })
-    .await
-    .unwrap();
-    assert!(matches!(completed, CompactionOutcome::Compacted { .. }));
-    assert!(saw_first && saw_last);
-    assert_eq!(message::messages(&session_id, None).await.unwrap().len(), 2);
+    assert!(matches!(outcome, CompactionOutcome::Compacted { .. }));
+    assert_eq!(calls, 1);
+    assert_eq!(
+        serde_json::to_value(message::messages(&session_id, None).await.unwrap()).unwrap(),
+        before
+    );
+    let model_context =
+        super::super::compaction_checkpoint::restore(&session_id, &model_history(&history))
+            .await
+            .unwrap();
+    assert!(model_context[0]["content"].as_str().unwrap().contains("checkpoint decisions"));
+    assert_eq!(model_context.last().unwrap()["content"], "continue");
     cleanup_session(&session_id).await;
+}
+
+#[tokio::test]
+async fn manual_compaction_checkpoint_matches_expanded_tool_history() {
+    use crate::session::ui_types::{ChatMessage, ChatRole, ChatSession};
+    let session_id = format!("manual-tools-{}", uuid::Uuid::new_v4());
+    let snapshot = ChatSession {
+        id: session_id.clone(),
+        title: "tool history".into(),
+        messages: [
+            (ChatRole::User, "old request"),
+            (ChatRole::Assistant, "analysis"),
+            (ChatRole::Tool, "tool read\n{\"output\":\"essential fact\"}\n"),
+            (ChatRole::Assistant, "answer"),
+            (ChatRole::User, "latest request"),
+        ]
+        .into_iter()
+        .map(|(role, content)| ChatMessage {
+            role,
+            content: content.into(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        })
+        .collect(),
+        message_ids: ["old-user", "assistant", "assistant", "assistant", "boundary"]
+            .into_iter()
+            .map(|id| Some(id.into()))
+            .collect(),
+        calls: Vec::new(),
+        steps: Vec::new(),
+        created_ms: 0,
+        updated_ms: 0,
+    };
+    let source = snapshot_checkpoint_source(&snapshot, "boundary").unwrap();
+    assert_eq!(source.len(), 4);
+    assert_eq!(source[2]["role"], "assistant");
+    assert!(source[2]["content"].as_str().unwrap().contains("essential fact"));
+    super::super::compaction_checkpoint::save(&session_id, &source, "checkpoint", None)
+        .await
+        .unwrap();
+    let mut history = source.clone();
+    history.push(json!({"role":"user","content":"latest request"}));
+    let context =
+        super::super::compaction_checkpoint::restore(&session_id, &history).await.unwrap();
+    assert_eq!(context.len(), 2);
+    assert_eq!(context[0]["content"], "[Compaction summary]\ncheckpoint");
+    assert_eq!(context[1], history[4]);
+    assert_eq!(snapshot.messages.len(), 5);
+    assert!(snapshot_checkpoint_source(&snapshot, "missing").is_none());
+    assert!(snapshot_checkpoint_source(&snapshot, "assistant").is_none());
 }

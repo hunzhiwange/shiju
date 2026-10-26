@@ -79,6 +79,8 @@ pub(crate) struct QueryEngineSnapshot {
 }
 
 pub(crate) struct QueryEngine {
+    session_id: String,
+    reliability: crate::config::ReliabilityConfig,
     history: Vec<ChatMessage>,
     request_system_prompt: String,
     tools_registry: Vec<Box<dyn Tool>>,
@@ -307,6 +309,8 @@ impl QueryEngine {
         });
 
         Ok(Self {
+            session_id: session_id.to_string(),
+            reliability: config.reliability.clone(),
             history: Vec::new(),
             request_system_prompt: system_prompt,
             tools_registry,
@@ -342,17 +346,20 @@ impl QueryEngine {
         };
 
         self.history.push(ChatMessage::user(enriched));
-        if let Err(error) = self.compact_before_primary_request(false).await {
-            self.history = history_snapshot;
-            return Err(error);
-        }
-        let persistent_len = self.history.len();
+        let context = match self.compact_before_primary_request(false).await {
+            Ok(context) => context,
+            Err(error) => {
+                self.history = history_snapshot;
+                return Err(error);
+            }
+        };
+        let persistent_len = context.len();
         let mut request_history = vec![ChatMessage::user(format!(
             "<system-reminder>\n{}\n</system-reminder>",
             self.request_system_prompt
         ))];
         let transient_len = request_history.len();
-        request_history.extend(self.history.iter().cloned());
+        request_history.extend(context);
 
         let result = agent_turn(
             self.provider.as_ref(),
@@ -372,19 +379,22 @@ impl QueryEngine {
         let mut retry_response_persisted = false;
         let result = match result {
             Err(error) if is_prompt_too_long(&error.to_string()) => {
-                if let Err(compaction_error) = self.compact_before_primary_request(true).await {
-                    self.history = history_snapshot;
-                    return Err(anyhow::anyhow!(
-                        "{error}; internal compaction could not recover the request: {compaction_error}"
-                    ));
-                }
-                let persistent_len = self.history.len();
+                let context = match self.compact_before_primary_request(true).await {
+                    Ok(context) => context,
+                    Err(compaction_error) => {
+                        self.history = history_snapshot;
+                        return Err(anyhow::anyhow!(
+                            "{error}; internal compaction could not recover the request: {compaction_error}"
+                        ));
+                    }
+                };
+                let persistent_len = context.len();
                 let mut retry_history = vec![ChatMessage::user(format!(
                     "<system-reminder>\n{}\n</system-reminder>",
                     self.request_system_prompt
                 ))];
                 let transient_len = retry_history.len();
-                retry_history.extend(self.history.iter().cloned());
+                retry_history.extend(context);
                 let retry = agent_turn(
                     self.provider.as_ref(),
                     &mut retry_history,
@@ -429,37 +439,52 @@ impl QueryEngine {
         // reintroduce the split compaction policy this engine is avoiding.
     }
 
-    async fn compact_before_primary_request(&mut self, force: bool) -> Result<()> {
-        if !self.compact_context {
-            return Ok(());
-        }
-        let input_tokens = self
-            .history
+    async fn compact_before_primary_request(&self, force: bool) -> Result<Vec<ChatMessage>> {
+        let start =
+            usize::from(self.history.first().is_some_and(|message| message.role == "system"));
+        let source = self.history[start..]
+            .iter()
+            .map(|message| serde_json::json!({"role": message.role, "content": message.content}))
+            .collect::<Vec<_>>();
+        let restored = crate::session::compaction_checkpoint::restore(&self.session_id, &source)
+            .await
+            .map_err(anyhow::Error::msg)?;
+        let mut context = self.history[..start].to_vec();
+        context.extend(restored.into_iter().map(|item| ChatMessage {
+            role: item["role"].as_str().unwrap_or("assistant").to_string(),
+            content: item["content"].as_str().unwrap_or_default().to_string(),
+        }));
+        let input_tokens = context
             .iter()
             .map(|message| crate::app::agent::util::token::estimate(&message.content))
             .sum();
-        if !force
-            && !crate::session::processor::context_governance::should_compact(
-                input_tokens,
-                &self.model_limit,
-            )
+        if !self.compact_context
+            || (!force
+                && !crate::session::processor::context_governance::should_compact(
+                    input_tokens,
+                    &self.model_limit,
+                ))
         {
-            return Ok(());
+            return Ok(context);
         }
-        compact_history_with_internal_service(
-            &mut self.history,
-            self.provider.as_ref(),
-            &self.model_name,
-            &self.model_limit,
-        )
-        .await
-        .and_then(|compacted| {
-            if compacted {
-                Ok(())
+        // Keep the authoritative history intact, including across repeated checkpoints.
+        // The service restores the previous checkpoint before summarizing this raw prefix.
+        let mut source_history = self.history.clone();
+        let compacted = compact_history_with_internal_service(
+            &mut source_history,
+            &self.session_id,
+            &if self.model_name.contains('/') {
+                self.model_name.clone()
             } else {
-                anyhow::bail!("internal compaction has no eligible history to summarize")
-            }
-        })
+                format!("{}/{}", self.provider_name, self.model_name)
+            },
+            &self.reliability,
+        )
+        .await?;
+        if !compacted {
+            anyhow::bail!("internal compaction has no eligible history to summarize");
+        }
+        Ok(source_history)
     }
 
     /// 返回当前会话已成功提交的轮次数。

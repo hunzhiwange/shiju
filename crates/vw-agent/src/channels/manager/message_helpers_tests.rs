@@ -467,7 +467,7 @@ fn has_prior_history_recovers_from_poisoned_lock() {
 }
 
 #[tokio::test]
-async fn load_prior_turns_normalizes_cached_turns() {
+async fn load_prior_turns_preserves_cached_message_boundaries() {
     let ctx = test_context(Arc::new(RecordingMemory::default()), None);
     ctx.conversation_histories
         .lock()
@@ -476,8 +476,9 @@ async fn load_prior_turns_normalizes_cached_turns() {
 
     let turns = load_prior_turns(&ctx, "sender", "ignored", true).await;
 
-    assert_eq!(turns.len(), 1);
-    assert_eq!(turns[0].content, "one\n\ntwo");
+    assert_eq!(turns.len(), 2);
+    assert_eq!(turns[0].content, "one");
+    assert_eq!(turns[1].content, "two");
 }
 
 #[tokio::test]
@@ -519,7 +520,8 @@ async fn load_prior_turns_does_not_inject_memory_when_last_turn_is_assistant() {
     let turns = load_prior_turns(&ctx, "sender", "What should I do?", false).await;
 
     assert_eq!(memory.recall_queries(), vec!["What should I do?".to_string()]);
-    assert!(turns.is_empty());
+    assert_eq!(turns.len(), 1);
+    assert_eq!(turns[0].content, "already answered");
 }
 
 #[tokio::test]

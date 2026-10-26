@@ -1,65 +1,104 @@
-//! Bounded, UTF-8-safe rolling summaries shared by the session entry points.
+//! Single-request context checkpoint summaries using the normal model request lifecycle.
 
-use crate::app::agent::provider::provider::ModelLimit;
+use crate::config::ReliabilityConfig;
+use crate::session::processor::llm_runner;
+use serde_json::{Value, json};
+use tokio_util::sync::CancellationToken;
 
-pub(crate) struct SummaryChunks<'a> {
-    remaining: &'a str,
-    summary: String,
-    chunk_bytes: usize,
+const SUMMARY_PROMPT: &str = "Create a concise context checkpoint for another model to continue this conversation. Preserve progress, key decisions, user constraints, unfinished work, next steps, and essential references. Return only the handoff summary. Do not execute tools or continue the task.";
+
+pub(crate) fn summarize(
+    session_id: &str,
+    history: &[Value],
+    model: &str,
+    reliability: &ReliabilityConfig,
+    cancellation: Option<&CancellationToken>,
+) -> Result<String, String> {
+    let mut input = history.to_vec();
+    input.push(json!({"role": "user", "content": SUMMARY_PROMPT}));
+    loop {
+        let result = llm_runner::run_llm_step_with_retry(
+            session_id,
+            &input,
+            &[],
+            Some(model.to_string()),
+            &json!({"disable_tools": true}),
+            &[],
+            &Default::default(),
+            &mut |_| true,
+            reliability.provider_retries,
+            reliability.provider_backoff_ms,
+            cancellation,
+        );
+        match result {
+            Ok(output) => {
+                if !output.tool_calls.is_empty() {
+                    return Err("internal compaction rejected a model tool call".into());
+                }
+                if output.finish_reason.as_deref() == Some("length") {
+                    return Err("internal compaction summary was truncated by the model".into());
+                }
+                let summary = output.text.trim();
+                if summary.is_empty() {
+                    return Err("internal compaction generated an empty summary".into());
+                }
+                return Ok(summary.to_string());
+            }
+            Err(error) if llm_runner::is_prompt_too_long_error(&error) && input.len() > 2 => {
+                // Like Codex, trim only the request copy after an actual overflow. Never
+                // delete persisted history or leave orphan tool results at the new head.
+                input.remove(0);
+                while input.len() > 1 && input[0]["role"] == "tool" {
+                    input.remove(0);
+                }
+                if input.len() == 1 {
+                    return Err(error);
+                }
+            }
+            Err(error) if error == "模型未返回内容" => {
+                return Err("internal compaction generated an empty summary".into());
+            }
+            Err(error) => return Err(error),
+        }
+    }
 }
 
-impl<'a> SummaryChunks<'a> {
-    pub(crate) fn new(transcript: &'a str, limit: Option<&ModelLimit>) -> Result<Self, String> {
-        // A byte budget is deliberately conservative for multilingual text. Reserve half
-        // for the previous summary and leave room for instructions and protocol overhead.
-        let window = limit
-            .filter(|limit| limit.context > 0 || limit.input.is_some())
-            .map(super::processor::context_governance::effective_input_window)
-            .unwrap_or(32_000)
-            .min(32_000) as usize;
-        let chunk_bytes = window.saturating_sub(512) / 2;
-        if chunk_bytes < 256 {
-            return Err("model input window is too small for internal compaction".to_string());
-        }
-        Ok(Self { remaining: transcript, summary: String::new(), chunk_bytes })
-    }
-
-    pub(crate) fn next_prompt(&mut self) -> Option<String> {
-        if self.remaining.is_empty() {
-            return None;
-        }
-        let mut end = self.remaining.len().min(self.chunk_bytes);
-        while !self.remaining.is_char_boundary(end) {
-            end -= 1;
-        }
-        let (chunk, rest) = self.remaining.split_at(end);
-        self.remaining = rest;
-        Some(super::compaction::internal_summary_prompt(&format!(
-            "Merge the previous summary with the next conversation fragment. Return a concise summary of at most {} characters.\n\nPrevious summary:\n{}\n\nNext conversation fragment:\n{}",
-            self.chunk_bytes / 4,
-            self.summary,
-            chunk,
-        )))
-    }
-
-    pub(crate) fn accept(&mut self, summary: String) -> Result<(), String> {
-        let summary = summary.trim();
-        if summary.is_empty() {
-            return Err("internal compaction generated an empty summary".to_string());
-        }
-        if summary.len() > self.chunk_bytes {
-            return Err("internal compaction summary exceeds its input budget".to_string());
-        }
-        self.summary = summary.to_string();
-        Ok(())
-    }
-
-    pub(crate) fn finish(self) -> Result<String, String> {
-        if !self.remaining.is_empty() || self.summary.is_empty() {
-            return Err("internal compaction did not summarize all history".to_string());
-        }
-        Ok(self.summary)
-    }
+/// Adapt async callers without blocking the executor. Dropping the caller cancels
+/// the shared runner, including stream collection and retry backoff.
+pub(crate) async fn summarize_async(
+    session_id: String,
+    history: Vec<Value>,
+    model: String,
+    reliability: ReliabilityConfig,
+) -> Result<String, String> {
+    let cancellation = CancellationToken::new();
+    let _cancel_on_drop = cancellation.clone().drop_guard();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let project =
+        crate::project::instance::project().map(|project| crate::project::instance::Context {
+            directory: crate::project::instance::directory(),
+            worktree: crate::project::instance::worktree(),
+            project,
+        });
+    tokio::task::spawn_blocking(move || {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| format!("compaction runtime failed: {error}"))?;
+        runtime.block_on(crate::session::ui_store::with_tenant_scope(tenant, async {
+            let summarize = async {
+                summarize(&session_id, &history, &model, &reliability, Some(&cancellation))
+            };
+            match project {
+                Some(context) => {
+                    crate::project::instance::provide_context(context, summarize).await
+                }
+                None => summarize.await,
+            }
+        }))
+    })
+    .await
+    .map_err(|error| format!("compaction worker failed: {error}"))?
 }
 
 #[cfg(test)]

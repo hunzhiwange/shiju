@@ -616,6 +616,11 @@ fn handle_agent_stream_cancelled(app: &mut App, id: u64) -> Task<Message> {
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+    stream_events::settle_interrupted_compaction(
+        app,
+        &session_id,
+        crate::app::components::chat_panel::message_view::COMPACTION_CANCELLED_TEXT,
+    );
     let _ = stream_events::flush_agent_stream_delta(app, session_id.clone());
     let save_task = stream_events::force_save_agent_stream_session(app, &session_id);
     crate::app::state::clear_pending_guide_handoff(id);

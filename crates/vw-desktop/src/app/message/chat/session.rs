@@ -766,7 +766,9 @@ fn request_session_compaction_confirmation(
             let result = rfd::AsyncMessageDialog::new()
                 .set_level(rfd::MessageLevel::Warning)
                 .set_title("压缩当前会话")
-                .set_description("压缩会用摘要替换较早的会话历史，并保留当前会话 ID。确认继续吗？")
+                .set_description(
+                    "压缩会生成摘要检查点以缩短模型上下文，原始聊天记录保持完整。确认继续吗？",
+                )
                 .set_buttons(rfd::MessageButtons::YesNo)
                 .show()
                 .await;
@@ -840,22 +842,15 @@ fn latest_persisted_user_message_id(messages: &[agent_message::WithParts]) -> Op
 fn finish_session_compaction(
     app: &mut App,
     session_id: String,
-    project_path: String,
+    _project_path: String,
     result: Result<bool, String>,
 ) -> Task<Message> {
     set_session_compacting(app, &session_id, None);
     match result {
-        Ok(true) => Task::batch([
-            app.show_success_toast("会话压缩完成"),
-            Task::done(session_compaction_reload_message(session_id, project_path)),
-        ]),
+        Ok(true) => app.show_success_toast("会话压缩完成"),
         Ok(false) => app.show_info_toast("当前会话没有需要压缩的较早历史"),
         Err(error) => app.show_error_toast(format!("会话压缩失败：{error}")),
     }
-}
-
-fn session_compaction_reload_message(session_id: String, project_path: String) -> Message {
-    Message::Project(message::ProjectMessage::OpenProjectSessionPressed(project_path, session_id))
 }
 
 fn git_commit_selection_context(app: &App) -> String {

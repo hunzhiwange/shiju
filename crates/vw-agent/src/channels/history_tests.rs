@@ -134,17 +134,17 @@ fn normalize_cached_turns_drops_orphan_leading_roles_and_merges_without_separato
 }
 
 #[test]
-fn append_sender_turn_keeps_recent_history_within_limit() {
+fn append_sender_turn_preserves_complete_history() {
     let ctx = test_context();
 
-    for idx in 0..(MAX_CHANNEL_HISTORY + 3) {
+    for idx in 0..53 {
         append_sender_turn(&ctx, "sender", ChatMessage::user(format!("turn-{idx}")));
     }
 
     let histories = ctx.conversation_histories.lock().unwrap();
     let turns = histories.get("sender").expect("history should exist");
-    assert_eq!(turns.len(), MAX_CHANNEL_HISTORY);
-    assert_eq!(turns.first().expect("first turn").content, "turn-3");
+    assert_eq!(turns.len(), 53);
+    assert_eq!(turns.first().expect("first turn").content, "turn-0");
 }
 
 #[test]
@@ -171,7 +171,6 @@ fn history_operations_recover_from_poisoned_history_lock() {
 
     clear_sender_history(&ctx, "missing");
     append_sender_turn(&ctx, "sender", ChatMessage::user("hello"));
-    assert!(compact_sender_history(&ctx, "sender"));
     assert!(rollback_orphan_user_turn(&ctx, "sender", "hello"));
     assert!(
         !ctx.conversation_histories
@@ -179,52 +178,6 @@ fn history_operations_recover_from_poisoned_history_lock() {
             .unwrap_or_else(|e| e.into_inner())
             .contains_key("sender")
     );
-}
-
-#[test]
-fn compact_sender_history_keeps_recent_turns_and_truncates_long_content() {
-    let ctx = test_context();
-    let long = "x".repeat(CHANNEL_HISTORY_COMPACT_CONTENT_CHARS + 50);
-
-    for idx in 0..(CHANNEL_HISTORY_COMPACT_KEEP_MESSAGES + 3) {
-        append_sender_turn(&ctx, "sender", ChatMessage::user(format!("turn-{idx}")));
-        append_sender_turn(&ctx, "sender", ChatMessage::assistant(long.clone()));
-    }
-
-    assert!(compact_sender_history(&ctx, "sender"));
-
-    let histories = ctx.conversation_histories.lock().unwrap();
-    let turns = histories.get("sender").expect("history should remain");
-    assert!(turns.len() <= CHANNEL_HISTORY_COMPACT_KEEP_MESSAGES);
-    assert!(
-        turns
-            .iter()
-            .all(|turn| turn.content.chars().count() <= CHANNEL_HISTORY_COMPACT_CONTENT_CHARS + 3)
-    );
-}
-
-#[test]
-fn compact_sender_history_reports_false_for_missing_or_empty_history() {
-    let ctx = test_context();
-
-    assert!(!compact_sender_history(&ctx, "missing"));
-
-    ctx.conversation_histories.lock().unwrap().insert("empty".to_string(), Vec::new());
-    assert!(!compact_sender_history(&ctx, "empty"));
-}
-
-#[test]
-fn compact_sender_history_clears_history_when_kept_turns_have_no_user_start() {
-    let ctx = test_context();
-    ctx.conversation_histories.lock().unwrap().insert(
-        "sender".to_string(),
-        vec![ChatMessage::system("ignored"), ChatMessage::assistant("orphan")],
-    );
-
-    assert!(!compact_sender_history(&ctx, "sender"));
-
-    let histories = ctx.conversation_histories.lock().unwrap();
-    assert!(histories.get("sender").expect("history entry should remain").is_empty());
 }
 
 #[test]

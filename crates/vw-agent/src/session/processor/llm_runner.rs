@@ -27,6 +27,7 @@
 use super::types::{StreamEvent, ToolCallStatus, ToolEvent, ToolEventKind};
 use super::utils::now_ms;
 use crate::app::agent::session::llm;
+use crate::app::agent::session::message::AssistantError;
 use crate::app::agent::tools::ToolSpec;
 use crate::session::ui_types as models;
 use serde_json::Value;
@@ -188,19 +189,47 @@ fn spawn_llm_stream_thread(
     abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
 ) -> std::thread::JoinHandle<()> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let project =
+        crate::project::instance::project().map(|project| crate::project::instance::Context {
+            directory: crate::project::instance::directory(),
+            worktree: crate::project::instance::worktree(),
+            project,
+        });
     std::thread::spawn(move || {
-        llm::stream_chat_with_tools_for_session_with_abort(
-            &session_id,
-            messages,
-            system,
-            model,
-            options,
-            tools,
-            Some(abort_rx),
-            move |ev| {
-                let _ = tx.send(ev);
-            },
-        );
+        let runtime = match tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(1)
+            .enable_all()
+            .build()
+        {
+            Ok(runtime) => runtime,
+            Err(error) => {
+                let _ = tx.send(llm::StreamEvent::Error(AssistantError::Unknown {
+                    message: error.to_string(),
+                }));
+                return;
+            }
+        };
+        runtime.block_on(crate::session::ui_store::with_tenant_scope(tenant, async move {
+            let request = async move {
+                llm::stream_chat_with_tools_for_session_with_abort(
+                    &session_id,
+                    messages,
+                    system,
+                    model,
+                    options,
+                    tools,
+                    Some(abort_rx),
+                    move |event| {
+                        let _ = tx.send(event);
+                    },
+                );
+            };
+            match project {
+                Some(context) => crate::project::instance::provide_context(context, request).await,
+                None => request.await,
+            }
+        }));
     })
 }
 

@@ -798,14 +798,10 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
 
     let compacted = super::compact_transient_history_for_request(
         "runner-transient-compaction",
+        &[],
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
-        &crate::app::agent::provider::provider::ModelLimit {
-            context: 128_000,
-            input: None,
-            output: 4096,
-        },
         &mut |event| {
             events.push(event);
             true
@@ -852,14 +848,10 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
 
     let error = super::compact_transient_history_for_request(
         "runner-transient-compaction-failure",
+        &[],
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
-        &crate::app::agent::provider::provider::ModelLimit {
-            context: 128_000,
-            input: None,
-            output: 4096,
-        },
         &mut |event| {
             events.push(event);
             true
@@ -1306,19 +1298,12 @@ fn handle_empty_assistant_text_retries_at_limit_boundary() {
 }
 
 #[test]
-fn compaction_lifecycle_chunk_failure_preserves_multibyte_history() {
+fn compaction_lifecycle_failure_preserves_multibyte_history() {
     let _guard = super::llm_runner::test_llm_stream_guard();
-    super::llm_runner::enqueue_test_llm_stream(vec![
-        crate::app::agent::session::llm::StreamEvent::Delta("first chunk summary".to_string()),
-        crate::app::agent::session::llm::StreamEvent::Done {
-            usage: models::TokenUsage::default(),
-            finish_reason: Some("stop".to_string()),
-        },
-    ]);
     super::llm_runner::enqueue_test_llm_stream(vec![
         crate::app::agent::session::llm::StreamEvent::Error(
             crate::app::agent::session::message::AssistantError::Unknown {
-                message: "later chunk unavailable".to_string(),
+                message: "summary unavailable".to_string(),
             },
         ),
     ]);
@@ -1332,14 +1317,10 @@ fn compaction_lifecycle_chunk_failure_preserves_multibyte_history() {
     let mut events = Vec::new();
     let error = super::compact_transient_history_for_request(
         "chunk-failure",
+        &[],
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
-        &crate::app::agent::provider::provider::ModelLimit {
-            context: 128_000,
-            input: None,
-            output: 4096,
-        },
         &mut |event| {
             events.push(event);
             true
@@ -1347,9 +1328,9 @@ fn compaction_lifecycle_chunk_failure_preserves_multibyte_history() {
         None,
     )
     .unwrap_err();
-    assert!(error.contains("later chunk unavailable"));
+    assert!(error.contains("summary unavailable"));
     assert_eq!(messages, before);
-    assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids().len(), 2);
+    assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids().len(), 1);
     assert!(matches!(
         events.as_slice(),
         [super::StreamEvent::Compaction { phase: super::CompactionPhase::Started }]
@@ -1373,14 +1354,10 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
     let before = messages.clone();
     let error = super::compact_transient_history_for_request(
         "truncated-summary",
+        &[],
         &mut messages,
         "provider/model",
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
-        &crate::app::agent::provider::provider::ModelLimit {
-            context: 128_000,
-            input: None,
-            output: 4096,
-        },
         &mut |_| true,
         None,
     )
@@ -1409,16 +1386,12 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
         assert!(
             super::compact_transient_history_for_request(
                 "successive-rounds",
+                &[],
                 &mut messages,
                 "provider/model",
                 &crate::app::agent::config::ReliabilityConfig {
                     provider_retries: 0,
                     ..Default::default()
-                },
-                &crate::app::agent::provider::provider::ModelLimit {
-                    context: 128_000,
-                    input: None,
-                    output: 4096
                 },
                 &mut |_| true,
                 None,
@@ -1435,4 +1408,88 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
         super::llm_runner::take_test_llm_stream_tool_ids(),
         vec![Vec::<String>::new(), Vec::<String>::new()]
     );
+}
+
+#[test]
+fn compaction_checkpoint_replays_after_restart_without_rewriting_chat() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("remember decision".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
+    let id = unique_session_id("checkpoint-replay");
+    let raw = vec![
+        serde_json::json!({"role":"user","content":"old task"}),
+        serde_json::json!({"role":"assistant","content":"old details"}),
+        serde_json::json!({"role":"user","content":"current task"}),
+    ];
+    let mut context = raw.clone();
+    let mut events = Vec::new();
+    super::compact_transient_history_for_request(
+        &id,
+        &raw,
+        &mut context,
+        "provider/model",
+        &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        None,
+    )
+    .unwrap();
+    assert_eq!(raw[1]["content"], "old details");
+    let mut next_turn = raw.clone();
+    next_turn.push(serde_json::json!({"role":"assistant","content":"answer"}));
+    let restored = crate::session::prompt::block_on(
+        crate::session::compaction_checkpoint::restore(&id, &next_turn),
+    )
+    .unwrap();
+    assert_eq!(restored[0], context[0]);
+    assert_eq!(restored[1], raw[2]);
+    assert_eq!(restored[2]["content"], "answer");
+    assert!(matches!(
+        events.last(),
+        Some(super::StreamEvent::Compaction { phase: super::CompactionPhase::Completed })
+    ));
+}
+
+#[test]
+fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("summary".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
+    let raw = vec![
+        serde_json::json!({"role":"user","content":"old"}),
+        serde_json::json!({"role":"user","content":"current"}),
+    ];
+    let mut context = raw.clone();
+    let mut events = Vec::new();
+    let result = super::compact_transient_history_for_request(
+        "../invalid",
+        &raw,
+        &mut context,
+        "provider/model",
+        &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        None,
+    );
+    assert!(result.unwrap_err().contains("invalid session ID"));
+    assert_eq!(context, raw);
+    assert_eq!(events.len(), 1);
+    assert!(matches!(
+        events[0],
+        super::StreamEvent::Compaction { phase: super::CompactionPhase::Started }
+    ));
 }

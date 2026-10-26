@@ -392,20 +392,12 @@ pub(crate) async fn handle_llm_result(
             }
             // 子情况 3b：上下文窗口溢出
             else if is_context_window_overflow_error(&e) {
-                // 尝试压缩发送者历史以释放上下文空间
-                let compacted = compact_sender_history(ctx, history_key);
-
-                // 根据压缩结果生成不同的错误提示
-                let error_text = if compacted {
-                    "⚠️ Context window exceeded for this conversation. I compacted recent history and kept the latest context. Please resend your last message."
-                } else {
-                    "⚠️ Context window exceeded for this conversation. Please resend your last message."
-                };
-
+                // The processor already attempted shared compaction. Keep raw history
+                // intact when recovery fails instead of truncating it in the channel layer.
+                let error_text = "⚠️ Context window exceeded and context compaction could not recover the request. Your history is unchanged. Please retry or start a new session.";
                 eprintln!(
-                    "  ⚠️ Context window exceeded after {}ms; sender history compacted={}",
-                    started_at.elapsed().as_millis(),
-                    compacted
+                    "  ⚠️ Context window exceeded after {}ms",
+                    started_at.elapsed().as_millis()
                 );
 
                 runtime_trace::record_event(
@@ -419,7 +411,7 @@ pub(crate) async fn handle_llm_result(
                     serde_json::json!({
                         "sender": msg.sender,
                         "elapsed_ms": started_at.elapsed().as_millis(),
-                        "history_compacted": compacted,
+                        "history_compacted": false,
                     }),
                 );
 

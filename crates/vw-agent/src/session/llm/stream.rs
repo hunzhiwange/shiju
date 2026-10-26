@@ -209,6 +209,23 @@ fn resolve_stream_provider_info(
 /// 每次调用都会创建独立的日志上下文和配置合并过程。
 pub async fn stream(
     input: StreamInput,
+    on_event: impl FnMut(StreamEvent) + Send + 'static,
+) -> Result<(), Error> {
+    let Some(mut abort) = input.abort.clone() else {
+        return stream_inner(input, on_event).await;
+    };
+    if *abort.borrow() {
+        return Err(Error::Aborted);
+    }
+    tokio::select! {
+        biased;
+        _ = abort.changed() => Err(Error::Aborted),
+        result = stream_inner(input, on_event) => result,
+    }
+}
+
+async fn stream_inner(
+    input: StreamInput,
     mut on_event: impl FnMut(StreamEvent) + Send + 'static,
 ) -> Result<(), Error> {
     // 初始化日志记录器，添加关键上下文标签以便追踪和调试

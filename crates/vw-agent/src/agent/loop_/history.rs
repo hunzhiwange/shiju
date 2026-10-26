@@ -14,12 +14,13 @@
 //! - 使用 LLM 智能总结以保留关键信息
 //! - 摘要失败时保留原始历史
 
-use crate::app::agent::providers::{ChatMessage, Provider};
+use crate::app::agent::providers::ChatMessage;
 use anyhow::Result;
 
 #[cfg(test)]
 #[path = "history_tests.rs"]
 mod history_tests;
+#[cfg(test)]
 use std::fmt::Write;
 
 /// 裁剪对话历史以防止无限制增长
@@ -87,7 +88,7 @@ pub(crate) fn trim_history(history: &mut Vec<ChatMessage>, max_history: usize) {
 ///
 /// # 返回值
 ///
-/// 返回完整对话文本；调用模型时按 UTF-8 边界分块，不丢弃源文本。
+/// 返回完整对话文本，供测试核验源文本是否完整。
 ///
 /// # 格式示例
 ///
@@ -97,6 +98,7 @@ pub(crate) fn trim_history(history: &mut Vec<ChatMessage>, max_history: usize) {
 /// USER: 那性能优化怎么做？
 /// ASSISTANT: 关于性能优化，我建议...
 /// ```
+#[cfg(test)]
 pub(crate) fn build_compaction_transcript(messages: &[ChatMessage]) -> String {
     let mut transcript = String::new();
 
@@ -149,36 +151,33 @@ pub(crate) fn apply_compaction_summary(
 /// The current request and its tool round stay intact; failed summaries never mutate history.
 pub(crate) async fn compact_history_with_internal_service(
     history: &mut Vec<ChatMessage>,
-    provider: &dyn Provider,
+    session_id: &str,
     model: &str,
-    limit: &crate::app::agent::provider::provider::ModelLimit,
+    reliability: &crate::config::ReliabilityConfig,
 ) -> Result<bool> {
     let start = usize::from(history.first().is_some_and(|message| message.role == "system"));
-    let compact_end = history.iter().rposition(|message| message.role == "user").unwrap_or(start);
-    if compact_end <= start {
+    let end = history.iter().rposition(|message| message.role == "user").unwrap_or(start);
+    if end <= start {
         return Ok(false);
     }
-
-    // 提取待压缩的消息
-    let to_compact: Vec<ChatMessage> = history[start..compact_end].to_vec();
-
-    // 构建压缩源文本
-    let transcript = build_compaction_transcript(&to_compact);
-
-    let mut chunks =
-        crate::session::compaction_summary::SummaryChunks::new(&transcript, Some(limit))
-            .map_err(anyhow::Error::msg)?;
-    while let Some(prompt) = chunks.next_prompt() {
-        let summary =
-            provider.chat_with_system(None, &prompt, model, 0.2).await.map_err(|error| {
-                anyhow::anyhow!("internal compaction model request failed: {error}")
-            })?;
-        chunks.accept(summary).map_err(anyhow::Error::msg)?;
-    }
-    let summary = chunks.finish().map_err(anyhow::Error::msg)?;
-
-    // 应用压缩摘要到历史记录
-    apply_compaction_summary(history, start, compact_end, &summary);
-
+    let source = history[start..end]
+        .iter()
+        .map(|message| serde_json::json!({"role": message.role, "content": message.content}))
+        .collect::<Vec<_>>();
+    let context = crate::session::compaction_checkpoint::restore(session_id, &source)
+        .await
+        .map_err(anyhow::Error::msg)?;
+    let summary = crate::session::compaction_summary::summarize_async(
+        session_id.to_string(),
+        context,
+        model.to_string(),
+        reliability.clone(),
+    )
+    .await
+    .map_err(anyhow::Error::msg)?;
+    crate::session::compaction_checkpoint::save(session_id, &source, &summary, None)
+        .await
+        .map_err(anyhow::Error::msg)?;
+    apply_compaction_summary(history, start, end, &summary);
     Ok(true)
 }

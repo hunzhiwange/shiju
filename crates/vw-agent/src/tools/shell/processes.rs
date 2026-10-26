@@ -7,7 +7,11 @@ use std::process::Stdio;
 use std::sync::{Arc, OnceLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, oneshot};
+use tokio::io::AsyncReadExt;
+use tokio::sync::{Notify, mpsc, oneshot};
+#[path = "output.rs"]
+mod output;
+use output::{OutputBuffer, OutputDecoder};
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 
@@ -50,12 +54,19 @@ pub(crate) struct ShellProcessSnapshot {
     pub(crate) process_id: String,
     pub(crate) state: ShellProcessState,
     pub(crate) exit_code: Option<i32>,
+    pub(crate) output: String,
+    pub(crate) next_cursor: u64,
+    pub(crate) truncated: bool,
+    /// Total evicted display bytes when the requested cursor has a gap.
+    pub(crate) dropped_bytes: u64,
 }
 
 struct Entry {
     scope: ShellProcessScope,
     snapshot: ShellProcessSnapshot,
     finished: Option<Instant>,
+    output: Arc<Mutex<OutputBuffer>>,
+    changed: Arc<Notify>,
 }
 
 type Records = Arc<Mutex<HashMap<String, Entry>>>;
@@ -122,8 +133,48 @@ impl ShellProcesses {
         let mut records = self.records.lock();
         prune(&mut records);
         match records.get(process_id) {
-            Some(entry) if &entry.scope == scope => Ok(entry.snapshot.clone()),
+            Some(entry) if &entry.scope == scope => snapshot_output(entry, 0),
             _ => bail!("Shell process unavailable"),
+        }
+    }
+
+    /// Cursor is an observed-chunk sequence number; zero starts at retained output.
+    /// Numeric parsing belongs to the tool protocol boundary.
+    pub(crate) async fn wait(
+        &self,
+        scope: &ShellProcessScope,
+        process_id: &str,
+        cursor: u64,
+        yield_time: Duration,
+    ) -> anyhow::Result<ShellProcessSnapshot> {
+        let changed = {
+            let records = self.records.lock();
+            match records.get(process_id) {
+                Some(entry) if &entry.scope == scope => entry.changed.clone(),
+                _ => bail!("Shell process unavailable"),
+            }
+        };
+        let deadline = tokio::time::Instant::now() + yield_time;
+        loop {
+            // Register before reading to avoid losing broadcasts between read and wait.
+            let notified = changed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            let snapshot = {
+                let mut records = self.records.lock();
+                prune(&mut records);
+                match records.get(process_id) {
+                    Some(entry) if &entry.scope == scope => snapshot_output(entry, cursor)?,
+                    _ => bail!("Shell process unavailable"),
+                }
+            };
+            if snapshot.next_cursor != cursor
+                || snapshot.state != ShellProcessState::Running
+                || tokio::time::Instant::now() >= deadline
+            {
+                return Ok(snapshot);
+            }
+            let _ = tokio::time::timeout_at(deadline, notified).await;
         }
     }
 
@@ -210,27 +261,29 @@ fn start_child(
         process_id: uuid::Uuid::new_v4().to_string(),
         state: ShellProcessState::Running,
         exit_code: None,
+        output: String::new(),
+        next_cursor: 0,
+        truncated: false,
+        dropped_bytes: 0,
     };
+    let output = Arc::new(Mutex::new(OutputBuffer::default()));
+    let changed = Arc::new(Notify::new());
     records.lock().insert(
         snapshot.process_id.clone(),
-        Entry { scope: scope.clone(), snapshot: snapshot.clone(), finished: None },
+        Entry {
+            scope: scope.clone(),
+            snapshot: snapshot.clone(),
+            finished: None,
+            output: output.clone(),
+            changed: changed.clone(),
+        },
     );
     let records = records.clone();
     let stopping = stopping.clone();
     let id = snapshot.process_id.clone();
     tasks.spawn(async move {
-        // Drain continuously without retaining unbounded output. Incremental buffering
-        // belongs to the next layer; pipes must never block process completion here.
-        let drain_stdout = tokio::spawn(async move {
-            if let Some(mut pipe) = stdout {
-                let _ = tokio::io::copy(&mut pipe, &mut tokio::io::sink()).await;
-            }
-        });
-        let drain_stderr = tokio::spawn(async move {
-            if let Some(mut pipe) = stderr {
-                let _ = tokio::io::copy(&mut pipe, &mut tokio::io::sink()).await;
-            }
-        });
+        let drain_stdout = tokio::spawn(drain(stdout, output.clone(), changed.clone()));
+        let drain_stderr = tokio::spawn(drain(stderr, output, changed.clone()));
         let (state, status) = tokio::select! {
             biased;
             _ = stopping.cancelled() => {
@@ -251,8 +304,42 @@ fn start_child(
             entry.finished = Some(Instant::now());
         }
         prune(&mut entries);
+        changed.notify_waiters();
     });
     Ok(snapshot)
+}
+
+fn snapshot_output(entry: &Entry, cursor: u64) -> anyhow::Result<ShellProcessSnapshot> {
+    let read = entry.output.lock().read(cursor)?;
+    let mut snapshot = entry.snapshot.clone();
+    snapshot.output = read.output;
+    snapshot.next_cursor = read.next_cursor;
+    snapshot.truncated = read.truncated;
+    snapshot.dropped_bytes = read.dropped_bytes;
+    Ok(snapshot)
+}
+
+async fn drain(
+    pipe: Option<impl tokio::io::AsyncRead + Unpin>,
+    output: Arc<Mutex<OutputBuffer>>,
+    changed: Arc<Notify>,
+) {
+    let Some(mut pipe) = pipe else { return };
+    let mut decoder = OutputDecoder::default();
+    let mut bytes = [0; 8192];
+    loop {
+        match pipe.read(&mut bytes).await {
+            Ok(0) | Err(_) => {
+                decoder.push(&[], true, &mut output.lock());
+                changed.notify_waiters();
+                break;
+            }
+            Ok(count) => {
+                decoder.push(&bytes[..count], false, &mut output.lock());
+                changed.notify_waiters();
+            }
+        }
+    }
 }
 
 fn kill_group(pid: Option<u32>) {
@@ -271,3 +358,7 @@ fn kill_group(pid: Option<u32>) {
 #[cfg(test)]
 #[path = "processes_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "output_tests.rs"]
+mod output_tests;

@@ -154,3 +154,107 @@ fn shell_process_shutdown_reaps_real_child() {
     assert_eq!(std::io::Error::last_os_error().raw_os_error(), Some(libc::ESRCH));
     eprintln!("shutdown: OS confirms direct child reaped (ESRCH)");
 }
+
+#[test]
+fn shell_output_wait_expiry_keeps_process_alive() {
+    let root = tempfile::tempdir().unwrap();
+    let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
+    let host = ShellProcesses::new().unwrap();
+    let caller = tokio::runtime::Runtime::new().unwrap();
+    let started =
+        caller.block_on(host.start(owner.clone(), command("exec sleep 60".into()))).unwrap();
+    let waiting = Instant::now();
+    let read = caller
+        .block_on(host.wait(&owner, &started.process_id, 0, Duration::from_millis(20)))
+        .unwrap();
+    assert_eq!(read.state, ShellProcessState::Running);
+    assert!(read.output.is_empty());
+    assert!(waiting.elapsed() >= Duration::from_millis(20));
+    host.shutdown().unwrap();
+    assert_eq!(
+        host.snapshot(&owner, &started.process_id).unwrap().state,
+        ShellProcessState::Cancelled
+    );
+}
+
+#[test]
+fn shell_output_exit_drains_tail() {
+    let root = tempfile::tempdir().unwrap();
+    let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
+    let host = ShellProcesses::new().unwrap();
+    let caller = tokio::runtime::Runtime::new().unwrap();
+    let started = caller
+        .block_on(
+            host.start(owner.clone(), command("printf first; printf tail >&2; exit 7".into())),
+        )
+        .unwrap();
+    let mut cursor = 0;
+    let mut output = String::new();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        assert!(Instant::now() < deadline);
+        let read = caller
+            .block_on(host.wait(&owner, &started.process_id, cursor, Duration::from_secs(1)))
+            .unwrap();
+        output.push_str(&read.output);
+        cursor = read.next_cursor;
+        if read.state != ShellProcessState::Running {
+            assert_eq!(read.exit_code, Some(7));
+            break;
+        }
+    }
+    assert!(output.contains("first"));
+    assert!(output.contains("tail"));
+    eprintln!("real child: both pipe tails drained, exit=7, cursor={cursor}");
+    host.shutdown().unwrap();
+}
+
+#[test]
+fn shell_output_real_pipes_support_replay_overflow_and_utf8() {
+    let root = tempfile::tempdir().unwrap();
+    let owner = ShellProcessScope::new("tenant".into(), root.path(), "session".into()).unwrap();
+    let host = ShellProcesses::new().unwrap();
+    let caller = tokio::runtime::Runtime::new().unwrap();
+    let release = root.path().join("release");
+    let flood = root.path().join("flood");
+    let script = format!(
+        "printf '\\344\\270'; printf ready >&2; while [ ! -f '{}' ]; do sleep 0.01; done; printf '\\255'; while [ ! -f '{}' ]; do sleep 0.01; done; head -c 2097152 /dev/zero; printf tail; exit 4",
+        release.display(),
+        flood.display()
+    );
+    let started = caller.block_on(host.start(owner.clone(), command(script))).unwrap();
+    let first = caller
+        .block_on(host.wait(&owner, &started.process_id, 0, Duration::from_secs(10)))
+        .unwrap();
+    assert_eq!(first.output, "ready");
+    let (left, right) = caller.block_on(async {
+        tokio::join!(
+            host.wait(&owner, &started.process_id, 0, Duration::ZERO),
+            host.wait(&owner, &started.process_id, 0, Duration::ZERO)
+        )
+    });
+    assert_eq!(left.unwrap().output, right.unwrap().output);
+    std::fs::write(release, "release").unwrap();
+    let unicode = caller
+        .block_on(host.wait(
+            &owner,
+            &started.process_id,
+            first.next_cursor,
+            Duration::from_secs(10),
+        ))
+        .unwrap();
+    assert_eq!(unicode.output, "中");
+    std::fs::write(flood, "release").unwrap();
+    wait_for(|| {
+        host.snapshot(&owner, &started.process_id).unwrap().state == ShellProcessState::Exited
+    });
+    let final_read =
+        caller.block_on(host.wait(&owner, &started.process_id, 0, Duration::ZERO)).unwrap();
+    assert!(final_read.truncated);
+    assert!(final_read.dropped_bytes > 0);
+    assert!(final_read.output.len() <= 1024 * 1024);
+    assert!(final_read.output.ends_with("tail"));
+    assert_eq!(final_read.exit_code, Some(4));
+    eprintln!("real pipes: replay, overflow gap, bounded tail, exit=4");
+    host.shutdown().unwrap();
+}

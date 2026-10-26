@@ -39,6 +39,8 @@ pub mod ast;
 pub mod compound;
 pub mod path;
 pub mod permissions;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod processes;
 pub mod readonly;
 pub mod sandbox;
 pub mod security;

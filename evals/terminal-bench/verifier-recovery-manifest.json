@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "purpose": "verifier-only recovery of the recorded VibeWindow CSV artifact after dependency HTTP502; no model rerun",
+  "modelExperiment": {
+    "manifest": "calibration-manifest-v5.json",
+    "manifestSha256": "167407f18a2547f0a0d09f34296ad88c20dd2868aab1f22e769f2468224456e2",
+    "model": "token-plan/deepseek-v4-flash-0731",
+    "parameters": "unchanged provider defaults",
+    "modelBudgetSec": 900,
+    "modelEnvironmentUnchanged": true
+  },
+  "taskId": "log-summary-date-ranges",
+  "environment": {
+    "baseImage": "sha256:9ae90d8c0bf0ad00e72f9b07a65855357be9d2ac686014d7044e5cb8006d281c",
+    "verifierImage": "sha256:6ab1d506b31a02f108d24a69c6fc215584b08ec4ed94e11defd906c316386ed6",
+    "baseLayersPreserved": true,
+    "architecture": "amd64",
+    "frozenLogsTreeDigest": "ce46cef5a755fbe4bbb7c0e00cdaea217b4c44da99f800be01733ffd629ad314",
+    "repairedLogsTreeDigest": "ce46cef5a755fbe4bbb7c0e00cdaea217b4c44da99f800be01733ffd629ad314",
+    "caBundleSha256": "a3413a37a8e09cc21b2c11c9ffb23d92d2fc9d1933c9e7617f5c4fba4f72d37d",
+    "dockerfileSha256": "a7eca9e8f2342d64174a1d7208fdc7e42460a8bf01814fb3d1445adf54eeedad"
+  },
+  "artifact": {
+    "task": "log-summary-date-ranges",
+    "originalHarborResult": "jobs/log-summary-date-ranges-vibewindow-final-regression-1/log-summary-date-ranges__P3V5FUd/result.json",
+    "sourceEventsSha256": "1a17e4518af1810be8afe900963e1dca906c3202cd706d1819b49f0b64916574",
+    "sourceEventId": 189,
+    "sourceCallId": "openai-tool-call-039052ce980e45de8fc284d7aae68130-0",
+    "sourceCommand": "cat /app/summary.csv",
+    "sourceCommandExitCode": 0,
+    "artifactPath": "/app/summary.csv",
+    "capturedTextSha256": "b09e50519a822840791f599bfcefb9bbf94f4930a7d0d1a4d08b4b3803e4cd2d",
+    "bytes": 350,
+    "source": "complete successful tool stdout, not assistant final answer or oracle",
+    "format": "UTF-8 text as recorded by tool; no output data recomputed",
+    "modelCallsAdded": 0
+  },
+  "officialScorer": {
+    "harborVersion": "0.24.0",
+    "harborCommit": "6099b8cf2bfbbb3e7ff1eb2163bfc4524dbd9ba5",
+    "entry": "harbor.verifier.verifier.Verifier.verify",
+    "testsSourceHashes": {
+      "test_outputs.py": "2fc06a6ce1944ad82f84fb437395fa75ed8c0eadd385b92e375c27e5bc9cb2b4",
+      "test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334"
+    },
+    "noOracleEdits": true
+  },
+  "calibration": [
+    {
+      "agent": "oracle",
+      "reward": 1.0,
+      "tests": 2,
+      "passed": 2,
+      "failed": 0,
+      "exitCode": 0
+    },
+    {
+      "agent": "nop",
+      "reward": 0.0,
+      "tests": 2,
+      "passed": 0,
+      "failed": 2,
+      "exitCode": 0
+    }
+  ],
+  "budget": {
+    "originalVerifierElapsedSec": 82.535145,
+    "recoveryTimeoutSec": 817.464855,
+    "aggregateVerifierBudgetSec": 900,
+    "recoveryElapsedSec": 14.753628730773926,
+    "modelCallsAdded": 0
+  },
+  "result": {
+    "reward": 1.0,
+    "tests": 2,
+    "passed": 2,
+    "exitCode": 0
+  },
+  "evidence": "evals/promptfoo/results/terminal-bench/regression/verifier-recovery/log-summary-date-ranges/result.json"
+}

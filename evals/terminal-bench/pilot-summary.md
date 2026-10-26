@@ -1,8 +1,10 @@
-# 公开五题试跑结果
+# 公开五题试跑与延期回归
 
-状态：已完成，待回归；有效接入验收未通过，编号任务文件保留。2026-10-26，冻结五题各一次真实VibeWindow容器Gateway/SSE入口尝试均已执行，得到五条官方reward=0，其中四题有实际测试、一题verifier依赖失败且未执行测试。五次均属于基础设施失败；未获得有效模型作答、正常Gateway终态或token用量，不能据此估计模型准确率。此为legacy五题小样本接入取证，不是完整榜单或跨框架对照。
+最终验收已完成：五题3通过、2因max_tokens截断；5条有效官方评分、7项测试（5通过/2失败）。终态记录已修正，模型与预算未改。最终数据及历史分表见文末“最终延期回归验收”。
 
-## 公开题结果
+以下为初次试跑历史（当时状态：已完成，待回归）；最终有效验收结果见文末。2026-10-26，冻结五题各一次真实VibeWindow容器Gateway/SSE入口尝试均已执行，得到五条官方reward=0，其中四题有实际测试、一题verifier依赖失败且未执行测试。五次均属于基础设施失败；未获得有效模型作答、正常Gateway终态或token用量，不能据此估计模型准确率。此为legacy五题小样本接入取证，不是完整榜单或跨框架对照。
+
+## 初次v3试跑结果（历史）
 
 | 任务 | 官方reward | 通过/有效测试 | Gateway状态 | token | 总耗时（秒） |
 | --- | --- | --- | --- | --- | --- |
@@ -38,7 +40,7 @@ Harbor对普通RuntimeError会跳过verifier；适配器将运行失败映射为
 
 内部与公开题不合并分母，不以公开接入失败代替内部准确率基线。
 
-## 验证与证据
+## 初次验证与证据（历史）
 
 原始输入、源码/工具载荷和日志只存Git忽略目录 `evals/promptfoo/results/terminal-bench/pilot/`；入口为 `evidence.json`、`verification.json`。每题Harbor trial有result.json、verifier/reward.txt、test-stdout.txt及agent下events.jsonl、client.stderr、gateway.log、result.json；四题有ctrf.json，regex-log缺失该文件；verification中保存各输出SHA256与评分路径。诊断见bootstrap-routes.txt、bootstrap-gateway.log；前期缺租户头/连接失败见本聊天工具记录，红绿日志保存在上述忽略目录。
 
@@ -53,4 +55,56 @@ Harbor对普通RuntimeError会跳过verifier；适配器将运行失败映射为
 
 `CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，动态领取实际槽位1，Clippy结束后已释放自己的锁并保留缓存。本次没有Rust行为修改，未新增Rust测试，未运行全量cargo test、Makefile、wasm检查或fmt检查。
 
-下一步先修复冻结Linux运行时的SIGILL兼容问题及Ubuntu依赖下载可用性，再回归本任务尚缺的5条真实模型轨迹、终态/usage及5条有效官方评分；本任务不自动开新批量实验。正式对照须保持相同完整模型/参数、题目/镜像版本、权限、资源、预算和重试条件，并单列基础设施失败。
+初次试跑时的待办是修复冻结Linux运行时的SIGILL兼容问题及Ubuntu依赖下载可用性，再回归本任务尚缺的5条真实模型轨迹、终态/usage及5条有效官方评分；本任务不自动开新批量实验。正式对照须保持相同完整模型/参数、题目/镜像版本、权限、资源、预算和重试条件，并单列基础设施失败。
+
+## 最终延期回归验收（2026-10-26）
+
+状态：已完成。模型、provider参数、每题Agent/verifier各900秒、官方题目/评分规则均保持不变。最终独立五题各作答一次；5条有效官方评分、7项测试（5通过/2失败），任务通过3/5。regex-log和sqlite-db-truncate均发生真实max_tokens截断，保留失败，未增加预算或重跑模型。这不是完整榜单或跨框架胜出证据。
+
+| 任务 | 最终有效reward | 官方测试通过/总数 | 终态 | 总耗时（秒） |
+| --- | --- | --- | --- | --- |
+| fix-git | 1 | 2/2 | 正常结束：stop | 177.570 |
+| git-multibranch | 1 | 1/1 | 正常结束：stop | 755.742 |
+| log-summary-date-ranges | 1 | 2/2 | 正常结束：stop | 172.819 |
+| regex-log | 0 | 0/1 | 失败：max_tokens | 261.513 |
+| sqlite-db-truncate | 0 | 0/1 | 失败：max_tokens | 269.627 |
+
+耗时保留原模型尝试的Harbor全流程时间，包含环境准备与原verifier；log-summary的额外verifier恢复耗时单独列出，不冒充模型推理时间。
+
+### 历史记录与验证恢复
+
+| 阶段 | 模型尝试/评分状态 | 保留位置 |
+| --- | --- | --- |
+| 初次v3试跑 | 5次；入口基础设施失败，5条reward但仅4条有实际测试 | results/terminal-bench/pilot |
+| v4目录排查 | 3次；SSE模型未找到，3条reward=0；后两题未启动 | regression/pilot |
+| v5最终模型试跑 | 5次；2正常通过、2截断失败、log-summary原评分依赖502无效 | regression/final-pilot |
+| 仅verifier恢复 | 不调用模型；恢复log-summary真实产物并执行原官方Verifier，2/2通过 | regression/verifier-recovery |
+
+log-summary原verifier因Debian包下载502未执行测试，其原reward=0及Harbor结果不改写。恢复使用成功工具调用 `cat /app/summary.csv` 的完整350字节UTF-8输出（事件189，退出0），不使用最终自述、参考解或重算答案；原始读取文本、SHA256、来源事件及恢复过程有独立收据。新验证环境保留原基础层，原/app/logs树摘要完全相同，仅读取已记录CSV文本。完整身份、原官方测试摘要和校准见 [verifier-recovery-manifest.json](verifier-recovery-manifest.json)。修复镜像oracle/nop各2项测试全部通过/预期失败；正式评分调用冻结Harbor的原Verifier.verify，未使用其他Agent代跑。
+
+原verifier耗时82.535秒，恢复验证14.754秒，合计97.289秒，未超过原900秒评分预算；恢复新增模型调用0。regex/sqlite已有有效官方断言失败，不作恢复、重试或产物修改。
+
+### 终态与token记录
+
+修正后的记录器按真实协议处理可选的chat.done.finish_reason：只有终态chat.done、最后已完成步骤stop/end_turn、CLI退出0、stream_end正常且无chat.error才记录正常结束。新步骤未完成、length/max_tokens及错误不被旧stop掩盖。前两题旧记录器误记failed；原结果及SSE完整保留，以同一个修正后解析函数离线回放另存收据，新增模型调用0。其余三题使用带执行版本/源码SHA256的新记录器；两个max_tokens终态仍为failed。
+
+交付解析器SHA256 `d1747ee3147cb3afc88a3239be9bf6272b5148ba4f316e6f3eeadfa176dde4ec`；执行版本、原结果摘要、解析版本及归一化终态在final-pilot/terminal-replay逐题记录，回放修正数2。
+
+五题token用量均无法可靠取得：存在实际文本/工具活动，原流报告全零或无usage。保留reported_usage原值，并将有效usage标记为缺失；不将0当真实token/费用，不估算费用。
+
+### 修复与最终验证
+
+SIGILL已由无凭据core及最小C复现定位为libgit2 SHA1DC未对齐读取触发Zig检查；只启用上游对齐访问宏，保留对齐检查与碰撞检测。新ELF在同一Rust/Cargo快照下构建，真实provider入口及后续health为200。APT修复沿用官方仓库、签名和校验过的CA bundle，不关闭验证。系统默认租户统一10000/100000000；实际目录准入使用/v1/provider，原/v1/models静态默认模型检查属于探测误判，已纠正。详见 [regression-runtime.md](regression-runtime.md)。
+
+| 检查 | 结果 |
+| --- | --- |
+| 终态聚焦测试 | 16/16通过；红15项中1失败/1错误，绿日志terminal-green.log |
+| SHA1DC最小C复现 | 原配置失败；对齐宏后通过且摘要与hashlib一致 |
+| 新运行时默认features构建 | 退出0，179.34秒；源摘要前后一致，sidecars不变 |
+| 最终cargo clippy --all-targets --all-features -- -D warnings | 退出0；有效Rust测试0；只保留既有block future-incompat提示 |
+| final-pilot/verify.py | 退出0；5模型尝试、5有效评分、7项测试、3正常终态/2预算截断、1仅验证恢复、2终态回放 |
+| 清理与隔离 | 5个唯一题目容器已回收，宿主profile已清理，无凭据泄露记录；原始轨迹/工具载荷仅在results忽略目录 |
+
+`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`；构建和最终Clippy实际动态槽位1，结束后释放自己的锁并保留缓存。未修改生产Rust，未运行全量cargo test、Makefile、wasm或fmt检查。
+
+最终运行身份见 [v5 manifest](calibration-manifest-v5.json)，实际展开的五条Harbor命令在regression/final-pilot/evidence.json；目录修复与新运行时的前驱为v4，正式仅验证恢复另有独立清单，不覆盖任一历史身份或原始评分。公共结果与上面的内部15题×3次基线仍分表；两题max_tokens失败保留为本样本结果。下一步可单独定位截断来源；本任务不自动改预算或启动额外付费实验。

@@ -17,6 +17,9 @@ import uuid
 from harbor.agents.installed.base import BaseInstalledAgent, NonZeroAgentExitCodeError
 
 
+_ADAPTER_SOURCE_SHA256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+
+
 class VibeWindowAgent(BaseInstalledAgent):
     def __init__(self, logs_dir, *, task_id, runtime_dir=None,
                  config_directory=None, profile_path=None, runtime_manifest=None, model_name=None, **kwargs):
@@ -52,7 +55,7 @@ class VibeWindowAgent(BaseInstalledAgent):
         return 'vibewindow'
 
     def version(self):
-        return 'task29-final-regression-harbor-0.24.0'
+        return 'task29-terminal-contract-harbor-0.24.0'
 
     async def _execute(self, environment, command, *, timeout_sec=15):
         # Use the environment with its configured default agent user.
@@ -103,6 +106,51 @@ class VibeWindowAgent(BaseInstalledAgent):
             raise RuntimeError('container profile binding failed')
         return True
 
+    @staticmethod
+    def summarize_stream(raw, exit_code):
+        try:
+            records = [json.loads(line) for line in raw.splitlines() if line.strip()]
+            if any(not isinstance(record, dict) for record in records):
+                raise ValueError('expected object records')
+            events = [record['event'] for record in records if 'event' in record]
+            if any(not isinstance(event, dict) for event in events):
+                raise ValueError('expected object events')
+        except ValueError as error:
+            raise RuntimeError('invalid Gateway JSONL') from error
+        terminal, reported_usage, last_step_reason = None, None, None
+        activity = False
+        for event in events:
+            kind = event.get('type')
+            if kind == 'chat.step_start':
+                last_step_reason = None
+            elif kind == 'chat.step_finish':
+                last_step_reason = event.get('finish_reason')
+            if event.get('usage') is not None:
+                reported_usage = event['usage']
+            if kind in ('chat.done', 'chat.error'):
+                terminal = event
+            if kind in ('chat.delta', 'chat.tool'):
+                activity = True
+        reason = (terminal or {}).get('finish_reason')
+        reason_source = 'terminal'
+        if reason is None:
+            reason, reason_source = last_step_reason, 'last_step_finish'
+        usage = reported_usage
+        token_values = [value for key, value in (usage or {}).items()
+                        if key in ('input_tokens', 'output_tokens', 'cached_tokens', 'reasoning_tokens')
+                        and isinstance(value, (int, float))] if isinstance(usage, dict) else []
+        if activity and token_values and all(value == 0 for value in token_values):
+            usage = None
+        completed = (exit_code == 0 and terminal is not None
+                     and terminal.get('type') == 'chat.done'
+                     and reason in ('stop', 'end_turn')
+                     and not any(event.get('type') == 'chat.error' for event in events)
+                     and records[-1] == {'type': 'stream_end', 'status': 'terminated'})
+        return {'terminal': terminal, 'finish_reason': reason,
+                'finish_reason_source': reason_source, 'reported_usage': reported_usage,
+                'usage': usage, 'usage_missing': usage is None,
+                'status': 'completed' if completed else 'failed'}
+
     async def run(self, instruction, environment, context):
         attempt = uuid.uuid4().hex
         directory = Path(self.logs_dir) / attempt
@@ -110,7 +158,9 @@ class VibeWindowAgent(BaseInstalledAgent):
         remote = self.remote + '/' + attempt
         binary = self.remote + '/runtime/shiju'
         timeout = self.task['agentTimeoutSec']
-        result = {'request_id': attempt, 'directory': self.task['workingDirectory'],
+        result = {'request_id': attempt, 'adapter_version': self.version(),
+                  'adapter_source_sha256': _ADAPTER_SOURCE_SHA256,
+                  'directory': self.task['workingDirectory'],
                   'model': self.model_name, 'timeout_sec': timeout, 'status': 'failed',
                   'exit_code': None, 'terminal': None, 'usage': None, 'usage_missing': True}
         raw = ''
@@ -157,26 +207,9 @@ class VibeWindowAgent(BaseInstalledAgent):
             raw = (directory / 'events.jsonl').read_text()
             result['exit_code'] = execution.return_code
             (directory / 'client.stderr').write_text(execution.stderr or '')
-            try:
-                records = [json.loads(line) for line in raw.splitlines() if line.strip()]
-                if any(not isinstance(record, dict) for record in records):
-                    raise ValueError('expected object records')
-            except ValueError as error:
-                raise RuntimeError('invalid Gateway JSONL') from error
-            events = [record['event'] for record in records if 'event' in record]
-            for event in events:
-                if event.get('usage') is not None:
-                    result['usage'] = event['usage']
-                    result['usage_missing'] = False
-                if event.get('type') in ('chat.done', 'chat.error'):
-                    result['terminal'] = event
-            terminal = result['terminal'] or {}
-            if (execution.return_code or any(e.get('type') == 'chat.error' for e in events)
-                    or terminal.get('type') != 'chat.done'
-                    or terminal.get('finish_reason') not in ('stop', 'end_turn')
-                    or not records or records[-1] != {'type': 'stream_end', 'status': 'terminated'}):
+            result.update(self.summarize_stream(raw, execution.return_code))
+            if result['status'] != 'completed':
                 raise RuntimeError('Gateway request failed or did not complete normally')
-            result['status'] = 'completed'
         except asyncio.CancelledError:
             result['status'] = 'cancelled'
             raise

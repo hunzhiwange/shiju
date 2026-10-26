@@ -60,3 +60,30 @@ docker buildx build --load --platform linux/amd64 \
 ```
 
 完整展开命令、每题一次的尝试身份、轨迹/终态/usage、官方评分、耗时及清理结果在 `results/terminal-bench/regression/pilot/evidence.json`。与历史分表的最终结果见 [pilot-summary.md](pilot-summary.md)。没有通过增加权限、放宽oracle或调整模型/预算来提分。
+
+## 目录探测纠正与终态记录
+
+v4下曾执行3次目录未解析模型的失败尝试，完整保留在regression/pilot；后两题未启动。旧记录的local/local绑定改为系统已有默认租户10000/100000000，bootstrap和CLI显式一致。随后发现此前探测还误用了 `/v1/models`：该OpenAI兼容接口只返回Gateway默认模型，不能证明SSE provider目录是否含目标。改用相同目录上下文的 `/v1/provider` 后确认token-plan存在、目标模型存在且active；探测不打印provider密钥，也不调用模型。该修正后的独立最终运行使用 [v5 manifest](calibration-manifest-v5.json) 及regression/final-pilot，不覆盖v4清单或其失败证据。
+
+真实SSE还暴露出记录层契约问题：GatewayChatStreamEvent::Done的finish_reason在公开类型中是Option，可以为空；每轮chat.step_finish才携带实际模型结束原因。原适配器把空值当失败，即使官方任务已通过。修正后的解析器要求实际chat.done、CLI退出0、stream_end=terminated、全流无chat.error，且最终已完成步骤明确stop/end_turn；新的step_start会清除旧步骤结束原因，length或未完成的新步骤仍失败。保留原始chat.done及其空字段，以finish_reason_source=last_step_finish记录明确来源，不伪造终态。
+
+如果已有模型文本/工具活动而上游所有token字段都报告0，保留reported_usage原值，将有效usage标记为缺失，不把0当实耗或推算费用。正常非零用量保持原值。终态红灯15项中2项失败/错误，补齐实现与未完成步骤负例后16项全部通过。
+
+前两题已在旧记录器下启动，原Harbor结果和原始SSE不改写；用同一个修正后生产解析函数离线回放，另存terminal-replay收据，记录原文件摘要、执行版本、解析版本及归一化结果。后续题直接记录执行版本和源码摘要。此修复只改变记录判定，不重复调用模型，不更改题目输入、模型、900秒预算或官方评分。
+
+## 仅verifier的依赖恢复
+
+最终log-summary模型正常结束并生成summary.csv，但原官方verifier的Debian包下载502，未安装curl，原reward=0无有效测试。该原结果不改写；regex/sqlite则有有效官方断言失败及真实max_tokens终态，不因失败而重试或修改产物。
+
+为避免重复模型调用，从成功的原工具调用 `cat /app/summary.csv`（事件189、退出0）保存完整350字节UTF-8输出，按原读取文本恢复同名CSV；不重算数据，不采用参考解或最终自述。源事件、源轨迹摘要、输出文本摘要和恢复收据在verifier-recovery/log-summary-date-ranges/artifact-provenance.json。原输入日志树在修复前后镜像中的摘要完全相同；恢复保留实际读取文本，不宣称另有原文件字节级快照。
+
+[verifier-recovery.Dockerfile](verifier-recovery.Dockerfile) 只在原log-summary有效镜像追加同一Debian仓库的HTTPS、已固定CA bundle、下载重试及curl。新环境参考解/空解各2项测试全部通过/预期失败。完整环境ID、输入摘要、源码哈希、校准和评分预算见 [verifier-recovery-manifest.json](verifier-recovery-manifest.json)，不改变v5模型运行环境或其模型参数。
+
+实际恢复命令（没有Agent或模型调用）：
+
+```bash
+HARBOR_TELEMETRY=0 evals/promptfoo/results/task25/harbor-venv/bin/python \
+  evals/promptfoo/results/terminal-bench/regression/verifier-recovery/regrade.py
+```
+
+该保存在忽略目录的执行器使用冻结Harbor原 `Verifier.verify`，只提供真实Docker exec/cp环境边界，上传未经改动的原tests，解析原reward/CTRF。恢复仅用原900秒评分预算减去已耗82.535秒的剩余额度；实际恢复14.754秒，合计约97.289秒。官方reward=1、2/2测试通过；新增模型调用0。原失败、重评分与模型尝试分开记录，不能将恢复错误地标记为一次新的模型成功作答。

@@ -133,6 +133,39 @@ class AdapterTests(unittest.IsolatedAsyncioTestCase):
         await self.agent.run('task', NoisyEnvironment(), self.context)
         self.assertEqual(self.result()['status'], 'completed')
 
+    async def test_optional_done_reason_uses_last_finished_step(self):
+        output = stream({'type': 'chat.step_start', 'step_index': 1},
+                        {'type': 'chat.step_finish', 'step_index': 1, 'finish_reason': 'stop'},
+                        {'type': 'chat.done', 'finish_reason': None})
+        await self.agent.run('task', Environment(output=output), self.context)
+        self.assertEqual(self.result()['status'], 'completed')
+        self.assertIsNone(self.result()['terminal']['finish_reason'])
+        self.assertEqual(self.result()['finish_reason_source'], 'last_step_finish')
+
+    async def test_optional_done_reason_does_not_hide_length_limit(self):
+        output = stream({'type': 'chat.step_finish', 'finish_reason': 'length'},
+                        {'type': 'chat.done', 'finish_reason': None})
+        with self.assertRaises(RuntimeError):
+            await self.agent.run('task', Environment(output=output), self.context)
+        self.assertEqual(self.result()['status'], 'failed')
+
+    async def test_optional_done_reason_rejects_unfinished_new_step(self):
+        output = stream({'type': 'chat.step_finish', 'finish_reason': 'stop'},
+                        {'type': 'chat.step_start', 'step_index': 2},
+                        {'type': 'chat.done', 'finish_reason': None})
+        with self.assertRaises(RuntimeError):
+            await self.agent.run('task', Environment(output=output), self.context)
+        self.assertEqual(self.result()['status'], 'failed')
+
+    async def test_reported_zero_usage_with_model_activity_is_missing(self):
+        zero = {'input_tokens': 0, 'output_tokens': 0, 'cached_tokens': 0}
+        output = stream({'type': 'chat.delta', 'delta': 'answer'},
+                        {'type': 'chat.done', 'finish_reason': 'stop', 'usage': zero})
+        await self.agent.run('task', Environment(output=output), self.context)
+        self.assertTrue(self.result()['usage_missing'])
+        self.assertIsNone(self.result()['usage'])
+        self.assertEqual(self.result()['reported_usage'], zero)
+
     async def test_install_requires_verified_runtime(self):
         with self.assertRaises(ValueError):
             await self.agent.install(Environment())

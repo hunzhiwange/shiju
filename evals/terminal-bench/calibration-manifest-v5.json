@@ -1,0 +1,330 @@
+{
+  "harbor": {
+    "repository": "https://github.com/harbor-framework/harbor",
+    "commit": "6099b8cf2bfbbb3e7ff1eb2163bfc4524dbd9ba5",
+    "version": "0.24.0",
+    "python": ">=3.12",
+    "license": "Apache-2.0",
+    "lockfileSha256": "3508878695513dbd601830d9b891482d350d7eabcabf609b00360d83a11dca88",
+    "uvVersion": "0.13.5",
+    "licenseSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  "terminalBench": {
+    "repository": "https://github.com/harbor-framework/terminal-bench",
+    "commit": "e67a2cb7db4d9795c212909b3395d8c22ad60aec",
+    "subset": "five legacy tasks from the pinned repository; not a current leaderboard release",
+    "license": "Apache-2.0",
+    "licenseSha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  "model": {
+    "id": "token-plan/deepseek-v4-flash-0731",
+    "credentialPolicy": "not embedded; runtime profile binding remains required",
+    "parameters": "provider defaults; no model invocation in preflight"
+  },
+  "tasks": [
+    {
+      "taskId": "fix-git",
+      "packageName": "terminal-bench/fix-git",
+      "path": "legacy/fix-git",
+      "schemaVersion": "1.1",
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/fix-git@sha256:389b9c8247610c2c5be080b1ac00429007c2c69bf57f7f26c79f0f75ba2d5c74",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "agentTimeoutSec": 900.0,
+      "verifierTimeoutSec": 900.0,
+      "fileSha256": {
+        "task.toml": "f59d711003b974e4ef8ed63556614e2ea9ea7d0e394af13b2071225e3fda7805",
+        "instruction.md": "f98174e47ba5ce040f6fad22ef3cbca4dd27b3192868ea5d082077222c3ec4e8",
+        "environment/Dockerfile": "7ac844613e00e29cfa5644e6257a12bd79177b26932d085f6624644f81cbb474",
+        "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334"
+      },
+      "upstreamImageTag": "alexgshaw/fix-git:20260403",
+      "platform": "linux/amd64",
+      "taskGitTree": "d46ee4917dc83bb69df73db134a8626c3251cf33",
+      "verifierMode": "shared (unset environment_mode and no verifier.environment in this frozen Harbor)",
+      "workingDirectory": "/app/personal-site",
+      "effectiveImage": "sha256:ce240c940bd095682a8f849509a712a29816e5543879b471c52c0cdeb6c65d45",
+      "environmentPatch": null,
+      "cacheBaseImage": "alexgshaw/fix-git@sha256:389b9c8247610c2c5be080b1ac00429007c2c69bf57f7f26c79f0f75ba2d5c74",
+      "dependencyCache": {
+        "dockerfile": "calibration-cache.Dockerfile",
+        "dockerfileSha256": "ea0f321fa3075836046e2d8adae85bbbecc12da73b1b4075f5e65eb3b9b96e69",
+        "assetUrl": "https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+        "sizeBytes": 21370871,
+        "environment": {
+          "UV_DOWNLOAD_URL": "file:///opt/calibration-downloads"
+        },
+        "policy": "exact upstream package bytes; upstream installer and tests unchanged; no shared writable cache"
+      }
+    },
+    {
+      "taskId": "git-multibranch",
+      "packageName": "terminal-bench/git-multibranch",
+      "path": "legacy/git-multibranch",
+      "schemaVersion": "1.1",
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/git-multibranch@sha256:5bc449921c138295f6ddd8dca2977319fee2ce523811dbe56cec4ca663385fb5",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "agentTimeoutSec": 900.0,
+      "verifierTimeoutSec": 900.0,
+      "fileSha256": {
+        "task.toml": "4b9981604578a31205257cca36a28d0c89c9d8d1058541330acd11d3f8d65f82",
+        "instruction.md": "54014a38d7526d65faeb6c11d9b7ed3d4a5cb5d973d68d3da3b68b8c0289e125",
+        "environment/Dockerfile": "88d9a9f4fef1ae7fddf632799dedf5a2fb6489460a93b610c33dd8b122982821",
+        "tests/test.sh": "ddbde3eea6ffa8fda105cbd86597a53bd409f41e13223900aa27e77a84b6b155"
+      },
+      "upstreamImageTag": "alexgshaw/git-multibranch:20251031",
+      "platform": "linux/amd64",
+      "taskGitTree": "066eb7e2dcf712b70a0738b0ae429f43caf3ae1a",
+      "verifierMode": "shared (unset environment_mode and no verifier.environment in this frozen Harbor)",
+      "workingDirectory": "/app",
+      "effectiveImage": "sha256:d35d88386c54e579d2b3ac4a5e1e859a1d39f53c8569a2fd9e5105ee64b4fb0a",
+      "environmentPatch": {
+        "dockerfile": "calibration-environment.Dockerfile",
+        "dockerfileSha256": "014ab24d633f82d123636e851a2fe6b68809c909ca8a505a323bd596ffa5d441",
+        "baseImage": "alexgshaw/git-multibranch@sha256:5bc449921c138295f6ddd8dca2977319fee2ce523811dbe56cec4ca663385fb5",
+        "imageId": "sha256:719e5f499eb5e723e59b74728f4e65b5c7cbd1a31188ffdd72d277f8d8956295",
+        "platform": "linux/amd64",
+        "distribution": "local immutable image ID; not a published registry digest",
+        "packages": {
+          "tmux": "3.4-1ubuntu0.2",
+          "libevent-core-2.1-7t64": "2.1.12-stable-9ubuntu2.2",
+          "libutempter0": "1.2.1-3build1"
+        },
+        "aptAcquireRetries": 5,
+        "reason": "frozen oracle invokes tmux but upstream environment omits it; no oracle/verifier/instruction changes"
+      },
+      "cacheBaseImage": "sha256:719e5f499eb5e723e59b74728f4e65b5c7cbd1a31188ffdd72d277f8d8956295",
+      "dependencyCache": {
+        "dockerfile": "calibration-cache.Dockerfile",
+        "dockerfileSha256": "ea0f321fa3075836046e2d8adae85bbbecc12da73b1b4075f5e65eb3b9b96e69",
+        "assetUrl": "https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+        "sizeBytes": 21370871,
+        "environment": {
+          "UV_DOWNLOAD_URL": "file:///opt/calibration-downloads"
+        },
+        "policy": "exact upstream package bytes; upstream installer and tests unchanged; no shared writable cache"
+      }
+    },
+    {
+      "taskId": "log-summary-date-ranges",
+      "packageName": "terminal-bench/log-summary-date-ranges",
+      "path": "legacy/log-summary-date-ranges",
+      "schemaVersion": "1.1",
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/log-summary-date-ranges@sha256:cbeb6ba905c2fec294f16cd5e16e3ea7f2e04d38ac2484d51a11de262aa7dc51",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "agentTimeoutSec": 900.0,
+      "verifierTimeoutSec": 900.0,
+      "fileSha256": {
+        "task.toml": "9a9593673d6805ef3a301ea734e9c4dbaf80da1b37c0fe9d1f2ceea2a8c57e18",
+        "instruction.md": "c1d4516ad4ec2238209740eaf01291df9ab48b0028a3fc5df383c6f831453484",
+        "environment/Dockerfile": "b479f6e987b63a6ec118fa1691b8bb85c437b2a6a0fe63feab5ed7154957fdfc",
+        "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334"
+      },
+      "upstreamImageTag": "alexgshaw/log-summary-date-ranges:20251031",
+      "platform": "linux/amd64",
+      "taskGitTree": "5ede3a7233c599672ed632f4ecd1f7cc9ea28139",
+      "verifierMode": "shared (unset environment_mode and no verifier.environment in this frozen Harbor)",
+      "workingDirectory": "/app",
+      "effectiveImage": "sha256:9ae90d8c0bf0ad00e72f9b07a65855357be9d2ac686014d7044e5cb8006d281c",
+      "environmentPatch": null,
+      "cacheBaseImage": "alexgshaw/log-summary-date-ranges@sha256:cbeb6ba905c2fec294f16cd5e16e3ea7f2e04d38ac2484d51a11de262aa7dc51",
+      "dependencyCache": {
+        "dockerfile": "calibration-cache.Dockerfile",
+        "dockerfileSha256": "ea0f321fa3075836046e2d8adae85bbbecc12da73b1b4075f5e65eb3b9b96e69",
+        "assetUrl": "https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+        "sizeBytes": 21370871,
+        "environment": {
+          "UV_DOWNLOAD_URL": "file:///opt/calibration-downloads"
+        },
+        "policy": "exact upstream package bytes; upstream installer and tests unchanged; no shared writable cache"
+      }
+    },
+    {
+      "taskId": "regex-log",
+      "packageName": "terminal-bench/regex-log",
+      "path": "legacy/regex-log",
+      "schemaVersion": "1.1",
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/regex-log@sha256:90101b2e815323a8da20528a1439bebc407eb9761c9c68a3d557730856c878e9",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "agentTimeoutSec": 900.0,
+      "verifierTimeoutSec": 900.0,
+      "fileSha256": {
+        "task.toml": "6bc98525852755caf1fe34c174c2f10f4328adb4ce6c1968dcafe1c877e4e160",
+        "instruction.md": "4f7ac05e70cf9220ea0f1e5a052c5f908cd0fa884e847d80b0bd51bae2e96f9c",
+        "environment/Dockerfile": "5f264ff0bf62a49aee3c6398447de5108df141e7a2ad35c6de8ef39fa62049c6",
+        "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334"
+      },
+      "upstreamImageTag": "alexgshaw/regex-log:20251031",
+      "platform": "linux/amd64",
+      "taskGitTree": "1b49a7126da8cff9dcb5bd550632c368514db5f6",
+      "verifierMode": "shared (unset environment_mode and no verifier.environment in this frozen Harbor)",
+      "workingDirectory": "/app",
+      "effectiveImage": "sha256:b74bd54954ef04b45a729b9b12bac7d741107a3b95b838047bb23671ba6a7d5f",
+      "environmentPatch": null,
+      "cacheBaseImage": "alexgshaw/regex-log@sha256:90101b2e815323a8da20528a1439bebc407eb9761c9c68a3d557730856c878e9",
+      "dependencyCache": {
+        "dockerfile": "calibration-cache.Dockerfile",
+        "dockerfileSha256": "ea0f321fa3075836046e2d8adae85bbbecc12da73b1b4075f5e65eb3b9b96e69",
+        "assetUrl": "https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+        "sizeBytes": 21370871,
+        "environment": {
+          "UV_DOWNLOAD_URL": "file:///opt/calibration-downloads"
+        },
+        "policy": "exact upstream package bytes; upstream installer and tests unchanged; no shared writable cache"
+      },
+      "v3EffectiveImage": "sha256:92a8a137a502cd8eb6aaf61bbd8c5fae597d9f027a29a55412a343f281901605",
+      "environmentRepair": {
+        "dockerfile": "regression-environment.Dockerfile",
+        "dockerfileSha256": "ad802bbbcdb4e163e7d15c9e2fcbc8af217f36898230ccbb35b8c826b4465d96",
+        "sourceUris": "same Ubuntu archive/security hosts over HTTPS",
+        "caBundleSha256": "a3413a37a8e09cc21b2c11c9ffb23d92d2fc9d1933c9e7617f5c4fba4f72d37d",
+        "aptRetries": 5,
+        "dependency": "curl",
+        "testsUnchanged": true,
+        "calibration": "oracle reward=1, 1/1; nop reward=0, 0/1; no model"
+      }
+    },
+    {
+      "taskId": "sqlite-db-truncate",
+      "packageName": "terminal-bench/sqlite-db-truncate",
+      "path": "legacy/sqlite-db-truncate",
+      "schemaVersion": "1.1",
+      "environment": {
+        "build_timeout_sec": 600.0,
+        "docker_image": "alexgshaw/sqlite-db-truncate@sha256:aabac93c93bd1f310e6a6fb893911d7735026ed18491c72133c9196a09092ca4",
+        "cpus": 1,
+        "memory_mb": 2048,
+        "storage_mb": 10240,
+        "gpus": 0,
+        "allow_internet": true,
+        "mcp_servers": [],
+        "env": {}
+      },
+      "agentTimeoutSec": 900.0,
+      "verifierTimeoutSec": 900.0,
+      "fileSha256": {
+        "task.toml": "56061acd75d9933aa554aeb249b85d7d081227fca1b71a3da7e3dc97a675723e",
+        "instruction.md": "465c135cd80be49023ea3ecf8f1d840c679b3a960efe425d510894e417b9d802",
+        "environment/Dockerfile": "49ac9305c360f117c10c940b5d036a76fb4a29a0f4302e7d75e573c352db0aea",
+        "tests/test.sh": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334"
+      },
+      "upstreamImageTag": "alexgshaw/sqlite-db-truncate:20251031",
+      "platform": "linux/amd64",
+      "taskGitTree": "7e074d9daad0d274f2a6ae3f62598a81c3a379bd",
+      "verifierMode": "shared (unset environment_mode and no verifier.environment in this frozen Harbor)",
+      "workingDirectory": "/app",
+      "effectiveImage": "sha256:8c82abc949ca3d6f3e00d76c9b4c7de049ae4481765b155506df9e67a5db39de",
+      "environmentPatch": null,
+      "cacheBaseImage": "alexgshaw/sqlite-db-truncate@sha256:aabac93c93bd1f310e6a6fb893911d7735026ed18491c72133c9196a09092ca4",
+      "dependencyCache": {
+        "dockerfile": "calibration-cache.Dockerfile",
+        "dockerfileSha256": "ea0f321fa3075836046e2d8adae85bbbecc12da73b1b4075f5e65eb3b9b96e69",
+        "assetUrl": "https://github.com/astral-sh/uv/releases/download/0.9.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+        "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+        "sizeBytes": 21370871,
+        "environment": {
+          "UV_DOWNLOAD_URL": "file:///opt/calibration-downloads"
+        },
+        "policy": "exact upstream package bytes; upstream installer and tests unchanged; no shared writable cache"
+      }
+    }
+  ],
+  "schemaVersion": 1,
+  "purpose": "task29 final deferred regression with actual SSE provider catalogue admission",
+  "runtime": {
+    "entry": "container Gateway plus POST /v1/chat/stream SSE",
+    "target": "x86_64-unknown-linux-gnu",
+    "features": "vw-cli defaults",
+    "sourceCommit": "470278872a22f3cc30a5ed18bd89c55ebf403e36",
+    "sourceSnapshotSha256": "5f586a428553e7cf69e5dfd64e120cc49a62b6bc22130154237c56d16921bde5",
+    "snapshotMethod": "evals/promptfoo/gateway-preflight.py::source_digest; tracked/unignored Rust and Cargo files",
+    "sourceState": "task29 deferred-regression working-tree snapshot, existing unrelated changes recorded in ignored source diff",
+    "binarySha256": "3176b9c4804234d7e97aba05d0b6822d51cdf850f6a6b2e10c897ff9ce234a61",
+    "rust": "1.99.0 (b940084d7 2026-09-28)",
+    "zig": "0.14.1",
+    "zigWheelSha256": "eae7d46746b8e80a4d1a8369b09f7a6aace973ee39207b1b63cfb6bb086e84dc",
+    "linuxRustStdSha256": "3e58dff2d0b72196b5ea4e90536e174d400de88564a52694686b81e091169933",
+    "glibcMinimum": "2.36",
+    "requiredSidecars": {
+      "libsqlite3.so": "2e6eef9a727f081f0d453b4e5e6cbd8b9ef8b6f86cbf7681cbad444d3b0b55c8",
+      "ca-certificates.crt": "a3413a37a8e09cc21b2c11c9ffb23d92d2fc9d1933c9e7617f5c4fba4f72d37d",
+      "openssl.cnf": "7ae8cae2e64856b34c80276deb1dcf60f76da27bc1e00382201ba7bb7dc33311"
+    },
+    "sourceDiffSha256": "c3434818c0dc6fbb5bc9ce1ecd3fa9aa0927bd59743981814f54148125552bc8",
+    "sqliteSourceImage": "alexgshaw/fix-git@sha256:389b9c8247610c2c5be080b1ac00429007c2c69bf57f7f26c79f0f75ba2d5c74",
+    "compilation": {
+      "CFLAGS_x86_64_unknown_linux_gnu": "-DSHA1DC_FORCE_ALIGNED_ACCESS=1",
+      "defaultFeatures": true,
+      "alignmentChecks": "retained",
+      "sha1CollisionDetection": "retained"
+    }
+  },
+  "resources": {
+    "host": "darwin/arm64",
+    "dockerServer": "linux/arm64",
+    "taskPlatform": "linux/amd64 (Docker emulation verified)",
+    "dockerCpus": 4,
+    "dockerMemoryBytes": 6213808128,
+    "concurrency": 1,
+    "taskCpus": 1,
+    "taskMemoryMb": 2048,
+    "taskStorageMb": 10240,
+    "gpus": 0
+  },
+  "scope": {
+    "permissions": "runtime defaults unchanged; no automatic approval",
+    "historicalPilot": "retained independently",
+    "regressionAttemptsPerTask": 1,
+    "retryPolicy": "new deferred regression, not overwrite or hidden retry",
+    "tenant": {
+      "platform": "10000",
+      "company": "100000000"
+    },
+    "admission": "GET /v1/provider under official task directory: token-plan target active; no model call"
+  },
+  "experimentVersion": 5,
+  "supersedes": {
+    "path": "calibration-manifest-v4.json",
+    "sha256": "840e3aa13a282d7798fef69fbca2bac1908f67de822feb81385e4605e0b50654",
+    "scope": "same aligned ELF and calibrated environments; explicit existing default tenant for provider binding/client; corrected admission uses /v1/provider, not static /v1/models"
+  }
+}

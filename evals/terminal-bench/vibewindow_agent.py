@@ -52,7 +52,7 @@ class VibeWindowAgent(BaseInstalledAgent):
         return 'vibewindow'
 
     def version(self):
-        return 'task29-regression-harbor-0.24.0'
+        return 'task29-final-regression-harbor-0.24.0'
 
     async def _execute(self, environment, command, *, timeout_sec=15):
         # Use the environment with its configured default agent user.

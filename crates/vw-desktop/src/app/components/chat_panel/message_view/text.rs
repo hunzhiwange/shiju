@@ -378,7 +378,7 @@ pub(super) fn think_text_body<'a>(
 }
 
 pub(crate) fn should_prefer_plain_think_body(is_streaming_msg: bool, is_thinking: bool) -> bool {
-    is_streaming_msg || is_thinking
+    is_streaming_msg && is_thinking
 }
 
 pub(crate) fn estimate_message_height_rough(raw: &str) -> f32 {

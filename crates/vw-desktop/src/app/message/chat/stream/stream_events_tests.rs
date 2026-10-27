@@ -2063,3 +2063,47 @@ async fn recovery_notice_chinese_text_draws_in_light_and_dark_themes() {
         .unwrap();
     }
 }
+
+#[test]
+fn completed_stream_blocks_are_selectable_before_request_finishes() {
+    use crate::app::components::chat_panel::{
+        message_view::markdown_block_key, tool_text_support::selected_chat_text_for_message,
+    };
+    use iced::widget::text_editor::Action;
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "selectable-stream".to_string();
+    app.active_session_id = Some(session_id.clone());
+    let runtime = app.get_session_runtime_mut(&session_id);
+    runtime.is_requesting = true;
+    runtime.active_agent_request = Some(agent_request(42, &session_id));
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "<think>已完成的思考</thi".into());
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "nk>阶段 **说明**".into());
+    assert_eq!(app.chat_think_editors.get(&0).unwrap().text(), "已完成的思考");
+    let _ = super::handle_agent_workflow_node_update(
+        &mut app,
+        42,
+        "tool bash\n{\"id\":\"cmd-1\",\"name\":\"bash\",\"status\":\"running\"}".into(),
+    );
+    assert!(app.get_session_runtime(&session_id).is_requesting);
+    let key = markdown_block_key(0, 0, 0);
+    app.chat_markdown_block_editors.get_mut(&key).unwrap().perform(Action::SelectAll);
+    assert_eq!(selected_chat_text_for_message(&app, 0).as_deref(), Some("阶段 说明"));
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "\n\n继续处理".into());
+    let _ = super::handle_agent_workflow_node_update(
+        &mut app,
+        42,
+        "tool bash\n{\"id\":\"cmd-2\",\"name\":\"bash\",\"status\":\"running\"}".into(),
+    );
+    assert_eq!(
+        selected_chat_text_for_message(&app, 0).as_deref(),
+        Some("阶段 说明"),
+        "later blocks must preserve the selection"
+    );
+    assert!(app.chat_markdown_block_editors.contains_key(&markdown_block_key(0, 1, 0)));
+    let _ = super::handle_agent_stream_delta(&mut app, 42, "\n\n最终 **结论**".into());
+    let _ = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
+    assert!(!app.get_session_runtime(&session_id).is_requesting);
+    let editor = app.chat_markdown_block_editors.get_mut(&markdown_block_key(0, 2, 0)).unwrap();
+    editor.perform(Action::SelectAll);
+    assert_eq!(editor.selection().as_deref(), Some("最终 结论"));
+}

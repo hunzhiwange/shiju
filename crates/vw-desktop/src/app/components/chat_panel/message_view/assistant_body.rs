@@ -592,7 +592,7 @@ where
                         idx,
                         current_text_idx,
                         text,
-                        !is_streaming_assistant,
+                        !is_streaming_assistant || block_i + 1 < blocks.len(),
                     );
                 }
             }
@@ -616,7 +616,9 @@ where
                 idx,
                 deferred_idx,
                 deferred_text,
-                !is_streaming_assistant,
+                !is_streaming_assistant
+                    || trailing_tool_tail_text_block_idx
+                        .is_some_and(|index| index + 1 < blocks.len()),
             );
         }
 

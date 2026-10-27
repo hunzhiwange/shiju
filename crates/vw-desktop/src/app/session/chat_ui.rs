@@ -375,6 +375,87 @@ fn sync_markdown_blocks_for_text(app: &mut App, msg_idx: usize, text_idx: usize,
     app.chat_markdown_blocks.insert(block_key, blocks);
 }
 
+impl App {
+    /// 只准备已闭合的文本块，保留已有编辑器中的选区。
+    pub(crate) fn sync_completed_stream_text(&mut self, msg_idx: usize) {
+        let Some(message) = self.chat.get(msg_idx) else { return };
+        let entry = crate::app::components::chat_panel::message_view::build_render_cache_entry(
+            &message.content,
+            "",
+            0,
+            self.dialogue_flow_show_reasoning_summary,
+        );
+        let mut text_idx = 0;
+        let mut think_idx = 0;
+        for (block_idx, block) in entry.blocks.iter().enumerate() {
+            match block {
+                ParsedChatBlock::Text { content } => {
+                    let cleaned =
+                        crate::app::components::chat_panel::utils::strip_internal_tool_trace(
+                            content,
+                        );
+                    if crate::app::components::chat_panel::utils::normalize_display_text(
+                        cleaned.trim(),
+                    )
+                    .is_empty()
+                    {
+                        continue;
+                    }
+                    let current_idx = text_idx;
+                    text_idx += 1;
+                    if block_idx + 1 == entry.blocks.len() {
+                        continue;
+                    }
+                    let Some(text) = entry.special_text_blocks.get(current_idx) else { continue };
+                    let key = ((msg_idx as u64) << 32) | current_idx as u64;
+                    if self
+                        .chat_special_text_editors
+                        .get(&key)
+                        .is_some_and(|editor| editor.text() == *text)
+                    {
+                        continue;
+                    }
+                    if let Some(editor) = read_only_chat_editor_content(text) {
+                        self.chat_special_text_editors.insert(key, editor);
+                    }
+                    sync_markdown_blocks_for_text(self, msg_idx, current_idx, text);
+                }
+                ParsedChatBlock::Think { content, open } => {
+                    let key = ((msg_idx as u64) << 32) | think_idx as u64;
+                    think_idx += 1;
+                    if *open {
+                        continue;
+                    }
+                    let text = crate::app::components::chat_panel::utils::normalize_display_text(
+                        content.trim(),
+                    );
+                    if self.chat_think_editors.get(&key).is_some_and(|editor| editor.text() == text)
+                    {
+                        continue;
+                    }
+                    if let Some(editor) = read_only_chat_editor_content(&text) {
+                        self.chat_think_editors.insert(key, editor);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    pub(crate) fn finalize_stream_text(&mut self) {
+        let Some(idx) = self.chat.iter().rposition(|message| message.role == ChatRole::Assistant)
+        else {
+            return;
+        };
+        let phase = prepare_chat_ui_message_phase(
+            &self.chat[idx],
+            idx,
+            self.dialogue_flow_show_reasoning_summary,
+        );
+        self.apply_prepared_chat_ui_phase(phase);
+    }
+}
+
 fn sync_chat_aux_text_editors_for_message(
     app: &mut App,
     msg_idx: usize,

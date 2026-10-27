@@ -1161,6 +1161,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             app.sync_task_pet_from_runtime();
             app.show_send_mode_popover = false;
+            app.finalize_stream_text();
             app.sync_active_session_from_chat();
 
             let runtime = app.get_session_runtime(&session_id);

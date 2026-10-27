@@ -174,7 +174,7 @@ pub(super) fn think_block_view_with_streaming<'a>(
                     text_content.clone(),
                     prefer_plain_text,
                 ));
-            } else if !is_streaming_msg
+            } else if !prefer_plain_text
                 && selectable_text_policy(&text_content, false)
                     != SelectableTextPolicy::PreviewWithCopyFallback
             {

@@ -61,10 +61,10 @@ fn split_text_segments_preserves_content_while_respecting_line_and_size_limits()
 }
 
 #[test]
-fn plain_think_body_is_preferred_for_streaming_or_thinking() {
+fn plain_think_body_is_only_preferred_for_active_thinking() {
     assert!(should_prefer_plain_think_body(true, true));
-    assert!(should_prefer_plain_think_body(false, true));
-    assert!(should_prefer_plain_think_body(true, false));
+    assert!(!should_prefer_plain_think_body(false, true));
+    assert!(!should_prefer_plain_think_body(true, false));
     assert!(!should_prefer_plain_think_body(false, false));
 }
 

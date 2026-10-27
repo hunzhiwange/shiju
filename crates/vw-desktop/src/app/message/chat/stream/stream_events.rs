@@ -984,6 +984,7 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
             render.begin(&session_id, generation, changed_idx, "");
             let _ = render.append_delta(&session_id, generation, changed_idx, &delta);
         }
+        let previous_boundary = tail_state.text_block_boundary();
         let changed_idx = append_stream_delta_to_tail(
             &mut app.chat,
             &mut app.chat_message_ids,
@@ -991,6 +992,9 @@ fn apply_agent_session_delta(app: &mut App, session_id: String, delta: String) -
             now,
             &mut tail_state,
         );
+        if tail_state.text_block_boundary() != previous_boundary {
+            app.sync_completed_stream_text(changed_idx);
+        }
         app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
         return finish_active_stream_tail_update(
             app,
@@ -1174,6 +1178,7 @@ fn handle_agent_tool_blocks_update(
                 raw_tool_block,
             );
         }
+        app.sync_completed_stream_text(changed_idx);
         refresh_stream_replacement_projection(app, &session_id, changed_idx);
         app.get_session_runtime_mut(&session_id).stream_tail_state = tail_state;
         return Task::batch([
@@ -1384,6 +1389,7 @@ pub(super) fn handle_agent_stream_done(
     app.show_send_mode_popover = false;
 
     if is_active_session {
+        app.finalize_stream_text();
         app.sync_active_session_from_chat();
     }
 
@@ -1500,6 +1506,7 @@ pub(super) fn handle_agent_post_tool_round(
         elapsed.processing_ms,
         elapsed.llm_ms,
     );
+    app.finalize_stream_text();
     app.store_session_chat_snapshot(
         session_id.clone(),
         crate::app::session::shared_chat_messages(app.chat.clone()),
@@ -1686,6 +1693,7 @@ pub(super) fn handle_agent_stream_error(app: &mut App, id: u64, err: String) -> 
         if let Some(calibration) = terminal_tail {
             apply_active_terminal_tail_calibration(app, calibration);
         }
+        app.finalize_stream_text();
         app.sync_active_session_from_chat();
     }
 

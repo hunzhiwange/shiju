@@ -287,6 +287,10 @@ impl StreamTailState {
         self.thinking_open
     }
 
+    pub(crate) fn text_block_boundary(&self) -> (usize, bool, usize) {
+        (self.think_count, self.thinking_open, self.tool_count)
+    }
+
     pub(crate) fn estimated_height(&self) -> f32 {
         self.estimated_height
     }

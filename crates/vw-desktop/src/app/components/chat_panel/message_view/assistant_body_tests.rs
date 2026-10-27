@@ -507,3 +507,46 @@ fn streaming_special_text_ignores_stale_editor() {
     assert_eq!(actual.children[0].tag, expected.tag);
     assert_eq!(actual.children[0].children.len(), expected.children.len());
 }
+
+#[test]
+fn streaming_body_keeps_completed_text_and_think_editors_visible() {
+    fn count_tag(tree: &Tree, tag: iced::advanced::widget::tree::Tag) -> usize {
+        usize::from(tree.tag == tag)
+            + tree.children.iter().map(|child| count_tag(child, tag)).sum::<usize>()
+    }
+    let mut app = App::new().0;
+    let content = "阶段 **说明**<think>已完成的思考</think>还在输出";
+    app.chat.push(crate::app::models::ChatMessage {
+        role: crate::app::models::ChatRole::Assistant,
+        content: content.into(),
+        model: None,
+        think_timing: Vec::new(),
+        processing_timing: None,
+    });
+    app.dialogue_flow_show_reasoning_summary = true;
+    app.chat_think_expanded.insert(0);
+    app.sync_completed_stream_text(0);
+    let entry = super::build_render_cache_entry(content, content, 0, true);
+    let body = render_assistant_body(
+        &app,
+        0,
+        &[],
+        entry.special_text_blocks,
+        entry.display_text,
+        entry.blocks,
+        entry.tool_block_metadata,
+        true,
+        true,
+        content,
+    );
+    let element: Element<'_, Message> = body.into();
+    let tree = Tree::new(element.as_widget());
+    let content = text_editor::Content::new();
+    let editor: Element<'_, Message> = iced::widget::text_editor(&content).into();
+    let editor_tag = Tree::new(editor.as_widget()).tag;
+    assert_eq!(
+        count_tag(&tree, editor_tag),
+        2,
+        "completed text and reasoning use editors; the mutable tail stays plain"
+    );
+}

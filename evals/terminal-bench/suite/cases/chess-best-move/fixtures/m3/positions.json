@@ -1,0 +1,27 @@
+[
+  {
+    "id": "pinned-rook",
+    "fen": "k3r3/8/8/8/8/8/4R3/4K3 w - - 0 1",
+    "move": "e2d2"
+  },
+  {
+    "id": "capture-checker",
+    "fen": "k3r3/8/8/8/8/8/4R3/4K3 w - - 0 1",
+    "move": "e2e8"
+  },
+  {
+    "id": "castle-through-check",
+    "fen": "k4r2/8/8/8/8/8/8/4K2R w K - 0 1",
+    "move": "e1g1"
+  },
+  {
+    "id": "en-passant-pin",
+    "fen": "k7/8/8/4KPpr/8/8/8/8 w - g6 0 1",
+    "move": "f5g6"
+  },
+  {
+    "id": "promotion-check",
+    "fen": "k7/7P/8/8/8/8/8/K7 w - - 0 1",
+    "move": "h7h8q"
+  }
+]

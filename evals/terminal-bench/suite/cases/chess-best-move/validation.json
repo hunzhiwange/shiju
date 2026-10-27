@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "parent_id": "chess-best-move",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "7a5c0e54404d3f39ef193e04c41debadef7501b75df318cb8712d79c7f3ab8dd",
+    "fixtures/m1/board.png": "5a9aa2adc9f56840c7a3b6efb92bd8b4adf24a1e059cb3df77ad8c28638dbf09",
+    "fixtures/m1/instruction.md": "ba8b49a603c2f7dca321458157f1ae4d87416fa3751cda3153923acb0c1f021b",
+    "fixtures/m1/legend.json": "958d72fd3627a126048030330535d9d395d30995cdcbb73e30cb77b5d6790aad",
+    "fixtures/m2/instruction.md": "42fdf700f1bd8c5f148bf024e8326748456dcca85f58ce14a4625ac730f85964",
+    "fixtures/m2/position.json": "253ff65146b4ca059f2e42a146b1414586644e16fbed9092cd40288f7f6d9660",
+    "fixtures/m3/instruction.md": "38df79cab3225ecfc65926026177b9caa245aaade92397ba4113459d940452e9",
+    "fixtures/m3/positions.json": "1f46e4c1571f39899d487d28246da9a1ba14056615fb96967cffbdf65abe87f1",
+    "fixtures/m4/instruction.md": "bc1eeb8013c68901d18ebfe9733256c231c077dac55f9f13eb14848175361160",
+    "fixtures/m4/moves.json": "02a1801a1ea646bf3a1aa23e74ef3d799549d904aa5a2107f1c754dd6e237184",
+    "oracle/m1/flipped-ranks/result.json": "6e35b280430a27c0fb9acff3a53ce4cbafa6df2fc4babdf909f1cdbc9320c774",
+    "oracle/m1/gold/result.json": "ce97fc3ed007756e65d738a44865d6ae5dca7db2ff712bb6929ff4050fc625e9",
+    "oracle/m1/missing-piece/result.json": "a3ab3f5b7b46719b7406902a7348b005371c66e31e1262a7cce5da2bccb6308b",
+    "oracle/m1/task.json": "b2f5bbeebe1099aa9e41abefd2a828e96b4df97532dce1dffb1d65ff88a93849",
+    "oracle/m1/wrong-piece/result.json": "749db1ab1c072ce1fb5ae266137c7c21adfda05ccb2f651d48ff1ecec92a4471",
+    "oracle/m2/gold/result.json": "d8226ba64287d0a7759a629ed5e5b9251327c1bd840d4a40b3dc2ba58be7fbdb",
+    "oracle/m2/missing-capture/result.json": "515e987e7811ec588d3648c8e3c0380b1921434ce0ae02e1f961e5b99add9efd",
+    "oracle/m2/off-board/result.json": "a855701ca12d82527bfd86046c7b6c9f348257a4426092c2f641061210b467a1",
+    "oracle/m2/own-capture/result.json": "894c372534930ac6492b2a0da4418ddbeb8c5a398c7bc498bdcad4040297cbf5",
+    "oracle/m2/task.json": "fb95e5d0fdb3e9b6bebf6149ecf71c3881863122277fc557123ac10f803cceac",
+    "oracle/m3/castle-through-attack/result.json": "327be363aa92516b4732eba9f7aae353a2373ffd24a41bad3555799125754df2",
+    "oracle/m3/en-passant-exposes-king/result.json": "2cc35c18c6eaf160b57be4422ebbe0c23679157d3bdf76a6baffa122919ae317",
+    "oracle/m3/gold/result.json": "3f16d7db04ac921b6b8768c6a0438568ec1cb037b7ddbe99fb03394512aca72f",
+    "oracle/m3/ignores-pin/result.json": "c7754edffc36743f52b61c6ab720923eda6ef24a79205de357d8c06b66ab3efe",
+    "oracle/m3/task.json": "d814c2911d0b7ec1ef32c7f076cafb2494536532c145ddd322953121914e362e",
+    "oracle/m4/duplicate-move/move.txt": "8c6a05d20049fc60e0778393ff1f27c71b742a6a662da56490c42c308c972f03",
+    "oracle/m4/gold/move.txt": "e76cc1b710c66d3360b73005a61f056d8ee94edf1cf0707818e9b29b96464e46",
+    "oracle/m4/missing-promotion/move.txt": "bb420cad4cf4608e9bc0e3f212315bfe518d162af18571dba9459c4924746cdc",
+    "oracle/m4/san-instead-of-uci/move.txt": "a3de5c62e94149218216b22eb3b9a4bceeff806ee657fa3096808080769c7afb",
+    "oracle/m4/task.json": "909f9c477f6256c49888e26635363a172e489e088901bcc63d56c40a6297cc94",
+    "case.json": "7bb54960bb0aeaae7e73b76a7197b8ed5c552beafefb14e2e8fa05c89a68e953"
+  },
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "flipped-ranks",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "missing-piece",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-piece",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "own-capture",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "missing-capture",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "off-board",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignores-pin",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "castle-through-attack",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "en-passant-exposes-king",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "missing-promotion",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "san-instead-of-uci",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "duplicate-move",
+      "exit_code": 1
+    }
+  ]
+}

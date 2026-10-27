@@ -1,0 +1,22 @@
+{
+  "pinned-rook": {
+    "legal": false,
+    "gives_check": null
+  },
+  "capture-checker": {
+    "legal": true,
+    "gives_check": true
+  },
+  "castle-through-check": {
+    "legal": false,
+    "gives_check": null
+  },
+  "en-passant-pin": {
+    "legal": false,
+    "gives_check": null
+  },
+  "promotion-check": {
+    "legal": true,
+    "gives_check": true
+  }
+}

@@ -566,7 +566,7 @@ pub async fn self_update(force: bool, check_only: bool) -> Result<()> {
 
         if check_only {
             println!("Update available: {} -> {}", current_version(), latest_version);
-            println!("Run `vibewindow update` to install the update.");
+            println!("Run `shiju update` to install the update.");
             return Ok(());
         }
 

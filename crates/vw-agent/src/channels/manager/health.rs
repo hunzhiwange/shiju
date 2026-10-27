@@ -91,7 +91,7 @@ pub(crate) async fn run_channel_health_checks(
     }
 
     if has_webhook {
-        println!("  ℹ️  Webhook   check via `vibewindow gateway` then GET /health");
+        println!("  ℹ️  Webhook   check via `shiju gateway` then GET /health");
     }
 
     if !has_runtime_channels && !init_failures.is_empty() {

@@ -3,9 +3,9 @@
 VibeWindow 提供两个方向不同的 ACP 入口：
 
 - `acp`：VibeWindow 作为 ACP **Client**，连接或启动外部 Agent 的现有桥接程序。
-- `vibewindow acp`：VibeWindow 作为 ACP **Agent**，由外部 ACP Client 通过标准输入输出启动。
+- `shiju acp`：VibeWindow 作为 ACP **Agent**，由外部 ACP Client 通过标准输入输出启动。
 
-本文只描述 `vibewindow acp` 的对外 Agent 接入。
+本文只描述 `shiju acp` 的对外 Agent 接入。
 
 ## 启动与配置
 
@@ -18,7 +18,7 @@ cargo run -p vw-cli --bin shiju -- acp
 安装后启动：
 
 ```bash
-vibewindow acp
+shiju acp
 ```
 
 外部 Client 的配置格式各不相同，通用结构如下：

@@ -195,7 +195,7 @@ fn install_linux_systemd(config: &Config) -> Result<()> {
     let _ = run_checked(Command::new("systemctl").args(["--user", "daemon-reload"]));
     let _ = run_checked(Command::new("systemctl").args(["--user", "enable", "vibewindow.service"]));
     println!("✅ Installed systemd user service: {}", file.display());
-    println!("   Start with: vibewindow service start");
+    println!("   Start with: shiju service start");
     Ok(())
 }
 

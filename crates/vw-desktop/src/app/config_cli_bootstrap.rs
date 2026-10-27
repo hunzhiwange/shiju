@@ -113,7 +113,7 @@ fn bootstrap_cli_service() -> Result<(), String> {
             tracing::debug!(
                 target: "vw_desktop",
                 error = %server_start_error,
-                "vibewindow server start failed; falling back to service start"
+                "shiju server start failed; falling back to service start"
             );
             run_cli_command(&cli, &config_dir, &["service", "start"])?;
         }
@@ -621,7 +621,7 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
             return Ok(candidate);
         }
     }
-    Err("未找到内置 CLI 可执行文件 vibewindow（兼容名 vibe-agent）".to_string())
+    Err("未找到内置 CLI 可执行文件 shiju（兼容名 vibe-agent）".to_string())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

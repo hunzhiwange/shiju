@@ -608,7 +608,7 @@ pub(crate) fn annotate_gateway_transport_error(
     }
 
     format!(
-        "{message}. Gateway endpoint {} is unavailable. Start it with `vibewindow gateway --host {} --port {}` and retry.",
+        "{message}. Gateway endpoint {} is unavailable. Start it with `shiju gateway --host {} --port {}` and retry.",
         endpoint.describe(),
         endpoint.normalized_host(),
         endpoint.port

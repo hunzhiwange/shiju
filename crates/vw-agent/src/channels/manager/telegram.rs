@@ -23,13 +23,13 @@ pub(crate) fn report_managed_daemon_restart_result(result: anyhow::Result<bool>)
         }
         Ok(false) => {
             println!(
-                "ℹ️ No managed daemon service detected. If `vibewindow daemon`/`channel start` is already running, restart it to load the updated allowlist."
+                "ℹ️ No managed daemon service detected. If `shiju daemon`/`channel start` is already running, restart it to load the updated allowlist."
             );
         }
         Err(e) => {
             eprintln!(
                 "⚠️ Allowlist saved, but failed to reload daemon service automatically: {e}\n\
-                 Restart service manually with `vibewindow service stop && vibewindow service start`."
+                 Restart service manually with `shiju service stop && shiju service start`."
             );
         }
     }

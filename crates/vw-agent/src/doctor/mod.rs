@@ -176,7 +176,7 @@ pub fn run(config: &Config) -> Result<()> {
     println!("  Summary: {oks} ok, {warns} warnings, {errors} errors");
 
     if errors > 0 {
-        println!("  💡 Fix the errors above, then run `vibewindow doctor` again.");
+        println!("  💡 Fix the errors above, then run `shiju doctor` again.");
     }
 
     Ok(())

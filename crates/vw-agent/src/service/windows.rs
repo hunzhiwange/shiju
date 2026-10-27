@@ -52,7 +52,7 @@ pub(super) fn install_windows_with_schtasks(config: &Config, schtasks: &Path) ->
     println!("✅ Installed Windows scheduled task: {}", task_name);
     println!("   Wrapper: {}", wrapper.display());
     println!("   Logs: {}", logs_dir.display());
-    println!("   Start with: vibewindow service start");
+    println!("   Start with: shiju service start");
     Ok(())
 }
 

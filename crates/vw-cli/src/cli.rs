@@ -38,7 +38,7 @@ pub(crate) use runtime::{session, setup, tui};
 
 /// Shell 补全脚本支持的 shell 类型枚举
 ///
-/// 定义了 `vibewindow completions` 命令支持的所有目标 shell 类型，
+/// 定义了 `shiju completions` 命令支持的所有目标 shell 类型，
 /// 用于生成对应 shell 的命令行自动补全脚本。
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
 pub(crate) enum CompletionShell {
@@ -92,9 +92,9 @@ pub(crate) enum EstopLevelArg {
 ///
 /// ```bash
 /// # 使用默认配置目录
-/// vibewindow agent
+/// shiju agent
 /// # 指定自定义配置目录
-/// vibewindow --config-dir /path/to/config agent
+/// shiju --config-dir /path/to/config agent
 /// ```
 #[derive(Parser, Debug)]
 #[command(name = "shiju")]
@@ -135,12 +135,12 @@ pub(crate) enum Commands {
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow agent                              # 交互式会话
-    /// vibewindow agent -m "总结今日日志"             # 单条消息模式
-    /// vibewindow agent -p anthropic --model claude-sonnet-4-20250514
-    /// vibewindow agent --peripheral nucleo-f401re:/dev/ttyACM0
-    /// vibewindow agent --autonomy-level full --max-actions-per-hour 100
-    /// vibewindow agent -m "快速任务" --memory-backend none --compact-context
+    /// shiju agent                              # 交互式会话
+    /// shiju agent -m "总结今日日志"             # 单条消息模式
+    /// shiju agent -p anthropic --model claude-sonnet-4-20250514
+    /// shiju agent --peripheral nucleo-f401re:/dev/ttyACM0
+    /// shiju agent --autonomy-level full --max-actions-per-hour 100
+    /// shiju agent -m "快速任务" --memory-backend none --compact-context
     /// ```
     #[command(long_about = "\
 Start the AI agent loop.
@@ -149,12 +149,12 @@ Launches an interactive chat session with the configured AI provider. \
 Use --message for single-shot queries without entering interactive mode.
 
 Examples:
-  vibewindow agent                              # interactive session
-  vibewindow agent -m \"Summarize today's logs\"  # single message
-  vibewindow agent -p anthropic --model claude-sonnet-4-20250514
-  vibewindow agent --peripheral nucleo-f401re:/dev/ttyACM0
-  vibewindow agent --autonomy-level full --max-actions-per-hour 100
-  vibewindow agent -m \"quick task\" --memory-backend none --compact-context")]
+  shiju agent                              # interactive session
+  shiju agent -m \"Summarize today's logs\"  # single message
+  shiju agent -p anthropic --model claude-sonnet-4-20250514
+  shiju agent --peripheral nucleo-f401re:/dev/ttyACM0
+  shiju agent --autonomy-level full --max-actions-per-hour 100
+  shiju agent -m \"quick task\" --memory-backend none --compact-context")]
     Agent {
         /// 单条消息模式（不进入交互模式）
         #[arg(short, long)]
@@ -209,10 +209,10 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow gateway                  # 使用配置默认值
-    /// vibewindow gateway -p 8080          # 在 8080 端口监听
-    /// vibewindow gateway --host 0.0.0.0   # 绑定到所有网络接口
-    /// vibewindow gateway -p 0             # 使用随机可用端口
+    /// shiju gateway                  # 使用配置默认值
+    /// shiju gateway -p 8080          # 在 8080 端口监听
+    /// shiju gateway --host 0.0.0.0   # 绑定到所有网络接口
+    /// shiju gateway -p 0             # 使用随机可用端口
     /// ```
     #[command(long_about = "\
 Start the gateway server (webhooks, websockets).
@@ -222,10 +222,10 @@ and WebSocket connections. Bind address defaults to the values in \
 your config file (gateway.host / gateway.port).
 
 Examples:
-  vibewindow gateway                  # use config defaults
-  vibewindow gateway -p 8080          # listen on port 8080
-  vibewindow gateway --host 0.0.0.0   # bind to all interfaces
-  vibewindow gateway -p 0             # random available port")]
+  shiju gateway                  # use config defaults
+  shiju gateway -p 8080          # listen on port 8080
+  shiju gateway --host 0.0.0.0   # bind to all interfaces
+  shiju gateway -p 0             # random available port")]
     Gateway {
         /// 监听端口（使用 0 表示随机可用端口）；默认使用配置中的 gateway.port
         #[arg(short, long)]
@@ -242,15 +242,15 @@ Examples:
     /// （Telegram、Discord、Slack 等）、心跳监控和 cron 调度器。
     /// 这是在生产环境中或将 VibeWindow 作为常驻助手运行的推荐方式。
     ///
-    /// 使用 'vibewindow service install' 可将守护进程注册为操作系统
+    /// 使用 'shiju service install' 可将守护进程注册为操作系统
     /// 服务（systemd/launchd），实现开机自启动。
     ///
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow daemon                   # 使用配置默认值
-    /// vibewindow daemon -p 9090           # 网关使用 9090 端口
-    /// vibewindow daemon --host 127.0.0.1  # 仅监听本地主机
+    /// shiju daemon                   # 使用配置默认值
+    /// shiju daemon -p 9090           # 网关使用 9090 端口
+    /// shiju daemon --host 127.0.0.1  # 仅监听本地主机
     /// ```
     #[command(long_about = "\
 Start the long-running autonomous daemon.
@@ -260,13 +260,13 @@ channels (Telegram, Discord, Slack, etc.), heartbeat monitor, and \
 the cron scheduler. This is the recommended way to run VibeWindow in \
 production or as an always-on assistant.
 
-Use 'vibewindow service install' to register the daemon as an OS \
+Use 'shiju service install' to register the daemon as an OS \
 service (systemd/launchd) for auto-start on boot.
 
 Examples:
-  vibewindow daemon                   # use config defaults
-  vibewindow daemon -p 9090           # gateway on port 9090
-  vibewindow daemon --host 127.0.0.1  # localhost only")]
+  shiju daemon                   # use config defaults
+  shiju daemon -p 9090           # gateway on port 9090
+  shiju daemon --host 127.0.0.1  # localhost only")]
     Daemon {
         /// 监听端口（使用 0 表示随机可用端口）；默认使用配置中的 gateway.port
         #[arg(short, long)]
@@ -288,10 +288,10 @@ Examples:
         service_command: ServiceCommands,
     },
 
-    /// 管理本机后台 server 服务（兼容 `vibewindow server start`）
+    /// 管理本机后台 server 服务（兼容 `shiju server start`）
     ///
     /// 这是 `service` 命令的兼容别名，便于桌面端和旧脚本使用
-    /// `vibewindow server start` 启动本机常驻服务。
+    /// `shiju server start` 启动本机常驻服务。
     Server {
         /// 使用的 init 系统：auto（自动检测）、systemd 或 openrc
         #[arg(long, default_value = "auto", value_parser = ["auto", "systemd", "openrc"])]
@@ -322,9 +322,9 @@ replaces the current executable. Requires write permissions to
 the binary location.
 
 Examples:
-  vibewindow update              # Update to latest version
-  vibewindow update --check      # Check for updates without installing
-  vibewindow update --force      # Reinstall even if already up to date")]
+  shiju update              # Update to latest version
+  shiju update --check      # Check for updates without installing
+  shiju update --force      # Reinstall even if already up to date")]
     Update {
         /// Check for updates without installing
         #[arg(long)]
@@ -343,21 +343,21 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow estop                                    # 触发默认紧急停止
-    /// vibewindow estop --level network-kill              # 终止所有网络连接
-    /// vibewindow estop --level domain-block --domain "*.chase.com"  # 阻止特定域名
-    /// vibewindow estop --level tool-freeze --tool shell --tool browser  # 冻结特定工具
-    /// vibewindow estop status                            # 查看当前状态
-    /// vibewindow estop resume --network                  # 恢复网络
-    /// vibewindow estop resume --domain "*.chase.com"     # 恢复特定域名访问
-    /// vibewindow estop resume --tool shell               # 恢复特定工具
+    /// shiju estop                                    # 触发默认紧急停止
+    /// shiju estop --level network-kill              # 终止所有网络连接
+    /// shiju estop --level domain-block --domain "*.chase.com"  # 阻止特定域名
+    /// shiju estop --level tool-freeze --tool shell --tool browser  # 冻结特定工具
+    /// shiju estop status                            # 查看当前状态
+    /// shiju estop resume --network                  # 恢复网络
+    /// shiju estop resume --domain "*.chase.com"     # 恢复特定域名访问
+    /// shiju estop resume --tool shell               # 恢复特定工具
     /// ```
     Estop {
         /// 紧急停止子命令
         #[command(subcommand)]
         estop_command: Option<EstopSubcommands>,
 
-        /// 从 `vibewindow estop` 触发紧急停止时使用的级别
+        /// 从 `shiju estop` 触发紧急停止时使用的级别
         #[arg(long, value_enum)]
         level: Option<EstopLevelArg>,
 
@@ -377,10 +377,10 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow security update-guard-corpus
-    /// vibewindow security update-guard-corpus --source builtin
-    /// vibewindow security update-guard-corpus --source ./datassetsa/security/attack-corpus-v1.jsonl
-    /// vibewindow security update-guard-corpus --source https://example.com/guard-corpus.jsonl --checksum <sha256>
+    /// shiju security update-guard-corpus
+    /// shiju security update-guard-corpus --source builtin
+    /// shiju security update-guard-corpus --source ./datassetsa/security/attack-corpus-v1.jsonl
+    /// shiju security update-guard-corpus --source https://example.com/guard-corpus.jsonl --checksum <sha256>
     /// ```
     #[command(long_about = "\
 Manage security maintenance tasks.
@@ -388,10 +388,10 @@ Manage security maintenance tasks.
 Commands in this group maintain security-related data stores used at runtime.
 
 Examples:
-  vibewindow security update-guard-corpus
-  vibewindow security update-guard-corpus --source builtin
-  vibewindow security update-guard-corpus --source ./assets/security/attack-corpus-v1.jsonl
-  vibewindow security update-guard-corpus --source https://example.com/guard-corpus.jsonl --checksum <sha256>")]
+  shiju security update-guard-corpus
+  shiju security update-guard-corpus --source builtin
+  shiju security update-guard-corpus --source ./assets/security/attack-corpus-v1.jsonl
+  shiju security update-guard-corpus --source https://example.com/guard-corpus.jsonl --checksum <sha256>")]
     Security {
         /// 安全子命令
         #[command(subcommand)]
@@ -409,14 +409,14 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow cron list
-    /// vibewindow cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
-    /// vibewindow cron add '*/30 * * * *' 'Check system health'
-    /// vibewindow cron add-at 2025-01-15T14:00:00Z 'Send reminder'
-    /// vibewindow cron add-every 60000 'Ping heartbeat'
-    /// vibewindow cron once 30m 'Run backup in 30 minutes'
-    /// vibewindow cron pause <task-id>
-    /// vibewindow cron update <task-id> --expression '0 8 * * *' --tz Europe/London
+    /// shiju cron list
+    /// shiju cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
+    /// shiju cron add '*/30 * * * *' 'Check system health'
+    /// shiju cron add-at 2025-01-15T14:00:00Z 'Send reminder'
+    /// shiju cron add-every 60000 'Ping heartbeat'
+    /// shiju cron once 30m 'Run backup in 30 minutes'
+    /// shiju cron pause <task-id>
+    /// shiju cron update <task-id> --expression '0 8 * * *' --tz Europe/London
     /// ```
     #[command(long_about = "\
 Configure and manage scheduled tasks.
@@ -429,14 +429,14 @@ Cron expressions use the standard 5-field format: \
 override with --tz and an IANA timezone name.
 
 Examples:
-  vibewindow cron list
-  vibewindow cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
-  vibewindow cron add '*/30 * * * *' 'Check system health'
-  vibewindow cron add-at 2025-01-15T14:00:00Z 'Send reminder'
-  vibewindow cron add-every 60000 'Ping heartbeat'
-  vibewindow cron once 30m 'Run backup in 30 minutes'
-  vibewindow cron pause <task-id>
-  vibewindow cron update <task-id> --expression '0 8 * * *' --tz Europe/London")]
+  shiju cron list
+  shiju cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
+  shiju cron add '*/30 * * * *' 'Check system health'
+  shiju cron add-at 2025-01-15T14:00:00Z 'Send reminder'
+  shiju cron add-every 60000 'Ping heartbeat'
+  shiju cron once 30m 'Run backup in 30 minutes'
+  shiju cron pause <task-id>
+  shiju cron update <task-id> --expression '0 8 * * *' --tz Europe/London")]
     Cron {
         /// 计划任务子命令
         #[command(subcommand)]
@@ -454,11 +454,11 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow channel list
-    /// vibewindow channel doctor
-    /// vibewindow channel add telegram '{"bot_token":"...","name":"my-bot"}'
-    /// vibewindow channel remove my-bot
-    /// vibewindow channel bind-telegram vibewindow_user
+    /// shiju channel list
+    /// shiju channel doctor
+    /// shiju channel add telegram '{"bot_token":"...","name":"my-bot"}'
+    /// shiju channel remove my-bot
+    /// shiju channel bind-telegram vibewindow_user
     /// ```
     #[command(long_about = "\
 Manage communication channels.
@@ -468,11 +468,11 @@ to messaging platforms. Supported channel types: telegram, discord, \
 slack, whatsapp, imessage, email.
 
 Examples:
-  vibewindow channel list
-  vibewindow channel doctor
-  vibewindow channel add telegram '{\"bot_token\":\"...\",\"name\":\"my-bot\"}'
-  vibewindow channel remove my-bot
-  vibewindow channel bind-telegram vibewindow_user")]
+  shiju channel list
+  shiju channel doctor
+  shiju channel add telegram '{\"bot_token\":\"...\",\"name\":\"my-bot\"}'
+  shiju channel remove my-bot
+  shiju channel bind-telegram vibewindow_user")]
     Channel {
         /// 通道子命令
         #[command(subcommand)]
@@ -508,12 +508,12 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow task create --prompt "检查 OAuth 回调并修复"
-    /// vibewindow task create --prompt "检查 OAuth 回调并修复" --task-split off
-    /// vibewindow task create --project-dir /path/to/repo --description "补充测试" --subtask "单元测试" --subtask "集成测试"
-    /// vibewindow task read
-    /// vibewindow task read --id T20260317.0001
-    /// vibewindow task read --project-dir /path/to/repo --status pending --limit 20
+    /// shiju task create --prompt "检查 OAuth 回调并修复"
+    /// shiju task create --prompt "检查 OAuth 回调并修复" --task-split off
+    /// shiju task create --project-dir /path/to/repo --description "补充测试" --subtask "单元测试" --subtask "集成测试"
+    /// shiju task read
+    /// shiju task read --id T20260317.0001
+    /// shiju task read --project-dir /path/to/repo --status pending --limit 20
     /// ```
     #[command(long_about = "\
 Create and read project tasks stored in .vibewindow/tasks.
@@ -522,12 +522,12 @@ Use --project-dir to target a specific project path. Defaults to the \
 current working directory.
 
 Examples:
-  vibewindow task create --prompt \"检查 OAuth 回调并修复\"
-  vibewindow task create --prompt \"检查 OAuth 回调并修复\" --task-split off
-  vibewindow task create --project-dir /path/to/repo --description \"补充测试\" --subtask \"单元测试\" --subtask \"集成测试\"
-  vibewindow task read
-  vibewindow task read --id T20260317.0001
-  vibewindow task read --project-dir /path/to/repo --status pending --limit 20")]
+  shiju task create --prompt \"检查 OAuth 回调并修复\"
+  shiju task create --prompt \"检查 OAuth 回调并修复\" --task-split off
+  shiju task create --project-dir /path/to/repo --description \"补充测试\" --subtask \"单元测试\" --subtask \"集成测试\"
+  shiju task read
+  shiju task read --id T20260317.0001
+  shiju task read --project-dir /path/to/repo --status pending --limit 20")]
     Task {
         /// 项目目录路径
         #[arg(long, default_value = ".")]
@@ -558,11 +558,11 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow memory stats
-    /// vibewindow memory list
-    /// vibewindow memory list --category core --limit 10
-    /// vibewindow memory get <key>
-    /// vibewindow memory clear --category conversation --yes
+    /// shiju memory stats
+    /// shiju memory list
+    /// shiju memory list --category core --limit 10
+    /// shiju memory get <key>
+    /// shiju memory clear --category conversation --yes
     /// ```
     #[command(long_about = "\
 Manage agent memory entries.
@@ -572,11 +572,11 @@ Supports filtering by category and session, pagination, and \
 batch clearing with confirmation.
 
 Examples:
-  vibewindow memory stats
-  vibewindow memory list
-  vibewindow memory list --category core --limit 10
-  vibewindow memory get <key>
-  vibewindow memory clear --category conversation --yes")]
+  shiju memory stats
+  shiju memory list
+  shiju memory list --category core --limit 10
+  shiju memory get <key>
+  shiju memory clear --category conversation --yes")]
     Memory {
         /// 记忆子命令
         #[command(subcommand)]
@@ -591,8 +591,8 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow config schema              # 打印 JSON Schema 到标准输出
-    /// vibewindow config schema > schema.json
+    /// shiju config schema              # 打印 JSON Schema 到标准输出
+    /// shiju config schema > schema.json
     /// ```
     #[command(long_about = "\
 Manage VibeWindow configuration.
@@ -602,8 +602,8 @@ the full JSON Schema for the config file, which documents every \
 available key, type, and default value.
 
 Examples:
-  vibewindow config schema              # print JSON Schema to stdout
-  vibewindow config schema > schema.json")]
+  shiju config schema              # print JSON Schema to stdout
+  shiju config schema > schema.json")]
     Config {
         /// Gateway 连接、认证与输出参数。
         #[command(flatten)]
@@ -621,19 +621,19 @@ Examples:
     /// # 示例
     ///
     /// ```bash
-    /// source <(vibewindow completions bash)
-    /// vibewindow completions zsh > ~/.zfunc/_vibewindow
-    /// vibewindow completions fish > ~/.config/fish/completions/vibewindow.fish
+    /// source <(shiju completions bash)
+    /// shiju completions zsh > ~/.zfunc/_shiju
+    /// shiju completions fish > ~/.config/fish/completions/shiju.fish
     /// ```
     #[command(long_about = "\
-Generate shell completion scripts for `vibewindow`.
+Generate shell completion scripts for `shiju`.
 
 The script is printed to stdout so it can be sourced directly:
 
 Examples:
-  source <(vibewindow completions bash)
-  vibewindow completions zsh > ~/.zfunc/_vibewindow
-  vibewindow completions fish > ~/.config/fish/completions/vibewindow.fish")]
+  source <(shiju completions bash)
+  shiju completions zsh > ~/.zfunc/_shiju
+  shiju completions fish > ~/.config/fish/completions/shiju.fish")]
     Completions {
         /// 目标 shell 类型
         #[arg(value_enum)]

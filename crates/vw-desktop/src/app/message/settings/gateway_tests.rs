@@ -137,29 +137,29 @@ fn gateway_service_command_copy_state_clears_after_matching_command() {
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::CopyServiceCommand(
-            "vibewindow server restart".to_string(),
+            "shiju server restart".to_string(),
         )),
     );
     assert_eq!(
         app.gateway_settings.copied_service_command.as_deref(),
-        Some("vibewindow server restart")
+        Some("shiju server restart")
     );
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ClearCopiedServiceCommand(
-            "vibewindow server start".to_string(),
+            "shiju server start".to_string(),
         )),
     );
     assert_eq!(
         app.gateway_settings.copied_service_command.as_deref(),
-        Some("vibewindow server restart")
+        Some("shiju server restart")
     );
 
     let _ = update(
         &mut app,
         SettingsMessage::Gateway(GatewayMessage::ClearCopiedServiceCommand(
-            "vibewindow server restart".to_string(),
+            "shiju server restart".to_string(),
         )),
     );
     assert!(app.gateway_settings.copied_service_command.is_none());

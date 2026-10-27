@@ -99,6 +99,6 @@ pub fn run_traces(
     }
 
     println!();
-    println!("Use `vibewindow doctor traces --id <trace-id>` to inspect a full event payload.");
+    println!("Use `shiju doctor traces --id <trace-id>` to inspect a full event payload.");
     Ok(())
 }

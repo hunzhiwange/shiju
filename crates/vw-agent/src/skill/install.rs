@@ -7,7 +7,7 @@
 //! - **技能安装**：支持从多种来源安装技能，包括本地路径、Git 仓库、skills.sh 平台
 //! - **安全审计**：所有安装的技能都必须通过安全审计，防止恶意代码注入
 //! - **目录初始化**：初始化技能工作目录，创建必要的配置文件和内置技能
-//! - **CLI 命令处理**：处理 `vibewindow skills` 相关的命令行指令
+//! - **CLI 命令处理**：处理 `shiju skills` 相关的命令行指令
 //!
 //! # 安装来源类型
 //!
@@ -26,13 +26,13 @@
 //!
 //! ```bash
 //! # 安装技能
-//! vibewindow skills install https://github.com/user/skill-repo
+//! shiju skills install https://github.com/user/skill-repo
 //!
 //! # 列出已安装技能
-//! vibewindow skills list
+//! shiju skills list
 //!
 //! # 删除技能
-//! vibewindow skills remove my-skill
+//! shiju skills remove my-skill
 //! ```
 
 use crate::app::agent::skill::audit;
@@ -654,8 +654,8 @@ pub fn init_skills_dir(workspace_dir: &Path) -> Result<()> {
              The agent will read it and follow the instructions.\n\n\
              ## Installing community skills\n\n\
              ```bash\n\
-             vibewindow skills install <source>\n\
-             vibewindow skills list\n\
+             shiju skills install <source>\n\
+             shiju skills list\n\
              ```\n",
         )?;
     }
@@ -848,7 +848,7 @@ pub fn handle_command(command: SkillCommands, config: &SkillRuntimeConfig) -> Re
                     workspace_dir.join("skills").join("my-skill").join("SKILL.md").display()
                 );
                 println!();
-                println!("  Or install: vibewindow skills install <source>");
+                println!("  Or install: shiju skills install <source>");
             } else {
                 println!("Installed skills ({}):", skills.len());
                 println!();

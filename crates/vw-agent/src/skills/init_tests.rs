@@ -21,7 +21,7 @@ fn init_creates_skills_directory_and_readme() {
     let readme = fs::read_to_string(skills.join("README.md")).expect("readme content");
     assert!(readme.contains("# VibeWindow Skills"));
     assert!(readme.contains("SKILL.toml format"));
-    assert!(readme.contains("vibewindow skills install <source>"));
+    assert!(readme.contains("shiju skills install <source>"));
 }
 
 #[test]

@@ -1,4 +1,4 @@
-//! `vibewindow acp` 的纯 stdio Agent 装配。
+//! `shiju acp` 的纯 stdio Agent 装配。
 
 use tokio::io::{AsyncRead, AsyncWrite};
 use vw_acp::server::SessionBackend;

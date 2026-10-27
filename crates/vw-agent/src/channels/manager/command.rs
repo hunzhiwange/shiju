@@ -77,8 +77,8 @@ pub async fn handle_command(command: ChannelCommands, config: &Config) -> Result
             }
 
             // 显示使用提示
-            println!("\nTo start channels: vibewindow channel start");
-            println!("To check health:    vibewindow channel doctor");
+            println!("\nTo start channels: shiju channel start");
+            println!("To check health:    shiju channel doctor");
             Ok(())
         }
         // Add 命令：添加新通道（当前构建版本不支持）

@@ -19,14 +19,14 @@ use serde::{Deserialize, Serialize};
 ///
 /// ```bash
 /// # 安装并启动服务
-/// vibewindow service install
-/// vibewindow service start
+/// shiju service install
+/// shiju service start
 ///
 /// # 检查服务状态
-/// vibewindow service status
+/// shiju service status
 ///
 /// # 应用配置后重启
-/// vibewindow service restart
+/// shiju service restart
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ServiceCommands {
@@ -84,13 +84,13 @@ pub enum ServiceCommands {
 ///
 /// ```bash
 /// # 列出所有配置的通道
-/// vibewindow channel list
+/// shiju channel list
 ///
 /// # 添加 Telegram 通道
-/// vibewindow channel add telegram '{"bot_token":"YOUR_TOKEN","name":"my-bot"}'
+/// shiju channel add telegram '{"bot_token":"YOUR_TOKEN","name":"my-bot"}'
 ///
 /// # 绑定允许的用户
-/// vibewindow channel bind-telegram vibewindow_user
+/// shiju channel bind-telegram vibewindow_user
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ChannelCommands {
@@ -124,10 +124,10 @@ pub enum ChannelCommands {
     ///
     /// ```bash
     /// # 添加 Telegram 通道
-    /// vibewindow channel add telegram '{"bot_token":"...","name":"my-bot"}'
+    /// shiju channel add telegram '{"bot_token":"...","name":"my-bot"}'
     ///
     /// # 添加 Discord 通道
-    /// vibewindow channel add discord '{"bot_token":"...","name":"my-discord"}'
+    /// shiju channel add discord '{"bot_token":"...","name":"my-discord"}'
     /// ```
     #[command(long_about = "\
 添加新的通道配置。
@@ -137,8 +137,8 @@ pub enum ChannelCommands {
 支持的通道类型：telegram、discord、slack、whatsapp、imessage、email。
 
 示例：
-  vibewindow channel add telegram '{\"bot_token\":\"...\",\"name\":\"my-bot\"}'
-  vibewindow channel add discord '{\"bot_token\":\"...\",\"name\":\"my-discord\"}'")]
+  shiju channel add telegram '{\"bot_token\":\"...\",\"name\":\"my-bot\"}'
+  shiju channel add discord '{\"bot_token\":\"...\",\"name\":\"my-discord\"}'")]
     Add {
         /// 通道类型
         ///
@@ -176,10 +176,10 @@ pub enum ChannelCommands {
     ///
     /// ```bash
     /// # 通过用户名绑定
-    /// vibewindow channel bind-telegram vibewindow_user
+    /// shiju channel bind-telegram vibewindow_user
     ///
     /// # 通过用户 ID 绑定
-    /// vibewindow channel bind-telegram 123456789
+    /// shiju channel bind-telegram 123456789
     /// ```
     #[command(long_about = "\
 将 Telegram 身份绑定到允许列表。
@@ -188,8 +188,8 @@ pub enum ChannelCommands {
 到通道允许列表，使代理能够响应该身份发送的消息。
 
 示例：
-  vibewindow channel bind-telegram vibewindow_user
-  vibewindow channel bind-telegram 123456789")]
+  shiju channel bind-telegram vibewindow_user
+  shiju channel bind-telegram 123456789")]
     BindTelegram {
         /// Telegram 身份标识
         ///
@@ -220,13 +220,13 @@ pub enum ChannelCommands {
 ///
 /// ```bash
 /// # 列出所有已安装的技能
-/// vibewindow skill list
+/// shiju skill list
 ///
 /// # 从 URL 安装技能
-/// vibewindow skill install https://example.com/skills/weather
+/// shiju skill install https://example.com/skills/weather
 ///
 /// # 审计技能
-/// vibewindow skill audit ./my-skill
+/// shiju skill audit ./my-skill
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SkillCommands {
@@ -332,10 +332,10 @@ pub enum PluginCommands {
 ///
 /// ```bash
 /// # 预览 OpenClaw 迁移（不写入数据）
-/// vibewindow migrate openclaw --dry-run
+/// shiju migrate openclaw --dry-run
 ///
 /// # 从自定义路径迁移
-/// vibewindow migrate openclaw --source /path/to/openclaw/workspace
+/// shiju migrate openclaw --source /path/to/openclaw/workspace
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MigrateCommands {
@@ -395,19 +395,19 @@ pub enum MigrateCommands {
 ///
 /// ```bash
 /// # 每个工作日早上 9 点执行
-/// vibewindow cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
+/// shiju cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
 ///
 /// # 每 30 分钟执行一次
-/// vibewindow cron add '*/30 * * * *' 'Check system health'
+/// shiju cron add '*/30 * * * *' 'Check system health'
 ///
 /// # 在指定时间执行一次
-/// vibewindow cron add-at 2025-01-15T14:00:00Z 'Send reminder'
+/// shiju cron add-at 2025-01-15T14:00:00Z 'Send reminder'
 ///
 /// # 每分钟执行一次
-/// vibewindow cron add-every 60000 'Ping heartbeat'
+/// shiju cron add-every 60000 'Ping heartbeat'
 ///
 /// # 30 分钟后执行一次
-/// vibewindow cron once 30m 'Run backup in 30 minutes'
+/// shiju cron once 30m 'Run backup in 30 minutes'
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum CronCommands {
@@ -432,10 +432,10 @@ pub enum CronCommands {
     ///
     /// ```bash
     /// # 每个工作日早上 9 点（纽约时区）
-    /// vibewindow cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
+    /// shiju cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
     ///
     /// # 每 30 分钟执行一次
-    /// vibewindow cron add '*/30 * * * *' 'Check system health'
+    /// shiju cron add '*/30 * * * *' 'Check system health'
     /// ```
     #[command(long_about = "\
 添加新的周期性定时任务。
@@ -445,8 +445,8 @@ pub enum CronCommands {
 时区名称来覆盖。
 
 示例：
-  vibewindow cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
-  vibewindow cron add '*/30 * * * *' 'Check system health'")]
+  shiju cron add '0 9 * * 1-5' 'Good morning' --tz America/New_York
+  shiju cron add '*/30 * * * *' 'Check system health'")]
     Add {
         /// Cron 表达式
         ///
@@ -475,8 +475,8 @@ pub enum CronCommands {
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow cron add-at 2025-01-15T14:00:00Z 'Send reminder'
-    /// vibewindow cron add-at 2025-12-31T23:59:00Z 'Happy New Year!'
+    /// shiju cron add-at 2025-01-15T14:00:00Z 'Send reminder'
+    /// shiju cron add-at 2025-12-31T23:59:00Z 'Happy New Year!'
     /// ```
     #[command(long_about = "\
 添加一个在指定 UTC 时间戳触发的一次性任务。
@@ -484,8 +484,8 @@ pub enum CronCommands {
 时间戳必须使用 RFC 3339 格式（例如 2025-01-15T14:00:00Z）。
 
 示例：
-  vibewindow cron add-at 2025-01-15T14:00:00Z 'Send reminder'
-  vibewindow cron add-at 2025-12-31T23:59:00Z 'Happy New Year!'")]
+  shiju cron add-at 2025-01-15T14:00:00Z 'Send reminder'
+  shiju cron add-at 2025-12-31T23:59:00Z 'Happy New Year!'")]
     AddAt {
         /// 一次性任务的时间戳（RFC3339 格式）
         ///
@@ -512,10 +512,10 @@ pub enum CronCommands {
     ///
     /// ```bash
     /// # 每分钟执行一次
-    /// vibewindow cron add-every 60000 'Ping heartbeat'
+    /// shiju cron add-every 60000 'Ping heartbeat'
     ///
     /// # 每小时执行一次
-    /// vibewindow cron add-every 3600000 'Hourly report'
+    /// shiju cron add-every 3600000 'Hourly report'
     /// ```
     #[command(long_about = "\
 添加一个按固定间隔重复执行的任务。
@@ -523,8 +523,8 @@ pub enum CronCommands {
 间隔以毫秒为单位。例如，60000 = 1 分钟。
 
 示例：
-  vibewindow cron add-every 60000 'Ping heartbeat'     # 每分钟
-  vibewindow cron add-every 3600000 'Hourly report'    # 每小时")]
+  shiju cron add-every 60000 'Ping heartbeat'     # 每分钟
+  shiju cron add-every 3600000 'Hourly report'    # 每小时")]
     AddEvery {
         /// 间隔时间（毫秒）
         ///
@@ -551,13 +551,13 @@ pub enum CronCommands {
     ///
     /// ```bash
     /// # 30 分钟后执行
-    /// vibewindow cron once 30m 'Run backup in 30 minutes'
+    /// shiju cron once 30m 'Run backup in 30 minutes'
     ///
     /// # 2 小时后执行
-    /// vibewindow cron once 2h 'Follow up on deployment'
+    /// shiju cron once 2h 'Follow up on deployment'
     ///
     /// # 1 天后执行
-    /// vibewindow cron once 1d 'Daily check'
+    /// shiju cron once 1d 'Daily check'
     /// ```
     #[command(long_about = "\
 添加一个从现在开始延迟指定时长后执行的一次性任务。
@@ -566,9 +566,9 @@ pub enum CronCommands {
 h（小时）、d（天）。
 
 示例：
-  vibewindow cron once 30m 'Run backup in 30 minutes'
-  vibewindow cron once 2h 'Follow up on deployment'
-  vibewindow cron once 1d 'Daily check'")]
+  shiju cron once 30m 'Run backup in 30 minutes'
+  shiju cron once 2h 'Follow up on deployment'
+  shiju cron once 1d 'Daily check'")]
     Once {
         /// 延迟时长
         ///
@@ -604,13 +604,13 @@ h（小时）、d（天）。
     ///
     /// ```bash
     /// # 更新 Cron 表达式
-    /// vibewindow cron update <task-id> --expression '0 8 * * *'
+    /// shiju cron update <task-id> --expression '0 8 * * *'
     ///
     /// # 更新时区和名称
-    /// vibewindow cron update <task-id> --tz Europe/London --name 'Morning check'
+    /// shiju cron update <task-id> --tz Europe/London --name 'Morning check'
     ///
     /// # 更新命令
-    /// vibewindow cron update <task-id> --command 'Updated message'
+    /// shiju cron update <task-id> --command 'Updated message'
     /// ```
     #[command(long_about = "\
 更新现有定时任务的一个或多个字段。
@@ -618,9 +618,9 @@ h（小时）、d（天）。
 只更新指定的字段；其他字段保持不变。
 
 示例：
-  vibewindow cron update <task-id> --expression '0 8 * * *'
-  vibewindow cron update <task-id> --tz Europe/London --name 'Morning check'
-  vibewindow cron update <task-id> --command 'Updated message'")]
+  shiju cron update <task-id> --expression '0 8 * * *'
+  shiju cron update <task-id> --tz Europe/London --name 'Morning check'
+  shiju cron update <task-id> --command 'Updated message'")]
     Update {
         /// 任务 ID
         id: String,
@@ -683,19 +683,19 @@ h（小时）、d（天）。
 ///
 /// ```bash
 /// # 列出所有记忆
-/// vibewindow memory list
+/// shiju memory list
 ///
 /// # 按类别过滤
-/// vibewindow memory list --category core
+/// shiju memory list --category core
 ///
 /// # 获取特定记忆
-/// vibewindow memory get user_preferences
+/// shiju memory get user_preferences
 ///
 /// # 查看统计信息
-/// vibewindow memory stats
+/// shiju memory stats
 ///
 /// # 清理记忆
-/// vibewindow memory clear --category daily --yes
+/// shiju memory clear --category daily --yes
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum MemoryCommands {
@@ -715,13 +715,13 @@ pub enum MemoryCommands {
     ///
     /// ```bash
     /// # 列出前 50 条记忆
-    /// vibewindow memory list
+    /// shiju memory list
     ///
     /// # 列出核心记忆
-    /// vibewindow memory list --category core
+    /// shiju memory list --category core
     ///
     /// # 分页查询
-    /// vibewindow memory list --limit 20 --offset 40
+    /// shiju memory list --limit 20 --offset 40
     /// ```
     List {
         /// 按类别过滤
@@ -754,7 +754,7 @@ pub enum MemoryCommands {
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow memory get user_preferences
+    /// shiju memory get user_preferences
     /// ```
     Get {
         /// 要查找的记忆键
@@ -784,13 +784,13 @@ pub enum MemoryCommands {
     ///
     /// ```bash
     /// # 删除单个条目
-    /// vibewindow memory clear --key temp_*
+    /// shiju memory clear --key temp_*
     ///
     /// # 清理日常记忆
-    /// vibewindow memory clear --category daily --yes
+    /// shiju memory clear --category daily --yes
     ///
     /// # 清理所有记忆（危险操作！）
-    /// vibewindow memory clear --yes
+    /// shiju memory clear --yes
     /// ```
     Clear {
         /// 根据键删除单个条目（支持前缀匹配）
@@ -829,19 +829,19 @@ pub enum MemoryCommands {
 ///
 /// ```bash
 /// # 列出所有集成
-/// vibewindow integration list
+/// shiju integration list
 ///
 /// # 按类别过滤
-/// vibewindow integration list --category chat
+/// shiju integration list --category chat
 ///
 /// # 按状态过滤
-/// vibewindow integration list --status active
+/// shiju integration list --status active
 ///
 /// # 搜索集成
-/// vibewindow integration search slack
+/// shiju integration search slack
 ///
 /// # 查看集成详情
-/// vibewindow integration info slack
+/// shiju integration info slack
 /// ```
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum IntegrationCommands {
@@ -858,13 +858,13 @@ pub enum IntegrationCommands {
     ///
     /// ```bash
     /// # 列出所有集成
-    /// vibewindow integration list
+    /// shiju integration list
     ///
     /// # 列出聊天类集成
-    /// vibewindow integration list --category chat
+    /// shiju integration list --category chat
     ///
     /// # 列出已激活的集成
-    /// vibewindow integration list --status active
+    /// shiju integration list --status active
     /// ```
     List {
         /// 按类别过滤
@@ -891,7 +891,7 @@ pub enum IntegrationCommands {
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow integration search slack
+    /// shiju integration search slack
     /// ```
     Search {
         /// 搜索关键词
@@ -911,7 +911,7 @@ pub enum IntegrationCommands {
     /// # 示例
     ///
     /// ```bash
-    /// vibewindow integration info slack
+    /// shiju integration info slack
     /// ```
     Info {
         /// 集成名称

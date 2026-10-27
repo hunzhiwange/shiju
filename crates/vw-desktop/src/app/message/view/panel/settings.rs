@@ -206,7 +206,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.show_cli_install_modal = true;
             app.cli_install_modal_title = "CLI 更新检测".to_string();
             app.cli_install_modal_message =
-                "可通过 vibewindow --version 查看本地 CLI 版本，并从服务器检测最新版本，也可以直接重新安装 CLI。"
+                "可通过 shiju --version 查看本地 CLI 版本，并从服务器检测最新版本，也可以直接重新安装 CLI。"
                     .to_string();
             app.cli_install_modal_current_version = current_cli_tool_version_label();
             app.cli_install_modal_server_version = "未检测".to_string();
@@ -611,7 +611,7 @@ fn install_cli_tool() -> Result<String, String> {
         install_cli_binary_from_url(&url, &target_bin)?;
     } else {
         return Err(format!(
-            "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 {}\n2) 重命名为 vibewindow 或 vibewindow.exe\n3) 确保 PATH 包含 {} 后重启终端",
+            "未在应用包中发现 CLI，也未设置 VIBEWINDOW_CLI_URL 可供下载。\n请下载独立 CLI 包并手动安装：\n1) 解压后将可执行文件复制到 {}\n2) 重命名为 shiju 或 shiju.exe\n3) 确保 PATH 包含 {} 后重启终端",
             vw_config_types::paths::tilde_config_path("bin"),
             vw_config_types::paths::tilde_config_path("bin")
         ));
@@ -834,7 +834,7 @@ fn read_installed_cli_version() -> Result<String, String> {
             Command::new(cli_path)
                 .arg("--version")
                 .output()
-                .map_err(|e| format!("执行 vibewindow --version 失败: {e}"))?
+                .map_err(|e| format!("执行 shiju --version 失败: {e}"))?
         }
     };
     extract_version_output(output.stdout, output.stderr)
@@ -863,7 +863,7 @@ fn resolve_cli_binary_path() -> Result<PathBuf, String> {
     if cli_path.exists() {
         Ok(cli_path)
     } else {
-        Err("CLI 未安装，无法执行 vibewindow --version".to_string())
+        Err("CLI 未安装，无法执行 shiju --version".to_string())
     }
 }
 
@@ -906,7 +906,7 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
             return Ok(candidate);
         }
     }
-    Err("未找到内置 CLI 可执行文件 vibewindow（兼容名 vibe-agent）".to_string())
+    Err("未找到内置 CLI 可执行文件 shiju（兼容名 vibe-agent）".to_string())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

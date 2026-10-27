@@ -418,7 +418,7 @@ pub(crate) fn build_models_help_response(
         // 无缓存时，提示用户运行刷新命令
         let _ = writeln!(
             response,
-            "\nNo cached model list found for `{}`. Ask the operator to run `vibewindow models refresh --provider {}`.",
+            "\nNo cached model list found for `{}`. Ask the operator to run `shiju models refresh --provider {}`.",
             current.provider, current.provider
         );
     } else {

@@ -244,7 +244,7 @@ fn service_action_button(
 }
 
 fn service_cli_command(command: &str) -> String {
-    format!("vibewindow server {command}")
+    format!("shiju server {command}")
 }
 
 fn is_danger_service_command(command: &str) -> bool {
@@ -810,7 +810,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let config_content: Element<'_, Message> = column![
         settings_section_card(
             "服务管理",
-            "通过本机 gateway 调用 vibewindow service 管理 OS 服务生命周期。"
+            "通过本机 gateway 调用 shiju service 管理 OS 服务生命周期。"
         ),
         service_controls_content(app),
         settings_section_card(

@@ -371,7 +371,7 @@ fn ensure_openrc_runtime_path_writable(path: &Path) -> Result<()> {
             if stderr.trim().is_empty() { "write-access probe failed" } else { stderr.trim() };
         bail!(
             "OpenRC runtime user 'vibewindow' cannot write {} ({details}). \
-             Re-run `sudo vibewindow service install` and ensure ownership is vibewindow:vibewindow.",
+             Re-run `sudo shiju service install` and ensure ownership is vibewindow:vibewindow.",
             path.display(),
         );
     }
@@ -509,7 +509,7 @@ pub(super) fn install_linux_openrc(config: &Config) -> Result<()> {
     if !is_root() {
         bail!(
             "OpenRC service installation requires root privileges.\n\
-             Please run with sudo: sudo vibewindow service install"
+             Please run with sudo: sudo shiju service install"
         );
     }
 
@@ -620,7 +620,7 @@ pub(super) fn install_linux_openrc(config: &Config) -> Result<()> {
     run_checked(Command::new("rc-update").args(["add", "vibewindow", "default"]))?;
     println!("✅ Installed OpenRC service: /etc/init.d/vibewindow");
     println!("   Config path: /etc/vibewindow/vibewindow.json");
-    println!("   Start with: sudo vibewindow service start");
+    println!("   Start with: sudo shiju service start");
     let _ = config;
     Ok(())
 }

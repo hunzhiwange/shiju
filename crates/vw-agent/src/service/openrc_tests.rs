@@ -344,5 +344,5 @@ fn openrc_install_requires_root_before_touching_system_paths() {
         .expect_err("non-root OpenRC install should stop before side effects");
 
     assert!(err.to_string().contains("requires root privileges"));
-    assert!(err.to_string().contains("sudo vibewindow service install"));
+    assert!(err.to_string().contains("sudo shiju service install"));
 }

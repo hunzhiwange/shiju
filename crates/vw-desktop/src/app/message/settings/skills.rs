@@ -16,7 +16,7 @@ use vw_gateway_client::{
 
 use super::messages::SettingsMessage;
 
-const INSTALL_COMMAND_TEMPLATE: &str = "vibewindow skills install <source>";
+const INSTALL_COMMAND_TEMPLATE: &str = "shiju skills install <source>";
 
 fn clear_selected_detail(app: &mut App) {
     app.skills_settings.selected_skill_id = None;

@@ -99,7 +99,7 @@ pub fn handle_command(
                     workspace_dir.join("skills").join("my-skill").join("SKILL.md").display()
                 );
                 println!();
-                println!("  Or install: vibewindow skills install <source>");
+                println!("  Or install: shiju skills install <source>");
             } else {
                 // 显示已安装技能的统计信息
                 println!("Installed skills ({}):", skills.len());

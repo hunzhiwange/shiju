@@ -79,8 +79,8 @@ pub fn init_skills_dir(workspace_dir: &Path) -> Result<()> {
              The agent will read it and follow the instructions.\n\n\
              ## Installing community skills\n\n\
              ```bash\n\
-             vibewindow skills install <source>\n\
-             vibewindow skills list\n\
+             shiju skills install <source>\n\
+             shiju skills list\n\
              ```\n",
         )?;
     }

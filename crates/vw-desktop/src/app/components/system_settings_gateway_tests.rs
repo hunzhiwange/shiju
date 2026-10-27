@@ -31,9 +31,9 @@ fn paired_token_scrollbar_width_is_four_pixels() {
 
 #[test]
 fn service_cli_commands_match_copyable_server_commands() {
-    assert_eq!(service_cli_command("start"), "vibewindow server start");
-    assert_eq!(service_cli_command("restart"), "vibewindow server restart");
-    assert_eq!(service_cli_command("status"), "vibewindow server status");
+    assert_eq!(service_cli_command("start"), "shiju server start");
+    assert_eq!(service_cli_command("restart"), "shiju server restart");
+    assert_eq!(service_cli_command("status"), "shiju server status");
     assert!(is_danger_service_command("stop"));
     assert!(is_danger_service_command("uninstall"));
     assert!(!is_danger_service_command("restart"));
@@ -72,7 +72,7 @@ fn service_action_elements_cover_idle_running_and_copied_states() {
     let _: iced::Element<'static, Message> =
         service_action_button("启动服务", "start", Some("start"));
     let _: iced::Element<'static, Message> =
-        service_command_copy_button("restart", Some("vibewindow server restart"));
+        service_command_copy_button("restart", Some("shiju server restart"));
     let _: iced::Element<'static, Message> =
         service_action_cell("卸载服务", "uninstall", Some("status"), None);
 }
@@ -262,8 +262,7 @@ fn view_builds_empty_and_populated_gateway_states() {
     populated.gateway_settings.node_control_auth_token_input = "node-secret".to_string();
     populated.gateway_settings.node_control_allowed_node_ids_input = "node-a\nnode-b".to_string();
     populated.gateway_settings.save_error = Some("gateway save failed".to_string());
-    populated.gateway_settings.copied_service_command =
-        Some("vibewindow server restart".to_string());
+    populated.gateway_settings.copied_service_command = Some("shiju server restart".to_string());
     let _ = view(&populated);
 }
 

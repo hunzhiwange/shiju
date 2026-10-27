@@ -529,7 +529,7 @@ impl ResponseCache {
     /// 清空整个缓存。
     ///
     /// 删除缓存中的所有条目，通常用于手动清理缓存或重置缓存状态。
-    /// 适用于 `vibewindow cache clear` 等命令行工具。
+    /// 适用于 `shiju cache clear` 等命令行工具。
     ///
     /// # 返回值
     ///

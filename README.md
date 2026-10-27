@@ -6,18 +6,18 @@ SHiJu 是一个 Rust-first 的自主代理运行时，目标是在桌面端、CL
 
 ## 主要能力
 
-- `vibewindow` CLI：交互式 Agent、单次消息、网关、守护进程、任务、记忆、技能、集成、计划任务和安全维护。
+- `shiju` CLI：交互式 Agent、单次消息、网关、守护进程、任务、记忆、技能、集成、计划任务和安全维护。
 - `vibe-window` 桌面端：基于 Iced 的本地桌面应用。
 - `vw-webview` helper：跨平台 WebView 窗口，用于桌面打包场景。
 - `acp`：VibeWindow 作为 ACP Client 的现有桥接入口。
-- `vibewindow acp`：VibeWindow 作为 ACP Agent 的 stdio 入口。
+- `shiju acp`：VibeWindow 作为 ACP Agent 的 stdio 入口。
 - 共享 crate：API 类型、配置类型、网关客户端、运行时核心、提供商解析和通用工具。
 
 ## 仓库结构
 
 ```text
 crates/
-  vw-cli/               # vibewindow CLI 和 vibe-agent 兼容入口
+  vw-cli/               # shiju CLI 和 vibe-agent 兼容入口
   vw-desktop/           # Iced 桌面应用
   vw-agent/             # Agent 运行时核心
   vw-acp/               # Agent Client Protocol 桥接
@@ -141,7 +141,7 @@ cargo build -p vw-webview --bin vw-webview --release
 cargo build -p vw-acp --bin acp --release
 ```
 
-ACP Agent 入口包含在 `vibewindow` CLI 构建中，接入配置和支持矩阵见
+ACP Agent 入口包含在 `shiju` CLI 构建中，接入配置和支持矩阵见
 [`docs/vibewindow/ACP-对外接入.md`](docs/vibewindow/ACP-对外接入.md)。
 
 ## 打包
@@ -180,19 +180,19 @@ CLI 多平台构建脚本示例：
 CLI 支持通过全局参数指定配置目录：
 
 ```bash
-vibewindow --config-dir /path/to/config status
+shiju --config-dir /path/to/config status
 ```
 
 项目任务默认写入目标项目下的 `.vibewindow/tasks`。可以通过 `--project-dir` 指向其他仓库：
 
 ```bash
-vibewindow task --project-dir /path/to/repo read
+shiju task --project-dir /path/to/repo read
 ```
 
 完整配置键请以当前代码生成的 Schema 为准：
 
 ```bash
-vibewindow config schema > vibewindow.schema.json
+shiju config schema > vibewindow.schema.json
 ```
 
 ## 开发检查

@@ -267,7 +267,7 @@ fn show_integration_info(config: &Config, name: &str) -> Result<()> {
             println!("  Setup:");
             println!("    1. Message @BotFather on Telegram");
             println!("    2. Create a bot and copy the token");
-            println!("    3. Start: vibewindow channel start");
+            println!("    3. Start: shiju channel start");
         }
         "Discord" => {
             println!("  Setup:");
@@ -312,12 +312,12 @@ fn show_integration_info(config: &Config, name: &str) -> Result<()> {
                 "    Schedule tasks in {}/",
                 vw_config_types::paths::tilde_config_path("workspace/cron")
             );
-            println!("    Run: vibewindow cron list");
+            println!("    Run: shiju cron list");
         }
         "Webhooks" => {
             println!("  Built-in:");
             println!("    HTTP endpoint for external triggers.");
-            println!("    Run: vibewindow gateway");
+            println!("    Run: shiju gateway");
         }
         _ => {
             if status == IntegrationStatus::ComingSoon {

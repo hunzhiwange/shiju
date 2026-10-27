@@ -32,7 +32,7 @@ pub(super) fn install_macos(config: &Config) -> Result<()> {
 
     fs::write(&file, plist)?;
     println!("✅ Installed launchd service: {}", file.display());
-    println!("   Start with: vibewindow service start");
+    println!("   Start with: shiju service start");
     Ok(())
 }
 

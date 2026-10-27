@@ -1,0 +1,1 @@
+Synthetic diagnostic m2; base R only.

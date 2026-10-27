@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "adaptive-rejection-sampler",
+  "image": "vw-diagnostic-adaptive-rejection-sampler:task10-native@sha256:edcd1735f570698ba57132ea9ff1fe1f8e0b62e70e6b77d0c4af83d801db93da",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1.md",
+      "checker": "check.py",
+      "fixtures": {
+        "TASK.txt": "fixtures/m1.txt"
+      },
+      "oracle": {
+        "check.R": "oracle/m1-check.R"
+      },
+      "gold": {
+        "answer.R": "oracle/m1-gold.R"
+      },
+      "negatives": [
+        {
+          "id": "accept-all",
+          "files": {
+            "answer.R": "oracle/m1-accept-all.R"
+          }
+        },
+        {
+          "id": "reject-valid",
+          "files": {
+            "answer.R": "oracle/m1-reject-valid.R"
+          }
+        },
+        {
+          "id": "skip-concavity",
+          "files": {
+            "answer.R": "oracle/m1-skip-concavity.R"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2.md",
+      "checker": "check.py",
+      "fixtures": {
+        "TASK.txt": "fixtures/m2.txt"
+      },
+      "oracle": {
+        "check.R": "oracle/m2-check.R"
+      },
+      "gold": {
+        "answer.R": "oracle/m2-gold.R"
+      },
+      "negatives": [
+        {
+          "id": "wrong-intersections",
+          "files": {
+            "answer.R": "oracle/m2-wrong-intersections.R"
+          }
+        },
+        {
+          "id": "wrong-intercepts",
+          "files": {
+            "answer.R": "oracle/m2-wrong-intercepts.R"
+          }
+        },
+        {
+          "id": "wrong-chords",
+          "files": {
+            "answer.R": "oracle/m2-wrong-chords.R"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3.md",
+      "checker": "check.py",
+      "fixtures": {
+        "TASK.txt": "fixtures/m3.txt"
+      },
+      "oracle": {
+        "check.R": "oracle/m3-check.R"
+      },
+      "gold": {
+        "answer.R": "oracle/m3-gold.R"
+      },
+      "negatives": [
+        {
+          "id": "always-accept",
+          "files": {
+            "answer.R": "oracle/m3-always-accept.R"
+          }
+        },
+        {
+          "id": "underflow",
+          "files": {
+            "answer.R": "oracle/m3-underflow.R"
+          }
+        },
+        {
+          "id": "eager-density",
+          "files": {
+            "answer.R": "oracle/m3-eager-density.R"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4.md",
+      "checker": "check.py",
+      "fixtures": {
+        "TASK.txt": "fixtures/m4.txt"
+      },
+      "oracle": {
+        "check.R": "oracle/m4-check.R"
+      },
+      "gold": {
+        "answer.R": "oracle/m4-gold.R"
+      },
+      "negatives": [
+        {
+          "id": "uniform",
+          "files": {
+            "answer.R": "oracle/m4-uniform.R"
+          }
+        },
+        {
+          "id": "wrong-length",
+          "files": {
+            "answer.R": "oracle/m4-wrong-length.R"
+          }
+        },
+        {
+          "id": "normal",
+          "files": {
+            "answer.R": "oracle/m4-normal.R"
+          }
+        }
+      ]
+    }
+  ]
+}

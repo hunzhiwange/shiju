@@ -308,7 +308,10 @@ fn bootstrap_browser_config_normalizes_invalid_options() {
 
     assert!(app.browser_settings.enabled);
     assert_eq!(app.browser_settings.allowed_domains_input, "example.com\ndocs.example.com");
-    assert_eq!(app.browser_settings.browser_open, "new_tab");
+    assert_eq!(
+        app.browser_settings.browser_open,
+        vw_config_types::tools::BrowserConfig::default().browser_open
+    );
     assert_eq!(app.browser_settings.backend, "native");
     assert_eq!(app.browser_settings.session_name_input, "desk");
     assert_eq!(app.browser_settings.native_chrome_path_input, "/Applications/Chrome");
@@ -451,8 +454,10 @@ fn app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions() {
 
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system.clone())));
 
-    assert_eq!(app.quick_messages.first(), system.quick_messages.first());
-    assert_eq!(app.quick_messages[1..], vw_config_types::ui::builtin_git_quick_messages());
+    let mut expected = vw_config_types::ui::builtin_general_quick_messages();
+    expected.extend(system.quick_messages.clone());
+    expected.extend(vw_config_types::ui::builtin_git_quick_messages());
+    assert_eq!(app.quick_messages, expected);
 
     system.quick_messages.clear();
     let _ = app.update(Message::BootstrapSystemSettings(Ok(system)));

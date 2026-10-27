@@ -211,6 +211,7 @@ fn project_file_settings_actions_toggle_panels_tabs_and_loading_state() {
     use crate::app::message::view::ViewMessage;
 
     let mut app = crate::app::App::new().0;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
     app.project_path = Some("/tmp/project".to_string());
     app.show_settings = false;
 
@@ -239,6 +240,7 @@ fn panel_visibility_and_menu_actions_update_only_local_state() {
     use crate::app::message::view::{MenuType, ViewMessage};
 
     let mut app = crate::app::App::new().0;
+    app.workspace_mode = crate::app::state::WorkspaceMode::Code;
 
     let initial_diff = app.show_diff;
     let _ = super::update(&mut app, ViewMessage::ToggleDiffPanel);

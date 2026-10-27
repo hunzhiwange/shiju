@@ -21,6 +21,14 @@ static INSTALLED_SNAPSHOT: Lazy<Mutex<Option<NativeMenuSnapshot>>> = Lazy::new(|
 
 /// 按快照安装或重建原生菜单。
 pub(crate) fn install_or_sync(snapshot: NativeMenuSnapshot) {
+    // Unit tests drive App::update on harness workers without an AppKit event loop.
+    // Explicit native-window tests still run this path on the real main thread.
+    #[cfg(test)]
+    // SAFETY: pthread_main_np takes no pointers and only reports the current thread.
+    if unsafe { libc::pthread_main_np() } == 0 {
+        return;
+    }
+
     let Ok(mut installed) = INSTALLED_SNAPSHOT.lock() else {
         return;
     };

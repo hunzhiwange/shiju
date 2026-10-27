@@ -1,0 +1,39 @@
+{
+  "requests": [
+    {
+      "request_id": "edge-1",
+      "prompt_len": 1,
+      "gen_len": 500
+    },
+    {
+      "request_id": "edge-63",
+      "prompt_len": 63,
+      "gen_len": 1
+    },
+    {
+      "request_id": "edge-64",
+      "prompt_len": 64,
+      "gen_len": 65
+    },
+    {
+      "request_id": "edge-65",
+      "prompt_len": 65,
+      "gen_len": 2
+    },
+    {
+      "request_id": "edge-127",
+      "prompt_len": 127,
+      "gen_len": 700
+    },
+    {
+      "request_id": "edge-128",
+      "prompt_len": 128,
+      "gen_len": 1
+    },
+    {
+      "request_id": "edge-129",
+      "prompt_len": 129,
+      "gen_len": 3
+    }
+  ]
+}

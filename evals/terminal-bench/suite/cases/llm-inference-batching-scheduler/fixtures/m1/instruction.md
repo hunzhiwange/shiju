@@ -1,0 +1,1 @@
+All paths are under /app. Use only the supplied synthetic input. Preserve inputs. Write result.json as JSON. No network is needed. Do not modify checker files. Read input.json requests (request_id,prompt_len,gen_len). Output an array of {request_id,seq_align} in input order. seq_align is the smallest multiple of 64 at least prompt_len; gen_len does not affect it. 

@@ -1,0 +1,51 @@
+[
+  [
+    {
+      "request_id": "a0",
+      "batch_id": "small",
+      "shape": {
+        "seq_align": 192,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    },
+    {
+      "request_id": "a1",
+      "batch_id": "small",
+      "shape": {
+        "seq_align": 192,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    },
+    {
+      "request_id": "a2",
+      "batch_id": "small",
+      "shape": {
+        "seq_align": 192,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    }
+  ],
+  [
+    {
+      "request_id": "b0",
+      "batch_id": "large",
+      "shape": {
+        "seq_align": 384,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    },
+    {
+      "request_id": "b1",
+      "batch_id": "large",
+      "shape": {
+        "seq_align": 384,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    }
+  ]
+]

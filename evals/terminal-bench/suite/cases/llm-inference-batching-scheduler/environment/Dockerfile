@@ -1,0 +1,2 @@
+FROM vw-cython-diagnostics@sha256:7a6db18e11071ff5a05ea8259da78073bd5730b85d39399511385e2a684749d7
+WORKDIR /app

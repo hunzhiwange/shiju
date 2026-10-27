@@ -1,0 +1,33 @@
+{
+  "candidate_index": 0,
+  "cost": 136552,
+  "plan": [
+    {
+      "request_id": "x",
+      "batch_id": "a",
+      "shape": {
+        "seq_align": 192,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    },
+    {
+      "request_id": "y",
+      "batch_id": "a",
+      "shape": {
+        "seq_align": 192,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    },
+    {
+      "request_id": "z",
+      "batch_id": "a",
+      "shape": {
+        "seq_align": 192,
+        "heads_align": 32,
+        "hidden_align": 4096
+      }
+    }
+  ]
+}

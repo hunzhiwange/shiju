@@ -1,0 +1,24 @@
+{
+  "requests": [
+    {
+      "request_id": "birch",
+      "prompt_len": 63,
+      "gen_len": 5
+    },
+    {
+      "request_id": "oak",
+      "prompt_len": 64,
+      "gen_len": 9
+    },
+    {
+      "request_id": "elm",
+      "prompt_len": 65,
+      "gen_len": 7
+    },
+    {
+      "request_id": "ash",
+      "prompt_len": 127,
+      "gen_len": 8
+    }
+  ]
+}

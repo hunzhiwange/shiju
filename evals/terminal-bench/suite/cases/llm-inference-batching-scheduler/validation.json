@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "llm-inference-batching-scheduler",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "492de6144cc8ef05f4aff7f2140b8a30251d4256b16523b76cb3a17ed7d7db2f",
+    "fixtures/m1/input.json": "33cb7a386bb8b41781fbd39e81a95813d6670dc7d56c549c81a3cc05b43f5ab3",
+    "fixtures/m1/instruction.md": "d38f556af12901cb59015200b0463861dbd95f0408a3ddc8d60c7695b17bd2e7",
+    "fixtures/m2/input.json": "f9e39e1c51a913d1c4a91d64175e724e97781ffc2f7fb8f806b91970950d9de6",
+    "fixtures/m2/instruction.md": "c2c3d4b4d128c64bc07c90049859940fea48496882dcbee27176c830ce3a82ce",
+    "fixtures/m3/input.json": "83251e9b04b7c325be4f1369c5edc57d5dd8f8d03e0fb17f1da5786121a9f37e",
+    "fixtures/m3/instruction.md": "8bf3d921969e9b98fadf1776fd6107a6c1f8dd535cdb797fd5d60b9be8502aa3",
+    "fixtures/m4/input.json": "b64e511953335d580f4181ad480d41701a76ed7d4b2d80c5312b76792c12fca4",
+    "fixtures/m4/instruction.md": "5fddeb4fe5b498a10dab06cf26cc2c78788630984fe7120ba6b5ee14cd2a39ca",
+    "oracle/m1/generation-aligned/result.json": "99dbb34aa5c7af224f924d066c49d5cd5bb3b7e57658b0a9bb0404f59aa98381",
+    "oracle/m1/gold/result.json": "2b60c00b15c92342e4eec6538113d1a687375d95e30144a49910d1630781c44c",
+    "oracle/m1/round-down/result.json": "07cba13243b4efa87d655e5a3d8ec0b0cda9e7a57ee536cab885f1e95c80ecd7",
+    "oracle/m1/strict-next-multiple/result.json": "a9fed430ff9a7d7acf581be58bf22a54800311a301b6cb455320efa6d6066ffe",
+    "oracle/m1/task.json": "fc708800d7c4cfed81a3fef2c111dda04748f293ed417091e2ace85e0184a515",
+    "oracle/m2/gold/result.json": "665325fab96b8c731fdb48916b718584429b7c20fc4f2cb1a18c5fbbcd976c05",
+    "oracle/m2/mixed-shape-batch/result.json": "0d0c1364598672f7a7a2b2c140f8d6d5cf401c2bd1a49090c940cf51e3c03fc7",
+    "oracle/m2/one-request-per-batch/result.json": "19eae3d472b1049ae2097e902f228d3069095dbb52f277400a702be5e1bf0817",
+    "oracle/m2/task.json": "bd01740d003f01f625ba695556dc13ae42b8e49b4a0cd47a7155ee1e3e9cc36e",
+    "oracle/m2/wrong-hidden-dimension/result.json": "38ee65a8588b7f232bd203ec843604b10166b600a9961bf4c78495721d47ab8d",
+    "oracle/m3/duplicate-request/result.json": "6ea32e485a543521513b2e333af2c6848b7e05f37d37312b9f9d2f6210fbb4b4",
+    "oracle/m3/gold/result.json": "021e90c5ca76bfac51497a734b28aa02d3f2c7cfa682601b563431a7aa28e710",
+    "oracle/m3/missing-request/result.json": "c7b8e16d6b01fdc39893bf93166b4e450d50fe2ef4f0c2709c9de8051bf10ecc",
+    "oracle/m3/per-bucket-cap/result.json": "322412bc3ad224a34a24d0ca168300aacf10431e2874ed19a60336a32e288f76",
+    "oracle/m3/task.json": "163ddf6edfdec48148c477900aca8c27029678bdc45962feb15e232e7d50af04",
+    "oracle/m4/gold/result.json": "33a33426a5ce18cd82715f8a636311b0597002b0229393595fdafdec6b6ad9c6",
+    "oracle/m4/omitted-compilation/result.json": "940018fa6317741541c8721225773e485877f6676905a3ed84b8fdd1f0b98549",
+    "oracle/m4/prefill-only-choice/result.json": "3da3ca4b00085739ec3284d8dbb29f7c8d610e977376a8cd5939caa31fcf985e",
+    "oracle/m4/summed-decode-bound/result.json": "1d57ce5b4a089901837951549351aa46fb4b5b35476e08d86866ee8f63bfba43",
+    "oracle/m4/task.json": "e61ac9a32d8713bb75d9f9b16c315a7d4f1a0288c3bbe1a9a5f2cedb5307317f",
+    "case.json": "bd4a5cfb769d6f6475ba49ff08079076d196c768287f20459232a7cc85b37dd0"
+  },
+  "image": "vw-cython-diagnostics@sha256:7a6db18e11071ff5a05ea8259da78073bd5730b85d39399511385e2a684749d7",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "round-down",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "strict-next-multiple",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "generation-aligned",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "one-request-per-batch",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "mixed-shape-batch",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-hidden-dimension",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "per-bucket-cap",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "missing-request",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "duplicate-request",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "prefill-only-choice",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "omitted-compilation",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "summed-decode-bound",
+      "exit_code": 1
+    }
+  ]
+}

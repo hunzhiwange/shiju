@@ -1,0 +1,12 @@
+{
+  "inputs": {
+    "snapshots.json": "6dc0acdc4458922124e641fc81b4ee0204735f2abdda40a46f00c8904329b9d9"
+  },
+  "output": "result.json",
+  "expected": [
+    "go north",
+    "take red key",
+    "go north"
+  ],
+  "format": "json"
+}

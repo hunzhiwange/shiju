@@ -1,0 +1,12 @@
+{
+  "inputs": {
+    "frame.png": "7ad7f5970e0a5cc9465e0217cc8b6658513b34615d6d2cfc05fa7e55800fc315"
+  },
+  "output": "result.json",
+  "expected": [
+    "examine brass dial",
+    "turn dial 7",
+    "say \"Silver?\""
+  ],
+  "format": "json"
+}

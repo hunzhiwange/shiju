@@ -1,0 +1,5 @@
+unlock arch
+look
+look
+take glass token
+enter arch

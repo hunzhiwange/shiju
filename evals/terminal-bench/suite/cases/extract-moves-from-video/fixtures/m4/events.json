@@ -1,0 +1,27 @@
+[
+  {
+    "time_ms": 900,
+    "sequence": 4,
+    "command": "unlock arch"
+  },
+  {
+    "time_ms": 120,
+    "sequence": 1,
+    "command": "look"
+  },
+  {
+    "time_ms": 500,
+    "sequence": 3,
+    "command": "look"
+  },
+  {
+    "time_ms": 500,
+    "sequence": 2,
+    "command": "take glass token"
+  },
+  {
+    "time_ms": 1100,
+    "sequence": 5,
+    "command": "enter arch"
+  }
+]

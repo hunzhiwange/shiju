@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "git-multibranch",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "d40f86f18915c25c6ed6f5d1150e6bacc4049e6669cfd5d5d08333ae2b27b5f3",
+    "fixtures/m1/context.txt": "4133789aa9418d3cc5d0753ad8b116998c2308f008c86b969f5f3c56219b8707",
+    "fixtures/m1/instruction.md": "9f377a86d58b42934750864b3c3b1d743dbc6bd14311f13219202b3052371271",
+    "fixtures/m2/context.txt": "4133789aa9418d3cc5d0753ad8b116998c2308f008c86b969f5f3c56219b8707",
+    "fixtures/m2/instruction.md": "9294f8b399013deaaaa98d06cc996c55e4d752ce201c4529e6650edff4f23ef5",
+    "fixtures/m3/context.txt": "4133789aa9418d3cc5d0753ad8b116998c2308f008c86b969f5f3c56219b8707",
+    "fixtures/m3/instruction.md": "802ee50844981c2b0eddf01c5e0488d4064502a06ce44d14425d0752aed137f1",
+    "fixtures/m4/context.txt": "4133789aa9418d3cc5d0753ad8b116998c2308f008c86b969f5f3c56219b8707",
+    "fixtures/m4/instruction.md": "7d44cd64339313879ffb092835fce7a31f349b7d216a3e961d26721d1051610b",
+    "oracle/m1/gold/serve.py": "a28066b7fd25e554a8c84d503c0bd0dc3f1d79dbe8fa776a711e228323f97174",
+    "oracle/m1/no-auth/serve.py": "86a1978e3d07b5fbfb468d22d923864f1d6458ae8279ae5047f46bc0b32921aa",
+    "oracle/m1/task.json": "7c6fda10e0ee66fb8c03bb5c85cebba32e87a33c50d848b8a1d61cf22faf9bd0",
+    "oracle/m1/wrong-password/serve.py": "88559ffb1112e9e72d088c8d394769848bd311099e18cf3aac4390ee24a84e1b",
+    "oracle/m1/wrong-root/serve.py": "09308c916d86392926e8dad9f57d43badca213781b4dcf84fcd0c37ec045ec25",
+    "oracle/m2/gold/setup.sh": "b8e99641e90dc1d0d825d087ac2f8e4a13956c5c0eaba163af612b333ca741db",
+    "oracle/m2/main-only/setup.sh": "58363b16e3c6920a877ab9a82d25d0b079dffaced13368a14b25b8dcfe00de54",
+    "oracle/m2/no-hook/setup.sh": "846f5d36f5e13b229093eca4b46fa9f9e5ae0a23ebd7b233f7b7e57805b62bcd",
+    "oracle/m2/swapped-branches/setup.sh": "0e5c6756570c6330df17ffa598499e1da0676fe568bbeecbc93acfcdb668e06f",
+    "oracle/m2/task.json": "e6ebacda106d0c1c692ef046c489239574f0337e5d7ed5bb005708e258767d5a",
+    "oracle/m3/deploy-side-branch/setup.sh": "3999b8c087d1a326b2f54f7744448898ae985e1a221c1f5b966542955b5d4f69",
+    "oracle/m3/gold/setup.sh": "b8e99641e90dc1d0d825d087ac2f8e4a13956c5c0eaba163af612b333ca741db",
+    "oracle/m3/shared-destination/setup.sh": "e86d49c43ecb4504d8ef4dbea46cda4c274e4fd25f2536d44d174b1f9cfad16c",
+    "oracle/m3/stale-revision/setup.sh": "2acbbd5a1b3257a0f3141bc040c8c6ec34e31f932adf6c34eb83bf149bb375ee",
+    "oracle/m3/task.json": "63836e3353ae55a4cf5b9be6178f5a7a103896bcd274f5f99c6b0a4940023cfa",
+    "oracle/m4/gold/serve.py": "65f4a8913c397f49926ecf797d3fe4729e8cf4514c5d95ae1a9c1d5ad1507418",
+    "oracle/m4/plain-http/serve.py": "968772628e1b085ce5ccd6c119b83ee2c442edba7ec456b8c0b617e8c0ce7ee6",
+    "oracle/m4/stale-content/serve.py": "88b2938d3d0620b88940bc2609982df84acd1db587f6b82d933a42b65dca1128",
+    "oracle/m4/swapped-paths/serve.py": "5b9eb28bd48b9d950d6c5bd4a74dc763258f17044aba6012ad04fed9a508a182",
+    "oracle/m4/task.json": "852304b3b520cf19f51453f1601487bc246a883316375bd353fa8bad3947962e",
+    "case.json": "917a4b8cfab8c161b756c3b3785efc3310227813b801049e91e569c7991abccf"
+  },
+  "image": "vw-configure-git-webserver-diagnostics@sha256:681f5a56bbcab388a9711d1db08a5ebf9175ecdde29946135f6750ced77280d9",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "no-auth",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-password",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-root",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "swapped-branches",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "main-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "no-hook",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "deploy-side-branch",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "shared-destination",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "stale-revision",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "swapped-paths",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "plain-http",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "stale-content",
+      "exit_code": 1
+    }
+  ]
+}

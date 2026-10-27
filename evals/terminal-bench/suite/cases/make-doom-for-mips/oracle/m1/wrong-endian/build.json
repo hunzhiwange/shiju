@@ -1,0 +1,1 @@
+{"assembler_args": ["-EB", "-mips32"], "linker_args": ["-EL", "-static", "-e", "main", "-Ttext", "0x10000"]}

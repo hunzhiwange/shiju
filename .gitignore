@@ -56,3 +56,5 @@ target-dir/
 /local-temp/
 .shiju-agent-dev/
 examples/
+
+__pycache__/

@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "parent_id": "hf-model-inference",
+  "image": "vw-cython-diagnostics@sha256:e9ee4d2ebe7c9ff17917ef72979da36ee52876f5fc098ee1338db029f4cbe247",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "model/model.json": "fixtures/m1/model.json",
+        "model/tokenizer.json": "fixtures/m1/tokenizer.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "ignores-tokenizer",
+          "files": {
+            "solution.py": "oracle/m1/ignores-tokenizer/solution.py"
+          }
+        },
+        {
+          "id": "wrong-vocabulary",
+          "files": {
+            "solution.py": "oracle/m1/wrong-vocabulary/solution.py"
+          }
+        },
+        {
+          "id": "ignores-shape",
+          "files": {
+            "solution.py": "oracle/m1/ignores-shape/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "model/model.json": "fixtures/m2/model.json",
+        "model/tokenizer.json": "fixtures/m2/tokenizer.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "ignores-bias",
+          "files": {
+            "solution.py": "oracle/m2/ignores-bias/solution.py"
+          }
+        },
+        {
+          "id": "drops-repeats",
+          "files": {
+            "solution.py": "oracle/m2/drops-repeats/solution.py"
+          }
+        },
+        {
+          "id": "unstable-softmax",
+          "files": {
+            "solution.py": "oracle/m2/unstable-softmax/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "model/model.json": "fixtures/m3/model.json",
+        "model/tokenizer.json": "fixtures/m3/tokenizer.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "accepts-blank",
+          "files": {
+            "solution.py": "oracle/m3/accepts-blank/solution.py"
+          }
+        },
+        {
+          "id": "wrong-load-status",
+          "files": {
+            "solution.py": "oracle/m3/wrong-load-status/solution.py"
+          }
+        },
+        {
+          "id": "accepts-nonstring",
+          "files": {
+            "solution.py": "oracle/m3/accepts-nonstring/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "model/model.json": "fixtures/m4/model.json",
+        "model/tokenizer.json": "fixtures/m4/tokenizer.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "wrong-route",
+          "files": {
+            "solution.py": "oracle/m4/wrong-route/solution.py"
+          }
+        },
+        {
+          "id": "always-positive",
+          "files": {
+            "solution.py": "oracle/m4/always-positive/solution.py"
+          }
+        },
+        {
+          "id": "wrong-status",
+          "files": {
+            "solution.py": "oracle/m4/wrong-status/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

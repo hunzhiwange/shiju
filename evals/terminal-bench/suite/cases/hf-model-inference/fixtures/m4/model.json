@@ -1,0 +1,1 @@
+{"labels": ["negative", "positive"], "bias": [0.3, -0.2], "weights": {"sun": [-1, 2], "rain": [2, -1], "calm": [0.1, 0.2]}}

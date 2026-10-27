@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "parent_id": "hf-model-inference",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "33532d3fd192bfe1d67ecff3b10145306ae38fbb130d8d3da1591f5343d66a18",
+    "fixtures/m1/instruction.md": "3e25b625a595d6ef30b2244ae945f2df0c4b5baa42941e5b4053d433c87eee17",
+    "fixtures/m1/model.json": "a87d71a2a10d5f42b7b36c8d6af94b65bc289c03095e97793a1345d217af0c15",
+    "fixtures/m1/tokenizer.json": "d6d5f17e2558bb5d9c398d826a9f929bbf6623bd23c1b7df242a18df5117df29",
+    "fixtures/m2/instruction.md": "462d3a6ed20a7b42def4fcb9cd541faff3d3eef001116835bf41cf6198ceff52",
+    "fixtures/m2/model.json": "a87d71a2a10d5f42b7b36c8d6af94b65bc289c03095e97793a1345d217af0c15",
+    "fixtures/m2/tokenizer.json": "d6d5f17e2558bb5d9c398d826a9f929bbf6623bd23c1b7df242a18df5117df29",
+    "fixtures/m3/instruction.md": "558c2c3bae9b126832e84d9fbc605692876734f2d313b5edddef30fc5296b9af",
+    "fixtures/m3/model.json": "a87d71a2a10d5f42b7b36c8d6af94b65bc289c03095e97793a1345d217af0c15",
+    "fixtures/m3/tokenizer.json": "d6d5f17e2558bb5d9c398d826a9f929bbf6623bd23c1b7df242a18df5117df29",
+    "fixtures/m4/instruction.md": "d558f3ce0fcc5e248e8134200acc1c3d1821a8fef9e2f03c418e679b6a00a685",
+    "fixtures/m4/model.json": "a87d71a2a10d5f42b7b36c8d6af94b65bc289c03095e97793a1345d217af0c15",
+    "fixtures/m4/tokenizer.json": "d6d5f17e2558bb5d9c398d826a9f929bbf6623bd23c1b7df242a18df5117df29",
+    "oracle/m1/gold/solution.py": "7efa0d3da00cf8f418671cfa3f04318ac1a4815272bc1f9ff9debcacdc3466eb",
+    "oracle/m1/ignores-shape/solution.py": "45c10742773138a160082e7217809523d31115da66c8c0c91d3af87242ebeb80",
+    "oracle/m1/ignores-tokenizer/solution.py": "5ec70bff73999026f6fedb4a1b9613064b7aa3e4abf5a8263fc68ac1e59e1a9e",
+    "oracle/m1/task.json": "cdc75b1fd1801e407b4f920f446c9eb10ee56d230b23cbac810068ee654b6b8b",
+    "oracle/m1/wrong-vocabulary/solution.py": "9b438bfc433150c75fbc4e8ba65ad23fbbac6b1eec6d62eedb7ca96cdf68e227",
+    "oracle/m2/drops-repeats/solution.py": "d98db569c8492ffe5582b5c833ca3f65aea04b01cdd7d48d4e09d07361f34336",
+    "oracle/m2/gold/solution.py": "8a07955e696aac504e475a4dffd03b0ebcb46ed553ae602f6e510538bc908b48",
+    "oracle/m2/ignores-bias/solution.py": "29f9612a2ad8be20ac9ac78171ece1d7f27a2471128ca2b9a7a5521d85e150fe",
+    "oracle/m2/task.json": "cfdc2565fe6b1ca0b636abd13c4616b276b2ffe6a8322a154c6ff268f79ab1f3",
+    "oracle/m2/unstable-softmax/solution.py": "664a7089d06e920750ba3abb70d567b1e30d629d4fac648ac7a5c0e04137c0dd",
+    "oracle/m3/accepts-blank/solution.py": "e5af59577ee58f3808acac1a1b45ba7ddd2315085a1deb0ef89d838f0a3111ef",
+    "oracle/m3/accepts-nonstring/solution.py": "6bcf654d78abd4872bafc6a7e28475ae1a5e0b73cab9ea844aec30d6f4078259",
+    "oracle/m3/gold/solution.py": "9259c8d70f916fa463929f3ecc836584a5bd3b318742195a31812e20aa5c9cbc",
+    "oracle/m3/task.json": "39ddda2699e46598f3d9056c9eb0dff750564f71d0e4c064b0a8132b6ade82fb",
+    "oracle/m3/wrong-load-status/solution.py": "08abd99ce0c64727ae5d37140dd30e985714f179cb787672f857c9c3f95835af",
+    "oracle/m4/always-positive/solution.py": "50c83a2bfed61cc4d74ffcfc49f86edbcca8b1ec5f9d44f759ea9fcc36ede37a",
+    "oracle/m4/gold/solution.py": "e2fde0a05147ae1d7fa3287097d8b8aa2ce345c48ad95d1f57d2786ed1d7381f",
+    "oracle/m4/task.json": "81545e0b7aa4c1644c977a44679b74072a28fa1f5d470630d56a59ba5c8c5d74",
+    "oracle/m4/wrong-route/solution.py": "bc7ef63f6490aab45171e1196a5bfc19981d476aa1f662c1dcd38cfda950f510",
+    "oracle/m4/wrong-status/solution.py": "547a3b13e358614524f6ccbe9a6cde102300a46054b42f1ae283d01b48b83828",
+    "case.json": "e36c009b1f8717e521f60422053550135e4ada918aa9366e0451d9de1cb1b155"
+  },
+  "image": "vw-cython-diagnostics@sha256:e9ee4d2ebe7c9ff17917ef72979da36ee52876f5fc098ee1338db029f4cbe247",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "ignores-tokenizer",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-vocabulary",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "ignores-shape",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "ignores-bias",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "drops-repeats",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "unstable-softmax",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accepts-blank",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "wrong-load-status",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accepts-nonstring",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-route",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "always-positive",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-status",
+      "exit_code": 1
+    }
+  ]
+}

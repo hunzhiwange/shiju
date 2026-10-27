@@ -190,4 +190,26 @@ CARGO_BUILD_BUILD_DIR 同路径以隔离仓库 build-dir；RUST_TEST_THREADS=1�
 - 公网匿名 latest/版本对象读取、缓存与目录隔离。
 - 旧客户端获取新版本、原生安装器及安装后版本。
 
-本轮未生产发布、更新本机或复制凭据。整体状态“已完成，待回归”，保留任务文件。
+本轮未生产发布、更新本机或复制凭据。生产发布、真实安装及安装后版本属于范围外
+验收，仅记录未测，不作为本地实现任务的强制授权或完成门槛。
+本地契约与任务 5 自动化回归已完成，真实 GUI 交互记录仍缺失；现有绘制与网关测试不替代
+实际应用交互。取得明暗主题、中文来源/地址/错误 toast、切源、关闭重开和偏好重启
+保留的交互证据后，可关闭本任务；无须执行生产发布或本机升级。
+
+技能更名与入口复核：文档 64121af76/c5087c3b3，外部技能 44315ce/eabcced。
+shiju-agent-oss-update 的 prepare.py、publish.py 使用 --workspace 指定本仓库，
+分别运行 --help 均退出 0，底层参数展示正确。契约源码与 c9a91ac89 无差异，复用
+上述通过证据。交付文档、脚本、共享更新代码、计划及新技能目录未发现旧技能名或
+旧 OSS 命名空间残留。
+
+
+桌面最终回归更新（d264dad37）：已核对提交及 /tmp/vw-task5-regression-*.log，
+app_update 49、settings_tests 41、install_cli_modal_tests 19、app_init_tests 17、
+native_menu 15 项全部通过，Clippy 退出 0；命令均为 cargo test -p vw-desktop
+--all-features <上述过滤器> -- --nocapture，其中 settings_tests 完整过滤器为
+message::view::panel::settings::settings_tests。Clippy 命令与上表相同。
+使用槽位 1、上述绝对 CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR；任务 5 已释放锁。
+上表桌面退出 101 属历史首轮结果，已由本次回归取代，不再作为阻塞。
+新增测试覆盖关闭重开、真实异步篡改文件拒绝、注入 opener 重试和就绪状态明暗绘制。
+这仍非真实应用窗口交互记录。唯一待补条件是可操作的原生 UI 环境，或按上述
+步骤完成的人工窗口交互验收记录；不需要生产发布、凭据或实际安装。

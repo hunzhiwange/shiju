@@ -24,12 +24,9 @@ def fixture():
 
 
 def prepared_contract():
-    """Return actual prepare output after publisher verification, using local HTTP only."""
+    """Return actual generated installers and manifest, using local HTTP only."""
     import contextlib
     import io
-    import sys
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    import publish_oss_release as publish
 
     DownloadTests.setUpClass()
     try:
@@ -40,8 +37,9 @@ def prepared_contract():
             with patch.object(prepare, 'fetch_release', return_value=fixture()), patch.object(
                     prepare.urllib.request, 'urlopen', side_effect=local_download), contextlib.redirect_stdout(io.StringIO()):
                 path = prepare.prepare_release('0.5.10', str(Path(root).resolve()))
-            manifest, raw = publish.local_release(path.parent)
-            assert json.loads(raw) == manifest
+            manifest = json.loads(path.read_bytes())
+            assert all(prepare.verify_file(path.parent / asset["name"], asset)
+                       for asset in manifest["assets"])
             return dict(manifest=manifest, github=fixture(), body=list(BODY))
     finally:
         DownloadTests.tearDownClass()

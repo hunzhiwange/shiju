@@ -76,16 +76,21 @@ python3 scripts/prepare_oss_release.py --help
 
 ## OSS 发布入口与安全限制
 
+VibeWindow 只生成六平台文件及清单。发布业务唯一维护于外部仓库
+`data-gateway-oss-upload/skills/shiju-agent-oss-update/scripts/publish.py`；技能自包含，
+可复制到其他机器运行，不依赖生成器源码，不保留仓库发布副本或同步工具。
+以下命令在技能目录执行：
+
 ```sh
-uv run scripts/publish_oss_release.py --dir /absolute/output/v0.5.10
+uv run scripts/publish.py --dir /absolute/output/v0.5.10
 # 仅在已明确授权生产发布时：
-uv run scripts/publish_oss_release.py --dir /absolute/output/v0.5.10 --publish
+uv run scripts/publish.py --dir /absolute/output/v0.5.10 --publish
 ```
 
 Python >=3.10，PEP 723 固定 `oss2==2.19.1`。默认离线预览，不读取凭据。
 只接受正式 manifest.json 与精确六包，再验 schema、字段、映射、URL、大小和 SHA-256。
 路径必须绝对且没有符号链接组件；macOS `/tmp` 可改用 `/private/tmp`。
-单包限制为 OSS 单 PUT 的 5 GiB。仓库脚本不支持 bucket/key 覆盖参数或 `--workspace`；技能入口支持 `--workspace` 定位仓库。
+单包限制为 OSS 单 PUT 的 5 GiB。不支持 bucket/key 覆盖参数或 `--workspace`；只消费已经生成的目录。
 
 发布模式仅从本机 `~/.config/shiju-oss-upload/config.json` 读取 region、access_key_id、
 access_key_secret；密钥可通过 OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET 覆盖。
@@ -114,27 +119,25 @@ names 不参与发布，不修改配置，不迁移凭据，不输出 SDK 原始
 公网目录权限仍未实测，离线 HTTP 测试不能替代生产匿名验证。
 
 本地回执 `vX.Y.Z/oss-publish-receipt.json` 使用临时文件、fsync 和原子替换，记录版本、
-目标、摘要及阶段。`publishing_latest` 写在 latest 操作前，表示可能已发布；失败后先读
+目标、摘要、阶段、待处理对象及已通过匿名回读对象。`publishing_latest` 写在 latest 操作前，表示可能已发布；失败后先读
 远端，再使用未修改的同一产物恢复。不得并发操作同一本地目录或修改发布中的输入文件。
 回执不是远端事实来源，每次执行都重新读取 latest 并校验对象，不依赖回执跳过校验。
 
-独立技能位于配套 data-gateway-oss-upload 仓库的
-`skills/shiju-agent-oss-update/SKILL.md`，提供 `scripts/prepare.py` 与 `scripts/publish.py`
-可执行入口，通过 `--workspace /absolute/path/to/vibe-window` 调用本仓库两个脚本，
-不复制业务实现。默认工作区为当前目录；技能目录可独立放置，但运行需要实际源码工作区。
-从技能目录执行：
+独立技能说明与全部发布实现位于外部仓库 `skills/shiju-agent-oss-update/`。
+技能不包含准备/下载入口；先在 VibeWindow 运行本文的生成命令，再将完整目录交给技能。
+在技能目录验证：
 
 ```sh
-python3 scripts/prepare.py --workspace /absolute/path/to/vibe-window --version v0.5.10 --output-dir /absolute/output
-uv run scripts/publish.py --workspace /absolute/path/to/vibe-window --dir /absolute/output/v0.5.10
+python3 -m unittest discover -s scripts/tests -p 'test_*.py'
+uv run scripts/publish.py --help
+# 仅跨端开发验收需要源码路径，发布本身不需要：
+python3 scripts/tests/check_generator_contract.py --generator-root /absolute/path/to/vibe-window
 ```
 
-以下验证在源码工作区运行：
-
-```sh
-python3 -m unittest discover -s scripts/tests -p test_publish_oss_release.py
-python3 scripts/publish_oss_release.py --help
-```
+跨端检查执行生成器的本地 HTTP fixture，取得真实生成文件/manifest 后，将技能复制到
+中性临时目录验证离线预览，拒绝 preview、缺包、错误 SHA 和大小。独立测试另在复制目录
+运行 help 与全部发布故障场景，清除 PYTHONPATH，避免误用源码工作区。生成端与 Rust
+消费端的契约测试只核对生成文件和清单，不导入发布实现。
 
 内存 OSS 状态机与本地 HTTP 测试涵盖首次发布、同版本恢复、内容冲突、降级、
 不支持 CAS 的安全失败、部分上传、并发创建、未知写入结果、匿名失败与回执恢复、

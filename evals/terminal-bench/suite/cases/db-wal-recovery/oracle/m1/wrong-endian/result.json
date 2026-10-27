@@ -1,0 +1,27 @@
+{
+  "magic": "377f0682",
+  "version": 3007000,
+  "page_size": 131072,
+  "checkpoint_sequence": 7,
+  "salts": [
+    12345,
+    67890
+  ],
+  "frames": [
+    {
+      "page_number": 2,
+      "database_pages": 0,
+      "offset": 32
+    },
+    {
+      "page_number": 3,
+      "database_pages": 3,
+      "offset": 568
+    },
+    {
+      "page_number": 2,
+      "database_pages": 0,
+      "offset": 1104
+    }
+  ]
+}

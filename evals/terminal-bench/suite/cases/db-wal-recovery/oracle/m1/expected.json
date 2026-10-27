@@ -1,0 +1,33 @@
+{
+  "kind": "m1",
+  "expected": {
+    "magic": "377f0682",
+    "version": 3007000,
+    "page_size": 512,
+    "checkpoint_sequence": 7,
+    "salts": [
+      12345,
+      67890
+    ],
+    "frames": [
+      {
+        "page_number": 2,
+        "database_pages": 0,
+        "offset": 32
+      },
+      {
+        "page_number": 3,
+        "database_pages": 3,
+        "offset": 568
+      },
+      {
+        "page_number": 2,
+        "database_pages": 0,
+        "offset": 1104
+      }
+    ]
+  },
+  "inputs": {
+    "structure.wal": "1c482ef3cb75f2d2d79778435506e002eb0afdd40e5860216476ef33d2ea0b58"
+  }
+}

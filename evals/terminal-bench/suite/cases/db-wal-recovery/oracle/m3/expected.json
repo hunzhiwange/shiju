@@ -1,0 +1,19 @@
+{
+  "kind": "m3",
+  "expected": {
+    "header_valid": true,
+    "valid_frames": 2,
+    "first_invalid_frame": 3,
+    "last_commit_frame": 1,
+    "database_pages": 2,
+    "committed_pages": [
+      {
+        "page_number": 2,
+        "frame": 1
+      }
+    ]
+  },
+  "inputs": {
+    "boundary.wal": "4d69edd9a58830f453c79c6134c8ec23bf0df5f2e423b5ef1e9c946ccb407508"
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "parent_id": "db-wal-recovery",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "6027360b71607fed69093d490c453f7f403da4a3ec216a1388bca3eeaf420eb0",
+    "fixtures/m1/instruction.md": "b7b6ed7be34854c3abbad8cc43d847c7b90c2f70322dcb0de81d9d11c042ff07",
+    "fixtures/m1/structure.wal": "1c482ef3cb75f2d2d79778435506e002eb0afdd40e5860216476ef33d2ea0b58",
+    "fixtures/m2/base.db": "267ff7cc1b3b84b4b9d4961e08b46465f383fd3aa08046bc2be61ac854c5c04b",
+    "fixtures/m2/changes.xor": "be6ad90d2c07914b0b60a742e18e4c9e1c6878673ded828fb2b57430665e2080",
+    "fixtures/m2/instruction.md": "034c79af26710b88cdc81850d28ab531d828f77e20c78a20f4a56381c2401699",
+    "fixtures/m3/boundary.wal": "4d69edd9a58830f453c79c6134c8ec23bf0df5f2e423b5ef1e9c946ccb407508",
+    "fixtures/m3/instruction.md": "07ee2bd095220870dca631bbc15d04053b74ede41fc2fc104f0a1a8555e86a1d",
+    "fixtures/m4/base.db": "abbfe24c18f3afae060095c790b4992cb55af1f6e8bf2e4b0c348ba7f708e05a",
+    "fixtures/m4/changes.xor": "c0fb42e4ddf9e2dbd3b7e8c956ac1ac003aee6d8b51b2d885d61d5f46bed1d36",
+    "fixtures/m4/instruction.md": "8fe480e67150b0064ec61bd046fafb74904ed0d3f4d5a41d40664fd47dc7d92a",
+    "oracle/m1/drops-uncommitted/result.json": "72b77ff4e4061eb2844ddbc8614ac2d0b9f89ee0ff81f39a7a96f6dbbe9fdbd2",
+    "oracle/m1/expected.json": "e42c37c51ecc50866ff7a51f9c3c9968804683fed8ab0f834c2b9fd327a2dac6",
+    "oracle/m1/gold/result.json": "8cdd445daa24cc68a18e708580c0f285612eb58e26eac05ca0d5d4c6844c3ead",
+    "oracle/m1/wrong-endian/result.json": "fcd2be3aa087cb033215d6225e340a343586d9813148d6249fe63f9b958b14fc",
+    "oracle/m1/wrong-offset/result.json": "e9b44bfa7c62092f7b6a9a68955bafd9117e5b4995da11599fe26ada01ed72ce",
+    "oracle/m2/base-only/result.json": "858323471d711193c5e32f046e852a24255d1f67b5c080606cb7a98ac309b804",
+    "oracle/m2/expected.json": "acd730bebbe940c3c586311d58a9865e6c1e2d191642ea0581a19a59d3f77673",
+    "oracle/m2/gold/result.json": "420ea08e82c6410069c6b1872f3a6f4dc3c553494fc622c91503c8cb2c3e12f7",
+    "oracle/m2/missing-row/result.json": "f16c9be962910328afdb027795c2702919a248247d14418271f9301984be7f86",
+    "oracle/m2/stale-update/result.json": "0bb67abeada7531c1da035454a50ee3c650e6e48cd6555f95ff88c17a3014dcd",
+    "oracle/m3/accepts-bad-checksum/result.json": "aedc57277a1aac83e78e603bc52b784e5766601e669748fe8d5b024775031a37",
+    "oracle/m3/expected.json": "04ec3223abbd825fe52e15cd78952c21f008312377843ab94f5453ce529d65e5",
+    "oracle/m3/gold/result.json": "b3207ab8267628deb0e36d7c5706d3c2fa1d6623e19c4b46161c70e572518310",
+    "oracle/m3/includes-uncommitted/result.json": "7d0433dd87845923298784809e3dfe2280b01ec23e8fffa123b6487ae79a2353",
+    "oracle/m3/wrong-commit/result.json": "38e7644001c0d6ed877a7038fb2992b1be81d6510e05448e02eb1351b266087b",
+    "oracle/m4/base-only/recovered.db": "78b2bf0b63c46e25177450871c8b00effd23b9f5c3d47d59407a775f58a92107",
+    "oracle/m4/expected.json": "4c4b6c063263e1bc8d3fd4ce858af36878e40f631af3710f5c8af338943fec5d",
+    "oracle/m4/gold/recovered.db": "0d0c1cb449802f521a1756bdad49d74d568418a3d7eeb8317bfa542795310355",
+    "oracle/m4/missing-row/recovered.db": "da8839aa7214af1375bbf6c8b818129c1b571bbcfa4f717b2f550ce53b47e573",
+    "oracle/m4/stale-update/recovered.db": "c34a731876e3a960224cb6befac8f949400cc322b1f682287470082f32f7665c",
+    "case.json": "6cd9e882c432fbe857a4f5b4561926e49b608e57fb3ac022eb722835a88a1f79"
+  },
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-endian",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-offset",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "drops-uncommitted",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "base-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "stale-update",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "missing-row",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accepts-bad-checksum",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "includes-uncommitted",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "wrong-commit",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "base-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "missing-row",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "stale-update",
+      "exit_code": 1
+    }
+  ]
+}

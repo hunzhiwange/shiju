@@ -1,0 +1,29 @@
+{
+  "kind": "m4",
+  "expected": [
+    {
+      "id": 2,
+      "name": "north",
+      "value": 37
+    },
+    {
+      "id": 7,
+      "name": "south",
+      "value": 70
+    },
+    {
+      "id": 12,
+      "name": "east",
+      "value": 120
+    },
+    {
+      "id": 19,
+      "name": "west",
+      "value": 190
+    }
+  ],
+  "inputs": {
+    "base.db": "abbfe24c18f3afae060095c790b4992cb55af1f6e8bf2e4b0c348ba7f708e05a",
+    "changes.xor": "c0fb42e4ddf9e2dbd3b7e8c956ac1ac003aee6d8b51b2d885d61d5f46bed1d36"
+  }
+}

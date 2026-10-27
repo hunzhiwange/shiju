@@ -1,0 +1,13 @@
+{
+  "header_valid": true,
+  "valid_frames": 2,
+  "first_invalid_frame": 3,
+  "last_commit_frame": 2,
+  "database_pages": 2,
+  "committed_pages": [
+    {
+      "page_number": 2,
+      "frame": 1
+    }
+  ]
+}

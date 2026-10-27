@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "parent_id": "build-pov-ray",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "cde896540e91c9114c8e8c5c227baf165814ae92259f2a64294c91b3c697b43e",
+    "fixtures/m1/instruction.md": "7a4b44a8b7853b78db85a0f32a1c6c8124356f664f960fa85dd535c35fbfefca",
+    "fixtures/m1/layout.tar": "e63cd83d408078017d56ab034fa64a435950cd505a860f1c8cbdc02fa02b2131",
+    "fixtures/m2/instruction.md": "1948f8d40c522ae916a196f83dbced2bdeac17a0230b771057b181318d3742fd",
+    "fixtures/m2/main.c": "702cc34efb795ff56228c7213dbbb7157a00699f4fb9bbd30b64fb8bce094c63",
+    "fixtures/m2/shade.c": "3862ecdea1b6951dc448c796eca02f7647b19c1f1d28bff3b5e3567a38347663",
+    "fixtures/m2/shade.h": "6ca628b49f0b4a732c58cf37edb4c4f8a5715e73fefe82e2550b06f256e44efc",
+    "fixtures/m3/green.pov": "771f552312e40edd8692c08bcb5108ca807de441808f4ebe2f035bca81557d4d",
+    "fixtures/m3/instruction.md": "da4d2970df3f40ddc43b6bb6d2b03fa81cbaf4d97da8e9b7f93a9800e4b45bc2",
+    "fixtures/m3/red.pov": "1a85822ecee06cd6073167425b62bbda4c5b75691dd0e76fb3851d4b119eef60",
+    "fixtures/m4/instruction.md": "9220db6d3d76db72fe73c44a2b37d567a98071df8af90f78556af07a81a521b6",
+    "fixtures/m4/scene.pov": "7292d38a2ee9a6925603db974a06f0250094af53ccc21275434a293c3163e8b6",
+    "oracle/m1/contract.json": "577a5505f189fe2d34bd8b509d3b660fad152063742754b4a426d068d3973121",
+    "oracle/m1/corrupt-source/answer.py": "915c1e1f69d9839184138409df72107ce3bd72e69363d9d09baa654880cae099",
+    "oracle/m1/expected.json": "5a85f5be63d2d1d97b6989d38b708ef7b50af08fa63b34698f07bb479b12dc21",
+    "oracle/m1/flatten/answer.py": "3cf95a14a77644cbc6ca162580bf92be12e4a11dbff36a48e7eaf0be9b84837b",
+    "oracle/m1/gold/answer.py": "fbe6b1d0eed3e4e7cc1c4c2270a336da78e9a8c76f268d70bc86b7194a4827a1",
+    "oracle/m1/omit-platform/answer.py": "a8dbfdc2eda1e473cfea4b728c83b1c7fa0e9c6e3c43a4f62081c06251972161",
+    "oracle/m2/contract.json": "cffc0f765fb577efd14c41a32f5564892cde301b3c5d44bad09684bf1b6a3efe",
+    "oracle/m2/gold/answer.py": "14714de18c77791634dee03d469089fa3a0aed4037258168db821947d4406368",
+    "oracle/m2/missing-object/answer.py": "22a986e07a65f20b4008bd840218a3a0e7f1ff779c4b86a4e7a5bb36f158f25a",
+    "oracle/m2/script-instead-of-elf/answer.py": "8eed3bfd69613adc51b672f126d5f8dd10ebc52540d63a8f54a4f310d61a6f4d",
+    "oracle/m2/wrong-arithmetic/answer.py": "3c0f909453aaf3aa0dae1baec208e75d4a18d95b8fa038eb6ad16face89dd57d",
+    "oracle/m3/contract.json": "5c5cba6286f20f3ef7feea9b4825a2cbd40171d35fbc9dcd52155b8eeb9c3b5c",
+    "oracle/m3/gold/answer.py": "ecf1df61f1c4330b4aea8c0f017b74fe87e27148db7c4bb07ddf42b53676ac27",
+    "oracle/m3/ignore-dimensions/answer.py": "17ad9995f5d7283ff10017f9a021cb7d935e5e9141cd935853a405f9d27ab7e6",
+    "oracle/m3/ignore-scene/answer.py": "09908b30038a57a68cbee30d79b4858c04d4e9e1587eea351dbb619d8f6e1d0c",
+    "oracle/m3/reference-forgery/answer.py": "61bba598d0724590ee8c39806feb2380b3a18d6706d271d6495ad03dfa7ecc82",
+    "oracle/m4/accept-truncation/answer.py": "8ebc8fedd98e7dbe51d7061fc844b0f5e279d517ed449f36c510b56e798d7c9a",
+    "oracle/m4/compare-metadata/answer.py": "efdca3d693dec5bba92739d867996b607cf03f250aae47841e9fc2226bf73c19",
+    "oracle/m4/contract.json": "dc8cfe13e37adb81a42cf23e1a34bef5578f65307a277b9d75cfe32b565a6337",
+    "oracle/m4/gold/answer.py": "801e20201b250e425cd9cc5a2086530859af956103561c7957e6e3c98cf82189",
+    "oracle/m4/header-only/answer.py": "c2e1d6fe9b7cd271d036bb16a87f554dbed599481d1448224079f862dc01f835",
+    "case.json": "876fbfd30328a7eec4e06ab65a66942507cfcae8bdc9a19b3ccb47a68006f467"
+  },
+  "image": "vw-povray-diagnostics@sha256:44a3d9e4b3cd66189b0be3fecd2438a924a744914ce3aa1ea56ef19620df14a5",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "flatten",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "omit-platform",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "corrupt-source",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "missing-object",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-arithmetic",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "script-instead-of-elf",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignore-dimensions",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignore-scene",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "reference-forgery",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "header-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "compare-metadata",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "accept-truncation",
+      "exit_code": 1
+    }
+  ]
+}

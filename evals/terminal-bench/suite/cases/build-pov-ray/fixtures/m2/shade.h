@@ -1,0 +1,1 @@
+int shade(int n);

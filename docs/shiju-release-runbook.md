@@ -85,6 +85,33 @@ python3 -m json.tool "$RELEASE_DIR/manifest.json"
 | macOS ARM64 | `ShiJu-macos-aarch64-apple-darwin-dist.dmg` |
 | macOS x64 | `ShiJu-macos-x86_64-apple-darwin-dist.dmg` |
 
+### 安装包直接下载地址
+
+以下为 `v0.5.10` 示例地址；其他版本替换 URL 中的 tag，以及 RPM 文件名中的版本号。
+这些地址直接访问 Release 资产，不经过 GitHub 元数据 API。
+
+| 平台 | 下载地址 |
+| --- | --- |
+| Linux ARM64 | [shiju-0.5.10-1.aarch64.rpm](https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/shiju-0.5.10-1.aarch64.rpm) |
+| Linux x64 | [shiju-0.5.10-1.x86_64.rpm](https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/shiju-0.5.10-1.x86_64.rpm) |
+| Windows ARM64 | [ShiJu-aarch64-pc-windows-msvc-dist.msi](https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/ShiJu-aarch64-pc-windows-msvc-dist.msi) |
+| Windows x64 | [ShiJu-x86_64-pc-windows-msvc-dist.msi](https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/ShiJu-x86_64-pc-windows-msvc-dist.msi) |
+| macOS ARM64 | [ShiJu-macos-aarch64-apple-darwin-dist.dmg](https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/ShiJu-macos-aarch64-apple-darwin-dist.dmg) |
+| macOS x64 | [ShiJu-macos-x86_64-apple-darwin-dist.dmg](https://github.com/hunzhiwange/shiju/releases/download/v0.5.10/ShiJu-macos-x86_64-apple-darwin-dist.dmg) |
+
+也可以使用第 3 节的版本变量直接下载，例如 macOS ARM64：
+
+```bash
+mkdir -p "$RELEASE_DIR"
+curl --fail --location --show-error \
+  --output "$RELEASE_DIR/ShiJu-macos-aarch64-apple-darwin-dist.dmg" \
+  "https://github.com/hunzhiwange/shiju/releases/download/v$RELEASE_VERSION/ShiJu-macos-aarch64-apple-darwin-dist.dmg"
+```
+
+`--location` 用于跟随 GitHub 的下载重定向。此命令会覆盖本地同名文件，执行前确认没有需要保留的文件。
+直接下载只取得安装包，不生成正式清单，也不执行 SHA-256 校验；OSS 发布仍需第 4 节准备脚本成功生成的
+`manifest.json`。准备脚本会校验并复用已下载的正确文件，但仍需访问 GitHub API。
+
 ## 5. 执行发布器离线预览
 
 ```bash

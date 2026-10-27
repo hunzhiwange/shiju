@@ -457,6 +457,7 @@ pub(crate) struct SessionRuntimeState {
     /// 最新流式消息修订号及待持久化的单条记录。
     pub(crate) stream_save_revision: u64,
     pub(crate) stream_save_acked_revision: u64,
+    pub(crate) pending_compaction_status_index: Option<usize>,
     pub(crate) stream_save_generation: u64,
     pub(crate) stream_save_expected_updated_ms: u64,
     pub(crate) stream_save_dirty_records: Vec<vw_shared::session::ui_types::SessionMessageRecord>,
@@ -657,6 +658,7 @@ impl SessionRuntimeState {
             stream_save_flush_scheduled: false,
             stream_save_revision: 0,
             stream_save_acked_revision: 0,
+            pending_compaction_status_index: None,
             stream_save_generation: 0,
             stream_save_expected_updated_ms: 0,
             stream_save_dirty_records: Vec::new(),

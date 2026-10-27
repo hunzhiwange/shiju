@@ -2107,3 +2107,52 @@ fn completed_stream_blocks_are_selectable_before_request_finishes() {
     editor.perform(Action::SelectAll);
     assert_eq!(editor.selection().as_deref(), Some("最终 结论"));
 }
+
+#[test]
+fn compaction_failure_preserves_prior_statuses_and_persists_completion() {
+    for active in [true, false] {
+        let (mut app, _) = crate::app::App::new();
+        let session_id = "compaction-history".to_string();
+        app.active_session_id = Some(if active { session_id.clone() } else { "other".into() });
+        let history = vec![message(ChatRole::System, "正在压缩会话")];
+        if active {
+            app.chat = history;
+            app.chat_message_ids = vec![None];
+        } else {
+            app.store_session_chat_snapshot(
+                session_id.clone(),
+                crate::app::session::shared_chat_messages(history),
+                vec![None],
+            );
+        }
+        app.get_session_runtime_mut(&session_id).active_agent_request =
+            Some(agent_request(42, &session_id));
+        let _ = super::handle_agent_compaction_status(&mut app, 42, false);
+        let _ = super::handle_agent_compaction_status(&mut app, 42, true);
+        assert!(
+            app.get_session_runtime(&session_id)
+                .stream_save_dirty_records
+                .iter()
+                .any(|record| record.seq_no == 1 && record.message.content == "压缩完成")
+        );
+        let _ = super::handle_agent_compaction_status(&mut app, 42, false);
+        super::settle_interrupted_compaction(&mut app, &session_id, "会话压缩失败");
+        let chat: Vec<_> = if active {
+            app.chat.clone()
+        } else {
+            app.session_chat_cache[&session_id].iter().cloned().collect()
+        };
+        assert_eq!(chat[0].content, "正在压缩会话");
+        assert_eq!(chat[1].content, "压缩完成");
+        assert_eq!(chat[2].content, "会话压缩失败");
+        super::settle_interrupted_compaction(&mut app, &session_id, "会话压缩已取消");
+        let runtime = app.get_session_runtime(&session_id);
+        assert!(runtime.pending_compaction_status_index.is_none());
+        assert!(
+            runtime
+                .stream_save_dirty_records
+                .iter()
+                .any(|record| record.seq_no == 2 && record.message.content == "会话压缩失败")
+        );
+    }
+}

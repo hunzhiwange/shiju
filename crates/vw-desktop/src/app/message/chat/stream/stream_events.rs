@@ -747,6 +747,7 @@ fn upsert_compaction_status(
     chat: &mut Vec<models::ChatMessage>,
     message_ids: &mut Vec<Option<String>>,
     completed: bool,
+    pending_index: Option<usize>,
 ) -> usize {
     let content = if completed {
         crate::app::components::chat_panel::message_view::COMPACTION_COMPLETED_TEXT
@@ -754,13 +755,13 @@ fn upsert_compaction_status(
         crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
     };
     if completed
-        && let Some(idx) = chat.iter().rposition(|message| {
-            message.role == models::ChatRole::System
-                && message.content
-                    == crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
-        })
+        && let Some(idx) = pending_index
+        && let Some(message) = chat.get_mut(idx)
+        && message.role == models::ChatRole::System
+        && message.content
+            == crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
     {
-        chat[idx].content = content.to_string();
+        message.content = content.to_string();
         return idx;
     }
 
@@ -788,19 +789,22 @@ pub(super) fn settle_interrupted_compaction(app: &mut App, session_id: &str, con
             .map(|chat| chat.iter().cloned().collect::<Vec<_>>())
             .unwrap_or_default()
     };
-    let mut changed = Vec::new();
-    for (index, message) in chat.iter_mut().enumerate() {
-        if message.role == models::ChatRole::System
-            && message.content
-                == crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
-        {
-            message.content = content.to_string();
-            changed.push(index);
-        }
-    }
-    if changed.is_empty() {
+    let Some(index) =
+        app.get_session_runtime_mut(session_id).pending_compaction_status_index.take()
+    else {
+        return;
+    };
+    let Some(message) = chat.get_mut(index) else {
+        return;
+    };
+    if message.role != models::ChatRole::System
+        || message.content
+            != crate::app::components::chat_panel::message_view::COMPACTION_STARTED_TEXT
+    {
         return;
     }
+    message.content = content.to_string();
+    let changed = [index];
     let ids = if is_active {
         app.chat_message_ids.clone()
     } else {
@@ -834,14 +838,23 @@ pub(super) fn handle_agent_compaction_status(
     let Some(session_id) = app.find_session_by_request_id(id) else {
         return Task::none();
     };
+    let pending_index =
+        app.get_session_runtime_mut(&session_id).pending_compaction_status_index.take();
     let is_active = app.active_session_id.as_deref() == Some(session_id.as_str());
     if is_active {
-        let changed_idx =
-            upsert_compaction_status(&mut app.chat, &mut app.chat_message_ids, completed);
+        let changed_idx = upsert_compaction_status(
+            &mut app.chat,
+            &mut app.chat_message_ids,
+            completed,
+            pending_index,
+        );
+        app.get_session_runtime_mut(&session_id).pending_compaction_status_index =
+            (!completed).then_some(changed_idx);
         app.chat_render_cache.remove(&changed_idx);
         app.session_chat_cache.remove(&session_id);
         app.session_chat_message_id_cache.remove(&session_id);
         app.sync_active_session_from_chat();
+        mark_agent_stream_session_dirty(app, &session_id, changed_idx, now_ms(), None);
         return Task::batch([
             scroll_chat_to_bottom_task(app),
             schedule_agent_stream_session_save(app, &session_id),
@@ -858,12 +871,16 @@ pub(super) fn handle_agent_compaction_status(
         .get(&session_id)
         .cloned()
         .unwrap_or_else(|| vec![None; chat.len()]);
-    upsert_compaction_status(&mut chat, &mut message_ids, completed);
+    let changed_idx =
+        upsert_compaction_status(&mut chat, &mut message_ids, completed, pending_index);
+    app.get_session_runtime_mut(&session_id).pending_compaction_status_index =
+        (!completed).then_some(changed_idx);
     app.store_session_chat_snapshot(
         session_id.clone(),
         crate::app::session::shared_chat_messages(chat),
         message_ids,
     );
+    mark_agent_stream_session_dirty(app, &session_id, changed_idx, now_ms(), None);
     schedule_agent_stream_session_save(app, &session_id)
 }
 

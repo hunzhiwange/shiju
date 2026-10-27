@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "parent_id": "merge-diff-arc-agi-task",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "bundle1.bundle": "fixtures/m1/bundle1.bundle",
+        "bundle2.bundle": "fixtures/m1/bundle2.bundle"
+      },
+      "oracle": {
+        "expected.json": "oracle/m1/expected.json"
+      },
+      "gold": {
+        "setup.sh": "oracle/m1/gold/setup.sh"
+      },
+      "negatives": [
+        {
+          "id": "swapped",
+          "files": {
+            "setup.sh": "oracle/m1/swapped/setup.sh"
+          }
+        },
+        {
+          "id": "missing-branch",
+          "files": {
+            "setup.sh": "oracle/m1/missing-branch/setup.sh"
+          }
+        },
+        {
+          "id": "wrong-head",
+          "files": {
+            "setup.sh": "oracle/m1/wrong-head/setup.sh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "bundle1.bundle": "fixtures/m2/bundle1.bundle",
+        "bundle2.bundle": "fixtures/m2/bundle2.bundle"
+      },
+      "oracle": {
+        "expected.json": "oracle/m2/expected.json"
+      },
+      "gold": {
+        "setup.sh": "oracle/m2/gold/setup.sh"
+      },
+      "negatives": [
+        {
+          "id": "reset",
+          "files": {
+            "setup.sh": "oracle/m2/reset/setup.sh"
+          }
+        },
+        {
+          "id": "unmerged",
+          "files": {
+            "setup.sh": "oracle/m2/unmerged/setup.sh"
+          }
+        },
+        {
+          "id": "drop-left",
+          "files": {
+            "setup.sh": "oracle/m2/drop-left/setup.sh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "bundle1.bundle": "fixtures/m3/bundle1.bundle",
+        "bundle2.bundle": "fixtures/m3/bundle2.bundle"
+      },
+      "oracle": {
+        "expected.json": "oracle/m3/expected.json"
+      },
+      "gold": {
+        "setup.sh": "oracle/m3/gold/setup.sh"
+      },
+      "negatives": [
+        {
+          "id": "left-only",
+          "files": {
+            "setup.sh": "oracle/m3/left-only/setup.sh"
+          }
+        },
+        {
+          "id": "right-only",
+          "files": {
+            "setup.sh": "oracle/m3/right-only/setup.sh"
+          }
+        },
+        {
+          "id": "uncommitted",
+          "files": {
+            "setup.sh": "oracle/m3/uncommitted/setup.sh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m4/context.txt"
+      },
+      "oracle": {
+        "expected.json": "oracle/m4/expected.json"
+      },
+      "gold": {
+        "algo.py": "oracle/m4/gold/algo.py"
+      },
+      "negatives": [
+        {
+          "id": "identity",
+          "files": {
+            "algo.py": "oracle/m4/identity/algo.py"
+          }
+        },
+        {
+          "id": "transpose",
+          "files": {
+            "algo.py": "oracle/m4/transpose/algo.py"
+          }
+        },
+        {
+          "id": "counterclockwise",
+          "files": {
+            "algo.py": "oracle/m4/counterclockwise/algo.py"
+          }
+        }
+      ]
+    }
+  ]
+}

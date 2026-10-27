@@ -667,7 +667,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn modifying_hooks_recover_from_panics_and_keep_previous_values() {
+    async fn pre_execution_hooks_reject_panics_while_observers_keep_previous_values() {
         let events = shared_events();
         let mut runner = HookRunner::new();
         runner.register(Box::new(EventHook::with_log("low", 0, EventMode::Modify, events.clone())));
@@ -687,17 +687,14 @@ mod tests {
             "prompt|low"
         );
 
-        let (messages, model) = expect_continue(
+        assert!(matches!(
             runner.run_before_llm_call(vec![ChatMessage::user("hi")], "m".into()).await,
-        );
-        assert_eq!(messages.len(), 2);
-        assert_eq!(messages[1].content, "hook:low");
-        assert_eq!(model, "m|low");
-
-        let (tool, args) =
-            expect_continue(runner.run_before_tool_call("read".into(), json!({"path": "a"})).await);
-        assert_eq!(tool, "read|low");
-        assert_eq!(args["hook"], "low");
+            HookResult::Cancel(_)
+        ));
+        assert!(matches!(
+            runner.run_before_tool_call("read".into(), json!({"path": "a"})).await,
+            HookResult::Cancel(_)
+        ));
 
         let received = expect_continue(runner.run_on_message_received(message("body")).await);
         assert_eq!(received.content, "body|low");
@@ -711,6 +708,6 @@ mod tests {
 
         let events = events_snapshot(&events);
         assert!(events.iter().any(|event| event.starts_with("panic:before_tool_call")));
-        assert!(events.iter().any(|event| event.starts_with("low:before_tool_call")));
+        assert!(!events.iter().any(|event| event.starts_with("low:before_tool_call")));
     }
 }

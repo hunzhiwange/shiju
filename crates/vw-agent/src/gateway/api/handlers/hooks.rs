@@ -173,7 +173,12 @@ fn resolve_current_hook(
         .into_iter()
         .find(|hook| plugin_hook_trust_hash(plugin_id, hook) == hook_hash)
         .ok_or_else(|| anyhow::anyhow!("current enabled plugin hook hash does not match"))?;
-    if !matches!(hook.event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall) {
+    if !matches!(
+        hook.event,
+        PluginHookEvent::BeforeToolCall
+            | PluginHookEvent::AfterToolCall
+            | PluginHookEvent::BeforeLlmCall
+    ) {
         bail!("plugin hook event is not executable by the current runtime");
     }
     Ok((hook, plugin_hook_trust_file(&options.config_dir)))

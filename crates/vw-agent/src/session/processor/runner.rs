@@ -477,6 +477,14 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
         selected_model.step_event_model(),
     )
     .with_auto_model_selection(model_selected_by_auto);
+    match crate::hooks::execution_hook_runner(&config) {
+        Ok(Some(runner)) => tool_use_context = tool_use_context.with_hook_runner(runner),
+        Ok(None) => {}
+        Err(_) => {
+            on_event(StreamEvent::Error("required execution hooks unavailable".into()));
+            return;
+        }
+    }
     let trusted_user_selected_skills =
         option_string_values(&req.options, "delegate_trusted_user_selected_skills");
     if !trusted_user_selected_skills.is_empty() {

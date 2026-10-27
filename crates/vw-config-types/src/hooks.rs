@@ -15,6 +15,9 @@ pub struct HooksConfig {
     /// 插件 hook 的开关配置。
     #[serde(default)]
     pub plugins: PluginHooksConfig,
+    /// Required handler identities. Missing or untrusted handlers reject execution.
+    #[serde(default)]
+    pub required: Vec<String>,
 }
 
 impl Default for HooksConfig {
@@ -23,6 +26,7 @@ impl Default for HooksConfig {
             enabled: true,
             builtin: BuiltinHooksConfig::default(),
             plugins: PluginHooksConfig::default(),
+            required: Vec::new(),
         }
     }
 }

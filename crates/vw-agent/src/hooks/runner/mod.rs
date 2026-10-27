@@ -59,7 +59,7 @@ use super::traits::{HookHandler, HookResult};
 /// # 错误处理
 ///
 /// 修改型钩子使用 `catch_unwind` 捕获 panic，防止单个钩子崩溃影响整个系统。
-/// 发生 panic 时记录错误日志并继续使用之前的值。
+/// 执行前门禁遇到 panic 时拒绝操作，其余修改钩子保留先前值。
 pub struct HookRunner {
     /// 已注册的钩子处理器列表，按优先级降序排列
     handlers: Vec<Box<dyn HookHandler>>,
@@ -330,7 +330,7 @@ impl HookRunner {
     ///
     /// # 错误处理
     ///
-    /// 如果钩子发生 panic，记录错误日志并继续使用之前的值。
+    /// 如果钩子发生 panic，记录错误日志并拒绝当前执行。
     pub async fn run_before_llm_call(
         &self,
         mut messages: Vec<ChatMessage>,
@@ -353,8 +353,9 @@ impl HookRunner {
                 Err(_) => {
                     tracing::error!(
                         hook = hook_name,
-                        "before_llm_call hook panicked; continuing with previous values"
+                        "before_llm_call hook panicked; rejecting execution"
                     );
+                    return HookResult::Cancel("before_llm_call hook panicked".into());
                 }
             }
         }
@@ -378,7 +379,7 @@ impl HookRunner {
     ///
     /// # 错误处理
     ///
-    /// 如果钩子发生 panic，记录错误日志并继续使用之前的值。
+    /// 如果钩子发生 panic，记录错误日志并拒绝当前执行。
     pub async fn run_before_tool_call(
         &self,
         mut name: String,
@@ -401,8 +402,9 @@ impl HookRunner {
                 Err(_) => {
                     tracing::error!(
                         hook = hook_name,
-                        "before_tool_call hook panicked; continuing with previous values"
+                        "before_tool_call hook panicked; rejecting execution"
                     );
+                    return HookResult::Cancel("before_tool_call hook panicked".into());
                 }
             }
         }

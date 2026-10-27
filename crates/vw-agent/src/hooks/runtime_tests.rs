@@ -149,3 +149,13 @@ fn hook_runtime_replaces_only_complete_candidates() {
     runtime.replace(disabled);
     assert!(runtime.runner_snapshot().is_none());
 }
+
+#[test]
+fn required_execution_hook_missing_or_disabled_rejects_runtime() {
+    let mut config = Config::default();
+    config.hooks.plugins.enabled = false;
+    config.hooks.required = vec!["plugin:missing:before_tool_call".into()];
+    assert!(build_hook_runtime(&config).is_err());
+    config.hooks.enabled = false;
+    assert!(build_hook_runtime(&config).is_err());
+}

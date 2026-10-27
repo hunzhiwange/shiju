@@ -461,7 +461,7 @@ fn trusted_unsupported_plugin_hook_is_not_registered() {
         &plugin_root.join("hooks/hooks.json"),
         json!({
             "hooks": [{
-                "event": "before_llm_call",
+                "event": "user_prompt_submit",
                 "command": "never-executed",
                 "working_dir": "./scripts"
             }]
@@ -478,4 +478,29 @@ fn trusted_unsupported_plugin_hook_is_not_registered() {
 
     assert_eq!(registered, 0);
     assert!(subscriber.levels().iter().any(|level| *level == tracing::Level::WARN));
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn trusted_plugin_before_llm_call_rejects_before_model_request() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let workspace = dir.path().join("workspace");
+    let config_dir = dir.path().join("config");
+    let plugin = workspace.join(".vibewindow/plugins/model-budget");
+    let script = plugin.join("scripts/guard.sh");
+    write_plugin_manifest(&plugin, "model-budget");
+    write_script(&script, "#!/bin/sh\ncat >/dev/null\nexit 23\n");
+    write_json(
+        &plugin.join("hooks/hooks.json"),
+        json!({"hooks": [{
+            "event": "before_llm_call", "command": script.display().to_string(),
+            "timeout_secs": 2, "working_dir": "./scripts"
+        }]}),
+    );
+    trust_plugin_hook(&config_dir, &plugin, &workspace, "model-budget");
+    let config = test_config(workspace, config_dir);
+    let handlers = trusted_plugin_hook_handlers(&config).expect("handlers");
+    assert_eq!(handlers.len(), 1);
+    let result = handlers[0].before_llm_call(Vec::new(), "local-test".into()).await;
+    assert!(matches!(result, HookResult::Cancel(_)));
 }

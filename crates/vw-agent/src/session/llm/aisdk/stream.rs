@@ -180,10 +180,24 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
 ) -> Result<(), Error> {
     // 初始化请求构建器，设置模型和消息
     let model_name = model.name();
+    let config = crate::config::get().await;
+    let guarded =
+        crate::hooks::authorize_model_request(&config, &model_name).await.map_err(|_| {
+            Error::Api(crate::session::message::AssistantError::APIError {
+                message: "model request denied by execution hook".into(),
+                status_code: None,
+                is_retryable: false,
+                response_headers: None,
+                response_body: None,
+                metadata: None,
+            })
+        })?;
     let mut builder = LanguageModelRequest::<M>::builder().model(model).messages(messages);
 
     // 设置重试次数，限制在 u32 范围内
-    builder.max_retries = Some(retries.min(u64::from(u32::MAX)) as u32);
+    // SDK-internal retries cannot bypass an execution gate. The caller may
+    // explicitly retry through a fresh admission check instead.
+    builder.max_retries = Some(if guarded { 0 } else { retries.min(u64::from(u32::MAX)) as u32 });
 
     // 处理工具定义
     if !tools.is_empty() {

@@ -4,7 +4,7 @@
 
 use std::sync::{Arc, RwLock};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::app::agent::config::Config;
 
@@ -65,18 +65,62 @@ fn build_candidate(
     audit_store: CommandAuditStore,
 ) -> Result<HookRuntimeCandidate> {
     if !config.hooks.enabled {
+        if !config.hooks.required.is_empty() {
+            bail!("required hooks are disabled");
+        }
         return Ok(HookRuntimeCandidate { runner: None });
     }
 
     let mut runner = HookRunner::new();
+    let mut registered = std::collections::HashSet::new();
     if config.hooks.builtin.command_logger {
         runner.register(Box::new(CommandLoggerHook::with_store(audit_store)));
     }
     for handler in crate::plugins::trusted_plugin_hook_handlers(config)
         .context("failed to build trusted plugin hooks")?
     {
+        registered.insert(handler.name().to_owned());
         runner.register(handler);
+    }
+    for required in &config.hooks.required {
+        if !registered.contains(required) {
+            bail!("required hook is unavailable: {required}");
+        }
     }
 
     Ok(HookRuntimeCandidate { runner: Some(Arc::new(runner)) })
+}
+
+/// Build execution gates, retaining process-pinned requirements across config edits.
+pub(crate) fn execution_hook_runner(config: &Config) -> Result<Option<Arc<HookRunner>>> {
+    let mut config = config.clone();
+    let mut required = config.hooks.required.clone();
+    if let Some(value) = std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS") {
+        let value =
+            value.into_string().map_err(|_| anyhow::anyhow!("invalid required hook identity"))?;
+        for name in value.split(',') {
+            if name.is_empty() {
+                bail!("invalid required hook identity");
+            }
+            required.push(name.to_owned());
+        }
+    }
+    config.hooks.required = required;
+    Ok(HookRuntime::build(&config)?.runner_snapshot())
+}
+
+/// Check model admission immediately before a provider request, without exposing prompts.
+pub(crate) async fn authorize_model_request(config: &Config, model: &str) -> Result<bool> {
+    if let Some(runner) = execution_hook_runner(config)? {
+        match runner.run_before_llm_call(Vec::new(), model.to_owned()).await {
+            super::HookResult::Cancel(reason) => bail!("model request denied by hook: {reason}"),
+            super::HookResult::Continue((messages, selected)) => {
+                if !messages.is_empty() || selected != model {
+                    bail!("model admission hooks cannot rewrite the request");
+                }
+            }
+        }
+    }
+    Ok(!config.hooks.required.is_empty()
+        || std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS").is_some())
 }

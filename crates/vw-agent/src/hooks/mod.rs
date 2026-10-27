@@ -72,6 +72,7 @@ mod traits;
 /// - 查询已注册的钩子状态
 pub use runner::HookRunner;
 pub use runtime::{HookRuntime, HookRuntimeCandidate, build_hook_runtime};
+pub(crate) use runtime::{authorize_model_request, execution_hook_runner};
 
 /// 重导出钩子处理器 trait 和执行结果
 ///

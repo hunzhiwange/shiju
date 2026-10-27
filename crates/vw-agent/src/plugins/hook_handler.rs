@@ -39,7 +39,12 @@ impl CommandPluginHookHandler {
     }
 
     fn supports_event(event: PluginHookEvent) -> bool {
-        matches!(event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall)
+        matches!(
+            event,
+            PluginHookEvent::BeforeToolCall
+                | PluginHookEvent::AfterToolCall
+                | PluginHookEvent::BeforeLlmCall
+        )
     }
 
     async fn execute_payload(&self, payload: Value) -> Result<()> {
@@ -65,6 +70,20 @@ impl CommandPluginHookHandler {
 impl HookHandler for CommandPluginHookHandler {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    async fn before_llm_call(
+        &self,
+        messages: Vec<crate::providers::ChatMessage>,
+        model: String,
+    ) -> HookResult<(Vec<crate::providers::ChatMessage>, String)> {
+        if self.hook.event != PluginHookEvent::BeforeLlmCall {
+            return HookResult::Continue((messages, model));
+        }
+        match self.execute_payload(json!({"event": "before_llm_call", "model": &model})).await {
+            Ok(()) => HookResult::Continue((messages, model)),
+            Err(error) => HookResult::Cancel(error.to_string()),
+        }
     }
 
     async fn before_tool_call(&self, name: String, args: Value) -> HookResult<(String, Value)> {

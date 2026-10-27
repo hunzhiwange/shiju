@@ -1,0 +1,2 @@
+Work only in /app. This is an independent synthetic exercise (m1). Read input.csv: each LF-terminated row has exactly three nonempty ASCII fields separated by commas. Fields can contain internal spaces; remove only outer spaces from each field, reverse field order, uppercase ASCII letters, join with semicolons, append ;OK and LF. Preserve row order and every row, including the final row. Example: " red fox , Blue , end7 " becomes "END7;BLUE;RED FOX;OK".
+Write the exact transformed bytes to /app/output.csv; leave input.csv unchanged. No script is required.

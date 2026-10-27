@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "parent_id": "kv-store-grpc",
+  "image": "vw-kv-grpc-diagnostics@sha256:5235d587637d5065c1724a0a307c9d0d2fc150cdbd541e0c3174c8845ab40bcc",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "kv-store.proto": "oracle/m1/gold/kv-store.proto"
+      },
+      "negatives": [
+        {
+          "id": "string-value",
+          "files": {
+            "kv-store.proto": "oracle/m1/string-value/kv-store.proto"
+          }
+        },
+        {
+          "id": "wrong-number",
+          "files": {
+            "kv-store.proto": "oracle/m1/wrong-number/kv-store.proto"
+          }
+        },
+        {
+          "id": "wrong-service",
+          "files": {
+            "kv-store.proto": "oracle/m1/wrong-service/kv-store.proto"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "no-overwrite",
+          "files": {
+            "solution.py": "oracle/m2/no-overwrite/solution.py"
+          }
+        },
+        {
+          "id": "absolute-values",
+          "files": {
+            "solution.py": "oracle/m2/absolute-values/solution.py"
+          }
+        },
+        {
+          "id": "folds-keys",
+          "files": {
+            "solution.py": "oracle/m2/folds-keys/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "missing-is-zero",
+          "files": {
+            "solution.py": "oracle/m3/missing-is-zero/solution.py"
+          }
+        },
+        {
+          "id": "accepts-boolean",
+          "files": {
+            "solution.py": "oracle/m3/accepts-boolean/solution.py"
+          }
+        },
+        {
+          "id": "accepts-overflow",
+          "files": {
+            "solution.py": "oracle/m3/accepts-overflow/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json",
+        "kv-store.proto": "fixtures/m4/kv-store.proto"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "server.py": "oracle/m4/gold/server.py"
+      },
+      "negatives": [
+        {
+          "id": "no-overwrite",
+          "files": {
+            "server.py": "oracle/m4/no-overwrite/server.py"
+          }
+        },
+        {
+          "id": "no-storage",
+          "files": {
+            "server.py": "oracle/m4/no-storage/server.py"
+          }
+        },
+        {
+          "id": "wrong-port",
+          "files": {
+            "server.py": "oracle/m4/wrong-port/server.py"
+          }
+        }
+      ]
+    }
+  ]
+}

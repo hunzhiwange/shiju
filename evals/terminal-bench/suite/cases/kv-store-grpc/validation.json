@@ -1,0 +1,152 @@
+{
+  "schema_version": 1,
+  "parent_id": "kv-store-grpc",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "f95b1eeaa45a831486f2fc10d6487999742aae19b44ebc0791eaf64cc546c495",
+    "fixtures/m1/example.json": "485b5990b66011430155f4db4c2368ae1d70ddd255289b9b71691973d2151a16",
+    "fixtures/m1/instruction.md": "442cfebabb3487f6bf4668462ff1230a3e7a85b393c75b7ca42df380a83b54d7",
+    "fixtures/m2/example.json": "485b5990b66011430155f4db4c2368ae1d70ddd255289b9b71691973d2151a16",
+    "fixtures/m2/instruction.md": "3925fd9a3795ff0612083b887da8307d8944c3dcfa559c2d3607f428b9f9980d",
+    "fixtures/m3/example.json": "485b5990b66011430155f4db4c2368ae1d70ddd255289b9b71691973d2151a16",
+    "fixtures/m3/instruction.md": "9fba5710ebef2be80b26ef045a6f815336ee608c83f358bcac65d399e66b0694",
+    "fixtures/m4/example.json": "485b5990b66011430155f4db4c2368ae1d70ddd255289b9b71691973d2151a16",
+    "fixtures/m4/instruction.md": "fd2083c0cabadf9d65a76c7821852af1a77e1d09101305d36ba6dc436b11a7a0",
+    "fixtures/m4/kv-store.proto": "3d72b47bd1203b8098da1016259ce6d97a614e1e6e4b7f376f2cf872d0dabecc",
+    "oracle/m1/gold/kv-store.proto": "7e0afc3f49562647382c024f3fce91527f6d8a142c5e2ea4c666f654eff05938",
+    "oracle/m1/string-value/kv-store.proto": "c9003c9aa4daa15b8482754392d6e8696dce69ffc92a7b32d5435ea74ded0d31",
+    "oracle/m1/task.json": "7c6fda10e0ee66fb8c03bb5c85cebba32e87a33c50d848b8a1d61cf22faf9bd0",
+    "oracle/m1/wrong-number/kv-store.proto": "5f4bfc8f459796d0f338e7d703c4559d39748c58b59247bdbed3a9830046dc43",
+    "oracle/m1/wrong-service/kv-store.proto": "5ac1e455843f947c1a45f46dd7a77a2e90d2bda3bfb89de22d39148747581405",
+    "oracle/m2/absolute-values/solution.py": "499cd8b70edfa788b8c9326160002c1b7cca9a49040ab95392438338d940024f",
+    "oracle/m2/folds-keys/solution.py": "17f226ae9e6af3684bac9d27d443cd765c28f9018a2deb8c6c978525ebb47ef1",
+    "oracle/m2/gold/solution.py": "a82ac7e2ddef84065246f28648a0df3283888d7934fc0cc4986e35fc1a81f677",
+    "oracle/m2/no-overwrite/solution.py": "38e5be9701d54fd71787e0f543bee8e09c1edc14335590f490ea23c0c7f12562",
+    "oracle/m2/task.json": "e6ebacda106d0c1c692ef046c489239574f0337e5d7ed5bb005708e258767d5a",
+    "oracle/m3/accepts-boolean/solution.py": "9b6e6dfd0f13ecb77f9bfc665cc857627d41cfbbef4d6f85a520c1416d2de1fb",
+    "oracle/m3/accepts-overflow/solution.py": "75e39de70b496d6e01f121c7908bc1977e7c9d3ac826d2cb50e6299608b9466e",
+    "oracle/m3/gold/solution.py": "148e1d16eeb3244f2fb160c972c5911bd3d15c4884bd6c46a423b11a1b8ad752",
+    "oracle/m3/missing-is-zero/solution.py": "26d65ea57e608fe1a4cc88e185a9dd788f68afd09a762e3ab34a1fa37bfd8802",
+    "oracle/m3/task.json": "63836e3353ae55a4cf5b9be6178f5a7a103896bcd274f5f99c6b0a4940023cfa",
+    "oracle/m4/gold/server.py": "6855c682baaa030311ff47b6324a5ac8ec7f885ae79f96fb98cc4a09de869de7",
+    "oracle/m4/no-overwrite/server.py": "74678791117e8a299a20aad2d93400c534893092683cf00ab45f10a03cfd4c3e",
+    "oracle/m4/no-storage/server.py": "563835ff06544ff9e38c86258ae2f787da8a4f91fcedf890111a6e751c7987b6",
+    "oracle/m4/task.json": "852304b3b520cf19f51453f1601487bc246a883316375bd353fa8bad3947962e",
+    "oracle/m4/wrong-port/server.py": "354756be8ab329e54bac4d5f8f7c65bed25d19411f90a8b287f760e1ccc32566",
+    "case.json": "4a2fda51f218cae47b6411d6caf7786a5066164d321904cd92e72729e5228a4b"
+  },
+  "image": "vw-kv-grpc-diagnostics@sha256:5235d587637d5065c1724a0a307c9d0d2fc150cdbd541e0c3174c8845ab40bcc",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "string-value",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-number",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-service",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "no-overwrite",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "absolute-values",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "folds-keys",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "missing-is-zero",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accepts-boolean",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accepts-overflow",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "no-overwrite",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "no-storage",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-port",
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Synthetic compressed heap exercise m3. All words and offsets are in word units, not bytes.

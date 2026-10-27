@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "fix-ocaml-gc",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m1/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "free-adds-header",
+          "files": {
+            "solution.py": "oracle/m1/free-adds-header/solution.py"
+          }
+        },
+        {
+          "id": "live-omits-header",
+          "files": {
+            "solution.py": "oracle/m1/live-omits-header/solution.py"
+          }
+        },
+        {
+          "id": "zero-is-free",
+          "files": {
+            "solution.py": "oracle/m1/zero-is-free/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m2/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "free-adds-header",
+          "files": {
+            "solution.py": "oracle/m2/free-adds-header/solution.py"
+          }
+        },
+        {
+          "id": "walks-interior",
+          "files": {
+            "solution.py": "oracle/m2/walks-interior/solution.py"
+          }
+        },
+        {
+          "id": "accepts-overrun",
+          "files": {
+            "solution.py": "oracle/m2/accepts-overrun/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m3/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "accepts-interior-cursor",
+          "files": {
+            "solution.py": "oracle/m3/accepts-interior-cursor/solution.py"
+          }
+        },
+        {
+          "id": "ignores-adjacent-free",
+          "files": {
+            "solution.py": "oracle/m3/ignores-adjacent-free/solution.py"
+          }
+        },
+        {
+          "id": "ignores-coverage",
+          "files": {
+            "solution.py": "oracle/m3/ignores-coverage/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m4/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "omits-allocation-header",
+          "files": {
+            "solution.py": "oracle/m4/omits-allocation-header/solution.py"
+          }
+        },
+        {
+          "id": "never-coalesces",
+          "files": {
+            "solution.py": "oracle/m4/never-coalesces/solution.py"
+          }
+        },
+        {
+          "id": "drops-one-word-remainder",
+          "files": {
+            "solution.py": "oracle/m4/drops-one-word-remainder/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

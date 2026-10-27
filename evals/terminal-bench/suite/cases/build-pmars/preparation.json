@@ -1,0 +1,1965 @@
+{
+  "parent_id": "build-pmars",
+  "catalog_sha256": "f3614f66f7df65dc7315b2d0310f04e46925aa6c14e71a36f7fc7c02e0b41a44",
+  "case_settings": {
+    "build-pmars": {
+      "workingDirectory": "/app",
+      "agentTimeoutSec": 900,
+      "recovery": {
+        "mode": "service",
+        "bootstrap": {
+          "files": [
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/terminal-bench/calibration/recovery/context/uv-x86_64-unknown-linux-gnu.tar.gz",
+              "target": "uv-x86_64-unknown-linux-gnu.tar.gz",
+              "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/python-local.tar",
+              "target": "python-local.tar",
+              "sha256": "150eae3dc44b51e8b2f49814850372fd7a67776ef9b05e40cb4d371bc0cfbe1a"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/terminal-bench/suite/cases/build-pmars/environment/verifier-bootstrap.sh",
+              "target": "setup.sh",
+              "sha256": "cd1fc03c1b331f04588e30e49230a807d1d51cbdd1d153523b1ab1f46c5b7ad9"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/iniconfig-2.3.1-py3-none-any.whl",
+              "target": "iniconfig-2.3.1-py3-none-any.whl",
+              "sha256": "9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/packaging-26.3-py3-none-any.whl",
+              "target": "packaging-26.3-py3-none-any.whl",
+              "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pluggy-1.7.0-py3-none-any.whl",
+              "target": "pluggy-1.7.0-py3-none-any.whl",
+              "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pygments-2.21.0-py3-none-any.whl",
+              "target": "pygments-2.21.0-py3-none-any.whl",
+              "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pytest-8.4.1-py3-none-any.whl",
+              "target": "pytest-8.4.1-py3-none-any.whl",
+              "sha256": "539c70ba6fcead8e78eebbf1115e8b589e7565830d7d006a8723f19ac8a0afb7"
+            },
+            {
+              "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pytest_json_ctrf-0.3.5-py3-none-any.whl",
+              "target": "pytest_json_ctrf-0.3.5-py3-none-any.whl",
+              "sha256": "e82fd1d69be2f92385bc33540063e5ad7b17b36de67764c84f3ceb9815a895e9"
+            }
+          ],
+          "script": "setup.sh",
+          "env": {
+            "PATH": "/opt/vw-verifier-deps/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+            "LD_LIBRARY_PATH": "/opt/vw-verifier-deps/local/lib",
+            "UV_DOWNLOAD_URL": "file:///opt/vw-verifier-deps",
+            "UV_PYTHON_DOWNLOADS": "never",
+            "UV_FIND_LINKS": "/opt/vw-verifier-deps",
+            "UV_OFFLINE": "1"
+          }
+        }
+      }
+    },
+    "build-pmars-m1": {
+      "workingDirectory": "/app",
+      "agentTimeoutSec": 900
+    },
+    "build-pmars-m2": {
+      "workingDirectory": "/app",
+      "agentTimeoutSec": 900
+    },
+    "build-pmars-m3": {
+      "workingDirectory": "/app",
+      "agentTimeoutSec": 900
+    },
+    "build-pmars-m4": {
+      "workingDirectory": "/app",
+      "agentTimeoutSec": 900
+    }
+  },
+  "runtime_sha256": "168bd06f2cf4864f1522aec773a3b53c711069fdafc577e6779344c6e466b9ef",
+  "runtime_identity": {
+    "generation": 2,
+    "binary_sha256": "847823c5cd99a6828cddfc2e3e5dbb67c5ddcc9f8693a13d539d8a8fa47c9dae",
+    "source_sha256": "9fcb685d29eb49342983457ab75bedc8293dbf3d70cdb35ad7a48a2298bc5bcf",
+    "source_base_commit": "470278872a22f3cc30a5ed18bd89c55ebf403e36",
+    "parent_binary_sha256": "7ad73fbb2031953dc1fcdca03f16c5cc95229bb02968d17f331f70f066ba75de",
+    "retry_patch_sha256": "01c9eee5bff20946382bb2a8a3277c78d7bb2df8a7ad970d1ae02b147d769dd2",
+    "budget_patch_sha256": "6f5b2f8fdae14317f7ece3b7fe30dab99e183147730611d6110283a76a2282c6",
+    "sidecars": {
+      "libsqlite3.so.0": "2e6eef9a727f081f0d453b4e5e6cbd8b9ef8b6f86cbf7681cbad444d3b0b55c8",
+      "vw-budget-gate": "32521d760857047a6f5d40b490803cbc552293048e445f361b7a45e21fdc4346",
+      "openssl.cnf": "7ae8cae2e64856b34c80276deb1dcf60f76da27bc1e00382201ba7bb7dc33311",
+      "ca-certificates.crt": "a3413a37a8e09cc21b2c11c9ffb23d92d2fc9d1933c9e7617f5c4fba4f72d37d",
+      "libsqlite3.so": "2e6eef9a727f081f0d453b4e5e6cbd8b9ef8b6f86cbf7681cbad444d3b0b55c8"
+    },
+    "identity_scope": "historical source plus budget repair; current source tests are separate"
+  },
+  "adapter": {
+    "sha256": "63710c76f04dd31a12d48036859af8d68ea7bf9707aa2a51f47c3f09b59e91e6",
+    "files": {
+      "suite/agent.py": "407bcbf8adab15b9f619cd259b2b86431bca589816e6d116906f1c109dd1ac12",
+      "vibewindow_agent.py": "d1747ee3147cb3afc88a3239be9bf6272b5148ba4f316e6f3eeadfa176dde4ec",
+      "bind-profile.sh": "95b82cfc4ebf3c475c1c1515b88717d917a2a3368f0527bfeeb131bff16365d4",
+      "suite/budget.py": "0e72c3cb7e4562cdc744b8d1370521a7cf98b2108c1073f2ea0e00bcf52320f6",
+      "suite/budget_gate.rs": "3cd5952d67dced778f478850fc203f456dc6ffd9dd9ce0de3b3ba30db77016c5"
+    }
+  },
+  "scheduler_sha256": "dfafe7c9cc51246c78a04226a6b972d7fd91eb6027ae13807c34d2ef91f9689a",
+  "harbor": {
+    "revision": "6099b8cf2bfbbb3e7ff1eb2163bfc4524dbd9ba5",
+    "version": "0.24.0",
+    "sha256": "a2b7ec87392efed1b31a14217075c31f9a860668f16429284aaf9c5c1aa663a3"
+  },
+  "official": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/source/tasks/build-pmars",
+  "official_files": {
+    ".gitignore": {
+      "sha256": "9a8dd8d9b6c3adb8e9e56328df27deef859a3e98fffc9b8133c8b22207c25953",
+      "executable": false
+    },
+    "README.md": {
+      "sha256": "faf19658ef0ea11f1a6208ea0d561d2a0dbc4be19c653c7f4ed9b6255dac12f0",
+      "executable": false
+    },
+    "environment/Dockerfile": {
+      "sha256": "ff0a9f766151b6304a33b8fe8787dc27d75f6ea679eec4e9a4f2c8876fe08b25",
+      "executable": false
+    },
+    "environment/warriors/flashpaper.red": {
+      "sha256": "ad965bf840c3f3849abc18adc89d58f3fe51209e43ae3f7b9a9cb48452374fe9",
+      "executable": false
+    },
+    "environment/warriors/rave.red": {
+      "sha256": "b4c8acf763957da9de0ec8568d765214ef9e8271aac9b51bb1ab09753e3afb66",
+      "executable": false
+    },
+    "instruction.md": {
+      "sha256": "dd4a3aa762e6b3c09e67bd7f61d9b6afbe379dcd7297c2c0ebe2e9bd0082215e",
+      "executable": false
+    },
+    "solution/solve.sh": {
+      "sha256": "111b4e532ec411c9826cd67309f39efac21063e3a76d5cb268e62ce5fadc713f",
+      "executable": false
+    },
+    "task.toml": {
+      "sha256": "7ee2eac27b99fd462e0760552a430454db693f86608af5bb570b020270e4c9cd",
+      "executable": false
+    },
+    "tests/test.sh": {
+      "sha256": "4770437ea96c3cc84684b4f99d55fb148fcac09f9ea1e8ef49de487716e6c334",
+      "executable": false
+    },
+    "tests/test_outputs.py": {
+      "sha256": "d9d2796ddc19cf8159670567e174ea377e2bce675bf3451d5951c045b01f4e85",
+      "executable": false
+    }
+  },
+  "diagnostic": "/Users/Shared/work/dir/data/codes/vibe-window/evals/terminal-bench/suite/cases/build-pmars/case.json",
+  "diagnostic_receipt": {
+    "schema_version": 1,
+    "parent_id": "build-pmars",
+    "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+    "files": {
+      "check.py": "14500d799233d61af023027818ebbdd573953e209dc6de7abcb98eea36d4ff07",
+      "fixtures/m1/instruction.md": "9966674be6887898a947947287d3d8d312a31090e906cf5194035d2741ef3d2c",
+      "fixtures/m1/pmars.dsc": "1db784db2ea111d784592bf7f84bb1b34c0fd5cd74afb4ed8c54927e01c7e8e2",
+      "fixtures/m1/pmars_1.4.7.orig.tar.gz": "3abc24bcddbb26afe253e63a73cf7998301c9a25525226a6f3fe7e2c8f6bad90",
+      "fixtures/m2/Makefile": "fa6fe7956f22367993fdced17294700ada23cf5eeca5da886afb7a80d5f8abb1",
+      "fixtures/m2/instruction.md": "2c9d7132c65ceffd9e8275c7bb7ee40e33e008ec12a2410c9049b9ccad2227fb",
+      "fixtures/m3/dead.red": "951f29f706a4d5f9415c54f544300e586bf686facad3e06ea831dbdbf11f59a9",
+      "fixtures/m3/instruction.md": "a9219c34430f029deb2657027df4a31b9f45df569c6f254b08f7822d07dd4e92",
+      "fixtures/m3/loop.red": "8d937eff0463e5016fc41b1f87c10873ae0b1d45531752d8439aae4fce3d1abd",
+      "fixtures/m4/instruction.md": "55dc82af945cb0157405a757501bc16ed1caa553fef69e90eb79ce5ce51e9a18",
+      "fixtures/m4/opponent.red": "0d0ec1bc3b3334eaf72f70c181fc39836ece6796404ec40c9f590c636d9b88ea",
+      "oracle/m1/altered-source/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+      "oracle/m1/altered-source/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+      "oracle/m1/altered-source/pmars-1.4.7/src/engine.c": "7cf41c0a306862c048793a71c6b16aeb1becc58963a9d8e2b2d0eb425f3371fd",
+      "oracle/m1/altered-source/source.json": "973744d3e613c78b27dc11f46bb011346423317be302335fef669da5cbcee6fd",
+      "oracle/m1/gold/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+      "oracle/m1/gold/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+      "oracle/m1/gold/pmars-1.4.7/src/engine.c": "fdab1b4f3be1fc606c2479f3cca69e486a6d12df0779afac5c1add2d2b5077ee",
+      "oracle/m1/gold/source.json": "973744d3e613c78b27dc11f46bb011346423317be302335fef669da5cbcee6fd",
+      "oracle/m1/missing-source/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+      "oracle/m1/missing-source/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+      "oracle/m1/missing-source/source.json": "973744d3e613c78b27dc11f46bb011346423317be302335fef669da5cbcee6fd",
+      "oracle/m1/task.json": "87d35e5d8ee99b0fa7cdbe402c837627d0036201d7bfc963979a8aa528e75292",
+      "oracle/m1/wrong-version/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+      "oracle/m1/wrong-version/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+      "oracle/m1/wrong-version/pmars-1.4.7/src/engine.c": "fdab1b4f3be1fc606c2479f3cca69e486a6d12df0779afac5c1add2d2b5077ee",
+      "oracle/m1/wrong-version/source.json": "e13c801c34ac06f68b259f1ee578d321f226589a5aa7d9e2cbde5a168f65742d",
+      "oracle/m2/debugger-disabled/Makefile": "a785f55a0534a838aa4c1250ac1d0fe273d91072b440e0749b06d2c5440c828d",
+      "oracle/m2/gold/Makefile": "1dca6bfdacf2257ac5649e38ce9fc1b668724d89d6d5389d1f93cf3a7378c60a",
+      "oracle/m2/missing-link-library/Makefile": "084bf69a4d81a5feed2978fba9e1d0fb2c0f742bf9697fc3ada5386a68c07942",
+      "oracle/m2/task.json": "fb94f75745d94b1625390e88b252030b950b592396b94ba4d22f4c5f5d8d0ff7",
+      "oracle/m2/x11-enabled/Makefile": "fa6fe7956f22367993fdced17294700ada23cf5eeca5da886afb7a80d5f8abb1",
+      "oracle/m3/fake-results/run_battle.py": "e735e58db37de2954554bd3c57627c5ecf4be8b8646f317e85f1d8abb281cd0c",
+      "oracle/m3/fixed-rounds/run_battle.py": "0f697d44400828211ca8a66db507cca314d9d7757c7ebf45e5638ab27446beb7",
+      "oracle/m3/gold/run_battle.py": "f4f8c97775917c1d85189ec28847f34d82468536b7d744676cb97a33269fc9fa",
+      "oracle/m3/swapped-warriors/run_battle.py": "c65dcc87043fd07bcb5440bd58231afb71831df177afb45f038b063a6552ff7e",
+      "oracle/m3/task.json": "22ae740ff681803fd7bd956761a04bdfe17477639bf4bdc7c429fcf4e77f0ea5",
+      "oracle/m4/dies-immediately/warrior.red": "4ba3bec2a63e9c506afd4951da667eb063117d7e458505e3c5e1f52951a6ea45",
+      "oracle/m4/gold/warrior.red": "2e2fcb78d7a68a44fb425b714c7822e0a068020325f56b3cd4eda09dcc15501d",
+      "oracle/m4/invalid-opcode/warrior.red": "88de9e6aff7fc48088f67b9a463fc7187b29bd64192bdd900bb31edab000fb6c",
+      "oracle/m4/task.json": "585215b79c6e1b02f15df08839e43bd395f3a97fadc971eaa38dd2f2c2fc0ede",
+      "oracle/m4/wrong-entry/warrior.red": "69f3e6f49463c9e1379ded2c85361782fed65cd4c94fd4be5cb147e04dc08288",
+      "case.json": "b41d6f55e48201778066705d993854170f0460229aafcf34f5b48b213ea75e58"
+    },
+    "image": "vw-pmars-diagnostics@sha256:06a845a715e6e849aeabba6fbc9e301bb7fc1136497661a03f60b34e7c638a4a",
+    "policy": {
+      "model": "token-plan/qwen3.8-flash",
+      "max_output_tokens": 32000,
+      "input_window_tokens": 200000,
+      "agent_timeout_sec": 900,
+      "verifier_timeout_sec": 120,
+      "max_turns": 24,
+      "max_tools": 32,
+      "attempts": 1,
+      "fresh_container": true
+    },
+    "checks": [
+      {
+        "child_id": "m1",
+        "fixture": "gold",
+        "exit_code": 0
+      },
+      {
+        "child_id": "m1",
+        "fixture": "nop",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m1",
+        "fixture": "wrong-version",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m1",
+        "fixture": "missing-source",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m1",
+        "fixture": "altered-source",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m2",
+        "fixture": "gold",
+        "exit_code": 0
+      },
+      {
+        "child_id": "m2",
+        "fixture": "nop",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m2",
+        "fixture": "x11-enabled",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m2",
+        "fixture": "debugger-disabled",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m2",
+        "fixture": "missing-link-library",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m3",
+        "fixture": "gold",
+        "exit_code": 0
+      },
+      {
+        "child_id": "m3",
+        "fixture": "nop",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m3",
+        "fixture": "fixed-rounds",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m3",
+        "fixture": "swapped-warriors",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m3",
+        "fixture": "fake-results",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m4",
+        "fixture": "gold",
+        "exit_code": 0
+      },
+      {
+        "child_id": "m4",
+        "fixture": "nop",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m4",
+        "fixture": "dies-immediately",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m4",
+        "fixture": "invalid-opcode",
+        "exit_code": 1
+      },
+      {
+        "child_id": "m4",
+        "fixture": "wrong-entry",
+        "exit_code": 1
+      }
+    ]
+  },
+  "calibration": [
+    {
+      "agent": "oracle",
+      "case_id": "build-pmars",
+      "evidence_files": {
+        "bootstrap.json": {
+          "executable": false,
+          "sha256": "d1060b6ba5777a7d87566bf546ce738e043fcd7161dcd2c70258be79317b35db"
+        },
+        "first.json": {
+          "executable": false,
+          "sha256": "6e16896b1b75758e0962bec736a3fac59f63ff22242163ad8375738295daa365"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-oracle/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 1.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:06:47.418999Z",
+          "started_at": "2026-10-27T07:58:36.182284Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "oracle",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T07:58:36.182206Z",
+          "started_at": "2026-10-27T07:58:36.182156Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "oracle",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/source/tasks/build-pmars",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-oracle",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "bootstrap": {
+                  "env": {
+                    "LD_LIBRARY_PATH": "/opt/vw-verifier-deps/local/lib",
+                    "PATH": "/opt/vw-verifier-deps/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "UV_DOWNLOAD_URL": "file:///opt/vw-verifier-deps",
+                    "UV_FIND_LINKS": "/opt/vw-verifier-deps",
+                    "UV_OFFLINE": "1",
+                    "UV_PYTHON_DOWNLOADS": "never"
+                  },
+                  "files": [
+                    {
+                      "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/terminal-bench/calibration/recovery/context/uv-x86_64-unknown-linux-gnu.tar.gz",
+                      "target": "uv-x86_64-unknown-linux-gnu.tar.gz"
+                    },
+                    {
+                      "sha256": "150eae3dc44b51e8b2f49814850372fd7a67776ef9b05e40cb4d371bc0cfbe1a",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/python-local.tar",
+                      "target": "python-local.tar"
+                    },
+                    {
+                      "sha256": "cd1fc03c1b331f04588e30e49230a807d1d51cbdd1d153523b1ab1f46c5b7ad9",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/terminal-bench/suite/cases/build-pmars/environment/verifier-bootstrap.sh",
+                      "target": "setup.sh"
+                    },
+                    {
+                      "sha256": "9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/iniconfig-2.3.1-py3-none-any.whl",
+                      "target": "iniconfig-2.3.1-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/packaging-26.3-py3-none-any.whl",
+                      "target": "packaging-26.3-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pluggy-1.7.0-py3-none-any.whl",
+                      "target": "pluggy-1.7.0-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pygments-2.21.0-py3-none-any.whl",
+                      "target": "pygments-2.21.0-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "539c70ba6fcead8e78eebbf1115e8b589e7565830d7d006a8723f19ac8a0afb7",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pytest-8.4.1-py3-none-any.whl",
+                      "target": "pytest-8.4.1-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "e82fd1d69be2f92385bc33540063e5ad7b17b36de67764c84f3ceb9815a895e9",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pytest_json_ctrf-0.3.5-py3-none-any.whl",
+                      "target": "pytest_json_ctrf-0.3.5-py3-none-any.whl"
+                    }
+                  ],
+                  "script": "setup.sh"
+                },
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T07:58:36.182093Z",
+          "started_at": "2026-10-27T07:58:35.224468Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:07:36.402014Z",
+        "id": "8c242748-3d70-4182-add0-d3b77dacfcb6",
+        "source": null,
+        "started_at": "2026-10-27T07:58:35.072317Z",
+        "step_results": null,
+        "task_checksum": "2e95844c0822c9f25465be62f5bd7d081578a27f09749f3c6311a525df2f2b22",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/source/tasks/build-pmars"
+        },
+        "task_name": "terminal-bench/build-pmars",
+        "trial_name": "build-pmars-oracle",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-oracle",
+        "verifier": {
+          "finished_at": "2026-10-27T08:07:25.848236Z",
+          "started_at": "2026-10-27T08:06:47.714237Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 1.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "none",
+        "reward": 1.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "nop",
+      "case_id": "build-pmars",
+      "evidence_files": {
+        "bootstrap.json": {
+          "executable": false,
+          "sha256": "d1060b6ba5777a7d87566bf546ce738e043fcd7161dcd2c70258be79317b35db"
+        },
+        "first.json": {
+          "executable": false,
+          "sha256": "f6a5910b25340f49c7b91fbc0ebbd373a64f036f5c766aeed4a4372ab5cc9c94"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-nop/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 0.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:07:37.439716Z",
+          "started_at": "2026-10-27T08:07:37.439566Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "nop",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:07:37.439493Z",
+          "started_at": "2026-10-27T08:07:37.439432Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "nop",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/source/tasks/build-pmars",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-nop",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "bootstrap": {
+                  "env": {
+                    "LD_LIBRARY_PATH": "/opt/vw-verifier-deps/local/lib",
+                    "PATH": "/opt/vw-verifier-deps/local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                    "UV_DOWNLOAD_URL": "file:///opt/vw-verifier-deps",
+                    "UV_FIND_LINKS": "/opt/vw-verifier-deps",
+                    "UV_OFFLINE": "1",
+                    "UV_PYTHON_DOWNLOADS": "never"
+                  },
+                  "files": [
+                    {
+                      "sha256": "2cf10babba653310606f8b49876cfb679928669e7ddaa1fb41fb00ce73e64f66",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/terminal-bench/calibration/recovery/context/uv-x86_64-unknown-linux-gnu.tar.gz",
+                      "target": "uv-x86_64-unknown-linux-gnu.tar.gz"
+                    },
+                    {
+                      "sha256": "150eae3dc44b51e8b2f49814850372fd7a67776ef9b05e40cb4d371bc0cfbe1a",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/python-local.tar",
+                      "target": "python-local.tar"
+                    },
+                    {
+                      "sha256": "cd1fc03c1b331f04588e30e49230a807d1d51cbdd1d153523b1ab1f46c5b7ad9",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/terminal-bench/suite/cases/build-pmars/environment/verifier-bootstrap.sh",
+                      "target": "setup.sh"
+                    },
+                    {
+                      "sha256": "9121e2c1fdb355232495be3194c8dfe87ccc2d5dee45947b78e68f499790d7a7",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/iniconfig-2.3.1-py3-none-any.whl",
+                      "target": "iniconfig-2.3.1-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/packaging-26.3-py3-none-any.whl",
+                      "target": "packaging-26.3-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "7dd7b0d8832ba3cb632c306926ded123429211b83641b35dc5c41ad2d34f9bec",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pluggy-1.7.0-py3-none-any.whl",
+                      "target": "pluggy-1.7.0-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pygments-2.21.0-py3-none-any.whl",
+                      "target": "pygments-2.21.0-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "539c70ba6fcead8e78eebbf1115e8b589e7565830d7d006a8723f19ac8a0afb7",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pytest-8.4.1-py3-none-any.whl",
+                      "target": "pytest-8.4.1-py3-none-any.whl"
+                    },
+                    {
+                      "sha256": "e82fd1d69be2f92385bc33540063e5ad7b17b36de67764c84f3ceb9815a895e9",
+                      "source": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/diagnostics/bn-fit-modify/resume/verified-wheels/pytest_json_ctrf-0.3.5-py3-none-any.whl",
+                      "target": "pytest_json_ctrf-0.3.5-py3-none-any.whl"
+                    }
+                  ],
+                  "script": "setup.sh"
+                },
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:07:37.439381Z",
+          "started_at": "2026-10-27T08:07:36.415510Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:08:48.980518Z",
+        "id": "5ab2d800-f81c-41a2-8a44-6b2acb0652cb",
+        "source": null,
+        "started_at": "2026-10-27T08:07:36.413994Z",
+        "step_results": null,
+        "task_checksum": "2e95844c0822c9f25465be62f5bd7d081578a27f09749f3c6311a525df2f2b22",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/source/tasks/build-pmars"
+        },
+        "task_name": "terminal-bench/build-pmars",
+        "trial_name": "build-pmars-nop",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-nop",
+        "verifier": {
+          "finished_at": "2026-10-27T08:08:38.588533Z",
+          "started_at": "2026-10-27T08:07:37.915518Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 0.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "capability",
+        "reward": 0.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "oracle",
+      "case_id": "build-pmars-m1",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "6e16896b1b75758e0962bec736a3fac59f63ff22242163ad8375738295daa365"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m1-oracle/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 1.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:08:53.676179Z",
+          "started_at": "2026-10-27T08:08:53.380392Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "oracle",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:08:53.380325Z",
+          "started_at": "2026-10-27T08:08:53.380267Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "oracle",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m1",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m1-oracle",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:08:53.380232Z",
+          "started_at": "2026-10-27T08:08:49.225972Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:09:04.881685Z",
+        "id": "1944d131-a1c6-493f-9109-611dc4ef1ac7",
+        "source": null,
+        "started_at": "2026-10-27T08:08:49.222778Z",
+        "step_results": null,
+        "task_checksum": "79b243fde8f7275ac8d22dab82bc77a7009c4c496c58aa8dce77439dc78e13e1",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m1"
+        },
+        "task_name": "build-pmars-m1",
+        "trial_name": "build-pmars-m1-oracle",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m1-oracle",
+        "verifier": {
+          "finished_at": "2026-10-27T08:08:54.480994Z",
+          "started_at": "2026-10-27T08:08:53.955339Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 1.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "none",
+        "reward": 1.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "nop",
+      "case_id": "build-pmars-m1",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "f6a5910b25340f49c7b91fbc0ebbd373a64f036f5c766aeed4a4372ab5cc9c94"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m1-nop/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 0.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:09:09.201412Z",
+          "started_at": "2026-10-27T08:09:09.201080Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "nop",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:09:09.201008Z",
+          "started_at": "2026-10-27T08:09:09.200957Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "nop",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m1",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m1-nop",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:09:09.200916Z",
+          "started_at": "2026-10-27T08:09:04.896349Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:09:20.401583Z",
+        "id": "7ea5bc69-fbd9-4d5b-8af3-4c06b717ac2f",
+        "source": null,
+        "started_at": "2026-10-27T08:09:04.893809Z",
+        "step_results": null,
+        "task_checksum": "79b243fde8f7275ac8d22dab82bc77a7009c4c496c58aa8dce77439dc78e13e1",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m1"
+        },
+        "task_name": "build-pmars-m1",
+        "trial_name": "build-pmars-m1-nop",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m1-nop",
+        "verifier": {
+          "finished_at": "2026-10-27T08:09:10.030176Z",
+          "started_at": "2026-10-27T08:09:09.478450Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 0.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "capability",
+        "reward": 0.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "oracle",
+      "case_id": "build-pmars-m2",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "6e16896b1b75758e0962bec736a3fac59f63ff22242163ad8375738295daa365"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m2-oracle/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 1.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:09:24.937618Z",
+          "started_at": "2026-10-27T08:09:24.631520Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "oracle",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:09:24.631452Z",
+          "started_at": "2026-10-27T08:09:24.631404Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "oracle",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m2",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m2-oracle",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:09:24.631364Z",
+          "started_at": "2026-10-27T08:09:20.413964Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:09:36.767078Z",
+        "id": "c2f1c4ab-2a8a-4f98-b56d-9cb1a1fca194",
+        "source": null,
+        "started_at": "2026-10-27T08:09:20.412518Z",
+        "step_results": null,
+        "task_checksum": "e9c47f2ddb5a2cf395f947f4124c1152df653e095ed8a7f574e563ea49908714",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m2"
+        },
+        "task_name": "build-pmars-m2",
+        "trial_name": "build-pmars-m2-oracle",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m2-oracle",
+        "verifier": {
+          "finished_at": "2026-10-27T08:09:26.332981Z",
+          "started_at": "2026-10-27T08:09:25.220948Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 1.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "none",
+        "reward": 1.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "nop",
+      "case_id": "build-pmars-m2",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "f6a5910b25340f49c7b91fbc0ebbd373a64f036f5c766aeed4a4372ab5cc9c94"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m2-nop/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 0.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:09:41.074097Z",
+          "started_at": "2026-10-27T08:09:41.073705Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "nop",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:09:41.073627Z",
+          "started_at": "2026-10-27T08:09:41.073569Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "nop",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m2",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m2-nop",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:09:41.073525Z",
+          "started_at": "2026-10-27T08:09:36.777568Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:09:52.826017Z",
+        "id": "ca6f80d5-96c4-4264-96d3-f03aa9f19ffa",
+        "source": null,
+        "started_at": "2026-10-27T08:09:36.776109Z",
+        "step_results": null,
+        "task_checksum": "e9c47f2ddb5a2cf395f947f4124c1152df653e095ed8a7f574e563ea49908714",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m2"
+        },
+        "task_name": "build-pmars-m2",
+        "trial_name": "build-pmars-m2-nop",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m2-nop",
+        "verifier": {
+          "finished_at": "2026-10-27T08:09:42.384637Z",
+          "started_at": "2026-10-27T08:09:41.401265Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 0.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "capability",
+        "reward": 0.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "oracle",
+      "case_id": "build-pmars-m3",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "6e16896b1b75758e0962bec736a3fac59f63ff22242163ad8375738295daa365"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m3-oracle/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 1.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:09:57.414253Z",
+          "started_at": "2026-10-27T08:09:57.103645Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "oracle",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:09:57.103563Z",
+          "started_at": "2026-10-27T08:09:57.103498Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "oracle",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m3",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m3-oracle",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:09:57.103448Z",
+          "started_at": "2026-10-27T08:09:52.839926Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:10:08.735421Z",
+        "id": "c7e948c9-71ee-42b3-a8d7-a7fa0a5021b0",
+        "source": null,
+        "started_at": "2026-10-27T08:09:52.838074Z",
+        "step_results": null,
+        "task_checksum": "7fd1b9fd114348f0f864cb9a9c1fc74aaf833d9a004104a8df4d6230d8f8c95d",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m3"
+        },
+        "task_name": "build-pmars-m3",
+        "trial_name": "build-pmars-m3-oracle",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m3-oracle",
+        "verifier": {
+          "finished_at": "2026-10-27T08:09:58.333040Z",
+          "started_at": "2026-10-27T08:09:57.738516Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 1.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "none",
+        "reward": 1.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "nop",
+      "case_id": "build-pmars-m3",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "f6a5910b25340f49c7b91fbc0ebbd373a64f036f5c766aeed4a4372ab5cc9c94"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m3-nop/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 0.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:10:12.966695Z",
+          "started_at": "2026-10-27T08:10:12.966307Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "nop",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:10:12.966229Z",
+          "started_at": "2026-10-27T08:10:12.966170Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "nop",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m3",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m3-nop",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:10:12.966121Z",
+          "started_at": "2026-10-27T08:10:08.747081Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:10:24.193092Z",
+        "id": "f0df7677-57d8-424e-88a0-8c6add132384",
+        "source": null,
+        "started_at": "2026-10-27T08:10:08.745498Z",
+        "step_results": null,
+        "task_checksum": "7fd1b9fd114348f0f864cb9a9c1fc74aaf833d9a004104a8df4d6230d8f8c95d",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m3"
+        },
+        "task_name": "build-pmars-m3",
+        "trial_name": "build-pmars-m3-nop",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m3-nop",
+        "verifier": {
+          "finished_at": "2026-10-27T08:10:13.806190Z",
+          "started_at": "2026-10-27T08:10:13.271294Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 0.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "capability",
+        "reward": 0.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "oracle",
+      "case_id": "build-pmars-m4",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "6e16896b1b75758e0962bec736a3fac59f63ff22242163ad8375738295daa365"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m4-oracle/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 1.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:10:28.830766Z",
+          "started_at": "2026-10-27T08:10:28.522662Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "oracle",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:10:28.522578Z",
+          "started_at": "2026-10-27T08:10:28.522528Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "oracle",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m4",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m4-oracle",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:10:28.522484Z",
+          "started_at": "2026-10-27T08:10:24.205936Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:10:40.082472Z",
+        "id": "4eb8dd67-2e7e-403f-b271-07565b1712e5",
+        "source": null,
+        "started_at": "2026-10-27T08:10:24.204464Z",
+        "step_results": null,
+        "task_checksum": "0d4dec414547e89ddad543ebfa59e94fb7122974566febfcbe17f652ca354a0a",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m4"
+        },
+        "task_name": "build-pmars-m4",
+        "trial_name": "build-pmars-m4-oracle",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m4-oracle",
+        "verifier": {
+          "finished_at": "2026-10-27T08:10:29.689644Z",
+          "started_at": "2026-10-27T08:10:29.127319Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 1.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "none",
+        "reward": 1.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    },
+    {
+      "agent": "nop",
+      "case_id": "build-pmars-m4",
+      "evidence_files": {
+        "first.json": {
+          "executable": false,
+          "sha256": "f6a5910b25340f49c7b91fbc0ebbd373a64f036f5c766aeed4a4372ab5cc9c94"
+        }
+      },
+      "evidence_root": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m4-nop/scoring",
+      "first_score": {
+        "rewards": {
+          "reward": 0.0
+        }
+      },
+      "recovery_score": null,
+      "result": {
+        "agent_execution": {
+          "finished_at": "2026-10-27T08:10:44.240740Z",
+          "started_at": "2026-10-27T08:10:44.240460Z"
+        },
+        "agent_info": {
+          "model_info": null,
+          "name": "nop",
+          "version": "1.0.0"
+        },
+        "agent_result": {
+          "cost_usd": null,
+          "metadata": null,
+          "model_usage": null,
+          "n_cache_tokens": null,
+          "n_input_tokens": null,
+          "n_output_tokens": null,
+          "rollout_details": null
+        },
+        "agent_setup": {
+          "finished_at": "2026-10-27T08:10:44.240391Z",
+          "started_at": "2026-10-27T08:10:44.240342Z"
+        },
+        "config": {
+          "agent": {
+            "base_url": null,
+            "concurrency_group": null,
+            "extra_allowed_hosts": [],
+            "import_path": null,
+            "kwargs": {},
+            "load_trajectory": null,
+            "max_timeout_sec": null,
+            "mcp_servers": [],
+            "model_api_format": null,
+            "model_api_key_name": null,
+            "model_name": null,
+            "n_concurrent": null,
+            "name": "nop",
+            "override_setup_timeout_sec": null,
+            "override_timeout_sec": null,
+            "resume_trajectory": false,
+            "skills": [],
+            "skip_model_parsing": false
+          },
+          "agent_setup_timeout_multiplier": null,
+          "agent_timeout_multiplier": null,
+          "artifacts": [],
+          "environment": {
+            "cpu_enforcement_policy": "limit",
+            "delete": false,
+            "extra_allowed_hosts": [],
+            "extra_docker_compose": [],
+            "force_build": false,
+            "import_path": null,
+            "kwargs": {},
+            "memory_enforcement_policy": "limit",
+            "mounts": null,
+            "override_cpus": null,
+            "override_gpus": null,
+            "override_memory_mb": null,
+            "override_storage_mb": null,
+            "override_tpu": null,
+            "stream": false,
+            "type": "docker"
+          },
+          "environment_build_timeout_multiplier": null,
+          "extra_instruction_paths": [],
+          "extra_instructions": [],
+          "install_only": false,
+          "job_id": null,
+          "source_trial": null,
+          "task": {
+            "download_dir": null,
+            "git_commit_id": null,
+            "git_url": null,
+            "name": null,
+            "overwrite": false,
+            "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m4",
+            "ref": null,
+            "source": null
+          },
+          "timeout_multiplier": 1.0,
+          "trial_name": "build-pmars-m4-nop",
+          "trials_dir": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration",
+          "user_agent": null,
+          "verifier": {
+            "disable": false,
+            "import_path": "suite.scoring:RecoveringVerifier",
+            "kwargs": {
+              "recovery": {
+                "mode": "service"
+              }
+            },
+            "max_timeout_sec": null,
+            "override_timeout_sec": null
+          },
+          "verifier_timeout_multiplier": null
+        },
+        "environment_setup": {
+          "finished_at": "2026-10-27T08:10:44.240306Z",
+          "started_at": "2026-10-27T08:10:40.097140Z"
+        },
+        "exception_info": null,
+        "finished_at": "2026-10-27T08:10:55.439976Z",
+        "id": "9ca247dc-212a-4ba0-b2ab-f9e64bfebb34",
+        "source": null,
+        "started_at": "2026-10-27T08:10:40.095521Z",
+        "step_results": null,
+        "task_checksum": "0d4dec414547e89ddad543ebfa59e94fb7122974566febfcbe17f652ca354a0a",
+        "task_id": {
+          "path": "/Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/diagnostics/build-pmars-m4"
+        },
+        "task_name": "build-pmars-m4",
+        "trial_name": "build-pmars-m4-nop",
+        "trial_uri": "file:///Users/Shared/work/dir/data/codes/vibe-window/evals/promptfoo/results/qwen38-suite/preflight/build-pmars/verified-controls/calibration/build-pmars-m4-nop",
+        "verifier": {
+          "finished_at": "2026-10-27T08:10:45.054481Z",
+          "started_at": "2026-10-27T08:10:44.533798Z"
+        },
+        "verifier_environment_mode": "shared",
+        "verifier_result": {
+          "rewards": {
+            "reward": 0.0
+          }
+        }
+      },
+      "summary": {
+        "failure_class": "capability",
+        "reward": 0.0,
+        "score_status": "scored",
+        "state": "finished",
+        "terminal_event": null,
+        "transport_status": "unknown"
+      }
+    }
+  ]
+}

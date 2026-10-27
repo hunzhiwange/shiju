@@ -1,0 +1,167 @@
+{
+  "schema_version": 1,
+  "parent_id": "build-pmars",
+  "image": "vw-pmars-diagnostics@sha256:06a845a715e6e849aeabba6fbc9e301bb7fc1136497661a03f60b34e7c638a4a",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "pmars_1.4.7.orig.tar.gz": "fixtures/m1/pmars_1.4.7.orig.tar.gz",
+        "pmars.dsc": "fixtures/m1/pmars.dsc"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "source.json": "oracle/m1/gold/source.json",
+        "pmars-1.4.7/VERSION": "oracle/m1/gold/pmars-1.4.7/VERSION",
+        "pmars-1.4.7/src/engine.c": "oracle/m1/gold/pmars-1.4.7/src/engine.c",
+        "pmars-1.4.7/debian/control": "oracle/m1/gold/pmars-1.4.7/debian/control"
+      },
+      "negatives": [
+        {
+          "id": "wrong-version",
+          "files": {
+            "source.json": "oracle/m1/wrong-version/source.json",
+            "pmars-1.4.7/VERSION": "oracle/m1/wrong-version/pmars-1.4.7/VERSION",
+            "pmars-1.4.7/src/engine.c": "oracle/m1/wrong-version/pmars-1.4.7/src/engine.c",
+            "pmars-1.4.7/debian/control": "oracle/m1/wrong-version/pmars-1.4.7/debian/control"
+          }
+        },
+        {
+          "id": "missing-source",
+          "files": {
+            "source.json": "oracle/m1/missing-source/source.json",
+            "pmars-1.4.7/VERSION": "oracle/m1/missing-source/pmars-1.4.7/VERSION",
+            "pmars-1.4.7/debian/control": "oracle/m1/missing-source/pmars-1.4.7/debian/control"
+          }
+        },
+        {
+          "id": "altered-source",
+          "files": {
+            "source.json": "oracle/m1/altered-source/source.json",
+            "pmars-1.4.7/VERSION": "oracle/m1/altered-source/pmars-1.4.7/VERSION",
+            "pmars-1.4.7/src/engine.c": "oracle/m1/altered-source/pmars-1.4.7/src/engine.c",
+            "pmars-1.4.7/debian/control": "oracle/m1/altered-source/pmars-1.4.7/debian/control"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "Makefile": "fixtures/m2/Makefile"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "Makefile": "oracle/m2/gold/Makefile"
+      },
+      "negatives": [
+        {
+          "id": "x11-enabled",
+          "files": {
+            "Makefile": "oracle/m2/x11-enabled/Makefile"
+          }
+        },
+        {
+          "id": "debugger-disabled",
+          "files": {
+            "Makefile": "oracle/m2/debugger-disabled/Makefile"
+          }
+        },
+        {
+          "id": "missing-link-library",
+          "files": {
+            "Makefile": "oracle/m2/missing-link-library/Makefile"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "loop.red": "fixtures/m3/loop.red",
+        "dead.red": "fixtures/m3/dead.red"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "run_battle.py": "oracle/m3/gold/run_battle.py"
+      },
+      "negatives": [
+        {
+          "id": "fixed-rounds",
+          "files": {
+            "run_battle.py": "oracle/m3/fixed-rounds/run_battle.py"
+          }
+        },
+        {
+          "id": "swapped-warriors",
+          "files": {
+            "run_battle.py": "oracle/m3/swapped-warriors/run_battle.py"
+          }
+        },
+        {
+          "id": "fake-results",
+          "files": {
+            "run_battle.py": "oracle/m3/fake-results/run_battle.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "opponent.red": "fixtures/m4/opponent.red"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "warrior.red": "oracle/m4/gold/warrior.red"
+      },
+      "negatives": [
+        {
+          "id": "dies-immediately",
+          "files": {
+            "warrior.red": "oracle/m4/dies-immediately/warrior.red"
+          }
+        },
+        {
+          "id": "invalid-opcode",
+          "files": {
+            "warrior.red": "oracle/m4/invalid-opcode/warrior.red"
+          }
+        },
+        {
+          "id": "wrong-entry",
+          "files": {
+            "warrior.red": "oracle/m4/wrong-entry/warrior.red"
+          }
+        }
+      ]
+    }
+  ]
+}

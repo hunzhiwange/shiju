@@ -1,0 +1,7 @@
+{
+  "child": "m1",
+  "immutable_fixtures": {
+    "pmars_1.4.7.orig.tar.gz": "3abc24bcddbb26afe253e63a73cf7998301c9a25525226a6f3fe7e2c8f6bad90",
+    "pmars.dsc": "1db784db2ea111d784592bf7f84bb1b34c0fd5cd74afb4ed8c54927e01c7e8e2"
+  }
+}

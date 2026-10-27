@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "parent_id": "build-pmars",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "14500d799233d61af023027818ebbdd573953e209dc6de7abcb98eea36d4ff07",
+    "fixtures/m1/instruction.md": "9966674be6887898a947947287d3d8d312a31090e906cf5194035d2741ef3d2c",
+    "fixtures/m1/pmars.dsc": "1db784db2ea111d784592bf7f84bb1b34c0fd5cd74afb4ed8c54927e01c7e8e2",
+    "fixtures/m1/pmars_1.4.7.orig.tar.gz": "3abc24bcddbb26afe253e63a73cf7998301c9a25525226a6f3fe7e2c8f6bad90",
+    "fixtures/m2/Makefile": "fa6fe7956f22367993fdced17294700ada23cf5eeca5da886afb7a80d5f8abb1",
+    "fixtures/m2/instruction.md": "2c9d7132c65ceffd9e8275c7bb7ee40e33e008ec12a2410c9049b9ccad2227fb",
+    "fixtures/m3/dead.red": "951f29f706a4d5f9415c54f544300e586bf686facad3e06ea831dbdbf11f59a9",
+    "fixtures/m3/instruction.md": "a9219c34430f029deb2657027df4a31b9f45df569c6f254b08f7822d07dd4e92",
+    "fixtures/m3/loop.red": "8d937eff0463e5016fc41b1f87c10873ae0b1d45531752d8439aae4fce3d1abd",
+    "fixtures/m4/instruction.md": "55dc82af945cb0157405a757501bc16ed1caa553fef69e90eb79ce5ce51e9a18",
+    "fixtures/m4/opponent.red": "0d0ec1bc3b3334eaf72f70c181fc39836ece6796404ec40c9f590c636d9b88ea",
+    "oracle/m1/altered-source/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+    "oracle/m1/altered-source/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+    "oracle/m1/altered-source/pmars-1.4.7/src/engine.c": "7cf41c0a306862c048793a71c6b16aeb1becc58963a9d8e2b2d0eb425f3371fd",
+    "oracle/m1/altered-source/source.json": "973744d3e613c78b27dc11f46bb011346423317be302335fef669da5cbcee6fd",
+    "oracle/m1/gold/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+    "oracle/m1/gold/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+    "oracle/m1/gold/pmars-1.4.7/src/engine.c": "fdab1b4f3be1fc606c2479f3cca69e486a6d12df0779afac5c1add2d2b5077ee",
+    "oracle/m1/gold/source.json": "973744d3e613c78b27dc11f46bb011346423317be302335fef669da5cbcee6fd",
+    "oracle/m1/missing-source/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+    "oracle/m1/missing-source/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+    "oracle/m1/missing-source/source.json": "973744d3e613c78b27dc11f46bb011346423317be302335fef669da5cbcee6fd",
+    "oracle/m1/task.json": "87d35e5d8ee99b0fa7cdbe402c837627d0036201d7bfc963979a8aa528e75292",
+    "oracle/m1/wrong-version/pmars-1.4.7/VERSION": "794d9bfd2d064be2041cba080923b3e39ba3bec84c35794780482852b5f4007e",
+    "oracle/m1/wrong-version/pmars-1.4.7/debian/control": "385a5ae123c07633cd6c713dac6ebd40e6a42b11f36daa3c92c70640c9905420",
+    "oracle/m1/wrong-version/pmars-1.4.7/src/engine.c": "fdab1b4f3be1fc606c2479f3cca69e486a6d12df0779afac5c1add2d2b5077ee",
+    "oracle/m1/wrong-version/source.json": "e13c801c34ac06f68b259f1ee578d321f226589a5aa7d9e2cbde5a168f65742d",
+    "oracle/m2/debugger-disabled/Makefile": "a785f55a0534a838aa4c1250ac1d0fe273d91072b440e0749b06d2c5440c828d",
+    "oracle/m2/gold/Makefile": "1dca6bfdacf2257ac5649e38ce9fc1b668724d89d6d5389d1f93cf3a7378c60a",
+    "oracle/m2/missing-link-library/Makefile": "084bf69a4d81a5feed2978fba9e1d0fb2c0f742bf9697fc3ada5386a68c07942",
+    "oracle/m2/task.json": "fb94f75745d94b1625390e88b252030b950b592396b94ba4d22f4c5f5d8d0ff7",
+    "oracle/m2/x11-enabled/Makefile": "fa6fe7956f22367993fdced17294700ada23cf5eeca5da886afb7a80d5f8abb1",
+    "oracle/m3/fake-results/run_battle.py": "e735e58db37de2954554bd3c57627c5ecf4be8b8646f317e85f1d8abb281cd0c",
+    "oracle/m3/fixed-rounds/run_battle.py": "0f697d44400828211ca8a66db507cca314d9d7757c7ebf45e5638ab27446beb7",
+    "oracle/m3/gold/run_battle.py": "f4f8c97775917c1d85189ec28847f34d82468536b7d744676cb97a33269fc9fa",
+    "oracle/m3/swapped-warriors/run_battle.py": "c65dcc87043fd07bcb5440bd58231afb71831df177afb45f038b063a6552ff7e",
+    "oracle/m3/task.json": "22ae740ff681803fd7bd956761a04bdfe17477639bf4bdc7c429fcf4e77f0ea5",
+    "oracle/m4/dies-immediately/warrior.red": "4ba3bec2a63e9c506afd4951da667eb063117d7e458505e3c5e1f52951a6ea45",
+    "oracle/m4/gold/warrior.red": "2e2fcb78d7a68a44fb425b714c7822e0a068020325f56b3cd4eda09dcc15501d",
+    "oracle/m4/invalid-opcode/warrior.red": "88de9e6aff7fc48088f67b9a463fc7187b29bd64192bdd900bb31edab000fb6c",
+    "oracle/m4/task.json": "585215b79c6e1b02f15df08839e43bd395f3a97fadc971eaa38dd2f2c2fc0ede",
+    "oracle/m4/wrong-entry/warrior.red": "69f3e6f49463c9e1379ded2c85361782fed65cd4c94fd4be5cb147e04dc08288",
+    "case.json": "b41d6f55e48201778066705d993854170f0460229aafcf34f5b48b213ea75e58"
+  },
+  "image": "vw-pmars-diagnostics@sha256:06a845a715e6e849aeabba6fbc9e301bb7fc1136497661a03f60b34e7c638a4a",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-version",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "missing-source",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "altered-source",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "x11-enabled",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "debugger-disabled",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "missing-link-library",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "fixed-rounds",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "swapped-warriors",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "fake-results",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "dies-immediately",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "invalid-opcode",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-entry",
+      "exit_code": 1
+    }
+  ]
+}

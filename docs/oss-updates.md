@@ -1,6 +1,6 @@
-# VibeWindow 原包更新协议
+# ShiJu 原包更新协议
 
-本协议只服务 VibeWindow（GitHub 仓库 `hunzhiwange/shiju`）。OSS bucket 为
+本协议只服务 ShiJu（GitHub 仓库 `hunzhiwange/shiju`）。OSS bucket 为
 `shiju-cloud`，独立前缀为 `agents/shiju-agent/`，公开域名为
 `https://www.shiju.cloud`。这些路径是新设计，生产权限尚未实测，不代表已可公开访问。
 禁止覆盖 `agents/data-gateway-local-agent/` 或旧产品 `agents/` 下的固定安装包。
@@ -85,7 +85,7 @@ uv run scripts/publish_oss_release.py --dir /absolute/output/v0.5.10 --publish
 Python >=3.10，PEP 723 固定 `oss2==2.19.1`。默认离线预览，不读取凭据。
 只接受正式 manifest.json 与精确六包，再验 schema、字段、映射、URL、大小和 SHA-256。
 路径必须绝对且没有符号链接组件；macOS `/tmp` 可改用 `/private/tmp`。
-单包限制为 OSS 单 PUT 的 5 GiB。不支持 bucket/key 覆盖参数或 `--workspace`。
+单包限制为 OSS 单 PUT 的 5 GiB。仓库脚本不支持 bucket/key 覆盖参数或 `--workspace`；技能入口支持 `--workspace` 定位仓库。
 
 发布模式仅从本机 `~/.config/shiju-oss-upload/config.json` 读取 region、access_key_id、
 access_key_secret；密钥可通过 OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET 覆盖。
@@ -119,7 +119,17 @@ names 不参与发布，不修改配置，不迁移凭据，不输出 SDK 原始
 回执不是远端事实来源，每次执行都重新读取 latest 并校验对象，不依赖回执跳过校验。
 
 独立技能位于配套 data-gateway-oss-upload 仓库的
-`skills/shiju-agent-oss-update/SKILL.md`，调用本仓库两个脚本，不复制业务实现。
+`skills/shiju-agent-oss-update/SKILL.md`，提供 `scripts/prepare.py` 与 `scripts/publish.py`
+可执行入口，通过 `--workspace /absolute/path/to/vibe-window` 调用本仓库两个脚本，
+不复制业务实现。默认工作区为当前目录；技能目录可独立放置，但运行需要实际源码工作区。
+从技能目录执行：
+
+```sh
+python3 scripts/prepare.py --workspace /absolute/path/to/vibe-window --version v0.5.10 --output-dir /absolute/output
+uv run scripts/publish.py --workspace /absolute/path/to/vibe-window --dir /absolute/output/v0.5.10
+```
+
+以下验证在源码工作区运行：
 
 ```sh
 python3 -m unittest discover -s scripts/tests -p test_publish_oss_release.py

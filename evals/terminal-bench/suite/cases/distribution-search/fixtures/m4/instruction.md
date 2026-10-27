@@ -1,0 +1,2 @@
+Save a grouped probability distribution satisfying /app/input.json. Save /app/result.json as {"counts": [integers], "probabilities": [numbers]}; counts must exactly equal requested counts, each group repeats its corresponding strictly positive probability. Expanded distribution must sum to 1 within 1e-10 and both KL targets within tolerance. Forward=sum p*ln(p*n), backward=sum -ln(p*n)/n, natural logs. Choose any satisfying group probabilities.
+Do not modify input.json. Write only under /app; no network or extra permissions are needed.

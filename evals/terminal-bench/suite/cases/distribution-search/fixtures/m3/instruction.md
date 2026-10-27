@@ -1,0 +1,2 @@
+For each probability vector in /app/input.json distributions, compute forward=sum p*ln(p*n), treating 0*ln(0) as zero, and backward=sum -ln(p*n)/n. A zero makes backward infinite: encode it as the string "infinity", never JSON Infinity. Do not clip positive tiny probabilities. Save /app/result.json as an ordered list of {"forward": number, "backward": number or "infinity"}, tolerance 1e-8; use natural logs.
+Do not modify input.json. Write only under /app; no network or extra permissions are needed.

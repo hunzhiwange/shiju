@@ -1,0 +1,1 @@
+Read only the synthetic pseudocode image /app/loop.png. Write /app/trace.json as an object with exactly two keys: "trace" (one object {"i": integer, "total": integer} per completed loop iteration, in order) and "printed" (the final integer printed). Record total after the branch on each iteration. The image is the complete algorithm; do not modify it.

@@ -8,8 +8,8 @@
 ## 本地准备
 
 ```sh
-python3 scripts/prepare_oss_release.py --version 0.5.10 --output-dir /tmp/vibewindow-release --metadata-only
-python3 scripts/prepare_oss_release.py --version v0.5.10 --output-dir /tmp/vibewindow-release
+python3 scripts/prepare_oss_release.py --version 0.5.10 --output-dir /tmp/shiju-release --metadata-only
+python3 scripts/prepare_oss_release.py --version v0.5.10 --output-dir /tmp/shiju-release
 ```
 
 版本必须显式指定三个非负整数，不接受前导零、预发布或路径分隔符，不自动选择 latest。
@@ -145,28 +145,35 @@ python3 scripts/tests/check_generator_contract.py --generator-root /absolute/pat
 
 ## 2026-10-27 跨端闭环验收
 
-前序提交：准备器 05abc3c5e、命名空间 81d1c48e9、发布器 2aae90ff2、共享协议
-0b45b7969、安装器 4496ecccc、批次 4 桌面来源 b50c14266。
-新增契约实际调用 Python prepare_release，通过本地 HTTP 下载六个中性 fixture，
-生成正式 manifest.json，经 publisher.local_release 重验后由 Rust 解析。
-同时解析原始 GitHub fixture，比较六平台名字、类型、大小和 SHA-256，逐项下载核对字节，
-并验证 ZIP 类型拒绝。没有两端分别手写清单，也未修改生产逻辑；fixture 不是可安装包。
+当前生成/发布边界以仓库 f473ac8e5、外部技能 cde1392 为准：
+VibeWindow 仅生成文件；外部 shiju-agent-oss-update/scripts/publish.py 自包含
+清单验证、凭据读取、OSS 适配器、上传/回读状态机和原子回执，不转调源码工作区。
+ShiJu 文案、技能名及 agents/shiju-agent/ 前缀已核对；旧技能名与旧命名空间无残留。
 
-| 确切命令 | 退出码 | 有效结果 |
-| --- | --- | --- |
-| python3 -m unittest discover -s scripts/tests -p 'test_*oss_release.py' | 0 | 28 项通过 |
-| cargo fmt --all | 0 | 撤回无关空行改动 |
-| cargo test -p vw-shared --all-features desktop_release -- --nocapture | 0 | 15 项通过 |
-| cargo test -p vw-desktop --all-features app_update -- --nocapture | 101 | 5 项通过后既有快捷消息顺序断言 abort |
-| cargo clippy --all-targets --all-features -- -D warnings | 0 | 全目标全特性通过 |
+生成端契约实际调用 prepare_release，通过本地 HTTP 下载六个中性 fixture，
+读取正式 manifest.json 并校验实际文件，再交给 Rust 解析、比较 GitHub 六平台映射、
+下载核对字节及拒绝 ZIP 类型。生成端不导入发布器。
+外部 check_generator_contract.py 消费相同生成器输出，以复制到中性目录的技能
+验证完整输入被接受，preview、缺包、错误大小和 SHA 被拒绝。
+这些 fixture 不是可安装包，不构成真实安装证据。
 
-动态槽位 1；CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1。
-CARGO_BUILD_BUILD_DIR 同路径以隔离仓库 build-dir；RUST_TEST_THREADS=1。
-阶段结束已释放自己的锁并保留缓存。Clippy 另有既有 block 0.1.6 future-incompatibility 提示。
-桌面失败为 app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions
-预期“提交当前分支”排首位，实际为“继续推进”；未修改无关快捷消息策略。
-通过项含 tiny-skia 明暗主题中文实际绘制、真实网关 PATCH/重新读取、保存失败 toast，
-不等于启动应用后的交互验收。
+| 验证位置与命令 | 有效结果 |
+| --- | --- |
+| 仓库：python3 -m unittest discover -s scripts/tests -p test_prepare_oss_release.py | 8 项通过，任务 2 迁移后退出 0 |
+| 外部技能：python3 -m unittest discover -s scripts/tests -p 'test_*.py' | 21 项通过，含独立目录预览与故障测试，退出 0 |
+| 外部技能：python3 scripts/tests/check_generator_contract.py --generator-root /Users/Shared/work/dir/data/codes/vibe-window | 生成产物/外部发布器契约退出 0 |
+| 仓库：cargo test -p vw-shared --all-features desktop_release -- --nocapture | 15 项通过，退出 0（迁移后重跑） |
+
+桌面 d264dad37 回归已核对提交及 /tmp/vw-task5-regression-*.log：
+app_update 49、message::view::panel::settings::settings_tests 41、
+install_cli_modal_tests 19、app_init_tests 17、native_menu 15 项全部通过。
+每组命令为 cargo test -p vw-desktop --all-features <过滤器> -- --nocapture，
+cargo clippy --all-targets --all-features -- -D warnings 也退出 0。
+使用 RUST_TEST_THREADS=1，动态槽位 1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR
+均为 /Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；锁已释放。
+此前快捷消息/工作区/浏览器默认值的基线失败已修复，不再作为阻塞。
+新增测试覆盖关闭重开、真实异步篡改文件拒绝、注入 opener 重试、就绪状态明暗绘制，
+并保留网关 PATCH/重新读取和保存失败 toast 验证；不能冒充实际窗口交互。
 
 ### 人工与原生平台待验收
 
@@ -199,20 +206,9 @@ CARGO_BUILD_BUILD_DIR 同路径以隔离仓库 build-dir；RUST_TEST_THREADS=1�
 实际应用交互。取得明暗主题、中文来源/地址/错误 toast、切源、关闭重开和偏好重启
 保留的交互证据后，可关闭本任务；无须执行生产发布或本机升级。
 
-技能更名与入口复核：文档 64121af76/c5087c3b3，外部技能 44315ce/eabcced。
-shiju-agent-oss-update 的 prepare.py、publish.py 使用 --workspace 指定本仓库，
-分别运行 --help 均退出 0，底层参数展示正确。契约源码与 c9a91ac89 无差异，复用
-上述通过证据。交付文档、脚本、共享更新代码、计划及新技能目录未发现旧技能名或
-旧 OSS 命名空间残留。
-
-
-桌面最终回归更新（d264dad37）：已核对提交及 /tmp/vw-task5-regression-*.log，
-app_update 49、settings_tests 41、install_cli_modal_tests 19、app_init_tests 17、
-native_menu 15 项全部通过，Clippy 退出 0；命令均为 cargo test -p vw-desktop
---all-features <上述过滤器> -- --nocapture，其中 settings_tests 完整过滤器为
-message::view::panel::settings::settings_tests。Clippy 命令与上表相同。
-使用槽位 1、上述绝对 CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR；任务 5 已释放锁。
-上表桌面退出 101 属历史首轮结果，已由本次回归取代，不再作为阻塞。
-新增测试覆盖关闭重开、真实异步篡改文件拒绝、注入 opener 重试和就绪状态明暗绘制。
-这仍非真实应用窗口交互记录。唯一待补条件是可操作的原生 UI 环境，或按上述
-步骤完成的人工窗口交互验收记录；不需要生产发布、凭据或实际安装。
+最终迁移回归：cargo fmt --all、cargo test -p vw-shared --all-features
+ desktop_release -- --nocapture、cargo clippy --all-targets --all-features -- -D warnings
+均退出 0，Rust 有效测试 15 项。动态槽位 1，CARGO_TARGET_DIR 与
+CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，
+RUST_TEST_THREADS=1；已释放锁并保留缓存，撤回 fmt 对无关文件的空行改动。
+Clippy 仅提示既有 block 0.1.6 future-incompatibility。

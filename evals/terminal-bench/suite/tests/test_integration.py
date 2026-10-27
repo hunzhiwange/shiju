@@ -73,6 +73,37 @@ class IntegrationTests(unittest.TestCase):
         exercise_http(self)
 
 
+class EvidenceRecoveryTests(unittest.TestCase):
+    def test_frozen_reasoning_frames_do_not_change_expected_answer(self):
+        rows = [json.loads(line) for line in stream('stop', '437').splitlines()]
+        rows[:1] = [{'event': {'type': 'chat.delta', 'delta': delta}}
+                    for delta in ('<think>plan', '</think>\n\n', '437')]
+        facts = assess('\n'.join(json.dumps(row) for row in rows), 0, '437')
+        self.assertTrue(facts['passed'])
+        self.assertEqual(facts['reasoning'], 'plan')
+        self.assertEqual(facts['answer'], '437')
+        rows[2]['event']['delta'] = '436'
+        self.assertFalse(assess('\n'.join(json.dumps(row) for row in rows), 0, '437')['passed'])
+
+    def test_reasoning_only_and_literal_content_cannot_supply_answer(self):
+        rows = [json.loads(line) for line in stream('stop', '').splitlines()]
+        rows[:1] = [{'event': {'type': 'chat.delta', 'delta': delta}}
+                    for delta in ('<think>437', '</think>\n\n')]
+        self.assertFalse(assess('\n'.join(json.dumps(row) for row in rows), 0, '437')['passed'])
+        self.assertFalse(assess(stream('stop', '<think>plan</think>437'), 0, '437')['passed'])
+
+    def test_upstream_usage_missing_zero_and_nonzero_are_distinct(self):
+        self.assertEqual(observe_upstream(None)['usage_status'], 'not_captured')
+        for usage, status in ((None, 'missing'),
+                              ({'prompt_tokens': 0, 'completion_tokens': 0}, 'reported_zero'),
+                              ({'prompt_tokens': 3, 'completion_tokens': 1}, 'reported_nonzero')):
+            raw = 'data: ' + json.dumps({'choices': [], 'usage': usage}) + '\n\ndata: [DONE]\n\n'
+            self.assertEqual(observe_upstream(raw)['usage_status'], status)
+
+    def test_raw_http_capture_preserves_usage_and_separate_content(self):
+        exercise_capture(self)
+
+
 @unittest.skipUnless(os.environ.get('VW_SUITE_LIVE_READINESS') == '1',
                      'live readiness requires explicit opt-in')
 class LiveReadinessTests(unittest.TestCase):
@@ -105,6 +136,7 @@ BASE = Path(__file__).resolve().parents[4]
 OUTPUT = BASE / 'evals/promptfoo/results/qwen38-suite'
 RUNTIME = OUTPUT / 'runtime-v2'
 IMAGE = 'sha256:929a6d631b592c82e0d0f5d4a65cf03c946dc554cfc9bb09916e82076e7d3215'
+HARNESS_SOURCE = Path(__file__).read_bytes()
 
 
 def sha(value):
@@ -134,13 +166,155 @@ def stream(reason, answer):
 def assess(raw, code, expected):
     facts = SuiteAgent.summarize_stream(raw, code)
     events = [json.loads(line).get('event', {}) for line in raw.splitlines() if line.strip()]
-    answer = ''.join(event.get('delta', '') for event in events
-                     if event.get('type') == 'chat.delta').strip()
+    answer, reasoning, framed = gateway_channels(events)
     usage = facts['usage']
-    facts.update(answer=answer, passed=(facts['status'] == 'completed' and answer == expected
+    facts.update(answer=answer, reasoning=reasoning, reasoning_frames_complete=framed,
+                 passed=(framed and facts['status'] == 'completed' and answer == expected
                  and isinstance(usage, dict) and usage.get('input_tokens', 0) > 0
                  and usage.get('output_tokens', 0) > 0))
     return facts
+
+
+def gateway_channels(events):
+    """Decode the frozen llm_runner's framing, without rewriting content tags.
+
+    llm_runner.rs emits a standalone closing frame before ordinary answer text.
+    A single content delta containing literal think tags is not such a frame.
+    """
+    answer, reasoning, opened = [], [], False
+    for event in events:
+        if event.get('type') != 'chat.delta':
+            continue
+        delta = event.get('delta', '')
+        if opened:
+            if delta == '</think>\n\n':
+                opened = False
+            else:
+                reasoning.append(delta)
+        elif not answer and delta.startswith('<think>') and '</think>' not in delta:
+            reasoning.append(delta[len('<think>'):])
+            opened = True
+        elif delta.startswith('\n\n<think>') and delta.endswith('</think>\n\n'):
+            reasoning.append(delta[len('\n\n<think>'):-len('</think>\n\n')])
+        else:
+            answer.append(delta)
+    return ''.join(answer).strip(), ''.join(reasoning).strip(), not opened
+
+
+def observe_upstream(raw):
+    """Observe provider fields; absent telemetry never becomes measured zero."""
+    result = {'usage_status': 'not_captured', 'usage': None, 'content': '',
+              'reasoning_content': '', 'models': [], 'done_seen': False}
+    if raw is None:
+        return result
+    result['usage_status'] = 'missing'
+    content, reasoning, usages = [], [], []
+    for block in raw.replace('\r\n', '\n').split('\n\n'):
+        data = '\n'.join(line[5:].lstrip() for line in block.splitlines() if line.startswith('data:'))
+        if data == '[DONE]':
+            result['done_seen'] = True
+            continue
+        if not data:
+            continue
+        try:
+            record = json.loads(data)
+        except ValueError:
+            result['parse_error'] = True
+            continue
+        if not isinstance(record, dict):
+            result['parse_error'] = True
+            continue
+        if record.get('model') and record['model'] not in result['models']:
+            result['models'].append(record['model'])
+        if isinstance(record.get('usage'), dict):
+            usages.append(record['usage'])
+        choices = record.get('choices') or []
+        if not isinstance(choices, list):
+            result['parse_error'] = True
+            continue
+        for choice in choices:
+            if not isinstance(choice, dict):
+                result['parse_error'] = True
+                continue
+            delta = choice.get('delta') or {}
+            if not isinstance(delta, dict):
+                result['parse_error'] = True
+                continue
+            if isinstance(delta.get('content'), str):
+                content.append(delta['content'])
+            if isinstance(delta.get('reasoning_content'), str):
+                reasoning.append(delta['reasoning_content'])
+    result.update(content=''.join(content), reasoning_content=''.join(reasoning),
+                  usage_observations=usages)
+    if usages:
+        result['usage'] = usages[-1]
+        counts = [v for k, v in usages[-1].items() if k in
+                  ('prompt_tokens', 'completion_tokens', 'input_tokens', 'output_tokens')]
+        result['usage_status'] = ('invalid' if not counts or any(type(v) is not int or v < 0 for v in counts)
+                                  else 'reported_nonzero' if any(counts) else 'reported_zero')
+    return result
+
+
+def relay_response(response, writer, row, secret):
+    """Capture the exact provider SSE before Gateway parsing, including partials."""
+    payload, complete = bytearray(), False
+    try:
+        while True:
+            data = response.read1(65536)
+            if not data:
+                complete = True
+                break
+            payload.extend(data)
+            writer.write(data)
+            writer.flush()
+    finally:
+        archived = redact(bytes(payload).decode('utf-8', errors='replace'), secret)
+        row.update(upstream_http_status=response.status,
+                   upstream_content_type=response.headers.get('Content-Type'),
+                   upstream_response_sse=archived, upstream_response_sha256=sha(payload),
+                   upstream_response_complete=complete)
+        row['upstream_observation'] = observe_upstream(archived)
+
+
+def exercise_capture(test):
+    import io
+    records = [{'model': 'qwen3.8-flash', 'choices': [{'delta': {'reasoning_content': 'fixture-secret 思考'}}]},
+               {'choices': [{'delta': {'content': '437'}}]},
+               {'choices': [], 'usage': {'prompt_tokens': 3, 'completion_tokens': 1}}]
+    payload = (''.join('data: ' + json.dumps(r, ensure_ascii=False) + '\n\n' for r in records)
+               + 'data: [DONE]\n\n').encode()
+
+    class Boundary(BaseHTTPRequestHandler):
+        def log_message(self, *args):
+            pass
+
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/event-stream')
+            self.end_headers()
+            cut = payload.index('思'.encode()) + 1
+            for chunk in (payload[:cut], payload[cut:]):
+                self.wfile.write(chunk)
+                self.wfile.flush()
+    server = ThreadingHTTPServer(('127.0.0.1', 0), Boundary)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        row, sink = {}, io.BytesIO()
+        with urllib.request.urlopen('http://127.0.0.1:' + str(server.server_port), timeout=2) as response:
+            relay_response(response, sink, row, 'fixture-secret')
+        test.assertEqual(sink.getvalue(), payload)
+        test.assertEqual(row['upstream_response_sha256'], sha(payload))
+        test.assertTrue(row['upstream_response_complete'])
+        test.assertNotIn('fixture-secret', json.dumps(row))
+        test.assertEqual(row['upstream_observation']['content'], '437')
+        test.assertEqual(row['upstream_observation']['reasoning_content'], '[REDACTED] 思考')
+        test.assertEqual(row['upstream_observation']['usage_status'], 'reported_nonzero')
+        test.assertEqual(row['upstream_observation']['usage']['completion_tokens'], 1)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
 
 
 def reserve_case(path, case):
@@ -282,7 +456,8 @@ def live_case(case):
             profile = _validate_profile(profile_path)
             secret = profile['auth']['key']
             row['runtime'] = verify_runtime(RUNTIME)
-            row['source_sha256'] = sha(Path(__file__).read_bytes())
+            row['source_sha256'] = sha(HARNESS_SOURCE)
+            receipt.with_name(case + '-source.py').write_bytes(HARNESS_SOURCE)
             request, expected, image = synthetic(case)
             row.update(kind='readiness', official_score=None, model=MODEL,
                        max_output_tokens=32000, input_window_tokens=200000,
@@ -307,9 +482,7 @@ def live_case(case):
                         if calls:
                             self.send_error(429, 'readiness single-request budget exhausted')
                             return
-                        public = {key: body.get(key) for key in
-                                  ('model', 'max_tokens', 'max_completion_tokens', 'stream')}
-                        public['messages'] = body.get('messages')
+                        public = redact(body, secret)
                         public['request_sha256'] = sha(payload)
                         calls.append(public)
                         row.update(state='intercepted', model_requests=0, upstream_requests=calls)
@@ -331,12 +504,7 @@ def live_case(case):
                             self.send_response(response.status)
                             self.send_header('Content-Type', response.headers.get('Content-Type', 'text/event-stream'))
                             self.end_headers()
-                            while True:
-                                data = response.read1(65536)
-                                if not data:
-                                    break
-                                self.wfile.write(data)
-                                self.wfile.flush()
+                            relay_response(response, self.wfile, row, secret)
                     except Exception as error:
                         row['upstream_error_type'] = type(error).__name__
                         if isinstance(error, urllib.error.HTTPError):

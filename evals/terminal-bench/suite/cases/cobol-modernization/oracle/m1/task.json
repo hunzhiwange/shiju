@@ -1,0 +1,20 @@
+{
+  "kind": "m1",
+  "expected": [
+    {
+      "id": "K019",
+      "name": "Ada Finch",
+      "balance_cents": 7501
+    },
+    {
+      "id": "K003",
+      "name": "  Mai  Chen",
+      "balance_cents": 42
+    },
+    {
+      "id": "K888",
+      "name": "Zoe",
+      "balance_cents": 90000
+    }
+  ]
+}

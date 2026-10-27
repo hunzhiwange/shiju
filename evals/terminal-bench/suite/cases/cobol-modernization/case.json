@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "cobol-modernization",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "ACCOUNTS.DAT": "fixtures/m1/ACCOUNTS.DAT"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m1/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "assumes-decimal-scale",
+          "files": {
+            "result.json": "oracle/m1/assumes-decimal-scale/result.json"
+          }
+        },
+        {
+          "id": "strips-leading-spaces",
+          "files": {
+            "result.json": "oracle/m1/strips-leading-spaces/result.json"
+          }
+        },
+        {
+          "id": "sorts-records",
+          "files": {
+            "result.json": "oracle/m1/sorts-records/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "calculate.py": "oracle/m2/gold/calculate.py"
+      },
+      "negatives": [
+        {
+          "id": "truncates-tax",
+          "files": {
+            "calculate.py": "oracle/m2/truncates-tax/calculate.py"
+          }
+        },
+        {
+          "id": "taxes-gross",
+          "files": {
+            "calculate.py": "oracle/m2/taxes-gross/calculate.py"
+          }
+        },
+        {
+          "id": "bankers-rounding",
+          "files": {
+            "calculate.py": "oracle/m2/bankers-rounding/calculate.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "update.py": "oracle/m3/gold/update.py"
+      },
+      "negatives": [
+        {
+          "id": "skips-owner-check",
+          "files": {
+            "update.py": "oracle/m3/skips-owner-check/update.py"
+          }
+        },
+        {
+          "id": "else-if-credit",
+          "files": {
+            "update.py": "oracle/m3/else-if-credit/update.py"
+          }
+        },
+        {
+          "id": "overwrites-journal",
+          "files": {
+            "update.py": "oracle/m3/overwrites-journal/update.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.txt": "fixtures/m4/example.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "compare.py": "oracle/m4/gold/compare.py"
+      },
+      "negatives": [
+        {
+          "id": "strips-whitespace",
+          "files": {
+            "compare.py": "oracle/m4/strips-whitespace/compare.py"
+          }
+        },
+        {
+          "id": "ignores-journal",
+          "files": {
+            "compare.py": "oracle/m4/ignores-journal/compare.py"
+          }
+        },
+        {
+          "id": "missing-both-equal",
+          "files": {
+            "compare.py": "oracle/m4/missing-both-equal/compare.py"
+          }
+        }
+      ]
+    }
+  ]
+}

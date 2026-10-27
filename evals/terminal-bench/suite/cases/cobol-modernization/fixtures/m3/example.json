@@ -1,0 +1,25 @@
+{
+  "accounts": [
+    {
+      "id": "A1",
+      "balance": 100
+    },
+    {
+      "id": "A2",
+      "balance": 50
+    }
+  ],
+  "items": [
+    {
+      "id": "P1",
+      "owner": "A2"
+    }
+  ],
+  "journal": [
+    "older"
+  ],
+  "buyer": "A1",
+  "seller": "A2",
+  "item": "P1",
+  "amount": 7
+}

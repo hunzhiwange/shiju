@@ -1,0 +1,74 @@
+{
+  "kind": "m4",
+  "scenarios": [
+    {
+      "left": {
+        "ACCOUNTS.DAT": "a  ",
+        "BOOKS.DAT": "b\n",
+        "TRANSACTIONS.DAT": "\u0000x"
+      },
+      "right": {
+        "ACCOUNTS.DAT": "a  ",
+        "BOOKS.DAT": "b\n",
+        "TRANSACTIONS.DAT": "\u0000x"
+      }
+    },
+    {
+      "left": {
+        "ACCOUNTS.DAT": "a  ",
+        "BOOKS.DAT": "b\n",
+        "TRANSACTIONS.DAT": "x"
+      },
+      "right": {
+        "ACCOUNTS.DAT": "a",
+        "BOOKS.DAT": "b",
+        "TRANSACTIONS.DAT": "x"
+      }
+    },
+    {
+      "left": {
+        "ACCOUNTS.DAT": "a",
+        "BOOKS.DAT": "b",
+        "TRANSACTIONS.DAT": "x"
+      },
+      "right": {
+        "ACCOUNTS.DAT": "a",
+        "BOOKS.DAT": "b",
+        "TRANSACTIONS.DAT": "y"
+      }
+    },
+    {
+      "left": {
+        "ACCOUNTS.DAT": "a",
+        "BOOKS.DAT": "b"
+      },
+      "right": {
+        "ACCOUNTS.DAT": "a",
+        "BOOKS.DAT": "b"
+      }
+    },
+    {
+      "left": {
+        "ACCOUNTS.DAT": "a",
+        "BOOKS.DAT": "b",
+        "TRANSACTIONS.DAT": ""
+      },
+      "right": {
+        "ACCOUNTS.DAT": "a",
+        "TRANSACTIONS.DAT": ""
+      }
+    },
+    {
+      "left": {
+        "ACCOUNTS.DAT": "a\r\n",
+        "BOOKS.DAT": "b",
+        "TRANSACTIONS.DAT": "x"
+      },
+      "right": {
+        "ACCOUNTS.DAT": "a\n",
+        "BOOKS.DAT": "b",
+        "TRANSACTIONS.DAT": "x"
+      }
+    }
+  ]
+}

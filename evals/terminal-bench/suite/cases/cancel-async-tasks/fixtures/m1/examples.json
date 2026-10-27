@@ -1,0 +1,1 @@
+{"jobs": ["alpha", "beta", "gamma"], "max_concurrent": 2, "output": "run.py", "contract": "m1"}

@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "cancel-async-tasks",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "1a2ff1b89d30b94dc1789ab9b1716d9bee593182fce7ef5cc445cfc5b1d3cf0c",
+    "fixtures/m1/examples.json": "2e163ad37956e6d7f34ad83b87d36dcae9ccbece0c56db81abe0f8a6619773db",
+    "fixtures/m1/instruction.md": "208c43ca0eb3b879532c7382269f5e9d582ca8fc0d37fafc41da0d8949f8e4f4",
+    "fixtures/m2/examples.json": "a5a9cca488c0335dbda1b7c9bdd5966c56f13f9a510b10ce0ba59285f109b880",
+    "fixtures/m2/instruction.md": "7c2f12a2aee4c79ac3408b48e6635e9568262875a4aed5cb90cf99ce9955b2f2",
+    "fixtures/m3/examples.json": "01e115d29904d1026c862832d4334f002a06187047143085801ac8db145a5dfd",
+    "fixtures/m3/instruction.md": "7a41a0b0868c3ee7eb7aa71c088510c7dd9c97bb8d0876c8c34a8ed9cf300760",
+    "fixtures/m4/examples.json": "2fd2c6a3996d1137c590abbd5ca23665c272d1b716574ab6e57de6cf0c326c23",
+    "fixtures/m4/instruction.md": "c444c62df9a5d84319efc7fee2626cab03a589f3fa9465f553abc37e1b3aa683",
+    "oracle/m1/accept-anything/run.py": "42777b019e4f8783930362c6ea434f800d77d0b4fb6c12cf4d6f05384688e2ba",
+    "oracle/m1/bool-is-int/run.py": "eba5d73ef804a19240b237a07da18f2791d5263bc0ede90b669740df4a35dd7b",
+    "oracle/m1/expected.json": "334997aff04e43ab543dc96e768310058e44441cc7e5cc74afecee5397c7797d",
+    "oracle/m1/gold/run.py": "4380d88ce866875051db247c3b813382a230fea791d326c28d630c589c878681",
+    "oracle/m1/invokes-factory/run.py": "ee4f4a9c645f520099a89016385048a0c32ba8475d5c5508952c29ee53b828b9",
+    "oracle/m2/expected.json": "f17dbf9c25f92902dbf62683ee7d6ff4799967d00449fc0e1025811f826ef701",
+    "oracle/m2/gold/run.py": "2b69097651997042ab871e2bd373284e77887bb0037dd7e52802c434127b9ca7",
+    "oracle/m2/serial/run.py": "db14c0d2ca8b634d16641d9f6a9939ae090b0f2ede65357a75d195c71960a757",
+    "oracle/m2/skip-last/run.py": "0d9ec8a875901164506442f862e2fd15da82cdf491be044e74ea72a6f561a81e",
+    "oracle/m2/unbounded/run.py": "40c303e4236abfd1a93bfe8df6c940b1f93e0b5ed180691e6231f8fd98e83268",
+    "oracle/m3/expected.json": "570c8f27f672c1f1f3cb566db54c9cd56f7c0980bd1d0d230c44eefa2d522d55",
+    "oracle/m3/gather-leaks/run.py": "791113861ce29e2bd21ae834bef9e8c1b0878a5fdc5448061df025933e00d89c",
+    "oracle/m3/gold/run.py": "d6a10f1c5ec1012d53ce2b586c23aa03187ead1eff642ce91008fd164a63579a",
+    "oracle/m3/runs-queued/run.py": "c61a4119bc20d2b9b20fbd62a006e37e56a4f03e31b54bcf80feb1ff27ef8b6e",
+    "oracle/m3/swallows-error/run.py": "33f7fe4d1f456473cdf5c93feb2960e5d32b844e2fac7a2a0701e1ff3b72f46c",
+    "oracle/m4/expected.json": "abc9582e448d664b3ad124599d24c6dceaf11f39421e281f64b095bb3225361a",
+    "oracle/m4/gold/run.py": "2b69097651997042ab871e2bd373284e77887bb0037dd7e52802c434127b9ca7",
+    "oracle/m4/returns-early/run.py": "cd4a0fac6da4a957cdc1b6c8233096ce5dcd5722c1436ec5af7ee7979ee1fdc4",
+    "oracle/m4/runs-queued/run.py": "c61a4119bc20d2b9b20fbd62a006e37e56a4f03e31b54bcf80feb1ff27ef8b6e",
+    "oracle/m4/swallows-cancel/run.py": "1c0f376886d138d909531639cfdac7a4a57e7b5ef21228d83727d11c622a8923",
+    "case.json": "b531127bf8faef9fb5b707588da8cc7e568fab67c2d9a7ecf60c7f2710f5569e"
+  },
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "accept-anything",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "bool-is-int",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "invokes-factory",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "serial",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "unbounded",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "skip-last",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gather-leaks",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "swallows-error",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "runs-queued",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "returns-early",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "swallows-cancel",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "runs-queued",
+      "exit_code": 1
+    }
+  ]
+}

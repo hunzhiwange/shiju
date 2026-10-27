@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "cancel-async-tasks",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "examples.json": "fixtures/m1/examples.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m1/expected.json"
+      },
+      "gold": {
+        "run.py": "oracle/m1/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "accept-anything",
+          "files": {
+            "run.py": "oracle/m1/accept-anything/run.py"
+          }
+        },
+        {
+          "id": "bool-is-int",
+          "files": {
+            "run.py": "oracle/m1/bool-is-int/run.py"
+          }
+        },
+        {
+          "id": "invokes-factory",
+          "files": {
+            "run.py": "oracle/m1/invokes-factory/run.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "examples.json": "fixtures/m2/examples.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m2/expected.json"
+      },
+      "gold": {
+        "run.py": "oracle/m2/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "serial",
+          "files": {
+            "run.py": "oracle/m2/serial/run.py"
+          }
+        },
+        {
+          "id": "unbounded",
+          "files": {
+            "run.py": "oracle/m2/unbounded/run.py"
+          }
+        },
+        {
+          "id": "skip-last",
+          "files": {
+            "run.py": "oracle/m2/skip-last/run.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "examples.json": "fixtures/m3/examples.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m3/expected.json"
+      },
+      "gold": {
+        "run.py": "oracle/m3/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "gather-leaks",
+          "files": {
+            "run.py": "oracle/m3/gather-leaks/run.py"
+          }
+        },
+        {
+          "id": "swallows-error",
+          "files": {
+            "run.py": "oracle/m3/swallows-error/run.py"
+          }
+        },
+        {
+          "id": "runs-queued",
+          "files": {
+            "run.py": "oracle/m3/runs-queued/run.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "examples.json": "fixtures/m4/examples.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m4/expected.json"
+      },
+      "gold": {
+        "run.py": "oracle/m4/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "returns-early",
+          "files": {
+            "run.py": "oracle/m4/returns-early/run.py"
+          }
+        },
+        {
+          "id": "swallows-cancel",
+          "files": {
+            "run.py": "oracle/m4/swallows-cancel/run.py"
+          }
+        },
+        {
+          "id": "runs-queued",
+          "files": {
+            "run.py": "oracle/m4/runs-queued/run.py"
+          }
+        }
+      ]
+    }
+  ]
+}

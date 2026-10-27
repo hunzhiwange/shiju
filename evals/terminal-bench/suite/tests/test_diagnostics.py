@@ -58,6 +58,38 @@ class DiagnosticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(self.path)
 
+    def test_dotted_official_parent_id_is_preserved(self):
+        for identity in ('install-windows-3.11', 'install-windows-3.11-m1',
+                         'a', '0', 'a-', 'a--b'):
+            with self.subTest(identity=identity):
+                self.case['parent_id'] = identity
+                self.save()
+                self.assertEqual(validate(self.path)['parent_id'], identity)
+
+    def test_dotted_parent_materializes_with_existing_compose_name_conversion(self):
+        from harbor.environments.docker.docker import _sanitize_docker_compose_project_name
+        self.case['parent_id'] = 'install-windows-3.11'
+        self.save()
+        output = self.root / 'dotted-packages'
+        materialize(self.path, output)
+        import tomllib
+        for index in range(1, 5):
+            identity = f'install-windows-3.11-m{index}'
+            task = output / identity
+            config = tomllib.loads((task / 'task.toml').read_text())
+            self.assertEqual(config['metadata']['parent_id'], 'install-windows-3.11')
+            self.assertEqual(config['metadata']['child_id'], f'm{index}')
+            self.assertEqual(_sanitize_docker_compose_project_name(identity + '__env'),
+                             f'install-windows-3-11-m{index}__env')
+
+    def test_parent_id_path_and_empty_dot_segments_rejected(self):
+        for identity in ('', '.', '..', '.parent', 'parent.', 'parent..m1',
+                         'parent.-m1', '../parent', '/parent', 'parent/child',
+                         'parent\\child', 'parent:m1', 'Parent', 'parent m1'):
+            with self.subTest(identity=identity):
+                self.case['parent_id'] = identity
+                self.reject()
+
     def test_missing_fixture_rejected(self):
         (self.root / self.case['children'][0]['fixtures']['input.txt']).unlink()
         self.reject()

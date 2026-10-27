@@ -14,6 +14,25 @@ class ResumeTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
 
+    def test_dotted_official_reservation_preserves_case_id(self):
+        for identity in ('install-windows-3.11', 'install-windows-3.11-m1',
+                         'a', '0', 'a-', 'a--b'):
+            with self.subTest(identity=identity):
+                attempt = reserve(self.root, identity, 'a' * 64)
+                self.assertEqual(attempt, self.root / 'attempts' / identity)
+                self.assertEqual(json.loads((attempt / 'reservation.json').read_text())['case_id'], identity)
+                with self.assertRaises(FileExistsError):
+                    reserve(self.root, identity, 'a' * 64)
+
+    def test_reservation_rejects_path_and_empty_dot_segments_before_writes(self):
+        for identity in ('', '.', '..', '.parent', 'parent.', 'parent..m1',
+                         'parent.-m1', '../parent', '/parent', 'parent/child',
+                         'parent\\child', 'parent:m1', 'Parent', 'parent m1'):
+            with self.subTest(identity=identity):
+                with self.assertRaises(ValueError):
+                    reserve(self.root, identity, 'a' * 64)
+                self.assertFalse((self.root / 'attempts').exists())
+
     def test_crash_before_worker_claim_never_reissues_reserved_attempt(self):
         first = reserve(self.root, 'parent', 'a' * 64)
         self.assertEqual(reconcile(first)['state'], 'unknown')

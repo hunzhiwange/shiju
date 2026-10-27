@@ -60,7 +60,7 @@ def process_identity(pid):
 
 
 def reserve(output, case_id, manifest_sha256):
-    if not re.fullmatch('[a-z0-9][a-z0-9-]*', case_id):
+    if not re.fullmatch(r'[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*', case_id):
         raise ValueError('unsafe case ID')
     attempt = Path(output) / 'attempts' / case_id
     attempt.mkdir(parents=True, exist_ok=False)

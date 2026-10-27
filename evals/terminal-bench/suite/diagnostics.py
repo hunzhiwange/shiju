@@ -92,7 +92,7 @@ def load_case(path):
     keys(case, 'schema_version parent_id image policy children')
     if type(case['schema_version']) is not int or case['schema_version'] != 1:
         raise ValueError('unsupported schema version')
-    if not isinstance(case['parent_id'], str) or not re.fullmatch('[a-z0-9][a-z0-9-]*', case['parent_id']):
+    if not isinstance(case['parent_id'], str) or not re.fullmatch(r'[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*', case['parent_id']):
         raise ValueError('invalid parent ID')
     if not isinstance(case['image'], str) or not re.fullmatch(r'[a-zA-Z0-9_./:-]+@sha256:[a-f0-9]{64}', case['image']):
         raise ValueError('digest-pinned image required')

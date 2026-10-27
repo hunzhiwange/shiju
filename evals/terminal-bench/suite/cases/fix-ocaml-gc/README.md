@@ -52,9 +52,11 @@ It unpacks SHA-pinned authentic curl/uv/Python 3.13.7/pytest caches under
 redundant original apt calls while preserving their return codes. The original
 image lacks Python, as recorded by the first dependency probe. Official source,
 solution, tests, grading and time limits remain byte-identical. A separately
-verified pure Git cache from the fresh official verifier clone is preserved
-only as a candidate; it was not used by either parent control or exposed to
-an agent. Old image refs differed from the current upstream and were rejected.
+verified pure Git cache from the fresh official verifier clone was not used
+by either parent control or exposed to an agent. Its unused extra copy was
+removed for capacity after preserving the full provenance, reference, object
+hash and fsck evidence. Old image refs differed from the current upstream
+and were rejected.
 
 Run the focused deterministic checks from the repository root:
 

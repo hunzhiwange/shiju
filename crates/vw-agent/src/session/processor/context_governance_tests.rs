@@ -147,12 +147,12 @@ fn stale_tool_result_clearing_is_idempotent_and_ignores_other_roles() {
 }
 
 #[test]
-fn auto_compaction_uses_an_inclusive_seventy_percent_boundary() {
+fn auto_compaction_uses_ninety_percent_of_total_context() {
     let model_limit = limit(1_000, Some(1_000), 100);
 
-    assert!(!should_compact(699, &model_limit));
-    assert!(should_compact(700, &model_limit));
-    assert!(should_compact(701, &model_limit));
+    assert!(!should_compact(899, &model_limit));
+    assert!(should_compact(900, &model_limit));
+    assert!(should_compact(901, &model_limit));
 }
 
 #[test]
@@ -311,4 +311,16 @@ fn invoked_skill_context_restore_replaces_stale_messages_and_preserves_updates()
     assert_eq!(updates[1].key, "skill.allowed_tools");
     assert_eq!(updates[2].key, "skill.model");
     assert_eq!(updates[3].key, "skill.effort");
+}
+
+#[test]
+fn auto_compaction_caps_total_threshold_at_input_and_output_budgets() {
+    for model_limit in [limit(1_000, Some(500), 100), limit(1_000, None, 500)] {
+        assert!(!should_compact(499, &model_limit));
+        assert!(should_compact(500, &model_limit));
+    }
+    assert!(!should_compact(899, &limit(1_000, None, 100)));
+    assert!(should_compact(900, &limit(1_000, None, 100)));
+    assert!(!should_compact(899, &limit(0, Some(1_000), 0)));
+    assert!(should_compact(900, &limit(0, Some(1_000), 0)));
 }

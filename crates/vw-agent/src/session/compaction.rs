@@ -12,7 +12,7 @@
 //!
 //! # 压缩策略
 //!
-//! 1. 当会话使用率达到 70% 的可用上下文时，触发溢出检测
+//! 1. 当会话使用率达到 总上下文的 90%（受输入和输出预算约束）时，触发溢出检测
 //! 2. 修剪时会保护最近 2 轮对话和所有 skill 工具调用
 //! 3. 只有当可修剪的 token 数量超过最小阈值时才执行实际修剪
 //! 4. 压缩后会发布 `session.compacted` 事件通知相关组件
@@ -41,7 +41,7 @@ pub mod event {
 /// 检测会话是否溢出上下文限制
 ///
 /// 根据当前的 token 使用情况和模型的上下文限制，判断是否需要执行压缩。
-/// 当使用率达到可用上下文的 90% 时返回 true。
+/// 当使用率达到总上下文的 90%（或先达到输入预算） 时返回 true。
 ///
 /// # 参数
 ///
@@ -56,7 +56,7 @@ pub mod event {
 /// # 算法说明
 ///
 /// 1. 计算可用的上下文空间：优先使用输入限制，否则从上下文限制扣除输出限制
-/// 2. 计算目标阈值：可用空间的 90%
+/// 2. 计算目标阈值：总窗口的 90%，不超过可用输入空间
 /// 3. 比较当前使用量与目标阈值
 ///
 /// # 示例
@@ -77,15 +77,6 @@ pub mod event {
 /// ```
 pub async fn is_overflow(tokens: &message::TokenInfo, model: &provider::Model) -> bool {
     let _cfg = config::get().await;
-    if model.limit.context == 0
-        || context_governance::effective_input_window(&model.limit) == 0
-        || model
-            .limit
-            .input
-            .is_some_and(|input| input > model.limit.context.saturating_sub(model.limit.output))
-    {
-        return false;
-    }
     let count = tokens.total.unwrap_or_else(|| {
         tokens
             .input
@@ -497,6 +488,7 @@ pub async fn process(
         context,
         format!("{}/{}", model.provider_id, model.id),
         cfg.reliability,
+        model.limit.clone(),
     )
     .await;
     let outcome = compact_with_summary(input, model_result, &source).await?;

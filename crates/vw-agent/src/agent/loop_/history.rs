@@ -154,6 +154,7 @@ pub(crate) async fn compact_history_with_internal_service(
     session_id: &str,
     model: &str,
     reliability: &crate::config::ReliabilityConfig,
+    model_limit: &crate::provider::provider::ModelLimit,
 ) -> Result<bool> {
     let start = usize::from(history.first().is_some_and(|message| message.role == "system"));
     let end = history.iter().rposition(|message| message.role == "user").unwrap_or(start);
@@ -172,6 +173,7 @@ pub(crate) async fn compact_history_with_internal_service(
         context,
         model.to_string(),
         reliability.clone(),
+        model_limit.clone(),
     )
     .await
     .map_err(anyhow::Error::msg)?;

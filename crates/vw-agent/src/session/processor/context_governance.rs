@@ -9,7 +9,7 @@ use serde_json::Value;
 pub(crate) const RECENT_TOOL_RESULTS_TO_KEEP: usize = 8;
 pub(crate) const STALE_TOOL_RESULT_PLACEHOLDER: &str =
     "[Earlier tool result cleared to preserve conversation context]";
-pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 70;
+pub(crate) const AUTO_COMPACTION_THRESHOLD_PERCENT: u64 = 90;
 
 const INVOKED_SKILL_SOURCE_FIELD: &str = "vw_invoked_skill_source";
 
@@ -52,13 +52,19 @@ pub(crate) fn should_compact(input_tokens: u64, limit: &ModelLimit) -> bool {
     if limit.context == 0 && limit.input.is_none() {
         return false;
     }
-    let window = effective_input_window(limit);
+    let window = if limit.context == 0 {
+        effective_input_window(limit)
+    } else {
+        effective_input_window(limit).min(limit.context.saturating_sub(limit.output))
+    };
     if window == 0 {
         return input_tokens > 0;
     }
 
-    let threshold =
-        window.saturating_mul(AUTO_COMPACTION_THRESHOLD_PERCENT).saturating_add(99) / 100;
+    let total = if limit.context == 0 { window } else { limit.context };
+    let threshold = ((u128::from(total) * u128::from(AUTO_COMPACTION_THRESHOLD_PERCENT))
+        .div_ceil(100) as u64)
+        .min(window);
     input_tokens >= threshold
 }
 

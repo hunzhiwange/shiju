@@ -237,27 +237,27 @@ async fn cleanup_session(session_id: &str) {
 }
 
 #[tokio::test]
-async fn overflow_is_false_for_unlimited_or_unusable_context() {
+async fn overflow_distinguishes_unlimited_and_unusable_context() {
     let tokens = token_info(Some(1_000_000), 0, 0, 0, 0);
 
     assert!(!is_overflow(&tokens, &model_with_limits(0, None, 0)).await);
-    assert!(!is_overflow(&tokens, &model_with_limits(10_000, Some(10), 50_000)).await);
+    assert!(is_overflow(&tokens, &model_with_limits(10_000, Some(10), 50_000)).await);
 }
 
 #[tokio::test]
 async fn overflow_uses_total_when_present_and_rounds_threshold() {
     let model = model_with_limits(100_000, None, 10_000);
 
-    assert!(!is_overflow(&token_info(Some(80_999), 99_999, 0, 0, 0), &model).await);
-    assert!(is_overflow(&token_info(Some(81_000), 1, 1, 1, 1), &model).await);
+    assert!(!is_overflow(&token_info(Some(89_999), 99_999, 0, 0, 0), &model).await);
+    assert!(is_overflow(&token_info(Some(90_000), 1, 1, 1, 1), &model).await);
 }
 
 #[tokio::test]
 async fn overflow_falls_back_to_component_sum_and_input_limit() {
     let model = model_with_limits(200_000, Some(100_000), 20_000);
 
-    assert!(!is_overflow(&token_info(None, 80_000, 9_000, 900, 99), &model).await);
-    assert!(is_overflow(&token_info(None, 80_000, 9_000, 900, 100), &model).await);
+    assert!(!is_overflow(&token_info(None, 90_000, 9_000, 900, 99), &model).await);
+    assert!(is_overflow(&token_info(None, 90_000, 9_000, 900, 100), &model).await);
 }
 
 #[tokio::test]
@@ -273,8 +273,8 @@ async fn overflow_treats_negative_counts_as_zero() {
 async fn overflow_reserves_model_output_space() {
     let model = model_with_limits(100_000, None, 50_000);
 
-    assert!(!is_overflow(&token_info(Some(44_999), 0, 0, 0, 0), &model).await);
-    assert!(is_overflow(&token_info(Some(45_000), 0, 0, 0, 0), &model).await);
+    assert!(!is_overflow(&token_info(Some(49_999), 0, 0, 0, 0), &model).await);
+    assert!(is_overflow(&token_info(Some(50_000), 0, 0, 0, 0), &model).await);
 }
 
 #[tokio::test]

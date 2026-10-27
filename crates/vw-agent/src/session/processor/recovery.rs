@@ -140,7 +140,8 @@ impl RetryBudget {
                         if output_started
                             && (transient
                                 || error == "模型未返回内容"
-                                || super::llm_runner::is_prompt_too_long_error(&error))
+                                || super::llm_runner::is_prompt_too_long_error(&error)
+                                || super::llm_runner::input_length_range_max(&error).is_some())
                         {
                             let mut error = serde_json::from_str::<AssistantError>(&error)
                                 .unwrap_or(AssistantError::Unknown { message: error });

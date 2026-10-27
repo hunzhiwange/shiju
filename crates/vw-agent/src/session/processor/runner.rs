@@ -178,6 +178,7 @@ pub(crate) fn provider_request_options(options: &Value) -> Value {
 
 /// Summarize completed history, including tool rounds after the latest user request.
 /// Preserve that user request verbatim and replace model context only after checkpoint persistence.
+#[allow(clippy::too_many_arguments)] // Keep request identity, budget, and lifecycle explicit.
 fn compact_transient_history_for_request(
     session_id: &str,
     checkpoint_source: &[Value],
@@ -186,6 +187,7 @@ fn compact_transient_history_for_request(
     reliability: &crate::app::agent::config::ReliabilityConfig,
     on_event: &mut impl FnMut(StreamEvent) -> bool,
     cancellation: Option<&tokio_util::sync::CancellationToken>,
+    model_limit: &crate::provider::provider::ModelLimit,
 ) -> Result<bool, String> {
     let Some(boundary) = llm_messages
         .iter()
@@ -205,6 +207,7 @@ fn compact_transient_history_for_request(
         model,
         reliability,
         cancellation,
+        model_limit,
     )?;
     let current_user = llm_messages[boundary].clone();
     let replacement = vec![
@@ -768,6 +771,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 &req.reliability,
                 &mut on_event,
                 req.abort_token.as_ref(),
+                &model_limit,
             ) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
@@ -837,7 +841,8 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 output
             }
             Err(message) => {
-                if llm_runner::is_prompt_too_long_error(&message) && !internal_compaction_attempted
+                if llm_runner::is_request_too_long_error(&message, &provider_messages)
+                    && !internal_compaction_attempted
                 {
                     match compact_transient_history_for_request(
                         &req.session,
@@ -847,6 +852,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                         &req.reliability,
                         &mut on_event,
                         req.abort_token.as_ref(),
+                        &model_limit,
                     ) {
                         Ok(true) => {
                             internal_compaction_attempted = true;

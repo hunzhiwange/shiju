@@ -381,7 +381,7 @@ impl QueryEngine {
 
         let mut retry_response_persisted = false;
         let result = match result {
-            Err(error) if is_prompt_too_long(&error.to_string()) => {
+            Err(error) if is_prompt_too_long(&error.to_string(), &request_history) => {
                 let context = match self.compact_before_primary_request(true).await {
                     Ok(context) => context,
                     Err(compaction_error) => {
@@ -482,6 +482,7 @@ impl QueryEngine {
                 format!("{}/{}", self.provider_name, self.model_name)
             },
             &self.reliability,
+            &self.model_limit,
         )
         .await?;
         if !compacted {
@@ -543,11 +544,12 @@ impl QueryEngine {
     }
 }
 
-fn is_prompt_too_long(message: &str) -> bool {
-    let normalized = message.to_ascii_lowercase();
-    ["context length", "context window", "prompt too long", "too many tokens", "context overflow"]
+fn is_prompt_too_long(message: &str, history: &[ChatMessage]) -> bool {
+    let input = history
         .iter()
-        .any(|marker| normalized.contains(marker))
+        .map(|item| serde_json::json!({"role": item.role, "content": item.content}))
+        .collect::<Vec<_>>();
+    crate::session::processor::llm_runner::is_request_too_long_error(message, &input)
 }
 
 fn build_tool_descriptions(config: &Config) -> Vec<(&'static str, &'static str)> {

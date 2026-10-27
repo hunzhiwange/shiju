@@ -61,7 +61,8 @@ async fn internal_compaction_returns_false_without_prior_history() {
             &mut history,
             "empty",
             "test/model",
-            &Default::default()
+            &Default::default(),
+            &crate::provider::provider::resolve_model_limit(None, None, None)
         )
         .await
         .unwrap()
@@ -92,7 +93,8 @@ async fn internal_compaction_uses_shared_runner_and_preserves_current_turn() {
             &mut history,
             &session,
             "test/model",
-            &Default::default()
+            &Default::default(),
+            &crate::provider::provider::resolve_model_limit(None, None, None)
         )
         .await
         .unwrap()
@@ -122,6 +124,7 @@ async fn internal_compaction_keeps_history_when_provider_fails() {
         "failed-summary",
         "test/model",
         &reliability,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     )
     .await
     .unwrap_err();

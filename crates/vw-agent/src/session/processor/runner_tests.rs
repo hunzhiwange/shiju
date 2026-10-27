@@ -807,6 +807,7 @@ fn compaction_lifecycle_replaces_only_covered_history_after_completion() {
             true
         },
         None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     )
     .expect("summary should succeed");
 
@@ -857,6 +858,7 @@ fn compaction_lifecycle_keeps_history_and_omits_completion_when_summary_fails() 
             true
         },
         None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     )
     .expect_err("failed summaries must not change history");
 
@@ -1326,6 +1328,7 @@ fn compaction_lifecycle_failure_preserves_multibyte_history() {
             true
         },
         None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     )
     .unwrap_err();
     assert!(error.contains("summary unavailable"));
@@ -1360,6 +1363,7 @@ fn compaction_lifecycle_rejects_truncated_summary_without_replacing_history() {
         &crate::app::agent::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         &mut |_| true,
         None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     )
     .unwrap_err();
     assert!(error.contains("truncated"));
@@ -1395,6 +1399,7 @@ fn compaction_lifecycle_can_summarize_successive_tool_rounds_in_one_turn() {
                 },
                 &mut |_| true,
                 None,
+                &crate::provider::provider::resolve_model_limit(None, None, None)
             )
             .unwrap()
         );
@@ -1439,6 +1444,7 @@ fn compaction_checkpoint_replays_after_restart_without_rewriting_chat() {
             true
         },
         None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     )
     .unwrap();
     assert_eq!(raw[1]["content"], "old details");
@@ -1484,6 +1490,7 @@ fn compaction_checkpoint_failure_keeps_context_and_never_emits_completion() {
             true
         },
         None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
     );
     assert!(result.unwrap_err().contains("invalid session ID"));
     assert_eq!(context, raw);

@@ -280,6 +280,7 @@ async fn channel_session_history_blank_compaction_preserves_persisted_history_an
     lifecycle_dispatch(&ctx, &msg, &format!("/compact {}", ids[1])).await;
     let response = lifecycle_dispatch(&ctx, &msg, &format!("/compact confirm {}", ids[1])).await;
     assert!(response.contains("失败") && response.contains("empty summary"), "{response}");
+    assert_eq!(crate::session::processor::take_test_llm_messages(&id).len(), 1);
     assert!(requests.lock().unwrap().is_empty());
     assert_eq!(lifecycle_id(&ctx), id);
     assert_eq!(before, serde_json::to_value(message::messages(&id, None).await.unwrap()).unwrap());

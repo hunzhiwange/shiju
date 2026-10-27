@@ -288,7 +288,16 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
 async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("previous progress".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
     let runtime = command_logger_runtime(true);
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_tool_call("primary-tool")),
@@ -296,15 +305,24 @@ async fn query_engine_uses_hook_runtime_for_primary_and_retry_turns() {
         ProviderStep::Response(chat_tool_call("retry-tool")),
         ProviderStep::Response(chat_text("recovered", None)),
     ]);
+    let provider_handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.tools_registry = vec![Box::new(HookProbeTool)];
     engine.compact_context = true;
+    engine.history =
+        vec![ChatMessage::user("previous task"), ChatMessage::assistant("previous result")];
     engine.hook_runtime = Some(runtime.clone());
 
     let response = engine.submit_message("exercise primary and retry").await.unwrap();
 
     assert_eq!(response, "recovered");
     assert_eq!(runtime.audit_store().entries().len(), 2);
+    let requests = provider_handle.seen_messages();
+    assert_eq!(requests.len(), 4);
+    assert!(requests[2].iter().any(|message| message.content.contains("[Compaction summary]")));
+    assert_eq!(crate::session::processor::take_test_llm_messages(&engine.session_id).len(), 1);
+    assert_eq!(engine.history_snapshot()[0].content, "previous task");
+    assert_eq!(engine.history_snapshot()[1].content, "previous result");
 
     let disabled = command_logger_runtime(false);
     let provider = ScriptedProvider::with_steps(vec![
@@ -347,7 +365,7 @@ async fn agent_and_query_engine_use_ephemeral_query_engine_context_each_turn() {
 }
 
 #[tokio::test]
-async fn agent_and_query_engine_use_ephemeral_context_after_history_trim() {
+async fn agent_and_query_engine_preserve_history_with_ephemeral_context_each_turn() {
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Response(chat_text("first", None)),
         ProviderStep::Response(chat_text("second", None)),
@@ -362,9 +380,31 @@ async fn agent_and_query_engine_use_ephemeral_context_after_history_trim() {
     let requests = provider_handle.seen_messages();
     assert_eq!(requests.len(), 2);
     assert!(requests.iter().all(|request| request[0].content.starts_with("<system-reminder>")));
+    let first_user = requests[0].last().unwrap().content.as_str();
+    let second_user = requests[1].last().unwrap().content.as_str();
+    assert_eq!(first_user.split_once("] ").map(|(_, body)| body), Some("one"));
+    assert_eq!(second_user.split_once("] ").map(|(_, body)| body), Some("two"));
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 1);
-    assert_eq!(history[0].content, "second");
+    assert_eq!(
+        history
+            .iter()
+            .map(|message| (message.role.as_str(), message.content.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("user", first_user),
+            ("assistant", "first"),
+            ("user", second_user),
+            ("assistant", "second")
+        ]
+    );
+    assert_eq!(
+        requests[1]
+            .iter()
+            .skip(1)
+            .map(|message| (message.role.as_str(), message.content.as_str()))
+            .collect::<Vec<_>>(),
+        vec![("user", first_user), ("assistant", "first"), ("user", second_user)]
+    );
     assert!(history.iter().all(|message| !message.content.contains("<system-reminder>")));
 }
 
@@ -567,12 +607,19 @@ async fn submit_message_success_enriches_history_and_records_usage() {
     assert_eq!(result, "final answer");
     assert_eq!(engine.turn_count(), 1);
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 3);
-    assert_eq!(history[1].role, "user");
-    assert!(history[1].content.contains("[Memory context]"));
-    assert!(history[1].content.contains("prefer concise replies"));
-    assert!(history[1].content.contains("hello"));
-    assert_eq!(history[2].content, "final answer");
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[0].role, "user");
+    assert!(history[0].content.contains("[Memory context]"));
+    assert!(history[0].content.contains("prefer concise replies"));
+    assert!(history[0].content.ends_with("] hello"));
+    assert_eq!(history[1].role, "assistant");
+    assert_eq!(history[1].content, "final answer");
+    let requests = provider_handle.seen_messages();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].len(), 2);
+    assert!(requests[0][0].content.starts_with("<system-reminder>"));
+    assert_eq!(history[0].content, requests[0][1].content);
+    assert!(history.iter().all(|message| !message.content.contains("<system-reminder>")));
 
     let state = engine.session_state();
     assert_eq!(state.usage.llm_calls, 1);
@@ -631,9 +678,10 @@ async fn new_rejects_invalid_programmatic_timezone() {
 }
 
 #[tokio::test]
-async fn submit_message_success_trims_history_after_turn() {
+async fn submit_message_success_preserves_history_after_turn() {
     let provider =
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("new answer", None))]);
+    let provider_handle = provider.clone();
     let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
     engine.max_history_messages = 1;
     engine.history = vec![
@@ -645,12 +693,26 @@ async fn submit_message_success_trims_history_after_turn() {
     let result = engine.submit_message("new request").await.expect("submit should succeed");
 
     assert_eq!(result, "new answer");
+    let requests = provider_handle.seen_messages();
+    assert_eq!(requests.len(), 1);
+    let submitted_user = requests[0].last().unwrap().content.as_str();
+    assert_eq!(submitted_user.split_once("] ").map(|(_, body)| body), Some("new request"));
     let history = engine.history_snapshot();
-    assert_eq!(history.len(), 2);
-    assert_eq!(history[0].role, "system");
-    assert_eq!(history[1].content, "new answer");
+    assert_eq!(
+        history
+            .iter()
+            .map(|message| (message.role.as_str(), message.content.as_str()))
+            .collect::<Vec<_>>(),
+        vec![
+            ("system", "system"),
+            ("user", "old request"),
+            ("assistant", "old answer"),
+            ("user", submitted_user),
+            ("assistant", "new answer")
+        ]
+    );
     let state = engine.session_state();
-    assert_eq!(state.budget.non_system_messages, 1);
+    assert_eq!(state.budget.non_system_messages, 4);
     assert_eq!(state.budget.remaining_history_messages, 0);
 }
 
@@ -671,7 +733,17 @@ async fn submit_message_error_rolls_back_history_and_turn_count() {
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
 async fn submit_message_compacts_before_the_primary_request() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("preserved decision".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
+
     let provider =
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
     let provider_handle = provider.clone();
@@ -694,7 +766,17 @@ async fn submit_message_compacts_before_the_primary_request() {
 }
 
 #[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the summary-model boundary.
 async fn prompt_too_long_compacts_and_retries_once() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("preserved decision".into()),
+        crate::session::llm::StreamEvent::Done {
+            finish_reason: Some("stop".into()),
+            usage: Default::default(),
+        },
+    ]);
+
     let provider = ScriptedProvider::with_steps(vec![
         ProviderStep::Error("prompt too long"),
         ProviderStep::Response(chat_text("recovered", None)),
@@ -712,12 +794,10 @@ async fn prompt_too_long_compacts_and_retries_once() {
 
     assert_eq!(response, "recovered");
     assert_eq!(provider_handle.seen_messages().len(), 2);
-    assert!(
-        engine
-            .history_snapshot()
-            .iter()
-            .any(|message| message.content.contains("[Compaction summary]"))
-    );
+    let requests = provider_handle.seen_messages();
+    assert!(requests[1].iter().any(|message| message.content.contains("[Compaction summary]")));
+    assert!(engine.history_snapshot().iter().any(|message| message.content == "message-0"));
+    assert_eq!(crate::session::processor::take_test_llm_messages(&engine.session_id).len(), 1);
 }
 
 #[tokio::test]

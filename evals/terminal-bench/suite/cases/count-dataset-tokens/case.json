@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "parent_id": "count-dataset-tokens",
+  "image": "vw-count-tokens-diagnostics@sha256:eddb05e0cc7ad8c56bfebeb2876686ce8c2cf6f37ccff767de6ae5521cc11ab4",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "records.json": "fixtures/m1/records.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m1/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "science-label",
+          "files": {
+            "result.json": "oracle/m1/science-label/result.json"
+          }
+        },
+        {
+          "id": "case-folded",
+          "files": {
+            "result.json": "oracle/m1/case-folded/result.json"
+          }
+        },
+        {
+          "id": "all-domains",
+          "files": {
+            "result.json": "oracle/m1/all-domains/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "texts.json": "fixtures/m2/texts.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m2/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "concatenated-fields",
+          "files": {
+            "result.json": "oracle/m2/concatenated-fields/result.json"
+          }
+        },
+        {
+          "id": "character-count",
+          "files": {
+            "result.json": "oracle/m2/character-count/result.json"
+          }
+        },
+        {
+          "id": "extra-special-tokens",
+          "files": {
+            "result.json": "oracle/m2/extra-special-tokens/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "part-01.txt": "fixtures/m3/part-01.txt",
+        "part-02.txt": "fixtures/m3/part-02.txt",
+        "part-03.txt": "fixtures/m3/part-03.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m3/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "drops-empty-record",
+          "files": {
+            "result.json": "oracle/m3/drops-empty-record/result.json"
+          }
+        },
+        {
+          "id": "counts-null-markers",
+          "files": {
+            "result.json": "oracle/m3/counts-null-markers/result.json"
+          }
+        },
+        {
+          "id": "drops-unterminated-record",
+          "files": {
+            "result.json": "oracle/m3/drops-unterminated-record/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "records.json": "fixtures/m4/records.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m4/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "inconsistent-total",
+          "files": {
+            "result.json": "oracle/m4/inconsistent-total/result.json"
+          }
+        },
+        {
+          "id": "omits-solution",
+          "files": {
+            "result.json": "oracle/m4/omits-solution/result.json"
+          }
+        },
+        {
+          "id": "aggregate-only",
+          "files": {
+            "result.json": "oracle/m4/aggregate-only/result.json"
+          }
+        }
+      ]
+    }
+  ]
+}

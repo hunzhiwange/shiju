@@ -1,0 +1,19 @@
+{
+  "rows": [
+    {
+      "id": "u",
+      "reasoning": 2,
+      "solution": 0
+    },
+    {
+      "id": "v",
+      "reasoning": 1,
+      "solution": 0
+    },
+    {
+      "id": "w",
+      "reasoning": 12,
+      "solution": 0
+    }
+  ]
+}

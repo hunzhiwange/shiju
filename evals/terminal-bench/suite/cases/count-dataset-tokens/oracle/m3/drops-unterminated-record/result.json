@@ -1,0 +1,20 @@
+{
+  "rows": [
+    {
+      "id": "s0",
+      "reasoning": 0,
+      "solution": 0
+    },
+    {
+      "id": "s1",
+      "reasoning": 0,
+      "solution": 1
+    },
+    {
+      "id": "s2",
+      "reasoning": 1,
+      "solution": 1
+    }
+  ],
+  "total": 3
+}

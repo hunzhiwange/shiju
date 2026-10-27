@@ -1,0 +1,3 @@
+Read /app/texts.json. Use the unmodified Qwen/Qwen2.5-1.5B-Instruct tokenizer at revision 989aa7980e4cf806f80c7fef2b1adb7bc71aa306, available offline at /opt/qwen/tokenizer.json with Python tokenizers 0.22.2. Use Tokenizer.from_file(...).encode(text, add_special_tokens=False).ids. Count reasoning and solution separately, never concatenate them or apply a chat template; no special tokens.
+Write {"rows":[{"id":ID,"reasoning":INTEGER,"solution":INTEGER},...]} preserving record order.
+Only write /app/result.json; do not modify input files or use the network. Return the requested JSON artifact, not prose. Budget: 24 turns, 32 tools, 900 seconds. Each task is independent.

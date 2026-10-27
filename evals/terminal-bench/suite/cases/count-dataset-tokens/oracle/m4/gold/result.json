@@ -1,0 +1,32 @@
+{
+  "rows": [
+    {
+      "id": "a",
+      "domain": "physics",
+      "reasoning": 1,
+      "solution": 1,
+      "total": 2
+    },
+    {
+      "id": "c",
+      "domain": "biology",
+      "reasoning": 5,
+      "solution": 1,
+      "total": 6
+    },
+    {
+      "id": "d",
+      "domain": "chemistry",
+      "reasoning": 4,
+      "solution": 1,
+      "total": 5
+    }
+  ],
+  "domain_totals": {
+    "biology": 6,
+    "chemistry": 5,
+    "physics": 2
+  },
+  "selected_records": 3,
+  "total": 13
+}

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "u",
+    "deepseek_reasoning": "Hello",
+    "deepseek_solution": " world"
+  },
+  {
+    "id": "v",
+    "deepseek_reasoning": "a",
+    "deepseek_solution": "b"
+  },
+  {
+    "id": "w",
+    "deepseek_reasoning": "你好，世界！",
+    "deepseek_solution": "2 + 2 = 4."
+  }
+]

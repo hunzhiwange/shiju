@@ -1,0 +1,12 @@
+{
+  "expected": {
+    "ids": [
+      "a",
+      "c",
+      "d"
+    ]
+  },
+  "input_sha256": {
+    "records.json": "22b087b8c9d50db37b045e1c885c456652e66ccae7fdac85b50fe2fbf36056d8"
+  }
+}

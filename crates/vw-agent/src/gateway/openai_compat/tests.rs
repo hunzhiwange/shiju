@@ -370,13 +370,4 @@ mod tests {
         assert!((before..=after).contains(&ts));
     }
 
-    /// 测试请求体大小限制常量配置为 512KB
-    ///
-    /// 验证 CHAT_COMPLETIONS_MAX_BODY_SIZE 常量设置为 524,288 字节（512KB）。
-    /// 此限制用于防止过大的请求体导致内存耗尽或拒绝服务攻击。
-    #[test]
-    fn body_size_limit_is_512kb() {
-        // 验证大小限制为 512KB (512 * 1024 = 524,288 字节)
-        assert_eq!(CHAT_COMPLETIONS_MAX_BODY_SIZE, 524_288);
-    }
 }

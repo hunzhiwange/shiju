@@ -22,11 +22,6 @@ use std::net::SocketAddr;
 use std::time::Instant;
 use uuid::Uuid;
 
-/// 聊天补全请求的最大正文大小（512 KiB）。
-///
-/// 该独立上限允许较长对话历史，同时避免接受无限制正文。
-pub const CHAT_COMPLETIONS_MAX_BODY_SIZE: usize = 524_288;
-
 // ══════════════════════════════════════════════════════════════════════════════
 // REQUEST / RESPONSE TYPES
 // ══════════════════════════════════════════════════════════════════════════════
@@ -216,18 +211,6 @@ pub async fn handle_v1_chat_completions(
             });
             return (StatusCode::UNAUTHORIZED, Json(err)).into_response();
         }
-    }
-
-    // ── Enforce body size limit (since this route uses a separate limit) ──
-    if body.len() > CHAT_COMPLETIONS_MAX_BODY_SIZE {
-        let err = serde_json::json!({
-            "error": {
-                "message": format!("Request body too large ({} bytes, max {})", body.len(), CHAT_COMPLETIONS_MAX_BODY_SIZE),
-                "type": "invalid_request_error",
-                "code": "request_too_large"
-            }
-        });
-        return (StatusCode::PAYLOAD_TOO_LARGE, Json(err)).into_response();
     }
 
     // ── Parse body ──

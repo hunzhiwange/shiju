@@ -7,7 +7,7 @@
 //! This module replaces the raw TCP implementation with axum for:
 //! - Proper HTTP/1.1 parsing and compliance
 //! - Content-Length validation (handled by hyper)
-//! - Request body size limits (32MiB max; covers multimodal / knowledge base64 payloads)
+//! - Webhook request body size limits (32MiB); client payload sizes are validated by providers
 //! - Request timeouts (30s) to prevent slow-loris attacks
 //! - Header sanitization (handled by axum/hyper)
 
@@ -76,11 +76,7 @@ use axum::{
 };
 use std::time::Duration;
 
-/// 普通网关请求允许的最大正文大小（32 MiB）。
-///
-/// Sized to fit multimodal / knowledge uploads after base64 expansion:
-/// desktop and knowledge paths allow up to 20MiB raw files (~27MiB base64),
-/// with headroom for JSON wrappers and short chat history.
+/// 第三方 webhook 请求允许的最大正文大小（32 MiB）。
 pub const MAX_BODY_SIZE: usize = 32 * 1024 * 1024;
 /// 普通请求的默认超时秒数，用于阻止慢速请求长期占用连接。
 pub const REQUEST_TIMEOUT_SECS: u64 = 30;

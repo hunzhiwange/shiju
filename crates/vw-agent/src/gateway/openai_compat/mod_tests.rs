@@ -254,15 +254,20 @@ async fn handle_v1_chat_completions_rejects_empty_messages() {
 }
 
 #[tokio::test]
-async fn handle_v1_chat_completions_rejects_oversized_body() {
+async fn handle_v1_chat_completions_passes_large_body_to_provider() {
     let state = state_with_provider(Arc::new(TestProvider::chat_ok("unused")), false, &[], 100);
-    let body = Bytes::from(vec![b'x'; CHAT_COMPLETIONS_MAX_BODY_SIZE + 1]);
+    let body = Bytes::from(
+        serde_json::to_vec(&serde_json::json!({
+            "messages": [{"role": "user", "content": "x".repeat(524_289)}]
+        }))
+        .expect("valid request"),
+    );
 
     let response = chat_response(state, HeaderMap::new(), body).await;
     let (status, payload) = response_json(response).await;
 
-    assert_eq!(status, StatusCode::PAYLOAD_TOO_LARGE);
-    assert_eq!(payload["error"]["code"], "request_too_large");
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(payload["choices"][0]["message"]["content"], "unused");
 }
 
 #[tokio::test]

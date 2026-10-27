@@ -14,6 +14,7 @@ use crate::app::agent::tools::traits::ToolSpec;
 use crate::app::agent::tools::{self, Tool};
 use anyhow::{Context, Result};
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use axum::http::HeaderValue;
 use axum::middleware::{from_fn, from_fn_with_state};
 use axum::routing::{delete, get, post, put};
@@ -236,18 +237,18 @@ pub async fn run_gateway(host: &str, port: u16, mut config: Config) -> Result<()
     };
 
     let openai_compat_route = Router::<AppState>::new()
-        .route("/chat/completions", post(openai_compat::handle_v1_chat_completions))
-        .layer(RequestBodyLimitLayer::new(openai_compat::CHAT_COMPLETIONS_MAX_BODY_SIZE));
+        .route("/chat/completions", post(openai_compat::handle_v1_chat_completions));
 
     let dashboard_config_route = Router::<AppState>::new()
         .route("/config", get(api::handle_api_config_get).put(api::handle_api_config_put))
         .layer(RequestBodyLimitLayer::new(1_048_576));
 
     let app = Router::<AppState>::new()
-        .merge(external_router())
+        .merge(external_router().layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE)))
         .merge(client_router(state.clone(), openai_compat_route, dashboard_config_route))
         .with_state(state.clone())
-        .layer(RequestBodyLimitLayer::new(MAX_BODY_SIZE))
+        // Model providers validate client payload and context sizes.
+        .layer(DefaultBodyLimit::disable())
         .layer(from_fn(request_timeout_middleware))
         .layer(cors);
 

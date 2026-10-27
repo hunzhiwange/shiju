@@ -18,6 +18,8 @@ pub mod files;
 /// git 子模块，拆分当前领域的局部职责。
 pub mod git;
 mod impls;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod installer_update;
 /// lsp 子模块，拆分当前领域的局部职责。
 pub mod lsp;
 /// message 子模块，拆分当前领域的局部职责。

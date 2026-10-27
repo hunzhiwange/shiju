@@ -1,0 +1,1 @@
+{"gates": "out0 = out0\nout1 = ~out0\n", "n": 0, "width": 1, "steps": 1}

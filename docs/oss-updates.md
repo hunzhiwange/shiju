@@ -119,7 +119,7 @@ names 不参与发布，不修改配置，不迁移凭据，不输出 SDK 原始
 回执不是远端事实来源，每次执行都重新读取 latest 并校验对象，不依赖回执跳过校验。
 
 独立技能位于配套 data-gateway-oss-upload 仓库的
-`skills/vibewindow-oss-update/SKILL.md`，调用本仓库两个脚本，不复制业务实现。
+`skills/shiju-agent-oss-update/SKILL.md`，调用本仓库两个脚本，不复制业务实现。
 
 ```sh
 python3 -m unittest discover -s scripts/tests -p test_publish_oss_release.py

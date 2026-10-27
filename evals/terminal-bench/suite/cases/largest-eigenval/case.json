@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "largest-eigenval",
+  "image": "vw-kv-grpc-diagnostics@sha256:5235d587637d5065c1724a0a307c9d0d2fc150cdbd541e0c3174c8845ab40bcc",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "transposed",
+          "files": {
+            "solution.py": "oracle/m1/transposed/solution.py"
+          }
+        },
+        {
+          "id": "squared-norm",
+          "files": {
+            "solution.py": "oracle/m1/squared-norm/solution.py"
+          }
+        },
+        {
+          "id": "row-count",
+          "files": {
+            "solution.py": "oracle/m1/row-count/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "largest-real",
+          "files": {
+            "solution.py": "oracle/m2/largest-real/solution.py"
+          }
+        },
+        {
+          "id": "drops-imaginary",
+          "files": {
+            "solution.py": "oracle/m2/drops-imaginary/solution.py"
+          }
+        },
+        {
+          "id": "wrong-root",
+          "files": {
+            "solution.py": "oracle/m2/wrong-root/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "last-tie",
+          "files": {
+            "solution.py": "oracle/m3/last-tie/solution.py"
+          }
+        },
+        {
+          "id": "largest-signed",
+          "files": {
+            "solution.py": "oracle/m3/largest-signed/solution.py"
+          }
+        },
+        {
+          "id": "zero-vector",
+          "files": {
+            "solution.py": "oracle/m3/zero-vector/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "accept-all",
+          "files": {
+            "solution.py": "oracle/m4/accept-all/solution.py"
+          }
+        },
+        {
+          "id": "reject-all",
+          "files": {
+            "solution.py": "oracle/m4/reject-all/solution.py"
+          }
+        },
+        {
+          "id": "ignores-normalization",
+          "files": {
+            "solution.py": "oracle/m4/ignores-normalization/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "largest-eigenval",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "8cfedf4ee3a5e14b5e79208baf65122d424d76c9e043b7d67fe846c9dbb3ca22",
+    "fixtures/m1/example.json": "fead84535e9ef25100aaddf9d07380a4c8f83231ed175be91469e551641461d2",
+    "fixtures/m1/instruction.md": "09b6faf94598f0cb386420f3fa054e7f83e976ef378a8d24a7273e8a1cbbd0ef",
+    "fixtures/m2/example.json": "c9f9c72505f5258c1049f2af0ad297da25a8c8c03498b1d729c410d024b42461",
+    "fixtures/m2/instruction.md": "fb2c0908f7725aa045a106d966cbd53ec295c32aac2bc36a4c9c691a07154a41",
+    "fixtures/m3/example.json": "084dd94798e5174e4cd18bcd439f2dba53df8a4babf25828d4c418ddfd86e075",
+    "fixtures/m3/instruction.md": "5f0a046fdbe131c22b00207c5444d22f97e0d5aef402ac65a459af1d171847c1",
+    "fixtures/m4/example.json": "384a6feb4281011eb285f6b0533eee0b72682522ea0bd825f32286b1cc692817",
+    "fixtures/m4/instruction.md": "237937e6fdb14c113db2b81480b869d218c54ab41661de0bfcc87cec132e5976",
+    "oracle/m1/gold/solution.py": "203f0d561a0a39cc6d5a3060177b1c567658262ffb5bd88df29d4ce1fcac907c",
+    "oracle/m1/row-count/solution.py": "4378d7fd1cd810bbda503eb0714c993e8a46eefe4db8aaba9b470fa804452965",
+    "oracle/m1/squared-norm/solution.py": "e3bc40468a0a0e305477e2568d2de7d3391828bad8a818dfc2331351c1b055ca",
+    "oracle/m1/task.json": "7c6fda10e0ee66fb8c03bb5c85cebba32e87a33c50d848b8a1d61cf22faf9bd0",
+    "oracle/m1/transposed/solution.py": "7000a256a5c337f253f0d69ca6bbde2498290538b39d477bb737a9a8de42025a",
+    "oracle/m2/drops-imaginary/solution.py": "2647c416e93ea6ae6707852f510a7df08c222fb6b3f55ebe566ebaef3742ac52",
+    "oracle/m2/gold/solution.py": "07a108410d996f941c7cef841a479333815e0841e25ec79b82eaa233088dc712",
+    "oracle/m2/largest-real/solution.py": "a5a3e7b6fbad016e4b01a47f788d633a8bce710f9fa0389bb573033d993016fd",
+    "oracle/m2/task.json": "e6ebacda106d0c1c692ef046c489239574f0337e5d7ed5bb005708e258767d5a",
+    "oracle/m2/wrong-root/solution.py": "a006c989ce720b7270492664b3efc71b371a9db32d3165b7ad2b53eef915ff83",
+    "oracle/m3/gold/solution.py": "445f96c718cef175341ff4917cee2ce39f89f43e5e2238cf9a54b68ba6af3dc2",
+    "oracle/m3/largest-signed/solution.py": "e1340c5172127c6cb48df0718103378f819a3021abbeeac2552b43c281118cb8",
+    "oracle/m3/last-tie/solution.py": "db3c8de8148aa47a60526568914fb5cba0e3e35cf1ab308ba533d37983751999",
+    "oracle/m3/task.json": "63836e3353ae55a4cf5b9be6178f5a7a103896bcd274f5f99c6b0a4940023cfa",
+    "oracle/m3/zero-vector/solution.py": "e3a5ea94de3c22c7b2c777e0fd65119625e206d6f5e2611436dac53ce98de8a6",
+    "oracle/m4/accept-all/solution.py": "30b3d73fe55e836b80139ab51199f7b56d892a44479acb16bcd0f2e542043cd9",
+    "oracle/m4/gold/solution.py": "1e6aec5b01abba1b4c3e4d31fd759a307866d923d987b4dd6227cb0737c1ea2d",
+    "oracle/m4/ignores-normalization/solution.py": "ce53522358ba3aa2e5cebd3a44ca126f7f53d19c9698fd4098185f745be9f16f",
+    "oracle/m4/reject-all/solution.py": "2cb12557e34d3ecc8f3d77fa5b1bb8759dff77474adc5fff88eaeaf0fcb2133d",
+    "oracle/m4/task.json": "852304b3b520cf19f51453f1601487bc246a883316375bd353fa8bad3947962e",
+    "case.json": "8a977bf798135425edac2eb9c3f265d1bb1b92ef3066c39d53f57dd49765a9ef"
+  },
+  "image": "vw-kv-grpc-diagnostics@sha256:5235d587637d5065c1724a0a307c9d0d2fc150cdbd541e0c3174c8845ab40bcc",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "transposed",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "squared-norm",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "row-count",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "largest-real",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "drops-imaginary",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-root",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "last-tie",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "largest-signed",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "zero-vector",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "accept-all",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "reject-all",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "ignores-normalization",
+      "exit_code": 1
+    }
+  ]
+}

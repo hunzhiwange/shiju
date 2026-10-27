@@ -349,3 +349,42 @@ async fn desktop_release_publication_race_preserves_existing_file_and_cleans_tem
     assert_eq!(std::fs::read(final_path).unwrap(), b"existing");
     handle.join().unwrap();
 }
+
+#[tokio::test]
+async fn desktop_release_consumes_prepared_publisher_verified_manifest() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let output = std::process::Command::new("python3")
+        .current_dir(root)
+        .args(["-c", "import sys,json; sys.path.insert(0,'scripts/tests'); from test_prepare_oss_release import prepared_contract; print(json.dumps(prepared_contract()))"])
+        .output()
+        .expect("Python 3 is required for the prepare/publish/Rust contract");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let payload: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let release = parse_desktop_release(UpdateSource::Shiju, payload["manifest"].clone()).unwrap();
+    let github = parse_desktop_release(UpdateSource::Github, payload["github"].clone()).unwrap();
+    let body: Vec<u8> = serde_json::from_value(payload["body"].clone()).unwrap();
+    assert_eq!(release.assets.len(), 6);
+    for asset in &release.assets {
+        let other = github.installer_for_target(&asset.target).unwrap();
+        assert_eq!(
+            (&asset.name, asset.kind, asset.size, &asset.sha256),
+            (&other.name, other.kind, other.size, &other.sha256)
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let (url, handle) = server(response(&body, Some(body.len())), Duration::ZERO);
+        let path = download_installer_at(
+            asset,
+            &url,
+            directory.path(),
+            |_| {},
+            &http_client(Duration::from_secs(2)).unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(std::fs::read(path).unwrap(), body);
+        handle.join().unwrap();
+    }
+    let mut invalid = payload["manifest"].clone();
+    invalid["assets"][0]["kind"] = json!("zip");
+    assert!(parse_desktop_release(UpdateSource::Shiju, invalid).is_err());
+}

@@ -129,3 +129,55 @@ python3 scripts/publish_oss_release.py --help
 内存 OSS 状态机与本地 HTTP 测试涵盖首次发布、同版本恢复、内容冲突、降级、
 不支持 CAS 的安全失败、部分上传、并发创建、未知写入结果、匿名失败与回执恢复、
 凭据隔离和本地输入重验。本任务不运行 Cargo，不执行生产发布或本机升级。
+
+## 2026-10-27 跨端闭环验收
+
+前序提交：准备器 05abc3c5e、命名空间 81d1c48e9、发布器 2aae90ff2、共享协议
+0b45b7969、安装器 4496ecccc、批次 4 桌面来源 b50c14266。
+新增契约实际调用 Python prepare_release，通过本地 HTTP 下载六个中性 fixture，
+生成正式 manifest.json，经 publisher.local_release 重验后由 Rust 解析。
+同时解析原始 GitHub fixture，比较六平台名字、类型、大小和 SHA-256，逐项下载核对字节，
+并验证 ZIP 类型拒绝。没有两端分别手写清单，也未修改生产逻辑；fixture 不是可安装包。
+
+| 确切命令 | 退出码 | 有效结果 |
+| --- | --- | --- |
+| python3 -m unittest discover -s scripts/tests -p 'test_*oss_release.py' | 0 | 28 项通过 |
+| cargo fmt --all | 0 | 撤回无关空行改动 |
+| cargo test -p vw-shared --all-features desktop_release -- --nocapture | 0 | 15 项通过 |
+| cargo test -p vw-desktop --all-features app_update -- --nocapture | 101 | 5 项通过后既有快捷消息顺序断言 abort |
+| cargo clippy --all-targets --all-features -- -D warnings | 0 | 全目标全特性通过 |
+
+动态槽位 1；CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1。
+CARGO_BUILD_BUILD_DIR 同路径以隔离仓库 build-dir；RUST_TEST_THREADS=1。
+阶段结束已释放自己的锁并保留缓存。Clippy 另有既有 block 0.1.6 future-incompatibility 提示。
+桌面失败为 app_bootstrap_preserves_custom_items_and_adds_missing_builtin_git_actions
+预期“提交当前分支”排首位，实际为“继续推进”；未修改无关快捷消息策略。
+通过项含 tiny-skia 明暗主题中文实际绘制、真实网关 PATCH/重新读取、保存失败 toast，
+不等于启动应用后的交互验收。
+
+### 人工与原生平台待验收
+
+原生桌面控制工具禁用，本轮未启动应用完成交互验收。保留以下步骤：
+
+1. 启动客户端，在明暗主题分别打开更新弹窗，检查中文来源、下载地址及中文路径；
+   触发检测失败，确认 toast 清晰、可重试。
+2. 选择 github.com，关闭并重启应用确认偏好保留；切源清空旧检测结果。
+   首次 manifest 不存在应显示可恢复错误，允许手动选择 GitHub，不能静默回退。
+3. 下载期间关闭重开弹窗，确认不能重复下载或切源；完成显示“安装包已就绪”和路径。
+   检查打开失败可重试，不把启动安装器当成更新完成。
+4. 在对应 macOS、Windows、Linux 机器，经明确安装授权后验证 DMG/MSI/RPM 打开、
+   安装和安装后版本。六 target 逻辑覆盖不代表原生安装覆盖；本轮全部原生安装未测。
+
+### 首次发布及生产验收
+
+顺序：本地 prepare →检查六原包和正式清单→publisher 默认离线预览→后续明确授权
+才执行 --publish →匿名验证 latest →发布默认 shiju 源的新版客户端。
+以下生产证据均未取得，不可用本地替身代替：
+
+- 六个真实对象及版本清单完整回读、大小与摘要核对。
+- latest CAS/并发验收：目前仅首次禁止覆盖创建、相同字节恢复；已有 latest 升版
+  仍因缺少目标 CAS 保证而拒绝。连续发布能力待实现，不能删除 latest 绕开。
+- 公网匿名 latest/版本对象读取、缓存与目录隔离。
+- 旧客户端获取新版本、原生安装器及安装后版本。
+
+本轮未生产发布、更新本机或复制凭据。整体状态“已完成，待回归”，保留任务文件。

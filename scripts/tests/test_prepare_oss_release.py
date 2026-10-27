@@ -23,6 +23,30 @@ def fixture():
                         for _, _, name in prepare.asset_specs('0.5.10')])
 
 
+def prepared_contract():
+    """Return actual prepare output after publisher verification, using local HTTP only."""
+    import contextlib
+    import io
+    import sys
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    import publish_oss_release as publish
+
+    DownloadTests.setUpClass()
+    try:
+        with tempfile.TemporaryDirectory() as root:
+            original_open = prepare.urllib.request.urlopen
+            def local_download(url, **kwargs):
+                return original_open(f'http://127.0.0.1:{DownloadTests.server.server_port}/ok', **kwargs)
+            with patch.object(prepare, 'fetch_release', return_value=fixture()), patch.object(
+                    prepare.urllib.request, 'urlopen', side_effect=local_download), contextlib.redirect_stdout(io.StringIO()):
+                path = prepare.prepare_release('0.5.10', str(Path(root).resolve()))
+            manifest, raw = publish.local_release(path.parent)
+            assert json.loads(raw) == manifest
+            return dict(manifest=manifest, github=fixture(), body=list(BODY))
+    finally:
+        DownloadTests.tearDownClass()
+
+
 class ReleaseTests(unittest.TestCase):
     def test_versions(self):
         self.assertEqual(prepare.normalize_version('v0.5.10'), '0.5.10')

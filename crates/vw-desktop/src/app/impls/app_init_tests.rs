@@ -255,3 +255,19 @@ fn load_web_bookmarks_returns_default_when_config_key_is_not_an_array() {
     assert_eq!(bookmarks.len(), 1);
     assert_eq!(bookmarks[0].title, "测试网站");
 }
+
+#[test]
+fn app_update_initial_config_defaults_and_rejects_invalid_sources() {
+    use crate::app::desktop_update::DesktopUpdate;
+    use vw_shared::update::UpdateSource;
+    assert_eq!(DesktopUpdate::from_config(&json!({})).source, Some(UpdateSource::Shiju));
+    assert_eq!(
+        DesktopUpdate::from_config(&json!({"app_update_source":"github"})).source,
+        Some(UpdateSource::Github)
+    );
+    for value in [json!("other"), json!(null), json!(42)] {
+        let state = DesktopUpdate::from_config(&json!({"app_update_source":value}));
+        assert!(state.source.is_none());
+        assert!(state.error.is_some());
+    }
+}

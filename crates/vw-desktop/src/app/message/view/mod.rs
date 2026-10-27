@@ -172,7 +172,16 @@ pub enum ViewMessage {
     CheckCliToolUpdateFinished(Result<String, String>),
     OpenAppUpdateModal,
     CheckAppUpdate,
-    CheckAppUpdateFinished(Result<String, String>),
+    CheckAppUpdateFinished(
+        u64,
+        vw_shared::update::UpdateSource,
+        Result<vw_shared::update::DesktopRelease, String>,
+    ),
+    AppUpdateSourceSelected(vw_shared::update::UpdateSource),
+    AppUpdateSourceSaved(Result<(), String>),
+    #[cfg(not(target_arch = "wasm32"))]
+    AppUpdatePrepared(Result<crate::app::installer_update::PreparedDesktopUpdate, String>),
+    OpenAppInstaller,
     RunAppUpdate,
     AppUpdateProgressTick,
     AppUpdateFinished(Result<String, String>),
@@ -670,6 +679,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.dragging_work_sidebar || app.dragging_work_split
     );
     let task = match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        msg @ ViewMessage::AppUpdatePrepared(_) => panel::update(app, msg),
         ViewMessage::GlobalKeyPressed(key, modifiers) => handle_global_key(app, key, modifiers),
         ViewMessage::ActivityAnimationTick => {
             app.advance_status_animation_frame();
@@ -785,7 +796,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CheckCliToolUpdateFinished(_)
         | ViewMessage::OpenAppUpdateModal
         | ViewMessage::CheckAppUpdate
-        | ViewMessage::CheckAppUpdateFinished(_)
+        | ViewMessage::CheckAppUpdateFinished(..)
+        | ViewMessage::AppUpdateSourceSelected(_)
+        | ViewMessage::AppUpdateSourceSaved(_)
+        | ViewMessage::OpenAppInstaller
         | ViewMessage::RunAppUpdate
         | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)

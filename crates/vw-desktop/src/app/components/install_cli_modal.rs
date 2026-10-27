@@ -14,12 +14,14 @@
 
 use crate::app::assets::{self, Icon};
 use crate::app::components::system_settings_common::{
-    icon_svg, primary_action_btn_style, rounded_action_btn_style, settings_close_button,
-    settings_modal_card, settings_modal_overlay, settings_muted_text_style, settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, icon_svg, primary_action_btn_style,
+    rounded_action_btn_style, settings_close_button, settings_modal_card, settings_modal_overlay,
+    settings_muted_text_style, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_value_badge,
 };
 use crate::app::{Message, message};
 use iced::alignment::Horizontal;
-use iced::widget::{Space, button, column, container, image, progress_bar, row, text};
+use iced::widget::{Space, button, column, container, image, pick_list, progress_bar, row, text};
 use iced::{Alignment, Background, ContentFit, Element, Length, Theme};
 use std::hash::{Hash, Hasher};
 
@@ -67,7 +69,19 @@ const UPDATE_LOGO_BADGE_RADIUS: f32 = 26.0;
 ///    - 内容描述文本
 ///    - 关闭按钮
 pub fn view<'a>(title: &'a str, content: &'a str) -> Element<'a, Message> {
-    view_inner(title, content, None, None, false, false, false, title == "CLI 安装完成", None, None)
+    view_inner(
+        title,
+        content,
+        None,
+        None,
+        false,
+        false,
+        false,
+        title == "CLI 安装完成",
+        None,
+        None,
+        None,
+    )
 }
 
 pub fn view_update_check<'a>(
@@ -114,6 +128,23 @@ pub fn view_update_check_with_progress<'a>(
         false,
         update_progress,
         last_copied_code_hash,
+        None,
+    )
+}
+
+pub fn view_app_update(app: &crate::app::App) -> Element<'_, Message> {
+    view_inner(
+        &app.cli_install_modal_title,
+        &app.cli_install_modal_message,
+        Some(&app.cli_install_modal_current_version),
+        Some(&app.cli_install_modal_server_version),
+        app.cli_install_modal_is_checking_update,
+        app.cli_install_modal_show_install_action,
+        true,
+        false,
+        app.app_update_progress.as_ref(),
+        app.last_copied_code_hash,
+        Some(&app.desktop_update),
     )
 }
 
@@ -128,6 +159,7 @@ fn view_inner<'a>(
     show_logo_above_content: bool,
     update_progress: Option<&'a vw_shared::update::UpdateProgress>,
     last_copied_code_hash: Option<u64>,
+    desktop_update: Option<&crate::app::desktop_update::DesktopUpdate>,
 ) -> Element<'a, Message> {
     let close_message = Message::View(message::ViewMessage::CloseInstallCliModal);
     let has_version_info = current_version.is_some() && server_version.is_some();
@@ -189,8 +221,23 @@ fn view_inner<'a>(
                 .style(rounded_action_btn_style)
         ]
         .spacing(12);
+        #[cfg(not(target_arch = "wasm32"))]
+        let action_row = if desktop_update.is_some_and(|state| state.ready.is_some()) {
+            action_row.push(
+                button("打开安装器 / 重试")
+                    .on_press_maybe(
+                        (!is_checking)
+                            .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),
+                    )
+                    .padding([8, 16])
+                    .style(primary_action_btn_style),
+            )
+        } else {
+            action_row
+        };
         let action_row = if show_install_action {
-            let install_label = if use_app_update_action { "立即更新" } else { "安装 CLI" };
+            let install_label =
+                if use_app_update_action { "下载安装包" } else { "安装 CLI" };
             let install_message = if use_app_update_action {
                 message::ViewMessage::RunAppUpdate
             } else {
@@ -235,6 +282,36 @@ fn view_inner<'a>(
             Space::new().height(0.0).into()
         };
 
+    let source_control: Element<'a, Message> = if let Some(state) = desktop_update {
+        let label = match state.source {
+            Some(vw_shared::update::UpdateSource::Shiju) => Some("shiju（默认）"),
+            Some(vw_shared::update::UpdateSource::Github) => Some("github.com"),
+            None => None,
+        };
+        let control: Element<'a, Message> = if state.busy || state.saving {
+            text(label.unwrap_or("请选择来源")).size(SETTINGS_CONTROL_TEXT_SIZE).into()
+        } else {
+            pick_list(["shiju（默认）", "github.com"], label, |label| {
+                Message::View(message::ViewMessage::AppUpdateSourceSelected(
+                    if label == "github.com" {
+                        vw_shared::update::UpdateSource::Github
+                    } else {
+                        vw_shared::update::UpdateSource::Shiju
+                    },
+                ))
+            })
+            .placeholder("请选择来源")
+            .padding(SETTINGS_CONTROL_PADDING)
+            .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+            .style(settings_pick_list_style)
+            .menu_style(settings_pick_list_menu_style)
+            .into()
+        };
+        row![text("升级来源"), control].spacing(12).align_y(Alignment::Center).into()
+    } else {
+        Space::new().height(0.0).into()
+    };
+
     let card_content: Element<'a, Message> = if has_version_info {
         column![
             container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
@@ -249,6 +326,7 @@ fn view_inner<'a>(
             .spacing(6)
             .align_x(Horizontal::Center)
             .width(Length::Fill),
+            source_control,
             version_block,
             progress_block,
             container(

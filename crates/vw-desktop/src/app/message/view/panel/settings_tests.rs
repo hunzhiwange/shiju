@@ -358,8 +358,7 @@ fn install_and_update_requests_prepare_modal_state_before_async_work_runs() {
     let _ = super::update(&mut app, ViewMessage::RunAppUpdate);
     assert!(app.cli_install_modal_is_checking_update);
     assert!(!app.cli_install_modal_show_install_action);
-    assert!(app.cli_install_modal_message.contains("正在下载"));
-    assert!(app.app_update_progress_rx.is_some());
+    assert!(app.app_update_progress_rx.is_none()); // No checked snapshot: no download.
 
     let _ = super::update(&mut app, ViewMessage::RunInstallCliTool);
     assert!(!app.cli_install_modal_is_checking_update);
@@ -381,12 +380,8 @@ fn closing_install_modal_hides_it_and_resets_update_actions() {
     let _ = super::update(&mut app, ViewMessage::CloseInstallCliModal);
 
     assert!(!app.show_cli_install_modal);
-    assert!(app.cli_install_modal_current_version.is_empty());
-    assert!(app.cli_install_modal_server_version.is_empty());
-    assert!(!app.cli_install_modal_show_update_action);
-    assert!(!app.cli_install_modal_show_install_action);
-    assert!(!app.cli_install_modal_use_app_update_action);
-    assert!(!app.cli_install_modal_is_checking_update);
+    assert_eq!(app.cli_install_modal_current_version, "old");
+    assert!(app.cli_install_modal_use_app_update_action);
 }
 
 #[test]
@@ -423,26 +418,36 @@ fn cli_update_result_distinguishes_matching_new_and_failed_versions() {
 
 #[test]
 fn app_update_result_controls_install_action_for_each_outcome() {
-    use crate::app::message::view::ViewMessage;
-
+    use crate::app::message::ViewMessage;
+    use vw_shared::update::{DesktopRelease, UpdateSource};
     let mut app = crate::app::App::new().0;
-    app.cli_install_modal_current_version = "VibeWindow v1.2.3".into();
-
-    let _ = super::update(&mut app, ViewMessage::CheckAppUpdateFinished(Ok("v1.2.3".into())));
-    assert!(!app.cli_install_modal_show_install_action);
-    assert!(app.cli_install_modal_message.contains("已是最新版本"));
-
-    let _ = super::update(&mut app, ViewMessage::CheckAppUpdateFinished(Ok("v1.2.4".into())));
-    assert!(app.cli_install_modal_show_install_action);
-    assert!(app.cli_install_modal_message.contains("发现新版本"));
-
+    for (version, installable) in
+        [(env!("CARGO_PKG_VERSION"), false), ("0.0.0", false), ("99.0.0", true)]
+    {
+        let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
+        let request = app.desktop_update.request;
+        let release =
+            DesktopRelease { source: UpdateSource::Shiju, version: version.into(), assets: vec![] };
+        let _ = super::update(
+            &mut app,
+            ViewMessage::CheckAppUpdateFinished(request, UpdateSource::Shiju, Ok(release.clone())),
+        );
+        assert_eq!(app.cli_install_modal_show_install_action, installable);
+        assert_eq!(app.desktop_update.release, Some(release));
+    }
+    let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
+    let request = app.desktop_update.request;
     let _ = super::update(
         &mut app,
-        ViewMessage::CheckAppUpdateFinished(Err("server unavailable".into())),
+        ViewMessage::CheckAppUpdateFinished(
+            request,
+            UpdateSource::Shiju,
+            Err("server unavailable".into()),
+        ),
     );
     assert!(!app.cli_install_modal_show_install_action);
-    assert_eq!(app.cli_install_modal_server_version, "检测失败");
     assert_eq!(app.cli_install_modal_message, "server unavailable");
+    assert!(app.active_toast.is_some());
 }
 
 #[test]
@@ -481,15 +486,19 @@ fn app_update_finish_clears_receiver_and_sets_success_or_failure_state() {
     app.app_update_progress_rx = Some(receiver);
     app.cli_install_modal_is_checking_update = true;
 
-    let _ = super::update(&mut app, ViewMessage::AppUpdateFinished(Ok("updated".into())));
+    app.desktop_update.busy = true;
+    let _ = super::update(
+        &mut app,
+        ViewMessage::AppUpdateFinished(Ok("安装器已打开，请完成安装".into())),
+    );
     assert!(!app.cli_install_modal_is_checking_update);
     assert!(app.app_update_progress_rx.is_none());
-    assert_eq!(app.cli_install_modal_title, "应用更新完成");
-    assert_eq!(app.cli_install_modal_message, "updated");
+    assert_eq!(app.cli_install_modal_title, "安装包已就绪");
+    assert_eq!(app.cli_install_modal_message, "安装器已打开，请完成安装");
 
+    app.desktop_update.busy = true;
     let _ = super::update(&mut app, ViewMessage::AppUpdateFinished(Err("replace failed".into())));
-    assert!(app.cli_install_modal_show_install_action);
-    assert_eq!(app.cli_install_modal_title, "应用更新失败");
+    assert!(app.active_toast.is_some());
     assert_eq!(app.cli_install_modal_message, "replace failed");
 }
 
@@ -686,4 +695,120 @@ fn path_profiles_are_created_only_inside_supplied_home() {
     assert_eq!(updated.len(), 3);
     assert!(updated.iter().all(|path| path.starts_with(home.path().to_string_lossy().as_ref())));
     assert!(updated.iter().all(|path| std::path::Path::new(path).is_file()));
+}
+
+#[test]
+fn app_update_source_switch_invalidates_pending_release() {
+    use crate::app::message::ViewMessage;
+    use vw_shared::update::UpdateSource;
+    let mut app = crate::app::App::new().0;
+    let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
+    let request = app.desktop_update.request;
+    let _ = super::update(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckAppUpdateFinished(
+            request,
+            UpdateSource::Shiju,
+            Ok(vw_shared::update::DesktopRelease {
+                source: UpdateSource::Shiju,
+                version: "99.0.0".into(),
+                assets: vec![],
+            }),
+        ),
+    );
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    assert!(app.desktop_update.release.is_none());
+    assert!(!app.cli_install_modal_show_install_action);
+}
+
+#[test]
+fn app_update_download_survives_close_and_blocks_duplicate_and_source_change() {
+    use crate::app::message::ViewMessage;
+    use vw_shared::update::{DesktopRelease, UpdateSource};
+    let mut app = crate::app::App::new().0;
+    let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    app.desktop_update.release = Some(DesktopRelease {
+        source: UpdateSource::Shiju,
+        version: "99.0.0".into(),
+        assets: vec![],
+    });
+    let snapshot = app.desktop_update.release.clone();
+    let _ = super::update(&mut app, ViewMessage::RunAppUpdate);
+    assert!(app.desktop_update.busy);
+    assert!(app.app_update_progress_rx.is_some());
+    let _ = super::update(&mut app, ViewMessage::CloseInstallCliModal);
+    let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    let duplicate = super::update(&mut app, ViewMessage::RunAppUpdate);
+    assert!(duplicate.units() == 0);
+    let _ = super::update(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
+    let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
+    assert_eq!(app.desktop_update.release, snapshot);
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Shiju));
+    assert!(app.app_update_progress_rx.is_some());
+}
+
+#[test]
+fn app_update_save_failure_keeps_selection_and_shows_unsaved_toast() {
+    use crate::app::message::ViewMessage;
+    use vw_shared::update::UpdateSource;
+    let mut app = crate::app::App::new().0;
+    let _ = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::AppUpdateSourceSelected(UpdateSource::Github),
+    );
+    let _ = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::AppUpdateSourceSaved(Err("offline".into())),
+    );
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    assert!(!app.desktop_update.saving);
+    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+}
+
+#[test]
+fn app_update_old_request_from_same_source_cannot_override_new_check() {
+    use crate::app::message::ViewMessage;
+    use vw_shared::update::UpdateSource;
+    let mut app = crate::app::App::new().0;
+    let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
+    let old = app.desktop_update.request;
+    let _ = super::update(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Shiju));
+    let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckAppUpdateFinished(old, UpdateSource::Shiju, Err("obsolete".into())),
+    );
+    assert!(app.desktop_update.checking);
+    assert!(!app.cli_install_modal_message.contains("obsolete"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn app_update_download_consumes_checked_snapshot_without_refetching_latest() {
+    use crate::app::message::ViewMessage;
+    use iced_runtime::futures::futures::StreamExt;
+    use vw_shared::update::{DesktopRelease, UpdateSource};
+    let mut app = crate::app::App::new().0;
+    app.desktop_update.source = Some(UpdateSource::Github);
+    // A deliberately incomplete snapshot must fail its own asset validation before network I/O.
+    app.desktop_update.release = Some(DesktopRelease {
+        source: UpdateSource::Github,
+        version: "99.0.0".into(),
+        assets: vec![],
+    });
+    let task = super::update(&mut app, ViewMessage::RunAppUpdate);
+    let mut stream = iced_runtime::task::into_stream(task).unwrap();
+    let action = tokio::time::timeout(std::time::Duration::from_secs(5), stream.next())
+        .await
+        .unwrap()
+        .unwrap();
+    match action {
+        iced_runtime::Action::Output(crate::app::Message::View(
+            ViewMessage::AppUpdatePrepared(Err(error)),
+        )) => {
+            assert!(error.contains("exactly six"), "{error}");
+        }
+        _ => panic!("expected snapshot validation failure"),
+    }
 }

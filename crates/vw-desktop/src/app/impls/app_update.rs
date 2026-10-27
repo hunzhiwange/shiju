@@ -246,6 +246,13 @@ impl App {
     }
 
     fn apply_bootstrap_app_config(&mut self, cfg: serde_json::Value) {
+        if !self.desktop_update.selected_by_user
+            && !self.desktop_update.checking
+            && !self.desktop_update.busy
+            && self.desktop_update.release.is_none()
+        {
+            self.desktop_update = crate::app::desktop_update::DesktopUpdate::from_config(&cfg);
+        }
         self.auto_model =
             cfg.get("auto_model").and_then(|v| v.as_bool()).unwrap_or(self.auto_model);
         self.model = cfg.get("model").and_then(|v| v.as_str()).unwrap_or(&self.model).to_string();

@@ -596,3 +596,71 @@ fn wasm_tool_content_wrappers_are_safe_empty_noops() {
     super::save_sql_tool_content("select 1");
     super::save_html_tool_content("<main></main>");
 }
+
+#[test]
+fn app_update_source_patch_and_restart_read_use_gateway_preferences() {
+    use vw_shared::update::UpdateSource;
+    let stored = Arc::new(Mutex::new(serde_json::json!({"theme":"dark"})));
+    let server_state = stored.clone();
+    let server = TestServer::start(2, move |request| {
+        assert_eq!(request.path, "/v1/desktop/preferences");
+        if request.method == "PATCH" {
+            let patch: serde_json::Value = serde_json::from_str(&request.body).unwrap();
+            assert_eq!(patch, serde_json::json!({"app_update_source":"github"}));
+            server_state.lock().unwrap()["app_update_source"] = patch["app_update_source"].clone();
+        } else {
+            assert_eq!(request.method, "GET");
+            assert_eq!(server_state.lock().unwrap()["app_update_source"], "github");
+        }
+        (200, r#"{"app_update_source":"github","theme":"dark"}"#)
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    super::super::gateway::run_gateway_call(super::save_app_config_async(
+        crate::app::desktop_update::source_patch(UpdateSource::Github),
+    ))
+    .unwrap();
+    let config = super::load_app_config();
+    assert_eq!(
+        crate::app::desktop_update::DesktopUpdate::from_config(&config).source,
+        Some(UpdateSource::Github)
+    );
+    assert_eq!(config["theme"], "dark");
+    assert_eq!(server.take_requests().len(), 2);
+}
+
+#[test]
+fn app_update_source_gateway_save_failure_reaches_unsaved_toast() {
+    use crate::app::{Message, message::ViewMessage};
+    use iced_runtime::futures::futures::StreamExt;
+    use vw_shared::update::UpdateSource;
+    let mut app = crate::app::App::new().0;
+    let server = TestServer::start(1, |request| {
+        assert_eq!(request.method, "PATCH");
+        assert_eq!(request.path, "/v1/desktop/preferences");
+        assert_eq!(
+            serde_json::from_str::<serde_json::Value>(&request.body).unwrap(),
+            serde_json::json!({"app_update_source":"github"})
+        );
+        (500, r#"{"error":"preferences unavailable"}"#)
+    });
+    let (_lock, _home, _guard) = configure_gateway(server.port);
+    let task = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::AppUpdateSourceSelected(UpdateSource::Github),
+    );
+    let result = super::super::gateway::run_gateway_call(async {
+        let mut stream = iced_runtime::task::into_stream(task).unwrap();
+        match stream.next().await {
+            Some(iced_runtime::Action::Output(Message::View(
+                ViewMessage::AppUpdateSourceSaved(result),
+            ))) => Ok(result),
+            _ => Err("missing persistence result".into()),
+        }
+    })
+    .unwrap();
+    assert!(result.is_err());
+    let _ = crate::app::message::view::update(&mut app, ViewMessage::AppUpdateSourceSaved(result));
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    assert!(app.active_toast.as_ref().unwrap().message.contains("未保存"));
+    assert_eq!(server.take_requests().len(), 1);
+}

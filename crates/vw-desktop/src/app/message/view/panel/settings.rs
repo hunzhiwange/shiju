@@ -202,6 +202,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
         },
         ViewMessage::InstallCliTool => {
+            if app.desktop_update.busy {
+                return Task::none();
+            }
+            app.desktop_update.request += 1;
+            app.desktop_update.checking = false;
             app.active_menu = None;
             app.show_cli_install_modal = true;
             app.cli_install_modal_title = "CLI 更新检测".to_string();
@@ -252,62 +257,197 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::OpenAppUpdateModal => {
             app.active_menu = None;
             app.show_cli_install_modal = true;
-            app.cli_install_modal_title = "检测更新".to_string();
-            app.cli_install_modal_message =
-                "可查看当前应用版本，并从服务器检测最新发布版本。".to_string();
+            if app.cli_install_modal_use_app_update_action {
+                return Task::none();
+            }
+            app.cli_install_modal_title = "检测更新".into();
+            app.cli_install_modal_message = app
+                .desktop_update
+                .error
+                .clone()
+                .unwrap_or_else(|| "请选择来源并检测最新发布版本。".into());
             app.cli_install_modal_current_version = current_app_version_label();
-            app.cli_install_modal_server_version = "未检测".to_string();
+            app.cli_install_modal_server_version = "未检测".into();
             app.cli_install_modal_show_update_action = true;
             app.cli_install_modal_show_install_action = false;
             app.cli_install_modal_use_app_update_action = true;
-            app.cli_install_modal_is_checking_update = false;
-            app.app_update_progress = None;
-            app.app_update_progress_rx = None;
+            app.cli_install_modal_is_checking_update =
+                app.desktop_update.checking || app.desktop_update.busy;
+            if let Some(release) = &app.desktop_update.release {
+                app.cli_install_modal_server_version = release.version.clone();
+                app.cli_install_modal_show_install_action = app.desktop_update.installable();
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(ready) = &app.desktop_update.ready {
+                app.cli_install_modal_title = "安装包已就绪".into();
+                app.cli_install_modal_message = ready.instructions();
+                app.cli_install_modal_show_install_action = false;
+            }
             Task::none()
         }
-        ViewMessage::CheckAppUpdate => {
-            app.cli_install_modal_is_checking_update = true;
-            app.cli_install_modal_show_install_action = false;
-            app.cli_install_modal_message = "正在请求最新应用版本...".to_string();
+        ViewMessage::AppUpdateSourceSelected(source) => {
+            if app.desktop_update.busy || app.desktop_update.saving {
+                return Task::none();
+            }
+            app.desktop_update.source = Some(source);
+            app.desktop_update.error = None;
+            app.desktop_update.selected_by_user = true;
+            app.desktop_update.saving = true;
+            app.desktop_update.request += 1;
+            app.desktop_update.checking = false;
+            app.desktop_update.release = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.desktop_update.ready = None;
+            }
             app.app_update_progress = None;
             app.app_update_progress_rx = None;
-            Task::perform(fetch_latest_app_release_version(), |res| {
-                Message::View(ViewMessage::CheckAppUpdateFinished(res))
+            app.cli_install_modal_server_version = "未检测".into();
+            app.cli_install_modal_show_install_action = false;
+            app.cli_install_modal_is_checking_update = false;
+            app.cli_install_modal_message = "来源已切换，请重新检测更新。".into();
+            Task::perform(
+                crate::app::config::save_app_config_async(
+                    crate::app::desktop_update::source_patch(source),
+                ),
+                |result| Message::View(ViewMessage::AppUpdateSourceSaved(result)),
+            )
+        }
+        ViewMessage::AppUpdateSourceSaved(result) => {
+            app.desktop_update.saving = false;
+            match result {
+                Ok(()) => Task::none(),
+                Err(error) => {
+                    app.show_error_toast(format!("升级来源未保存，本轮选择仍有效：{error}"))
+                }
+            }
+        }
+        ViewMessage::CheckAppUpdate => {
+            if app.desktop_update.busy || app.desktop_update.checking {
+                return Task::none();
+            }
+            let Some(source) = app.desktop_update.source else {
+                return app.show_error_toast("请先选择有效的升级来源");
+            };
+            app.desktop_update.request += 1;
+            let request = app.desktop_update.request;
+            app.desktop_update.checking = true;
+            app.desktop_update.release = None;
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                app.desktop_update.ready = None;
+            }
+            app.cli_install_modal_is_checking_update = true;
+            app.cli_install_modal_show_install_action = false;
+            app.cli_install_modal_message = "正在请求所选来源的最新应用版本...".into();
+            app.app_update_progress = None;
+            app.app_update_progress_rx = None;
+            Task::perform(fetch_latest_app_release(source), move |res| {
+                Message::View(ViewMessage::CheckAppUpdateFinished(request, source, res))
             })
         }
-        ViewMessage::CheckAppUpdateFinished(res) => {
+        ViewMessage::CheckAppUpdateFinished(request, source, res) => {
+            if request != app.desktop_update.request
+                || Some(source) != app.desktop_update.source
+                || !app.desktop_update.checking
+            {
+                return Task::none();
+            }
+            app.desktop_update.checking = false;
             app.cli_install_modal_is_checking_update = false;
             match res {
-                Ok(version) => {
-                    app.cli_install_modal_server_version = version.clone();
-                    if versions_match(&app.cli_install_modal_current_version, &version) {
-                        app.cli_install_modal_show_install_action = false;
-                        app.cli_install_modal_message =
-                            "检测完成，当前应用已是最新版本。".to_string();
-                    } else {
-                        app.cli_install_modal_show_install_action = true;
-                        app.cli_install_modal_message =
-                            "检测完成，发现新版本，可直接下载并覆盖当前应用。".to_string();
+                Ok(release) if release.source == source => {
+                    app.cli_install_modal_server_version = release.version.clone();
+                    let newer = release.is_newer_than(env!("CARGO_PKG_VERSION"));
+                    match newer {
+                        Ok(newer) => {
+                            app.cli_install_modal_show_install_action = newer;
+                            app.cli_install_modal_message = if newer {
+                                "检测完成，发现新版本，可下载安装包后通过系统安装器安装。"
+                            } else {
+                                "检测完成，当前应用已是最新版本或高于所选来源版本。"
+                            }
+                            .into();
+                            app.desktop_update.release = Some(release);
+                        }
+                        Err(error) => return app_update_error(app, error.to_string()),
                     }
                 }
-                Err(error) => {
-                    app.cli_install_modal_show_install_action = false;
-                    app.cli_install_modal_server_version = "检测失败".to_string();
-                    app.cli_install_modal_message = error;
-                }
+                Ok(_) => return app_update_error(app, "发布结果与所选来源不一致".into()),
+                Err(error) => return app_update_error(app, error),
             }
             Task::none()
         }
         ViewMessage::RunAppUpdate => {
-            let (progress_tx, progress_rx) = std::sync::mpsc::channel();
-            app.cli_install_modal_is_checking_update = true;
-            app.cli_install_modal_show_install_action = false;
-            app.cli_install_modal_message = "正在下载并安装应用更新...".to_string();
-            app.app_update_progress = None;
-            app.app_update_progress_rx = Some(progress_rx);
-            Task::perform(run_app_self_update(progress_tx), |res| {
-                Message::View(ViewMessage::AppUpdateFinished(res))
-            })
+            if app.desktop_update.busy
+                || app.desktop_update.checking
+                || !app.desktop_update.installable()
+            {
+                return Task::none();
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let release = app.desktop_update.release.clone().expect("checked snapshot");
+                let (progress_tx, progress_rx) = std::sync::mpsc::channel();
+                app.desktop_update.busy = true;
+                app.cli_install_modal_is_checking_update = true;
+                app.cli_install_modal_show_install_action = false;
+                app.cli_install_modal_message = "正在下载并校验安装包...".into();
+                app.app_update_progress = None;
+                app.app_update_progress_rx = Some(progress_rx);
+                Task::perform(
+                    async move {
+                        crate::app::installer_update::prepare_desktop_update(&release, progress_tx)
+                            .await
+                            .map_err(|error| error.to_string())
+                    },
+                    |result| Message::View(ViewMessage::AppUpdatePrepared(result)),
+                )
+            }
+            #[cfg(target_arch = "wasm32")]
+            {
+                app_update_error(app, "当前平台不支持应用更新".into())
+            }
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        ViewMessage::AppUpdatePrepared(result) => {
+            if !app.desktop_update.busy {
+                return Task::none();
+            }
+            app.desktop_update.busy = false;
+            app.cli_install_modal_is_checking_update = false;
+            app.app_update_progress_rx = None;
+            match result {
+                Ok(ready) => {
+                    app.cli_install_modal_title = "安装包已就绪".into();
+                    app.cli_install_modal_message = ready.instructions();
+                    app.desktop_update.ready = Some(ready);
+                    Task::none()
+                }
+                Err(error) => app_update_error(app, error),
+            }
+        }
+        ViewMessage::OpenAppInstaller => {
+            if app.desktop_update.busy {
+                return Task::none();
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(ready) = app.desktop_update.ready.clone() {
+                app.desktop_update.busy = true;
+                app.cli_install_modal_is_checking_update = true;
+                return Task::perform(
+                    async move {
+                        tokio::task::spawn_blocking(move || {
+                            crate::app::installer_update::open_desktop_installer(&ready)
+                        })
+                        .await
+                        .map_err(|error| error.to_string())?
+                        .map_err(|error| error.to_string())
+                    },
+                    |result| Message::View(ViewMessage::AppUpdateFinished(result)),
+                );
+            }
+            Task::none()
         }
         ViewMessage::AppUpdateProgressTick => {
             if let Some(receiver) = app.app_update_progress_rx.take() {
@@ -330,20 +470,20 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::AppUpdateFinished(res) => {
+            if !app.desktop_update.busy {
+                return Task::none();
+            }
+            app.desktop_update.busy = false;
             app.cli_install_modal_is_checking_update = false;
             app.app_update_progress_rx = None;
             match res {
                 Ok(message) => {
-                    app.cli_install_modal_title = "应用更新完成".to_string();
+                    app.cli_install_modal_title = "安装包已就绪".into();
                     app.cli_install_modal_message = message;
+                    Task::none()
                 }
-                Err(error) => {
-                    app.cli_install_modal_show_install_action = true;
-                    app.cli_install_modal_title = "应用更新失败".to_string();
-                    app.cli_install_modal_message = error;
-                }
+                Err(error) => app_update_error(app, error),
             }
-            Task::none()
         }
         ViewMessage::InstallCliToolFinished(res) => {
             app.show_cli_install_modal = true;
@@ -362,7 +502,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         }
         ViewMessage::CloseInstallCliModal => {
             app.show_cli_install_modal = false;
-            reset_cli_update_modal_state(app);
+            if !app.cli_install_modal_use_app_update_action {
+                reset_cli_update_modal_state(app);
+            }
             Task::none()
         }
         ViewMessage::ToggleDiffPanel => {
@@ -750,32 +892,29 @@ async fn fetch_latest_release_version() -> Result<String, String> {
     Err("当前平台不支持检测更新".to_string())
 }
 
+fn app_update_error(app: &mut App, error: String) -> Task<Message> {
+    app.cli_install_modal_show_install_action = app.desktop_update.installable();
+    app.cli_install_modal_message = error.clone();
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(ready) = &app.desktop_update.ready {
+        app.cli_install_modal_show_install_action = false;
+        app.cli_install_modal_message = format!("{error}\n{}", ready.instructions());
+    }
+    app.show_error_toast(error)
+}
+
 #[cfg(not(target_arch = "wasm32"))]
-async fn fetch_latest_app_release_version() -> Result<String, String> {
-    update::fetch_latest_version().await.map_err(|e| format!("请求应用版本失败: {e}"))
+async fn fetch_latest_app_release(
+    source: update::UpdateSource,
+) -> Result<update::DesktopRelease, String> {
+    update::fetch_desktop_release(source).await.map_err(|e| format!("请求应用版本失败: {e}"))
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_latest_app_release_version() -> Result<String, String> {
-    Err("当前平台不支持检测应用更新".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-async fn run_app_self_update(
-    progress_tx: std::sync::mpsc::Sender<update::UpdateProgress>,
-) -> Result<String, String> {
-    update::desktop_self_update_with_progress(move |progress| {
-        let _ = progress_tx.send(progress);
-    })
-    .await
-    .map_err(|e| format!("更新应用失败: {e}"))
-}
-
-#[cfg(target_arch = "wasm32")]
-async fn run_app_self_update(
-    _progress_tx: std::sync::mpsc::Sender<vw_shared::update::UpdateProgress>,
-) -> Result<String, String> {
-    Err("当前平台不支持应用自更新".to_string())
+async fn fetch_latest_app_release(
+    _source: vw_shared::update::UpdateSource,
+) -> Result<vw_shared::update::DesktopRelease, String> {
+    Err("当前平台不支持检测应用更新".into())
 }
 
 fn reset_cli_update_modal_state(app: &mut App) {

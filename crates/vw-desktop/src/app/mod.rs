@@ -13,6 +13,7 @@ pub mod components;
 pub mod config;
 /// desktop_models 子模块，拆分当前领域的局部职责。
 pub mod desktop_models;
+pub(crate) mod desktop_update;
 /// files 子模块，拆分当前领域的局部职责。
 pub mod files;
 /// git 子模块，拆分当前领域的局部职责。

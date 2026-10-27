@@ -236,7 +236,9 @@ impl App {
 
         // 如果显示了 CLI 安装提示模态框，则在根内容之上叠加
         let root_content: Element<'_, Message> = if self.show_cli_install_modal {
-            let modal = if self.cli_install_modal_show_update_action {
+            let modal = if self.cli_install_modal_use_app_update_action {
+                components::install_cli_modal::view_app_update(self)
+            } else if self.cli_install_modal_show_update_action {
                 components::install_cli_modal::view_update_check_with_progress(
                     &self.cli_install_modal_title,
                     &self.cli_install_modal_message,

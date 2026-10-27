@@ -25,6 +25,8 @@ use iced::Task;
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        #[cfg(not(target_arch = "wasm32"))]
+        msg @ ViewMessage::AppUpdatePrepared(_) => settings::update(app, msg),
         ViewMessage::ToggleWorkspaceModePopover
         | ViewMessage::CloseWorkspaceModePopover
         | ViewMessage::WorkspaceModeSelected(_) => workspace_mode::update(app, message),
@@ -79,7 +81,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CheckCliToolUpdateFinished(_)
         | ViewMessage::OpenAppUpdateModal
         | ViewMessage::CheckAppUpdate
-        | ViewMessage::CheckAppUpdateFinished(_)
+        | ViewMessage::CheckAppUpdateFinished(..)
+        | ViewMessage::AppUpdateSourceSelected(_)
+        | ViewMessage::AppUpdateSourceSaved(_)
+        | ViewMessage::OpenAppInstaller
         | ViewMessage::RunAppUpdate
         | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)

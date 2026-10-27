@@ -706,3 +706,31 @@ fn batch_message_applies_each_nested_update_in_order() {
     assert_eq!(app.last_copy_time, None);
     assert_eq!(app.error_message, None);
 }
+
+#[test]
+fn app_update_bootstrap_restores_source_without_overwriting_user_selection() {
+    use crate::app::message::ViewMessage;
+    use vw_shared::update::UpdateSource;
+    let mut app = test_app();
+    app.apply_bootstrap_app_config(json!({"app_update_source":"github"}));
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+    let _ = crate::app::message::view::update(
+        &mut app,
+        ViewMessage::AppUpdateSourceSelected(UpdateSource::Shiju),
+    );
+    app.apply_bootstrap_app_config(json!({"app_update_source":"github"}));
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Shiju));
+}
+
+#[test]
+fn app_update_late_bootstrap_preserves_checked_release() {
+    use vw_shared::update::{DesktopRelease, UpdateSource};
+    let mut app = test_app();
+    app.desktop_update.source = Some(UpdateSource::Github);
+    let release =
+        DesktopRelease { source: UpdateSource::Github, version: "99.0.0".into(), assets: vec![] };
+    app.desktop_update.release = Some(release.clone());
+    app.apply_bootstrap_app_config(json!({}));
+    assert_eq!(app.desktop_update.release, Some(release));
+    assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
+}

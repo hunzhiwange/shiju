@@ -277,6 +277,13 @@ async fn download_binary_with_progress<F>(
 where
     F: FnMut(UpdateProgress),
 {
+    let extension = asset.name.rsplit('.').next().unwrap_or_default();
+    if ["dmg", "rpm", "msi", "pkg", "deb"].iter().any(|kind| extension.eq_ignore_ascii_case(kind)) {
+        bail!(
+            "Installer packages require the desktop installer handoff; refusing binary replacement"
+        );
+    }
+
     let client = reqwest::Client::builder()
         .user_agent(format!("vibewindow/{}", current_version()))
         .build()
@@ -594,3 +601,11 @@ pub async fn self_update(force: bool, check_only: bool) -> Result<()> {
 #[cfg(test)]
 #[path = "update_tests.rs"]
 mod update_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod desktop_release;
+#[cfg(not(target_arch = "wasm32"))]
+pub use desktop_release::{
+    DesktopInstaller, DesktopRelease, InstallerKind, UpdateSource, download_desktop_installer,
+    fetch_desktop_release,
+};

@@ -920,3 +920,21 @@ async fn desktop_self_update_short_circuits_for_current_version() {
 
     assert!(message.contains("当前已是最新版本"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn legacy_download_rejects_installer_packages_before_network() {
+    let directory = tempfile::tempdir().unwrap();
+    for extension in ["dmg", "rpm", "msi", "DMG", "pkg", "deb"] {
+        let asset = super::ReleaseAsset {
+            name: format!("installer.{extension}"),
+            download_url: "http://127.0.0.1:1/unused".into(),
+            binary_name: None,
+            target: None,
+        };
+        let error =
+            super::download_binary(&asset, directory.path(), &["shiju".into()]).await.unwrap_err();
+        assert!(error.to_string().contains("refusing binary replacement"));
+    }
+    assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
+}

@@ -14,7 +14,7 @@ import urllib.error
 import urllib.request
 
 REPOSITORY = 'hunzhiwange/shiju'
-PUBLIC_ROOT = 'https://www.shiju.cloud/agents/vibewindow'
+PUBLIC_ROOT = 'https://www.shiju.cloud/agents/shiju-agent'
 TIMEOUT = 30
 ATTEMPTS = 3
 CHUNK_SIZE = 1024 * 1024

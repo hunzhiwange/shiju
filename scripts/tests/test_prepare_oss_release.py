@@ -37,7 +37,7 @@ class ReleaseTests(unittest.TestCase):
         data['assets'].reverse()
         self.assertEqual(first, prepare.build_manifest(data, '0.5.10'))
         self.assertEqual(len(first['assets']), 6)
-        self.assertTrue(all('/agents/vibewindow/releases/v0.5.10/' in a['url'] for a in first['assets']))
+        self.assertTrue(all('/agents/shiju-agent/releases/v0.5.10/' in a['url'] for a in first['assets']))
 
     def test_reject_invalid_metadata(self):
         for mutation in [lambda d: d['assets'].pop(), lambda d: d['assets'].append(d['assets'][0]),

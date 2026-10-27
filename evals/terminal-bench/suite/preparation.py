@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlparse
 
 from suite import diagnostics
 from suite.runtime import verify_runtime
-from suite.scoring import harbor_trial, summarize
+from suite.scoring import harbor_trial, summarize, checked_startup_override
 from suite.state import MODEL, load, digest, atomic_json, tree, execution_identity
 
 CATALOG = Path(__file__).with_name('catalog.json')
@@ -63,9 +63,11 @@ def case_settings(runtime, parent):
             raise ValueError('runtime task missing or duplicate')
         value = matches[0] if matches else {'workingDirectory': '/app', 'agentTimeoutSec': 900}
         settings[name] = {k: v for k, v in value.items()
-                          if k in ('workingDirectory', 'agentTimeoutSec', 'recovery')}
+                          if k in ('workingDirectory', 'agentTimeoutSec', 'recovery', 'startup_override')}
         if not Path(settings[name]['workingDirectory']).is_absolute():
             raise ValueError('working directory must be absolute')
+        if 'startup_override' in settings[name]:
+            checked_startup_override(name, settings[name]['startup_override'])
         recovery = settings[name].get('recovery')
         if recovery and recovery['mode'] == 'artifact':
             settings[name]['recovery'] = {**recovery, 'calibrated': True, 'calibrate': False}
@@ -125,7 +127,9 @@ def preflight(catalog, runtime, parent, output):
             if recovery and recovery['mode'] == 'artifact':
                 recovery = {**recovery, 'calibrate': True, 'calibrated': True}
             result = asyncio.run(harbor_trial(task, output / 'calibration',
-                                             task.name + '-' + agent, agent, recovery=recovery))
+                                             task.name + '-' + agent, agent, recovery=recovery,
+                                             **({'startup_override': receipt['case_settings'][task.name]['startup_override']}
+                                                if 'startup_override' in receipt['case_settings'][task.name] else {})))
             summary = summarize(result)
             scoring = output / 'calibration' / (task.name + '-' + agent) / 'scoring'
             receipt['calibration'].append({'case_id': task.name, 'agent': agent,

@@ -146,6 +146,31 @@ class PreparationTests(unittest.TestCase):
                              self.current[self.parents[0]], None)
         self.assertEqual(len(receipt['calibration']), 10)
 
+    def test_preflight_forwards_bound_startup_override_only_for_declared_parent(self):
+        from suite import scoring
+        parent = self.parents[0]
+        environment = self.cases / parent / 'environment'
+        environment.mkdir()
+        overlay = environment / 'restore-image-cmd.yaml'
+        overlay.write_bytes(b'services:\n  main:\n    command: null\n')
+        descriptor = {'source': overlay.name, 'sha256': digest(overlay)}
+        self.runtime['tasks'][0]['startup_override'] = descriptor
+        calls = []
+        async def trial(task, directory, name, agent, recovery=None, **kwargs):
+            calls.append((Path(task).name, kwargs))
+            result = {'task_name': Path(task).name, 'agent_info': {'name': agent},
+                      'verifier_result': {'rewards': {'reward': int(agent == 'oracle')}}}
+            atomic_json(Path(directory) / name / 'scoring/first.json', result['verifier_result'])
+            return result
+        with patch.object(scoring, 'CASES', self.cases):
+            self.current[parent]['case_settings'] = p.case_settings(self.runtime, parent)
+            with patch.object(p, 'harbor_trial', side_effect=trial):
+                p.preflight(self.catalog, self.root / 'runtime.json', parent, self.root / 'startup-preflight')
+        self.assertEqual(len(calls), 10)
+        for identity, kwargs in calls:
+            self.assertEqual(kwargs, {'startup_override': descriptor} if identity == parent else {})
+        self.assertEqual(self.current[parent]['case_settings'][parent]['startup_override'], descriptor)
+
     def test_failed_preflight_retains_raw_receipt_without_admitting_models(self):
         async def trial(task, directory, name, agent, recovery=None):
             atomic_json(Path(directory) / name / 'scoring/first.json', {'error_type': 'DependencyError'})

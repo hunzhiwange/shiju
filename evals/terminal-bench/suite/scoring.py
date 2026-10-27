@@ -1,5 +1,6 @@
 """Official Harbor scoring, verifier-only recovery and contract evidence."""
 import asyncio
+from contextlib import nullcontext
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -9,6 +10,7 @@ import re
 import shlex
 import shutil
 import time
+import tempfile
 import uuid
 
 from harbor.verifier.verifier import Verifier
@@ -221,23 +223,72 @@ def recovery_budget(receipt, artifact_sha256):
     return remaining
 
 
-async def harbor_trial(task_path, directory, name, agent, kwargs=None, hook=None, recovery=None):
+CASES = Path(__file__).with_name('cases')
+IMAGE_CMD_OVERRIDE = b'services:\n  main:\n    command: null\n'
+
+
+def checked_startup_override(task_id, descriptor):
+    """Restore only the image CMD, from trusted case bytes; never arbitrary Compose."""
+    if (not isinstance(task_id, str)
+            or not re.fullmatch(r'[a-z0-9][a-z0-9-]*(?:\.[a-z0-9][a-z0-9-]*)*', task_id)):
+        raise ValueError('unsafe startup override task ID')
+    if not isinstance(descriptor, dict) or set(descriptor) != {'source', 'sha256'}:
+        raise ValueError('invalid startup override descriptor')
+    name, expected = descriptor['source'], descriptor['sha256']
+    if (not isinstance(name, str) or not re.fullmatch(r'[a-z0-9][a-z0-9_-]*\.yaml', name)
+            or not isinstance(expected, str) or not re.fullmatch(r'[a-f0-9]{64}', expected)):
+        raise ValueError('unsafe startup override source or hash')
+    case = CASES / task_id
+    environment = case / 'environment'
+    if any(path.is_symlink() or not path.is_dir() for path in (CASES, case, environment)):
+        raise ValueError('untrusted startup override environment')
+    path = environment / name
+    if path.is_symlink() or not path.is_file() or path.resolve().parent != environment.resolve():
+        raise ValueError('missing or external startup override')
+    body = path.read_bytes()
+    if hashlib.sha256(body).hexdigest() != expected:
+        raise ValueError('startup override hash drift')
+    if body != IMAGE_CMD_OVERRIDE:
+        raise ValueError('startup override must contain only canonical main.command: null')
+    return path
+
+
+async def harbor_trial(task_path, directory, name, agent, kwargs=None, hook=None, recovery=None,
+                       startup_override=None):
     from harbor.models.trial.config import TrialConfig
     from harbor.trial.trial import Trial
     from harbor.trial.hooks import TrialEvent
-    config = TrialConfig.model_validate({
-        'task': {'path': str(task_path)}, 'trial_name': name, 'trials_dir': str(directory),
-        'agent': ({'name': agent} if agent in ('oracle', 'nop') else
-                  {'import_path': agent, 'model_name': MODEL['id'], 'kwargs': kwargs}),
-        'verifier': {'import_path': 'suite.scoring:RecoveringVerifier',
-                     'kwargs': {'recovery': recovery or {'mode': 'service'}}},
-        'environment': {'type': 'docker', 'delete': False,
-                        'cpu_enforcement_policy': 'limit', 'memory_enforcement_policy': 'limit'}})
-    trial = await Trial.create(config)
-    if hook:
-        for event in TrialEvent:
-            trial.add_hook(event, hook)
-    return (await trial.run()).model_dump(mode='json')
+    source = (checked_startup_override(Path(task_path).name, startup_override)
+              if startup_override is not None else None)
+    # Harbor reads an immutable owned snapshot, never a mutable caller path.
+    context = tempfile.TemporaryDirectory(prefix='vw-image-cmd-') if source else nullcontext()
+    with context as staging:
+        environment = {'type': 'docker', 'delete': False,
+                       'cpu_enforcement_policy': 'limit', 'memory_enforcement_policy': 'limit'}
+        if source:
+            snapshot = Path(staging) / source.name
+            snapshot.write_bytes(IMAGE_CMD_OVERRIDE)
+            snapshot.chmod(0o400)
+            environment['extra_docker_compose'] = [str(snapshot)]
+        config = TrialConfig.model_validate({
+            'task': {'path': str(task_path)}, 'trial_name': name, 'trials_dir': str(directory),
+            'agent': ({'name': agent} if agent in ('oracle', 'nop') else
+                      {'import_path': agent, 'model_name': MODEL['id'], 'kwargs': kwargs}),
+            'verifier': {'import_path': 'suite.scoring:RecoveringVerifier',
+                         'kwargs': {'recovery': recovery or {'mode': 'service'}}},
+            'environment': environment})
+        trial = await Trial.create(config)
+        if source:
+            async def check_override(event):
+                checked_startup_override(Path(task_path).name, startup_override)
+                if snapshot.read_bytes() != IMAGE_CMD_OVERRIDE:
+                    raise ValueError('startup override snapshot drift')
+            trial.add_hook(TrialEvent.ENVIRONMENT_START, check_override)
+            trial.add_hook(TrialEvent.AGENT_START, check_override)
+        if hook:
+            for event in TrialEvent:
+                trial.add_hook(event, hook)
+        return (await trial.run()).model_dump(mode='json')
 
 
 def scrub(directory, secret):

@@ -138,7 +138,9 @@ def worker(manifest_path, attempt):
             dispatched = True
             result = asyncio.run(harbor_trial(task['path'], attempt / 'harbor',
                                  reservation['attempt_id'], 'suite.agent:SuiteAgent', kwargs, hook,
-                                 task.get('recovery')))
+                                 task.get('recovery'),
+                                 **({'startup_override': task['startup_override']}
+                                    if 'startup_override' in task else {})))
             atomic_json(attempt / 'raw-result.json', result)
             summary = summarize(result)
             transport = (((result.get('agent_result') or {}).get('metadata') or {}).get('vibewindow') or {})

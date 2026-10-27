@@ -31,3 +31,5 @@ Dockerfile* text eol=lf
 *.dll binary
 *.exe binary
 *.a binary
+
+__pycache__

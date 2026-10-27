@@ -75,17 +75,19 @@ async fn channel_reload_ignores_other_tenants_and_respects_project_overrides() {
 }
 
 #[tokio::test]
-async fn channel_reload_rejects_invalid_secrets_and_recovers_on_next_save() {
+async fn channel_reload_isolates_invalid_secrets_and_recovers_on_next_save() {
     let (_temp, config, mut source) = fixture();
     save(&source, &config);
     assert!(source.poll(&config).await.unwrap().is_none());
-    let previous = source.last_payload.clone();
     source
         .store
         .upsert(&TenantScope::default(), r#"{"channels_config":{"cli":true,"telegram":{"bot_token":"enc2:not-hex","allowed_users":["alice"]}}}"#)
         .unwrap();
-    assert!(source.poll(&config).await.is_err());
-    assert_eq!(source.last_payload, previous);
+    let isolated = source.poll(&config).await.unwrap().unwrap();
+    assert!(isolated.unavailable_channels.contains("telegram:default"));
+    assert!(isolated.available_channels().telegram.is_none());
+    assert_eq!(isolated.telegram.unwrap().bot_token, "enc2:not-hex");
+    assert!(source.poll(&config).await.unwrap().is_none());
     assert!(config.channels_config.telegram.is_none());
     let mut saved = config.clone();
     set_telegram(&mut saved, "recovered-token");

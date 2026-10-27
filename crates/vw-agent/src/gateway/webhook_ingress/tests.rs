@@ -228,6 +228,7 @@ fn state_with(
         hook_runtime: None,
         channels: std::sync::Arc::new(parking_lot::Mutex::new(
             crate::app::agent::gateway::state::GatewayChannels {
+                webhook_disabled: false,
                 runtimes: Default::default(),
                 webhook_secret_hash,
                 whatsapp: None,
@@ -854,4 +855,14 @@ async fn handle_webhook_inner_records_error_telemetry_with_unknown_provider() {
                 && cost_usd.is_none()
     ));
     assert!(matches!(observer.metrics.lock().as_slice(), [ObserverMetric::RequestLatency(_)]));
+}
+
+#[test]
+fn unavailable_webhook_credentials_reject_local_unauthenticated_requests() {
+    let state = basic_state();
+    state.channels.lock().webhook_disabled = true;
+    let response =
+        authorize_webhook_request(&state, "127.0.0.1:12345".parse().unwrap(), &HeaderMap::new())
+            .expect("unavailable credentials must fail closed");
+    assert_eq!(response.0, StatusCode::SERVICE_UNAVAILABLE);
 }

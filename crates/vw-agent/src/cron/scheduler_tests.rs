@@ -53,3 +53,14 @@ async fn execute_job_now_preserves_security_rejection() {
     assert!(output.contains("blocked by security policy"));
     assert!(output.contains("command not allowed"));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn unavailable_channel_credentials_prevent_announcement_delivery() {
+    let mut config = Config::default();
+    config.channels_config.unavailable_channels.insert("telegram:default".into());
+    let error = super::deliver_announcement(&config, "Telegram", "fixture", "message")
+        .await
+        .expect_err("blocked channel must not be instantiated");
+    assert!(error.to_string().contains("credentials unavailable"));
+}

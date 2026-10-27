@@ -9,6 +9,7 @@ use crate::app::agent::config::{ChannelsConfig, Config};
 use std::sync::Arc;
 
 pub(super) fn build_gateway_channels(config: &ChannelsConfig) -> GatewayChannels {
+    let config = config.available_channels();
     let webhook_secret_hash: Option<Arc<str>> = config.webhook.as_ref().and_then(|webhook| {
         webhook.secret.as_ref().and_then(|raw_secret| {
             let trimmed_secret = raw_secret.trim();
@@ -117,6 +118,7 @@ pub(super) fn build_gateway_channels(config: &ChannelsConfig) -> GatewayChannels
             .map(Arc::from);
 
     GatewayChannels {
+        webhook_disabled: config.unavailable_channels.contains("webhook:default"),
         runtimes: Default::default(),
         webhook_secret_hash,
         whatsapp: whatsapp_channel,

@@ -519,3 +519,34 @@ async fn load_config_rejects_invalid_project_override_without_mutating_base() {
         assert!(!project_dir.join(".vibewindow.json").exists());
     }
 }
+
+#[tokio::test]
+async fn load_config_with_unavailable_channel_secret_keeps_gateway_configuration() {
+    let tmp = tempfile::tempdir().unwrap();
+    let path = tmp.path().join("vibewindow.json");
+    tokio::fs::write(
+        &path,
+        serde_json::to_vec(&json!({
+            "channels_config": {"cli":true, "dingtalk": {
+                "client_id":"fixture", "client_secret":"enc2:not-hex"
+            }},
+            "gateway": {"port":14682}
+        }))
+        .unwrap(),
+    )
+    .await
+    .unwrap();
+    let loaded = load_config_from_json_root(
+        &path,
+        tmp.path().join("workspace"),
+        tmp.path(),
+        ConfigResolutionSource::DefaultConfigDir,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(loaded.gateway.port, 14682);
+    assert!(loaded.channels_config.unavailable_channels.contains("dingtalk:default"));
+    assert!(loaded.channels_config.available_channels().dingtalk.is_none());
+    assert_eq!(loaded.channels_config.dingtalk.unwrap().client_secret, "enc2:not-hex");
+}

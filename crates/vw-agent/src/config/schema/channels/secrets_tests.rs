@@ -249,3 +249,54 @@ fn channel_secret_encrypt_error_identifies_named_instance_field() {
     );
     assert_eq!(channels.dingtalk_instances[0].config.client_secret, "dingtalk-secret");
 }
+
+#[test]
+fn channel_secret_isolation_preserves_ciphertext_and_healthy_channels() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    let healthy = store.encrypt("healthy-token").unwrap();
+    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "discord": {"bot_token": healthy},
+        "dingtalk": {"client_id": "fixture", "client_secret": "enc2:not-hex"},
+        "instance_default_projects": {"dingtalk:default": "project"}
+    }))
+    .unwrap();
+    super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+    assert!(channels.unavailable_channels.contains("dingtalk:default"));
+    assert_eq!(channels.dingtalk.as_ref().unwrap().client_secret, "enc2:not-hex");
+    assert_eq!(channels.discord.as_ref().unwrap().bot_token, "healthy-token");
+    channels.validate_instance_default_projects().unwrap();
+    let available = channels.available_channels();
+    assert!(available.dingtalk.is_none());
+    assert!(available.discord.is_some());
+    encrypt_channel_secrets(&store, &mut channels).unwrap();
+    let persisted = serde_json::to_value(&channels).unwrap();
+    assert_eq!(persisted["dingtalk"]["client_secret"], "enc2:not-hex");
+    assert!(persisted.get("unavailable_channels").is_none());
+}
+
+#[test]
+fn channel_secret_isolation_disables_only_failed_named_instance_and_recovers() {
+    let tmp = tempfile::tempdir().unwrap();
+    let store = SecretStore::new(tmp.path(), true);
+    let original_secret = store.encrypt("valid-secret").unwrap();
+    let mut channels: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "feishu_instances": [
+            {"id":"broken", "app_id":"fixture", "app_secret":original_secret,
+             "encrypt_key":"enc2:not-hex"},
+            {"id":"healthy", "app_id":"fixture", "app_secret":"plain-secret"}
+        ]
+    }))
+    .unwrap();
+    super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+    assert_eq!(channels.feishu_instances[0].config.app_secret, original_secret);
+    let available = channels.available_channels();
+    assert_eq!(available.feishu_instances.len(), 1);
+    assert_eq!(available.feishu_instances[0].id, "healthy");
+    channels.feishu_instances[0].config.encrypt_key = None;
+    super::decrypt_channel_secrets_isolated(&store, &mut channels).unwrap();
+    assert!(channels.unavailable_channels.is_empty());
+    assert_eq!(channels.available_channels().feishu_instances.len(), 2);
+}

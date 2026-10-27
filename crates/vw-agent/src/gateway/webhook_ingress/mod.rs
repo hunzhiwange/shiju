@@ -323,6 +323,14 @@ fn authorize_webhook_request(
     headers: &HeaderMap,
 ) -> Option<(StatusCode, Json<Value>)> {
     let channels = state.channels.lock().clone();
+    if channels.webhook_disabled {
+        return Some((
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(
+                serde_json::json!({"error": "Webhook credentials unavailable; repair channel configuration"}),
+            ),
+        ));
+    }
     // 检查是否需要认证：非本地请求且未配置任何认证机制时拒绝
     if !state.pairing.auth_enabled()
         && channels.webhook_secret_hash.is_none()

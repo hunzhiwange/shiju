@@ -85,6 +85,7 @@ pub(crate) fn build_channels_config_from_settings(
     settings: &ChannelsSettingsState,
 ) -> Result<ChannelsConfig, String> {
     let channels = ChannelsConfig {
+        unavailable_channels: Default::default(),
         project_dir: settings.project_dir(),
         instance_default_projects: settings.instance_default_projects.clone(),
         cli: settings.cli,

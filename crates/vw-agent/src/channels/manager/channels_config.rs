@@ -80,6 +80,9 @@ pub(crate) fn collect_configured_channels(
         tracing::warn!("Channel default project config is invalid: {err}; skipping channels.");
         return channels;
     }
+    let mut available_config = config.clone();
+    available_config.channels_config = config.channels_config.available_channels();
+    let config = &available_config;
     let channel_instance_profiles_valid = match config
         .channels_config
         .resolve_channel_instance_profiles()
@@ -553,6 +556,9 @@ pub(crate) async fn append_nostr_channel_if_available(
     #[cfg(not(target_arch = "wasm32"))]
     {
         // 如果 Nostr 未配置，提前返回 None
+        if config.channels_config.unavailable_channels.contains("nostr:default") {
+            return Some("Nostr credentials could not be decrypted".to_owned());
+        }
         let ns = config.channels_config.nostr.as_ref()?;
 
         // 尝试创建 Nostr 通道实例

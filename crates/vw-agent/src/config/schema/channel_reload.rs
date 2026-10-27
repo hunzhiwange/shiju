@@ -40,7 +40,7 @@ impl ChannelConfigWatcher {
         Ok(Self { store, project, last_payload: None })
     }
 
-    /// 读取默认租户的持久化配置；读取、解密或校验失败时不推进快照。
+    /// 读取默认租户的持久化配置；读取或校验失败时不推进快照；渠道解密失败只隔离故障实例。
     pub(crate) async fn poll(&mut self, current: &Config) -> Result<Option<ChannelsConfig>> {
         let store = self.store.clone();
         let project = self.project.clone();
@@ -85,11 +85,13 @@ impl ChannelConfigWatcher {
         let encrypt =
             payload.get("encrypt").and_then(Value::as_bool).unwrap_or(current.secrets.encrypt);
         let secrets = SecretStore::new(config_dir, encrypt);
-        super::channels::decrypt_channel_secrets(&secrets, &mut next.channels_config)?;
+        super::channels::decrypt_channel_secrets_isolated(&secrets, &mut next.channels_config)?;
         apply_env_overrides(&mut next);
         super::validate_config(&next)?;
-        let changed = serde_json::to_value(&next.channels_config)?
-            != serde_json::to_value(&current.channels_config)?;
+        let changed = next.channels_config.unavailable_channels
+            != current.channels_config.unavailable_channels
+            || serde_json::to_value(&next.channels_config)?
+                != serde_json::to_value(&current.channels_config)?;
         self.last_payload = Some(payload);
         Ok(changed.then_some(next.channels_config))
     }

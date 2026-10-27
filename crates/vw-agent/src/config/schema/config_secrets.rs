@@ -8,7 +8,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::app::agent::config::schema::channels::{
-    decrypt_channel_secrets, decrypt_optional_secret, encrypt_channel_secrets,
+    decrypt_channel_secrets_isolated, decrypt_optional_secret, encrypt_channel_secrets,
     encrypt_optional_secret,
 };
 use crate::app::agent::config::schema::config::Config;
@@ -92,7 +92,7 @@ pub(crate) fn encrypt_map_secrets(
 /// `vibewindow_dir` 用于定位或初始化密钥存储。函数会原地更新 `config` 中的 API key、代理凭据、
 /// 数据库 URL、gateway token、agent key 以及各渠道密钥。
 ///
-/// 任一字段解密失败都会返回错误，避免后续请求带着不可用或仍加密的凭据继续运行。
+/// 核心字段解密失败返回错误；渠道凭据失败仅隔离对应实例，保留原密文。
 pub(crate) fn decrypt_config_secrets(config: &mut Config, vibewindow_dir: &Path) -> Result<()> {
     let store =
         crate::app::agent::security::SecretStore::new(vibewindow_dir, config.secrets.encrypt);
@@ -122,7 +122,7 @@ pub(crate) fn decrypt_config_secrets(config: &mut Config, vibewindow_dir: &Path)
     for agent in config.agents.values_mut() {
         decrypt_optional_secret(&store, &mut agent.api_key, "config.agents.*.api_key")?;
     }
-    decrypt_channel_secrets(&store, &mut config.channels_config)?;
+    decrypt_channel_secrets_isolated(&store, &mut config.channels_config)?;
     Ok(())
 }
 

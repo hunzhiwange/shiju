@@ -213,3 +213,18 @@ fn encrypt_config_secrets_reports_embedding_route_storage_error() {
 
     assert!(error.to_string().contains("config.embedding_routes.*.api_key"));
 }
+
+#[test]
+fn config_secrets_channel_failure_does_not_block_core_configuration() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut config = Config::default();
+    config.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "dingtalk": {"client_id":"fixture", "client_secret":"enc2:not-hex"}
+    }))
+    .unwrap();
+    decrypt_config_secrets(&mut config, tmp.path()).unwrap();
+    assert!(config.channels_config.unavailable_channels.contains("dingtalk:default"));
+    config.api_key = Some("enc2:not-hex".into());
+    assert!(decrypt_config_secrets(&mut config, tmp.path()).is_err());
+}

@@ -104,6 +104,9 @@ impl std::error::Error for ChannelInstanceProfileError {}
 /// 某个字段为 `Some` 通常表示对应通道已配置并可初始化。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ChannelsConfig {
+    /// 解密失败的运行期渠道实例；不持久化，不改变原始密文。
+    #[serde(skip)]
+    pub unavailable_channels: BTreeSet<String>,
     /// 是否启用 CLI 通道。
     pub cli: bool,
     /// Telegram 通道配置。
@@ -168,6 +171,7 @@ pub struct ChannelsConfig {
 impl Default for ChannelsConfig {
     fn default() -> Self {
         Self {
+            unavailable_channels: BTreeSet::new(),
             cli: true,
             telegram: None,
             discord: None,
@@ -201,6 +205,41 @@ impl Default for ChannelsConfig {
 }
 
 impl ChannelsConfig {
+    /// 创建可实例化的配置快照，保留源配置中的故障凭据供用户修复。
+    pub fn available_channels(&self) -> Self {
+        let mut next = self.clone();
+        for profile in &self.unavailable_channels {
+            match profile.as_str() {
+                "telegram:default" => next.telegram = None,
+                "discord:default" => next.discord = None,
+                "slack:default" => next.slack = None,
+                "mattermost:default" => next.mattermost = None,
+                "webhook:default" => next.webhook = None,
+                "whatsapp:default" => next.whatsapp = None,
+                "linq:default" => next.linq = None,
+                "nextcloud_talk:default" => next.nextcloud_talk = None,
+                "irc:default" => next.irc = None,
+                "lark:default" => next.lark = None,
+                "dingtalk:default" => next.dingtalk = None,
+                "qq:default" => next.qq = None,
+                "wecom:default" => next.wecom = None,
+                "wechat:default" => next.wechat = None,
+                "nostr:default" => next.nostr = None,
+                "clawdtalk:default" => next.clawdtalk = None,
+                _ => {}
+            }
+        }
+        next.instance_default_projects
+            .retain(|profile, _| !self.unavailable_channels.contains(profile));
+        next.feishu_instances.retain(|instance| {
+            !self.unavailable_channels.contains(&format!("feishu:{}", instance.id))
+        });
+        next.dingtalk_instances.retain(|instance| {
+            !self.unavailable_channels.contains(&format!("dingtalk:{}", instance.id))
+        });
+        next
+    }
+
     /// 校验后更新绑定；错误不会改变原配置。项目存在性与租户权限由运行时验证。
     pub fn set_instance_default_project(
         &mut self,

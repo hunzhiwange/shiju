@@ -1017,8 +1017,14 @@ pub(crate) async fn deliver_announcement(
     target: &str,
     output: &str,
 ) -> Result<()> {
+    let channel = channel.to_ascii_lowercase();
+    if config.channels_config.unavailable_channels.contains(&format!("{channel}:default")) {
+        anyhow::bail!(
+            "channel credentials unavailable; repair channel configuration before delivery"
+        );
+    }
     // 根据通道类型路由到对应的实现
-    match channel.to_ascii_lowercase().as_str() {
+    match channel.as_str() {
         "telegram" => {
             // 获取 Telegram 配置
             let tg = config

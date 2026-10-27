@@ -498,3 +498,19 @@ impl Channel for InboundFixture {
         Ok(())
     }
 }
+
+#[test]
+fn unavailable_channel_credentials_are_not_instantiated() {
+    let mut config = Config::default();
+    config.channels_config = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "discord": {"bot_token":"healthy", "allowed_users":[]},
+        "slack": {"bot_token":"enc2:not-hex"}
+    }))
+    .unwrap();
+    config.channels_config.unavailable_channels.insert("slack:default".into());
+    let channels = collect_configured_channels(&config, "credential isolation test");
+    let names = channel_names(&channels);
+    assert!(names.contains(&"Discord"));
+    assert!(!names.contains(&"Slack"));
+}

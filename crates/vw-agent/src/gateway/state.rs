@@ -128,6 +128,8 @@ mod state_tests;
 /// Webhook 请求的通道快照，连接与签名凭据始终来自同一版配置。
 #[derive(Clone, Default)]
 pub(crate) struct GatewayChannels {
+    /// Webhook 密钥不可解密时拒绝入口，避免降级为无密钥验证。
+    pub webhook_disabled: bool,
     /// 在连接重载之间保留聊天执行状态；按租户隔离。
     pub(crate) runtimes: Arc<
         Mutex<HashMap<vw_api_types::id::TenantScope, Arc<crate::channels::ChannelRuntimeContext>>>,

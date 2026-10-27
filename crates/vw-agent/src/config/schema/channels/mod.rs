@@ -40,6 +40,7 @@ pub mod helpers;
 pub mod lark;
 pub mod other;
 pub mod secrets;
+mod secrets_isolation;
 pub mod telegram_env;
 pub mod types;
 
@@ -74,5 +75,6 @@ pub(crate) use helpers::*;
 pub use lark::*;
 pub use other::*;
 pub use secrets::*;
+pub(crate) use secrets_isolation::decrypt_channel_secrets_isolated;
 pub use telegram_env::*;
 pub use types::*;

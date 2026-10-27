@@ -30,3 +30,20 @@ fn channel_reload_replaces_webhook_auth_and_disables_removed_channels() {
     assert!(disabled.qq.is_none());
     assert!(!disabled.qq_webhook_enabled);
 }
+
+#[test]
+fn channel_reload_excludes_unavailable_credentials_without_erasing_config() {
+    let mut config: ChannelsConfig = serde_json::from_value(serde_json::json!({
+        "cli": true,
+        "webhook": {"port":8787, "secret":"enc2:not-hex"},
+        "linq": {"api_token":"enc2:not-hex", "from_phone":"fixture"}
+    }))
+    .unwrap();
+    config.unavailable_channels.insert("webhook:default".into());
+    config.unavailable_channels.insert("linq:default".into());
+    let runtime = build_gateway_channels(&config);
+    assert!(runtime.webhook_disabled);
+    assert!(runtime.linq.is_none());
+    assert!(config.webhook.is_some());
+    assert!(config.linq.is_some());
+}

@@ -1,0 +1,16 @@
+period,severity,count
+total,INFO,17
+total,WARNING,6
+total,ERROR,4
+month_to_date,INFO,9
+month_to_date,WARNING,2
+month_to_date,ERROR,1
+last_30_days,INFO,15
+last_30_days,WARNING,5
+last_30_days,ERROR,3
+last_7_days,INFO,7
+last_7_days,WARNING,2
+last_7_days,ERROR,1
+today,INFO,2
+today,WARNING,0
+today,ERROR,0

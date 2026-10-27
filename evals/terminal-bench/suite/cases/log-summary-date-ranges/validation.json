@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "parent_id": "log-summary-date-ranges",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "ca53758561d2ee02d8f6e4219c379409ff4f806cbe4182b38f294779c5fc826d",
+    "fixtures/m1/instruction.md": "15418bfce59a102a03f701c11d6eb05ef3947db871b4386ba29b18eec26f67c7",
+    "fixtures/m1/logs/2024-02-01_old.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-02-02_api.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-02-24_db.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-02-25_api.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-02-29_db.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-03-01_api.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-03-02_api.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-03-02_db.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m1/logs/2024-03-03_future.log": "c94418a5c9daf9c1ebc4dc3ccee70e6222bb99310b4fb02adbe0aa250847acf5",
+    "fixtures/m2/instruction.md": "e1ddc27160a5b412d0ec94a954ee9cad09e4894d2176bf8edc32fd4e2b7b4073",
+    "fixtures/m2/logs/2031-06-10_api.log": "a045d0fae40d201aa42818f5325b198162b6acee96e32f4d222a9261f843d2c0",
+    "fixtures/m2/logs/2031-06-10_db.log": "ab1991548729fac092c90731d6b28c971c81d4281bdf3bf11413f2f76ce752c1",
+    "fixtures/m3/instruction.md": "e2a411dd3965a538b919667dc0db802e244a1cb83061bc2b6d53811772ae1f3a",
+    "fixtures/m3/logs/2024-01-30_api.log": "1997baa2119936d1f03ae5644fe4302f1bf982e159ea01aa02f9eb008606281e",
+    "fixtures/m3/logs/2024-01-31_api.log": "a9857ea3316b35a29784ada086c69d04fd6351ab116cdb0f57967810262be462",
+    "fixtures/m3/logs/2024-02-22_api.log": "68715674be2ec7cf7fe7ebe1307c803caae2bc7c2a7f9b3ec1a8444f098221fd",
+    "fixtures/m3/logs/2024-02-23_api.log": "451e3f70a5f89f5034e02b72cf2e0b18d1e7d7123fc237b7380a51f533e73d0c",
+    "fixtures/m3/logs/2024-02-28_api.log": "4ee4503451c0fa43b4431209b76c529ba578395378da1007488a1c7e630d0088",
+    "fixtures/m3/logs/2024-02-29_api.log": "2e2a07fdf3a97f3a65706f4958607f435839452fd804b9eeabc81ec743e6a051",
+    "fixtures/m3/logs/2024-03-01_api.log": "b7151df8b65fc3bd1fdfcd963c1fc88416b1cbdd2d2316784f6dd86f0c897a74",
+    "fixtures/m3/logs/2024-03-02_api.log": "71551acfa0af5085095ba756d6ae0970ee0a37df587e0eb3d49b82cc2fb84ec5",
+    "fixtures/m3/logs/2024-03-03_api.log": "e45bfe948f3354af3c5593ea151cae99ee06460c2a265215c5905b00e9bef78b",
+    "fixtures/m4/counts.json": "8399353df30c56bb5c120c80bfb6545da5d7ab4019e503a584accb1499b73001",
+    "fixtures/m4/instruction.md": "6bd4109da27753766d2fbaa3241c9c537406d4e21357760f604fda8798aed514",
+    "oracle/m1/expected.json": "daecf63f69e1623db680a29bf1b6ea7c8aff1a8c4cc56208dd6223895efc3fdb",
+    "oracle/m1/future-in-today/summary.csv": "8598785fa9c58b150e360258703c980bedb691f178eddadf32634b6679b16acc",
+    "oracle/m1/gold/summary.csv": "da61a1499a0e9fcb1b652ea3c9ee366fa590ac1f3f720f4bb0af7ab1e3a58753",
+    "oracle/m1/missing-inclusive-start/summary.csv": "fcb99a8334c634a749c9578aca1d00b0b6c61e50b61fc6b40f81828823e5d0cb",
+    "oracle/m1/thirty-one-days/summary.csv": "e62a37703fdfd3e66ce0c52dc15d07165dbd66bfb5fda9b500cf529ca268dedc",
+    "oracle/m2/deduplicated-record/summary.csv": "390a1dd3c776625b6234c3915eee4e3b0493285b4136f0c412db65a0348a4e75",
+    "oracle/m2/expected.json": "4ee2aa5c680ae27c80c64b1c5ff96d99aba48951e32d966d2c0af009cdf6375e",
+    "oracle/m2/gold/summary.csv": "0b5bd513bc29d2643f81f9cb5cb8c9ac85cd096038bbb0ab39aa83403650434f",
+    "oracle/m2/message-keywords/summary.csv": "1f4e44505c3bc3629e1cd28b1e838afd0559064f37814e5c98399b0cf7774233",
+    "oracle/m2/only-first-source/summary.csv": "1ffc59ed179bbe4fd196ca36cb38af3954014b916e4c8b7c86086cdb50c95904",
+    "oracle/m3/deduplicated-leap-day/summary.csv": "cdf1de9717a911d863cf76a9f0188bb5620e37ab37a625d3ddbf386149283777",
+    "oracle/m3/expected.json": "d202f419eb666ae5e0eab61b185dcafe589cc77b0ed2220a1ce266f4c1a88e64",
+    "oracle/m3/future-in-today/summary.csv": "e3444ba374a71d0d01b0c570b1b5e2e90c3791eae382b8ac3a3e47674d407459",
+    "oracle/m3/gold/summary.csv": "1fe4fb694a94e287e5718a7d6c8b906a6e4d3f5598d64d616bb7307581ede423",
+    "oracle/m3/seven-day-off-by-one/summary.csv": "7a61bbb48ff6e8d33aa07274308284758d77f0ddde08cbe573ca6574fc7e142a",
+    "oracle/m4/expected.json": "0bbb5c630ffb4ecbda90f6e48046934f2fd77af27325123c0900d615f1204ba3",
+    "oracle/m4/gold/summary.csv": "074d23a56a1430554685897955fa6e0c312df2c70a6a1f00e39284f31325346b",
+    "oracle/m4/noninteger-count/summary.csv": "e81ca8b7b881e1d896758ba2a0a1f7b8516becd31e2e52ac36ab883c433f10b1",
+    "oracle/m4/omitted-zero/summary.csv": "e0797e3c6d5d5c57fa6199ea894ba27c4f732b0f8c052a13eb67b2118ddb3e0e",
+    "oracle/m4/reordered-rows/summary.csv": "e223aa35a888462b0f3a2df8dc76912f21c291f94cfb7cd714c21336782d0132",
+    "case.json": "e73bceeb3096ff5b9883c9282672de6015fb5d6800004f0fad04097a5342b671"
+  },
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "missing-inclusive-start",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "future-in-today",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "thirty-one-days",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "message-keywords",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "deduplicated-record",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "only-first-source",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "seven-day-off-by-one",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "deduplicated-leap-day",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "future-in-today",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "reordered-rows",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "omitted-zero",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "noninteger-count",
+      "exit_code": 1
+    }
+  ]
+}

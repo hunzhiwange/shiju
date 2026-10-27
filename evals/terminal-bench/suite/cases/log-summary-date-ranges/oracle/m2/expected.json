@@ -1,0 +1,20 @@
+{
+  "rows": [
+    [
+      "severity",
+      "count"
+    ],
+    [
+      "ERROR",
+      "2"
+    ],
+    [
+      "WARNING",
+      "2"
+    ],
+    [
+      "INFO",
+      "3"
+    ]
+  ]
+}

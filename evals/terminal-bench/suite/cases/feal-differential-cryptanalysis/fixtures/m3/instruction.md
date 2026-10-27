@@ -1,0 +1,2 @@
+Use unsigned 16-bit words. For F(x), a=x&255, b=(x>>8)&255, t=(a+b+1)&255, u=((t<<3)|(t>>5))&255, v=(a XOR u XOR 0xA7)&255, F(x)=(u<<8)|v. XOR is bitwise; all numbers are decimal JSON integers. Read /app/input.json and implement /app/solution.py as a Python 3 JSON stdin/stdout program. Return the ascending list of ALL candidate keys k satisfying F(x XOR k) XOR F(y XOR k) == difference for EVERY observation. No other stdout.
+Only create solution.py; do not modify supplied inputs. Python standard library only.

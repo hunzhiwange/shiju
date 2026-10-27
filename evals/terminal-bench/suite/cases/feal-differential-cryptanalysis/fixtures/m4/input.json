@@ -1,0 +1,5 @@
+{
+  "candidate_min": 0,
+  "candidate_max": 255,
+  "query_limit": 4
+}

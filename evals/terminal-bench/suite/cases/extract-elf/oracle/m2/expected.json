@@ -1,0 +1,16 @@
+{
+  "inputs": {
+    "layout.json": "d2382af31ee2a15a127309447ba3527708db2c83b376b26a2aec35b82b835341",
+    "data.bin": "22cb4df00cddd6067ad5cfa2bba9857f21a06843e1a6e39ad1a68cb9a45ab8b7"
+  },
+  "expected": [
+    3,
+    6,
+    9,
+    null,
+    14,
+    17,
+    null,
+    null
+  ]
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "offset": 0,
+    "size": 6,
+    "byte_order": "big"
+  },
+  {
+    "offset": 4,
+    "size": 10,
+    "byte_order": "little"
+  }
+]

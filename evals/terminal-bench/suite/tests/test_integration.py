@@ -100,6 +100,39 @@ class EvidenceRecoveryTests(unittest.TestCase):
             raw = 'data: ' + json.dumps({'choices': [], 'usage': usage}) + '\n\ndata: [DONE]\n\n'
             self.assertEqual(observe_upstream(raw)['usage_status'], status)
 
+    def test_usage_only_trailer_recovers_counts_without_rewriting_gateway(self):
+        wire = stream('stop', '437').replace('"input_tokens": 3, "output_tokens": 1',
+                                             '"input_tokens": 0, "output_tokens": 0')
+        trailer = {'model': 'qwen3.8-flash', 'choices': [], 'usage': {
+            'prompt_tokens': 11, 'completion_tokens': 2,
+            'prompt_tokens_details': {'cached_tokens': 3},
+            'completion_tokens_details': {'reasoning_tokens': 1}}}
+        raw = 'data: ' + json.dumps(trailer) + '\n\ndata: [DONE]\n\n'
+        facts = assess(wire, 0, '437', upstream=raw, upstream_complete=True)
+        self.assertTrue(facts['passed'])
+        self.assertEqual(facts['usage_source'], 'provider_sse')
+        self.assertEqual(facts['usage'], {'input_tokens': 11, 'output_tokens': 2,
+                                         'cached_tokens': 3, 'reasoning_tokens': 1})
+        self.assertEqual(facts['reported_usage']['input_tokens'], 0)
+        self.assertIsNone(facts['gateway_usage'])
+
+    def test_incomplete_or_invalid_provider_usage_cannot_pass(self):
+        wire = stream('stop', '437').replace('"input_tokens": 3, "output_tokens": 1',
+                                             '"input_tokens": 0, "output_tokens": 0')
+        for model, usage, complete, done in (
+                ('other', {'prompt_tokens': 11, 'completion_tokens': 2}, True, True),
+                ('qwen3.8-flash', {'prompt_tokens': True, 'completion_tokens': 2}, True, True),
+                ('qwen3.8-flash', {'prompt_tokens': -1, 'completion_tokens': 2}, True, True),
+                ('qwen3.8-flash', {'prompt_tokens': 11, 'completion_tokens': 2,
+                                    'completion_tokens_details': {'reasoning_tokens': 3}}, True, True),
+                ('qwen3.8-flash', {'prompt_tokens': 11, 'completion_tokens': 2}, False, True),
+                ('qwen3.8-flash', {'prompt_tokens': 11, 'completion_tokens': 2}, True, False)):
+            raw = 'data: ' + json.dumps({'model': model, 'choices': [], 'usage': usage}) + '\n\n'
+            if done:
+                raw += 'data: [DONE]\n\n'
+            self.assertFalse(assess(wire, 0, '437', upstream=raw,
+                                    upstream_complete=complete)['passed'])
+
     def test_raw_http_capture_preserves_usage_and_separate_content(self):
         exercise_capture(self)
 
@@ -163,16 +196,46 @@ def stream(reason, answer):
         {'type': 'stream_end', 'status': 'terminated'}])
 
 
-def assess(raw, code, expected):
+def assess(raw, code, expected, *, upstream=None, upstream_complete=False):
     facts = SuiteAgent.summarize_stream(raw, code)
     events = [json.loads(line).get('event', {}) for line in raw.splitlines() if line.strip()]
     answer, reasoning, framed = gateway_channels(events)
-    usage = facts['usage']
-    facts.update(answer=answer, reasoning=reasoning, reasoning_frames_complete=framed,
+    gateway_usage = facts['usage']
+    usage, source = gateway_usage, 'gateway' if gateway_usage is not None else 'unavailable'
+    observed = observe_upstream(upstream)
+    if (usage is None and upstream_complete and observed.get('done_seen')
+            and not observed.get('parse_error') and observed.get('models') == ['qwen3.8-flash']
+            and observed['usage_status'] == 'reported_nonzero'):
+        usage = provider_usage(observed['usage'])
+        if usage is not None:
+            source = 'provider_sse'
+    facts.update(usage=usage, usage_missing=usage is None, gateway_usage=gateway_usage,
+                 usage_source=source, answer=answer, reasoning=reasoning, reasoning_frames_complete=framed,
                  passed=(framed and facts['status'] == 'completed' and answer == expected
                  and isinstance(usage, dict) and usage.get('input_tokens', 0) > 0
                  and usage.get('output_tokens', 0) > 0))
     return facts
+
+
+def provider_usage(value):
+    """Normalize only counters actually supplied by the measured provider SSE."""
+    mapped = {'input_tokens': value.get('prompt_tokens'),
+              'output_tokens': value.get('completion_tokens')}
+    if any(type(v) is not int or v <= 0 for v in mapped.values()):
+        return None
+    for detail, field, output in (('prompt_tokens_details', 'cached_tokens', 'cached_tokens'),
+                                  ('completion_tokens_details', 'reasoning_tokens', 'reasoning_tokens')):
+        details = value.get(detail)
+        if details is not None:
+            if not isinstance(details, dict):
+                return None
+            if field in details:
+                count = details[field]
+                maximum = mapped['input_tokens' if output == 'cached_tokens' else 'output_tokens']
+                if type(count) is not int or not 0 <= count <= maximum:
+                    return None
+                mapped[output] = count
+    return mapped
 
 
 def gateway_channels(events):
@@ -562,7 +625,9 @@ def live_case(case):
                    '100000000', '--output', 'jsonl', '--yes']
             result = subprocess.run(cli + ['chat-stream', '--request-id', request['session_id'],
                      '--input', '/tmp/readiness-request.json'], capture_output=True, text=True, timeout=180)
-            row.update(assess(result.stdout, result.returncode, expected))
+            row.update(assess(result.stdout, result.returncode, expected,
+                              upstream=row.get('upstream_response_sse'),
+                              upstream_complete=row.get('upstream_response_complete', False)))
             row.update(cli_exit_code=result.returncode, state='finished', model_requests=row['model_requests'],
                        upstream_requests=calls, events=redact(result.stdout, secret),
                        stderr=redact(result.stderr, secret))

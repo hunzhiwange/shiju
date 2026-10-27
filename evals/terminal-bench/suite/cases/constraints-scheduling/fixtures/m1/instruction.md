@@ -1,0 +1,2 @@
+Parse the leap-day date and 12-hour availability ranges in input.json. Write result.json as an ordered JSON array of [start,end] pairs in UTC YYYYMMDDTHHMMSSZ format. Preserve minutes and range order; noon is 12 PM, afternoon hours add 12. Do not merge ranges.
+Read /app/input.json and create /app/result.json. Only this output may be written; no network access. This task is independent of other tasks. Budget: 24 turns, 32 tool calls, 900 seconds.

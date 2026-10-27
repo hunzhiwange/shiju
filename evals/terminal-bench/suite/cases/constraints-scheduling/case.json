@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "constraints-scheduling",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m1/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m1/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "wrong-afternoon",
+          "files": {
+            "result.json": "oracle/m1/wrong-afternoon/result.json"
+          }
+        },
+        {
+          "id": "lost-minutes",
+          "files": {
+            "result.json": "oracle/m1/lost-minutes/result.json"
+          }
+        },
+        {
+          "id": "wrong-date",
+          "files": {
+            "result.json": "oracle/m1/wrong-date/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m2/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m2/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "only-two",
+          "files": {
+            "result.json": "oracle/m2/only-two/result.json"
+          }
+        },
+        {
+          "id": "union",
+          "files": {
+            "result.json": "oracle/m2/union/result.json"
+          }
+        },
+        {
+          "id": "missing-range",
+          "files": {
+            "result.json": "oracle/m2/missing-range/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m3/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m3/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "ignores-lunch",
+          "files": {
+            "result.json": "oracle/m3/ignores-lunch/result.json"
+          }
+        },
+        {
+          "id": "rejects-touching",
+          "files": {
+            "result.json": "oracle/m3/rejects-touching/result.json"
+          }
+        },
+        {
+          "id": "ignores-work",
+          "files": {
+            "result.json": "oracle/m3/ignores-work/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m4/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "meeting.ics": "oracle/m4/gold/meeting.ics"
+      },
+      "negatives": [
+        {
+          "id": "rounded-time",
+          "files": {
+            "meeting.ics": "oracle/m4/rounded-time/meeting.ics"
+          }
+        },
+        {
+          "id": "wrong-duration",
+          "files": {
+            "meeting.ics": "oracle/m4/wrong-duration/meeting.ics"
+          }
+        },
+        {
+          "id": "missing-attendee",
+          "files": {
+            "meeting.ics": "oracle/m4/missing-attendee/meeting.ics"
+          }
+        }
+      ]
+    }
+  ]
+}

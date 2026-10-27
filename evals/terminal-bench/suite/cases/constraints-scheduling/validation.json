@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "constraints-scheduling",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "0b72dff5555012d40553bcf965e78845e2fa2ff1061c6e795162cafd94ac2328",
+    "fixtures/m1/input.json": "b1adaa4a092a495b4de2330deb403ffc023b46e7ae17fadf4191a797e354ad4d",
+    "fixtures/m1/instruction.md": "945a73cf4e164434ea54c411e0164565f07844ee18f9d66b36664d1fbc76f2da",
+    "fixtures/m2/input.json": "7ab56edb9e3f643e362c8053d4ef40ff6dd68eef8f96ffaaf7f1d2307e1a81f6",
+    "fixtures/m2/instruction.md": "c73295679773a6cd7ef41f81666464b0f67b8f96c46c0dbcc3e91f2ffd511df6",
+    "fixtures/m3/input.json": "4f72de1691459065d27193944e0f5dd6738161c68a4f49398b8b06033be6dd24",
+    "fixtures/m3/instruction.md": "2a7d0bdab2d934175d46636aedc880a3c1ad68d5f762e50dd3a06bbf826ae83c",
+    "fixtures/m4/input.json": "f4f577d6e38c95df5f4bc6b07b82cba3230c6fb6af716d48036355989563bf95",
+    "fixtures/m4/instruction.md": "109e054ecb96d7964610d6484136bbf853925ec69bdcc0b5c426f67b6b71f5ba",
+    "oracle/m1/gold/result.json": "54361e8f7aa1ccf59aa07d2ad43abdbb3b60e81adc9b33ed6016bbe85e3fd2bb",
+    "oracle/m1/lost-minutes/result.json": "d6f2e33b16a56497a3195c131cd2ddee20f3aef2416a6f75b64acfad08e2c158",
+    "oracle/m1/task.json": "14cef2194b73334b99c4e00cc4f10dd5065c23d580d0fa96d3098a8d85b9212f",
+    "oracle/m1/wrong-afternoon/result.json": "c2b89e332aa3bb7264f11c783a59559b461574c334a9a1ed115080fa7a5ebf7d",
+    "oracle/m1/wrong-date/result.json": "ace99ccdc2e51c56bb9530f04ac578a29d240059b75d300164b4ab26c3617166",
+    "oracle/m2/gold/result.json": "980deca9ac78107870e1ea21ca1842069b62611a31240f81ba7bbba68d608ec5",
+    "oracle/m2/missing-range/result.json": "ba7dd05de6fedd629c94bbc0ab34f802e491656cbc06039fb8b1b449d4129b6b",
+    "oracle/m2/only-two/result.json": "426e44937acff681b62ca30a811f70945654503e695ec313846f983237473dc3",
+    "oracle/m2/task.json": "9e9c74e825609352effd9108a635f0174087b7da2b0187a9c6284fc95c82f875",
+    "oracle/m2/union/result.json": "308069ff72eb1e5c7be7b0b9af078174a01eeeef8a520e0be513f4118d769b78",
+    "oracle/m3/gold/result.json": "9a32a573bb3c437a1b5283fde9733cb3f969ca29dbfc8fc99784fe96973b0642",
+    "oracle/m3/ignores-lunch/result.json": "6b21639fb615c3c6d1c694c1d5efae81a9993446cc3ba792c0020857b56220b7",
+    "oracle/m3/ignores-work/result.json": "89aed6fc965373427d36614295138d069566de7d69b256ca12551daa61fc963d",
+    "oracle/m3/rejects-touching/result.json": "c70b94004f525d3abe41c73f7b9f241feb4f53a01ee425370ef8ab87c051962c",
+    "oracle/m3/task.json": "8dcef8861b7278958f0d5f2ffeef9298ecb69d4b6476317fe0457dd9a12687f7",
+    "oracle/m4/gold/meeting.ics": "41b6996e7bdb6a0ec15c62cba79c146f8e17f0c8c06a92d35392f3df456da400",
+    "oracle/m4/missing-attendee/meeting.ics": "24045ea980c54343601aaac2f85f34c0f5a8edbd709db38b612d613e6799663f",
+    "oracle/m4/rounded-time/meeting.ics": "9703fe238861614f4399913149bf833550000166cd53f190fa4e56a8b56a57dc",
+    "oracle/m4/task.json": "41f03a6546ac4d2c0d79b99e31cda0a6388c188cd4f576f0e36f884bae1af381",
+    "oracle/m4/wrong-duration/meeting.ics": "916ee81c0b1053e625d904f557fc772188d902a7854e4bfabc26ed48a316f7cd",
+    "case.json": "e655bb26bc1c4ead1f7b0ac0193a1c21141e1bedd4242a37510be4d19c078da3"
+  },
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-afternoon",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "lost-minutes",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-date",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "only-two",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "union",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "missing-range",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignores-lunch",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "rejects-touching",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignores-work",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "rounded-time",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-duration",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "missing-attendee",
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+Filter the named one-hour candidate meetings in input.json. Keep only those wholly within work hours and not overlapping lunch or any busy interval. All intervals are half-open: touching an endpoint is allowed. Write result.json as the lexicographically sorted JSON array of accepted candidate IDs. No preferences apply.
+Read /app/input.json and create /app/result.json. Only this output may be written; no network access. This task is independent of other tasks. Budget: 24 turns, 32 tool calls, 900 seconds.

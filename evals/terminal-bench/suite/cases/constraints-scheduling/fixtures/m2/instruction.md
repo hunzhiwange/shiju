@@ -1,0 +1,2 @@
+Compute the intersection of ALL three people’s availability in input.json on its UTC date. Ranges are half-open [start,end), with zero-length intersections omitted. Write result.json as an ascending array of maximal common [HH:MM,HH:MM] ranges, preserving minutes. Do not apply duration or preference filters.
+Read /app/input.json and create /app/result.json. Only this output may be written; no network access. This task is independent of other tasks. Budget: 24 turns, 32 tool calls, 900 seconds.

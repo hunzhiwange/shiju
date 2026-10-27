@@ -1,0 +1,12 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Synthetic Scheduling//EN
+BEGIN:VEVENT
+UID:synthetic-design-1
+DTSTART:20280303T103000Z
+DTEND:20280303T111500Z
+SUMMARY:Design Sync
+ATTENDEE:mailto:dana@example.net
+ATTENDEE:mailto:eli@example.net
+END:VEVENT
+END:VCALENDAR

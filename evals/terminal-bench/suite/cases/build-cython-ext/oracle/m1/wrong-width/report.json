@@ -1,0 +1,11 @@
+{
+  "extensions": [
+    "ribbon.space.helpers",
+    "ribbon.space.complexity",
+    "ribbon.invariants"
+  ],
+  "array_extension": "ribbon.space.complexity",
+  "removed_type": "np.int_t",
+  "replacement_type": "np.int32_t",
+  "runtime_dtype": "int64"
+}

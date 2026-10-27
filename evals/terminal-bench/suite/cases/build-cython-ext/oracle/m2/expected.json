@@ -1,0 +1,6 @@
+{
+  "id": "m2",
+  "modules": [
+    "order_api"
+  ]
+}

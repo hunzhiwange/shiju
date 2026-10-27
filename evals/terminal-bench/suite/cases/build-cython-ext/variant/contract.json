@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "variant_id": "build-cython-ext-compat-planarity06",
+  "original_parent_id": "build-cython-ext",
+  "result_kind": "authorized_compatibility_variant",
+  "counts_as_original_official": false,
+  "dependency_phase": "image_build_before_agent",
+  "base_image": "alexgshaw/build-cython-ext@sha256:3612a38fadb89a96f74a1a951fb0b0af734198fd160571eeaba6401593234594",
+  "image": "vw-build-cython-compat@sha256:e564b7313a1b65fbc06b1a0935de1c61db651dae8a9309ccbce058613491f48e",
+  "planarity_version": "0.6",
+  "numpy_version": "2.3.0",
+  "source_url": "https://files.pythonhosted.org/packages/5b/17/9a822cf44b9cad016def3085013edd2b2d7e7d6347778c00f4a835e33cc9/planarity-0.6.tar.gz",
+  "source_sha256": "9852691d9c0d05e26a2fcbf2fce5a2632e8847ec462e816fa02e72d35013da68",
+  "wheel_filename": "planarity-0.6-cp313-cp313-linux_x86_64.whl",
+  "wheel_sha256": "094b3f49d3226e903055ceb8770065fdf2a55404414c500d9530225057855ff6",
+  "wheel_build_image": "vw-cython-diagnostics@sha256:7a6db18e11071ff5a05ea8259da78073bd5730b85d39399511385e2a684749d7",
+  "wheel_build_command": [
+    "python3",
+    "-m",
+    "pip",
+    "wheel",
+    "--no-deps",
+    "--no-build-isolation",
+    "/input/planarity-0.6.tar.gz",
+    "--wheel-dir",
+    "/output"
+  ],
+  "constraints_sha256": "1f57edfe809104aec73265436ff7d501c3a74b2a48cfeb38e846492b31f1fdf3",
+  "dockerfile_sha256": "5352cced328efe31bd6a326f31632290e2fde0beaf9e557bb8a7727d466c5011"
+}

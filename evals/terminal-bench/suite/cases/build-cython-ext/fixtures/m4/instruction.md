@@ -1,0 +1,3 @@
+Repair /app/kernels.pyx. Its three exported native functions must implement: cross(ax,ay,bx,by)=ax*by-ay*bx; determinant(a,b,c,d)=a*d-b*c for the row-major 2x2 matrix; signed_sum(values)=sum((i+1)*values[i]*(-1)**i) with zero for an empty list. Accept fractional and negative values. The evaluator independently compiles the Cython source and compares actual calls on small synthetic inputs; preserve all three APIs. Do not produce a saved answer table.
+
+Work only in /app. Preserve NumPy 2.3.0 and the supplied module names. No network access, dependency installation, or reading /tests or /solution. Budget: 24 turns, 32 tools, 900 seconds. The evaluator independently runs your artifacts.

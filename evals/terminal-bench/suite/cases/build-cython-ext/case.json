@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "parent_id": "build-cython-ext",
+  "image": "vw-cython-diagnostics@sha256:e9ee4d2ebe7c9ff17917ef72979da36ee52876f5fc098ee1338db029f4cbe247",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "setup_fragment.py": "fixtures/m1/setup_fragment.py",
+        "helpers.pyx": "fixtures/m1/helpers.pyx",
+        "complexity.pyx": "fixtures/m1/complexity.pyx",
+        "invariants.pyx": "fixtures/m1/invariants.pyx"
+      },
+      "oracle": {
+        "expected.json": "oracle/m1/expected.json"
+      },
+      "gold": {
+        "report.json": "oracle/m1/gold/report.json"
+      },
+      "negatives": [
+        {
+          "id": "missing-extension",
+          "files": {
+            "report.json": "oracle/m1/missing-extension/report.json"
+          }
+        },
+        {
+          "id": "wrong-array-module",
+          "files": {
+            "report.json": "oracle/m1/wrong-array-module/report.json"
+          }
+        },
+        {
+          "id": "wrong-width",
+          "files": {
+            "report.json": "oracle/m1/wrong-width/report.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "order_api.pyx": "fixtures/m2/order_api.pyx"
+      },
+      "oracle": {
+        "expected.json": "oracle/m2/expected.json"
+      },
+      "gold": {
+        "order_api.pyx": "oracle/m2/gold/order_api.pyx"
+      },
+      "negatives": [
+        {
+          "id": "removed-typedef",
+          "files": {
+            "order_api.pyx": "oracle/m2/removed-typedef/order_api.pyx"
+          }
+        },
+        {
+          "id": "narrow-accumulator",
+          "files": {
+            "order_api.pyx": "oracle/m2/narrow-accumulator/order_api.pyx"
+          }
+        },
+        {
+          "id": "skip-last",
+          "files": {
+            "order_api.pyx": "oracle/m2/skip-last/order_api.pyx"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "helpers.pyx": "fixtures/m3/helpers.pyx",
+        "complexity.pyx": "fixtures/m3/complexity.pyx",
+        "invariants.pyx": "fixtures/m3/invariants.pyx",
+        "ribbon/__init__.py": "fixtures/m3/ribbon/__init__.py"
+      },
+      "oracle": {
+        "expected.json": "oracle/m3/expected.json"
+      },
+      "gold": {
+        "build.py": "oracle/m3/gold/build.py"
+      },
+      "negatives": [
+        {
+          "id": "missing-third",
+          "files": {
+            "build.py": "oracle/m3/missing-third/build.py"
+          }
+        },
+        {
+          "id": "wrong-package",
+          "files": {
+            "build.py": "oracle/m3/wrong-package/build.py"
+          }
+        },
+        {
+          "id": "python-fallback",
+          "files": {
+            "build.py": "oracle/m3/python-fallback/build.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "kernels.pyx": "fixtures/m4/kernels.pyx"
+      },
+      "oracle": {
+        "expected.json": "oracle/m4/expected.json"
+      },
+      "gold": {
+        "kernels.pyx": "oracle/m4/gold/kernels.pyx"
+      },
+      "negatives": [
+        {
+          "id": "dot-instead-of-cross",
+          "files": {
+            "kernels.pyx": "oracle/m4/dot-instead-of-cross/kernels.pyx"
+          }
+        },
+        {
+          "id": "wrong-determinant",
+          "files": {
+            "kernels.pyx": "oracle/m4/wrong-determinant/kernels.pyx"
+          }
+        },
+        {
+          "id": "unweighted-sum",
+          "files": {
+            "kernels.pyx": "oracle/m4/unweighted-sum/kernels.pyx"
+          }
+        }
+      ]
+    }
+  ]
+}

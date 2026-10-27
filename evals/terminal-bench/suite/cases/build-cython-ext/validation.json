@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "parent_id": "build-cython-ext",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "bc9bcd3f436be6e9c404a76eab51a4d99ac8c027dcea90fda5d8918e7d9db314",
+    "fixtures/m1/complexity.pyx": "3e71c780c01fb6c3f05a66f1288dc54fd3250ed6ae09cb327972f3883503e100",
+    "fixtures/m1/helpers.pyx": "357e8238552c55951b0385fa2f5e92058d514e461dcc469127969073cfe743ea",
+    "fixtures/m1/instruction.md": "27590df1d1a02d76a213fa02e2e7a71a3762636f896292cdbaf36e7f3558b36f",
+    "fixtures/m1/invariants.pyx": "a4802db2582ef72eb7f8e3dbec27f62ebb09f8a0a84487539c2fdf1c47f04953",
+    "fixtures/m1/setup_fragment.py": "f7ea88850b6bf14c41e0547b0b95bbb0627dd19ed440ca4ab8b37eb985ef9239",
+    "fixtures/m2/instruction.md": "b346fd20ab8aee61ec65dbf3358f016802f5a5615438045edcff49c9357d9d79",
+    "fixtures/m2/order_api.pyx": "856930855459cd3e70023ecee8203e9a44740953d2b24e6d805b6ef5c0311c88",
+    "fixtures/m3/complexity.pyx": "27bc8c25dfb6b20567f3cb3a7ecdceea3758040b022b77b51333289831854c7d",
+    "fixtures/m3/helpers.pyx": "b5aa0b1ade65cb3650ca17a972d947f534306b8165c59df3d9e6afb1565be5db",
+    "fixtures/m3/instruction.md": "25809df09dde806601ad1bcbb765ba6b10924f3f78cbacf3ca3b34c1e128e7fd",
+    "fixtures/m3/invariants.pyx": "7104b386a0d516237d50fffd98d4d16e57e2ca5cbbf3e745bb797664c8a5d5b1",
+    "fixtures/m3/ribbon/__init__.py": "3556f518d584fa222450b87828db7dc151e169e40f09b58ff799ecd33220b5cb",
+    "fixtures/m4/instruction.md": "f20e5a4c239eb4e6618fe6077dd4a40069ed8e2fb5855ac8cd55d913fe6844fb",
+    "fixtures/m4/kernels.pyx": "f11366bb60d027a2ad28fa1cee5cc2ae006564408fe4dd60303a919a05520559",
+    "oracle/m1/expected.json": "00002035a39fc03abe6b81541c20d12e23da56b0bf88904b6777c1057e7592a5",
+    "oracle/m1/gold/report.json": "600f9fb22985c77b7715c65ac7a1919f2d9bc7860798b7cbe3762f6820934630",
+    "oracle/m1/missing-extension/report.json": "60e3c98f39084c6ce4bd97c9ad3ef5a476b8ba1697df05721e72f71f5dd0e458",
+    "oracle/m1/wrong-array-module/report.json": "1e150898d6d961c1a2a81d64008c9852f06c3cf43ece8063105d427ceb0d2a09",
+    "oracle/m1/wrong-width/report.json": "95def2b958a8896186cc5e7e2b04eb03babb9b7daba1fe43e7f2d4394d0176d0",
+    "oracle/m2/expected.json": "edcad5a603dd3cf0388510f9459989a5ba574821e5b46f051cbeec59474e887f",
+    "oracle/m2/gold/order_api.pyx": "3839e4fd94b85a726f5dacf69e2602104a6149c6e59988c9f8e640eb0463f77d",
+    "oracle/m2/narrow-accumulator/order_api.pyx": "4613bec769457567697cca8098b5e96baff38bced8517f00fd92670461987e61",
+    "oracle/m2/removed-typedef/order_api.pyx": "856930855459cd3e70023ecee8203e9a44740953d2b24e6d805b6ef5c0311c88",
+    "oracle/m2/skip-last/order_api.pyx": "5cbe04845b9ee8fdfb8ca9bb61292e68ec1d10bd93124f83dde4301197b91eae",
+    "oracle/m3/expected.json": "3efb6468c94fa0a303ebda8ec40aa3b37683c5e0f8265a45ac055d0bdde283f2",
+    "oracle/m3/gold/build.py": "7cfadb106a95bac40776f0a22372425ff21527b1ad0a7501a3a9322bbe0d0362",
+    "oracle/m3/missing-third/build.py": "e351138d60ed5eafecdb091ad5967b281d812c175de5f3486f2f06d9559e3691",
+    "oracle/m3/python-fallback/build.py": "dad15f9ee8df46ec29e5690e1c046ea306e0663f02b24ecbe3a499618cbd5ccd",
+    "oracle/m3/wrong-package/build.py": "ee86e420eacb8cc7b24ee81313064892bc04ff85379e145efd6a881dd6a0cbcc",
+    "oracle/m4/dot-instead-of-cross/kernels.pyx": "ab94ec337033e548484ca317f2e36ea12a89a768b48d67760e9ca26df15adbe7",
+    "oracle/m4/expected.json": "de035e02ae00aa38410926301336ec4011c8cb70ff489b90b4d4d48b96ff9709",
+    "oracle/m4/gold/kernels.pyx": "ff6bd3104f8a89d17ac698814f6061ba745e52574b4b1ac17dae2d22ae65d6b2",
+    "oracle/m4/unweighted-sum/kernels.pyx": "9d084ec2b8892c093c5c28420200864b949bf00f781324e2653511b83bd5ad0c",
+    "oracle/m4/wrong-determinant/kernels.pyx": "33b42c99916019022f5e98456f96f6256e371365813a7dbb679ed1e84ee6fb8a",
+    "case.json": "dc3e436526bdeb108047184941585b293c1f211ceebffc4944fc572eaf065179"
+  },
+  "image": "vw-cython-diagnostics@sha256:e9ee4d2ebe7c9ff17917ef72979da36ee52876f5fc098ee1338db029f4cbe247",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "missing-extension",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-array-module",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-width",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "removed-typedef",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "narrow-accumulator",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "skip-last",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "missing-third",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "wrong-package",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "python-fallback",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "dot-instead-of-cross",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-determinant",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "unweighted-sum",
+      "exit_code": 1
+    }
+  ]
+}

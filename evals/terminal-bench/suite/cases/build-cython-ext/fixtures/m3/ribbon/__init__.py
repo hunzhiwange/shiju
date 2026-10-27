@@ -1,0 +1,1 @@
+"""Synthetic extension package."""

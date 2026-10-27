@@ -1,0 +1,14 @@
+{
+  "columns": [
+    "X",
+    "Y"
+  ],
+  "numeric_columns": [
+    "X",
+    "Y",
+    "Z"
+  ],
+  "root": "Z",
+  "edge_count": 2,
+  "ambiguous_direction": "later-to-earlier"
+}

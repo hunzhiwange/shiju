@@ -1,0 +1,22 @@
+{
+  "nodes": {
+    "U": {
+      "intercept": 1,
+      "parents": {},
+      "noise_sd": 1
+    },
+    "Y": {
+      "intercept": 0,
+      "parents": {},
+      "noise_sd": 0
+    },
+    "Z": {
+      "intercept": -1,
+      "parents": {
+        "U": 1,
+        "Y": 5
+      },
+      "noise_sd": 2
+    }
+  }
+}

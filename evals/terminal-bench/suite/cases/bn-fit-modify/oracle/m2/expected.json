@@ -1,0 +1,14 @@
+{
+  "kind": "edges",
+  "edges_file": "learned_dag.csv",
+  "edges": [
+    [
+      "U",
+      "W"
+    ],
+    [
+      "V",
+      "W"
+    ]
+  ]
+}

@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "parent_id": "bn-fit-modify",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "sample.csv": "fixtures/m1/sample.csv",
+        "constraints.json": "fixtures/m1/constraints.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m1/expected.json"
+      },
+      "gold": {
+        "schema.json": "oracle/m1/gold/schema.json"
+      },
+      "negatives": [
+        {
+          "id": "missing-column",
+          "files": {
+            "schema.json": "oracle/m1/missing-column/schema.json"
+          }
+        },
+        {
+          "id": "wrong-root",
+          "files": {
+            "schema.json": "oracle/m1/wrong-root/schema.json"
+          }
+        },
+        {
+          "id": "reversed-rule",
+          "files": {
+            "schema.json": "oracle/m1/reversed-rule/schema.json"
+          }
+        },
+        {
+          "id": "wrong-count",
+          "files": {
+            "schema.json": "oracle/m1/wrong-count/schema.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "sample.csv": "fixtures/m2/sample.csv"
+      },
+      "oracle": {
+        "expected.json": "oracle/m2/expected.json"
+      },
+      "gold": {
+        "learned_dag.csv": "oracle/m2/gold/learned_dag.csv"
+      },
+      "negatives": [
+        {
+          "id": "chain",
+          "files": {
+            "learned_dag.csv": "oracle/m2/chain/learned_dag.csv"
+          }
+        },
+        {
+          "id": "missing-edge",
+          "files": {
+            "learned_dag.csv": "oracle/m2/missing-edge/learned_dag.csv"
+          }
+        },
+        {
+          "id": "extra-edge",
+          "files": {
+            "learned_dag.csv": "oracle/m2/extra-edge/learned_dag.csv"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "bn.json": "fixtures/m3/bn.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m3/expected.json"
+      },
+      "gold": {
+        "intervened_bn.json": "oracle/m3/gold/intervened_bn.json"
+      },
+      "negatives": [
+        {
+          "id": "retained-incoming",
+          "files": {
+            "intervened_bn.json": "oracle/m3/retained-incoming/intervened_bn.json"
+          }
+        },
+        {
+          "id": "conditioned-only",
+          "files": {
+            "intervened_bn.json": "oracle/m3/conditioned-only/intervened_bn.json"
+          }
+        },
+        {
+          "id": "removed-outgoing",
+          "files": {
+            "intervened_bn.json": "oracle/m3/removed-outgoing/intervened_bn.json"
+          }
+        },
+        {
+          "id": "wrong-constant",
+          "files": {
+            "intervened_bn.json": "oracle/m3/wrong-constant/intervened_bn.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "innovations.csv": "fixtures/m4/innovations.csv"
+      },
+      "oracle": {
+        "expected.json": "oracle/m4/expected.json"
+      },
+      "gold": {
+        "intervened_dag.csv": "oracle/m4/gold/intervened_dag.csv",
+        "final_bn_sample.csv": "oracle/m4/gold/final_bn_sample.csv"
+      },
+      "negatives": [
+        {
+          "id": "wrong-header",
+          "files": {
+            "intervened_dag.csv": "oracle/m4/wrong-header/intervened_dag.csv",
+            "final_bn_sample.csv": "oracle/m4/wrong-header/final_bn_sample.csv"
+          }
+        },
+        {
+          "id": "wrong-intervention",
+          "files": {
+            "intervened_dag.csv": "oracle/m4/wrong-intervention/intervened_dag.csv",
+            "final_bn_sample.csv": "oracle/m4/wrong-intervention/final_bn_sample.csv"
+          }
+        },
+        {
+          "id": "wrong-row-count",
+          "files": {
+            "intervened_dag.csv": "oracle/m4/wrong-row-count/intervened_dag.csv",
+            "final_bn_sample.csv": "oracle/m4/wrong-row-count/final_bn_sample.csv"
+          }
+        },
+        {
+          "id": "nan-sample",
+          "files": {
+            "intervened_dag.csv": "oracle/m4/nan-sample/intervened_dag.csv",
+            "final_bn_sample.csv": "oracle/m4/nan-sample/final_bn_sample.csv"
+          }
+        },
+        {
+          "id": "removed-outgoing",
+          "files": {
+            "intervened_dag.csv": "oracle/m4/removed-outgoing/intervened_dag.csv",
+            "final_bn_sample.csv": "oracle/m4/removed-outgoing/final_bn_sample.csv"
+          }
+        }
+      ]
+    }
+  ]
+}

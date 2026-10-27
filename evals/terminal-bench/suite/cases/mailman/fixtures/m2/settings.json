@@ -1,0 +1,11 @@
+{
+  "mode": "m2",
+  "domain": "sandbox.test",
+  "list": "bookclub",
+  "users": [
+    "ada",
+    "ben",
+    "cy"
+  ],
+  "members": []
+}

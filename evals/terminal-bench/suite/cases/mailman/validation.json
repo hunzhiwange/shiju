@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "parent_id": "mailman",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "f0c4eec53481488c45764e0cab8ddb04239bf292e4dbffe21569e155b482267d",
+    "fixtures/m1/instruction.md": "fc00aac812ec1aeb3ad133faa8d1b3e7e15d2cb238093e8f1ba409503fa0cdeb",
+    "fixtures/m1/settings.json": "15dd06d934b5fc85d923cb0f9ad9509619e9cebc8c7223d2187796b16f76a2a9",
+    "fixtures/m2/instruction.md": "d73a571d625a62bd863d967195fa83446ee7685f62b95f5176817b637cf327fc",
+    "fixtures/m2/settings.json": "ca68888b2a4d54a6c4435e91b8d7c5ee430fe2ee6fca8c966312f03a7747e1cd",
+    "fixtures/m3/instruction.md": "93116fe0c4780e3c5cb1719a4caa41181e28d97ef9299f18c61d2ffb85af9574",
+    "fixtures/m3/settings.json": "f1cd4ba01e41b26fcb21afae85cc4ca9f02000dd51112e4c4ec0b9d6230c6a02",
+    "fixtures/m4/instruction.md": "f5484b5976693ab64fbc0d390fc667471f90a56fc3932e715f7fbf772a3a5c60",
+    "fixtures/m4/settings.json": "b9c4c3e51e91d67adfdac60be6ac76cf219034cad7f87f71c082f3268448fcf7",
+    "oracle/m1/drops-join/routes.json": "455ed89d30f942f5104f57c775f5c1c2bc5d2e55a860e7021f2318f3db5bf22c",
+    "oracle/m1/drops-join/server.py": "7a27f1086a72696183ae76446736744e2fee89c99bc4c3b80750f903926cc463",
+    "oracle/m1/gold/routes.json": "455ed89d30f942f5104f57c775f5c1c2bc5d2e55a860e7021f2318f3db5bf22c",
+    "oracle/m1/gold/server.py": "87a05da255cb93bfb8eb89d3349591aaf03360e4be28c1832d38ebb80db3636f",
+    "oracle/m1/swaps-leave/routes.json": "455ed89d30f942f5104f57c775f5c1c2bc5d2e55a860e7021f2318f3db5bf22c",
+    "oracle/m1/swaps-leave/server.py": "7be5077ab859e3ef12aee227de93768756deba604fcfff95cd5ab544d3318e4a",
+    "oracle/m1/task.json": "7c6fda10e0ee66fb8c03bb5c85cebba32e87a33c50d848b8a1d61cf22faf9bd0",
+    "oracle/m1/wrong-route/routes.json": "2188dfb42b32374d05693a860c931ece39044fc16fc8607b8b386fc992c0b1cd",
+    "oracle/m1/wrong-route/server.py": "9b04fddb97a5098f9b084e0da2202ab3d77a567ceb4228ad6022756814a63ab9",
+    "oracle/m2/eager/server.py": "9f1f42b523963989d0799e7d004075aacfa48f661c040b961aa56f2fe71fdf05",
+    "oracle/m2/gold/server.py": "87a05da255cb93bfb8eb89d3349591aaf03360e4be28c1832d38ebb80db3636f",
+    "oracle/m2/replay/server.py": "227a71d519c185551e7ab1d3aab43ef85a6c14af0c947d44e347b4fce1ee2a62",
+    "oracle/m2/task.json": "e6ebacda106d0c1c692ef046c489239574f0337e5d7ed5bb005708e258767d5a",
+    "oracle/m2/wrong-sender/server.py": "c05948c4fc5fa098d656ebe3d39ae0b5609e1286764d2e26efd5aa47cb7d402b",
+    "oracle/m3/gold/server.py": "87a05da255cb93bfb8eb89d3349591aaf03360e4be28c1832d38ebb80db3636f",
+    "oracle/m3/leak/server.py": "b6bacdbb34a75eb6d228f63c16876c0349e1bcf006079e44f5607607d6b63f49",
+    "oracle/m3/omit-sender/server.py": "38620cab68181d0e7e229210ec5c37f0f53a1dd078c27013d14f0f691f28b0f2",
+    "oracle/m3/outsider-post/server.py": "ad2f09cb179590424d45fe78343ec27b6002726e88abff9043368ddf8fc76c7d",
+    "oracle/m3/task.json": "63836e3353ae55a4cf5b9be6178f5a7a103896bcd274f5f99c6b0a4940023cfa",
+    "oracle/m4/drop-body/server.py": "e4741b202bf48769b23acae3009b4c31fa12443e5e815cca8e706273db97330d",
+    "oracle/m4/duplicate/server.py": "744b25d72c04de35e1223f998f6051fe962deed32cac6789c9af5c9472c04b1e",
+    "oracle/m4/gold/server.py": "87a05da255cb93bfb8eb89d3349591aaf03360e4be28c1832d38ebb80db3636f",
+    "oracle/m4/header-recipient/server.py": "02ebb90280d3fa929ef796c2ab8563a4008d75e4fb918016227a21118974725b",
+    "oracle/m4/task.json": "852304b3b520cf19f51453f1601487bc246a883316375bd353fa8bad3947962e",
+    "case.json": "df136dc0922b019f2913e644cdcac3606de133c31cb227ea3a3fe3325223fdfb"
+  },
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "drops-join",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "swaps-leave",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-route",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "eager",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-sender",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "replay",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "leak",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "outsider-post",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "omit-sender",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "drop-body",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "duplicate",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "header-recipient",
+      "exit_code": 1
+    }
+  ]
+}

@@ -565,15 +565,13 @@ impl App {
                 if let Ok(system) = result {
                     self.apply_bootstrap_system_settings(system);
                     let health = Task::done(Message::GatewayHealthTick);
-                    #[cfg(target_arch = "wasm32")]
+                    // 输入栏依赖模型能力数据，桌面端也必须在启动时加载。
                     return Task::batch(vec![
                         health,
                         Task::done(Message::Settings(
                             crate::app::message::SettingsMessage::ModelsRefresh,
                         )),
                     ]);
-                    #[cfg(not(target_arch = "wasm32"))]
-                    return health;
                 }
                 Task::none()
             }

@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "fix-git",
+  "image": "vw-configure-git-webserver-diagnostics@sha256:681f5a56bbcab388a9711d1db08a5ebf9175ecdde29946135f6750ced77280d9",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m1/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "wrong-ref",
+          "files": {
+            "solution.py": "oracle/m1/wrong-ref/solution.py"
+          }
+        },
+        {
+          "id": "wrong-parent",
+          "files": {
+            "solution.py": "oracle/m1/wrong-parent/solution.py"
+          }
+        },
+        {
+          "id": "wrong-ancestry",
+          "files": {
+            "solution.py": "oracle/m1/wrong-ancestry/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m2/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "copy-only",
+          "files": {
+            "solution.py": "oracle/m2/copy-only/solution.py"
+          }
+        },
+        {
+          "id": "wrong-branch",
+          "files": {
+            "solution.py": "oracle/m2/wrong-branch/solution.py"
+          }
+        },
+        {
+          "id": "reset-master",
+          "files": {
+            "solution.py": "oracle/m2/reset-master/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m3/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "choose-ours",
+          "files": {
+            "solution.py": "oracle/m3/choose-ours/solution.py"
+          }
+        },
+        {
+          "id": "copy-only",
+          "files": {
+            "solution.py": "oracle/m3/copy-only/solution.py"
+          }
+        },
+        {
+          "id": "drop-master-file",
+          "files": {
+            "solution.py": "oracle/m3/drop-master-file/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "context.txt": "fixtures/m4/context.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "always-ready",
+          "files": {
+            "solution.py": "oracle/m4/always-ready/solution.py"
+          }
+        },
+        {
+          "id": "ignore-untracked",
+          "files": {
+            "solution.py": "oracle/m4/ignore-untracked/solution.py"
+          }
+        },
+        {
+          "id": "head-equals-branch",
+          "files": {
+            "solution.py": "oracle/m4/head-equals-branch/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

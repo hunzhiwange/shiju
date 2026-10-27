@@ -1,0 +1,1 @@
+Synthetic Git diagnostic m3. Input is a repository path supplied as argv[1]; implement the instruction API. Git user identity is configured.

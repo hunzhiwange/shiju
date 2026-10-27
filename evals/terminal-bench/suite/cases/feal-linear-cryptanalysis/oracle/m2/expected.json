@@ -1,0 +1,19 @@
+{
+  "child": "m2",
+  "input_sha256": "a922edd398407456c897c1da8bfa45531349d111ddc276dfdd4b51ba12c3b103",
+  "expected": {
+    "relations": [
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      1
+    ],
+    "zeros": 3,
+    "ones": 4,
+    "bias_numerator": -1,
+    "bias_denominator": 14
+  }
+}

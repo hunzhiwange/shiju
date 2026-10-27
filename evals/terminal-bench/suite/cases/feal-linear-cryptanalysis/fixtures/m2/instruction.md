@@ -1,0 +1,3 @@
+Read pairs, plaintext_mask and ciphertext_mask from input.json on stdin. For each [p,c], relation = parity(p & plaintext_mask) XOR parity(c & ciphertext_mask), where parity is population count modulo two. Return a JSON object with relations (ordered bit array), zeros, ones, bias_numerator=2*zeros-N and bias_denominator=2*N. Keep the signed, unreduced fraction representing P(relation=0)-1/2.
+
+Implement /app/solution.py (Python 3 standard library). The checker runs it with input.json bytes on stdin and expects exactly one JSON value on stdout. No input changes, external files, network or subprocesses are needed. This problem is independent of the parent and other diagnostics.

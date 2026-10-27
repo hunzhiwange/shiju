@@ -1,0 +1,3 @@
+Read pairs [p,c], candidates, plaintext_mask and output_mask from input.json on stdin. For each candidate k compute v=ROL8((c+k) mod 256,2), relation=parity(p & plaintext_mask) XOR parity(v & output_mask). Count zeros z over ALL pairs and score=abs(2*z-N). Return every candidate as {key,zeros,score}, sorted by descending score, then ascending numeric key for ties. ROL8 is eight-bit left rotation; this is a synthetic finite linear-ranking exercise.
+
+Implement /app/solution.py (Python 3 standard library). The checker runs it with input.json bytes on stdin and expects exactly one JSON value on stdout. No input changes, external files, network or subprocesses are needed. This problem is independent of the parent and other diagnostics.

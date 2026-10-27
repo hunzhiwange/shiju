@@ -1,0 +1,46 @@
+{
+  "child": "m1",
+  "input_sha256": "c04498148b3c5b3b1e9cc183144771dcfd2202abc9b0d551cdaf2d63d7897b3e",
+  "expected": [
+    {
+      "plaintext": 0,
+      "ciphertext": 18446744073709551615,
+      "p_left": 0,
+      "p_right": 0,
+      "c_left": 4294967295,
+      "c_right": 4294967295
+    },
+    {
+      "plaintext": 4294967297,
+      "ciphertext": 9223372036854775808,
+      "p_left": 1,
+      "p_right": 1,
+      "c_left": 2147483648,
+      "c_right": 0
+    },
+    {
+      "plaintext": 18446744073709551615,
+      "ciphertext": 0,
+      "p_left": 4294967295,
+      "p_right": 4294967295,
+      "c_left": 0,
+      "c_right": 0
+    },
+    {
+      "plaintext": 17,
+      "ciphertext": 4294967296,
+      "p_left": 0,
+      "p_right": 17,
+      "c_left": 1,
+      "c_right": 0
+    },
+    {
+      "plaintext": 17,
+      "ciphertext": 4294967296,
+      "p_left": 0,
+      "p_right": 17,
+      "c_left": 1,
+      "c_right": 0
+    }
+  ]
+}

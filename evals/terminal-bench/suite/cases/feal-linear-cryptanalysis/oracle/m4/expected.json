@@ -1,0 +1,22 @@
+{
+  "child": "m4",
+  "input_sha256": "6367f6b94add80680445af1d023db458568464e09a437f4fbe9cf103e49df22a",
+  "expected": {
+    "plaintexts": [
+      12531,
+      65281,
+      22056,
+      19092,
+      3513,
+      16144
+    ],
+    "matches": [
+      true,
+      false,
+      true,
+      true,
+      false,
+      true
+    ]
+  }
+}

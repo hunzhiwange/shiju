@@ -1,0 +1,3 @@
+Read pairs_text from input.json on stdin. Each nonempty line has two unsigned decimal 64-bit integers: plaintext and ciphertext. Preserve order and duplicates. Return a JSON array of objects with integer plaintext, ciphertext, p_left, p_right, c_left, c_right. Left means upper 32 bits, right means lower 32 bits. Do not round integers.
+
+Implement /app/solution.py (Python 3 standard library). The checker runs it with input.json bytes on stdin and expects exactly one JSON value on stdout. No input changes, external files, network or subprocesses are needed. This problem is independent of the parent and other diagnostics.

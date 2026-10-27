@@ -2129,7 +2129,24 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         local.message_ids = app.chat_message_ids.clone();
         local.updated_ms = now;
         let session_directory = current_session_directory(app).or_else(|| app.project_path.clone());
-        save_tasks.push(save_session_task(local, session_directory));
+        // A bounded history page is not a complete replacement snapshot.
+        if app
+            .session_runtime_states
+            .get(&session_id)
+            .is_none_or(|runtime| runtime.stream_save_seq_base == 0)
+        {
+            save_tasks.push(save_session_task(local, session_directory));
+        }
+        // The snapshot writer can fail or be coalesced independently. Include the
+        // user row and assistant placeholder in the acknowledged delta queue too.
+        app.get_session_runtime_mut(&session_id).stream_save_failures = 0;
+        save_tasks.push(stream::register_stream_session_messages(
+            app,
+            &session_id,
+            appended_start_idx,
+            app.chat.len(),
+            now,
+        ));
     }
 
     app.sync_active_session_from_chat();

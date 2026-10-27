@@ -463,3 +463,102 @@ fn desktop_gateway_blocking_surfaces_are_exposed_without_invoking_gateway() {
     let _ = super::gateway_save_agent_session_scoped;
     let _ = super::gateway_project_change_records;
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn session_message_delta_refreshes_count_for_conflict_and_gap() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    for status in ["409 Conflict", "400 Bad Request"] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let server = tokio::spawn(async move {
+            let mut requests = Vec::new();
+            for index in 0..2 {
+                let (mut stream, _) = listener.accept().await.unwrap();
+                let mut bytes = Vec::new();
+                let mut buffer = [0_u8; 4096];
+                loop {
+                    let read = stream.read(&mut buffer).await.unwrap();
+                    bytes.extend_from_slice(&buffer[..read]);
+                    if read == 0 || bytes.windows(4).any(|window| window == b"\r\n\r\n") {
+                        break;
+                    }
+                }
+                requests.push(String::from_utf8(bytes).unwrap());
+                let (status, body) = if index == 0 {
+                    (status, r#"{"error":"session message delta would create a seq_no gap at 2"}"#)
+                } else {
+                    (
+                        "200 OK",
+                        r#"{"id":"s1","title":"Session","updated_ms":42,"message_count":2,"call_count":0}"#,
+                    )
+                };
+                let response = format!(
+                    "HTTP/1.1 {status}\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(response.as_bytes()).await.unwrap();
+            }
+            requests
+        });
+        let client = vw_gateway_client::GatewayClient::new(
+            vw_gateway_client::GatewayEndpoint::new("127.0.0.1", port),
+        )
+        .unwrap();
+        let delta = vw_shared::session::ui_types::SessionMessageDelta {
+            session_id: "s1".into(),
+            expected_updated_ms: 10,
+            updated_ms: 11,
+            upserts: Vec::new(),
+            truncate_after: None,
+        };
+        let result =
+            super::gateway_session_message_delta_with_client(&client, "s1", Some("/repo"), &delta)
+                .await;
+        assert_eq!(
+            result,
+            Err(super::SessionMessageDeltaSaveError::Stale {
+                stored_updated_ms: 42,
+                stored_message_count: 2,
+            })
+        );
+        let requests = server.await.unwrap();
+        assert!(requests[0].starts_with("PATCH /v1/session/s1/ui/messages"));
+        assert!(requests[1].starts_with("GET /v1/session/s1/ui/summary"));
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test]
+async fn session_message_delta_rejects_invalid_requests_and_keeps_outages_retryable() {
+    use vw_gateway_client::vw_api_types::id::TenantScope;
+    for (status, permanent) in [
+        ("400 Bad Request", true),
+        ("403 Forbidden", true),
+        ("413 Payload Too Large", true),
+        ("503 Service Unavailable", false),
+    ] {
+        let (client, request) = stop_stub(
+            status,
+            r#"{"error":"request failed"}"#,
+            TenantScope::new("platform-test", "company-test").unwrap(),
+        )
+        .await;
+        let delta = vw_shared::session::ui_types::SessionMessageDelta {
+            session_id: "s1".into(),
+            expected_updated_ms: 10,
+            updated_ms: 11,
+            upserts: Vec::new(),
+            truncate_after: None,
+        };
+        let result =
+            super::gateway_session_message_delta_with_client(&client, "s1", Some("/repo"), &delta)
+                .await;
+        request.await.unwrap();
+        if permanent {
+            assert!(matches!(result, Err(super::SessionMessageDeltaSaveError::Rejected(_))));
+        } else {
+            assert!(matches!(result, Err(super::SessionMessageDeltaSaveError::Other(_))));
+        }
+    }
+}

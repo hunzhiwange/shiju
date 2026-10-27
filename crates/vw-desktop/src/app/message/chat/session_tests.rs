@@ -1309,7 +1309,7 @@ fn send_starts_turn_focused_on_new_user_message() {
 
     assert_eq!(first_turn_app.chat_virtualizer.turn_focus_user_index(), Some(0));
     assert!(!first_turn_app.chat_auto_scroll);
-    assert_eq!(first_turn_task.units(), 3);
+    assert_eq!(first_turn_task.units(), 4);
 
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("s1".to_string());
@@ -1836,4 +1836,43 @@ fn reset_session_finished_success_updates_session_indexes_and_cached_chat() {
     assert_eq!(app.chat_message_ids, retained_message_ids);
     assert_eq!(app.cached_chat_message_ids("s1"), Some(retained_message_ids));
     assert!(app.chat_reset_menu_idx.is_none());
+}
+
+#[test]
+fn start_registers_user_and_assistant_for_delta_save() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("s1".into());
+    app.sessions = vec![session_info("s1", "Session", "/repo")];
+    app.chat = vec![
+        chat_message(crate::app::models::ChatRole::User, "old question"),
+        chat_message(crate::app::models::ChatRole::Assistant, "old answer"),
+    ];
+    let _ = super::start(
+        &mut app,
+        queue_item("new question", crate::app::state::ChatSendBehavior::Queue),
+        true,
+    );
+    let records = &app.get_session_runtime("s1").stream_save_dirty_records;
+    assert_eq!(records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![2, 3]);
+    assert_eq!(records[0].message.content, "new question");
+    assert!(app.get_session_runtime("s1").stream_save_flush_scheduled);
+}
+
+#[test]
+fn start_preserves_absolute_sequences_for_paged_history() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("paged".into());
+    app.sessions = vec![session_info("paged", "Session", "/repo")];
+    app.chat = vec![
+        chat_message(crate::app::models::ChatRole::User, "old question"),
+        chat_message(crate::app::models::ChatRole::Assistant, "old answer"),
+    ];
+    app.get_session_runtime_mut("paged").stream_save_seq_base = 100;
+    let _task = super::start(
+        &mut app,
+        queue_item("new question", crate::app::state::ChatSendBehavior::Queue),
+        true,
+    );
+    let records = &app.get_session_runtime("paged").stream_save_dirty_records;
+    assert_eq!(records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![102, 103]);
 }

@@ -454,9 +454,13 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) stream_delta_flush_scheduled: bool,
     /// 是否已经为流式消息增量安排了保存刷新。
     pub(crate) stream_save_flush_scheduled: bool,
-    /// 最新流式消息修订号及待持久化的单条记录。
+    /// 最新流式消息修订号及待持久化记录。
     pub(crate) stream_save_revision: u64,
     pub(crate) stream_save_acked_revision: u64,
+    /// Consecutive failures; stop automatic saves after the retry budget is exhausted.
+    pub(crate) stream_save_failures: u8,
+    /// Absolute sequence of the first locally loaded message.
+    pub(crate) stream_save_seq_base: u64,
     pub(crate) pending_compaction_status_index: Option<usize>,
     pub(crate) stream_save_generation: u64,
     pub(crate) stream_save_expected_updated_ms: u64,
@@ -658,6 +662,8 @@ impl SessionRuntimeState {
             stream_save_flush_scheduled: false,
             stream_save_revision: 0,
             stream_save_acked_revision: 0,
+            stream_save_failures: 0,
+            stream_save_seq_base: 0,
             pending_compaction_status_index: None,
             stream_save_generation: 0,
             stream_save_expected_updated_ms: 0,

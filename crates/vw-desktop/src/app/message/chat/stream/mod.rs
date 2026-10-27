@@ -335,8 +335,21 @@ pub(super) fn load_session_or_default(app: &App, id: String) -> models::ChatSess
     models::ChatSession { id, title, messages, message_ids, calls, steps, created_ms, updated_ms }
 }
 
-/// 模块内可见函数，执行 start_next 对应的应用流程。
-/// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+/// 将新增消息按顺序加入流式保存队列，避免快照保存失败后漏掉用户消息。
+pub(super) fn register_stream_session_messages(
+    app: &mut App,
+    session_id: &str,
+    start: usize,
+    end: usize,
+    updated_ms: u64,
+) -> Task<Message> {
+    for index in start..end {
+        stream_events::mark_agent_stream_session_dirty(app, session_id, index, updated_ms, None);
+    }
+    stream_events::schedule_agent_stream_session_save(app, session_id)
+}
+
+/// 启动队列中的下一个请求。
 pub(super) fn start_next(app: &mut App, session_id: &str) -> Task<Message> {
     let runtime = app.get_session_runtime(session_id);
     let Some(item) = runtime.queue.first().cloned() else {

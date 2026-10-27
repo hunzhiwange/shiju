@@ -382,6 +382,11 @@ fn plan_run_session_started_registers_without_leaving_parent() {
     assert_eq!(child.title, "规划 · task-1");
     assert!(child.is_plan_run());
     assert!(app.get_session_runtime("task-1-plan").is_requesting);
+    assert_eq!(app.get_session_runtime("task-1-plan").stream_save_dirty_records[0].seq_no, 0);
+    assert_eq!(
+        app.get_session_runtime("task-1-plan").stream_save_dirty_records[0].message.content,
+        "实现需求"
+    );
     assert_eq!(app.chat, vec![message(ChatRole::User, "主会话任务")]);
     assert_eq!(
         app.cached_chat_messages("task-1-plan")
@@ -860,6 +865,7 @@ fn stale_stream_session_delta_rebases_before_retry() {
         updated_ms,
         Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
             stored_updated_ms: 4_200_000_000_042,
+            stored_message_count: 1,
         }),
     );
 
@@ -2062,6 +2068,176 @@ async fn recovery_notice_chinese_text_draws_in_light_and_dark_themes() {
         )
         .unwrap();
     }
+}
+
+#[test]
+fn stream_session_delta_save_stops_after_three_failures() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "bounded-retry".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::Assistant, "unsaved")];
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    for attempt in 0..3 {
+        let (generation, revision, updated_ms) =
+            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        let _ = super::handle_agent_stream_session_delta_saved(
+            &mut app,
+            session_id.clone(),
+            generation,
+            revision,
+            updated_ms,
+            Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other("offline".into())),
+        );
+        if attempt < 2 {
+            assert!(app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+            let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
+        }
+    }
+    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+    assert_eq!(super::force_save_agent_stream_session(&mut app, &session_id).units(), 0);
+    assert!(app.active_toast.is_some());
+}
+
+#[test]
+fn stream_session_delta_save_repairs_missing_user_prefix_for_active_and_background() {
+    for active in [true, false] {
+        let (mut app, _) = crate::app::App::new();
+        let session_id = "missing-prefix".to_string();
+        let chat = vec![
+            message(ChatRole::User, "old"),
+            message(ChatRole::Assistant, "answer"),
+            message(ChatRole::User, "new question"),
+            message(ChatRole::Assistant, "new answer"),
+        ];
+        if active {
+            app.active_session_id = Some(session_id.clone());
+            app.chat = chat;
+        } else {
+            app.store_session_chat_snapshot(
+                session_id.clone(),
+                crate::app::session::shared_chat_messages(chat),
+                vec![None; 4],
+            );
+        }
+        super::mark_agent_stream_session_dirty(&mut app, &session_id, 3, 10, None);
+        let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+        let (generation, revision, updated_ms) =
+            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        let _ = super::handle_agent_stream_session_delta_saved(
+            &mut app,
+            session_id.clone(),
+            generation,
+            revision,
+            updated_ms,
+            Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+                stored_updated_ms: 42,
+                stored_message_count: 2,
+            }),
+        );
+        let runtime = app.get_session_runtime(&session_id);
+        let user =
+            runtime.stream_save_dirty_records.iter().find(|record| record.seq_no == 2).unwrap();
+        assert_eq!(user.message.content, "new question");
+        assert!(runtime.stream_save_flush_scheduled);
+        let _ = super::flush_agent_stream_session_save(&mut app, session_id.clone());
+        let (generation, revision, updated_ms) =
+            app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+        let _ = super::handle_agent_stream_session_delta_saved(
+            &mut app,
+            session_id.clone(),
+            generation,
+            revision,
+            updated_ms,
+            Ok(()),
+        );
+        assert!(app.get_session_runtime(&session_id).stream_save_dirty_records.is_empty());
+        assert_eq!(app.get_session_runtime(&session_id).stream_save_failures, 0);
+    }
+}
+
+#[test]
+fn stream_session_delta_save_uses_absolute_page_sequences() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "paged-prefix".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat =
+        vec![message(ChatRole::User, "new question"), message(ChatRole::Assistant, "answer")];
+    app.get_session_runtime_mut(&session_id).stream_save_seq_base = 100;
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 1, 10, None);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records[0].seq_no, 101);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    let (generation, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+    let _ = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        generation,
+        revision,
+        updated_ms,
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            stored_updated_ms: 42,
+            stored_message_count: 100,
+        }),
+    );
+    let runtime = app.get_session_runtime(&session_id);
+    let user =
+        runtime.stream_save_dirty_records.iter().find(|record| record.seq_no == 100).unwrap();
+    assert_eq!(user.message.content, "new question");
+}
+
+#[test]
+fn stream_session_delta_save_rejects_permanent_errors_without_retry() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "permanent-error".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::Assistant, "unsaved")];
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    let (generation, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+    let _ = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        generation,
+        revision,
+        updated_ms,
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Rejected(
+            "invalid delta".into(),
+        )),
+    );
+    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+    assert_eq!(super::save_latest_agent_stream_session(&mut app, &session_id).units(), 0);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+}
+
+#[test]
+fn stream_session_delta_save_stops_when_missing_prefix_is_unavailable() {
+    let (mut app, _) = crate::app::App::new();
+    let session_id = "unavailable-prefix".to_string();
+    app.active_session_id = Some(session_id.clone());
+    app.chat = vec![message(ChatRole::Assistant, "unsaved")];
+    app.get_session_runtime_mut(&session_id).stream_save_seq_base = 3;
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 10, None);
+    let _ = super::save_latest_agent_stream_session(&mut app, &session_id);
+    let (generation, revision, updated_ms) =
+        app.get_session_runtime(&session_id).stream_save_in_flight.unwrap();
+    let _ = super::handle_agent_stream_session_delta_saved(
+        &mut app,
+        session_id.clone(),
+        generation,
+        revision,
+        updated_ms,
+        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+            stored_updated_ms: 42,
+            stored_message_count: 2,
+        }),
+    );
+    assert!(!app.get_session_runtime(&session_id).stream_save_flush_scheduled);
+    assert_eq!(app.get_session_runtime(&session_id).stream_save_dirty_records.len(), 1);
+    super::mark_agent_stream_session_dirty(&mut app, &session_id, 0, 11, None);
+    assert_eq!(super::schedule_agent_stream_session_save(&mut app, &session_id).units(), 0);
 }
 
 #[test]

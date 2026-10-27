@@ -44,17 +44,18 @@ use vw_shared::session::ui_types::{ChatSession, ChatSessionMeta, SessionMessageD
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SessionMessageDeltaSaveError {
-    Stale { stored_updated_ms: u64 },
+    Stale { stored_updated_ms: u64, stored_message_count: usize },
+    Rejected(String),
     Other(String),
 }
 
 impl std::fmt::Display for SessionMessageDeltaSaveError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Stale { stored_updated_ms } => {
+            Self::Stale { stored_updated_ms, .. } => {
                 write!(formatter, "stale session message delta at {stored_updated_ms}")
             }
-            Self::Other(error) => formatter.write_str(error),
+            Self::Rejected(error) | Self::Other(error) => formatter.write_str(error),
         }
     }
 }
@@ -492,9 +493,21 @@ pub async fn gateway_session_message_delta_async(
     delta: &SessionMessageDelta,
 ) -> Result<(), SessionMessageDeltaSaveError> {
     let client = gateway_client().map_err(SessionMessageDeltaSaveError::Other)?;
+    gateway_session_message_delta_with_client(&client, session_id, directory, delta).await
+}
+
+async fn gateway_session_message_delta_with_client(
+    client: &vw_gateway_client::GatewayClient,
+    session_id: &str,
+    directory: Option<&str>,
+    delta: &SessionMessageDelta,
+) -> Result<(), SessionMessageDeltaSaveError> {
     match client.session_message_delta(session_id, directory, delta).await {
         Ok(_) => Ok(()),
-        Err(error) if error.contains("409 Conflict") => {
+        Err(error)
+            if error.contains("409 Conflict")
+                || error.contains("session message delta would create a seq_no gap") =>
+        {
             let summary = client.session_ui_summary(session_id, directory).await.map_err(
                 |refresh_error| {
                     SessionMessageDeltaSaveError::Other(format!(
@@ -502,7 +515,24 @@ pub async fn gateway_session_message_delta_async(
                     ))
                 },
             )?;
-            Err(SessionMessageDeltaSaveError::Stale { stored_updated_ms: summary.updated_ms })
+            Err(SessionMessageDeltaSaveError::Stale {
+                stored_updated_ms: summary.updated_ms,
+                stored_message_count: summary.message_count,
+            })
+        }
+        Err(error)
+            if [
+                "400 Bad Request",
+                "401 Unauthorized",
+                "403 Forbidden",
+                "404 Not Found",
+                "413 Payload Too Large",
+                "422 Unprocessable Entity",
+            ]
+            .iter()
+            .any(|status| error.contains(status)) =>
+        {
+            Err(SessionMessageDeltaSaveError::Rejected(error))
         }
         Err(error) => Err(SessionMessageDeltaSaveError::Other(error)),
     }

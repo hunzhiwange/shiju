@@ -22,6 +22,7 @@ use vw_shared::session::info as session_info;
 pub(super) const ACTIVE_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(16);
 pub(super) const BACKGROUND_STREAM_DELTA_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
 pub(super) const STREAM_SESSION_SAVE_FLUSH_INTERVAL: Duration = Duration::from_secs(1);
+const STREAM_SESSION_SAVE_MAX_FAILURES: u8 = 3;
 
 pub(super) fn stream_delta_flush_interval(app: &App, session_id: &str) -> Duration {
     if app.active_session_id.as_deref() == Some(session_id) {
@@ -493,10 +494,12 @@ fn refresh_stream_replacement_projection(app: &mut App, session_id: &str, messag
     app.get_session_runtime_mut(session_id).stream_render_state = render;
 }
 
-fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<Message> {
+pub(super) fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<Message> {
     let schedule_flush = {
         let runtime = app.get_session_runtime_mut(session_id);
-        if runtime.stream_save_flush_scheduled {
+        if runtime.stream_save_flush_scheduled
+            || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES
+        {
             false
         } else {
             runtime.stream_save_flush_scheduled = true;
@@ -506,7 +509,11 @@ fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<M
 
     if schedule_flush {
         crate::app::message::after(
-            STREAM_SESSION_SAVE_FLUSH_INTERVAL,
+            STREAM_SESSION_SAVE_FLUSH_INTERVAL
+                * (1 << app
+                    .session_runtime_states
+                    .get(session_id)
+                    .map_or(0, |runtime| runtime.stream_save_failures)),
             Message::Chat(super::ChatMessage::AgentStreamSessionSaveFlush(session_id.to_string())),
         )
     } else {
@@ -514,7 +521,7 @@ fn schedule_agent_stream_session_save(app: &mut App, session_id: &str) -> Task<M
     }
 }
 
-fn mark_agent_stream_session_dirty(
+pub(super) fn mark_agent_stream_session_dirty(
     app: &mut App,
     session_id: &str,
     index: usize,
@@ -522,6 +529,11 @@ fn mark_agent_stream_session_dirty(
     previous_content_len: Option<usize>,
 ) {
     let is_active = app.active_session_id.as_deref() == Some(session_id);
+    let seq_no = app
+        .session_runtime_states
+        .get(session_id)
+        .map_or(0, |runtime| runtime.stream_save_seq_base)
+        + index as u64;
     let message = if is_active {
         app.chat.get(index).map(|source| {
             // Only text append events can reuse the pending snapshot's prefix. Tool
@@ -534,7 +546,7 @@ fn mark_agent_stream_session_dirty(
                         .stream_save_dirty_records
                         .iter_mut()
                         .find(|record| {
-                            record.seq_no == index as u64 && record.message.content.len() == len
+                            record.seq_no == seq_no && record.message.content.len() == len
                         })
                         .map(|record| std::mem::take(&mut record.message.content))
                 });
@@ -584,11 +596,7 @@ fn mark_agent_stream_session_dirty(
         runtime.stream_save_generation = generation;
     }
     runtime.stream_save_revision = runtime.stream_save_revision.saturating_add(1);
-    let record = vw_shared::session::ui_types::SessionMessageRecord {
-        seq_no: index as u64,
-        message_id,
-        message,
-    };
+    let record = vw_shared::session::ui_types::SessionMessageRecord { seq_no, message_id, message };
     if let Some(existing) =
         runtime.stream_save_dirty_records.iter_mut().find(|dirty| dirty.seq_no == record.seq_no)
     {
@@ -619,7 +627,9 @@ fn clear_agent_stream_session_save_flush(app: &mut App, session_id: &str) {
 fn save_latest_agent_stream_session(app: &mut App, session_id: &str) -> Task<Message> {
     let directory = session_directory_for_save(app, session_id);
     let runtime = app.get_session_runtime_mut(session_id);
-    if runtime.stream_save_in_flight.is_some() {
+    if runtime.stream_save_in_flight.is_some()
+        || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES
+    {
         return Task::none();
     }
     if runtime.stream_save_dirty_records.is_empty() {
@@ -675,6 +685,7 @@ pub(super) fn handle_agent_stream_session_delta_saved(
     runtime.stream_save_in_flight = None;
     match result {
         Ok(()) => {
+            runtime.stream_save_failures = 0;
             runtime.stream_save_expected_updated_ms = updated_ms;
             runtime.stream_save_acked_revision = runtime.stream_save_acked_revision.max(revision);
             if runtime.stream_save_revision == revision
@@ -685,22 +696,73 @@ pub(super) fn handle_agent_stream_session_delta_saved(
             }
             save_latest_agent_stream_session(app, &session_id)
         }
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
-            stored_updated_ms,
-        }) => {
-            // Another writer advanced the session metadata while this stream delta was in flight.
-            // The gateway refreshed this authoritative value instead of parsing its truncated log.
-            runtime.stream_save_expected_updated_ms = stored_updated_ms;
-            tracing::debug!(
-                target: "vw_desktop",
-                session_id = %session_id,
-                stored_updated_ms,
-                "rebasing stale stream message delta"
-            );
-            schedule_agent_stream_session_save(app, &session_id)
-        }
-        Err(crate::app::session_gateway::SessionMessageDeltaSaveError::Other(error)) => {
-            tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error, "failed to save stream message delta");
+        Err(error) => {
+            runtime.stream_save_failures = runtime.stream_save_failures.saturating_add(1);
+            let mut recoverable = true;
+            match &error {
+                crate::app::session_gateway::SessionMessageDeltaSaveError::Stale {
+                    stored_updated_ms,
+                    stored_message_count,
+                } => {
+                    runtime.stream_save_expected_updated_ms = *stored_updated_ms;
+                    // A snapshot save can fail independently of this queue. Rebuild the
+                    // missing append range from local messages, never invent empty rows.
+                    let seq_base = runtime.stream_save_seq_base;
+                    let end =
+                        runtime.stream_save_dirty_records.iter().map(|record| record.seq_no).max();
+                    if let Some(end) = end {
+                        for seq_no in *stored_message_count as u64..=end {
+                            if app.session_runtime_states.get(&session_id).is_some_and(|runtime| {
+                                runtime
+                                    .stream_save_dirty_records
+                                    .iter()
+                                    .any(|record| record.seq_no == seq_no)
+                            }) {
+                                continue;
+                            }
+                            let Some(index) = seq_no
+                                .checked_sub(seq_base)
+                                .and_then(|index| usize::try_from(index).ok())
+                            else {
+                                recoverable = false;
+                                break;
+                            };
+                            mark_agent_stream_session_dirty(
+                                app,
+                                &session_id,
+                                index,
+                                updated_ms,
+                                None,
+                            );
+                            if !app.session_runtime_states.get(&session_id).is_some_and(|runtime| {
+                                runtime
+                                    .stream_save_dirty_records
+                                    .iter()
+                                    .any(|record| record.seq_no == seq_no)
+                            }) {
+                                recoverable = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+                crate::app::session_gateway::SessionMessageDeltaSaveError::Rejected(_) => {
+                    recoverable = false;
+                }
+                crate::app::session_gateway::SessionMessageDeltaSaveError::Other(_) => {}
+            }
+            let runtime = app.get_session_runtime_mut(&session_id);
+            if !recoverable || runtime.stream_save_failures >= STREAM_SESSION_SAVE_MAX_FAILURES {
+                runtime.stream_save_failures = STREAM_SESSION_SAVE_MAX_FAILURES;
+                runtime.stream_save_flush_scheduled = false;
+                tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error,
+                    "stream message save stopped; keeping unsaved records");
+                return app.show_error_toast(format!(
+                    "会话消息保存失败，已停止自动重试，待存消息仍保留在内存中：{error}"
+                ));
+            }
+            tracing::debug!(target: "vw_desktop", session_id = %session_id, error = %error,
+                "retrying stream message save");
             schedule_agent_stream_session_save(app, &session_id)
         }
     }
@@ -1128,9 +1190,12 @@ pub(super) fn handle_plan_run_session_started(
             vec![None; initial_chat.len()],
         );
     }
-    app.get_session_runtime_mut(session_id).is_requesting = true;
+    let runtime = app.get_session_runtime_mut(session_id);
+    runtime.is_requesting = true;
+    runtime.stream_save_failures = 0;
     app.sync_task_pet_from_runtime();
-    Task::none()
+    let count = app.cached_chat_messages(session_id).map_or(0, |messages| messages.len());
+    super::register_stream_session_messages(app, session_id, 0, count, now)
 }
 
 pub(super) fn handle_plan_run_session_finished(app: &mut App, session_id: String) -> Task<Message> {

@@ -1370,3 +1370,66 @@ fn handle_returns_none_for_message_owned_by_another_project_submodule() {
 
     assert!(task.is_none());
 }
+
+#[test]
+fn bounded_session_open_and_prepend_keep_save_sequence_base() {
+    use crate::app::message::project::{PreparedSessionOpenSource, ProjectMessage};
+    use vw_shared::session::ui_types::SessionMessageRecord;
+    let mut app = app();
+    app.active_session_id = Some("paged".into());
+    let generation = 0;
+    let record = |seq_no| SessionMessageRecord {
+        seq_no,
+        message_id: Some(format!("message-{seq_no}")),
+        message: chat_message("loaded history"),
+    };
+    let prepared = crate::app::session::prepare_bounded_session_open(
+        vw_gateway_client::GatewaySessionUiSummary {
+            id: "paged".into(),
+            title: "Session".into(),
+            updated_ms: 42,
+            message_count: 102,
+            call_count: 0,
+            last_content: None,
+        },
+        vw_gateway_client::GatewaySessionMessagePage {
+            items: vec![record(100), record(101)],
+            next_cursor: Some("older".into()),
+            previous_cursor: None,
+            total_count: 102,
+        },
+        false,
+    );
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        ProjectMessage::SessionOpenPrepared {
+            target_session_id: "paged".into(),
+            project_path: "/repo".into(),
+            open_generation: generation,
+            source: PreparedSessionOpenSource::RemoteHistory,
+            result: Ok(prepared),
+        },
+    );
+    assert_eq!(app.session_runtime_states["paged"].stream_save_seq_base, 100);
+    assert!(app.paged_chat_timeline.as_mut().unwrap().begin_prepend("older"));
+    let page = crate::app::session::prepare_timeline_page(
+        "paged",
+        vw_gateway_client::GatewaySessionMessagePage {
+            items: vec![record(98), record(99)],
+            next_cursor: Some("older-again".into()),
+            previous_cursor: None,
+            total_count: 102,
+        },
+    );
+    let _ = super::super::lifecycle::handle(
+        &mut app,
+        ProjectMessage::SessionHistoryPageLoaded {
+            session_id: "paged".into(),
+            open_generation: generation,
+            requested_cursor: "older".into(),
+            result: Ok(page),
+        },
+    );
+    assert_eq!(app.chat.len(), 4);
+    assert_eq!(app.session_runtime_states["paged"].stream_save_seq_base, 98);
+}

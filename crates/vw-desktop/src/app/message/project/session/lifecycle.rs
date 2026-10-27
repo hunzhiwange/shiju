@@ -688,6 +688,8 @@ fn apply_prepared_session_open(
     } = prepared;
 
     if let Some(page) = timeline_page {
+        app.get_session_runtime_mut(&session_id).stream_save_seq_base =
+            page.entries.first().and_then(|entry| entry.seq_no).unwrap_or(0);
         let mut timeline = crate::app::session::chat_timeline::PagedChatTimeline::new(
             session_id.clone(),
             open_generation,
@@ -1298,6 +1300,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     _ => None,
                 })
                 .collect::<Vec<_>>();
+            let seq_base = timeline.loaded_seq_range().map_or(0, |(first, _)| first);
+            app.get_session_runtime_mut(&session_id).stream_save_seq_base = seq_base;
             app.chat.splice(0..0, new_messages);
             app.chat_message_ids.splice(0..0, new_ids);
             app.chat_virtualizer.prepend_estimated_heights(&vec![120.0; inserted]);

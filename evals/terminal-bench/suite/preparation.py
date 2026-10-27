@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tomllib
 import uuid
 from urllib.parse import unquote, urlparse
 
@@ -188,6 +189,8 @@ def verify_preparation(path, expected, recovery):
     prepared = load(path)
     calibration = prepared.pop('calibration', [])
     parent = expected['parent_id']
+    official = tomllib.loads((Path(expected['official']) / 'task.toml').read_text())
+    official_name = official.get('task', {}).get('name') or parent
     cases = [parent] + [parent + '-m' + str(n) for n in range(1, 5)]
     wanted = [(case, agent, reward) for case in cases for agent, reward in (('oracle', 1), ('nop', 0))]
     if prepared != expected or [(c['case_id'], c['agent'], c['summary']['reward'])
@@ -196,7 +199,7 @@ def verify_preparation(path, expected, recovery):
     for c in calibration:
         if (summarize(c['result']) != c['summary'] or c['summary']['score_status'] != 'scored'
                 or c['result']['agent_info']['name'] != c['agent']
-                or c['result']['task_name'] != c['case_id']
+                or c['result']['task_name'] != (official_name if c['case_id'] == parent else c['case_id'])
                 or tree(c['evidence_root']) != c['evidence_files']
                 or load(Path(c['evidence_root']) / 'first.json') != c['first_score']
                 or (c['recovery_score'] is not None and

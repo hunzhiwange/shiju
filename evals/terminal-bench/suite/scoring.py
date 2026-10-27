@@ -14,6 +14,50 @@ import uuid
 from harbor.verifier.verifier import Verifier
 from suite.state import MODEL, atomic_json, tree
 
+
+async def bootstrap_verifier(environment, policy, archive):
+    """Inject hash-pinned dependency caches after the agent, never into /app."""
+    if set(policy) != {'files', 'script', 'env'} or not policy['files']:
+        raise ValueError('invalid verifier bootstrap')
+    allowed_env = {'PATH', 'LD_LIBRARY_PATH', 'UV_DOWNLOAD_URL', 'UV_PYTHON_DOWNLOADS',
+                   'UV_FIND_LINKS', 'UV_OFFLINE'}
+    if not isinstance(policy['env'], dict) or set(policy['env']) - allowed_env:
+        raise ValueError('unsupported verifier bootstrap environment')
+    prefix = '/opt/vw-verifier-deps/'
+    files = []
+    for item in policy['files']:
+        if set(item) != {'source', 'target', 'sha256'}:
+            raise ValueError('invalid verifier dependency file')
+        target = item['target']
+        if not isinstance(target, str) or not re.fullmatch(r'[A-Za-z0-9_.-]+', target) or target in ('.', '..'):
+            raise ValueError('unsafe verifier dependency target')
+        source = Path(item['source'])
+        if (not source.is_absolute() or source.is_symlink() or not source.is_file()
+                or hashlib.sha256(source.read_bytes()).hexdigest() != item['sha256']):
+            raise ValueError('verifier dependency missing or changed')
+        files.append((source, prefix + target, item['sha256']))
+    targets = [remote for _, remote, _ in files]
+    if len(set(targets)) != len(targets) or prefix + policy['script'] not in targets:
+        raise ValueError('duplicate dependency or missing bootstrap script')
+    if any(not isinstance(value, str) or '\0' in value for value in policy['env'].values()):
+        raise ValueError('invalid verifier dependency environment')
+    created = await environment.exec(command='mkdir -p /opt/vw-verifier-deps')
+    if created.return_code != 0:
+        raise ValueError('cannot create verifier dependency directory')
+    for source, remote, _ in files:
+        await environment.upload_file(source, remote)
+    checks = '\n'.join(f'{digest}  {remote}' for _, remote, digest in files) + '\n'
+    command = ('printf %s ' + shlex.quote(checks) + ' | sha256sum -c - && bash '
+               + shlex.quote(prefix + policy['script']))
+    result = await environment.exec(command=command, env=policy['env'])
+    atomic_json(Path(archive) / 'bootstrap.json',
+                {'policy': policy, 'exit_code': result.return_code,
+                 'stdout': result.stdout, 'stderr': result.stderr, 'phase': 'verifier-only'})
+    if result.return_code != 0:
+        raise ValueError('verifier dependency bootstrap failed')
+    return policy['env'].copy()
+
+
 class RecoveringVerifier(Verifier):
     """One verifier-only recovery; original results/logs are never overwritten."""
     def __init__(self, *args, recovery=None, **kwargs):
@@ -30,6 +74,12 @@ class RecoveringVerifier(Verifier):
         snapshot = archive / 'artifact'
         snapshot.mkdir()
         policy = self.recovery
+        if policy.get('bootstrap'):
+            if policy['mode'] != 'service':
+                raise ValueError('bootstrap requires original-environment verification')
+            env = await asyncio.wait_for(
+                bootstrap_verifier(self.environment, policy['bootstrap'], archive), limit)
+            self.override_env = {**self.override_env, **env}
         if policy['mode'] == 'artifact':
             for remote in policy['paths']:
                 if not remote.startswith('/') or '..' in Path(remote).parts:

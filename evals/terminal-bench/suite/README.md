@@ -29,6 +29,22 @@ export VW_SUITE_PROFILE=/absolute/temporary-profile.json
   --parent-id PARENT --output /absolute/experiment
 ```
 
+When upstream verifier installers cannot reach their release host, service-mode
+`recovery.bootstrap` may declare `files` (absolute `source`, flat `target`,
+`sha256`), a declared `script`, and `env`. The adapter validates all local hashes,
+uploads only under `/opt/vw-verifier-deps/`, checks container hashes, and runs
+the script after the agent exits, within the original verifier timeout. Allowed
+environment keys are `PATH`, `LD_LIBRARY_PATH`, `UV_DOWNLOAD_URL`,
+`UV_PYTHON_DOWNLOADS`, `UV_FIND_LINKS`, and `UV_OFFLINE`. The last two allow a
+complete, checksum-verified wheelhouse without registry downloads. Use
+authentic version-pinned dependency caches; never
+replace the official installer, tests, task artifacts, or expected rewards.
+The runtime settings bind these hashes; `scoring/bootstrap.json` preserves
+setup output and status. Failed bootstrap is an infrastructure failure.
+
+Official parent result names are checked against the frozen `[task].name`
+when declared; registry IDs and diagnostic names retain their directory names.
+
 Preflight runs ten oracle/nop trials without a model. Raw scoring stays under
 its output; a successful receipt is also written to `cases_root/PARENT`.
 Freeze requires all 89 parent receipts and 356 diagnostic calibrations, then

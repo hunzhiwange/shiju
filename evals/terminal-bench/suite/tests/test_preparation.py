@@ -45,6 +45,7 @@ class PreparationTests(unittest.TestCase):
             official = self.root / 'source/tasks' / parent
             official.mkdir(parents=True)
             (official / 'instruction.md').write_text('Synthetic fixture ' + parent)
+            (official / 'task.toml').write_text('schema_version = "1.1"\n')
             case = self.cases / parent / 'case.json'
             case.parent.mkdir(parents=True)
             case.write_text('{}')
@@ -156,3 +157,26 @@ class PreparationTests(unittest.TestCase):
                             self.root / 'failed-preflight')
         self.assertEqual(called.call_count, 1)
         self.assertTrue((self.root / 'failed-preflight/preparation.json').exists())
+
+    def test_parent_uses_exact_pinned_upstream_name(self):
+        parent = self.parents[0]
+        current = self.current[parent]
+        official = Path(current['official'])
+        (official / 'task.toml').write_text('[task]\nname = "terminal-bench/' + parent + '"\n')
+        path = self.cases / parent / 'preparation.json'
+        receipt = json.loads(path.read_text())
+        for entry in receipt['calibration'][:2]:
+            entry['result']['task_name'] = 'terminal-bench/' + parent
+        atomic_json(path, receipt)
+        p.verify_preparation(path, current, None)
+        for wrong in ['foreign/' + parent, parent]:
+            changed = copy.deepcopy(receipt)
+            changed['calibration'][0]['result']['task_name'] = wrong
+            atomic_json(path, changed)
+            with self.assertRaisesRegex(ValueError, 'calibration evidence'):
+                p.verify_preparation(path, current, None)
+        changed = copy.deepcopy(receipt)
+        changed['calibration'][2]['result']['task_name'] = 'terminal-bench/' + parent + '-m1'
+        atomic_json(path, changed)
+        with self.assertRaisesRegex(ValueError, 'calibration evidence'):
+            p.verify_preparation(path, current, None)

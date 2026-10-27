@@ -17,6 +17,7 @@ import uuid
 
 from harbor.agents.installed.base import BaseInstalledAgent
 from vibewindow_agent import VibeWindowAgent
+from suite import budget
 
 MODEL = 'token-plan/qwen3.8-flash'
 LIMIT = {'context': 200000, 'input': 200000, 'output': 32000}
@@ -26,7 +27,7 @@ _BASE = Path(__file__).resolve().parent.parent
 def source_identity():
     """Bind the wrapper, inherited transport and immutable HTTP bootstrap."""
     files = {name: hashlib.sha256((_BASE / name).read_bytes()).hexdigest()
-             for name in ('suite/agent.py', 'vibewindow_agent.py', 'bind-profile.sh')}
+             for name in ('suite/agent.py', 'vibewindow_agent.py', 'bind-profile.sh', 'suite/budget.py', 'suite/budget_gate.rs')}
     digest = hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
     return {'sha256': digest, 'files': files}
 
@@ -107,6 +108,13 @@ class SuiteAgent(VibeWindowAgent):
         self.suite_source_identity = source_identity()
         self.manifest_sha256 = hashlib.sha256(Path(runtime_manifest).read_bytes()).hexdigest()
         self._attempted = False
+        self.budget_config = None
+        self.budget_attempt = None
+        self.is_diagnostic = task.get('kind') == 'diagnostic'
+        if self.is_diagnostic:
+            if 'vw-budget-gate' not in digests:
+                raise ValueError('diagnostic runtime requires frozen native budget gate')
+            self.runtime_env['VW_REQUIRED_EXECUTION_HOOKS'] = ','.join(budget.REQUIRED)
 
     @staticmethod
     def name():
@@ -115,10 +123,58 @@ class SuiteAgent(VibeWindowAgent):
     def version(self):
         return 'qwen38-suite-' + self.suite_source_identity['sha256']
 
+    @staticmethod
+    def summarize_stream(raw, exit_code):
+        result = VibeWindowAgent.summarize_stream(raw, exit_code)
+        records = [json.loads(line) for line in raw.splitlines() if line.strip()]
+        result['stream_terminated'] = bool(records and records[-1] ==
+                                          {'type': 'stream_end', 'status': 'terminated'})
+        result['error_seen'] = any(record.get('event', {}).get('type') == 'chat.error'
+                                   for record in records)
+        return result
+
+    async def _execute(self, environment, command, *, timeout_sec=15):
+        if self.is_diagnostic and command == 'rm -rf -- ' + shlex.quote(self.remote):
+            # Archive the ledger before the inherited private-directory cleanup.
+            try:
+                await environment.download_file(self.remote + '/budget/state',
+                                                Path(self.logs_dir) / 'budget-state.txt')
+            except Exception:
+                pass  # Cleanup still runs; missing evidence is rejected below.
+        return await super()._execute(environment, command, timeout_sec=timeout_sec)
+
+    async def install(self, environment):
+        await super().install(environment)
+        if not self.is_diagnostic:
+            return
+        resolved = await self._execute(environment, 'cd ' + shlex.quote(self.remote) + ' && pwd -P')
+        if resolved.return_code or not resolved.stdout.strip().startswith('/'):
+            raise RuntimeError('cannot resolve isolated budget root')
+        self.budget_attempt = uuid.uuid4().hex
+        files, self.budget_config = budget.bundle(resolved.stdout.strip(), self.budget_attempt)
+        with tempfile.TemporaryDirectory() as temporary:
+            for name, payload in files.items():
+                path = Path(temporary) / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, 'x', opener=lambda name, flags: os.open(name, flags, 0o600)) as stream:
+                    stream.write(payload)
+                parent = self.remote + '/' + str(Path(name).parent)
+                created = await self._execute(environment, 'mkdir -p ' + shlex.quote(parent))
+                if created.return_code:
+                    raise RuntimeError('isolated budget installation failed')
+                await environment.upload_file(path, self.remote + '/' + name)
+        executable = await self._execute(environment, 'chmod 700 ' +
+                                          shlex.quote(self.remote + '/runtime/vw-budget-gate'))
+        if executable.return_code:
+            raise RuntimeError('isolated budget gate not executable')
+
     async def _bind_profile(self, environment, remote):
         profile = _validate_profile(self.profile_path)
+        if self.is_diagnostic and self.budget_config is None:
+            raise ValueError('diagnostic budget must be installed before profile binding')
         with tempfile.TemporaryDirectory() as temp:
-            for name, payload in (('provider.json', {'providers': {'token-plan': profile['provider']}}),
+            for name, payload in (('provider.json', {'providers': {'token-plan': profile['provider']},
+                                    'reliability': {'provider_retries': 0}, **(self.budget_config or {})}),
                                   ('auth.json', profile['auth'])):
                 path = Path(temp) / name
                 # Create privately before writing any credential bytes.
@@ -141,11 +197,26 @@ class SuiteAgent(VibeWindowAgent):
         finally:
             result = (context.metadata or {}).get('vibewindow')
             if result is not None:
+                if self.is_diagnostic:
+                    try:
+                        raw = (Path(self.logs_dir) / 'budget-state.txt').read_bytes()
+                        fields = raw.decode().split()
+                        models, tools = int(fields[3]), int(fields[5])
+                        if (len(fields) != 6 or fields[:3] != ['attempt', self.budget_attempt, 'models']
+                                or fields[4] != 'tools' or not 0 <= models <= 24 or not 0 <= tools <= 32):
+                            raise ValueError('invalid budget ledger')
+                        result['budget_counters'] = {'model_requests': models, 'tool_executions': tools}
+                        result['budget_state_sha256'] = hashlib.sha256(raw).hexdigest()
+                    except (OSError, ValueError, IndexError, UnicodeError):
+                        result['budget_counters'] = None
+                        result['status'] = 'failed'
+                        result['budget_evidence_error'] = 'missing or invalid budget ledger'
                 result['base_adapter_source_sha256'] = result['adapter_source_sha256']
                 result['adapter_source_sha256'] = self.suite_source_identity['sha256']
                 result.update(suite_source_identity=self.suite_source_identity,
                               suite_manifest_sha256=self.manifest_sha256,
                               max_output_tokens=32000, input_window_tokens=200000,
+                              budget_identity=budget.identity() if self.is_diagnostic else None,
                               output_truncated=result.get('finish_reason') == 'length')
                 (Path(self.logs_dir) / result['request_id'] / 'result.json').write_text(
                     json.dumps(result, indent=2))

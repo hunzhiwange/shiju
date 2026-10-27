@@ -142,7 +142,7 @@ class AgentTests(unittest.TestCase):
         environment = Environment(self.server)
         asyncio.run(agent._bind_profile(environment, '/fixture'))
         self.assertEqual(self.server.calls, [
-            ('PATCH', '/v1/config', {'providers': {'token-plan': self.profile['provider']}}),
+            ('PATCH', '/v1/config', {'providers': {'token-plan': self.profile['provider']}, 'reliability': {'provider_retries': 0}}),
             ('PUT', '/v1/auth/token-plan', self.profile['auth'])])
         for name in ('provider.json', 'auth.json'):
             self.assertEqual(environment.modes['/fixture/' + name], 0o600)
@@ -254,5 +254,34 @@ class AgentTests(unittest.TestCase):
 
     def test_identity_covers_wrapper_base_and_binding_script(self):
         identity = source_identity()
-        self.assertEqual(set(identity['files']), {'suite/agent.py', 'vibewindow_agent.py', 'bind-profile.sh'})
+        self.assertEqual(set(identity['files']), {'suite/agent.py', 'vibewindow_agent.py', 'bind-profile.sh', 'suite/budget.py', 'suite/budget_gate.rs'})
         self.assertEqual(len(identity['sha256']), 64)
+
+    def test_diagnostic_requires_frozen_gate_and_installation_before_binding(self):
+        self.manifest['tasks'][0]['kind'] = 'diagnostic'
+        with self.assertRaisesRegex(ValueError, 'native budget gate'):
+            self.agent()
+        self.manifest['runtime']['requiredSidecars']['vw-budget-gate'] = 'c' * 64
+        agent = self.agent()
+        self.assertIn('before_llm_call', agent.runtime_env['VW_REQUIRED_EXECUTION_HOOKS'])
+        with self.assertRaisesRegex(ValueError, 'installed before'):
+            asyncio.run(agent._bind_profile(Environment(self.server), '/fixture'))
+        self.assertEqual(self.server.calls, [])
+
+
+class StreamFactsTests(unittest.TestCase):
+    def test_error_before_done_is_preserved_independently_of_last_terminal(self):
+        raw = '\n'.join(json.dumps(row) for row in [
+            {'event': {'type': 'chat.error'}},
+            {'event': {'type': 'chat.done', 'finish_reason': 'stop'}},
+            {'type': 'stream_end', 'status': 'terminated'}])
+        result = SuiteAgent.summarize_stream(raw, 0)
+        self.assertTrue(result['error_seen'])
+        self.assertTrue(result['stream_terminated'])
+        self.assertEqual(result['status'], 'failed')
+
+    def test_missing_stream_end_is_not_inferred_from_terminal(self):
+        result = SuiteAgent.summarize_stream(json.dumps(
+            {'event': {'type': 'chat.done', 'finish_reason': 'stop'}}), 0)
+        self.assertFalse(result['stream_terminated'])
+        self.assertEqual(result['status'], 'failed')

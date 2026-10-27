@@ -1,0 +1,233 @@
+--- a/crates/vw-agent/src/gateway/api/handlers/hooks.rs
++++ b/crates/vw-agent/src/gateway/api/handlers/hooks.rs
+@@ -176 +176,6 @@
+-    if !matches!(hook.event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall) {
++    if !matches!(
++        hook.event,
++        PluginHookEvent::BeforeToolCall
++            | PluginHookEvent::AfterToolCall
++            | PluginHookEvent::BeforeLlmCall
++    ) {
+--- a/crates/vw-agent/src/hooks/mod.rs
++++ b/crates/vw-agent/src/hooks/mod.rs
+@@ -74,0 +75 @@
++pub(crate) use runtime::{authorize_model_request, execution_hook_runner};
+--- a/crates/vw-agent/src/hooks/runner/mod.rs
++++ b/crates/vw-agent/src/hooks/runner/mod.rs
+@@ -62 +62 @@
+-/// 发生 panic 时记录错误日志并继续使用之前的值。
++/// 执行前门禁遇到 panic 时拒绝操作，其余修改钩子保留先前值。
+@@ -333 +333 @@
+-    /// 如果钩子发生 panic，记录错误日志并继续使用之前的值。
++    /// 如果钩子发生 panic，记录错误日志并拒绝当前执行。
+@@ -356 +356 @@
+-                        "before_llm_call hook panicked; continuing with previous values"
++                        "before_llm_call hook panicked; rejecting execution"
+@@ -357,0 +358 @@
++                    return HookResult::Cancel("before_llm_call hook panicked".into());
+@@ -381 +382 @@
+-    /// 如果钩子发生 panic，记录错误日志并继续使用之前的值。
++    /// 如果钩子发生 panic，记录错误日志并拒绝当前执行。
+@@ -404 +405 @@
+-                        "before_tool_call hook panicked; continuing with previous values"
++                        "before_tool_call hook panicked; rejecting execution"
+@@ -405,0 +407 @@
++                    return HookResult::Cancel("before_tool_call hook panicked".into());
+--- a/crates/vw-agent/src/hooks/runner/tests.rs
++++ b/crates/vw-agent/src/hooks/runner/tests.rs
+@@ -670 +670 @@
+-    async fn modifying_hooks_recover_from_panics_and_keep_previous_values() {
++    async fn pre_execution_hooks_reject_panics_while_observers_keep_previous_values() {
+@@ -690 +690 @@
+-        let (messages, model) = expect_continue(
++        assert!(matches!(
+@@ -692,9 +692,6 @@
+-        );
+-        assert_eq!(messages.len(), 2);
+-        assert_eq!(messages[1].content, "hook:low");
+-        assert_eq!(model, "m|low");
+-
+-        let (tool, args) =
+-            expect_continue(runner.run_before_tool_call("read".into(), json!({"path": "a"})).await);
+-        assert_eq!(tool, "read|low");
+-        assert_eq!(args["hook"], "low");
++            HookResult::Cancel(_)
++        ));
++        assert!(matches!(
++            runner.run_before_tool_call("read".into(), json!({"path": "a"})).await,
++            HookResult::Cancel(_)
++        ));
+@@ -714 +711 @@
+-        assert!(events.iter().any(|event| event.starts_with("low:before_tool_call")));
++        assert!(!events.iter().any(|event| event.starts_with("low:before_tool_call")));
+--- a/crates/vw-agent/src/hooks/runtime.rs
++++ b/crates/vw-agent/src/hooks/runtime.rs
+@@ -7 +7 @@
+-use anyhow::{Context, Result};
++use anyhow::{Context, Result, bail};
+@@ -67,0 +68,3 @@
++        if !config.hooks.required.is_empty() {
++            bail!("required hooks are disabled");
++        }
+@@ -71,0 +75 @@
++    let mut registered = std::collections::HashSet::new();
+@@ -77,0 +82 @@
++        registered.insert(handler.name().to_owned());
+@@ -78,0 +84,5 @@
++    }
++    for required in &config.hooks.required {
++        if !registered.contains(required) {
++            bail!("required hook is unavailable: {required}");
++        }
+@@ -82,0 +93,34 @@
++
++/// Build execution gates, retaining process-pinned requirements across config edits.
++pub(crate) fn execution_hook_runner(config: &Config) -> Result<Option<Arc<HookRunner>>> {
++    let mut config = config.clone();
++    let mut required = config.hooks.required.clone();
++    if let Some(value) = std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS") {
++        let value =
++            value.into_string().map_err(|_| anyhow::anyhow!("invalid required hook identity"))?;
++        for name in value.split(',') {
++            if name.is_empty() {
++                bail!("invalid required hook identity");
++            }
++            required.push(name.to_owned());
++        }
++    }
++    config.hooks.required = required;
++    Ok(HookRuntime::build(&config)?.runner_snapshot())
++}
++
++/// Check model admission immediately before a provider request, without exposing prompts.
++pub(crate) async fn authorize_model_request(config: &Config, model: &str) -> Result<bool> {
++    if let Some(runner) = execution_hook_runner(config)? {
++        match runner.run_before_llm_call(Vec::new(), model.to_owned()).await {
++            super::HookResult::Cancel(reason) => bail!("model request denied by hook: {reason}"),
++            super::HookResult::Continue((messages, selected)) => {
++                if !messages.is_empty() || selected != model {
++                    bail!("model admission hooks cannot rewrite the request");
++                }
++            }
++        }
++    }
++    Ok(!config.hooks.required.is_empty()
++        || std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS").is_some())
++}
+--- a/crates/vw-agent/src/hooks/runtime_tests.rs
++++ b/crates/vw-agent/src/hooks/runtime_tests.rs
+@@ -151,0 +152,10 @@
++
++#[test]
++fn required_execution_hook_missing_or_disabled_rejects_runtime() {
++    let mut config = Config::default();
++    config.hooks.plugins.enabled = false;
++    config.hooks.required = vec!["plugin:missing:before_tool_call".into()];
++    assert!(build_hook_runtime(&config).is_err());
++    config.hooks.enabled = false;
++    assert!(build_hook_runtime(&config).is_err());
++}
+--- a/crates/vw-agent/src/plugins/hook_handler.rs
++++ b/crates/vw-agent/src/plugins/hook_handler.rs
+@@ -42 +42,6 @@
+-        matches!(event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall)
++        matches!(
++            event,
++            PluginHookEvent::BeforeToolCall
++                | PluginHookEvent::AfterToolCall
++                | PluginHookEvent::BeforeLlmCall
++        )
+@@ -67,0 +73,14 @@
++    }
++
++    async fn before_llm_call(
++        &self,
++        messages: Vec<crate::providers::ChatMessage>,
++        model: String,
++    ) -> HookResult<(Vec<crate::providers::ChatMessage>, String)> {
++        if self.hook.event != PluginHookEvent::BeforeLlmCall {
++            return HookResult::Continue((messages, model));
++        }
++        match self.execute_payload(json!({"event": "before_llm_call", "model": &model})).await {
++            Ok(()) => HookResult::Continue((messages, model)),
++            Err(error) => HookResult::Cancel(error.to_string()),
++        }
+--- a/crates/vw-agent/src/plugins/hook_handler_tests.rs
++++ b/crates/vw-agent/src/plugins/hook_handler_tests.rs
+@@ -464 +464 @@
+-                "event": "before_llm_call",
++                "event": "user_prompt_submit",
+@@ -481,0 +482,25 @@
++
++#[cfg(unix)]
++#[tokio::test]
++async fn trusted_plugin_before_llm_call_rejects_before_model_request() {
++    let dir = tempfile::tempdir().expect("temp dir");
++    let workspace = dir.path().join("workspace");
++    let config_dir = dir.path().join("config");
++    let plugin = workspace.join(".vibewindow/plugins/model-budget");
++    let script = plugin.join("scripts/guard.sh");
++    write_plugin_manifest(&plugin, "model-budget");
++    write_script(&script, "#!/bin/sh\ncat >/dev/null\nexit 23\n");
++    write_json(
++        &plugin.join("hooks/hooks.json"),
++        json!({"hooks": [{
++            "event": "before_llm_call", "command": script.display().to_string(),
++            "timeout_secs": 2, "working_dir": "./scripts"
++        }]}),
++    );
++    trust_plugin_hook(&config_dir, &plugin, &workspace, "model-budget");
++    let config = test_config(workspace, config_dir);
++    let handlers = trusted_plugin_hook_handlers(&config).expect("handlers");
++    assert_eq!(handlers.len(), 1);
++    let result = handlers[0].before_llm_call(Vec::new(), "local-test".into()).await;
++    assert!(matches!(result, HookResult::Cancel(_)));
++}
+--- a/crates/vw-agent/src/session/llm/aisdk/stream.rs
++++ b/crates/vw-agent/src/session/llm/aisdk/stream.rs
+@@ -182,0 +183,12 @@
++    let config = crate::config::get().await;
++    let guarded =
++        crate::hooks::authorize_model_request(&config, &model_name).await.map_err(|_| {
++            Error::Api(crate::session::message::AssistantError::APIError {
++                message: "model request denied by execution hook".into(),
++                status_code: None,
++                is_retryable: false,
++                response_headers: None,
++                response_body: None,
++                metadata: None,
++            })
++        })?;
+@@ -186 +198,3 @@
+-    builder.max_retries = Some(retries.min(u64::from(u32::MAX)) as u32);
++    // SDK-internal retries cannot bypass an execution gate. The caller may
++    // explicitly retry through a fresh admission check instead.
++    builder.max_retries = Some(if guarded { 0 } else { retries.min(u64::from(u32::MAX)) as u32 });
+--- a/crates/vw-agent/src/session/llm/stream.rs
++++ b/crates/vw-agent/src/session/llm/stream.rs
+@@ -573,5 +573 @@
+-                    let retry_budget_exhausted = if is_acp_adapter {
+-                        attempt > request_retries
+-                    } else {
+-                        attempt > request_retries.saturating_add(1)
+-                    };
++                    let retry_budget_exhausted = attempt > request_retries;
+--- a/crates/vw-agent/src/session/processor/runner.rs
++++ b/crates/vw-agent/src/session/processor/runner.rs
+@@ -463,0 +464,8 @@
++    match crate::hooks::execution_hook_runner(&config) {
++        Ok(Some(runner)) => tool_use_context = tool_use_context.with_hook_runner(runner),
++        Ok(None) => {}
++        Err(_) => {
++            on_event(StreamEvent::Error("required execution hooks unavailable".into()));
++            return;
++        }
++    }
+--- a/crates/vw-config-types/src/hooks.rs
++++ b/crates/vw-config-types/src/hooks.rs
+@@ -17,0 +18,3 @@
++    /// Required handler identities. Missing or untrusted handlers reject execution.
++    #[serde(default)]
++    pub required: Vec<String>,
+@@ -25,0 +29 @@
++            required: Vec::new(),

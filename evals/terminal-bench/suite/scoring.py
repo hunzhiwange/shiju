@@ -1,0 +1,201 @@
+"""Official Harbor scoring, verifier-only recovery and contract evidence."""
+import asyncio
+from datetime import datetime, timezone
+import hashlib
+import json
+import math
+from pathlib import Path
+import re
+import shlex
+import shutil
+import time
+import uuid
+
+from harbor.verifier.verifier import Verifier
+from suite.state import MODEL, atomic_json, tree
+
+class RecoveringVerifier(Verifier):
+    """One verifier-only recovery; original results/logs are never overwritten."""
+    def __init__(self, *args, recovery=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.recovery = recovery or {'mode': 'service'}
+
+    async def verify(self):
+        from harbor.models.trial.paths import TrialPaths
+        from harbor.environments.docker.docker import DockerEnvironment
+        started = time.monotonic()
+        limit = self.task.config.verifier.timeout_sec
+        archive = self.trial_paths.trial_dir / 'scoring'
+        archive.mkdir(exist_ok=False)
+        snapshot = archive / 'artifact'
+        snapshot.mkdir()
+        policy = self.recovery
+        if policy['mode'] == 'artifact':
+            for remote in policy['paths']:
+                if not remote.startswith('/') or '..' in Path(remote).parts:
+                    raise ValueError('unsafe artifact path')
+                local = snapshot / remote.lstrip('/')
+                local.parent.mkdir(parents=True, exist_ok=True)
+                exists = await self.environment.exec(command='test -f ' + shlex.quote(remote))
+                if exists.return_code == 0:
+                    await self.environment.download_file(remote, local)
+                elif exists.return_code != 1:
+                    raise ValueError('artifact probe failed')
+        fingerprint = hashlib.sha256(json.dumps(tree(snapshot), sort_keys=True).encode()).hexdigest()
+        failure = None
+        try:
+            first = await asyncio.wait_for(super().verify(), max(0.001, limit - (time.monotonic() - started)))
+            atomic_json(archive / 'first.json', first.model_dump(mode='json'))
+        except Exception as error:
+            failure = error
+            atomic_json(archive / 'first.json', {'error_type': type(error).__name__})
+        if failure is None and not policy.get('calibrate'):
+            return first
+        shutil.copytree(self.trial_paths.verifier_dir, archive / 'first-logs', dirs_exist_ok=True)
+        receipt = {'mode': policy['mode'], 'elapsed': time.monotonic() - started,
+                   'verifier_limit': limit, 'artifact_sha256': fingerprint,
+                   'original_environment': True, 'calibrated': policy.get('calibrated', False)}
+        atomic_json(archive / 'receipt.json', receipt)
+        remaining = recovery_budget(receipt, fingerprint)
+        paths = TrialPaths(trial_dir=archive / 'recovery')
+        paths.mkdir()
+        environment = self.environment
+        separate = policy['mode'] == 'artifact'
+        if separate:
+            image = policy['image']
+            if not re.fullmatch(r'[a-zA-Z0-9_./:-]+@sha256:[a-f0-9]{64}', image):
+                raise ValueError('recovery image must be digest pinned')
+            environment = DockerEnvironment(
+                environment_dir=self.task.paths.environment_dir, environment_name='verifier-recovery',
+                session_id=uuid.uuid4().hex, trial_paths=paths,
+                task_env_config=self.task.config.environment.model_copy(update={'docker_image': image}))
+        try:
+            async def grade():
+                if separate:
+                    await environment.start(force_build=False)
+                    for local in snapshot.rglob('*'):
+                        if local.is_file():
+                            await environment.upload_file(local, '/' + local.relative_to(snapshot).as_posix())
+                verifier = Verifier(task=self.task, trial_paths=paths, environment=environment,
+                                    override_env=self.override_env, verifier_env=self.verifier_env)
+                return await verifier.verify()
+            recovered = await asyncio.wait_for(grade(), remaining)
+            if hashlib.sha256(json.dumps(tree(snapshot), sort_keys=True).encode()).hexdigest() != fingerprint:
+                raise ValueError('artifact changed')
+            atomic_json(archive / 'recovered.json', recovered.model_dump(mode='json'))
+            receipt['elapsed'] = time.monotonic() - started
+            atomic_json(archive / 'receipt.json', receipt)
+            return recovered
+        finally:
+            if separate:
+                # The image's idle PID 1 can ignore TERM. Kill only this unique
+                # recovery compose project before removal, avoiding a 10s grace
+                # delay inside the original scoring budget.
+                await environment._run_docker_compose_command(['kill'], check=False)
+                await environment.stop(delete=True)
+
+
+def summarize(result):
+    metadata = ((result.get('agent_result') or {}).get('metadata') or {})
+    transport = metadata.get('vibewindow', {})
+    rewards = (result.get('verifier_result') or {}).get('rewards') or {}
+    reward = rewards.get('reward')
+    valid = (not result.get('exception_info') and transport.get('status', 'completed') == 'completed'
+             and type(reward) in (int, float)
+             and math.isfinite(reward) and 0 <= reward <= 1)
+    return {'state': 'finished', 'transport_status': transport.get('status', 'unknown'),
+            'terminal_event': transport.get('terminal_event', (transport.get('terminal') or {}).get('type')),
+            'score_status': 'scored' if valid else 'unscored',
+            'reward': reward if valid else None,
+            'failure_class': ('none' if reward == 1 else 'capability') if valid else 'infrastructure'}
+
+
+def experiment_record(manifest, task, reservation, result, profile_sha):
+    from suite.contract import validate_record
+    transport = (((result.get('agent_result') or {}).get('metadata') or {}).get('vibewindow') or {})
+    transport = {**transport, 'raw_exit_code': transport.get('exit_code'),
+                 'terminal_event': (transport.get('terminal') or {}).get('type'),
+                 'stream_terminated': transport.get('stream_terminated', False),
+                 'error_seen': transport.get('error_seen', False)}
+    summary = summarize(result)
+    normal = (transport.get('status') == 'completed' and transport.get('raw_exit_code') == 0
+              and transport.get('terminal_event') == 'chat.done'
+              and transport.get('finish_reason') in ('stop', 'end_turn')
+              and transport.get('stream_terminated') is True and not transport.get('error_seen')
+              and not transport.get('output_truncated') and summary['score_status'] == 'scored')
+    def hash_files(prefix):
+        files = {name: value for name, value in task['files'].items() if name.startswith(prefix)}
+        return hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()
+    timing = result.get('verifier') or {}
+    elapsed = 0
+    if timing.get('started_at') and timing.get('finished_at'):
+        elapsed = (datetime.fromisoformat(timing['finished_at']) -
+                   datetime.fromisoformat(timing['started_at'])).total_seconds()
+    usage = transport.get('usage')
+    if isinstance(usage, dict) and {'input_tokens', 'output_tokens'} <= usage.keys():
+        usage = {k: v for k, v in usage.items() if k in
+                 ('input_tokens', 'output_tokens', 'cached_tokens', 'reasoning_tokens')}
+    else:
+        usage = None
+    row = {**MODEL, 'schema_version': 1, 'experiment_id': manifest['experiment_id'],
+           'case_id': task['taskId'], 'kind': task['kind'], 'attempt_number': 1,
+           'attempt_id': reservation['attempt_id'], 'model': MODEL['id'],
+           'hashes': {'source': manifest['adapter']['sha256'],
+                      'runtime': manifest['runtime']['binarySha256'], 'fixture': hash_files('environment/'),
+                      'checker': hash_files('tests/'), 'profile': profile_sha},
+           'started_at': reservation['started_at'], 'ended_at': datetime.now(timezone.utc).isoformat(),
+           'validation_seconds': max(0, elapsed), 'usage_status': 'reported' if usage else 'missing',
+           'usage': usage if usage else None, 'raw_exit_code': transport.get('raw_exit_code'),
+           'finish_reason': transport.get('finish_reason'), 'terminal_event': transport.get('terminal_event'),
+           'stream_terminated': transport.get('stream_terminated', False),
+           'error_seen': transport.get('error_seen', False),
+           'output_truncated': transport.get('output_truncated', False),
+           'status': 'completed' if normal else 'failed',
+           'score_status': 'scored' if normal else 'unscored',
+           'reward': summary['reward'] if normal else None,
+           'failure_class': summary['failure_class'] if normal else 'infrastructure'}
+    row.pop('id')
+    validate_record(row)
+    return row
+
+
+def recovery_budget(receipt, artifact_sha256):
+    remaining = receipt['verifier_limit'] - receipt['elapsed']
+    if not math.isfinite(remaining) or remaining <= 0:
+        raise ValueError('original verifier budget exhausted')
+    if receipt['mode'] == 'artifact':
+        if not receipt.get('calibrated') or receipt.get('artifact_sha256') != artifact_sha256:
+            raise ValueError('recovery requires identical artifact and calibrated verifier image')
+    elif receipt['mode'] != 'service' or not receipt.get('original_environment'):
+        raise ValueError('service scoring requires original environment')
+    return remaining
+
+
+async def harbor_trial(task_path, directory, name, agent, kwargs=None, hook=None, recovery=None):
+    from harbor.models.trial.config import TrialConfig
+    from harbor.trial.trial import Trial
+    from harbor.trial.hooks import TrialEvent
+    config = TrialConfig.model_validate({
+        'task': {'path': str(task_path)}, 'trial_name': name, 'trials_dir': str(directory),
+        'agent': ({'name': agent} if agent in ('oracle', 'nop') else
+                  {'import_path': agent, 'model_name': MODEL['id'], 'kwargs': kwargs}),
+        'verifier': {'import_path': 'suite.scoring:RecoveringVerifier',
+                     'kwargs': {'recovery': recovery or {'mode': 'service'}}},
+        'environment': {'type': 'docker', 'delete': False,
+                        'cpu_enforcement_policy': 'limit', 'memory_enforcement_policy': 'limit'}})
+    trial = await Trial.create(config)
+    if hook:
+        for event in TrialEvent:
+            trial.add_hook(event, hook)
+    return (await trial.run()).model_dump(mode='json')
+
+
+def scrub(directory, secret):
+    """Preserve all evidence, replacing only exact credential bytes in text logs."""
+    if not secret:
+        return
+    for path in Path(directory).rglob('*'):
+        if path.is_file() and not path.is_symlink():
+            data = path.read_bytes()
+            if secret.encode() in data:
+                path.write_bytes(data.replace(secret.encode(), b'[REDACTED]'))

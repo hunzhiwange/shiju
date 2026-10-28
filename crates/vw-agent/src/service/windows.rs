@@ -7,7 +7,7 @@ use std::process::Command;
 use super::common::{run_capture, run_checked};
 
 /// Windows 任务计划程序中的任务名称。
-const WINDOWS_TASK_NAME: &str = "VibeWindow Daemon";
+const WINDOWS_TASK_NAME: &str = "ShiJu Daemon";
 
 pub(super) fn windows_task_name() -> &'static str {
     WINDOWS_TASK_NAME
@@ -35,7 +35,7 @@ pub(super) fn install_windows_with_schtasks(config: &Config, schtasks: &Path) ->
     let logs_dir = config_dir.join("logs");
     fs::create_dir_all(&logs_dir)?;
 
-    let wrapper = logs_dir.join("vibewindow-daemon.cmd");
+    let wrapper = logs_dir.join("shiju-daemon.cmd");
     let stdout_log = logs_dir.join("daemon.stdout.log");
     let stderr_log = logs_dir.join("daemon.stderr.log");
     let wrapper_content = format!(
@@ -48,7 +48,7 @@ pub(super) fn install_windows_with_schtasks(config: &Config, schtasks: &Path) ->
     fs::write(&wrapper, &wrapper_content)?;
 
     // wscript 本身没有控制台；等待隐藏的 daemon 退出，让计划任务保持运行状态。
-    let launcher = logs_dir.join("vibewindow-daemon.js");
+    let launcher = logs_dir.join("shiju-daemon.js");
     let command = format!("cmd.exe /d /c \"\"{}\"\"", wrapper.display());
     let script = format!(
         "var shell = new ActiveXObject(\"WScript.Shell\");\r\nWScript.Quit(shell.Run({}, 0, true));\r\n",
@@ -145,7 +145,7 @@ pub(super) fn uninstall_windows_with_schtasks(config: &Config, schtasks: &Path) 
         .parent()
         .map_or_else(|| PathBuf::from("."), PathBuf::from)
         .join("logs")
-        .join("vibewindow-daemon.cmd");
+        .join("shiju-daemon.cmd");
     if wrapper.exists() {
         fs::remove_file(&wrapper).ok();
     }

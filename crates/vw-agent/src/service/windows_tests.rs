@@ -28,7 +28,7 @@ fn fake_schtasks(script: &str) -> (tempfile::TempDir, std::path::PathBuf) {
 
 #[test]
 fn windows_task_name_is_stable() {
-    assert_eq!(windows_task_name(), "VibeWindow Daemon");
+    assert_eq!(windows_task_name(), "ShiJu Daemon");
 }
 
 #[cfg(not(target_os = "windows"))]
@@ -39,7 +39,7 @@ fn install_windows_writes_wrapper_before_schtasks_failure() {
     let result = install_windows(&config);
 
     let logs_dir = config.config_path.parent().unwrap().join("logs");
-    let wrapper = logs_dir.join("vibewindow-daemon.cmd");
+    let wrapper = logs_dir.join("shiju-daemon.cmd");
     let stdout_log = logs_dir.join("daemon.stdout.log");
     let stderr_log = logs_dir.join("daemon.stderr.log");
     let content = std::fs::read_to_string(&wrapper).expect("wrapper should be written");
@@ -74,7 +74,7 @@ fn install_windows_errors_when_logs_directory_parent_is_a_file() {
 #[test]
 fn install_windows_errors_when_wrapper_path_is_a_directory() {
     let (_dir, config) = temp_config();
-    let wrapper = config.config_path.parent().unwrap().join("logs").join("vibewindow-daemon.cmd");
+    let wrapper = config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd");
     std::fs::create_dir_all(&wrapper).expect("wrapper directory fixture");
 
     let result = install_windows(&config);
@@ -93,7 +93,7 @@ fn install_windows_reuses_existing_logs_directory_before_scheduler_failure() {
     let result = install_windows(&config);
 
     assert!(result.is_err(), "non-Windows hosts should not have schtasks available");
-    assert!(logs_dir.join("vibewindow-daemon.cmd").is_file());
+    assert!(logs_dir.join("shiju-daemon.cmd").is_file());
 }
 
 #[cfg(unix)]
@@ -103,12 +103,12 @@ fn windows_service_commands_accept_successful_schtasks_responses() {
         r#"#!/bin/sh
 if [ "$1" = "/Create" ]; then
   case "$*" in
-    *"/TR wscript.exe //B //NoLogo //E:JScript "*"vibewindow-daemon.js"*"/RL LIMITED"*) ;;
+    *"/TR wscript.exe //B //NoLogo //E:JScript "*"shiju-daemon.js"*"/RL LIMITED"*) ;;
     *) echo 'scheduled task must use the current user privilege level' >&2; exit 1 ;;
   esac
 fi
 if [ "$1" = "/Query" ]; then
-  printf 'TaskName: VibeWindow Daemon\nStatus: Running\n'
+  printf 'TaskName: ShiJu Daemon\nStatus: Running\n'
 fi
 exit 0
 "#,
@@ -121,7 +121,7 @@ exit 0
     status_windows_with_schtasks(&schtasks).expect("status through fake schtasks");
 
     assert!(
-        config.config_path.parent().unwrap().join("logs").join("vibewindow-daemon.cmd").is_file()
+        config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd").is_file()
     );
 }
 
@@ -151,7 +151,7 @@ fn restart_windows_reports_start_failure_when_schtasks_is_missing() {
 #[test]
 fn uninstall_windows_removes_existing_wrapper_and_ignores_scheduler_errors() {
     let (_dir, config) = temp_config();
-    let wrapper = config.config_path.parent().unwrap().join("logs").join("vibewindow-daemon.cmd");
+    let wrapper = config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd");
     std::fs::create_dir_all(wrapper.parent().unwrap()).expect("logs dir");
     std::fs::write(&wrapper, "@echo off\r\n").expect("wrapper fixture");
 
@@ -164,7 +164,7 @@ fn uninstall_windows_removes_existing_wrapper_and_ignores_scheduler_errors() {
 #[test]
 fn uninstall_windows_accepts_an_absent_wrapper() {
     let (_dir, config) = temp_config();
-    let wrapper = config.config_path.parent().unwrap().join("logs").join("vibewindow-daemon.cmd");
+    let wrapper = config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd");
 
     uninstall_windows(&config).expect("an absent wrapper is already uninstalled");
 
@@ -175,7 +175,7 @@ fn uninstall_windows_accepts_an_absent_wrapper() {
 #[test]
 fn uninstall_windows_ignores_wrapper_cleanup_failure() {
     let (_dir, config) = temp_config();
-    let wrapper = config.config_path.parent().unwrap().join("logs").join("vibewindow-daemon.cmd");
+    let wrapper = config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd");
     std::fs::create_dir_all(&wrapper).expect("wrapper directory fixture");
 
     uninstall_windows(&config).expect("wrapper cleanup failures are best effort");
@@ -190,7 +190,7 @@ fn windows_service_installs_unicode_hidden_launcher_and_removes_it_on_uninstall(
     let (dir, mut config) = temp_config();
     config.config_path = dir.path().join("用户目录 with spaces").join("vibewindow.json");
     install_windows_with_schtasks(&config, &schtasks).expect("install service");
-    let launcher = config.config_path.parent().unwrap().join("logs/vibewindow-daemon.js");
+    let launcher = config.config_path.parent().unwrap().join("logs/shiju-daemon.js");
     let bytes = std::fs::read(&launcher).expect("hidden launcher");
     assert_eq!(&bytes[..2], &[0xff, 0xfe]);
     let units: Vec<u16> =

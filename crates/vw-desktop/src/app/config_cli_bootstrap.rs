@@ -32,7 +32,7 @@ const GATEWAY_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(200);
 #[cfg(not(target_arch = "wasm32"))]
 const GATEWAY_STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 #[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
-const WINDOWS_TASK_NAME: &str = "VibeWindow Daemon";
+const WINDOWS_TASK_NAME: &str = "ShiJu Daemon";
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, PartialEq, Eq)]

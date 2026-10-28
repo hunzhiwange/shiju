@@ -130,10 +130,10 @@ mod tests {
     /// 测试 Windows 任务名称常量
     ///
     /// 验证 `windows_task_name` 函数返回正确的 Windows 任务计划程序任务名称。
-    /// 该名称用于在 Windows 系统上注册 VibeWindow 守护进程。
+    /// 该名称用于在 Windows 系统上注册 ShiJu 守护进程。
     #[test]
     fn windows_task_name_is_constant() {
-        assert_eq!(windows_task_name(), "VibeWindow Daemon");
+        assert_eq!(windows_task_name(), "ShiJu Daemon");
     }
 
     /// 测试命令输出捕获（Windows 平台）

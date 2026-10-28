@@ -1,0 +1,2 @@
+Migrate the provided synthetic legacy.py to bridge.py. It must run on Python 3 using only the standard library. Read one JSON object from stdin with values (finite numbers) and label (Unicode string). Emit exactly {"label":label,"half":floor(len(values)/2),"mean":arithmetic mean or null for an empty list}. Preserve fractional means and Unicode. Importing bridge must have no side effects.
+Only write /app/bridge.py; do not access tests or oracle material. Budget: 24 turns, 32 tools, one attempt.

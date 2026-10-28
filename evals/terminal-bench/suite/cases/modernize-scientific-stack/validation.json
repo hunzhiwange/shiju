@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "parent_id": "modernize-scientific-stack",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "0b74d103c9384fcb0c13bc62099b365b3f43ad4e5a8ffeb13f8d058022f651d2",
+    "fixtures/m1/example.json": "1b393ea1120799d35f64b1350fa17b6ff42b6264f5b44b2ce1155b5f9b4fef19",
+    "fixtures/m1/instruction.md": "67dca1c6a2cc035be2b6774935695fedc4067576b3eb0a226a7fd409f914b93c",
+    "fixtures/m1/legacy.py": "af2cf7d17c865459590ed74300babef79530ce63ec2a63e3d76bca536e250040",
+    "fixtures/m2/example.json": "1b393ea1120799d35f64b1350fa17b6ff42b6264f5b44b2ce1155b5f9b4fef19",
+    "fixtures/m2/instruction.md": "e15a4df93f10b1ed024457277df831084e6c9b76456acd8d21753421d252f933",
+    "fixtures/m3/example.json": "c5247423919b85d619ffd5a877bf2fd2e5c232a69553f7d1851b3be5056c509e",
+    "fixtures/m3/instruction.md": "377d436859cbc7b25dc8c0b6248ebc585d552c6f0e05de221416e14ba3a76634",
+    "fixtures/m3/sample.csv": "6b1a494ce96ba6c503b19a5b13d3eea16c61909f3b5e17ddebb0e30fecfbdf1f",
+    "fixtures/m4/example.json": "672388367538c1f4d634376802ec092e517a17fef79945d5f80f1586336e94c4",
+    "fixtures/m4/instruction.md": "65f8f68020be3feb9d880bf6c7fd635f06b5ddfb729da9775e73650a17716f88",
+    "oracle/m1/drop-label/bridge.py": "602c4fc370126698bf61a657f7d4df20f8847565c2f2be381a0dd6891681c86c",
+    "oracle/m1/gold/bridge.py": "99fde512d3c1623250dddd52034b9bff14fea3aa94efd3ad7191d00d57a6ea14",
+    "oracle/m1/integer-mean/bridge.py": "733cfbb74720894a909928c2c500e92258824c8677a0e81a95b2a6ae50952cdd",
+    "oracle/m1/task.json": "7c6fda10e0ee66fb8c03bb5c85cebba32e87a33c50d848b8a1d61cf22faf9bd0",
+    "oracle/m1/true-half/bridge.py": "ab1450b4919ebd48990a7bf526ef7ee88d9e63ebe2ea27db36e349341c467747",
+    "oracle/m2/absolute-anomalies/bridge.py": "aaa10852a08b8b6b91cf7d15acb7f1c54abbb34929851d9dd4365b70008ae849",
+    "oracle/m2/gold/bridge.py": "1b626f633a23addd8f048ee67f28e128cf948d6d2f4dd91aa264958a7e0dad6c",
+    "oracle/m2/integer-mean/bridge.py": "ecdd04e3e9ceb52427c6bb9a3792559c57fbcfeea79c3be899b97a249c196093",
+    "oracle/m2/reverse-order/bridge.py": "7e6e1d5c63ac4f593e45d7fdf914697564a9fed2dc2a9610bb03613ece0b4877",
+    "oracle/m2/task.json": "e6ebacda106d0c1c692ef046c489239574f0337e5d7ed5bb005708e258767d5a",
+    "oracle/m3/coerce-id/bridge.py": "736f5dbfc6b542af9873f891fb8f60065885066442ce6b9f5b68a417314c7860",
+    "oracle/m3/deduplicate/bridge.py": "8b26f9afdb3c8f6ab5745fe8a611e0a6515ac6d8eb157b5ab5f986518934cf44",
+    "oracle/m3/gold/bridge.py": "b2e3f8b3d74e321f17195a82a32cbf377d45e945bb05314175d74e35eeec648f",
+    "oracle/m3/missing-as-zero/bridge.py": "cf2d4f3eb0e849c8751f285ba39d368b40b219aae192f8f195e9ea0f28e17621",
+    "oracle/m3/task.json": "63836e3353ae55a4cf5b9be6178f5a7a103896bcd274f5f99c6b0a4940023cfa",
+    "oracle/m4/gold/bridge.py": "56b0f13d0ca58241eb4ed0748fafa4e94cd6031334611f947d0ff5bb53df0452",
+    "oracle/m4/new-relative/bridge.py": "f673dda13102cbd27718e168f17f50bf4597ae69a79969918c6027cf471aaa12",
+    "oracle/m4/signed-max/bridge.py": "8ad338419715d1a167a89bddf44a9b90c85deb15ddab2da6d61b607ef71be0d6",
+    "oracle/m4/strict-boundary/bridge.py": "37ccfa5a2541229ac40b6fffa168680ec7d9be6ddc1d0b3f983b9c8c1dc026ca",
+    "oracle/m4/task.json": "852304b3b520cf19f51453f1601487bc246a883316375bd353fa8bad3947962e",
+    "case.json": "477593ad7a35f2ca1ee1cd5f2b0f2d96254327af94c7efaad14008ad83b303bb"
+  },
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "integer-mean",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "true-half",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "drop-label",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "absolute-anomalies",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "integer-mean",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "reverse-order",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "coerce-id",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "missing-as-zero",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "deduplicate",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "strict-boundary",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "new-relative",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "signed-max",
+      "exit_code": 1
+    }
+  ]
+}

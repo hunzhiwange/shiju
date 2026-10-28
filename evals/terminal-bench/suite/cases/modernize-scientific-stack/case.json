@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "parent_id": "modernize-scientific-stack",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json",
+        "legacy.py": "fixtures/m1/legacy.py"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "bridge.py": "oracle/m1/gold/bridge.py"
+      },
+      "negatives": [
+        {
+          "id": "integer-mean",
+          "files": {
+            "bridge.py": "oracle/m1/integer-mean/bridge.py"
+          }
+        },
+        {
+          "id": "true-half",
+          "files": {
+            "bridge.py": "oracle/m1/true-half/bridge.py"
+          }
+        },
+        {
+          "id": "drop-label",
+          "files": {
+            "bridge.py": "oracle/m1/drop-label/bridge.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "bridge.py": "oracle/m2/gold/bridge.py"
+      },
+      "negatives": [
+        {
+          "id": "absolute-anomalies",
+          "files": {
+            "bridge.py": "oracle/m2/absolute-anomalies/bridge.py"
+          }
+        },
+        {
+          "id": "integer-mean",
+          "files": {
+            "bridge.py": "oracle/m2/integer-mean/bridge.py"
+          }
+        },
+        {
+          "id": "reverse-order",
+          "files": {
+            "bridge.py": "oracle/m2/reverse-order/bridge.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json",
+        "sample.csv": "fixtures/m3/sample.csv"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "bridge.py": "oracle/m3/gold/bridge.py"
+      },
+      "negatives": [
+        {
+          "id": "coerce-id",
+          "files": {
+            "bridge.py": "oracle/m3/coerce-id/bridge.py"
+          }
+        },
+        {
+          "id": "missing-as-zero",
+          "files": {
+            "bridge.py": "oracle/m3/missing-as-zero/bridge.py"
+          }
+        },
+        {
+          "id": "deduplicate",
+          "files": {
+            "bridge.py": "oracle/m3/deduplicate/bridge.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "bridge.py": "oracle/m4/gold/bridge.py"
+      },
+      "negatives": [
+        {
+          "id": "strict-boundary",
+          "files": {
+            "bridge.py": "oracle/m4/strict-boundary/bridge.py"
+          }
+        },
+        {
+          "id": "new-relative",
+          "files": {
+            "bridge.py": "oracle/m4/new-relative/bridge.py"
+          }
+        },
+        {
+          "id": "signed-max",
+          "files": {
+            "bridge.py": "oracle/m4/signed-max/bridge.py"
+          }
+        }
+      ]
+    }
+  ]
+}

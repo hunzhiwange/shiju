@@ -1,0 +1,10 @@
+{
+  "_comment": "正式默认：线上 MCP（gateway.shiju.cloud/mixcut/mixcut-srv）。本地开发可改成 http://127.0.0.1:5310/mcp。SHIJU_KEY 来自实据登录（shiju 技能 scripts/shiju login），由宿主注入；不要把真实 key 写进本文件或提交。",
+  "mcpServers": {
+    "videoCutSer": {
+      "type": "http",
+      "url": "https://gateway.shiju.cloud/mixcut/mixcut-srv/mcp",
+      "headers": { "X-Api-Key": "${SHIJU_KEY}" }
+    }
+  }
+}

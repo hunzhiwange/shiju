@@ -98,3 +98,15 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 - 父题仍未准入：新快照 host=18,615,836,672、VM=92,692,893,696，min=18,615,836,672；原S10GiB+B2GiB+A1GiB+5GiB已需19,327,352,832，必要下界差711,516,160字节，还没计任何正C/U。C/U未知保持未知，未按零计；没有父下载或父oracle/nop，没有preparation acceptance。不得标完整题已就绪、不得删除本文件。按调度要求精确已阻塞检查点结束，不因低号blocked持Git索引等待；未提交父题未完成资产。
 - 新证据均在 evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/，带20261028新文件名，未覆盖旧日志：tool-admission、dependencies、metadata-resources、tools-build-resources、tools-identity、runtime-closure、real-tex-red/green、fixtures-green、standard-controls及逐控制resources、source-checkpoint、parent-capacity-rejection、clippy-slot-resume与promptfoo-resume。源码/依赖/fixture/checker哈希已在source-checkpoint-20261028.json归档。
 - 下一步：容量恢复后获取完整父镜像官方metadata、全部压缩副本C及完整U或正硬Ucap，按当时min(host,VM)和原18GiB预留重新准入；再运行原父preflight/oracle/nop和最终身份复核。仅真正完整ready后按同时ready编号串行提交并报告证据删除任务。plan.md保持只读。
+
+
+## 2026-10-28 17:49 仅独立诊断刷新检查点（refresh-20261028T094608Z）
+
+- 按最新调度仅恢复诊断；范围止于1–90，无91+、无付费。阶段结束状态精确为“已阻塞”，原因为父窗口尚未授予，完整父题下载/导入/oracle/nop 本轮一律未启动；不沿用旧容量快照声称当前父题可准入或已完成。无需空等主会话后续父窗口。
+- 当前公共 execution identity=b35499b54cd173f716f856c17ecb9baf971ef1326c5b4ebc4656adf9d95fb5df，8项 fresh 标准控制均通过 suite.scoring.harbor_trial → SuiteDockerEnvironment；旧f759/其他身份控制仅保留历史，不能作为当前证据。无私有platform/FROM/Trial/Compose/Builder覆盖，无原题/评分/参考解/依赖/预算/超时修改，无新的RUN工具构建。沿用相同私有execution配置（本轮另存runtime-refresh-20261028T094608Z.json），公共历史runtime.json未改。
+- fixture全声明字节、diagnostics实现、固定OCI image、policy与既有validation.json完整一致；inputs再次核对既有20项有效控制，因此本轮复用20fixture，没有将历史8标准控制复用成当前控制。证明：fixture-reuse-refresh-20261028T094608Z.json（含validation SHA256与完整checks）；工具manifest/config字段、RootFS及amd64同原固定工具，证明tool-identity-reuse-refresh-20261028T094608Z.json。旧raw、唯一OCI/依赖及Cargo缓存均保留。
+- 冻结ELF实际在该TeX工具镜像中offline/read-only运行 /runtime/shiju --help，退出0；只挂载既有runtime库只读，无密钥。命令、结果及输出：standard-controls-refresh-20261028T094608Z.json的elf_probe、elf-help-refresh-20261028T094608Z.log。
+- 每阶段实际重新读取min(host,VM)，先扣62未来28GiB=30,064,771,072字节，再要求本题11GiB=11,811,160,064字节。首次host=46,457,589,760、VM=79,766,376,448，扣除后16,392,818,688字节；8次控制阶段扣除后最小为16390930432字节，均满足。缓存工具的C=451,941,335/U=1,112,603,136已占用当前已测空间，不重复下载/导入；新材料化context总计1348字节，窗口保留S1/B2/A1/5GiB及2GiB增量镜像/context/evidence余量。逐次实际容量、CPU/memory和main/sidecar inspect均在新收据；没有借用62的28GiB。
+- 执行命令：PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python 通过runpy运行 evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/refresh-20261028T094608Z.py，退出0。8项当前标准控制4oracle首评reward1、4nop首评reward0，无recovery/重放；FROM/ref保持原字节，实际子镜像amd64及RootFS前缀匹配工具。所有main=1CPU/512MiB、sidecar=0.25CPU/64MiB。完整证据：standard-controls-refresh-20261028T094608Z.json、refresh-20261028T094608Z.log、resources-*-refresh-20261028T094608Z.json、checkpoint-refresh-20261028T094608Z.json。
+- 最终inputs身份与控制开始时一致。所有本轮自有容器（含退出容器）已清理，未持有活动构建、Docker/Cargo资源或锁；本轮无自身活动资源。按明确调度，本轮无代码的diag-only阶段不重复Cargo/Clippy；此前Cargo证据仍是历史，最终全题收尾再动态领取槽位/JOBS1执行Clippy。
+- 保留本任务“已阻塞”及资产，未提交/删除任务文件；下一步仅在主会话授予父窗口后重新执行原父题完整容量准入与校准。plan.md未改，无其他任务资产改动。

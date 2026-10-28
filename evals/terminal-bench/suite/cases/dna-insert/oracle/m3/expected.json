@@ -1,0 +1,14 @@
+{
+  "kind": "m3",
+  "inputs": {
+    "input.json": "a520b7db0bbad37b7fbb5cead2169cee6342e964dab372187c51da0142f09f75"
+  },
+  "expected": {
+    "valid": [
+      true,
+      false,
+      true,
+      false
+    ]
+  }
+}

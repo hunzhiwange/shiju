@@ -1,0 +1,8 @@
+{
+  "forward": "AATTGGCGGCTACGGCATCGGCT",
+  "reverse": "CGTACGGCATGCCGATGC",
+  "forward_anneal_length": 17,
+  "reverse_anneal_length": 18,
+  "forward_tm": 58,
+  "reverse_tm": 60
+}

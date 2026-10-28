@@ -1,0 +1,11 @@
+{
+  "kind": "m4",
+  "inputs": {
+    "input.json": "4b1ae40db8cfa36fc045019d83286a63e35ae052be87669b1180a47031729cd3"
+  },
+  "expected": {
+    "sequence": "CTAGTACCTGCAAGTTCGGGATCAAC",
+    "length": 26,
+    "sha256": "8131d82afe75b6ab523ac343f67dd3d6f3f9ee8260d5ec8d942c012733e6018d"
+  }
+}

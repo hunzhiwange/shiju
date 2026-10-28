@@ -156,6 +156,7 @@ cargo install cargo-bundle
 Windows 打包：
 
 ```bash
+cargo install cargo-xwin --locked
 bash scripts/bundle_windows.sh
 ```
 

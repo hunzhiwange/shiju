@@ -95,6 +95,8 @@ fn embed_windows_icon(manifest_dir: &Path, out_dir: &Path) {
         return;
     }
 
+    println!("cargo:rerun-if-env-changed=PATH");
+
     let icon_png = manifest_dir.join("../../assets/logo/logo.png");
     println!("cargo:rerun-if-changed={}", icon_png.display());
 
@@ -113,7 +115,20 @@ fn embed_windows_icon(manifest_dir: &Path, out_dir: &Path) {
         }
     }
 
-    println!("cargo:warning=skipping Windows exe icon: rc.exe or llvm-rc was not found");
+    // Homebrew keeps LLVM off PATH because it is keg-only.
+    if cfg!(target_os = "macos")
+        && let Ok(output) = Command::new("brew").args(["--prefix", "llvm"]).output()
+        && output.status.success()
+    {
+        let prefix = String::from_utf8_lossy(&output.stdout);
+        let compiler = Path::new(prefix.trim()).join("bin/llvm-rc");
+        if try_compile_windows_resource(&compiler.to_string_lossy(), &rc_path, &res_path) {
+            println!("cargo:rustc-link-arg-bin=shi-ju={}", res_path.display());
+            return;
+        }
+    }
+
+    panic!("Windows icon compilation requires rc.exe or llvm-rc; install LLVM and add its bin directory to PATH (see scripts/BUILDING.md)");
 }
 
 fn sanitize_icon_token(value: &str) -> Option<String> {

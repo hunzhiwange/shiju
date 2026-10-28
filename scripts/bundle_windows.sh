@@ -151,46 +151,45 @@ build_msi() {
   echo "$OUT_DIR/$msi_name"
 }
 
-build_cli_binaries() {
+# Plain cargo cannot configure the Windows SDK and C compiler on Unix hosts.
+build_windows_package() {
   if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --bin vibe-agent --all-features
-  else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --bin vibe-agent --all-features
+    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" "$@"
+    return
   fi
+
+  case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*|Windows_NT)
+      cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" "$@"
+      ;;
+    *)
+      echo "Error: cargo-xwin is required to build Windows targets on this host." >&2
+      echo "Install it with: cargo install cargo-xwin --locked" >&2
+      echo "See scripts/BUILDING.md for LLVM and Windows target prerequisites." >&2
+      return 1
+      ;;
+  esac
+}
+
+build_cli_binaries() {
+  build_windows_package -p vw-cli --bin shiju --bin vibe-agent --all-features
 }
 
 build_cli_binary() {
-  if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --all-features
-  else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --all-features
-  fi
+  build_windows_package -p vw-cli --bin shiju --all-features
 }
 
 build_cli_compat_binary() {
-  if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin vibe-agent --all-features
-  else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin vibe-agent --all-features
-  fi
+  build_windows_package -p vw-cli --bin vibe-agent --all-features
 }
 
 build_app_binaries() {
-  if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-desktop --bin shi-ju --all-features
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-webview --bin vw-webview --all-features
-  else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-desktop --bin shi-ju --all-features
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-webview --bin vw-webview --all-features
-  fi
+  build_windows_package -p vw-desktop --bin shi-ju --all-features
+  build_windows_package -p vw-webview --bin vw-webview --all-features
 }
 
 build_acp_binary() {
-  if command -v cargo-xwin >/dev/null 2>&1; then
-    cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-acp --bin acp --all-features
-  else
-    cargo build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-acp --bin acp --all-features
-  fi
+  build_windows_package -p vw-acp --bin acp --all-features
 }
 
 BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"

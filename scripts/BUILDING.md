@@ -222,7 +222,7 @@ rustup target add x86_64-pc-windows-msvc
 
 Install `cargo-xwin`:
 ```bash
-cargo install cargo-xwin
+cargo install cargo-xwin --locked
 ```
 
 Install LLVM and add it to PATH for the linker and the `llvm-rc` resource compiler used to embed the Windows executable icon:
@@ -231,10 +231,10 @@ brew install llvm
 export PATH="$(brew --prefix llvm)/bin:$PATH"
 ```
 
-If the build reports `skipping Windows exe icon: rc.exe or llvm-rc was not found`,
-check that `command -v llvm-rc` succeeds in the shell running the build. On Windows,
-`rc.exe` from the Windows SDK is also supported. A build without either compiler
-continues, but the executable will not contain the application icon.
+On macOS the desktop build also discovers keg-only LLVM through `brew --prefix llvm`.
+On other hosts, ensure `llvm-rc` is on PATH; Windows SDK `rc.exe` is also supported.
+Missing or failing resource compilers stop the build so packages never silently
+lose their executable icon.
 
 ### 3.2 Cross-compile
 

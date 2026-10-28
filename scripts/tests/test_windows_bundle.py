@@ -12,6 +12,27 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class WindowsBundleTests(unittest.TestCase):
+    def test_cross_build_requires_xwin_before_invoking_cargo(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            commands = root / "bin"
+            commands.mkdir()
+            for name, body in (
+                ("uname", "echo Darwin"),
+                ("cargo", 'echo "unexpected cargo invocation" >&2; exit 42'),
+            ):
+                command = commands / name
+                command.write_text(f"#!/bin/sh\n{body}\n")
+                command.chmod(0o755)
+            env = dict(os.environ, PATH=str(commands), MODE="cli", CARGO_TARGET_DIR=str(root / "target"))
+            result = subprocess.run(
+                ["/bin/bash", str(REPO / "scripts/bundle_windows.sh")],
+                cwd=root, env=env, capture_output=True, text=True, check=False,
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("cargo install cargo-xwin --locked", result.stderr)
+            self.assertNotIn("unexpected cargo invocation", result.stderr)
+
     def test_desktop_package_rejects_missing_runtime_components(self):
         for option in ("INCLUDE_CLI_IN_APP", "INCLUDE_ACP_IN_APP"):
             with self.subTest(option=option), tempfile.TemporaryDirectory() as temp:

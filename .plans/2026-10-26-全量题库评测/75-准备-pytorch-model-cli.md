@@ -2,7 +2,7 @@
 
 批次：【批次 43】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“模型命令行推理”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,16 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 宿主实施与阻塞记录
+
+- 已应用 ./skills/do-task-plans/SKILL.md、./skills/create-agent-evals/SKILL.md，读取 plan.md、固定完整题面、配置、模型定义、参考解、测试、Dockerfile与README；输入PNG/PTH和库逐文件读取并记录SHA256。官方题面/配置SHA256与本任务一致，未改上游与plan.md。
+- 依赖批次1–5所需冻结source/catalog、capacity.json、contract-validation.json、suite/runtime-v2.json和VALIDATION.md、agent-validation.json、diagnostics-format/evidence.json、readiness-validation.json均存在。它们仅为前置资产，不代替本题校准；共享接线正在由任务13更新，待释放后再次核验当前执行身份。
+- 已准备四道独立合成诊断、公开输入、隐藏checker、gold/nop和每题3个错误实现。m1读取权重与PNG，m2小型MLP，m3预处理和参数错误，m4唯一stdout与prediction.txt。未扩大模型、评分或预算，未运行付费模型。
+- TDD初始缺checker：规定unittest命令21测试、20 failures/1 error，退出1。独立scratch副本全接受checker缺陷对照：21测试、16 failures，退出1；正式checker不受实验修改。最终规定命令 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/pytorch-model-cli/tests -p test_cases.py`：21测试通过，退出0（20行为候选+1格式检查）。这些是宿主控制，不是Linux隔离校准。
+- 静态 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/pytorch-model-cli/case.json` 退出0；未加 --run-fixtures。`evals/promptfoo/score.sh test` 退出0。
+- 动态原子领取Cargo槽1，CARGO_TARGET_DIR和CARGO_BUILD_BUILD_DIR均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，CARGO_BUILD_JOBS=1。`cargo clippy --all-targets --all-features -- -D warnings` 退出0，0行为测试；仅既有block 0.1.6未来兼容提示。正常/信号退出清理已配置，阶段结束已释放自身锁并保留缓存。无Rust修改，未执行fmt、全量cargo test、wasm或Makefile命令。
+- 原始证据：忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/pytorch-model-cli/` 内host-red.log、checker-mutation-red.log、host-green.log、static.log、score.log、clippy.log、cargo-slot.txt、source-inspection.json、host-evidence.json。
+- 具体阻塞：调度者明确告知原任务13独占容器窗口，禁止Docker、镜像层下载/导入、标准校准或父题运行，等待明确释放。本会话未执行上述动作。父题oracle/nop、四子题8标准控制、20 Docker fixtures、真实Linux工具和冻结ELF --help、镜像实际身份/内容核验、资源隔离和磁盘收据未取得。任务未就绪，不提交未校准资产、不删除本文件。
+- 恢复入口：调度者明确释放窗口后，先核验公共接线与SuiteDockerEnvironment的当前身份，复核资源/磁盘/网络，再核验case.json所列32c8...共享工具基底无其他题材料。执行本任务原定 --run-fixtures 与 suite.run preflight，全部经标准生产接线，补齐新鲜oracle/nop、负例、digest及哈希收据。不得使用私有Trial/Compose/镜像覆盖。满足全部完成证据后按任务序号使用git-commit提交自身资产，再删除本文件。当前保持已阻塞并保留未提交材料。

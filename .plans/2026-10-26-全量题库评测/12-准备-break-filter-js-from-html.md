@@ -2,7 +2,7 @@
 
 批次：【批次 7】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“过滤器绕过诊断”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,15 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-27 安全收尾记录
+
+- 阻塞：协调会话通知“平台安全审查连续拒绝当前任务”，并明确要求停止实现与载荷运行；未提供底层平台原始错误码或完整错误文本，不能据此编造。恢复前需用户处理平台 Daybreak 访问条件并明确允许恢复。
+- 已读取计划、任务、执行/评测技能、上游完整题面、过滤器、参考解和官方评分材料；未修改 plan.md 或原题。
+- 必需 Clippy：`cargo clippy --all-targets --all-features -- -D warnings` 退出 0；有效 Rust 行为测试数量 0（此命令为静态检查）。动态领取槽位 1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径，`CARGO_BUILD_JOBS=1`；已释放自己的锁，保留缓存。仅既有 block 0.1.6 future compatibility 提示。
+- 指定 preflight 命令退出 1：任务指定 runtime.json 是历史身份收据，缺少 historical_root，报 KeyError；日志保留。拟用第二代冻结运行时的本题专属配置已留草稿，但未启动校准。
+- 诊断草稿未校准：未运行本题 unittest、四子题 fixture 校准或父题 oracle/nop，不宣称完成，不提交草稿，不删除任务文件。
+- 收尾停止明确属于本会话的原题拉取 PID 26009 和资源观察 PID 70734；诊断镜像构建进程已结束，无本题运行容器，无自有 Cargo 锁。保留下载缓存、镜像和全部日志，不清理他人资源。
+- 日志与恢复入口：`evals/promptfoo/results/qwen38-suite/diagnostics/break-filter-js-from-html/`；恢复需先检查进程、缓存与草稿状态，继续遵守原预算和评分契约，不因平台拒绝改写提示或绕过限制。
+- 补充已结束检查：`evals/promptfoo/score.sh test` 退出 0（配置有效）；诊断基础镜像构建退出 0，只证明依赖镜像构建成功，不构成任何行为验收。

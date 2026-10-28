@@ -2,7 +2,7 @@
 
 批次：【批次 9】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“图像分类训练”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,28 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 本次执行证据（2026-10-27）
+
+- 已阅读完整上游 instruction、README、Dockerfile、task.toml、solution/solve.sh、tests/test.sh、tests/test_outputs.py；未修改任何上游文件或 plan.md。
+- 依赖批次 1–5 已核对提交与收据：catalog 对固定 revision 重建后 89 题完全一致；capacity.json、contract-validation.json、agent-validation.json、generation-2 runtime 校准和分层报告存在，冻结运行时及 Harbor 0.24.0 身份校验通过。结果见忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/caffe-cifar-10/dependencies.json`。
+- 原镜像 `sha256:929a6d631b592c82e0d0f5d4a65cf03c946dc554cfc9bb09916e82076e7d3215` 实际 linux/amd64；独占准备资源，官方容器 nano_cpus=4000000000、memory=8589934592，无宿主挂载。宿主空闲约 111GiB，容器文件系统空闲约 91GiB；未修改官方存储和超时配置。
+- 容器内 GitHub、CIFAR、uv 0.9.5、PyPI 端点 HEAD 探测均为 200（探测命令退出 0）。但原参考解实际 apt 安装 BLAS/OpenCV/protobuf 等包时出现远端关闭连接、连接失败和超时；首个核心依赖安装失败，后续脚本仍继续。原始日志明确记录 `make: protoc: No such file or directory`、`make: *** [Makefile:649: .build_release/src/caffe/proto/caffe.pb.cc] Error 127`；dpkg-query 确认 protobuf-compiler、libprotobuf-dev、libopencv-dev 均未安装。
+- 原样启动命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/caffe-cifar-10/calibrate-parent.py`。该脚本调用 suite.scoring.harbor_trial 执行完整官方参考解。构建失败后上游仍继续下载 CIFAR（约 50KiB/s，剩余约 52 分钟）；为避免无效等待，归档日志后向本会话 PID 20416 发送 SIGINT，进程退出 130。未取得 oracle reward，不能将中断算为有效失败评分。
+- 进一步读取同一失败 libblas3 包，直连及 Docker 已配置代理 HEAD 均返回 200、curl 退出 0；这不能证明大批包传输可靠。任务限定必要依赖修复为 verifier-only，当前失败发生在原题 solution 安装/构建阶段，不能通过改参考解、替换原镜像或预装依赖静默绕过；没有执行这些改动。
+- 按任务给定完整 preflight 命令执行，退出 1，`KeyError: historical_root`：原 runtime.json 是历史证据报告。已在本题忽略目录建立 runtime.json，引用既有冻结 runtime-v2、原始 source、cases 根目录并保留 agentTimeoutSec=3600；checked_runtime 校验 generation=2 通过。此配置修正没有解决原题构建失败，也不计为校准完成。
+- 未新增 case/checker/fixtures：原题校准未通过，不能宣称本题就绪。聚焦 unittest、diagnostics validate、四子题 oracle/nop/三负例及原题 nop 均尚未运行；没有有效行为测试或官方评分。没有付费模型请求。
+- 原始日志、镜像/资源收据、失败包探测、命令和 SHA256 汇总均保存在 `evals/promptfoo/results/qwen38-suite/diagnostics/caffe-cifar-10/`，入口 `blocker.json`；原 oracle 日志为 `original-oracle.txt`。
+- 清理：已归档 inspect、资源和完整 solver 日志，仅删除本会话容器 `11a2f6778939d4979505e1984ee556a0d9a7c1faa8754e15a6a0e30e4e531538`，已确认 runner 结束；保留原镜像和其他会话资源。未运行 Cargo，实际槽位/CARGO_TARGET_DIR 均为未使用，无锁需释放。仅更新本编号任务状态与阻塞记录，无代码变更、无提交。
+- 恢复入口：修复容器到 Ubuntu 包站点的大批包传输可靠性后，在相同原镜像、官方资源和全新环境下重跑原题 oracle/nop；原题 oracle 通过后再实施四个独立诊断题及 TDD/校准、Clippy。不得将这次未评分中断计入模型成绩；本文件保留。
+
+
+## 有界阻塞恢复复查（2026-10-27）
+
+- 未重复训练或安装链路，未触碰任务13及其文件。复查旧 runner PID 20416 不存在，无本题原8GiB容器；原镜像、capacity-image.tar 及已有证据缓存均保留。原容器的临时 writable layer 已随先前明确删除的容器释放，不声称保留其未安装完的APT临时缓存。
+- 当前仅有既有业务容器时，以同一官方 digest 启动一次独立只读探测容器 `vw-caffe-task16-recovery-probe`（0.5CPU/128MiB、无挂载、16MiB tmpfs、cap-drop ALL）；仅运行 curl GET、sha256sum、dpkg-deb 元数据读取，未运行 apt/dpkg 安装、未注入运行依赖。每请求连接上限4秒、总上限12秒，2个失败包各直连/既有Docker代理一次，共4次，无重试。
+- libblas3 3.12.0-3build1.1 完整获取237978字节，直连6.56秒/代理4.24秒，SHA256均为 `1b0ef0ad0893ff77bf7d5ab75723771788e16137ea1efde557dbac7b7b83a758`；libopencv-highgui-dev 4.6.0+dfsg-13.1ubuntu1 完整获取176184字节，直连3.16秒/代理2.82秒，SHA256均为 `0a529ba4dc08ed9bc46c595bf7db3e7dbb0af2d36edda0c17d11d07f0ec8eb6b`。4次curl均HTTP200、退出0，4次包元数据读取均退出0；探测容器总退出0。这比先前HEAD证据更强，支持原故障为瞬时传输边界；未额外获取APT索引进行独立签名链校验，不夸大为新认证收据。
+- 当前授权内的安全恢复入口：网络可靠性恢复后，使用不变的官方镜像/参考解和全新官方资源环境重新校准；两条现有网络路径均可获取相同文件，无证据要求兼容环境变体或候选可见依赖预装。单包恢复不能证明数百包连续传输、CIFAR大文件、编译、500步训练能够在原3600秒agent/1200秒verifier限制内完成，因此本次仍保持已阻塞，不无意义重跑。
+- 必要外部条件：容器至原Ubuntu包站点及CIFAR站点连续完整下载稳定且吞吐足以在原超时内完成全链路。最小后续决策：在该网络条件满足并重新取得独占资源后，安排一次不变环境校准；若要显式改变执行前全局代理/环境网络条件或预装依赖，则需另行授权并单列环境身份，不将其冒充verifier-only修复。任务13的兼容变体授权不适用于本题。
+- 原始证据 `diagnostics/caffe-cifar-10/recovery-get-probe.log` 和 `bounded-recovery.json` 位于既有忽略结果根下。探测容器已自动删除，最终无本题容器/进程，8GiB独占资源已释放。未运行Cargo（槽位及CARGO_TARGET_DIR均未使用），无付费调用，无代码变更，无提交；保留本任务文件。

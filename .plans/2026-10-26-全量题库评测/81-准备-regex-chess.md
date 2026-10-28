@@ -2,7 +2,9 @@
 
 批次：【批次 46】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
+
+宿主资产与验证完成，等待 Docker 独占窗口释放。
 
 目的：为“正则着法变换”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +71,15 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 宿主阶段证据与续接
+
+- 调度指令：70 独占容器/镜像窗口；本会话未执行 Docker、镜像下载/导入、父题或标准控制。不是能力评分失败。
+- 四子题资产已写入指定目录；替换链实际由独立 Python 子进程执行，4×4 合成规则与完整原题严格分离。
+- 指定 unittest 命令退出 0：1 个测试方法覆盖 20 个控制（4 gold、4 nop、12 wrong）；RED 使用宽松 checker，退出 1、17 处失败；真实执行 checker 修复后 GREEN。
+- `suite.diagnostics validate --case evals/terminal-bench/suite/cases/regex-chess/case.json` 退出 0（未传 --run-fixtures，不构成 Linux 校准）。`evals/promptfoo/score.sh test` 退出 0，配置有效。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出 0；实际动态槽位 1；CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；CARGO_BUILD_BUILD_DIR 同路径；CARGO_BUILD_JOBS=1；锁已释放，缓存保留；有效行为测试数不由 Clippy 提供。既有 block v0.1.6 future-incompatibility 提示未修改。
+- 收据、原题逐文件 SHA256、全部资产哈希、RED/GREEN、Clippy 与依赖检查日志：`evals/promptfoo/results/qwen38-suite/diagnostics/regex-chess/`。
+- 尚缺 20 个 fresh Linux fixture、8 个标准子题 oracle/nop、完整父题 oracle/nop、镜像 digest/网络依赖/资源隔离收据；未生成 validation.json，未宣称就绪，未运行付费模型。
+- 恢复：等待明确释放窗口，使用正式 SuiteDockerEnvironment，执行上文 --run-fixtures 与父题 preflight，另行四子题 fresh 标准 oracle/nop；执行身份固定 ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1，不私有 platform/Trial/Compose 覆盖。获得完整证据后串行提交本题资产，再删除本文件。当前阻塞，资产保持未提交。
+- 依赖批次 1–5：冻结 source/catalog、capacity.json、contract-validation.json、runtime.json、agent-validation.json 均存在；本次 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest suite.tests.test_catalog suite.tests.test_contract suite.tests.test_runtime suite.tests.test_agent` 退出 0，48 测试通过。历史容量/运行时记录仅为前置证据，不替代本题新容器校准。

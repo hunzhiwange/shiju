@@ -2,7 +2,7 @@
 
 批次：【批次 45】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“谱峰参数拟合”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,14 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 宿主检查点与恢复入口
+
+- 批次1–5依赖：catalog/source冻结存在；本题9个文件逐字节SHA256匹配catalog，tree=13925eceab38977b960d6c061791166570fd5297，题面SHA匹配任务。容量策略、contract-validation（12个contract测试与12个catalog测试）、runtime历史验证、agent-validation（8测试）收据存在。它们仅证明准备依赖，不能替代本题实时容量准入或当前runtime身份校验。当前执行身份由调度指定为ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1。
+- 已完成本题独立资产：m1单位/格式读取、m2实际双峰数值拟合、m3背景噪声/边界拟合、m4参数结构/有限数/边界与实际重建误差；各有合成输入、独立题面、gold/nop与3语义负例。未修改公共执行、冻结配置、上游材料或评分/模型/预算。
+- 红灯：宽松checker下16拒绝控制失败，另计数断言失败，共17 failures；绿灯：指定unittest命令退出0，1测试方法/20实际子控制通过。具体命令为 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/raman-fitting/tests -p test_cases.py`。
+- 静态验证：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/raman-fitting/case.json` 退出0，仅格式与文件哈希，无容器校准；`bash evals/promptfoo/score.sh test` 退出0，配置有效，无付费模型调用。
+- Clippy：动态领取槽位1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR同绝对路径，CARGO_BUILD_JOBS=1。`cargo clippy --all-targets --all-features -- -D warnings` 退出0，有效行为测试数量0；未修改Rust，无需Rust格式化。自身锁已释放，缓存保留。
+- 证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/raman-fitting/`，包含red.log、green.log、host-manifest.json、source-check.json、score-test.log、clippy.log、clippy-receipt.txt、host-evidence.json。
+- 明确阻塞：调度要求任务69独占容器/镜像窗口，未经明确释放不得Docker/镜像层下载导入/标准控制/父题运行。因此尚未运行真实Linux20fixture、4子题8次标准Harbor控制、完整父题oracle/nop、实时镜像digest/隔离/容量/资源校准；未生成validation.json或preparation.json，不宣称就绪。未运行付费模型。
+- 恢复：原会话获得窗口释放后先按task2完整容量准入，再复核声明工具镜像leaf与干净环境、当前授权runtime身份/闭包；执行原验证计划的 `--run-fixtures`，使用正式SuiteDockerEnvironment经suite.scoring.harbor_trial跑四子题fresh oracle/nop及父题preflight（使用验证过的当前runtime执行配置，禁止私有platform/Trial/Compose覆盖）。父题Agent环境不得预修，必要verifier-only修复必须重新校准且不改官方checker。获得完整收据后再标记完成、按编号串行提交与删除任务文件。当前资产保留未提交，避免把未校准任务标为完成。

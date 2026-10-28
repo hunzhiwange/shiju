@@ -2,7 +2,7 @@
 
 批次：【批次 46】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“日志日期正则”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,16 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 本次执行记录（2026-10-28）
+
+- 已读取执行计划与创建评测技能、plan.md、原题全部 8 文件。批次 1–5 的来源 catalog/source、capacity.json、contract-validation.json、runtime.json、agent-validation.json 已存在；本题所有源码文件 SHA256 与 catalog 一致，树 SHA 为 1b49a7126da8cff9dcb5bd550632c368514db5f6。历史依赖收据只作为准备依赖依据，不替代本题新校准。
+- 新建本题独立 m1–m4 资产，仅合成输入；真实执行候选 Python 正则，对完整有序结果判定。20 宿主控制（4 gold、4 nop、12 semantic wrong）通过；1 个 unittest 方法包含 20 个子检查，退出 0。故意将精确结果比较改为仅列表类型判断时，12 个 wrong 全部使测试失败，退出 1；恢复后再次通过，退出 0。
+- 实际聚焦命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/regex-log/tests -p test_cases.py`。
+- schema-only `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/regex-log/case.json` 退出 0；`evals/promptfoo/score.sh test` 退出 0，配置有效，未调用模型。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出 0，行为测试数量 0（不作为行为证据）。动态领取槽位 1；`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径，`CARGO_BUILD_JOBS=1`。自身锁已释放，缓存保留；无 Rust 修改，未运行 fmt。仅有既存 block 0.1.6 future compatibility 提示。
+- 证据与逐文件哈希：`evals/promptfoo/results/qwen38-suite/diagnostics/regex-log/{host-receipt.json,red.log,green.log,schema.json,clippy.log,clippy-receipt.txt,promptfoo-test.log}`。当前执行身份 ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1。
+
+阻塞原因：调度消息明确任务 70 独占 Docker/镜像窗口，要求先完成宿主资产，等待明确释放；因此没有执行任何 Docker 命令、镜像下载、父题运行或标准容器控制。未执行 `validate --run-fixtures` 的 20 个 fresh Linux fixtures、8 个标准 SuiteDockerEnvironment oracle/nop、父题 preflight oracle/nop，尚无本题新的镜像/资源/隔离/依赖收据。不生成 validation.json，不宣称就绪，不删除任务文件；资产暂留工作区，未提交。
+
+恢复入口：原会话收到窗口明确释放后，按本文件验证命令依次运行 20 Linux fixtures、物化四题后用生产 SuiteDockerEnvironment 运行 8 标准 oracle/nop，再运行父题 preflight。禁止私有 platform/Trial/Compose 覆盖；不修改公共执行/冻结文件、不付费模型。获得新证据后按编号串行使用 git-commit 提交本题资产，再标记完成、报告并删除本文件。plan.md 未修改。

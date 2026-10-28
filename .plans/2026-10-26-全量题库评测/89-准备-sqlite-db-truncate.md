@@ -2,7 +2,7 @@
 
 批次：【批次 51】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“截断数据库恢复”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,15 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 暂停收据（等待56独占窗口结束）
+
+- 调度要求：85收尾后56使用8GiB独占；本会话未执行任何Docker、下载/导入、标准控制、父题或付费模型。保留本文件，不宣称准备完成，不提交未校准资产。
+- 已读 plan.md、执行/创建评测技能、完整父题 instruction/task/README/solution/tests/Dockerfile；父题二进制仅只读定位，未扫描其他数据库。批次1–5已有catalog、capacity、contract-validation、runtime、agent-validation收据；尚待恢复时逐项复核其完整有效性，不能仅凭编号文件删除声称依赖复核完成。
+- 已写独立目录 evals/terminal-bench/suite/cases/sqlite-db-truncate/：四题合成截断SQLite输入、第二份隐藏合成输入、恢复程序gold、每题empty/unsigned或页号错误/drop-last三负例、checker、测试、case、Dockerfile及可复现build_assets.py。未改公共执行层、冻结配置或官方材料。
+- 先缺失case红灯退出1；单输入checker变异导致硬编码拒绝测试失败（退出1），恢复双输入checker后通过。日志：evals/promptfoo/results/qwen38-suite/diagnostics/sqlite-db-truncate/checker-red.log。
+- 宿主验证确切命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/sqlite-db-truncate/tests -p test_cases.py`，退出0，22个测试：20个gold/nop/wrong控制、1个四题硬编码拒绝测试、1个材料隔离测试。host-green.log记录结果。只证明宿主控制，非Linux校准。
+- 静态`python -m suite.diagnostics validate --case .../case.json`曾退出0；随后新增九字节rowid和第二输入布局变体，最终22项测试通过load_case及materialize；最终静态哈希收据尚未重新保存，不冒充validation.json。
+- Cargo槽动态领取1；CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；CARGO_BUILD_BUILD_DIR同路径，CARGO_BUILD_JOBS=1。`cargo clippy --all-targets --all-features -- -D warnings`退出0，无行为测试（行为证据见上）。clippy.log/cargo-slot.txt位于同一忽略诊断目录。仅有依赖block v0.1.6未来兼容提示。自有锁已释放、缓存保留；没有活动Cargo、Docker或后台工作。
+- 未做：宿主资产最终审查（含m3边界负例覆盖、程序执行隔离范围与fixture生成器整理）、README、最终哈希与依赖收据、技能要求的Promptfoo轻量检查；Linux20fixture、8标准oracle/nop、父题oracle/nop、preflight全部未执行；没有容器镜像digest/资源隔离收据。缺少这些不得标完成或删除本文件。
+- 恢复入口：56结束获调度后，继续原会话；先复核1–5收据和合成资产，完成宿主审查及README/哈希记录，再按SuiteDockerEnvironment现行公共实现校准，禁止私有platform/Trial/Compose覆盖。执行身份ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1。需要再次Cargo时重新动态领槽。全完成后按编号串行git-commit，仅提交自己资产并报告证据，再删除本文件。

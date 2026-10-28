@@ -2,7 +2,7 @@
 
 批次：【批次 50】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“元循环解释器”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,17 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 执行与续接记录
+
+- 依赖批次1–5已有冻结来源、capacity.json（complete）、contract-validation.json（task3）、runtime.json（health_build_id_verified=true）、agent-validation.json（task5）及套件模块；本轮只验证当前诊断资产，不把历史通过替代本题校准。
+- 调度明确禁止本会话 Docker、镜像下载/导入、标准控制和父题运行：85占用独占窗口，下个完整窗口留给56的8GiB恢复。故保持已阻塞，不能以无关失败的“待回归”替代未运行的校准。
+- 已创建本题目录：四道独立合成题面、可执行 Python 求值器gold、每题3个语义wrong、黑盒checker、测试及README；只改本题目录，未改总计划、公共执行器或冻结配置。材料暂未提交，待按编号串行完成校准后提交。
+- TDD证据：临时将checker截断为仅运行首探针，同一测试退出1，证明后续语义缺陷漏检；恢复完整checker后退出0。日志在忽略目录 diagnostics/schemelike-metacircular-eval/checker-red.log 和 host-green.log。
+- 聚焦命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/schemelike-metacircular-eval/tests -p test_cases.py`，退出0；1个unittest，20组真实候选进程控制（每题gold/nop/3wrong）。
+- 静态命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/schemelike-metacircular-eval/case.json`，退出0，不带run-fixtures，不生成冒充Linux验证的validation.json。
+- `evals/promptfoo/score.sh test` 退出0，配置有效；未调用模型。
+- 动态领取槽位1：`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR`同路径，`CARGO_BUILD_JOBS=1`。`cargo clippy --all-targets --all-features -- -D warnings`退出0，无行为测试；仅依赖block的future-incompat提示。自有锁已释放，缓存保留；未修改Rust，无需fmt。
+- 宿主证据与哈希：`evals/promptfoo/results/qwen38-suite/diagnostics/schemelike-metacircular-eval/host-receipt.json`、clippy.json/log、score-test.log。执行身份ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1。
+- 缺失：真实Linux20fixture、8个标准子题oracle/nop、完整父题oracle/nop、镜像内容隔离复核/资源收据；没有运行preflight、没有官方reward、没有付费调用。case当前Python镜像digest复用已有诊断基镜像，须在容器窗口中复核，不能视作已准入。
+- 恢复入口：等56后获容器调度窗口，在原会话续接；按标准SuiteDockerEnvironment无私有platform/Trial/Compose覆盖运行上述缺失控制，核实上游全部输入与官方哈希、固定资源/超时，生成完整收据后按编号串行提交，再报告完成并删除本任务文件。

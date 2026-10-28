@@ -2,7 +2,7 @@
 
 批次：【批次 47】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“数据重新分片”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,15 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 宿主阶段证据与恢复入口
+
+依赖批次1–5的资产已具备：suite/source.json 固定89题来源；capacity.json记录4CPU/12530401280字节；contract-validation.json有12项契约通过；runtime.json与runtime/身份资料存在；agent-validation.json有8项代理绑定通过。执行身份按调度固定为ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1，不修改公共执行或冻结资料。
+
+已完整读取题面、task.toml、README、environment脚本、solve.sh和test_outputs.py/test.sh；files_hashes.json全部解析验证，原包哈希存于忽略证据目录。仅新增本题四个合成诊断资产。宿主 unittest命令同上，退出0，1项测试执行20控制（4gold、4nop、12wrong），每个gold执行3个真实小数据探针。故意使checker仅接受成功执行而跳过产物核验时负例失败，恢复后通过。
+
+Clippy确切命令：cargo clippy --all-targets --all-features -- -D warnings；退出0，不计行为测试。实际动态槽位1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；CARGO_BUILD_BUILD_DIR同路径、CARGO_BUILD_JOBS=1。自己的锁已释放，缓存保留。无Rust修改，无需fmt。
+
+阻塞原因：调度明确任务71独占容器/镜像窗口，禁止本题Docker/下载导入/标准控制/父题运行，等待明确释放。Linux20fixture、8标准oracle/nop与父题oracle/nop均未执行，不宣称就绪；未创建validation.json。证据在evals/promptfoo/results/qwen38-suite/diagnostics/reshard-c4-data/，含host-green.log、checker-mutation-red.log、host-evidence.json、upstream-hashes.json、clippy.log、clippy-slot.txt。
+
+窗口释放后原会话续接：重跑宿主测试；执行上述validate --run-fixtures；通过正式SuiteDockerEnvironment执行四题8个标准控制；运行上述父题preflight，记录digest/依赖/隔离/资源及oracle/nop收据；按任务编号串行使用git-commit提交本题资产。当前未提交，保留任务文件和资产，不删除其他会话文件，不修改plan.md。

@@ -2,7 +2,7 @@
 
 批次：【批次 41】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“投资组合计算加速”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,40 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 host 检查点（未就绪、未提交）
+
+- 主调度确认依赖批次 1–5 已满足。已完整阅读固定上游 15 个文件，并逐文件对照 catalog SHA256，全部一致；原题和 plan.md 未修改。
+- 已使用 do-task-plans、create-agent-evals 技能；只在本题目录新增 m1 布局、m2 数值内核、m3 精度/形状/非有限边界、m4 真 CPython C 扩展题面、合成输入、独立 checker、gold 和各 3 个语义负例。
+- 初始宽松 checker 的真实红灯：`red.log`，退出 1，18 个失败（含缺失真实计时收据）；修复后四 gold=0、四 nop=1、十二负例=1。不是 Agent 自测、文本关键词或预写计时结果。m4 独立编译 native.c，要求真实 ExtensionFileLoader/native callable，checker 实测三次调用并核验与独立 Python baseline 的加速。
+- 聚焦命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/portfolio-optimization/tests -p test_cases.py`，退出 0；1 个 unittest 方法覆盖 20 个实际进程控制。末轮 `host-tests.log`：2.423 秒。`host-receipt.json` 另存全部 20 个实际退出码、编译错误、真实 timing、声明文件哈希和父题 15 文件哈希；m4 gold baseline=0.002715042035561055 秒/native=0.00021720799850299954 秒，12.499733224711619x，仅 host 证据，不替代 Linux/Harbor 校准。
+- 标准 materialize 静态检查通过：四个 environment 只含 Dockerfile 和 fixtures/example.json，无隐藏材料。case load/schema/hash 检查通过，未创建 fixture validation.json 或 preparation.json。
+- `evals/promptfoo/score.sh test` 退出 0，Configuration is valid；保留 Promptfoo 版本提示和 telemetry shutdown timeout 日志，不更新旧基线或默认配置。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出 0。动态领取共享槽位 **1**；`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同值，`CARGO_BUILD_JOBS=1`。Clippy 行为测试数 0，不能代替上述 20 控制；自有 owner/锁已释放、缓存保留。只有既有 block 0.1.6 future-compatibility 提示；无 Rust 源码改动，未运行全量 test/fmt check/wasm/Makefile。
+- read-only Docker inspect 确认 task52 cached generic tool 的真实 Docker v2 leaf `32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf` 为 linux/amd64，Config/RootFS 与既有通用工具证明一致，config digest `a6c16930afacbb61ef2e9f1e5f994d6c560b787fa4c5f849b5c15b3f017d111c`。只复用元数据，未拉取/构建/运行容器。未来需 fresh clean-filesystem、gcc/Python headers 和冻结 amd64 Agent 的动态库闭包检查；历史 image-probe 不作本题 fresh 通过。
+- 证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/portfolio-optimization/`，含 red.log、host-tests.log、host-receipt.json、promptfoo-test.log、clippy.log、clippy-receipt.txt、cached-image-inspect.json、cached-tool-review.json。
+
+当时阻塞原因（后续诊断窗口已获准）：主调度指定 68 独占重阶段，71 暂停一切 Docker builder/tool image/fixture/standard Harbor/父 body 下载与校准，待主调度窗口。此为明确共享执行资源约束，不是能力得分或已完成，当前不提交、不删除本文件。host 无 NumPy（ModuleNotFoundError），本题独立合成 CPython C API 诊断不依赖它；父题仍需原 Python 3.13/NumPy 2.3.2 完整环境，不在 host 伪造官方结果。
+
+恢复入口：窗口获准后，先重新核验 min(host/VM) 空间，按原 S/B/A/5GiB 与所有压缩 C 副本及完整 archive U（未知非零，inspect Size/ISIZE 不算完整 U，或明确正硬停止 cap）准入；parent S=10GiB 与 diag S=1GiB 分栏，cached reuse extra transfer=0 独列。保持原父资源/3600 秒/评分/模型预算。通过公共 `suite.scoring.harbor_trial -> SuiteDockerEnvironment`，RUN 前限额、up --no-build、不用私有 Trial/compose 或 DOCKER_DEFAULT_PLATFORM。先补 clean Linux/Agent 依赖检查及 `suite.diagnostics validate --case .../case.json --run-fixtures` 20 控制，再以 ignored executionconfig 引用 verified runtime-v2 做原父 oracle/nop 和四 fresh 子题 oracle/nop；不要使用缺 historical_root 的历史 runtime.json report。无 fresh 父/子证据前不得标 ready/提交/删文件。无付费调用。
+
+
+## 2026-10-28 Linux 诊断窗口检查点（父题容量仍阻塞）
+
+状态：已阻塞
+
+- 主调度已释放 70 窗口并授权 71 独占容器/镜像诊断阶段。旧的等待调度原因已解除；当前唯一阻塞是原父完整峰值容量不足。未提交、未删除任务文件。
+- 诊断启动前 3 次真实 host/VM 采样最小可用 11,792,486,400 字节；诊断 S1+B2+A1+安全5GiB=9,663,676,416 字节，加 metadata 134,217,728 字节，共 9,797,894,144 字节，准入通过。完整已缓存纯工具 leaf 精确复用，新增传输 C 副本和 U 副本均 0；未将未知 archive U 当作 0 或用 inspect Size/ISIZE 作为上界，无新增工具 build/pull/import。原始样本见 diagnostic-capacity-admission.json。
+- 真实缓存工具名称 `vw-log-summary-diagnostics:task52-single`，case 保持 true leaf `sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf`，Docker v2 manifest，config digest `sha256:a6c16930afacbb61ef2e9f1e5f994d6c560b787fa4c5f849b5c15b3f017d111c`，Config/RootFS 对照一致。实际容器 x86_64、Python3.13.7/gcc12.2.0/真实 Python headers；/app 空，/tests、/solution、/oracle 不存在。四合成题明确无需 NumPy，未以 2.3.1 或其他共享版本替代原父 2.3.2。无 DOCKER_DEFAULT_PLATFORM、私有平台/ref/CMD/Trial/Compose 覆盖。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/portfolio-optimization/case.json --run-fixtures` 退出 0，20/20 真 Linux 控制通过：4 gold=0、4 nop=1、12 语义负例=1。case/validation.json 绑定全部声明文件和公共 checker 实现哈希；linux-validation.log 保留原始输出。
+- ignored `calibrate-children.py` 仅调用标准公共 `suite.scoring.harbor_trial -> SuiteDockerEnvironment`，退出 0。四个 fresh 子题各 oracle=1/nop=0，共 8/8 有效 first-score，无异常/超时/评分回放。当前执行身份 `ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1` 起止一致；官方源、模型、预算、Harbor 均未修改。runtime.json 是本题 ignored executionconfig，引用 verified runtime-v2，保留父 agentTimeoutSec=3600。
+- 8 个主容器创建即 1 CPU/512MiB，8 个 sidecar 创建即 0.25 CPU/64MiB；公共 builder 与 admission 原始日志齐全，up 不隐式 build。真实运行镜像为 amd64，RootFS 均继承精确 cached leaf。每份 source/materialized task、first-score/scoring 文件哈希及资源 inspect 都由 children-calibration-production-leaf.json 绑定，未自建 Trial 包装。
+- m4 标准 oracle 的 checker 在独立进程真实编译 CPython 扩展并计时：baseline=0.007286666979780421 秒、native=0.0005118749977555126 秒、14.235246909365085x；原始 verifier/test-stdout.txt 保留。不是 Agent 自述耗时。
+- `probe-agent.py` 退出 0：冻结 x86_64 ELF SHA256 `847823c5cd99a6828cddfc2e3e5dbb67c5ddcc9f8693a13d539d8a8fa47c9dae` 与 runtime-v2 校验一致，所有声明 sidecar 哈希一致。真实 linux/amd64 工具容器，network=none/read-only/0.25CPU/256MiB，按只读 ELF 所有者运行，ldd 与无密钥/无模型配置 --help 成功，进程 exit=0、无 OOM；未装 Agent 依赖。
+- finalize-linux-checkpoint.py 退出 0，复核 20+8 控制、所有任务/scoring 哈希、资源限额、冻结 ELF 身份与真实计时。仅清理本题已停止容器及空网络/卷；保留全部唯一 OCI、缓存、材料与原始证据。最终 owned containers/networks/volumes 均为空；付费调用 0。
+- 本轮无业务/checker/fixture 实现修改，只新增真实校准收据与文档；复用本任务已通过的 Clippy：动态槽 1，绝对 `CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，JOBS=1，退出 0，Clippy 行为测试数 0，自有锁已释放。未运行禁止的全量验证。
+
+当前父题阻塞数字：清理后再次 3 次真实 host/VM 采样，min(host,VM)=12,366,946,304 字节；父题原 S10+B2+A1+安全5GiB+128MiB metadata 底线为 19,461,570,560 字节，未计镜像 C/U 所有副本已差 7,094,624,256 字节。父题 C、完整 U、正 Ucap 尚未知，不填 0；基础底线已失败，未下载任何父 layer body、未进口原父、未运行父 oracle/nop。原父 Agent ABI 与官方 verifier 的 Python3.13/NumPy2.3.2/uv 及网络/bootstrap 边界均待验证；未预修 Agent 或替换官方评分。当前不生成 preparation.json、不宣称整题 ready。
+
+恢复：维护者释放至少上述缺口并预留真实 C/U 所有副本/完整峰值后，重新三次 min(host,VM) 准入（如采用正硬停止 cap，须原始全 stream SHA/diff_id/U 验证）；再按原 S10/1CPU/4GiB/3600 秒运行标准原父 oracle/nop，必要 verifier-only 修复须保留官方 checker 并重新校准。不能只凭诊断通过完成/提交/删除。本次最终证据：`evals/promptfoo/results/qwen38-suite/diagnostics/portfolio-optimization/checkpoint-linux-calibrated-parent-blocked.json`。

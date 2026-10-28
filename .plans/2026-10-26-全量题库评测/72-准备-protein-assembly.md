@@ -2,7 +2,7 @@
 
 批次：【批次 41】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“融合蛋白序列设计”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,17 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 主机准备检查点
+
+主调度确认依赖批次1–5满足；按照共享资源调度要求暂停全部新Docker活动，等待窗口后续接。未标记ready，未提交或删除任务文件，plan.md未修改。
+
+已读取全部11个上游文件并逐文件核对catalog SHA-256。已创建四道独立合成题、黑盒checker、gold、每题3个错误变体、tests及README。初始宽松checker真实红灯17项断言失败；修复后指定unittest命令退出0，3个测试包含20组gold/nop/负例控制，m1/m2/m3正解分别运行6/8/13个输入，另覆盖m4同义密码子、连接肽边界和非法交付。
+
+证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/protein-assembly/` 的red.log、green.log、host-checkpoint.json、clippy.log及clippy-metadata.txt。仅主机证据，不是容器校准。Clippy命令 `cargo clippy --all-targets --all-features -- -D warnings` 退出0；实际动态槽位1，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，JOBS=1，自有锁已释放、缓存保留。没有Rust变更，无全量测试/fmtcheck/wasm/Makefile。
+
+待恢复：获得主调度Docker窗口后核实通用单leaf镜像及真实amd64 Agent闭包、资源空间收据，再跑指定diagnostics validate --run-fixtures、标准SuiteDockerEnvironment原题oracle/nop和四子题fresh Harbor校准。历史runtime.json缺historical_root，使用忽略目录内验证runtime-v2 execution config。没有任何Docker命令、付费模型调用、官方评分/模型/预算变更或公共代码修改。真实容器证据齐备前不完成、不提交、不删编号文件。
+
+补充：`evals/promptfoo/score.sh test` 退出0（Configuration is valid）；日志promptfoo-validation.log。仅既有配置静态验证，没有模型调用。
+
+阻塞原因：等待主会话分配新的Docker窗口，69父阶段优先。主机20组控制与Clippy已通过，但原父题及容器校准证据尚未齐备；收到新窗口后续接。

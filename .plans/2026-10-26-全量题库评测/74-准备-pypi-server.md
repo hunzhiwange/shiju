@@ -2,7 +2,7 @@
 
 批次：【批次 42】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“软件包索引服务”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,36 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 宿主实施与阻塞记录
+
+- 已读取固定上游全部 7 文件、plan.md、执行/评测技能及共享 Docker 资源规则。批次1–5资产已存在：冻结 source/catalog、capacity.json、contract-validation.json、runtime-v2.json/VALIDATION.md、agent-validation.json、diagnostics-format/evidence.json、readiness-validation.json；历史证据不代替本题校准。
+- 已准备本题独立 m1..m4 的合成题面、输入、checker、gold/nop与每题3负例及README；未改父题、评分、模型、预算或plan.md。
+- TDD：初始全接受 checker 运行规定 unittest 命令，5 tests，16 failures，退出1（red.log）。最终同一命令5 tests、20个行为候选及schema检查通过，退出0（green.log）。两个gold最初因宿主Harbor venv缺pip失败；离线 `evals/promptfoo/results/task25/harbor-venv/bin/python -m ensurepip --upgrade` 后安装pip 26.0.1，原检查不变并通过。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/pypi-server/case.json` 静态校验退出0；未加 --run-fixtures，不算容器校准。
+- `evals/promptfoo/score.sh test` 退出0。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出0（0行为测试）；动态领取槽1，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，CARGO_BUILD_JOBS=1；已释放自己的锁，保留缓存。仅既有block 0.1.6未来兼容提示，无Rust改动。
+- 原始日志、逐文件SHA256和host-evidence.json位于忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/pypi-server/`。
+- 具体阻塞：调度者明确禁止启动Docker、下载层或导入镜像，等待任务68释放容器活动窗口。本会话未执行Docker命令、未调用付费模型。父题oracle/nop、四子题fresh校准、20项Docker fixtures、镜像实际可用性、Linux冻结ELF --help和资源隔离收据尚未取得，因此不可标完成，也不删除任务文件。
+- 恢复入口：收到原会话容器窗口明确释放后，先核验digest固定镜像及pip，再执行本文件两条容器验证命令和无密钥离线ELF --help。父/子题必须走 `suite.docker:SuiteDockerEnvironment`，身份 `f759534dd79bbe107a90b14ddc75b553f285607cd7e9c3fd5ca10d841c43f8e5`，不得私有平台/Trial/Compose/镜像覆盖。满足完整证据后按任务编号串行使用git-commit提交本题资产，再删除本任务文件。当前阻塞阶段资产保留未提交。
+
+## 2026-10-28 容器窗口短暂释放后的暂停
+
+- 调度者一度释放唯一容器窗口，随后要求在任务13修改共享生产接线前暂停。收到暂停时尚未启动任何容器、Docker构建、下载、导入或校准；本任务无活动容器/构建，可立即释放窗口。未更改任何共享执行代码。
+- 实测 `df -k .` Available=16637452 KiB，约15.87GiB，低于父题仅S10+B2+A1+安全5即18GiB的底线（尚未计未知C/U），父题下载/导入未准入。VM空闲尚未通过实际容器采样，不以docker system df代替；未宣称完整容量准入。
+- `docker image inspect vw-cython-base:single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf` 返回不存在；列表及精确inspect确认相同digest可从现有 `vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf` 查询。未补tag、未覆盖case.image，未实际运行镜像，故不宣称Linux工具/ELF已通过。
+- 原始命令、退出码、实际主机字节数、缓存镜像inspect、无本任务活动容器/构建与dockerhelper哈希存于 `diagnostics/pypi-server/resume-capacity-and-pause.json`；仍缺父题2控制、子题8标准控制、20 Docker fixtures、离线ELF --help。
+- 恢复需调度者再次释放窗口，并确认任务13公共接线后的实际执行身份；随后重新采样宿主/VM及资源，再运行诊断阶段。父题须另行满足至少18GiB加实际C/U和所有压缩副本的准入。继续保持已阻塞，材料未提交、任务文件保留。
+
+## 2026-10-28 共享接线稳定后的真实诊断验证
+
+状态继续为已阻塞；诊断阶段已完成，唯一剩余必需验收为原父题oracle/nop及其镜像/依赖准入。
+
+- 调度者再次授权唯一容器窗口后，核验实际共享执行身份为 `ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1`。未修改共享实现、未覆盖平台/Trial/Compose/原Agent环境。
+- 缓存case.image固定digest实际可用且amd64。真实受限Linux探测退出0，Python3.13.7、pip25.2，冻结ELF SHA256=`847823c5cd99a6828cddfc2e3e5dbb67c5ddcc9f8693a13d539d8a8fa47c9dae` 无密钥离线 `--help` 退出0、无OOM；网络none、根只读、0.25CPU/256MiB、只挂载只读冻结bundle。镜像内容审计/app空、/tests与/solution不存在；history未发现上游材料。原始证据linux-probe.json/log/resources及tool-image-content-audit.json。
+- 规定 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/pypi-server/case.json --run-fixtures` 退出0，20项真实Docker检查全部通过（4 gold、4 nop、12有意义负例），生成hash-bound validation.json。实际发行包、索引服务与pip安装执行，未使用模拟。额外采样12个短生命周期checker资源inspect，并保留共享运行命令/资源策略。
+- 运行忽略目录calibrate-children.py（调用真实diagnostics.materialize与标准suite.scoring.harbor_trial，无私有Trial）：退出0，8个fresh子题控制，四oracle=1、四nop=0；首轮verifier全部成功，materialize包前后哈希一致。每个实际main 1CPU/512MiB、sidecar 0.25CPU/64MiB，amd64层链与固定base一致；每Trial完整build/资源/评分证据及children-calibration-production-leaf.json保留。未用旧证据替代。
+- 规定宿主unittest再次5 tests、20候选通过，退出0（host-resume.log）。重新动态领取槽1执行 `cargo clippy --all-targets --all-features -- -D warnings` 退出0；CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，JOBS=1。无Rust改动，锁已清理、缓存保留；仅既有block未来兼容提示。
+- 初始宿主12905758720、VM94007341056字节，独立诊断S1+B2+A1+安全5=9663676416字节预算准入；镜像已缓存，没有新增C/U。最终宿主12702195712字节(11.83GiB)、VM94006415360字节(87.55GiB)，保守较小值12702195712，仍低于父题至少19327352832字节(18GiB)，尚未计未知C/U及全部压缩副本。父题下载、导入与oracle/nop未启动；未把未知U当0，也未以inspect Size/ISIZE作为U上界。
+- 收尾全部本任务容器和构建已结束并移除自己的结束容器；无本任务活动容器、无Cargo锁、无模型调用。保留所有唯一原始日志、materialize包、派生镜像缓存和依赖。最终收据 `evals/promptfoo/results/qwen38-suite/diagnostics/pypi-server/diagnostic-checkpoint.json`；可立即释放唯一容器窗口。
+- 下一步：扩充可用容量或由维护者处理可安全归档的已归属资产，重新申请窗口、采样host/VM；父题使用可行正值硬cap验证完整SHA/diff_id/U和所有实际C副本后再准入，运行标准preflight取原父题oracle/nop。禁止降低官方S/预算、改评分、修原Agent环境或付费模型。因父题未校准，保持已阻塞、未提交、保留本文件与诊断资产，不宣称整题就绪。

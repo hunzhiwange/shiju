@@ -2,7 +2,18 @@
 
 批次：【批次 48】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
+
+## 本次执行证据（2026-10-28）
+
+- 阻塞为诊断真实工具资源限制，不是父题磁盘不足：官方 PyStan 3.10.0 / httpstan 4.13.0 / Python 3.12.12 已离线安装成功；`stan.build('parameters {real x;} model {x ~ normal(0,1);}', random_seed=1)` 的真实 gcc 编译在 1CPU / 512MiB / 无 swap 下失败，`cc1plus` 被杀，Docker `State.OOMKilled=true`，退出码 1。没有生成样本、没有模拟采样器，也没有扩大子题预算。尚未制作可宣称完成的四子题资产或生成 readiness/preparation 收据。
+- 缓存工具镜像 Python 3.13 的首次路径也已真实排查：pysimdjson<7 无 cp313 wheel，官方 6.0.2 源码在 CPython 3.13 的 `_PyLong_AsByteArray` / `_PyGen_SetStopIterationValue` API 上编译失败。随后改用官方固定 Python 3.12 和 23 个真实 wheel；宿主完整 SHA、压缩/解压体积和安装配方均保留。没有修改原父 Agent 环境。
+- 依赖批次 1–5：catalog、contract、runtime、agent 共 48 项聚焦测试通过；上游全部 13 文件与冻结 catalog SHA256 匹配。执行身份 `ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1` 与授权一致。`evals/promptfoo/score.sh test` 配置验证通过，无模型请求。
+- 初次 host 12573515776B / VM 93889794048B 未满足原父最低 18GiB，未下载原父层。之后外部清理使宿主约 99GiB，重新实测双边空间并按 `3C+Ucap+S10+B2+A1+安全5GiB` 准入；原父镜像 `sha256:b23d48839408524326095c15ada4145c772b87646cf299022ff1f58c97baba91`（linux/amd64），C=50931626B，完整流 SHA / diff_id 验证后的 exact U=146356736B，导入后配置与 RootFS 完全匹配。原父冻结 ELF 无密钥离线 `--help` 实际通过。
+- 原父标准 `suite.scoring.harbor_trial` / `SuiteDockerEnvironment` nop 已完成，原始 verifier 6 测试（1 通过、5 缺产物失败），reward=0；oracle 已结束：原始 apt 下载失败，随后 `add-apt-repository` 缺失；官方 verifier 同样 6 测试（1 通过、5 缺产物失败），raw reward=0。该 oracle 校准标记 invalid/unscored、能力成绩 null、基础设施失败，不计模型能力 0；原始 Harbor summary/reward 保留，派生归类在 `checkpoint.json`。没有重试或预修父 Agent。资源保持 4CPU / 8192MiB / 10240MiB，Agent/verifier 各 1800 秒；无私有 Trial、platform/FROM/Compose 覆盖或全局配置修改。
+- Cargo 首阶段动态领取槽位 1，绝对 `CARGO_TARGET_DIR` 和 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_JOBS=1`，执行 `cargo clippy --all-targets --all-features -- -D warnings`。外部删除整个 target（含活跃锁和缓存）导致临时目录消失，退出 101，原始失败日志未覆盖；本会话未删除他人锁。已重新动态领取槽位 1 重建验证，最终退出 0；有效行为测试数 0（Clippy 是静态检查，不代替上述 48 项及评分验收）。自己的 owner/锁正常释放，缓存保留。未修改 Rust，未运行 fmt、全量测试、wasm 或 Makefile。
+- 原始日志、安装失败、真实依赖/哈希、容量/OCI、父题评分与 Cargo 收据均保留于忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/rstan-to-pystan/`。诊断 20 fixture、8 标准控制和三条任务验证命令尚无有效验收证据，不能以零测试、父题 nop 或安装成功替代；任务文件保留，不提交仅状态更新。两个停止探针容器已在完整 `/tmp` 归档 SHA256 校验后按精确 ID 删除，父题 Trial 容器已结束并清理；原镜像、唯一 OCI/层、真实依赖、原始失败/评分及 Cargo 缓存保留，独占窗口已释放。
+- 恢复入口：先解决真实 Stan 扩展在既定 512MiB 下的编译可行性（保留本次 OOM；不得自动提高预算），本轮没有新增 clang 工具链，也未试图修改 PyStan 源码、预置答案或调高预算；若后续采用官方 clang，须先固定来源/SHA、重新准入并在同预算做一次真实探针。再制作/校准四个独立合成子题，完成 TDD、20 fixture、8 标准控制、官方父题 oracle/nop 与正式 preflight；重新动态领取 Cargo 槽位，使用新的双边容量实测，不沿用旧快照。
 
 目的：为“统计模型接口转换”准备原题完整环境与四道独立诊断题。
 

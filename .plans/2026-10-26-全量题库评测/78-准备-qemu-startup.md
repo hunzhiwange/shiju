@@ -2,7 +2,7 @@
 
 批次：【批次 44】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“虚拟机串口启动”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,16 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 宿主阶段记录与恢复入口
+
+- 阻塞：调度明确指定任务69独占容器/镜像窗口，未收到释放；禁止Docker、镜像下载/导入、标准控制及父题运行。宿主也无qemu-system-x86_64和/opt/qemu-startup-lab真实客户机。未执行受禁操作，未调用付费模型，未改变全局Docker/platform/binfmt。不能以宿主socket探针充当真实QEMU校准。
+- 依赖批次1–5已由source.json/catalog.json、capacity.json(status=complete)、contract-validation.json、runtime.json及runtime/current-source.json、agent-validation.json核验既有证据；本题上游8个文件SHA256逐项匹配冻结catalog，题树/题面/配置与任务指定一致。此核验不替代本题preflight。当前调度授权执行身份为ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1；后续使用标准SuiteDockerEnvironment，不修改冻结runtime或公共执行器。
+- 已准备本题独立case.json、check.py、四道完整合成题面/输入、每题gold/nop/3 wrong、Dockerfile及独立BusyBox客户机构建脚本、README和聚焦测试。m1校验启动/串口argv及非法参数；m2要求真实客户机；m3用真实Unix socket测试分片、错主机、EOF、超时；m4检查真实QEMU PID、客户机随机挑战及strace两次成功connect，不认可仅JSON自述。退出1为拒绝，2为基础设施错误。
+- TDD红：指定unittest命令退出1，24项中m1 gold因checker参数数量计数错误失败，8项真实客户机控制跳过；修正10个参数、5对选项后绿。最终增加非法JSON、选项乱序等分支验证，27项发现/19项有效通过/8项真实客户机控制跳过，退出0。m1/m3各自gold/nop/3 wrong均实测；m2/m4未校准，不标完成。
+- 已运行：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/qemu-startup/tests -p test_cases.py`（退出0，19通过/8跳过）；`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/qemu-startup/case.json`（仅schema/哈希，退出0）；`sh -n evals/terminal-bench/suite/cases/qemu-startup/environment/build_guest.sh`（退出0）；`evals/promptfoo/score.sh test`（退出0，配置验证）。
+- Cargo动态原子领取实际槽位1：`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR`同值，`CARGO_BUILD_JOBS=1`。`cargo clippy --all-targets --all-features -- -D warnings`退出0（有效行为测试0，非行为验收），依赖block 0.1.6未来兼容提示；自己的owner/lock已清理，缓存保留。无Rust变更，未运行fmt、全量cargo test、wasm或Makefile。
+- 本次宿主日志/资产哈希：`evals/promptfoo/results/qwen38-suite/diagnostics/qemu-startup/{host-tests.log,host-receipt.json,clippy.log,clippy-receipt.txt,score-test.log}`。未生成validation.json、父题reward或校准通过收据。case.json零digest明确代表未构建，禁止作为可运行镜像身份。
+- 待窗口释放后：审查原镜像真实digest，受限构建独立诊断镜像（PARENT_IMAGE为不可变digest），回填真实诊断digest；执行本文件原定--run-fixtures和preflight命令，获取完整父题oracle通过/nop失败、四子题各gold/nop/3 wrong的fresh容器收据及镜像/客户机/fixture/checker哈希、隔离/资源证据。不得用当前宿主通过数或77的控制结果代替。若strace因沙箱策略不可用，先明确记录基础设施失败，只在本题范围修复并重新校准，不降低双连接判定。
+- 按“真实校准未做时精确标已阻塞，原会话续接”保留本任务文件和未提交资产；尚未达到完成/提交节点。plan.md未修改。

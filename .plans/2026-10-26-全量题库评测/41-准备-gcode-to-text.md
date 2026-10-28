@@ -2,7 +2,7 @@
 
 批次：【批次 23】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“打印路径文字识别”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,27 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 本轮执行记录（2026-10-28）
+
+依赖批次 1–5 已由调度确认完成。已准备本题四个合成独立诊断草稿，未提交；不标记整题就绪，不删除本文件。未修改 plan.md、官方题源、评分、模型、预算或时限；零模型调用。
+
+阻塞：官方原镜像内 oracle 在 900 秒后抛出 `AgentTimeoutError`。Agent 于 2026-10-28 00:45:25 +08:00 开始，01:00:25 超时；原脚本先下载 251MB、安装409个系统包，随后停在 matplotlib 3.10.7 的8.7MB wheel下载，尚未渲染/OCR。原始 reward=0 是无效oracle校准，不能记作能力分或有效准备。发现超时后仍存活的本题 oracle shell/pip，已终止；原verifier正常收尾后容器由自有watch清理。
+
+已在授权范围排查：Docker拉取TLS超时后，从同官方Registry恢复原manifest和各层，逐层验证SHA256、rootfs diff_id及本地镜像一致。原镜像digest `sha256:0979ef40c6a3e8c4e7ab5b6c2524c74625a84799e15cd45dd98dcf83b11efd4d`（amd64），原资源1CPU/2048MiB/10240MiB、Agent/verifier均900秒。仅在verifier阶段使用SHA绑定的curl/uv/pytest依赖缓存，未给Agent注入依赖或改原oracle。
+
+检查及退出码：
+
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/gcode-to-text/tests -p test_cases.py`：0，20项有效测试。仅检查示例的checker红测为1（20项中硬编码示例负例漏检）；最终多输入checker绿测20/20。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/gcode-to-text/case.json --run-fixtures`：0，20次隔离校准（4 gold、4 nop、12负例）。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.run preflight --catalog evals/terminal-bench/suite/catalog.json --runtime evals/promptfoo/results/qwen38-suite/runtime.json --parent-id gcode-to-text --output evals/promptfoo/results/qwen38-suite/preflight/gcode-to-text`：1，旧身份报告缺`historical_root`；空输出目录归档到本题忽略目录。
+- 相同preflight命令仅把`--runtime`改为`evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/runtime-bootstrap.json`：1，官方oracle 900秒依赖下载超时；完整preflight未通过，无preparation.json就绪收据。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/calibrate-children.py`：0，四子题8次fresh Harbor oracle=1/nop=0，异常字段均为空。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/calibrate-parent-nop.py`：0，独立fresh官方nop reward=0，无异常，真实pytest收集2项且2项失败。
+- `evals/promptfoo/score.sh test`：0，配置有效，无付费运行。
+- `cargo clippy --all-targets --all-features -- -D warnings`：0；动态原子领取槽位1；`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR`同路径，`CARGO_BUILD_JOBS=1`。锁已释放，缓存保留；Rust行为测试0项，未改Rust。
+
+完整证据与恢复脚本：`evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/blocked-evidence.json`、`oracle-timeout.txt`、`runtime-bootstrap.json`、`independent-child-controls.json`、`independent-parent-nop.json`、`*-resource.json`；原题原始超时与评分日志位于`evals/promptfoo/results/qwen38-suite/preflight/gcode-to-text/calibration/gcode-to-text-oracle/`。实际Agent执行区间与异常已核对，不使用超时后产物。
+
+恢复入口：在原Agent下载网络恢复后，保留本轮失败证据，将现有本题preflight目录归档到本题忽略目录，再用上述任务局部runtime与原900秒时限重新校准完整原题oracle/nop及四子题；获得全部有效证据后才可完成、按顺序提交并删除任务文件。不得向Agent注入依赖、延长时限或用固定答案替代原oracle。

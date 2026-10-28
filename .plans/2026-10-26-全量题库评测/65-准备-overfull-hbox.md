@@ -2,7 +2,7 @@
 
 批次：【批次 38】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“排版警告修复”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,32 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 检查点与恢复入口
+
+- 主调度确认依赖批次 1–5 满足；明确暂停新 Docker builder、工具镜像、父镜像下载、标准 Harbor 控制及父题校准，等待 task7 公共生产构建资源限制修复。未绕过生产路径，未改共享代码或原题，未运行付费模型。
+- 已读完整上游题面、solution、tests 与环境输入；instruction SHA256=91381d7490afbbf11255e22471d3ed76317353d8e1da372fbc91887e65c57f47，task.toml SHA256=64680925bd47043216bffb2c44eb3620f1730e111a89ffbcc5550e5ffc89e72b，匹配任务记录。
+- 本题目录已有四子题 JSON API、合成 fixture、真实 pdflatex checker、4 gold / 12 negatives、30 项 host/integration 测试、待构建 Dockerfile 与恢复 README。case.json 目前仅固定缓存 Python 基镜像，尚无 TeX，不能作为可运行校准镜像；须经获准公共 builder 构建后更新实际工具镜像 digest。
+- host command -v pdflatex / tectonic / latex 均未找到（退出 1）；真实编译基础设施缺失，不伪造日志/PDF，不把 infra 当 nop 拒绝。
+- TDD：先缺 checker 导致导入失败；初始 split checker 的 2 个行为断言失败（合法带标点替换误拒、空白变化漏检），最小修复后通过。准确命令：PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/overfull-hbox/tests -p test_cases.py，退出 0，30 项中有效通过 10、缺真实引擎跳过 20；后者不计校准成功。
+- 静态 schema：PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/overfull-hbox/case.json，退出 0，checks=[]，仅格式检查。未写 validation/preparation 收据，公共代码哈希尚未固定。
+- evals/promptfoo/score.sh test：退出 0，Configuration is valid。cargo clippy --all-targets --all-features -- -D warnings：退出 0；动态领取槽位 1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR 同值、CARGO_BUILD_JOBS=1；结束已清理自己的 owner/lock，缓存保留。Clippy 有既有 block v0.1.6 future-incompat 提示，无本次 Rust 变更、无行为测试数量。
+- 未运行：--run-fixtures、父 preflight、原题 oracle/nop、四子题 fresh Harbor controls；原因是明确公共入口暂停和实际 TeX 缺失，不是能力失败。未提交未校准资产，保留任务文件与本题资产供后续串行恢复；不删除其他会话锁或文件。
+- 证据：evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/{tdd-red.log,tdd-red-constraints.log,host-tests.log,promptfoo-test.log,clippy.log,clippy-slot.txt}。
+- 恢复：主调度确认 task7 公共入口稳定/受限串行窗口后，按 README 准入真实 TeX 工具镜像和父镜像（实际 min(host/VM)、全部 copies、正硬 Ucap、task2 reserve），固定工具 digest，完整运行任务要求的校准与 preflight，再取得真实资源/隔离/哈希收据。当时要求按63/64之后串行提交；恢复调度已改为只按同时 ready 编号串行，不因 blocked 低号持锁等待。不偷改平台或 Trial。
+
+
+## 2026-10-28 恢复校准检查点（覆盖旧阻塞原因）
+
+- 公共修复 964419691 已稳定；本轮直接使用 suite.docker 的公共 build_command/共享资源锁，以及标准 suite.scoring.harbor_trial → SuiteDockerEnvironment。最终 scheduler/execution SHA256=f759534dd79bbe107a90b14ddc75b553f285607cd7e9c3fd5ca10d841c43f8e5。旧的“公共入口暂停/TeX 缺失”已解除，唯一剩余阻塞是完整父题容量。
+- 独立通用 TeX 工具已受限构建：官方签名 APT metadata 的无 recommends 最小闭包 32 包，固定版本/Size/SHA256/HTTPS，合计 44,891,344 字节；解包 tar 实测。诊断 profile S=1GiB、B=2GiB、A=1GiB、margin=5GiB，三份 Ccap 各768MiB、完整正 Ucap=3GiB，所需15,300,820,992字节；准入 min(host,VM)=18,282,835,968字节。下载/解包限额、builder SizeRw+全历史层 Ucap 和剩余空间监控均启用，不拿 inspect Size 当 U，不拿旧 nginx 的 C/U 当本题值。
+- 构建使用公共 build_command，实际 RUN 创建时 CpuPeriod=CpuQuota=100000、Memory=MemorySwap=536870912；无事后 update、无私有平台/Trial/Compose 覆盖。离线安装已验证本地包、policy-rc.d exit101禁止启动服务；工具镜像不含原题/solution/tests，/app为空。amd64 原冻结 Agent 和既有运行库的 shiju --help、pdflatex及动态库探针通过。
+- 工具单 OCI manifest/ref=vw-overfull-hbox-tools:task65@sha256:44fee1e96bc7a9464263914021f9936b2a138c967e71bc92203de9377bb82ec9；config=sha256:063b871f9e2d4a0af2d61d10a967bfa8d2fc60b386b54860f9d98dfb36a37431。流式 save 未落整档副本，实际 C_file_payload=451,941,335，完整 U（含重复 RootFS 引用）=1,112,603,136；全部 diff-ID、manifest/config、ref/amd64一致。第一次 identity guard 错把 OCI manifest Id 要求等于 config digest而退出1，修正为核验各自真实对象和配置字段后通过；原失败说明保留。
+- 已补真实红绿 TDD：仅在忽略目录中的合成 case 副本移除 warning数量比较，m1/m4 ignores-warning 被误放行，30测中2项失败、退出1；恢复原 checker 后真实 TeX 30测全部通过，无跳过，退出0。命令与限制完整记录于 tex-tests-20261028.py，日志 real-tex-red-warning-20261028.log / real-tex-green-20261028.log。旧host 10通过/20跳过不替代本轮行为证据。
+- 任务规定 fixture 命令 PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/overfull-hbox/case.json --run-fixtures：退出0，20个 fresh容器（4gold/4nop/12negative）均符合；validation.json 已绑定实际工具和checker/fixture哈希。
+- 八项标准 Harbor 控制：PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/standard-controls-20261028.py，退出0；4oracle首评reward1、4nop首评reward0，无recovery/回放。材料化FROM原字节未修改，main各1CPU/512MiB、egress各0.25CPU/64MiB，原始容器资源与task/adapter/runtime/官方源及最终公共执行哈希归档。全部自有控制容器结束清理，无付费调用。
+- 最终 cargo clippy --all-targets --all-features -- -D warnings：退出0；动态槽位1，绝对 CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR同值、JOBS=1，自己的owner/锁已释放，缓存保留。仅既有block0.1.6 future提示。evals/promptfoo/score.sh test退出0。无Rust修改、无全量测试/fmt/wasm/Makefile。
+- 父题仍未准入：新快照 host=18,615,836,672、VM=92,692,893,696，min=18,615,836,672；原S10GiB+B2GiB+A1GiB+5GiB已需19,327,352,832，必要下界差711,516,160字节，还没计任何正C/U。C/U未知保持未知，未按零计；没有父下载或父oracle/nop，没有preparation acceptance。不得标完整题已就绪、不得删除本文件。按调度要求精确已阻塞检查点结束，不因低号blocked持Git索引等待；未提交父题未完成资产。
+- 新证据均在 evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/，带20261028新文件名，未覆盖旧日志：tool-admission、dependencies、metadata-resources、tools-build-resources、tools-identity、runtime-closure、real-tex-red/green、fixtures-green、standard-controls及逐控制resources、source-checkpoint、parent-capacity-rejection、clippy-slot-resume与promptfoo-resume。源码/依赖/fixture/checker哈希已在source-checkpoint-20261028.json归档。
+- 下一步：容量恢复后获取完整父镜像官方metadata、全部压缩副本C及完整U或正硬Ucap，按当时min(host,VM)和原18GiB预留重新准入；再运行原父preflight/oracle/nop和最终身份复核。仅真正完整ready后按同时ready编号串行提交并报告证据删除任务。plan.md保持只读。

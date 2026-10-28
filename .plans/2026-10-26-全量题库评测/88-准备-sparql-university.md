@@ -2,7 +2,7 @@
 
 批次：【批次 50】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“知识图谱查询”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,17 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 宿主阶段证据与调度阻塞
+
+已读取总计划、完整上游题面/数据/solution/tests；instruction 与 task.toml SHA256 与任务上下文一致。依赖批次1–5以已有提交及收据核验：3152914f9（来源）、5ec4c7942（容量）、b8509891c（契约）、9e828dd52（冻结运行时）、6189deb69（代理）、3e53062e2（诊断格式）、078bc547f（调度）、fb2237255（报告）；收据位于 qwen38-suite 的 capacity.json、contract-validation.json、agent-validation.json、diagnostics-format/evidence.json 与 runtime/identity.json。当前授权执行身份以调度消息 ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1 为准。
+
+已保留本题四个独立合成 RDF/SPARQL 子题、gold/nop/各3种错误查询、真实 rdflib 7.1.4 执行 checker、隔离物化测试和未构建 Dockerfile。checker 在可信图及改名图实际执行查询，比对列/多重集；m4 另外核对 results.json。宽松 checker 的初始22测试失败16项；修复后指定 unittest 命令退出0，27项有效测试通过。`suite.diagnostics validate --case evals/terminal-bench/suite/cases/sparql-university/case.json`（无 --run-fixtures）退出0，只证明宿主 schema/hash。未生成 validation.json。`evals/promptfoo/score.sh test` 退出0，Configuration is valid。
+
+`cargo clippy --all-targets --all-features -- -D warnings` 退出0，有效行为测试数0；动态领取槽位1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；CARGO_BUILD_BUILD_DIR同值、JOBS=1。自有锁已释放，缓存保留。仅既有 block 0.1.6 future-incompat 提示，无 Rust 修改。
+
+阻塞原因：调度明确禁止本会话 Docker、镜像下载/导入、标准控制及父题运行，为85校准及56的8GiB独占恢复保留窗口。因此 Linux 20-fixture、四子题8个标准oracle/nop、完整父题oracle/nop均未运行；镜像digest与真实隔离/资源收据未取得，不能标记已完成。case.json的全零digest为明确不可运行占位，Dockerfile未构建。无付费调用，无公共执行/冻结/上游文件变更；本轮部分资产不提交，任务文件保留。
+
+证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/sparql-university/`，含 host-red.log、host-green.log、host-schema.json、host-receipt.json（逐文件SHA256及上游SHA256）、cargo-slot.txt、clippy.log、promptfoo-validation.log。
+
+恢复入口：56结束且调度释放后在原会话继续，审查并固定带rdflib的诊断镜像digest，再执行本文件指定 --run-fixtures、标准 SuiteDockerEnvironment 四题oracle/nop和父题preflight。不得私有platform/Trial/Compose覆盖或更改官方checker；校准完成才串行提交、报告证据并删除本任务文件。

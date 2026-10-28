@@ -2,7 +2,7 @@
 
 批次：【批次 38】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“删除文件取证”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,33 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 执行检查点
+
+- 主调度确认依赖批次 1–5 已满足；完整阅读本题全部 8 个上游文件，未修改原题、公共代码、模型或预算。
+- 已准备本题 case/checker、四份独立契约、4 gold、12 错误程序及 host 黑盒测试。先红：21 项中 m3 normalize-case 被漏放（退出1）；补充独立小写诱饵后指定 unittest 命令 21 项通过（退出0）。每个 gold 运行4个请求，nop 和3负例均被拒绝。
+- 已运行 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/password-recovery/case.json`（退出0；不带 run-fixtures，仅结构及哈希验证，checks为空）。主机收据位于忽略目录 diagnostics/password-recovery/host-validation.json。
+- `evals/promptfoo/score.sh test` 退出0（Configuration is valid）。
+- 动态领取实际槽位1；`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径，`CARGO_BUILD_JOBS=1`；运行 `cargo clippy --all-targets --all-features -- -D warnings` 退出0（无行为测试数量；仅既有 block 0.1.6 future-incompatibility 提示）。进程结束后删除本会话owner并rmdir释放锁，缓存保留。没有 Rust 修改，不运行格式化。
+- 阻塞：主调度通知公共生产/prepare/评分恢复 builder 资源修复独占窗口，明确暂停一切新Docker build、工具image、标准Harbor、父镜像下载及父校准；当前 host 约19.2GB，不符合新增父镜像下载准入。未执行 validate --run-fixtures 或指定 preflight，未取得父题oracle/nop、四子题fresh容器校准、平台/资源隔离收据，不能标完成。
+- 当前 digest 引用缓存 Python base，amd64 可用性尚未核实，不代表最终工具镜像。无付费调用，无新Docker构建或镜像下载。公共代码hash尚会变，不将host单测冒充容器校准。
+- 恢复入口：主调度通知公共入口稳定并分配受限窗口后，按README确认amd64、磁盘正硬Ucap准入和全部压缩副本+18GiB/metadata；重绑公共代码身份，执行 validate --run-fixtures 与原题 preflight，补全镜像/依赖/fixture/checker哈希及隔离资源收据。只保留本题资产，不提交或清理其他任务文件；本任务保持已阻塞，未提交，待完整校准后按编号串行提交。
+
+## 2026-10-28 容器诊断恢复检查点（取代上段共享入口暂停原因）
+
+- 公共资源修复964419691稳定，已阅读suite/BUILD_RESOURCES.md；使用原公共 suite.scoring.harbor_trial / SuiteDockerEnvironment，无私有Trial/compose/platform覆盖。
+- case.image实际验证为Linux amd64单Docker v2 manifest，Python3.13.7/x86_64；空/app，无/tests、/oracle、/solution，无新工具镜像或父镜像下载。镜像digest=32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf，FROM/ref未更改。
+- 使用 /tmp/task66-fixtures.py 调用 diagnostics.validate(case,run_fixtures=True)，退出0：20个fresh容器（4gold/4nop/12负例）全部符合预期，捕获20容器实际1CPU/512MiB/128PID、无网络、只读root。case目录validation.json及忽略目录container-resume/validation.json绑定所有声明哈希。没有覆盖原host-validation.json。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/password-recovery/container-resume/calibrate-children.py` 退出0：8个标准fresh Harbor控制，4oracle=1、4nop=0，首次评分且无recovery。每次实际main=1CPU/512MiB，sidecar=0.25CPU/64MiB；原materialize文件不变，main镜像amd64且沿用缓存base层。
+- children-calibration.json保存开始/结束身份确认、task/scoring树哈希、Harbor/冻结Agent/原题源码以及8次真实磁盘与活动资源准入。execution身份 f759534dd79bbe107a90b14ddc75b553f285607cd7e9c3fd5ca10d841c43f8e5 前后相同。诊断按S1/B2/A1/5GiB，base U=330438807、context硬上限1MiB，无新compressedcopies。
+- 主机指定unittest再次21项通过（退出0）。再次动态领取槽位1执行cargo clippy --all-targets --all-features -- -D warnings退出0；绝对target/builddir均为/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，JOBS1；自有锁已释放，缓存保留，仅既有block future提示。
+- 唯一未突破项为父题容量：host=18705506304，VM=92692164608，真实min=18705506304 bytes；必要S10+B2+A1+5GiB=19327352832 bytes已超出，尚不含全部压缩副本、正硬Ucap和metadata。C/U未知并未按0；parent-capacity-rejection.json保留拒绝收据。未父下载/未原题preflight，缺父oracle通过/nop失败，不能标完成或生成完整preparation.json。
+- 原始资源、图像、探测、构建、评分及身份收据都在 evals/promptfoo/results/qwen38-suite/diagnostics/password-recovery/container-resume/；父容量恢复后重新完整准入并执行任务原preflight。无付费调用，原评分/资源/超时/模型预算未改。保持已阻塞及编号文件，独立资产未提交，等待父证据后按原任务要求提交。
+
+## 2026-10-28 base 容量 metadata 更正（仅说明维护）
+
+- 前段“base U=330438807”及旧raw字段 cached_image_U / cached_base_U 实际取自 Docker inspect.Size，属于inspect报告大小，不能称完整层解压归档U；旧raw/评分/哈希均保留原样。
+- 只读引用63既有 base-layer-sizes.json：唯一层归档U=910167040 bytes；按同一RootFS中重复引用计完整层归档U=910168064 bytes。66仅核对已有metadata及RootFS diff_id序列、逐项U求和，没有自行重新解压或重测fullU。
+- 本题 diagnostic-admission.json 与 children-calibration.json 的base均为单manifest sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf，RootFS序列与63分层证据完全相同。本轮复用已经缓存的base，无新增该base compressedcopy或新layer import，因此该缓存base复用的extra C/U=0；并非完整archive U=0，也非本轮合成COPY/context/运行可写层零占用，后者仍按原S/B/A/context预算计。
+- 新增忽略收据：evals/promptfoo/results/qwen38-suite/diagnostics/password-recovery/container-resume/base-size-metadata-correction.json，引用63分层证据及本题旧准入/控制/父拒绝收据并记录各原始文件SHA256。仅更正metadata说明，不改case源、既有raw JSON/hash或历史评分；20容器fixture与8标准控制不因本次文字更正失效。
+- 本次未重跑测试、容器校准、Clippy或磁盘准入。父容量阻塞及状态“已阻塞”保留，未父下载；待容量恢复后重新做完整父准入和preflight。

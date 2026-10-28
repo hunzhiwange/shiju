@@ -2,7 +2,7 @@
 
 批次：【批次 49】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“仓库凭据清洗”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,21 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 宿主阶段与调度阻塞
+
+依赖批次1–5的基础资产已核对：source/catalog 固定官方89题；capacity.json 为 complete；contract-validation.json、agent-validation.json、diagnostics-format/evidence.json、report/evidence.json 有通过记录；调度实现提交078bc547f及授权准入 validation.json(status=completed)存在。旧 scheduler-draft/evidence.json 的 blocked 是草案历史，不替代最终调度实现。本题 instruction/task.toml SHA256 与任务记录一致，上游包保持只读。
+
+已新增本题 case.json、check.py、四套合成题面、gold/nop/每题3个wrong、tests、Dockerfile 与README。仅使用 SYNTH 格式虚构凭据。真实程序处理新建 Git 仓库，核对完整工作树、.git、权限、二进制、隐藏文件、重复值与CRLF；m4核对6类清洗/损坏状态。
+
+检查记录：
+- 指定 unittest discover 命令：红测退出1，20项中2项证明checker漏检README篡改/二进制删除；最小修复完整快照后退出0，20项（4 gold、4 nop、12 wrong）。
+- suite.diagnostics validate --case evals/terminal-bench/suite/cases/sanitize-git-repo/case.json（未加 --run-fixtures）：退出0，仅格式/哈希验证，真实Linux fixture数量0。
+- evals/promptfoo/score.sh test：退出0，配置有效；退出日志有telemetry.shutdown超时提示，无模型请求。
+- cargo clippy --all-targets --all-features -- -D warnings：退出0，行为测试数量0。动态槽位1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR同路径，CARGO_BUILD_JOBS=1；已释放自己锁，保留缓存。Clippy仅提示既有block包future incompatibility。
+
+阻塞原因：调度明确当前只能宿主工作，85真实诊断校准之后56需8GiB独占；禁止Docker、镜像下载/导入、标准控制和父题运行。本会话未运行这些操作。仍缺20真实Linux fixture、8个fresh子题oracle/nop、父题oracle/nop、父镜像digest/层准入及资源隔离收据，因此不能标记已完成或删除本任务文件，保留未提交资产。
+
+恢复入口：等待56结束后原会话恢复，使用正式SuiteDockerEnvironment与执行身份ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1；不得私有platform/Trial/Compose覆盖。重新核对镜像与共享容器窗口，按原验证计划完成所有校准，再按编号串行提交。plan.md未修改。
+
+日志与逐文件哈希：evals/promptfoo/results/qwen38-suite/diagnostics/sanitize-git-repo/host-evidence.json、host-red.log、host-green.log、static-validation.log、promptfoo-validation.log、cargo-slot.json、clippy.log。

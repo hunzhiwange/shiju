@@ -2,7 +2,7 @@
 
 批次：【批次 20】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“安全页面清洗”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,17 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 阻塞交接
+
+- 批次 1–5 已由调度主会话确认完成；只处理本题目录，未修改 plan.md、官方原题、公共实现、评分、模型、预算、时限或资源。
+- 已准备 m1–m4 合成输入、独立题面、真实程序 checker、gold 和每题 3 个错误实现。符号链接替换漏检的回归先失败，再修复；证据：diagnostics/filter-js-from-html/checker-red.log。
+- 指定 unittest 命令退出 0，25 项测试通过；指定 diagnostics validate --run-fixtures 命令退出 0，20 次 fresh、offline、1CPU/512MiB 容器检查通过（4 gold、4 nop、12 负例）。完整 Harbor 子题校准尚未到达，不能将离线 fixtures 冒充整套准入。
+- evals/promptfoo/score.sh test 退出 0（配置校验）。cargo clippy --all-targets --all-features -- -D warnings 退出 0；动态领取槽位 1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR 同路径，CARGO_BUILD_JOBS=1。自有锁已释放、缓存保留；Rust 行为测试数 0，无 Rust 变更。既有 block 0.1.6 future-compatibility 提示未改。
+- 原镜像 Registry digest：sha256:92acda0f124b988036a6f426ce0bc47fac19f5efe9fc5e6ea3ea52ccb075d0a4；7 层压缩 SHA256、解压 diff_id 和本地 RootFS 全部核验。限制探针确认 1CPU、8589934592 字节、/app 无隐藏评分材料；Chromium 与 ChromeDriver 均为 140.0.7339.127，实际触发 alert 的探针通过；上游样本 HTTPS 返回 200，417 个下载样本加内置向量组成 28 批。
+- 两轮原题 oracle 环境均出现被官方 helper 吞掉的真实浏览器异常；不是正常无 alert 的 Selenium TimeoutException。首轮有驱动/加载 Read timed out；可追溯 verifier-only 修复缓存依赖和 Selenium offline 解析后 fresh 重跑，仍有全局闹钟 Test timed out、页面加载 Read timed out、tab crashed。第二轮有 26 批开始、19 次正常无 alert 检查、6 条明确异常，最后一批尚未完成。曾观察到 147 个 chromium 进程、约 6.7GiB 内存；不擅自修改上游清理逻辑或扩大资源/时限。
+- 确认真实基础设施失败后主动终止本题原题 verifier，保留两轮原始日志/配置/异常和评分：最终 score_status=unscored、reward=null、RewardFileNotFoundError，preflight 退出 1。没有有效原题 oracle/nop 校准；不能把异常被吞后的潜在 reward=1 当成功。无付费模型调用。
+- 实际 preflight 命令：PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.run preflight --catalog evals/terminal-bench/suite/catalog.json --runtime evals/promptfoo/results/qwen38-suite/diagnostics/filter-js-from-html/runtime.json --parent-id filter-js-from-html --output evals/promptfoo/results/qwen38-suite/preflight/filter-js-from-html/harbor。使用获授权的 runtime-v2 身份与任务局部 verifier 依赖配置。
+- 完整忽略证据：evals/promptfoo/results/qwen38-suite/diagnostics/filter-js-from-html/blocked-evidence.json、browser-offline-infra-captured.log、browser-memory-observation.jsonl、image-provenance.json、parent-probe.json、runtime.json；两轮归档在 preflight/filter-js-from-html/harbor-browser-infra-failure 和 harbor-browser-offline-infra-failure。不存在 case/preparation.json，防止 freeze 将本题视为就绪。
+- 自有下载/preflight 进程及容器已清理，无活跃本题资源占用；本题资产保留未提交，编号任务文件保留已阻塞。恢复入口：在保持原 1CPU/8192MiB 和 1800 秒限制的环境排查浏览器执行/进程清理，优先排除本机 amd64/Rosetta 因素；只能做可追溯 verifier 依赖修复，再 fresh 跑原题 oracle/nop、4 子题及全部证据。若需改官方评分/浏览器清理逻辑，必须另获明确授权，不能在本任务绕过。

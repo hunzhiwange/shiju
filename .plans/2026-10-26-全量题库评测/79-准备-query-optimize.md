@@ -2,7 +2,7 @@
 
 批次：【批次 45】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“等价查询优化”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,16 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 本次续接记录（2026-10-28）
+
+- 依赖核对：来源 source.json/catalog 固定 7131e4375048a0e408a8fb404b5f499d726b695b；本题 instruction/task.toml SHA256 与任务所列一致。容量 capacity.json=complete；契约 contract-validation.json 有 12 测试成功；agent-validation.json 有 8 测试成功；调度/报告实现提交 078bc547f/fb2237255 存在。批次 1–4 的基础资产存在；批次 5 模型准入不能宣称已满足（readiness-recovered.json 的原始记录仍有 passed=false），不得因此重跑付费请求。诊断 ABI 尚待调度任务 69 修复。
+- 调度明确限制：74 独占容器/镜像窗口，之后 69 先修诊断 ABI。本次禁止 Docker、镜像下载/导入、标准控制和父题运行；未执行这些操作，未修改公共执行、冻结运行时或 plan.md。
+- 已保留本题四套独立合成资产：m1 分组计数/求和，m2 消除关联子查询，m3 NULL/重复/排序，m4 等价结果及实际索引计划；每题 gold/nop/三个 wrong。checker 实际运行宿主 SQLite，8 组独立数据逐列逐行比较并执行 EXPLAIN QUERY PLAN，未用预写输出替代数据库。
+- TDD：初始漏检 checker 的 24 测试有 18 失败；实现后新增等价关联查询拒绝和替代索引写法接受回归。任务指定 unittest 命令退出 0，26 项有效测试、无跳过；仅宿主证据。完整 20 项 gold/nop/wrong 控制及真实查询计划见忽略目录 diagnostics/query-optimize/host-controls.json；red/green 日志分别 host-red.log/host-green.log。
+- `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/query-optimize/case.json` 退出 0，仅 schema/字节绑定检查，非 --run-fixtures。`evals/promptfoo/score.sh test` 退出 0，配置有效，无模型调用。
+- `cargo clippy --all-targets --all-features -- -D warnings` 退出 0（无 Rust 行为测试）；动态槽位 1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；同时设置 CARGO_BUILD_BUILD_DIR 为该绝对路径、CARGO_BUILD_JOBS=1。已释放自己的锁，保留缓存；详情 diagnostics/query-optimize/cargo-slot.txt 与 clippy.log。纯 Python 变更未运行 Rust fmt。
+- 缺口：父题 oracle/nop 未执行；四子题 fresh 容器 20 控制未执行；镜像 digest/架构/真实隔离/资源/依赖收据及正式 preflight 均缺失。case.json 的全零 digest 故意不可运行，environment/Dockerfile 尚未构建；没有生成 validation.json，没有声称已就绪或完成。
+- 恢复入口：调度明确释放窗口并修好 ABI 后，核对授权执行身份 ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1，使用标准 SuiteDockerEnvironment（不覆盖 Trial/Compose/平台），容器内真实执行冻结 ELF --help；构建并记录已审查诊断镜像的真实 digest 后替换占位值。随后按本文件原命令执行 --run-fixtures 与 preflight，补齐父题官方 oracle=1/nop=0、四子题控制和收据。不得修改官方 checker、付费重试或扩大预算。
+- 按最新调度指令保持已阻塞并保留资产与任务文件；未提交（待完整校准及按编号串行提交），未删除任务文件。

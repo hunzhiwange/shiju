@@ -2,7 +2,7 @@
 
 批次：【批次 21】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“票据分类汇总”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,19 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 执行记录与阻塞恢复
+
+- 批次1–5由主会话确认已完成；本次 `suite.preparation.inputs` 重新核验冻结父题全部源字节、catalog、Harbor、runtime-v2 与最终诊断收据，退出0。plan.md及上游包未修改，无付费模型调用。
+- 已准备四个独立合成转录诊断（分类、含税金额/税额、冲突/缺失、真实文件移动与CSV核对）。checker执行真实solution.py，含gold/nop及每题3个错误程序；OCR仅保留在完整父题，不以文本诊断替代。
+- TDD：初始漏检checker实测26测试中21失败；另复现超长CSV未捕获异常（30测试中1失败）后修复。最终任务所列unittest命令退出0，30个有效测试；`suite.diagnostics validate --case evals/terminal-bench/suite/cases/financial-document-processor/case.json --run-fixtures` 退出0，20次新建离线容器校准。
+- 最终checker另完成8次fresh Harbor子题校准，四对oracle/nop全部reward=1/0、scored且无exception；最终materialized checker哈希与本题check.py逐项一致。初版收据保留为历史，不当最终证据。
+- 原镜像 `alexgshaw/financial-document-processor@sha256:ef6c9cfaaf14cdd200163008a188d5baa9f626f3bfb8d3e7d6f30c08518e6251`，amd64，4层压缩51790066字节、解压130614272字节；压缩SHA256、diff_id、本地RootFS均匹配。受限启动实测1CPU/4294967296字节；17个原文档哈希均与源匹配，无/tests或/solution泄漏。官方storage_mb=10240，未声称可写层磁盘配额。
+- 父题preflight实际命令：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.run preflight --catalog evals/terminal-bench/suite/catalog.json --runtime evals/promptfoo/results/qwen38-suite/diagnostics/financial-document-processor/runtime.json --parent-id financial-document-processor --output evals/promptfoo/results/qwen38-suite/preflight/financial-document-processor/harbor`。原Agent在apt update反复重试后，安装Tesseract所需35.1MB/73包仍未完成，真实异常为 `AgentTimeoutError: Agent execution timed out after 1200.0 seconds`；尚未执行OCR，父题有效官方测试数0，nop未运行。
+- 按主会话追加指令：真实超时归档后立即SIGTERM自有runner（进程退出码-15），不继续漫长verifier安装。父题记unscored/infrastructure，不用raw reward0、晚产物或子题成绩宣称完整校准。未重复同条件父题运行，未预装Agent依赖、改时限/评分/模型/预算。
+- 已做有界同源网络审计：原镜像无系统CA文件，原始curl HTTPS报77；只对独立审计容器只读挂载已验证CA后，Ubuntu HTTP/HTTPS与PyPI分别206成功，astral安装端点及GitHub Python端点仍SSL超时（curl28，5–10秒界限）。这些是依赖可达性证据，不是能力评分；未关闭TLS校验。修复Agent依赖/网络路径超出“仅verifier-only修复”范围，故保持阻塞。
+- `evals/promptfoo/score.sh test` 退出0（配置/语法验证，无行为测试）；最终 `cargo clippy --all-targets --all-features -- -D warnings` 退出0。动态领取槽位1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR`同路径，`CARGO_BUILD_JOBS=1`。未修改Rust，未运行Rust行为测试；已有block0.1.6 future-compat提示保留。自有锁已释放，缓存保留。
+- 本题所有父/子题、审计容器与网络及runner已清理；未动其他会话资源。未提交部分资产，保留本任务文件；未生成父题就绪preparation.json。
+- 证据根：`evals/promptfoo/results/qwen38-suite/diagnostics/financial-document-processor/`。核心文件：`timeout-raw/exception.txt`、`timeout-raw/logs/agent/oracle.txt`、`preflight-command.json`、`network-audit-default-ca.json`、`network-audit.json`、`unit.log`、`validation.log`、`child-calibration-final.json`、`verified-inputs.json`、`acceptance-partial.json`、`clippy-final.log`。父题原运行目录为上述preflight输出。
+- 恢复入口：先由维护者恢复同源依赖网络、证书与完整包下载能力；在保持原Agent/原镜像/1200秒时限不变的前提下，重新确认容量后用新的输出目录运行上述父题preflight并核验实际7个官方测试的oracle/nop证据。当前不得标为已就绪；最终checker发生过异常边界修复，旧preflight材料不可直接复用为最终完整准备收据。

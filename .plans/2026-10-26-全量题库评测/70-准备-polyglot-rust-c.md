@@ -2,7 +2,9 @@
 
 批次：【批次 40】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
+
+阻塞说明：Linux诊断20控制和8正式控制已通过；原父题容量底线不足，待新容量准入及主调度窗口。
 
 目的：为“双编译器公共源码”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +71,29 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 当前检查点（2026-10-28）
+
+依赖批次1–5已由主调度确认满足。完整上游8文件SHA-256与catalog一致。已新增四道独立Rust/C++题面、真实双编译黑盒checker、4 gold/4 nop/12语义负例；指定宿主unittest退出0（20控制），stdout漏检变体导致11断言失败后恢复通过。score.sh test退出0；Clippy退出0，动态槽位1，CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，JOBS=1，自有锁已释放且缓存保留。
+
+主调度要求暂停所有Docker build/fixture/Harbor/父下载及校准直至主会话新窗口通知；当前未启动上述动作。官方通用Rust候选单amd64 manifest bf7d87666c4da6eace19e06d21bc4859c6e2a5c97a21ac273b0e082112753cf0，C=541938170；父单amd64 manifest 3ba84f0e138a4b65e58c53f920a0fc852571e6402901c3bdbb876e9dab6e6c5e，C=271241474。仅取registry manifest/config元数据，层body下载0；U/Ucap未知，不能当0或声称容量准入。实际Linux工具、ELF兼容、单manifest config/RootFS与隐藏材料核查待窗口；原父与诊断容器控制均0，未标就绪、未提交。证据位于ignored diagnostics/polyglot-rust-c/。
+
+### 阻塞与恢复入口
+
+本机未找到已缓存的独立通用Rust工具镜像；官方rust候选仅manifest/config核验，未做层body下载、导入或容器工具实测。其完整tar U与可用于当前磁盘预算的硬Ucap尚未得到；不能使用inspect Size替代、不能假定镜像Python/rustc/ELF兼容已通过。主调度明确要求等待主会话新窗口通知，故未运行 `suite.diagnostics validate --case evals/terminal-bench/suite/cases/polyglot-rust-c/case.json --run-fixtures` 或原任务的 `suite.run preflight ... --parent-id polyglot-rust-c`；这两项无退出码、有效容器测试数均0。未获得原父oracle/nop或4子题fresh校准收据，不得ready或删除编号文件。
+
+恢复时先取得窗口，对工具候选/父镜像分别做真实min(host,VM)、C、硬停止cap/fulltar U、allcopies、原S/B/A及5GiB保留联合准入；再在允许窗口内以preset限额准备真实通用工具环境并验证Python3/rustc/g++/冻结Agent、真单manifest config和RootFS及无隐藏材料，必要时仅调整本case候选工具镜像。运行指定20fixture容器校准、8个公共harbor_trial标准oracle/nop、原父完整preflight及oracle/nop后再决定完成。当前case schema检查退出0（4子题、30声明项）；host20控制与Clippy均exit0，不替代这些缺失检查。无付费调用，无公共代码/Harbor/原题/plan.md修改；实际资产未提交，待证据完整后按编号串行git-commit。
+
+### 调度说明更正（2026-10-28）
+
+当前68已安全准入并进行父下载/校准，69处于inactive状态、待68之后调度。70维持Docker暂停，直到主会话通知新窗口；不以69尚未开始的父重阶段作为自行等待条件。本次仅规范状态机与调度说明，宿主机20个真实Rust/C++双编译控制、Clippy槽位1证据及全部候选工具metadata保持不变；未运行Docker、新验证或Clippy，未覆盖旧raw/hash，未提交。
+
+### Linux诊断恢复结果（2026-10-28，取代先前工具/窗口阻塞说明）
+
+主调度授予本题唯一容器/镜像窗口，禁止原父下载进口。三次新采样最小12766584832字节，诊断S1+B2+A1+安全5GiB+metadata+4C+3Ucap要求11765066928字节，准入通过。基座复用已缓存纯工具真单amd64 leaf32c8a19c，无新base导入。官方rustc/rust-std 1.75.0 x86_64发行包，合计C=89140012，下载SHA-256与完整解压流校验，实际tar U=472209408 < 硬停止cap512MiB；来源、SHA、许可与安装配方保存于本case environment/及ignored linux-tooling/。未使用Cargo安装、虚假编译器、Agent/上游stage或平台覆盖。
+
+受限classic构建RUN实测CpuPeriod=CpuQuota=100000，Memory=MemorySwap=536870912。产物真单amd64 OCI manifest=20a0f6d71e716c237e1ccc84c243548d75eac2ded6395004217ff55da77124d9，无重新包装；全部layer compressed SHA/diff_id流式核验，整图fulltar U=1471391744（包括复用基座及重复空层），声明manifest/config/RootFS架构一致，inspect仅补零默认字段。初始metadata辅助脚本因空层/inspect默认字段断言失败的日志保留，最终完整流复核另存；没有用inspect Size代替U或覆盖旧raw/hash。
+
+Linux Python3.13.7、g++12.2.0、rustc1.75.0真实编译执行及冻结x86_64 ELF --help退出0。指定 `suite.diagnostics validate --case evals/terminal-bench/suite/cases/polyglot-rust-c/case.json --run-fixtures` 退出0，有效20控制（4gold/4nop/12语义负例）。公共 `suite.scoring.harbor_trial` -> SuiteDockerEnvironment 8个正式控制全部首评分oracle=1/nop=0，执行身份ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1，main1CPU512MiB/sidecar0.25CPU64MiB，题字节与身份前后一致。没有私有Trial/Compose/platform包装、付费模型或评分/预算变更。最新指定host unittest退出0（20控制）；最新Clippy退出0，动态槽1，CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，JOBS=1，锁释放且缓存保留。无全量cargo test/fmtcheck/wasm/Makefile。
+
+最终三次实测min(host,VM)=11813294080字节；父S10+B2+A1+安全5GiB+128MiB metadata最小19461570560，尚缺7648276480字节，且未计父镜像副本。父C=271241474，U/Ucap仍未知，父body下载/进口/控制均0；原父preflight因明确容量不足未运行，无退出码，不冒充通过。当前精确已阻塞，仅父容量缺口；保留编号文件和未提交资产。自有容器/网络/卷均清空，保留唯一工具镜像与发行包/原始证据/依赖。恢复入口：主调度新窗口+新父容量准入后运行原任务指定parent preflight/oracle/nop；诊断已绑定当前身份的20+8证据可先核对复用，不无故重跑。最终ignored收据：checkpoint-linux-calibrated-parent-blocked.json、parent-capacity-linux-final.json、children-calibration-production-leaf.json、linux-tooling/full-stream-verified.json。

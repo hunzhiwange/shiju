@@ -2,7 +2,7 @@
 
 批次：【批次 17】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“环状序列插入”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,25 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 执行中证据（2026-10-27）
+
+- 已读取执行计划/创建评测技能、plan.md、完整原题题面/序列/参考解/评分与配置；核对批次1–5的冻结source/catalog、容量、实验契约、v2运行时及Agent适配层收据。plan.md未修改。
+- 新增本题四个独立合成子题：m1环状插入定位，m2小型引物枚举（明确使用合成Wallace公式，不代替官方oligotm），m3方向/反向互补，m4目标重建及字节SHA256。12个有意义错误产物；宽松checker先失败27个拒绝断言（25测试，退出1）。独立复算发现并修复m1合成坐标歧义；最终26测试通过（退出0），含四gold独立计算。
+- 指定`suite.diagnostics validate --run-fixtures`退出0：20个fresh离线容器控制通过；四子题8次fresh Harbor oracle/nop均为1/0。validation.json绑定全部声明字节。`evals/promptfoo/score.sh test`退出0。
+- `cargo clippy --all-targets --all-features -- -D warnings`退出0，动态领取槽位2，CARGO_TARGET_DIR及CARGO_BUILD_BUILD_DIR均为`/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2`，CARGO_BUILD_JOBS=1；自有锁已释放，缓存保留；无Rust修改。
+- 原镜像digest=`sha256:4dd8760694e355de85ecf03605cb487ccdb33322f6afad513d2920829baa33b2`、config=`sha256:2e68029a49d11b454994967b2eddb94333ef321b688f865ada3c09a3b534c110`，linux/amd64。压缩29724629字节、解压80645632字节；Registry/OCI的manifest/config/layers/diff_ids及本机RootFS链全部核验。读取已核验相同基础层，仅写本题目录。受限启动确认x86_64、memory.max=4294967296、cpu.max=100000/100000，官方输入7238字节；全部9个官方文件与catalog SHA256一致。
+- 指定历史runtime.json缺historical_root，原始preflight退出1；本题忽略目录runtime.json使用已验证v2与不变source/cases路径，保留官方1800秒agent/verifier时限。当前真实原题preflight为`preflight/dna-insert-original/`，本地session=11583，容器`dna-insert-oracle__env-main-1`；未改环境、参考解、评分、模型、预算，无模型调用。
+- 原题参考解apt索引阶段多次Ign后完成，正在官方`apt-get install -y emboss primer3`的61MB emboss-data下载；目前尚无原题评分，不宣称完成。剩余原始时限继续运行；不得用verifier-only修复掩盖agent阶段问题。
+- 确切命令、退出码、依赖/镜像/源码/fixture/checker身份、资源和失败日志位于忽略目录`evals/promptfoo/results/qwen38-suite/diagnostics/dna-insert/`（commands.json、clippy-slot.json、green.log、fixtures-final.log、children-calibration.json、parent-identity.json、parent-probe.json等）。当前资产未提交；提交遵守恢复后的29→31顺序，不持有Git索引锁等待。
+
+## 最终阻塞结论（2026-10-27）
+
+- 本题官方oracle真实执行1800秒后抛出`AgentTimeoutError: Agent execution timed out after 1800.0 seconds`。官方`apt-get install -y emboss primer3`在61.0MB的emboss-data上反复Ign/重试，未能在时限内完成安装和生成primers.fasta；没有用超时后产物算通过。
+- preflight最终退出1，summary=`score_status: unscored`、`failure_class: infrastructure`、`reward: null`。随后官方verifier受仍运行apt的dpkg锁阻挡，curl/uvx缺失；原始reward=0不能当能力失败或有效校准。父题nop未运行；缺少整题oracle/nop，故不能标记就绪或仅待回归。
+- Harbor已完成异常收集并自动结束本次runner、清理本题原题容器；未继续漫长verifier下载。原始exception.txt、agent/oracle.txt、verifier/test-stdout.txt、result.json、scoring/first.json及preparation.json均保留于`preflight/dna-insert-original/`。没有重复同条件1800秒校准、预装Agent依赖、修改原题环境/评分/预算/时限，未调用模型。
+- 授权范围内已解决镜像导入及runtime执行配置问题，验证源码/镜像/资源/诊断资产；剩余阻塞在原始Agent阶段下载，verifier-only修复不能解决，需官方Ubuntu下载链路能在原始时限内完成依赖安装。
+- 最终有效证据：26聚焦测试、20个fresh fixture控制、8次fresh Harbor子题oracle/nop通过；Promptfoo配置及Clippy退出0。实际Cargo槽位2，CARGO_TARGET_DIR=`/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2`，CARGO_BUILD_BUILD_DIR同路径、jobs=1，自有锁已释放、缓存保留。
+- 汇总收据`diagnostics/dna-insert/acceptance.json`及精确命令`commands.json`。保留本任务文件及未提交诊断资产，不提交、不删除。恢复入口：官方同源网络恢复后，以本题忽略目录runtime.json重新执行preflight，选择新的输出目录；不能覆盖失败目录或扩大预算。全部父题oracle/nop通过后再核验收据，按主会话协调的提交顺序提交资产并删除编号任务。
+
+- 清理后仅做一次20秒上限的同源HEAD恢复审计：原digest、显式amd64、1CPU/4096MiB、只读根、无新增依赖，HTTP200、Content-Length=61018452、退出0。它只证明可达，不证明持续传输能在原时限完成；无权据此重跑或改变环境。审计容器已清理，docker ps -a按dna-insert过滤为空；结果见final-recovery-audit.json。

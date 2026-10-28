@@ -2,7 +2,7 @@
 
 批次：【批次 42】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“形式化证明补全”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,19 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+## 2026-10-28 host checkpoint
+
+主调度确认依赖批次1–5已满足；当前禁止本任务启动Docker下载、builder、工具镜像或校准，等待资源窗口。已完整阅读九个上游文件并逐个核对catalog SHA256；四题合成题面/输入、固定命题Coq checker、gold与各三负例已写入本任务目录。未修改plan.md、公共suite、官方源或评分，未付费调用。
+
+Host unittest exit 0：5方法中4通过、1明确skip（主机缺coqc/coqchk）；20个真实内核正负例尚未执行。宽松语法checker变异触发15断言失败，恢复后语法门检查通过；这是语法TDD，不能替代Coq语义TDD。结构validate（无--run-fixtures）exit 0，仅结构及文件哈希。case.json现为通用Python base占位，不含已验证Coq；需窗口内受限构建tools-only镜像、真实单manifest和Linux amd64 Agent库闭包验证，替换为Coq工具digest后才能运行fixtures或Harbor。没有validation/preparation/ready收据。
+
+cargo clippy --all-targets --all-features -- -D warnings exit 0；动态领取slot 1，CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_JOBS=1；自有锁释放，缓存保留。有效Rust行为测试数0，本任务无Rust修改；未运行全量测试/fmtcheck/wasm/Makefile。现有block 0.1.6 future-incompat提示未改无关代码。
+
+证据：evals/promptfoo/results/qwen38-suite/diagnostics/prove-plus-comm/{checkpoint.json,host-tests.log,red-language.log,structure.json,clippy.log}。后续先取得Docker窗口并按BUILD_RESOURCES.md执行容量与镜像检查，再完成20 fresh fixture controls、官方oracle/nop及四子题Harbor oracle/nop。runtime.json为report，应使用ignored runtime-v2 executionconfig。所有真实校准完成前不提交、不标ready、不删任务文件。
+
+补充：evals/promptfoo/score.sh test exit 0（Configuration is valid），日志为本任务 diagnostics/promptfoo-test.log；本任务 git diff --check exit 0。
+
+## 调度收尾状态
+
+等待主调度分配新的资源窗口。现有宿主检查仅为准备证据，不代表完整通过；真实 Linux amd64 执行与库闭包、Coq 证明器语义校准、四子题标准 Harbor oracle/nop 控制及完整父题 oracle/nop 阶段均尚未完成。本次仅更新任务文件状态，保留全部证据；未重跑检查、下载或启动 Docker/Cargo，未提交。

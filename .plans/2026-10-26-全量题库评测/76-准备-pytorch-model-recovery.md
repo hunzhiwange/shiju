@@ -2,7 +2,7 @@
 
 批次：【批次 43】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：未开始
+状态：已阻塞
 
 目的：为“模型结构恢复”准备原题完整环境与四道独立诊断题。
 
@@ -69,3 +69,16 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整原题oracle通过、nop失败；4子题各有oracle/nop与3负例；记录镜像digest、依赖/fixture/checker哈希、隔离与资源收据。不能校准则阻塞本题，不宣称已就绪。
 
 仅有编译通过、零测试或历史结果不足以完成。有代码、测试、配置或文档实际变更时使用 `$git-commit`，只提交本任务产物；完成后报告新证据并删除本编号文件。无关原因阻断验证时记为 `已完成，待回归` 并保留文件；确实无法突破时记为 `已阻塞`，只在本文件记录原因、检查与恢复入口。`plan.md` 只读。
+
+
+## 2026-10-28 宿主实施与阻塞记录
+
+- 已使用 `./skills/do-task-plans/SKILL.md`、`./skills/create-agent-evals/SKILL.md`；阅读只读 plan.md、完整官方题面、配置、参考解、评分脚本、Dockerfile、README，并以真实 PyTorch 读取 weights.pt、dataset.pt、weights_gtruth.pt。所有原始文件均记录 SHA256，题面/配置/原题树身份与任务要求一致；未修改上游或 plan.md。
+- 依赖批次1–5：冻结 source/catalog、capacity.json、contract-validation.json、suite/runtime-v2.json 与 VALIDATION.md、agent-validation.json、diagnostics-format/evidence.json、readiness-validation.json 均存在且哈希已归档。重新从冻结 Git 构建89题16类别 catalog，退出0，内容与当前 catalog 完全一致。已有依赖收据仅是前置证据，不代替本题校准；公共容器接线正由任务13修复。
+- 本题目录已准备 m1..m4 独立合成输入、完整 CLI 契约、确定性 checker、gold 和每题3个错误实现。m1 真实 tensor state_dict 解析；m2 Linear/ReLU/Linear 严格结构及 TorchScript；m3 仅输出层训练、逐张量冻结及输入完整性；m4 真实序列化、动态批量推理和独立 MSE 报告校验。checker 对每题另生成两套不同维度输入，不以关键词、自述或候选自测评分。未改变模型、评分、预算或付费运行范围。
+- 在本题忽略目录独立 host-venv 安装真实 torch==2.7.1；没有修改共享 Harbor 环境。TDD 首次缺失 checker：21测试、20 failures/1 error，退出1。最小 checker 实现后，`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/qwen38-suite/diagnostics/pytorch-model-recovery/host-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/pytorch-model-recovery/tests -p test_cases.py`：21测试全部通过，退出0，含20真实行为控制。独立 scratch 副本换为全接受 checker：21测试、16 failures，退出1，正式 checker 未被修改。
+- 任务指定 Harbor Python unittest 命令退出0：21测试中仅1格式检查有效、20行为控制因缺 torch 明确跳过；不将其记为行为验证成功。真实宿主行为证据来自上一条独立 torch 环境。静态 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.diagnostics validate --case evals/terminal-bench/suite/cases/pytorch-model-recovery/case.json` 退出0，未加 --run-fixtures，未生成 validation.json。`evals/promptfoo/score.sh test` 退出0。
+- 动态原子领取 Cargo 槽位1；CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，CARGO_BUILD_JOBS=1。`cargo clippy --all-targets --all-features -- -D warnings` 退出0、0行为测试，仅既有 block 0.1.6 未来兼容提示。进程结束已删除自己 owner 记录并释放锁，缓存保留，信号路径也会终止并等待自己的 Cargo 进程组再释放锁。无Rust修改，未运行fmt、全量cargo test、wasm或Makefile命令。
+- 原始证据位于忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/pytorch-model-recovery/`：host-red.log、host-green.log、harbor-host.log、checker-mutation-red.log、static.log、score.log、clippy.log、cargo-slot.json、source-inspection.json、catalog-rebuilt.json、host-evidence.json。后者绑定依赖/fixture/checker 哈希及测试数量。最初安装阶段出现缺 NumPy 的 torch 提示，不影响纯 tensor 控制；未以模拟推理替代 PyTorch。
+- 具体阻塞：调度者明确限制任务13独占容器窗口，禁止Docker、镜像层下载/导入、标准校准和父题运行直至明确释放。本会话未启动/修改容器或下载镜像层；早期只读取一次 Docker info（4CPU、12530401280字节），不构成容量或环境准入。case.json 与 Dockerfile 暂引用32c8...共享工具基底，其真实 torch 能力、Linux工具和冻结ELF尚未核验，README 明确为未准入；不能把语法有效的digest引用当作可运行身份。
+- 待做：窗口明确释放后，重新核验当前公共接线和生产身份，记录资源/磁盘/网络/隔离收据；通过授权标准 builder 准备并审查真实 torch 工具基底，更新为实测 digest（不得在 checker 静默装依赖或使用私有Trial/Compose覆盖）；核验 Linux工具及冻结ELF --help；执行原定 `--run-fixtures` 的20个真实Docker控制、8个标准子题oracle/nop、原定 `suite.run preflight` 父题oracle/nop。全部通过后按任务编号使用 git-commit 提交自身资产并删除本文件。目前保留任务及未提交资产，不宣称就绪。

@@ -38,7 +38,13 @@ pub async fn prepare_desktop_update(
 ) -> Result<PreparedDesktopUpdate> {
     let target = desktop_target(std::env::consts::OS, std::env::consts::ARCH)?;
     let asset = release.installer_for_target(target)?;
-    let dirs = super::project_dirs().context("无法确定应用缓存目录")?;
+    // Installer downloads use the ShiJu identity independently of legacy configuration paths.
+    #[cfg(debug_assertions)]
+    const APP_NAME: &str = "shiju-dev";
+    #[cfg(not(debug_assertions))]
+    const APP_NAME: &str = "shiju";
+    let dirs = directories::ProjectDirs::from("com", "rsung", APP_NAME)
+        .context("无法确定应用缓存目录")?;
     fs::create_dir_all(dirs.cache_dir())?;
     let attempt = create_attempt(dirs.cache_dir(), &release.version)?;
     let path = vw_shared::update::download_desktop_installer(

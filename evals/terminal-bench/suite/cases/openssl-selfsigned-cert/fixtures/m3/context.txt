@@ -1,0 +1,1 @@
+Synthetic sandbox TLS diagnostic m3; no production credentials or network access required.

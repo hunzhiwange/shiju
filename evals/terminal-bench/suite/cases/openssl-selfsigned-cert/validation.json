@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "openssl-selfsigned-cert",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "b6acfd431a671743fcedf578611d69f09ad6d9cb4aa02c910a89ebbe7f98984b",
+    "fixtures/m1/context.txt": "a22da7e85b11ff586fab0e752317b20512846c0350ef7f78e1ef5be5989c0bc0",
+    "fixtures/m1/instruction.md": "5cb0fabf20d71f5da4e7adeee8adfcbaf9c85e2c783fd04e0e24714d18bb910d",
+    "fixtures/m2/context.txt": "49df6a035262e61e3e987df5e609a810688918bb0345b8e1bfae9c2f939d1739",
+    "fixtures/m2/instruction.md": "5797f86ff2f67307915e8fe97f083d2f4c6344dc4b9972b5d247ef60b9e166db",
+    "fixtures/m3/context.txt": "f2385e5dfa2d7b44f11c79e21e8ea6f489d60e4b8abc514dfc1d2afe0be8862f",
+    "fixtures/m3/instruction.md": "1ebc820e0aa4ca625b17a1835e488f683ca03b63b3ef09db5879124ba5a67062",
+    "fixtures/m4/context.txt": "20d6f93376db3ac3df1e6c9f2036e527057ee3bc315c822ee6ac1b94885583e0",
+    "fixtures/m4/instruction.md": "b665bbbad4a49c26ab02b8a8a08dd971b2630248771f0a5949f0ec83bfd212dc",
+    "oracle/m1/gold/answer.py": "00d72e883657566e845718ebdb13e3263a3eeb85467b3ff4f1f62969ba8e8e5e",
+    "oracle/m1/missing-files/answer.py": "9e69031cab67b42f3a95ff9e6ab6ad8ad9cd4ffda6d7f13d79023194a6597809",
+    "oracle/m1/task.json": "7c6fda10e0ee66fb8c03bb5c85cebba32e87a33c50d848b8a1d61cf22faf9bd0",
+    "oracle/m1/wrong-cn/answer.py": "ea27ecc6109c919950ba6ffce294c8b12b161f6b1dab35217733afb59c89570d",
+    "oracle/m1/wrong-org/answer.py": "3be27158fc89064e21ccb65b8daf20f39bc37351ad7b776b03c5d613092834dc",
+    "oracle/m2/gold/answer.py": "7a3d613d52058f710c0cea6233f6d673c48189c006cc16ba51c18a74e0a9ac11",
+    "oracle/m2/task.json": "e6ebacda106d0c1c692ef046c489239574f0337e5d7ed5bb005708e258767d5a",
+    "oracle/m2/weak-key/answer.py": "037ade276a079150ecf57e9ad33f67e88f20bc23799d5326d6fb8aba848544d9",
+    "oracle/m2/wrong-duration/answer.py": "68eeabe7d579db7ce7e9626b0ab7a49f78a5935ab15e0bc87abf08188d710a4d",
+    "oracle/m2/wrong-subject/answer.py": "9bbd859e5a08cd188a6c201afef5e22edb6f5a971eb8c8e0833de7d13ad44716",
+    "oracle/m3/allows-ca/answer.py": "8934c7b744d0ff399c9b6f6df31bfc68f475b7f06835b927c9d5ff1930e6bbab",
+    "oracle/m3/gold/answer.py": "c5ee11e217fe02a5cf9128f8f3c6f7d2dda8b2d9cff5d40dd9b409fe892ff8d5",
+    "oracle/m3/ignores-duration/answer.py": "045ebad166218eff097976be203f6e15d3e98387e8f8b34c863cbbee203a7e14",
+    "oracle/m3/ignores-san/answer.py": "10453fca8800021fa60531f4642333a9498a98e86cb0cd22acc48feb7a997118",
+    "oracle/m3/task.json": "63836e3353ae55a4cf5b9be6178f5a7a103896bcd274f5f99c6b0a4940023cfa",
+    "oracle/m4/accepts-corrupt/answer.py": "947e57b0d475affc53ad21311d529ed583e9f02f8deadbb4fff9ed29fb61c532",
+    "oracle/m4/gold/answer.py": "1a695524469562ae940ece89d324dda70319f0e1a1e601aa222357ccf585089b",
+    "oracle/m4/ignores-permissions/answer.py": "211d7f04cd8a7a7a7c14d575a47807dbcba407ff3db370c138ad2c6bb1691fa9",
+    "oracle/m4/key-only/answer.py": "568fb358245aed276a8892c91f3f26abbc42ed207a0f3ee0ae90e058dd99e59a",
+    "oracle/m4/task.json": "852304b3b520cf19f51453f1601487bc246a883316375bd353fa8bad3947962e",
+    "case.json": "1636e0c974d58aa07bf64e4fc8a9008cd7d097440eea8f2f8fa3f4d0bf04092b"
+  },
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-cn",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-org",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "missing-files",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "weak-key",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-subject",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-duration",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignores-san",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "allows-ca",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "ignores-duration",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "ignores-permissions",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "accepts-corrupt",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "key-only",
+      "exit_code": 1
+    }
+  ]
+}

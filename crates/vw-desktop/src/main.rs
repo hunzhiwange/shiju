@@ -2,6 +2,9 @@
 
 #![cfg_attr(all(target_os = "windows", not(debug_assertions)), windows_subsystem = "windows")]
 
+#[cfg(windows)]
+mod native_crash;
+
 use vw_desktop::{app, fonts};
 
 #[cfg(target_os = "macos")]
@@ -72,6 +75,15 @@ fn init_native_tracing() {
         .with_filter(file_filter);
     let subscriber = tracing_subscriber::registry().with(terminal_layer).with(file_layer);
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+    let previous_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        tracing::error!(target: "vw_desktop", "desktop panic: {info}");
+        previous_hook(info);
+    }));
+    #[cfg(windows)]
+    if let Err(error) = native_crash::install(&vw_shared::runtime_log::default_runtime_log_dir()) {
+        tracing::warn!(target: "vw_desktop", %error, "failed to install native crash diagnostics");
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -203,12 +215,17 @@ pub fn main() -> iced::Result {
         init_native_tracing();
     }
 
-    iced::daemon(boot_app, app::App::update, app::App::view_window)
+    let result = iced::daemon(boot_app, app::App::update, app::App::view_window)
         .title(app::App::title_for_window)
         .theme(app::App::theme_for_window)
         .subscription(app::App::subscription)
         .settings(iced_settings())
-        .run()
+        .run();
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Err(error) = &result {
+        tracing::error!(target: "vw_desktop", ?error, "desktop event loop failed");
+    }
+    result
 }
 
 #[cfg(test)]

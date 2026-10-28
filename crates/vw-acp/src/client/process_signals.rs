@@ -60,7 +60,9 @@ pub(super) struct ProcessTableEntry {
 /// 只清理最初的代理进程组会留下这些辅助进程，因此这里先记录整棵子进程树中出现过的
 /// pid 和 pgid，后续关闭时逐一收敛。
 pub(super) fn process_cleanup_targets(process_id: Option<u32>) -> ProcessCleanupTargets {
-    let mut targets = ProcessCleanupTargets::from_root(process_id);
+    let targets = ProcessCleanupTargets::from_root(process_id);
+    #[cfg(unix)]
+    let mut targets = targets;
 
     #[cfg(unix)]
     if let Some(process_id) = process_id

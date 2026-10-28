@@ -225,11 +225,16 @@ Install `cargo-xwin`:
 cargo install cargo-xwin
 ```
 
-If you get `lld-link` / linker-related errors during build, install LLVM and add it to PATH:
+Install LLVM and add it to PATH for the linker and the `llvm-rc` resource compiler used to embed the Windows executable icon:
 ```bash
 brew install llvm
 export PATH="$(brew --prefix llvm)/bin:$PATH"
 ```
+
+If the build reports `skipping Windows exe icon: rc.exe or llvm-rc was not found`,
+check that `command -v llvm-rc` succeeds in the shell running the build. On Windows,
+`rc.exe` from the Windows SDK is also supported. A build without either compiler
+continues, but the executable will not contain the application icon.
 
 ### 3.2 Cross-compile
 

@@ -14,6 +14,7 @@ use iced::widget::Column;
 
 pub(crate) enum MenuEntry {
     Item {
+        #[cfg(any(target_os = "macos", test))]
         action: Option<NativeMenuAction>,
         label: &'static str,
         shortcut: Option<&'static str>,
@@ -24,12 +25,18 @@ pub(crate) enum MenuEntry {
 
 impl MenuEntry {
     fn item(
-        action: NativeMenuAction,
+        _action: NativeMenuAction,
         label: &'static str,
         shortcut: Option<&'static str>,
         message: Message,
     ) -> Self {
-        Self::Item { action: Some(action), label, shortcut, message: Box::new(message) }
+        Self::Item {
+            #[cfg(any(target_os = "macos", test))]
+            action: Some(_action),
+            label,
+            shortcut,
+            message: Box::new(message),
+        }
     }
 
     fn into_element(self) -> Element<'static, Message> {

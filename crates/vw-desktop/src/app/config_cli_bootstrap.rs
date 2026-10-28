@@ -466,10 +466,10 @@ fn resolve_gateway_socket_address(endpoint: &GatewayRuntimeEndpoint) -> Option<S
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn service_installed(home: &Path) -> bool {
+fn service_installed(_home: &Path) -> bool {
     #[cfg(target_os = "macos")]
     {
-        return home
+        return _home
             .join("Library")
             .join("LaunchAgents")
             .join(format!("{MACOS_SERVICE_LABEL}.plist"))
@@ -478,7 +478,7 @@ fn service_installed(home: &Path) -> bool {
 
     #[cfg(target_os = "linux")]
     {
-        return home
+        return _home
             .join(".config")
             .join("systemd")
             .join("user")
@@ -497,7 +497,7 @@ fn service_installed(home: &Path) -> bool {
 
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
     {
-        let _ = home;
+        let _ = _home;
         false
     }
 }

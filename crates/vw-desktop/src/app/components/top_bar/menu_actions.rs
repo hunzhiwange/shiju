@@ -34,6 +34,7 @@ pub enum NativeMenuAction {
     HelpCheckUpdate,
 }
 
+#[cfg(any(target_os = "macos", test))]
 impl NativeMenuAction {
     pub(crate) const fn id(self) -> &'static str {
         match self {

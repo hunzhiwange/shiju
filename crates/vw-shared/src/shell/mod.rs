@@ -19,8 +19,10 @@ use once_cell::sync::Lazy;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Child;
+#[cfg(not(windows))]
 use std::time::Duration;
 
+#[cfg(not(windows))]
 const SIGKILL_TIMEOUT_MS: u64 = 200;
 
 const GIT_DEFAULT_ENV: &[(&str, &str)] =

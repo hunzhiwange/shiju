@@ -16,7 +16,7 @@ use tracing_subscriber::prelude::*;
 
 const MAIN_WINDOW_SIZE: iced::Size = iced::Size { width: 1720.0, height: 1000.0 };
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(target_os = "macos")]
 const MACOS_IMK_RUN_LOOP_NOISE: &str =
     "error messaging the mach port for IMKCFRunLoopWakeUpReliable";
 
@@ -83,7 +83,7 @@ fn native_tracing_filter() -> tracing_subscriber::EnvFilter {
     })
 }
 
-#[cfg(any(test, target_os = "macos"))]
+#[cfg(target_os = "macos")]
 fn should_suppress_native_stderr_line(line: &str) -> bool {
     line.contains(MACOS_IMK_RUN_LOOP_NOISE)
 }

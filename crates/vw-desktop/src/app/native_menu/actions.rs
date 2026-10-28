@@ -108,6 +108,7 @@ pub(crate) fn help_section() -> (&'static str, Vec<MenuEntry>) {
     ("帮助", help_menu_entries())
 }
 
+#[cfg(target_os = "macos")]
 pub(crate) fn menu_item_enabled(_action: NativeMenuAction, _snapshot: &NativeMenuSnapshot) -> bool {
     true
 }

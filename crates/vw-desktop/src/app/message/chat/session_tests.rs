@@ -1876,3 +1876,74 @@ fn start_preserves_absolute_sequences_for_paged_history() {
     let records = &app.get_session_runtime("paged").stream_save_dirty_records;
     assert_eq!(records.iter().map(|record| record.seq_no).collect::<Vec<_>>(), vec![102, 103]);
 }
+
+#[test]
+fn new_session_project_resolution_continues_first_send() {
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some("/repo".to_string());
+    let item = queue_item("first question", crate::app::state::ChatSendBehavior::Queue);
+    let task = super::start(&mut app, item.clone(), false);
+    assert_eq!(task.units(), 1);
+    assert!(app.error_message.is_none());
+    assert!(app.sessions.is_empty());
+    let stream_id = app.agent_stream_id;
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::NewSessionProjectResolved {
+            project_path: "/repo".to_string(),
+            stream_id,
+            pending: Box::new(super::PendingSessionSend { item, keep: false }),
+            result: Ok("resolved-project".to_string()),
+        },
+    );
+    assert_eq!(app.sessions[0].project_id, "resolved-project");
+    assert_eq!(app.chat[0].content, "first question");
+    assert!(app.current_session_is_requesting());
+}
+
+#[test]
+fn new_session_project_resolution_ignores_stale_responses() {
+    for (path, stream_id, active_session) in
+        [("/other", 7, None), ("/repo", 6, None), ("/repo", 7, Some("existing"))]
+    {
+        let (mut app, _task) = crate::app::App::new();
+        app.project_path = Some(path.to_string());
+        app.agent_stream_id = 7;
+        app.active_session_id = active_session.map(str::to_string);
+        let _task = super::update(
+            &mut app,
+            super::ChatMessage::NewSessionProjectResolved {
+                project_path: "/repo".to_string(),
+                stream_id,
+                pending: Box::new(super::PendingSessionSend {
+                    item: queue_item("question", crate::app::state::ChatSendBehavior::Queue),
+                    keep: false,
+                }),
+                result: Ok("old-project".to_string()),
+            },
+        );
+        assert!(app.project_id.is_none());
+        assert!(app.sessions.is_empty());
+        assert!(app.chat.is_empty());
+    }
+}
+
+#[test]
+fn new_session_project_resolution_failure_preserves_attachments() {
+    let (mut app, _task) = crate::app::App::new();
+    app.project_path = Some("/repo".to_string());
+    let mut item = queue_item("question", crate::app::state::ChatSendBehavior::Queue);
+    item.attachments.push("/repo/file.txt".to_string());
+    let stream_id = app.agent_stream_id;
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::NewSessionProjectResolved {
+            project_path: "/repo".to_string(),
+            stream_id,
+            pending: Box::new(super::PendingSessionSend { item, keep: false }),
+            result: Err("gateway unavailable".to_string()),
+        },
+    );
+    assert_eq!(app.files, vec!["/repo/file.txt"]);
+    assert!(app.sessions.is_empty());
+}

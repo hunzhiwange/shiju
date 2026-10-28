@@ -26,6 +26,13 @@ use vw_shared::message::types as agent_message;
 use vw_shared::session::info as session;
 use vw_shared::session::session_utils::create_slug;
 
+/// 项目身份解析期间保留的首次发送内容。
+#[derive(Debug, Clone)]
+pub struct PendingSessionSend {
+    pub(crate) item: QueueItem,
+    pub(crate) keep: bool,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum InlineModeCommand {
     TaskMode,
@@ -1093,6 +1100,25 @@ fn send_current_session_input(app: &mut App) -> Task<Message> {
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
         ChatMessage::SendPressed => send_current_session_input(app),
+        ChatMessage::NewSessionProjectResolved { project_path, stream_id, pending, result } => {
+            if app.project_path.as_deref() != Some(project_path.as_str())
+                || app.agent_stream_id != stream_id
+                || app.active_session_id.is_some()
+            {
+                return Task::none();
+            }
+            match result {
+                Ok(project_id) => {
+                    app.project_id = Some(project_id);
+                    start(app, pending.item, pending.keep)
+                }
+                Err(error) => {
+                    app.files.extend(pending.item.attachments);
+                    app.push_notification(format!("解析项目失败，无法创建会话: {}", error));
+                    Task::none()
+                }
+            }
+        }
         ChatMessage::SendToSession { session_id, input } => {
             send_to_existing_session(app, session_id, input)
         }
@@ -1934,8 +1960,27 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
                 app.sessions.iter().find(|s| s.directory == directory).map(|s| s.project_id.clone())
             });
         let Some(inferred_project_id) = inferred_project_id else {
-            app.error_message = Some("未选择项目，无法创建会话".to_string());
-            return Task::none();
+            if directory.trim().is_empty() {
+                app.error_message = Some("未选择项目，无法创建会话".to_string());
+                return Task::none();
+            }
+            // 项目页面已打开时，元数据可能尚未返回；由网关解析真实身份后继续发送。
+            let project_path = directory.clone();
+            return Task::perform(
+                async move {
+                    crate::app::message::project::helpers::resolve_gateway_project(&directory)
+                        .await
+                        .map(|project| project.id.0)
+                },
+                move |result| {
+                    Message::Chat(ChatMessage::NewSessionProjectResolved {
+                        project_path: project_path.clone(),
+                        stream_id,
+                        pending: Box::new(PendingSessionSend { item: item.clone(), keep }),
+                        result,
+                    })
+                },
+            );
         };
         let now = crate::app::time::now_ms();
 

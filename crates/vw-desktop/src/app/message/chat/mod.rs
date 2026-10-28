@@ -224,6 +224,14 @@ pub enum ChatMessage {
         input: String,
     },
 
+    /// 首次发送前异步解析项目身份，回包仅用于原始项目与发送请求。
+    NewSessionProjectResolved {
+        project_path: String,
+        stream_id: u64,
+        pending: Box<session::PendingSessionSend>,
+        result: Result<String, String>,
+    },
+
     /// 取消按钮按下
     ///
     /// 用户点击取消按钮时触发，用于中断正在进行的 Agent 响应
@@ -1291,6 +1299,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
         // 会话管理相关消息：发送、取消、模型选择、队列操作等
         ChatMessage::SendPressed
+        | ChatMessage::NewSessionProjectResolved { .. }
         | ChatMessage::SendToSession { .. }
         | ChatMessage::CompactSessionRequested { .. }
         | ChatMessage::CompactSessionConfirmationResolved { .. }

@@ -667,7 +667,11 @@ impl App {
         // 切换到该项目的终端状态
         self.switch_project_terminal(previous_project_path, self.project_path.clone());
         let reap_task = crate::app::message::terminal::reap_retired_task(self);
-        self.project_id = None;
+        // 使离开前尚未完成的首次发送失效；重开同一项目保留已解析的身份。
+        self.agent_stream_id = self.agent_stream_id.wrapping_add(1);
+        if project_changed {
+            self.project_id = None;
+        }
         let reload_task = self.reload_sessions_for_project(Some(path.clone()));
 
         // 重置 Git 相关状态

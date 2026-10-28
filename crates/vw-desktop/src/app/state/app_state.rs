@@ -382,6 +382,7 @@ pub struct App {
     pub(crate) cli_install_modal_use_app_update_action: bool,
     /// CLI 更新检测是否进行中
     pub(crate) cli_install_modal_is_checking_update: bool,
+    pub(crate) cli_commands_tab: crate::app::components::cli_command_help::CliCommandsTab,
     /// 应用升级来源、检测快照与安装器交接状态
     pub(crate) desktop_update: crate::app::desktop_update::DesktopUpdate,
     /// 应用自更新下载进度

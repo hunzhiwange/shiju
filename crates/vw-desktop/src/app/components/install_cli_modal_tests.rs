@@ -256,7 +256,19 @@ async fn app_update_modal_draws_chinese_selection_and_dynamic_path_in_both_theme
         <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
             .await
             .unwrap();
-    for theme in [Theme::Dark, Theme::Light] {
+    use super::cli_command_help::CliCommandsTab;
+    for (theme, app_update, tab) in [
+        (Theme::Dark, true, CliCommandsTab::Common),
+        (Theme::Light, true, CliCommandsTab::Common),
+        (Theme::Dark, false, CliCommandsTab::Common),
+        (Theme::Light, false, CliCommandsTab::Common),
+        (Theme::Dark, false, CliCommandsTab::Service),
+        (Theme::Light, false, CliCommandsTab::Service),
+        (Theme::Dark, false, CliCommandsTab::All),
+        (Theme::Light, false, CliCommandsTab::All),
+    ] {
+        app.cli_install_modal_use_app_update_action = app_update;
+        app.cli_commands_tab = tab;
         let mut element = super::install_cli_modal::view_app_update(&app);
         let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 900.0));
         let mut tree = Tree::new(element.as_widget());

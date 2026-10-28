@@ -236,20 +236,10 @@ impl App {
 
         // 如果显示了 CLI 安装提示模态框，则在根内容之上叠加
         let root_content: Element<'_, Message> = if self.show_cli_install_modal {
-            let modal = if self.cli_install_modal_use_app_update_action {
+            let modal = if self.cli_install_modal_use_app_update_action
+                || self.cli_install_modal_show_update_action
+            {
                 components::install_cli_modal::view_app_update(self)
-            } else if self.cli_install_modal_show_update_action {
-                components::install_cli_modal::view_update_check_with_progress(
-                    &self.cli_install_modal_title,
-                    &self.cli_install_modal_message,
-                    &self.cli_install_modal_current_version,
-                    &self.cli_install_modal_server_version,
-                    self.cli_install_modal_is_checking_update,
-                    self.cli_install_modal_show_install_action,
-                    self.cli_install_modal_use_app_update_action,
-                    self.app_update_progress.as_ref(),
-                    self.last_copied_code_hash,
-                )
             } else {
                 components::install_cli_modal::view(
                     &self.cli_install_modal_title,

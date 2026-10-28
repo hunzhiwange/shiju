@@ -122,6 +122,7 @@ pub mod input_panel;
 ///
 /// 引导用户安装和配置命令行工具的模态对话框。
 pub mod install_cli_modal;
+pub(crate) mod cli_command_help;
 #[cfg(test)]
 #[path = "install_cli_modal_tests.rs"]
 mod install_cli_modal_tests;

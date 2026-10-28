@@ -211,7 +211,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.show_cli_install_modal = true;
             app.cli_install_modal_title = "CLI 更新检测".to_string();
             app.cli_install_modal_message =
-                "可通过 shiju --version 查看本地 CLI 版本，并从服务器检测最新版本，也可以直接重新安装 CLI。"
+                "打开终端，通过 shiju 调用各项功能：shiju agent 启动 TUI，shiju service 管理服务。下方命令可直接复制。"
                     .to_string();
             app.cli_install_modal_current_version = current_cli_tool_version_label();
             app.cli_install_modal_server_version = "未检测".to_string();
@@ -227,14 +227,34 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 Message::View(ViewMessage::InstallCliToolFinished(res))
             })
         }
+        ViewMessage::CliCommandsTabSelected(tab) => {
+            app.cli_commands_tab = tab;
+            Task::none()
+        }
         ViewMessage::CheckCliToolUpdate => {
+            if app.desktop_update.busy || app.desktop_update.checking {
+                return Task::none();
+            }
+            let Some(source) = app.desktop_update.source else {
+                return app.show_error_toast("请先选择有效的升级来源");
+            };
+            app.desktop_update.request += 1;
+            let request = app.desktop_update.request;
+            app.desktop_update.checking = true;
             app.cli_install_modal_is_checking_update = true;
-            app.cli_install_modal_message = "正在请求 GitHub 最新发布版本...".to_string();
-            Task::perform(fetch_latest_release_version(), |res| {
-                Message::View(ViewMessage::CheckCliToolUpdateFinished(res))
+            app.cli_install_modal_message = "正在请求所选来源的最新 CLI 版本...".into();
+            Task::perform(fetch_latest_release_version(source), move |res| {
+                Message::View(ViewMessage::CheckCliToolUpdateFinished(request, source, res))
             })
         }
-        ViewMessage::CheckCliToolUpdateFinished(res) => {
+        ViewMessage::CheckCliToolUpdateFinished(request, source, res) => {
+            if request != app.desktop_update.request
+                || Some(source) != app.desktop_update.source
+                || !app.desktop_update.checking
+            {
+                return Task::none();
+            }
+            app.desktop_update.checking = false;
             app.cli_install_modal_is_checking_update = false;
             match res {
                 Ok(version) => {
@@ -260,6 +280,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             if app.cli_install_modal_use_app_update_action {
                 return Task::none();
             }
+            app.desktop_update.request += 1;
+            app.desktop_update.checking = false;
             app.cli_install_modal_title = "检测更新".into();
             app.cli_install_modal_message = app
                 .desktop_update
@@ -303,7 +325,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.app_update_progress = None;
             app.app_update_progress_rx = None;
             app.cli_install_modal_server_version = "未检测".into();
-            app.cli_install_modal_show_install_action = false;
+            app.cli_install_modal_show_install_action = !app.cli_install_modal_use_app_update_action;
             app.cli_install_modal_is_checking_update = false;
             app.cli_install_modal_message = "来源已切换，请重新检测更新。".into();
             Task::perform(
@@ -503,6 +525,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         ViewMessage::CloseInstallCliModal => {
             app.show_cli_install_modal = false;
             if !app.cli_install_modal_use_app_update_action {
+                app.desktop_update.request += 1;
+                app.desktop_update.checking = false;
                 reset_cli_update_modal_state(app);
             }
             Task::none()
@@ -883,12 +907,14 @@ fn replace_cli_binary(staged_bin: &Path, target_bin: &Path) -> Result<(), String
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn fetch_latest_release_version() -> Result<String, String> {
-    update::fetch_latest_version().await.map_err(|e| format!("请求服务器版本失败: {e}"))
+async fn fetch_latest_release_version(source: update::UpdateSource) -> Result<String, String> {
+    fetch_latest_app_release(source).await.map(|release| release.version)
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_latest_release_version() -> Result<String, String> {
+async fn fetch_latest_release_version(
+    _source: vw_shared::update::UpdateSource,
+) -> Result<String, String> {
     Err("当前平台不支持检测更新".to_string())
 }
 

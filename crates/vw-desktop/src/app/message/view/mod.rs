@@ -169,7 +169,8 @@ pub enum ViewMessage {
     InstallCliTool,
     RunInstallCliTool,
     CheckCliToolUpdate,
-    CheckCliToolUpdateFinished(Result<String, String>),
+    CliCommandsTabSelected(crate::app::components::cli_command_help::CliCommandsTab),
+    CheckCliToolUpdateFinished(u64, vw_shared::update::UpdateSource, Result<String, String>),
     OpenAppUpdateModal,
     CheckAppUpdate,
     CheckAppUpdateFinished(
@@ -793,7 +794,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::InstallCliTool
         | ViewMessage::RunInstallCliTool
         | ViewMessage::CheckCliToolUpdate
-        | ViewMessage::CheckCliToolUpdateFinished(_)
+        | ViewMessage::CliCommandsTabSelected(_)
+        | ViewMessage::CheckCliToolUpdateFinished(..)
         | ViewMessage::OpenAppUpdateModal
         | ViewMessage::CheckAppUpdate
         | ViewMessage::CheckAppUpdateFinished(..)

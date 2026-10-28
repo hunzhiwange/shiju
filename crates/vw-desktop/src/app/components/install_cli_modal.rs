@@ -21,7 +21,7 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::{Message, message};
 use iced::alignment::Horizontal;
-use iced::widget::{Space, button, column, container, image, pick_list, progress_bar, row, text};
+use iced::widget::{Space, button, column, container, image, pick_list, progress_bar, row, scrollable, text};
 use iced::{Alignment, Background, ContentFit, Element, Length, Theme};
 use std::hash::{Hash, Hasher};
 
@@ -81,6 +81,7 @@ pub fn view<'a>(title: &'a str, content: &'a str) -> Element<'a, Message> {
         None,
         None,
         None,
+        None,
     )
 }
 
@@ -129,6 +130,7 @@ pub fn view_update_check_with_progress<'a>(
         update_progress,
         last_copied_code_hash,
         None,
+        None,
     )
 }
 
@@ -140,11 +142,14 @@ pub fn view_app_update(app: &crate::app::App) -> Element<'_, Message> {
         Some(&app.cli_install_modal_server_version),
         app.cli_install_modal_is_checking_update,
         app.cli_install_modal_show_install_action,
-        true,
+        app.cli_install_modal_use_app_update_action,
         false,
         app.app_update_progress.as_ref(),
         app.last_copied_code_hash,
         Some(&app.desktop_update),
+        (!app.cli_install_modal_use_app_update_action).then(|| {
+            super::cli_command_help::view(app.cli_commands_tab, app.last_copied_code_hash)
+        }),
     )
 }
 
@@ -160,13 +165,14 @@ fn view_inner<'a>(
     update_progress: Option<&'a vw_shared::update::UpdateProgress>,
     last_copied_code_hash: Option<u64>,
     desktop_update: Option<&crate::app::desktop_update::DesktopUpdate>,
+    cli_commands: Option<Element<'a, Message>>,
 ) -> Element<'a, Message> {
     let close_message = Message::View(message::ViewMessage::CloseInstallCliModal);
     let has_version_info = current_version.is_some() && server_version.is_some();
     let helper_text = if use_app_update_action {
         "更新前会先检测当前版本与服务端版本，确认后再执行安装流程。"
     } else {
-        "缺少 CLI 时，可先检测版本，再直接触发安装流程。"
+        "通常无需手动安装，正式版应用启动时会自动安装 CLI；需要时可在此重新安装。"
     };
 
     let logo_badge = |expanded: bool| {
@@ -222,7 +228,7 @@ fn view_inner<'a>(
         ]
         .spacing(12);
         #[cfg(not(target_arch = "wasm32"))]
-        let action_row = if desktop_update.is_some_and(|state| state.ready.is_some()) {
+        let action_row = if use_app_update_action && desktop_update.is_some_and(|state| state.ready.is_some()) {
             action_row.push(
                 button("打开安装器 / 重试")
                     .on_press_maybe(
@@ -312,7 +318,32 @@ fn view_inner<'a>(
         Space::new().height(0.0).into()
     };
 
-    let card_content: Element<'a, Message> = if has_version_info {
+    let card_content: Element<'a, Message> = if let Some(commands) = cli_commands {
+        let body = column![
+            text(content).size(12).style(settings_muted_text_style),
+            source_control,
+            version_block,
+            text(helper_text).size(12).style(settings_muted_text_style),
+            commands,
+        ]
+        .spacing(16);
+        let body = scrollable(container(body).padding([0, 7]))
+            .direction(iced::widget::scrollable::Direction::Vertical(
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .height(Length::Fixed(380.0));
+        column![
+            row![
+                text(title).size(24).width(Length::Fill),
+                settings_close_button(close_message.clone()),
+            ]
+            .align_y(Alignment::Center),
+            body,
+            action_buttons,
+        ]
+        .spacing(16)
+        .into()
+    } else if has_version_info {
         column![
             container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
             column![

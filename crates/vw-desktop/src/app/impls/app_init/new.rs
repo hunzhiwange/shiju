@@ -497,6 +497,7 @@ impl App {
             cli_install_modal_show_install_action: false,
             cli_install_modal_use_app_update_action: false,
             cli_install_modal_is_checking_update: false,
+            cli_commands_tab: Default::default(),
             desktop_update: crate::app::desktop_update::DesktopUpdate::from_config(&cfg),
             app_update_progress: None,
             app_update_progress_rx: None,

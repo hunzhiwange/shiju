@@ -126,3 +126,34 @@ fn launchd_gui_service_target_rejects_empty_signed_mixed_and_non_ascii_uids() {
         assert_eq!(launchd_gui_service_target_for_uid(uid), None, "uid: {uid}");
     }
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn launchd_plist_is_loadable_by_system_parser() {
+    let plist = build_launchd_plist(
+        Path::new("/Applications/ShiJu.app/Contents/MacOS/shiju"),
+        Some("/Users/测试/Library/Application Support/ShiJu"),
+        Path::new("/tmp/daemon.stdout.log"),
+        Path::new("/tmp/daemon.stderr.log"),
+        "",
+    );
+    let dir = tempfile::tempdir().expect("temporary plist directory");
+    let path = dir.path().join("daemon.plist");
+    std::fs::write(&path, plist).expect("write plist");
+    let output = std::process::Command::new("/usr/bin/plutil")
+        .args(["-extract", "ProgramArguments", "json", "-o", "-", "--"])
+        .arg(&path)
+        .output()
+        .expect("run system plist parser");
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    let arguments: Vec<String> = serde_json::from_slice(&output.stdout).expect("plist arguments");
+    assert_eq!(
+        arguments,
+        [
+            "/Applications/ShiJu.app/Contents/MacOS/shiju",
+            "--config-dir",
+            "/Users/测试/Library/Application Support/ShiJu",
+            "daemon",
+        ]
+    );
+}

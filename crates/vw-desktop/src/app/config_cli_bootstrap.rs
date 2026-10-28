@@ -90,11 +90,17 @@ fn bootstrap_cli_service() -> Result<(), String> {
         .map_err(|error| format!("计算 CLI 构建标识失败 {}: {error}", cli.display()))?;
     let endpoint = sync_gateway_client_bootstrap_from_runtime_config(&home)?;
     let installed = service_installed(&home);
-    let running = service_running(&home);
     let health = gateway_health(&endpoint);
+    #[cfg(target_os = "windows")]
+    let running = health.is_some();
+    #[cfg(not(target_os = "windows"))]
+    let running = service_running(&home);
     let running_build_id =
         health.as_ref().and_then(|body| body.get("build_id")).and_then(serde_json::Value::as_str);
-    let service_outdated = installed && running && running_build_id != Some(cli_build_id.as_str());
+    // Windows 旧任务可能因权限或启动参数错误而无法运行，需要重新注册才能恢复。
+    let service_outdated = installed
+        && ((cfg!(windows) && !running)
+            || (running && running_build_id != Some(cli_build_id.as_str())));
 
     if service_install_required(service_outdated, installed) {
         if service_outdated {
@@ -102,21 +108,15 @@ fn bootstrap_cli_service() -> Result<(), String> {
                 target: "vw_desktop",
                 running_build_id = ?running_build_id,
                 cli_build_id = %cli_build_id,
-                "running service build differs from installed CLI; reinstalling the local service"
+                "local service is unavailable or uses a different build; reinstalling the local service"
             );
         }
         run_cli_command(&cli, &config_dir, &["service", "install"])?;
     }
 
-    if service_outdated || !running || health.is_none() {
-        if let Err(server_start_error) = run_cli_command(&cli, &config_dir, &["server", "start"]) {
-            tracing::debug!(
-                target: "vw_desktop",
-                error = %server_start_error,
-                "shiju server start failed; falling back to service start"
-            );
-            run_cli_command(&cli, &config_dir, &["service", "start"])?;
-        }
+    // Windows 的健康端点也可能来自单独启动的 gateway，仍需启动完整服务。
+    if cfg!(windows) || service_outdated || !running || health.is_none() {
+        run_cli_command(&cli, &config_dir, &["service", "start"])?;
     }
 
     wait_for_gateway_build(&endpoint, &cli_build_id, GATEWAY_STARTUP_TIMEOUT)
@@ -128,62 +128,29 @@ fn bootstrap_cli_service() -> Result<(), String> {
 fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     let install_dir = vw_config_types::paths::home_config_dir(home).join("bin");
     let target_bin = install_dir.join(cli_binary_name());
-    let source_bin = resolve_agent_binary_path();
-    if let Ok(source_bin) = source_bin.as_ref() {
-        if installed_cli_matches_source(&target_bin, source_bin) {
-            return Ok(target_bin);
-        }
-    } else if verify_cli_binary(&target_bin).is_ok() {
+    let source_bin = resolve_agent_binary_path()
+        .map_err(|error| format!("{error}。请重新安装包含 shiju 的完整安装包。"))?;
+    if installed_cli_matches_source(&target_bin, &source_bin) {
         return Ok(target_bin);
     }
 
     fs::create_dir_all(&install_dir).map_err(|err| format!("创建 CLI 安装目录失败: {err}"))?;
-
-    let install_result = match source_bin {
-        Ok(source_bin) => {
-            install_cli_from_source(&source_bin, &target_bin)?;
-            Ok(())
-        }
-        Err(source_error) => match std::env::var("VIBEWINDOW_CLI_URL") {
-            Ok(url) => {
-                let tmp_path = install_dir.join(if cfg!(windows) {
-                    "vibewindow.tmp.exe"
-                } else {
-                    "vibewindow.tmp"
-                });
-                download_file(&url, &tmp_path)?;
-                fs::rename(&tmp_path, &target_bin)
-                    .map_err(|err| format!("移动 CLI 临时文件失败: {err}"))
-            }
-            Err(_) => Err(format!(
-                "未找到可打包的 CLI 可执行文件。{source_error}。\
-                     可设置 VIBEWINDOW_CLI_URL 后重启桌面端。"
-            )),
-        },
-    };
-
-    if install_result.is_ok() {
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&target_bin, fs::Permissions::from_mode(0o755))
-                .map_err(|err| format!("设置 CLI 执行权限失败: {err}"))?;
-        }
-
-        let _ = ensure_path_profiles(home, &install_dir).map_err(|err| {
-            tracing::warn!(target: "vw_desktop", error = %err, "failed to persist CLI PATH profile");
-            err
-        });
-        verify_cli_binary(&target_bin)?;
-        return Ok(target_bin);
+    // Windows 不允许替换仍被常驻服务占用的可执行文件。
+    #[cfg(windows)]
+    if target_bin.is_file() {
+        run_cli_command(
+            &target_bin,
+            &vw_config_types::paths::home_config_dir(home),
+            &["service", "stop"],
+        )?;
     }
-
-    let path_cli = PathBuf::from(cli_binary_name());
-    if verify_cli_binary(&path_cli).is_ok() {
-        return Ok(path_cli);
-    }
-
-    Err(install_result.expect_err("install_result is an error"))
+    install_cli_from_source(&source_bin, &target_bin)?;
+    let _ = ensure_path_profiles(home, &install_dir).map_err(|err| {
+        tracing::warn!(target: "vw_desktop", error = %err, "failed to persist CLI PATH profile");
+        err
+    });
+    verify_cli_binary(&target_bin)?;
+    Ok(target_bin)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -271,9 +238,23 @@ fn same_file_contents(left: &Path, right: &Path) -> Result<bool, String> {
     Ok(left_bytes == right_bytes)
 }
 
+/// 后台引导命令不应在 Windows 桌面启动期间创建控制台窗口。
+#[cfg(not(target_arch = "wasm32"))]
+fn background_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let command = Command::new(program);
+    #[cfg(windows)]
+    let command = {
+        use std::os::windows::process::CommandExt;
+        let mut command = command;
+        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        command
+    };
+    command
+}
+
 #[cfg(not(target_arch = "wasm32"))]
 fn cli_version(path: &Path) -> Result<String, String> {
-    let output = Command::new(path)
+    let output = background_command(path)
         .arg("--version")
         .output()
         .map_err(|err| format!("执行 {} --version 失败: {err}", path.display()))?;
@@ -285,7 +266,7 @@ fn cli_version(path: &Path) -> Result<String, String> {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn run_cli_command(cli: &Path, config_dir: &Path, args: &[&str]) -> Result<String, String> {
-    let output = Command::new(cli)
+    let output = background_command(cli)
         .arg("--config-dir")
         .arg(config_dir)
         .args(args)
@@ -508,7 +489,7 @@ fn service_installed(home: &Path) -> bool {
 
     #[cfg(target_os = "windows")]
     {
-        return Command::new("schtasks")
+        return background_command("schtasks")
             .args(["/Query", "/TN", WINDOWS_TASK_NAME])
             .output()
             .is_ok_and(|output| output.status.success());
@@ -521,12 +502,12 @@ fn service_installed(home: &Path) -> bool {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(target_os = "windows")))]
 fn service_running(home: &Path) -> bool {
     #[cfg(target_os = "macos")]
     {
         let _ = home;
-        return Command::new("launchctl")
+        return background_command("launchctl")
             .arg("list")
             .output()
             .ok()
@@ -536,7 +517,7 @@ fn service_running(home: &Path) -> bool {
 
     #[cfg(target_os = "linux")]
     {
-        let systemd_active = Command::new("systemctl")
+        let systemd_active = background_command("systemctl")
             .args(["--user", "is-active", "--quiet", "vibewindow.service"])
             .status()
             .is_ok_and(|status| status.success());
@@ -544,24 +525,13 @@ fn service_running(home: &Path) -> bool {
             return true;
         }
         if Path::new("/etc/init.d/vibewindow").exists() {
-            return Command::new("rc-service")
-                .args(["shiju", "status"])
+            return background_command("rc-service")
+                .args(["vibewindow", "status"])
                 .status()
                 .is_ok_and(|status| status.success());
         }
         let _ = home;
         false
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let _ = home;
-        return Command::new("schtasks")
-            .args(["/Query", "/TN", WINDOWS_TASK_NAME, "/FO", "LIST"])
-            .output()
-            .ok()
-            .and_then(|output| String::from_utf8(output.stdout).ok())
-            .is_some_and(|text| text.contains("Running"));
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
@@ -601,20 +571,7 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
     let exe_dir = current_exe.parent().ok_or_else(|| "无法定位当前可执行文件目录".to_string())?;
     let agent_names =
         if cfg!(windows) { ["shiju.exe", "vibe-agent.exe"] } else { ["shiju", "vibe-agent"] };
-    let mut candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
-
-    if let Some(parent) = exe_dir.parent() {
-        for agent_name in agent_names {
-            candidates.push(parent.join(agent_name));
-        }
-    }
-
-    if let Ok(cwd) = std::env::current_dir() {
-        for agent_name in agent_names {
-            candidates.push(cwd.join("target").join("release").join(agent_name));
-            candidates.push(cwd.join("target").join("debug").join(agent_name));
-        }
-    }
+    let candidates = agent_names.iter().map(|name| exe_dir.join(name)).collect::<Vec<_>>();
 
     for candidate in candidates {
         if candidate.exists() && candidate.is_file() {
@@ -622,33 +579,6 @@ fn resolve_agent_binary_path() -> Result<PathBuf, String> {
         }
     }
     Err("未找到内置 CLI 可执行文件 shiju（兼容名 vibe-agent）".to_string())
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn download_file(url: &str, dest: &Path) -> Result<(), String> {
-    if cfg!(windows) {
-        let status = Command::new("powershell")
-            .arg("-NoProfile")
-            .arg("-Command")
-            .arg(format!("Invoke-WebRequest -Uri '{}' -OutFile '{}'", url, dest.display()))
-            .status()
-            .map_err(|err| format!("启动下载命令失败: {err}"))?;
-        if status.success() {
-            return Ok(());
-        }
-        return Err("下载 CLI 失败，请检查 VIBEWINDOW_CLI_URL 或 PowerShell。".to_string());
-    }
-
-    let curl = Command::new("curl").arg("-fsSL").arg(url).arg("-o").arg(dest).status();
-    if curl.is_ok_and(|status| status.success()) {
-        return Ok(());
-    }
-
-    let wget = Command::new("wget").arg("-qO").arg(dest).arg(url).status();
-    if wget.is_ok_and(|status| status.success()) {
-        return Ok(());
-    }
-    Err("下载 CLI 失败，请检查 VIBEWINDOW_CLI_URL，或安装 curl/wget。".to_string())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

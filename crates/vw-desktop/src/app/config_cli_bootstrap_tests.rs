@@ -320,6 +320,8 @@ fn gateway_build_id_reads_running_executable_identity() {
     );
     let server = std::thread::spawn(move || {
         let (mut stream, _) = listener.accept().expect("accept health probe");
+        let mut request = [0_u8; 2048];
+        stream.read(&mut request).expect("read health request");
         stream.write_all(response.as_bytes()).expect("write health response");
     });
     let endpoint = GatewayRuntimeEndpoint::new("127.0.0.1", port);

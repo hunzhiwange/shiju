@@ -187,7 +187,7 @@ fn install_linux_systemd(config: &Config) -> Result<()> {
     let config_dir_args = systemd_config_dir_args(config);
     let unit = format!(
         "[Unit]\nDescription=VibeWindow daemon\nAfter=network.target\n\n[Service]\nType=simple\nExecStart={exe}{config_dir_args} daemon\nRestart=always\nRestartSec=3\n{env_lines}\n[Install]\nWantedBy=default.target\n",
-        exe = exe.display(),
+        exe = systemd_quote_arg(&exe.display().to_string()),
         env_lines = env_lines,
     );
 

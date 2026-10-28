@@ -13,39 +13,66 @@ pub(super) fn windows_task_name() -> &'static str {
     WINDOWS_TASK_NAME
 }
 
+fn schtasks_command(program: &Path) -> Command {
+    let command = Command::new(program);
+    #[cfg(windows)]
+    let command = {
+        use std::os::windows::process::CommandExt;
+        let mut command = command;
+        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        command
+    };
+    command
+}
+
 pub(super) fn install_windows(config: &Config) -> Result<()> {
     install_windows_with_schtasks(config, Path::new("schtasks"))
 }
 
 pub(super) fn install_windows_with_schtasks(config: &Config, schtasks: &Path) -> Result<()> {
     let exe = std::env::current_exe().context("Failed to resolve current executable")?;
-    let logs_dir =
-        config.config_path.parent().map_or_else(|| PathBuf::from("."), PathBuf::from).join("logs");
+    let config_dir = config.config_path.parent().unwrap_or_else(|| Path::new("."));
+    let logs_dir = config_dir.join("logs");
     fs::create_dir_all(&logs_dir)?;
 
     let wrapper = logs_dir.join("vibewindow-daemon.cmd");
     let stdout_log = logs_dir.join("daemon.stdout.log");
     let stderr_log = logs_dir.join("daemon.stderr.log");
     let wrapper_content = format!(
-        "@echo off\r\n\"{}\" daemon >>\"{}\" 2>>\"{}\"",
+        "@echo off\r\nchcp 65001 >nul\r\n\"{}\" --config-dir \"{}\" daemon >>\"{}\" 2>>\"{}\"",
         exe.display(),
+        config_dir.display(),
         stdout_log.display(),
         stderr_log.display()
     );
     fs::write(&wrapper, &wrapper_content)?;
 
+    // wscript 本身没有控制台；等待隐藏的 daemon 退出，让计划任务保持运行状态。
+    let launcher = logs_dir.join("vibewindow-daemon.js");
+    let command = format!("cmd.exe /d /c \"\"{}\"\"", wrapper.display());
+    let script = format!(
+        "var shell = new ActiveXObject(\"WScript.Shell\");\r\nWScript.Quit(shell.Run({}, 0, true));\r\n",
+        serde_json::to_string(&command)?
+    );
+    // Windows Script Host 使用带 BOM 的 UTF-16，保留中文用户目录。
+    let script_bytes: Vec<u8> = std::iter::once(0xfeff_u16)
+        .chain(script.encode_utf16())
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    fs::write(&launcher, script_bytes)?;
+
     let task_name = windows_task_name();
-    let _ = Command::new(schtasks).args(["/Delete", "/TN", task_name, "/F"]).output();
-    run_checked(Command::new(schtasks).args([
+    let _ = schtasks_command(schtasks).args(["/Delete", "/TN", task_name, "/F"]).output();
+    run_checked(schtasks_command(schtasks).args([
         "/Create",
         "/TN",
         task_name,
         "/SC",
         "ONLOGON",
         "/TR",
-        &format!("\"{}\"", wrapper.display()),
+        &format!("wscript.exe //B //NoLogo //E:JScript \"{}\"", launcher.display()),
         "/RL",
-        "HIGHEST",
+        "LIMITED",
         "/F",
     ]))?;
 
@@ -61,7 +88,7 @@ pub(super) fn start_windows() -> Result<()> {
 }
 
 pub(super) fn start_windows_with_schtasks(schtasks: &Path) -> Result<()> {
-    run_checked(Command::new(schtasks).args(["/Run", "/TN", windows_task_name()]))?;
+    run_checked(schtasks_command(schtasks).args(["/Run", "/TN", windows_task_name()]))?;
     println!("✅ Service started");
     Ok(())
 }
@@ -71,7 +98,7 @@ pub(super) fn stop_windows() -> Result<()> {
 }
 
 pub(super) fn stop_windows_with_schtasks(schtasks: &Path) -> Result<()> {
-    let _ = run_checked(Command::new(schtasks).args(["/End", "/TN", windows_task_name()]));
+    let _ = run_checked(schtasks_command(schtasks).args(["/End", "/TN", windows_task_name()]));
     println!("✅ Service stopped");
     Ok(())
 }
@@ -93,7 +120,7 @@ pub(super) fn status_windows() -> Result<()> {
 
 pub(super) fn status_windows_with_schtasks(schtasks: &Path) -> Result<()> {
     let task_name = windows_task_name();
-    let out = run_capture(Command::new(schtasks).args(["/Query", "/TN", task_name, "/FO", "LIST"]));
+    let out = run_capture(schtasks_command(schtasks).args(["/Query", "/TN", task_name, "/FO", "LIST"]));
     match out {
         Ok(text) => {
             let running = text.contains("Running");
@@ -112,7 +139,7 @@ pub(super) fn uninstall_windows(config: &Config) -> Result<()> {
 }
 
 pub(super) fn uninstall_windows_with_schtasks(config: &Config, schtasks: &Path) -> Result<()> {
-    let _ = run_checked(Command::new(schtasks).args(["/Delete", "/TN", windows_task_name(), "/F"]));
+    let _ = run_checked(schtasks_command(schtasks).args(["/Delete", "/TN", windows_task_name(), "/F"]));
     let wrapper = config
         .config_path
         .parent()
@@ -121,6 +148,10 @@ pub(super) fn uninstall_windows_with_schtasks(config: &Config, schtasks: &Path) 
         .join("vibewindow-daemon.cmd");
     if wrapper.exists() {
         fs::remove_file(&wrapper).ok();
+    }
+    let launcher = wrapper.with_extension("js");
+    if launcher.exists() {
+        fs::remove_file(&launcher).ok();
     }
     println!("✅ Service uninstalled");
     Ok(())

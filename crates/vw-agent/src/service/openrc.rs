@@ -488,16 +488,9 @@ depend() {{
 
 /// 解析 OpenRC 服务应使用的可执行文件路径。
 ///
-/// 优先使用 `/usr/local/bin/vibewindow`，否则回退到当前进程路径。无法解析当前进程
-/// 路径时返回错误。
+/// 使用当前执行 service install 的本地 CLI，避免选中另一份旧版可执行文件。
 fn resolve_openrc_executable() -> Result<PathBuf> {
-    let preferred = Path::new("/usr/local/bin/vibewindow");
-    if preferred.exists() {
-        return Ok(preferred.to_path_buf());
-    }
-
-    let exe = std::env::current_exe().context("Failed to resolve current executable")?;
-    Ok(exe)
+    std::env::current_exe().context("Failed to resolve current executable")
 }
 
 /// 安装 Linux OpenRC 服务。

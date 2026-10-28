@@ -47,11 +47,14 @@ pub(super) fn resolve_external_apps(
 
     #[cfg(windows)]
     {
+        use std::os::windows::process::CommandExt;
+
         let cmd_exists = |cmd: &str| {
-            std::process::Command::new("cmd")
-                .args(["/C", "where", cmd])
-                .status()
-                .is_ok_and(|status| status.success())
+            std::process::Command::new("where.exe")
+                .arg(cmd)
+                .creation_flags(0x0800_0000) // CREATE_NO_WINDOW
+                .output()
+                .is_ok_and(|output| output.status.success())
         };
         open_external_exists.insert(ExternalOpenApp::VSCode, cmd_exists("code"));
         open_external_exists.insert(ExternalOpenApp::Cursor, cmd_exists("cursor"));

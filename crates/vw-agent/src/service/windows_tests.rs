@@ -49,8 +49,9 @@ fn install_windows_writes_wrapper_before_schtasks_failure() {
     assert_eq!(
         content,
         format!(
-            "@echo off\r\n\"{}\" daemon >>\"{}\" 2>>\"{}\"",
+            "@echo off\r\nchcp 65001 >nul\r\n\"{}\" --config-dir \"{}\" daemon >>\"{}\" 2>>\"{}\"",
             exe.display(),
+            config.config_path.parent().unwrap().display(),
             stdout_log.display(),
             stderr_log.display()
         )
@@ -100,6 +101,12 @@ fn install_windows_reuses_existing_logs_directory_before_scheduler_failure() {
 fn windows_service_commands_accept_successful_schtasks_responses() {
     let (_task_dir, schtasks) = fake_schtasks(
         r#"#!/bin/sh
+if [ "$1" = "/Create" ]; then
+  case "$*" in
+    *"/TR wscript.exe //B //NoLogo //E:JScript "*"vibewindow-daemon.js"*"/RL LIMITED"*) ;;
+    *) echo 'scheduled task must use the current user privilege level' >&2; exit 1 ;;
+  esac
+fi
 if [ "$1" = "/Query" ]; then
   printf 'TaskName: VibeWindow Daemon\nStatus: Running\n'
 fi
@@ -174,4 +181,24 @@ fn uninstall_windows_ignores_wrapper_cleanup_failure() {
     uninstall_windows(&config).expect("wrapper cleanup failures are best effort");
 
     assert!(wrapper.is_dir());
+}
+
+#[cfg(unix)]
+#[test]
+fn windows_service_installs_unicode_hidden_launcher_and_removes_it_on_uninstall() {
+    let (_task_dir, schtasks) = fake_schtasks("#!/bin/sh\nexit 0\n");
+    let (dir, mut config) = temp_config();
+    config.config_path = dir.path().join("用户目录 with spaces").join("vibewindow.json");
+    install_windows_with_schtasks(&config, &schtasks).expect("install service");
+    let launcher = config.config_path.parent().unwrap().join("logs/vibewindow-daemon.js");
+    let bytes = std::fs::read(&launcher).expect("hidden launcher");
+    assert_eq!(&bytes[..2], &[0xff, 0xfe]);
+    let units: Vec<u16> =
+        bytes[2..].chunks_exact(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).collect();
+    let script = String::from_utf16(&units).expect("UTF-16 launcher");
+    assert!(script.contains("用户目录 with spaces"));
+    assert!(script.contains("WScript.Quit(shell.Run("));
+    assert!(script.contains(", 0, true)"), "must hide and wait for the daemon");
+    super::windows::uninstall_windows_with_schtasks(&config, &schtasks).expect("uninstall service");
+    assert!(!launcher.exists());
 }

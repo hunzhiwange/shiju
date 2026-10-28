@@ -9,6 +9,8 @@ use iced_code_editor::{LspClient, LspDocument, LspEvent, LspPosition, LspRange, 
 use serde_json::json;
 use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader, Read, Write};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -156,6 +158,8 @@ impl LspServiceEntry {
 
         let command = resolve_lsp_launch_command(config)?;
         let mut process = Command::new(&command.program);
+        #[cfg(windows)]
+        process.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         vw_shared::shell::apply_augmented_path_std_command(&mut process);
         let mut child = process
             .args(&command.args)
@@ -332,6 +336,8 @@ fn resolve_lsp_launch_command(config: &LspServerConfig) -> Result<LspCommand, St
 
     if config.key == "rust-analyzer" {
         let mut probe = Command::new(&command.program);
+        #[cfg(windows)]
+        probe.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
         vw_shared::shell::apply_augmented_path_std_command(&mut probe);
         let output = probe
             .arg("--version")

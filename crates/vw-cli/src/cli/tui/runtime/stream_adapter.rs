@@ -517,8 +517,28 @@ pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRun
         GatewayTypedChatStreamEvent::UsageUpdated { session_id, usage } => {
             UiRuntimeEvent::UsageUpdated { session_id, usage }
         }
-        GatewayTypedChatStreamEvent::ModelRecovery(_) => {
-            UiRuntimeEvent::Unknown { event_type: Some("chat.model_recovery".into()) }
+        GatewayTypedChatStreamEvent::ModelRecovery(event) => {
+            use vw_gateway_client::GatewayModelRecoveryPhase;
+
+            let (label, completed) = match event.phase {
+                GatewayModelRecoveryPhase::Waiting => ("模型恢复等待中", false),
+                GatewayModelRecoveryPhase::Recovered => ("模型已恢复", true),
+                GatewayModelRecoveryPhase::Stopped => ("模型恢复已停止", true),
+                GatewayModelRecoveryPhase::Cancelled => ("模型恢复已取消", true),
+            };
+            UiRuntimeEvent::Message(UiMessage::Progress(UiProgressMessage {
+                base: UiMessageBase::new(UiMessageId::local(format!(
+                    "model-recovery-{}", event.session_id
+                )))
+                .with_session_id(event.session_id)
+                .with_origin(UiMessageOrigin::Gateway {
+                    event_type: "chat.model_recovery".into(),
+                }),
+                label: format!("{label}：{}；{}", event.reason, event.next_action),
+                current: Some(event.attempt),
+                total: Some(event.max_attempts),
+                completed,
+            }))
         }
         GatewayTypedChatStreamEvent::Unknown { event_type } => {
             UiRuntimeEvent::Unknown { event_type }

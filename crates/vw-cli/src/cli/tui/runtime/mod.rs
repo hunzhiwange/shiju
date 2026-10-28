@@ -25,4 +25,6 @@ mod file_search_tests;
 #[cfg(test)]
 mod hooks_tests;
 #[cfg(test)]
+mod stream_adapter_tests;
+#[cfg(test)]
 mod workspace_files_tests;

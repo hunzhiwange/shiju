@@ -1,0 +1,14 @@
+[
+  {
+    "file": "mobilesam.tar.gz",
+    "url": "https://codeload.github.com/ChaoningZhang/MobileSAM/tar.gz/34bbbfdface3c18e5221aa7de6032d7220c6c6a1",
+    "sha256": "c4b85466ae0a1826433d8290998d3b10704a2f4ba5da399e8c7d9cb46de7580e",
+    "bytes": 77344971
+  },
+  {
+    "file": "mobile_sam.pt",
+    "url": "https://raw.githubusercontent.com/ChaoningZhang/MobileSAM/34bbbfdface3c18e5221aa7de6032d7220c6c6a1/weights/mobile_sam.pt",
+    "sha256": "6dbb90523a35330fedd7f1d3dfc66f995213d81b29a5ca8108dbcdd4e37d6c2f",
+    "bytes": 40728226
+  }
+]

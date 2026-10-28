@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "parent_id": "sam-cell-seg",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "df600eb03ad37d210c1da5730012490f5f4c186ebd2af45a81547790a8dc214a",
+    "fixtures/m1/input.csv": "866c2cd39d6662376d6598834d49b13c70cb5bb927297420a674136eb5e62d32",
+    "fixtures/m1/instruction.md": "83905526954b4f4f03db4a143705bef23c759e9d25f1c608933c951a910b12f5",
+    "fixtures/m2/input.json": "18ca473b569706220dddd73c3b6efb3954420793cc28d00bafcb5ac1e44886e5",
+    "fixtures/m2/instruction.md": "db9359df675dbf88bf20dc4fc62ba7499927f281558196e6ff7630fae4c46c52",
+    "fixtures/m3/input.json": "71aa096df8d3fa04ae0c2f5a0b43beac89c701e78a91c33f7ccc848c0af0110c",
+    "fixtures/m3/instruction.md": "75073950c581500b8615d75568eeb25c6642384246319ab81bacefce5cc770ec",
+    "fixtures/m4/input.csv": "87f1b1b3c823303698541b8f62c8ac2acb7ce4dbe0697b1c34f1fea23642b400",
+    "fixtures/m4/instruction.md": "152a3af0c9777e75727591354e83430886c064b88a5e2322ab8cf90b4f0a6c2d",
+    "fixtures/m4/polygons.json": "ee064d139485dfa1309594439ad029378abdaba4c1d1311fa556bc8090ea3d3b",
+    "oracle/m1/bbox-area/solution.py": "4fcb7923384de364d8d400de1227bc04f1bf72980d6dd106abf21684b38053f1",
+    "oracle/m1/controls.json": "30d4b02e87270e563ca845a771cb7746fe593e2fed6c90d90c88d2690811161e",
+    "oracle/m1/drop-rectangle/solution.py": "86319316e4a6c3966016b96a64065b0623995a647fbc37f629b729f384b08b39",
+    "oracle/m1/gold/solution.py": "d74d430cc326c400551fa5cb558bd9ce8c2fff1dd263884f863f419b04079dd5",
+    "oracle/m1/task.json": "f0d2fa9b9d531147a98452d49b7faca96c91a497f4ecdc2538af9dc534ca1a6c",
+    "oracle/m1/xy-order/solution.py": "6fb55e48c0ec855f241d16a4aac6603c08d200b4eb2b4ad8db7815b5a94d4257",
+    "oracle/m2/expected.json": "9706f8175a9643b88a7526ee82fab8a65348ad86e526f236373fd9fd2541c7dd",
+    "oracle/m2/fake-zeros/solution.py": "0502221ab4cb73debf1f94df883fe34ac2264705fc59554a2b0023937a29b5c5",
+    "oracle/m2/gold/solution.py": "ddc5b8f8dc51c1557e4c8c9688576ac6e22fa843da0288e75d599305393840d8",
+    "oracle/m2/input.json": "4146fffed515e8be2e8af42ab7c8388d1ce0dafa4c545f8387ff825577de55a8",
+    "oracle/m2/no-image/solution.py": "556b92322c016e0222534926cf8aa1ce4bd797c7d8a23e512a3e73334c6c9c08",
+    "oracle/m2/task.json": "5a6f93220e9e6458e2bf1e8879c39128fb480516bd06aa4b4a2c0675e66677c3",
+    "oracle/m2/wrong-box/solution.py": "b19e3e79d2d1af40045329987fc717fd2814758cd0abc0b1e1b57be9a1f9d154",
+    "oracle/m3/allow-overlap/solution.py": "116e0ca8c246bbe421451815f2861c90db31190ed9d1701a5c16de4de55e5fb3",
+    "oracle/m3/controls.json": "8d6c693856a1cb6b41324b51a41f41d481e55d34b08de943e38333107467e2c5",
+    "oracle/m3/gold/solution.py": "8b5a0562431dd4f0ef18887e26c9263c1a9baf2b46e75fdcf063cb83ef9291ea",
+    "oracle/m3/keep-islands/solution.py": "1e8ec68144fb8f8f9447a5fba9a3b05725ccd7e1856045dc8b9b4315f973a950",
+    "oracle/m3/last-tie/solution.py": "87a2f26980c63ff03c6723a4a0808c28f6c33649c4c5c0fb5904a89d790c7aa2",
+    "oracle/m3/task.json": "bb56168fcacc6f74b68a5a20c3c95d639430714dcf469a8983e2d575c6ffad7d",
+    "oracle/m4/controls.json": "17da5335e4464ea1fe81dabc3be455278124fdc021ef4f4c6e619c6ef819be19",
+    "oracle/m4/drop-extra/solution.py": "fcd630a4804fe9d2553d4d733d03ea43e4f8f1d49d7879e98e3f122116295317",
+    "oracle/m4/gold/solution.py": "1b713b5052e73811b28dda4b07ebb23c6e820e102ccaa0362cbf37888bbfeea0",
+    "oracle/m4/inclusive-max/solution.py": "a4a8e8cd8fbd0748a6b841b0e43da90704c1535e9d47647919eff160f32cc863",
+    "oracle/m4/row-position/solution.py": "84f583a27de6f8dd344ab53a4e9540288391a1acb11fb2d0f992b0ba06cc3bb7",
+    "oracle/m4/task.json": "cd4b32565aac6175c465acf0425e61c1146a7549324f6cefac4b9e6eb98db9c8",
+    "case.json": "a2ec58c03422fc9bec0344420c1622fd570212cd6767db05ca7f981d5612fa44"
+  },
+  "image": "vw-sam-diagnostics:task85-single@sha256:ae5f6b72b92a255343868f7d9d7274548a9ccd6033d4e773eedf6da58ab93548",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "xy-order",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "drop-rectangle",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "bbox-area",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-box",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "no-image",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "fake-zeros",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "keep-islands",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "allow-overlap",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "last-tie",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "inclusive-max",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "row-position",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "drop-extra",
+      "exit_code": 1
+    }
+  ]
+}

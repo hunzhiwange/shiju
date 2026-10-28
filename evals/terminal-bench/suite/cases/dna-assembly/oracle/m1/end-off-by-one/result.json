@@ -1,0 +1,16 @@
+{
+  "records": [
+    {
+      "id": "blue",
+      "sequence": "CTTACG"
+    },
+    {
+      "id": "amber",
+      "sequence": "CTGGC"
+    },
+    {
+      "id": "cyan",
+      "sequence": "CCGGTATA"
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "pairs": [
+    {
+      "id": "compatible",
+      "left": "AGTC",
+      "right": "GACT"
+    },
+    {
+      "id": "same-not-rc",
+      "left": "AGTC",
+      "right": "AGTC"
+    },
+    {
+      "id": "complement-only",
+      "left": "AAGC",
+      "right": "TTCG"
+    },
+    {
+      "id": "palindrome",
+      "left": "ATAT",
+      "right": "ATAT"
+    },
+    {
+      "id": "mismatch",
+      "left": "GGTA",
+      "right": "TACG"
+    }
+  ]
+}

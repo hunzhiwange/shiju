@@ -1,0 +1,21 @@
+{
+  "kind": "m1",
+  "input_sha256": "a788c2bde1ca5579b4230f5e3b5eb21948734385c9c9b06a75995daed07ae1ec",
+  "expected": {
+    "records": [
+      {
+        "id": "blue",
+        "sequence": "CTTACG"
+      },
+      {
+        "id": "amber",
+        "sequence": "CTGGCA"
+      },
+      {
+        "id": "cyan",
+        "sequence": "CCGGTATA"
+      }
+    ]
+  },
+  "fasta": null
+}

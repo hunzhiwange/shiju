@@ -1,0 +1,21 @@
+{
+  "fragments": [
+    {
+      "id": "one",
+      "sequence": "AACCGT",
+      "strand": "+"
+    },
+    {
+      "id": "two",
+      "sequence": "TCGAAC",
+      "strand": "-"
+    },
+    {
+      "id": "three",
+      "sequence": "GATTAC",
+      "strand": "+"
+    }
+  ],
+  "overlap": 2,
+  "name": "synthetic_export"
+}

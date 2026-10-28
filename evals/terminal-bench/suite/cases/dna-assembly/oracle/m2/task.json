@@ -1,0 +1,13 @@
+{
+  "kind": "m2",
+  "input_sha256": "c65869e18adfdb73922e6234419a408b0a9478ef37fa596bceaef946c6c42e73",
+  "expected": {
+    "order": [
+      "p",
+      "q",
+      "r"
+    ],
+    "sequence": "AACCGTTCGATTAC"
+  },
+  "fasta": null
+}

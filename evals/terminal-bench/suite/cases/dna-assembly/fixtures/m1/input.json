@@ -1,0 +1,27 @@
+{
+  "sequences": {
+    "amber": "aactgGCAT",
+    "blue": "CCGTAagt",
+    "cyan": "TATACCGG"
+  },
+  "requests": [
+    {
+      "id": "blue",
+      "start": 1,
+      "end": 7,
+      "strand": "-"
+    },
+    {
+      "id": "amber",
+      "start": 2,
+      "end": 8,
+      "strand": "+"
+    },
+    {
+      "id": "cyan",
+      "start": 0,
+      "end": 8,
+      "strand": "-"
+    }
+  ]
+}

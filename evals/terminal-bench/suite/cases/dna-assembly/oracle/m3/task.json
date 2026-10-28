@@ -1,0 +1,29 @@
+{
+  "kind": "m3",
+  "input_sha256": "c124bb2813abef03b92e8a0be806ec39767d1a6320fd29ec2008eac7522745d5",
+  "expected": {
+    "junctions": [
+      {
+        "id": "compatible",
+        "compatible": true
+      },
+      {
+        "id": "same-not-rc",
+        "compatible": false
+      },
+      {
+        "id": "complement-only",
+        "compatible": false
+      },
+      {
+        "id": "palindrome",
+        "compatible": true
+      },
+      {
+        "id": "mismatch",
+        "compatible": false
+      }
+    ]
+  },
+  "fasta": null
+}

@@ -1,0 +1,20 @@
+{
+  "junctions": [
+    {
+      "id": "compatible",
+      "compatible": true
+    },
+    {
+      "id": "same-not-rc",
+      "compatible": false
+    },
+    {
+      "id": "complement-only",
+      "compatible": false
+    },
+    {
+      "id": "palindrome",
+      "compatible": true
+    }
+  ]
+}

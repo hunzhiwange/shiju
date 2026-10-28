@@ -1,0 +1,3 @@
+Read input.json. Order all named fragments exactly once, starting with anchor. A following fragment is allowed only when its prefix of overlap bases equals the previous suffix. This is a linear assembly (no circular closure). Merge by retaining the first fragment and dropping overlap prefix bases from each subsequent fragment. Write result.json as {"order":[IDs],"sequence":"merged uppercase bases"}.
+
+Work only in /app. Keep input.json unchanged. No network, external data, parent task, or dependency installation is needed. Only write the requested output files. Budget: 24 model turns, 32 tool calls, 900 seconds, one attempt.

@@ -1,0 +1,10 @@
+{
+  "fragments": {
+    "p": "AACCGT",
+    "q": "GTTCGA",
+    "r": "GATTAC"
+  },
+  "overlap": 2,
+  "anchor": "p",
+  "circular": false
+}

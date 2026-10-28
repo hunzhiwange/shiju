@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "parent_id": "dna-assembly",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m1/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m1/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "unoriented",
+          "files": {
+            "result.json": "oracle/m1/unoriented/result.json"
+          }
+        },
+        {
+          "id": "end-off-by-one",
+          "files": {
+            "result.json": "oracle/m1/end-off-by-one/result.json"
+          }
+        },
+        {
+          "id": "reordered",
+          "files": {
+            "result.json": "oracle/m1/reordered/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m2/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m2/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "wrong-order",
+          "files": {
+            "result.json": "oracle/m2/wrong-order/result.json"
+          }
+        },
+        {
+          "id": "duplicate-overlap",
+          "files": {
+            "result.json": "oracle/m2/duplicate-overlap/result.json"
+          }
+        },
+        {
+          "id": "missing-fragment",
+          "files": {
+            "result.json": "oracle/m2/missing-fragment/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m3/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m3/gold/result.json"
+      },
+      "negatives": [
+        {
+          "id": "identity-is-compatible",
+          "files": {
+            "result.json": "oracle/m3/identity-is-compatible/result.json"
+          }
+        },
+        {
+          "id": "complement-only",
+          "files": {
+            "result.json": "oracle/m3/complement-only/result.json"
+          }
+        },
+        {
+          "id": "missing-junction",
+          "files": {
+            "result.json": "oracle/m3/missing-junction/result.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.json": "fixtures/m4/input.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "result.json": "oracle/m4/gold/result.json",
+        "assembled.fasta": "oracle/m4/gold/assembled.fasta"
+      },
+      "negatives": [
+        {
+          "id": "wrong-length",
+          "files": {
+            "result.json": "oracle/m4/wrong-length/result.json",
+            "assembled.fasta": "oracle/m4/wrong-length/assembled.fasta"
+          }
+        },
+        {
+          "id": "newline-hash",
+          "files": {
+            "result.json": "oracle/m4/newline-hash/result.json",
+            "assembled.fasta": "oracle/m4/newline-hash/assembled.fasta"
+          }
+        },
+        {
+          "id": "wrong-fasta",
+          "files": {
+            "result.json": "oracle/m4/wrong-fasta/result.json",
+            "assembled.fasta": "oracle/m4/wrong-fasta/assembled.fasta"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+Install the existing real instrumented SQLite CLI; keep its matching gcno files in /opt/sqlite.

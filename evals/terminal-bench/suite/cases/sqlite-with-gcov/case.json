@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "sqlite-with-gcov",
+  "image": "vw-sqlite-gcov-diagnostics@sha256:9371827c563d3098938e639c055eff8fa198442dce5c1d6f4c784d2693b3fe5f",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "probe.c": "fixtures/m1/probe.c"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "prepare.sh": "oracle/m1/gold/prepare.sh"
+      },
+      "negatives": [
+        {
+          "id": "altered-source",
+          "files": {
+            "prepare.sh": "oracle/m1/altered-source/prepare.sh"
+          }
+        },
+        {
+          "id": "no-instrumentation",
+          "files": {
+            "prepare.sh": "oracle/m1/no-instrumentation/prepare.sh"
+          }
+        },
+        {
+          "id": "no-compile",
+          "files": {
+            "prepare.sh": "oracle/m1/no-compile/prepare.sh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "request.txt": "fixtures/m2/request.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "build.sh": "oracle/m2/gold/build.sh"
+      },
+      "negatives": [
+        {
+          "id": "no-coverage",
+          "files": {
+            "build.sh": "oracle/m2/no-coverage/build.sh"
+          }
+        },
+        {
+          "id": "notes-only",
+          "files": {
+            "build.sh": "oracle/m2/notes-only/build.sh"
+          }
+        },
+        {
+          "id": "wrong-program",
+          "files": {
+            "build.sh": "oracle/m2/wrong-program/build.sh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.sql": "fixtures/m3/example.sql"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "run.sh": "oracle/m3/gold/run.sh"
+      },
+      "negatives": [
+        {
+          "id": "ignore-input",
+          "files": {
+            "run.sh": "oracle/m3/ignore-input/run.sh"
+          }
+        },
+        {
+          "id": "no-coverage-output",
+          "files": {
+            "run.sh": "oracle/m3/no-coverage-output/run.sh"
+          }
+        },
+        {
+          "id": "swallow-error",
+          "files": {
+            "run.sh": "oracle/m3/swallow-error/run.sh"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "request.txt": "fixtures/m4/request.txt"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "install.sh": "oracle/m4/gold/install.sh"
+      },
+      "negatives": [
+        {
+          "id": "wrong-directory",
+          "files": {
+            "install.sh": "oracle/m4/wrong-directory/install.sh"
+          }
+        },
+        {
+          "id": "broken-target",
+          "files": {
+            "install.sh": "oracle/m4/broken-target/install.sh"
+          }
+        },
+        {
+          "id": "fake-command",
+          "files": {
+            "install.sh": "oracle/m4/fake-command/install.sh"
+          }
+        }
+      ]
+    }
+  ]
+}

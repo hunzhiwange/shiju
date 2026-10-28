@@ -1,0 +1,14 @@
+{
+  "child": "m1",
+  "immutable": {
+    "probe.c": "2586c2d576031a45fe1d08b6d0a37853e94e30316ab95d31c4af36e80e3e7fae"
+  },
+  "dependencies": {
+    "/opt/sqlite/sqlite3.c": "e3f5d6901e7492af4a1fc8c4d745cae84c264942524c3fbfc02b82a5ca8818c8",
+    "/opt/sqlite/sqlite3.h": "abd1514e0351f79393d1be882830afdb40a8099e8257f311f0bfdf8486f11bea",
+    "/opt/sqlite/shell.c": "c446ff8f3109335ce6d0731b6f7d65e57f1d1747c9bfc8b18b50db8f48cd253a",
+    "/opt/sqlite/sqlite3": "7d976a0f2ce34dbaa2f723474ca2c98c38e96d7501adae8e042064cb8bdae010",
+    "/opt/sqlite/sqlite3-shell.gcno": "a0550895cc008c8c06a4f47f187ad2b3026baedf3974649b11f46e69b665efbd",
+    "/opt/sqlite/sqlite3-sqlite3.gcno": "5d067991d0634f68daf2782c23b058dd49993ef9a554f02059456093dde97c5d"
+  }
+}

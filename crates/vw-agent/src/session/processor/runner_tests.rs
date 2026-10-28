@@ -753,6 +753,7 @@ fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
             output: 0,
         },
         Some(490),
+        false,
     )
     .expect("the next LLM step should report whether internal compaction is required");
 
@@ -768,6 +769,34 @@ fn context_preflight_runs_before_next_llm_step_after_real_input_usage() {
             "old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output old output "
         )
     );
+}
+
+#[test]
+fn acp_context_preflight_preserves_large_prompt_without_local_compaction() {
+    for agent in ["codex", "claude", "gemini", "custom-agent"] {
+        let mut messages = vec![serde_json::json!({
+            "role": "user",
+            "content": "large ACP request ".repeat(4096),
+        })];
+        let original = messages.clone();
+        let mut req = request_with_session("acp-context-preflight");
+        req.options = serde_json::json!({ "acp_agent": agent });
+        let model = super::resolve_request_model(&req, &crate::config::Config::default())
+            .expect("resolve ACP model");
+
+        let result = super::prepare_context_before_llm_step(
+            &mut messages,
+            &["system".repeat(8192)],
+            &[],
+            &model.limit,
+            Some(100_000),
+            super::is_acp_request(&req.options),
+        )
+        .expect("ACP owns context governance");
+
+        assert!(!result.needs_internal_compaction);
+        assert_eq!(messages, original);
+    }
 }
 
 #[test]

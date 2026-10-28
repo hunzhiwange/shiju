@@ -648,6 +648,27 @@ async fn submit_message_without_memory_context_uses_timestamp_prefix() {
 }
 
 #[tokio::test]
+async fn first_turn_compaction_allows_threshold_but_rejects_overflow() {
+    let mut engine = test_engine(ScriptedProvider::default(), Arc::new(FakeMemory::default()));
+    engine.compact_context = true;
+    engine.history = vec![ChatMessage::user("request ".repeat(500))];
+    let tokens = crate::app::agent::util::token::estimate(&engine.history[0].content);
+    engine.model_limit = crate::app::agent::provider::provider::ModelLimit {
+        context: tokens + 1,
+        input: Some(tokens + 1),
+        output: 0,
+    };
+
+    let context = engine.compact_before_primary_request(false).await.expect("first turn fits");
+    assert_eq!(context[0].content, engine.history[0].content);
+
+    engine.model_limit.input = Some(tokens - 1);
+    let error = engine.compact_before_primary_request(false).await.expect_err("input overflow");
+    assert!(error.to_string().contains("超过模型输入窗口"));
+    assert_eq!(engine.history.len(), 1);
+}
+
+#[tokio::test]
 async fn submit_message_timestamp_uses_configured_timezone() {
     let provider =
         ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("final answer", None))]);

@@ -158,7 +158,13 @@ fn prepare_context_before_llm_step(
     tools: &[crate::app::agent::tools::ToolSpec],
     model_limit: &crate::app::agent::provider::provider::ModelLimit,
     observed_input_tokens: Option<i64>,
+    is_acp: bool,
 ) -> Result<context_governance::ContextCompactionResult, String> {
+    // ACP agents own their model window and remote session history. The local
+    // placeholder model limit cannot govern or summarize that context.
+    if is_acp {
+        return Ok(context_governance::ContextCompactionResult::default());
+    }
     context_governance::compact_context_for_next_request(
         llm_messages,
         system,
@@ -737,6 +743,7 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
             &tool_specs_for_context,
             &model_limit,
             observed_input_tokens,
+            is_acp,
         ) {
             Ok(result) => result,
             Err(message) => {
@@ -779,10 +786,17 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                     continue;
                 }
                 Ok(false) => {
-                    on_event(StreamEvent::Error(
-                        "internal compaction has no eligible history to summarize".to_string(),
-                    ));
-                    return;
+                    // Reaching the proactive threshold is not an overflow. A
+                    // first turn has nothing to summarize and may still fit.
+                    if compaction.before_tokens
+                        > context_governance::effective_input_window(&model_limit)
+                    {
+                        on_event(StreamEvent::Error(
+                            "当前请求超过模型输入窗口，且没有可压缩的历史；请缩短输入或减少附件"
+                                .to_string(),
+                        ));
+                        return;
+                    }
                 }
                 Err(error) => {
                     on_event(StreamEvent::Error(error));
@@ -841,7 +855,8 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
                 output
             }
             Err(message) => {
-                if llm_runner::is_request_too_long_error(&message, &provider_messages)
+                if !is_acp
+                    && llm_runner::is_request_too_long_error(&message, &provider_messages)
                     && !internal_compaction_attempted
                 {
                     match compact_transient_history_for_request(

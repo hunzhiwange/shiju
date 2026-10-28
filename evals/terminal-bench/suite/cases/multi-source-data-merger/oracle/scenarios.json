@@ -1,0 +1,206 @@
+{
+  "raw": [
+    [
+      {
+        "id": 17,
+        "full_name": "林, A",
+        "email": null,
+        "registration_date": "2025-01-02",
+        "status": ""
+      },
+      {
+        "id": 23,
+        "full_name": "Same",
+        "email": "same@a.invalid",
+        "registration_date": "2025-02-03",
+        "status": "active"
+      }
+    ],
+    [
+      {
+        "user_id": "017",
+        "name": "Lower",
+        "email_address": "fallback@b.invalid",
+        "created_at": "2025-01-01",
+        "is_active": false
+      },
+      {
+        "user_id": "42",
+        "name": "Same",
+        "email_address": "same@a.invalid",
+        "created_at": "2025-03-04",
+        "is_active": true
+      }
+    ],
+    [
+      {
+        "userId": 17,
+        "userName": "Third",
+        "email": "third@c.invalid",
+        "joined": "2025-01-01",
+        "active": true
+      },
+      {
+        "userId": 90,
+        "userName": "Only C",
+        "email": "c@c.invalid",
+        "joined": "2025-04-05",
+        "active": false
+      }
+    ]
+  ],
+  "canonical": [
+    {
+      "source": "source_a",
+      "user_id": 17,
+      "name": "林, A",
+      "email": null,
+      "created_date": "2025-01-02",
+      "status": ""
+    },
+    {
+      "source": "source_a",
+      "user_id": 23,
+      "name": "Same",
+      "email": "same@a.invalid",
+      "created_date": "2025-02-03",
+      "status": "active"
+    },
+    {
+      "source": "source_b",
+      "user_id": 17,
+      "name": "Lower",
+      "email": "fallback@b.invalid",
+      "created_date": "2025-01-01",
+      "status": "inactive"
+    },
+    {
+      "source": "source_b",
+      "user_id": 42,
+      "name": "Same",
+      "email": "same@a.invalid",
+      "created_date": "2025-03-04",
+      "status": "active"
+    },
+    {
+      "source": "source_c",
+      "user_id": 17,
+      "name": "Third",
+      "email": "third@c.invalid",
+      "created_date": "2025-01-01",
+      "status": "active"
+    },
+    {
+      "source": "source_c",
+      "user_id": 90,
+      "name": "Only C",
+      "email": "c@c.invalid",
+      "created_date": "2025-04-05",
+      "status": "inactive"
+    }
+  ],
+  "groups": [
+    {
+      "user_id": 17,
+      "sources": [
+        "source_a",
+        "source_b",
+        "source_c"
+      ]
+    },
+    {
+      "user_id": 23,
+      "sources": [
+        "source_a"
+      ]
+    },
+    {
+      "user_id": 42,
+      "sources": [
+        "source_b"
+      ]
+    },
+    {
+      "user_id": 90,
+      "sources": [
+        "source_c"
+      ]
+    }
+  ],
+  "merged": {
+    "rows": [
+      {
+        "user_id": 17,
+        "name": "林, A",
+        "email": "fallback@b.invalid",
+        "created_date": "2025-01-02",
+        "status": ""
+      },
+      {
+        "user_id": 23,
+        "name": "Same",
+        "email": "same@a.invalid",
+        "created_date": "2025-02-03",
+        "status": "active"
+      },
+      {
+        "user_id": 42,
+        "name": "Same",
+        "email": "same@a.invalid",
+        "created_date": "2025-03-04",
+        "status": "active"
+      },
+      {
+        "user_id": 90,
+        "name": "Only C",
+        "email": "c@c.invalid",
+        "created_date": "2025-04-05",
+        "status": "inactive"
+      }
+    ],
+    "report": {
+      "total_conflicts": 4,
+      "conflicts": [
+        {
+          "user_id": 17,
+          "field": "name",
+          "values": {
+            "source_a": "林, A",
+            "source_b": "Lower",
+            "source_c": "Third"
+          },
+          "selected": "林, A"
+        },
+        {
+          "user_id": 17,
+          "field": "email",
+          "values": {
+            "source_b": "fallback@b.invalid",
+            "source_c": "third@c.invalid"
+          },
+          "selected": "fallback@b.invalid"
+        },
+        {
+          "user_id": 17,
+          "field": "created_date",
+          "values": {
+            "source_a": "2025-01-02",
+            "source_b": "2025-01-01",
+            "source_c": "2025-01-01"
+          },
+          "selected": "2025-01-02"
+        },
+        {
+          "user_id": 17,
+          "field": "status",
+          "values": {
+            "source_a": "",
+            "source_b": "inactive",
+            "source_c": "active"
+          },
+          "selected": ""
+        }
+      ]
+    }
+  }
+}

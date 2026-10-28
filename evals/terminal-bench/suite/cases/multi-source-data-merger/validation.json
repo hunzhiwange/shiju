@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "parent_id": "multi-source-data-merger",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "8c5d9f0b30b2d9c88550e43033fc1501576d8cc6bca6901ffb13f48c366a5627",
+    "fixtures/m1.md": "75467c358ad7e73e1c699da3dbcfd43b9c0d18c02048ce33067dbbb7fe542c0a",
+    "fixtures/m2.md": "0e493609defcac068f44d991084acc887ff89e0ad9deaecef9a99f68d4ba432a",
+    "fixtures/m3.md": "f2ba920d7eebca9924f58c8cda82a7c3524f46309963c31f9e62bb0a808d29d6",
+    "fixtures/m4.md": "e6e049351de01b13d38c0c7e6a6c9ad4840287893d3fd83315095e339f6596b7",
+    "fixtures/records.json": "233bcd3eb882bb13f8d3c5e7694c56545205c9fdf299aaa143914af35795a080",
+    "fixtures/sample.json": "6a8a28b50ccadc68383c521c2645a27110268242ca663bf4dd6d0cd6ddf41e95",
+    "oracle/m1-gold.py": "b71f7f994a3402d395381a17e44e649605e99c766d5a4a3fdd70159130db49ef",
+    "oracle/m1-skip-parquet.py": "d7b88d4e0d28162d36d4ed5294cc4da6960a6abd0acc8a08eaf2807da2738462",
+    "oracle/m1-string-id.py": "a16cf6127bea347ccd534dbe2d1afd48934a70862ecc86f9b7d1206d76a5985f",
+    "oracle/m1-wrong-status.py": "f60fc547046a76d33fd7fecc43e0e127cd3c6ec0d309215d5b78af86dcf78278",
+    "oracle/m1.txt": "7b14e2d92338aed25808bbc74dabe3a37da6be8f335f2106d11aa36e5e31f7ea",
+    "oracle/m2-by-name.py": "e66c285edcb849de78ab9d66a88c8c451188909089cad365736190a6007553d2",
+    "oracle/m2-gold.py": "b31d82d23d6ee25b42c078a405face1ddcd1082c82d2f86ed6bbebc074fd969a",
+    "oracle/m2-no-normalize.py": "aa93d3ef3dac238413edcd45eb225ecaec9f29da7b89c9deba523bf0f8b81ea4",
+    "oracle/m2-skip-c.py": "dc9f1e0d07cc684f323dc261b5f8550ba5e5f1f272a8669948b1743cb5dea585",
+    "oracle/m2.txt": "808d06b879e48e9448adccba1e4dbde8e4614988ddb263ed52b0aa786c42a2ea",
+    "oracle/m3-drop-conflicts.py": "9d6e6e24bb923ad4caf18a05894837e4a7468a745d130c34fb16acef2d1d10f6",
+    "oracle/m3-empty-as-null.py": "1648e7c4f2def9c32b8b1a4c84ef0d52a8caba8b6ed4f46052c7c87626283e99",
+    "oracle/m3-gold.py": "552bc0b132ee340ca1c9801b0477f89135c54935a2e37712831f02215bde8b27",
+    "oracle/m3-reverse-priority.py": "bfe17f7c589485d2a6d7b1b19378c08ea05c7dbb2056744db9d2d4b124e393bb",
+    "oracle/m3.txt": "3831561589b9de83145d35aebf9d2b55a9843a09e8b7754bedd56173e25b3aa6",
+    "oracle/m4-drop-conflicts.py": "67751d9240084f29c7e11e7c803e110bd1660ca5f44d078fd173070881f329b3",
+    "oracle/m4-drop-user.py": "2dc56c18cc622a0ff1783eea65e5b82ad34b1e02840361dc850f3a8d404daecc",
+    "oracle/m4-gold.py": "97bac422db468670add76148fe768f42386f42c62efb18650cead289b4f2b6aa",
+    "oracle/m4-string-output.py": "d3bff127b206845d8a855ac822b435affae4b76b21d1daed8eb60ae3d1e8cba6",
+    "oracle/m4.txt": "ffdd3b1b650e0f34126e0d5d8e3dbfef8088b5fcbdf8b8c6c7414c8817018abd",
+    "oracle/scenarios.json": "040f7d4c49eaea658920784195b35269b1ad83867dc25daf37a2f6836f2ca49d",
+    "case.json": "139434bbb501529ae2d52eaf199254eb7a32a07c73cf83573c3e7990e0cf4943"
+  },
+  "image": "vw-multi-source-diagnostics:task62@sha256:c25e85c44903fc0ef8355e59d691d923ca36695066da97fc64481cb49f90bcf2",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "skip-parquet",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "string-id",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-status",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "by-name",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "skip-c",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "no-normalize",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "reverse-priority",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "empty-as-null",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "drop-conflicts",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "drop-user",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "string-output",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "drop-conflicts",
+      "exit_code": 1
+    }
+  ]
+}

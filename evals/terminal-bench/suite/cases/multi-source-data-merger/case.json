@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "parent_id": "multi-source-data-merger",
+  "image": "vw-multi-source-diagnostics:task62@sha256:c25e85c44903fc0ef8355e59d691d923ca36695066da97fc64481cb49f90bcf2",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1.md",
+      "checker": "check.py",
+      "fixtures": {
+        "sample.json": "fixtures/sample.json"
+      },
+      "oracle": {
+        "scenarios.json": "oracle/scenarios.json",
+        "child.txt": "oracle/m1.txt"
+      },
+      "gold": {
+        "merge.py": "oracle/m1-gold.py"
+      },
+      "negatives": [
+        {
+          "id": "skip-parquet",
+          "files": {
+            "merge.py": "oracle/m1-skip-parquet.py"
+          }
+        },
+        {
+          "id": "string-id",
+          "files": {
+            "merge.py": "oracle/m1-string-id.py"
+          }
+        },
+        {
+          "id": "wrong-status",
+          "files": {
+            "merge.py": "oracle/m1-wrong-status.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2.md",
+      "checker": "check.py",
+      "fixtures": {
+        "records.json": "fixtures/records.json"
+      },
+      "oracle": {
+        "scenarios.json": "oracle/scenarios.json",
+        "child.txt": "oracle/m2.txt"
+      },
+      "gold": {
+        "merge.py": "oracle/m2-gold.py"
+      },
+      "negatives": [
+        {
+          "id": "by-name",
+          "files": {
+            "merge.py": "oracle/m2-by-name.py"
+          }
+        },
+        {
+          "id": "skip-c",
+          "files": {
+            "merge.py": "oracle/m2-skip-c.py"
+          }
+        },
+        {
+          "id": "no-normalize",
+          "files": {
+            "merge.py": "oracle/m2-no-normalize.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3.md",
+      "checker": "check.py",
+      "fixtures": {
+        "records.json": "fixtures/records.json"
+      },
+      "oracle": {
+        "scenarios.json": "oracle/scenarios.json",
+        "child.txt": "oracle/m3.txt"
+      },
+      "gold": {
+        "merge.py": "oracle/m3-gold.py"
+      },
+      "negatives": [
+        {
+          "id": "reverse-priority",
+          "files": {
+            "merge.py": "oracle/m3-reverse-priority.py"
+          }
+        },
+        {
+          "id": "empty-as-null",
+          "files": {
+            "merge.py": "oracle/m3-empty-as-null.py"
+          }
+        },
+        {
+          "id": "drop-conflicts",
+          "files": {
+            "merge.py": "oracle/m3-drop-conflicts.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4.md",
+      "checker": "check.py",
+      "fixtures": {
+        "sample.json": "fixtures/sample.json"
+      },
+      "oracle": {
+        "scenarios.json": "oracle/scenarios.json",
+        "child.txt": "oracle/m4.txt"
+      },
+      "gold": {
+        "merge.py": "oracle/m4-gold.py"
+      },
+      "negatives": [
+        {
+          "id": "drop-user",
+          "files": {
+            "merge.py": "oracle/m4-drop-user.py"
+          }
+        },
+        {
+          "id": "string-output",
+          "files": {
+            "merge.py": "oracle/m4-string-output.py"
+          }
+        },
+        {
+          "id": "drop-conflicts",
+          "files": {
+            "merge.py": "oracle/m4-drop-conflicts.py"
+          }
+        }
+      ]
+    }
+  ]
+}

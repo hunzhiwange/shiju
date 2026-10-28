@@ -1,0 +1,50 @@
+[
+  [
+    {
+      "id": 17,
+      "full_name": "林, A",
+      "email": null,
+      "registration_date": "2025-01-02",
+      "status": ""
+    },
+    {
+      "id": 23,
+      "full_name": "Same",
+      "email": "same@a.invalid",
+      "registration_date": "2025-02-03",
+      "status": "active"
+    }
+  ],
+  [
+    {
+      "user_id": "017",
+      "name": "Lower",
+      "email_address": "fallback@b.invalid",
+      "created_at": "2025-01-01",
+      "is_active": false
+    },
+    {
+      "user_id": "42",
+      "name": "Same",
+      "email_address": "same@a.invalid",
+      "created_at": "2025-03-04",
+      "is_active": true
+    }
+  ],
+  [
+    {
+      "userId": 17,
+      "userName": "Third",
+      "email": "third@c.invalid",
+      "joined": "2025-01-01",
+      "active": true
+    },
+    {
+      "userId": 90,
+      "userName": "Only C",
+      "email": "c@c.invalid",
+      "joined": "2025-04-05",
+      "active": false
+    }
+  ]
+]

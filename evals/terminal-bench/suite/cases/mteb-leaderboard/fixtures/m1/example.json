@@ -1,0 +1,23 @@
+{
+  "as_of": "2025-08-31",
+  "snapshots": [
+    {
+      "date": "2025-08-01",
+      "rows": [
+        {
+          "model": "fjord/one",
+          "score": 71
+        }
+      ]
+    },
+    {
+      "date": "2025-09-01",
+      "rows": [
+        {
+          "model": "fjord/two",
+          "score": 90
+        }
+      ]
+    }
+  ]
+}

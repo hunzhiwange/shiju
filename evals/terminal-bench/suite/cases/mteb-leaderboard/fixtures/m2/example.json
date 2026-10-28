@@ -1,0 +1,30 @@
+{
+  "languages": [
+    "da",
+    "sv",
+    "no"
+  ],
+  "tasks": [
+    "a",
+    "b"
+  ],
+  "metric": "ndcg",
+  "rows": [
+    {
+      "model": "fjord/complete",
+      "languages": [
+        "da",
+        "sv",
+        "no"
+      ],
+      "scores": {
+        "a": {
+          "ndcg": 0
+        },
+        "b": {
+          "ndcg": 80
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "k": 1,
+  "rows": [
+    {
+      "model": "fjord/b",
+      "mean_task": 70
+    },
+    {
+      "model": "fjord/a",
+      "mean_task": 70
+    },
+    {
+      "model": "fjord/c",
+      "mean_task": 69
+    }
+  ]
+}

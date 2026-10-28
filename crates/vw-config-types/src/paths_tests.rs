@@ -9,6 +9,13 @@ fn home_config_directory_names_match_agent_layout() {
     assert_eq!(super::DEV_HOME_CONFIG_DIR_NAME, ".shiju-agent-dev");
 }
 
+#[test]
+fn platform_directory_names_match_shiju_layout() {
+    assert_eq!(super::PROD_APP_DIR_NAME, "shiju");
+    assert_eq!(super::DEV_APP_DIR_NAME, "shiju-dev");
+    assert_eq!(super::APP_DIR_NAME, if cfg!(debug_assertions) { "shiju-dev" } else { "shiju" });
+}
+
 // 基础辅助函数必须共享同一构建隔离目录，防止数据落入不同根路径。
 #[test]
 fn path_helpers_build_expected_runtime_locations() {

@@ -9,9 +9,9 @@ pub const PROD_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent";
 /// 调试构建在用户主目录下使用的隔离配置目录名。
 pub const DEV_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent-dev";
 /// 正式构建在平台数据目录下使用的应用目录名。
-pub const PROD_APP_DIR_NAME: &str = "vibewindow";
+pub const PROD_APP_DIR_NAME: &str = "shiju";
 /// 调试构建在平台数据目录下使用的隔离应用目录名。
-pub const DEV_APP_DIR_NAME: &str = "vibewindowdev";
+pub const DEV_APP_DIR_NAME: &str = "shiju-dev";
 /// 任务工作树在用户配置目录下的固定子目录名。
 pub const TASK_WORKTREES_DIR_NAME: &str = "task-worktrees";
 

@@ -1,0 +1,566 @@
+[
+  {
+    "input": {
+      "words": [
+        0,
+        4294967295,
+        604569599,
+        19546145,
+        134217744,
+        2411659268,
+        65011720,
+        610240,
+        874610688
+      ]
+    },
+    "output": [
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 0,
+        "immediate": 0,
+        "signed_immediate": 0,
+        "target": 0
+      },
+      {
+        "opcode": 63,
+        "rs": 31,
+        "rt": 31,
+        "rd": 31,
+        "shamt": 31,
+        "funct": 63,
+        "immediate": 65535,
+        "signed_immediate": -1,
+        "target": 67108863
+      },
+      {
+        "opcode": 9,
+        "rs": 0,
+        "rt": 8,
+        "rd": 31,
+        "shamt": 31,
+        "funct": 63,
+        "immediate": 65535,
+        "signed_immediate": -1,
+        "target": 589823
+      },
+      {
+        "opcode": 0,
+        "rs": 9,
+        "rt": 10,
+        "rd": 8,
+        "shamt": 0,
+        "funct": 33,
+        "immediate": 16417,
+        "signed_immediate": 16417,
+        "target": 19546145
+      },
+      {
+        "opcode": 2,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 16,
+        "immediate": 16,
+        "signed_immediate": 16,
+        "target": 16
+      },
+      {
+        "opcode": 35,
+        "rs": 29,
+        "rt": 31,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 4,
+        "immediate": 4,
+        "signed_immediate": 4,
+        "target": 62849028
+      },
+      {
+        "opcode": 0,
+        "rs": 31,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 8,
+        "immediate": 8,
+        "signed_immediate": 8,
+        "target": 65011720
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 9,
+        "rd": 9,
+        "shamt": 31,
+        "funct": 0,
+        "immediate": 20416,
+        "signed_immediate": 20416,
+        "target": 610240
+      },
+      {
+        "opcode": 13,
+        "rs": 1,
+        "rt": 1,
+        "rd": 16,
+        "shamt": 0,
+        "funct": 0,
+        "immediate": 32768,
+        "signed_immediate": -32768,
+        "target": 2195456
+      }
+    ]
+  },
+  {
+    "input": {
+      "words": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ]
+    },
+    "output": [
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 0,
+        "immediate": 0,
+        "signed_immediate": 0,
+        "target": 0
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 1,
+        "immediate": 1,
+        "signed_immediate": 1,
+        "target": 1
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 2,
+        "immediate": 2,
+        "signed_immediate": 2,
+        "target": 2
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 3,
+        "immediate": 3,
+        "signed_immediate": 3,
+        "target": 3
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 4,
+        "immediate": 4,
+        "signed_immediate": 4,
+        "target": 4
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 5,
+        "immediate": 5,
+        "signed_immediate": 5,
+        "target": 5
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 6,
+        "immediate": 6,
+        "signed_immediate": 6,
+        "target": 6
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 7,
+        "immediate": 7,
+        "signed_immediate": 7,
+        "target": 7
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 8,
+        "immediate": 8,
+        "signed_immediate": 8,
+        "target": 8
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 9,
+        "immediate": 9,
+        "signed_immediate": 9,
+        "target": 9
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 10,
+        "immediate": 10,
+        "signed_immediate": 10,
+        "target": 10
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 11,
+        "immediate": 11,
+        "signed_immediate": 11,
+        "target": 11
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 12,
+        "immediate": 12,
+        "signed_immediate": 12,
+        "target": 12
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 13,
+        "immediate": 13,
+        "signed_immediate": 13,
+        "target": 13
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 14,
+        "immediate": 14,
+        "signed_immediate": 14,
+        "target": 14
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 15,
+        "immediate": 15,
+        "signed_immediate": 15,
+        "target": 15
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 16,
+        "immediate": 16,
+        "signed_immediate": 16,
+        "target": 16
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 17,
+        "immediate": 17,
+        "signed_immediate": 17,
+        "target": 17
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 18,
+        "immediate": 18,
+        "signed_immediate": 18,
+        "target": 18
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 19,
+        "immediate": 19,
+        "signed_immediate": 19,
+        "target": 19
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 20,
+        "immediate": 20,
+        "signed_immediate": 20,
+        "target": 20
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 21,
+        "immediate": 21,
+        "signed_immediate": 21,
+        "target": 21
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 22,
+        "immediate": 22,
+        "signed_immediate": 22,
+        "target": 22
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 23,
+        "immediate": 23,
+        "signed_immediate": 23,
+        "target": 23
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 24,
+        "immediate": 24,
+        "signed_immediate": 24,
+        "target": 24
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 25,
+        "immediate": 25,
+        "signed_immediate": 25,
+        "target": 25
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 26,
+        "immediate": 26,
+        "signed_immediate": 26,
+        "target": 26
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 27,
+        "immediate": 27,
+        "signed_immediate": 27,
+        "target": 27
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 28,
+        "immediate": 28,
+        "signed_immediate": 28,
+        "target": 28
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 29,
+        "immediate": 29,
+        "signed_immediate": 29,
+        "target": 29
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 30,
+        "immediate": 30,
+        "signed_immediate": 30,
+        "target": 30
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 31,
+        "immediate": 31,
+        "signed_immediate": 31,
+        "target": 31
+      }
+    ]
+  },
+  {
+    "input": {
+      "words": [
+        2147483648,
+        2147483647,
+        32768,
+        32767
+      ]
+    },
+    "output": [
+      {
+        "opcode": 32,
+        "rs": 0,
+        "rt": 0,
+        "rd": 0,
+        "shamt": 0,
+        "funct": 0,
+        "immediate": 0,
+        "signed_immediate": 0,
+        "target": 0
+      },
+      {
+        "opcode": 31,
+        "rs": 31,
+        "rt": 31,
+        "rd": 31,
+        "shamt": 31,
+        "funct": 63,
+        "immediate": 65535,
+        "signed_immediate": -1,
+        "target": 67108863
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 16,
+        "shamt": 0,
+        "funct": 0,
+        "immediate": 32768,
+        "signed_immediate": -32768,
+        "target": 32768
+      },
+      {
+        "opcode": 0,
+        "rs": 0,
+        "rt": 0,
+        "rd": 15,
+        "shamt": 31,
+        "funct": 63,
+        "immediate": 32767,
+        "signed_immediate": 32767,
+        "target": 32767
+      }
+    ]
+  }
+]

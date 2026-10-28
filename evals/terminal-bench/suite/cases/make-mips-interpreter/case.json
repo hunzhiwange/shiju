@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "make-mips-interpreter",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "probes.json": "oracle/m1/probes.json"
+      },
+      "gold": {
+        "run.py": "oracle/m1/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "unsigned-immediate",
+          "files": {
+            "run.py": "oracle/m1/unsigned-immediate/run.py"
+          }
+        },
+        {
+          "id": "swapped-registers",
+          "files": {
+            "run.py": "oracle/m1/swapped-registers/run.py"
+          }
+        },
+        {
+          "id": "short-target",
+          "files": {
+            "run.py": "oracle/m1/short-target/run.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "probes.json": "oracle/m2/probes.json"
+      },
+      "gold": {
+        "run.py": "oracle/m2/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "mutable-zero",
+          "files": {
+            "run.py": "oracle/m2/mutable-zero/run.py"
+          }
+        },
+        {
+          "id": "big-endian",
+          "files": {
+            "run.py": "oracle/m2/big-endian/run.py"
+          }
+        },
+        {
+          "id": "zero-extended-offset",
+          "files": {
+            "run.py": "oracle/m2/zero-extended-offset/run.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "probes.json": "oracle/m3/probes.json"
+      },
+      "gold": {
+        "run.py": "oracle/m3/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "skip-delay-slot",
+          "files": {
+            "run.py": "oracle/m3/skip-delay-slot/run.py"
+          }
+        },
+        {
+          "id": "bad-link",
+          "files": {
+            "run.py": "oracle/m3/bad-link/run.py"
+          }
+        },
+        {
+          "id": "nul-terminated-write",
+          "files": {
+            "run.py": "oracle/m3/nul-terminated-write/run.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "probes.json": "oracle/m4/probes.json"
+      },
+      "gold": {
+        "run.py": "oracle/m4/gold/run.py"
+      },
+      "negatives": [
+        {
+          "id": "ignores-output",
+          "files": {
+            "run.py": "oracle/m4/ignores-output/run.py"
+          }
+        },
+        {
+          "id": "truncated-prefix",
+          "files": {
+            "run.py": "oracle/m4/truncated-prefix/run.py"
+          }
+        },
+        {
+          "id": "wrong-priority",
+          "files": {
+            "run.py": "oracle/m4/wrong-priority/run.py"
+          }
+        }
+      ]
+    }
+  ]
+}

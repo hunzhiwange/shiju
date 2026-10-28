@@ -12,6 +12,19 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class WindowsBundleTests(unittest.TestCase):
+    def test_desktop_package_rejects_missing_runtime_components(self):
+        for option in ("INCLUDE_CLI_IN_APP", "INCLUDE_ACP_IN_APP"):
+            with self.subTest(option=option), tempfile.TemporaryDirectory() as temp:
+                env = dict(os.environ, MODE="app", OUT_DIR=temp)
+                env[option] = "0"
+                result = subprocess.run(
+                    ["bash", str(REPO / "scripts/bundle_windows.sh")],
+                    cwd=REPO, env=env, capture_output=True, text=True, check=False,
+                )
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("desktop packages require bundled shiju.exe and acp.exe", result.stderr)
+                self.assertEqual(list(Path(temp).iterdir()), [])
+
     def test_packages_cargo_target_directory(self):
         for target in ("aarch64-pc-windows-msvc", "x86_64-pc-windows-msvc"):
             for override in (None, "relative", "absolute"):
@@ -32,11 +45,11 @@ class WindowsBundleTests(unittest.TestCase):
                         cargo = commands / "cargo"
                         cargo.write_text('#!/bin/sh\necho "unexpected rebuild" >&2\nexit 1\n')
                         cargo.chmod(0o755)
-                        env = {key: value for key, value in os.environ.items() if key != "CARGO_TARGET_DIR"}
+                        env = {key: value for key, value in os.environ.items() if key not in ("CARGO_TARGET_DIR", "INCLUDE_CLI_IN_APP", "INCLUDE_ACP_IN_APP")}
                         env.update(
                             PATH=f"{commands}:{env['PATH']}", TARGET=target, PROFILE="dist",
                             MODE=mode, OUT_DIR=str(root / "output"), CREATE_ZIP="1", CREATE_MSI="0",
-                            INCLUDE_CLI_IN_APP="1", INCLUDE_ACP_IN_APP="1", INCLUDE_CLI_COMPAT_IN_APP="0",
+                            INCLUDE_CLI_COMPAT_IN_APP="0",
                             WINDOWS_ICON_SOURCE=str(REPO / "assets/logo.png"),
                         )
                         if override:
@@ -55,7 +68,10 @@ class WindowsBundleTests(unittest.TestCase):
                                 self.assertEqual(archive.read(name).decode(), name)
                             self.assertIn("ShiJu.ico", archive.namelist())
                             if mode == "app":
-                                launcher = archive.read("Start ShiJu Service.cmd").decode()
+                                launcher_bytes = archive.read("Start ShiJu Service.cmd")
+                                self.assertNotIn(b"\r\r\n", launcher_bytes)
+                                launcher = launcher_bytes.decode()
+                                self.assertIn('if not exist "%~dp0shiju.exe"', launcher)
                                 self.assertIn('"%~dp0shiju.exe" service install', launcher)
                                 self.assertEqual(launcher.count('"%~dp0shiju.exe" service start'), 2)
                                 self.assertIn("if errorlevel 1 goto failed", launcher)

@@ -17,6 +17,8 @@ ACP_BIN_NAME="acp.exe"
 WINDOWS_ICON_SOURCE="${WINDOWS_ICON_SOURCE:-assets/logo.png}"
 WINDOWS_ICON_NAME="ShiJu.ico"
 SERVICE_LAUNCHER_NAME="Start ShiJu Service.cmd"
+INCLUDE_CLI_IN_APP="${INCLUDE_CLI_IN_APP:-1}"
+INCLUDE_ACP_IN_APP="${INCLUDE_ACP_IN_APP:-1}"
 
 if [ "$PROFILE" = "release" ]; then
   PROFILE_ARGS=(--release)
@@ -86,8 +88,13 @@ import sys
 from pathlib import Path
 
 dst = Path(sys.argv[1])
-dst.write_text(
+dst.write_bytes((
     '@echo off\r\n'
+    'if not exist "%~dp0shiju.exe" (\r\n'
+    '  echo Missing shiju.exe. Extract the complete ShiJu package into one folder.\r\n'
+    '  pause\r\n'
+    '  exit /b 1\r\n'
+    ')\r\n'
     '"%~dp0shiju.exe" service start\r\n'
     'if not errorlevel 1 exit /b 0\r\n'
     '"%~dp0shiju.exe" service install\r\n'
@@ -98,9 +105,8 @@ dst.write_text(
     ':failed\r\n'
     'echo Failed to start ShiJu service. See the error above.\r\n'
     'pause\r\n'
-    'exit /b 1\r\n',
-    encoding="utf-8",
-)
+    'exit /b 1\r\n'
+).encode("utf-8"))
 PY
 }
 
@@ -212,6 +218,11 @@ if [ "$MODE" = "cli" ]; then
   exit 0
 fi
 
+if [ "$INCLUDE_CLI_IN_APP" != "1" ] || [ "$INCLUDE_ACP_IN_APP" != "1" ]; then
+  echo "Error: desktop packages require bundled shiju.exe and acp.exe; INCLUDE_CLI_IN_APP and INCLUDE_ACP_IN_APP must be 1." >&2
+  exit 1
+fi
+
 if missing_binaries "$DESKTOP_SOURCE_BIN_NAME" "vw-webview.exe"; then
   build_app_binaries
 fi
@@ -222,7 +233,7 @@ write_service_launcher
 cp "$BIN_DIR/$DESKTOP_SOURCE_BIN_NAME" "$OUT_DIR/$DESKTOP_BIN_NAME"
 cp "$BIN_DIR/vw-webview.exe" "$OUT_DIR/"
 ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$SERVICE_LAUNCHER_NAME")
-if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
+if [ "${INCLUDE_CLI_IN_APP}" = "1" ]; then
   if missing_binaries "$CLI_SOURCE_BIN_NAME"; then
     build_cli_binary
   fi
@@ -236,7 +247,7 @@ if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
     ZIP_FILES+=("$CLI_COMPAT_BIN_NAME")
   fi
 fi
-if [ "${INCLUDE_ACP_IN_APP:-0}" = "1" ]; then
+if [ "${INCLUDE_ACP_IN_APP}" = "1" ]; then
   if missing_binaries "$ACP_BIN_NAME"; then
     build_acp_binary
   fi

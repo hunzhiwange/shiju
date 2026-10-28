@@ -43,7 +43,8 @@ temp/
 target/
 target-dir/
 *.wasm
-/vendor
+/vendor/*
+!/vendor/block/
 .gitnexus
 /config.json
 /state/

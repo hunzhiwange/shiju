@@ -13,6 +13,7 @@ members = [
   "crates/vw-webview",
   "crates/vw-provider-resolver",
 ]
+exclude = ["vendor/block", "vendor/block/test_utils"]
 resolver = "3"
 
 [profile.dev]
@@ -25,3 +26,7 @@ debug = "line-tables-only"
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+[patch.crates-io]
+# block 0.1.6 declares an uninhabited extern static (rust-lang/rust#74840).
+block = { path = "vendor/block" }

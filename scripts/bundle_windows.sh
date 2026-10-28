@@ -16,7 +16,7 @@ CLI_COMPAT_BIN_NAME="vibe-agent.exe"
 ACP_BIN_NAME="acp.exe"
 WINDOWS_ICON_SOURCE="${WINDOWS_ICON_SOURCE:-assets/logo.png}"
 WINDOWS_ICON_NAME="ShiJu.ico"
-GATEWAY_LAUNCHER_NAME="Start ShiJu Gateway.cmd"
+SERVICE_LAUNCHER_NAME="Start ShiJu Service.cmd"
 
 if [ "$PROFILE" = "release" ]; then
   PROFILE_ARGS=(--release)
@@ -80,15 +80,25 @@ with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as archive:
 PY
 }
 
-write_gateway_launcher() {
-  "$(python_bin)" - "$OUT_DIR/$GATEWAY_LAUNCHER_NAME" <<'PY'
+write_service_launcher() {
+  "$(python_bin)" - "$OUT_DIR/$SERVICE_LAUNCHER_NAME" <<'PY'
 import sys
 from pathlib import Path
 
 dst = Path(sys.argv[1])
 dst.write_text(
     '@echo off\r\n'
-    "powershell.exe -NoExit -ExecutionPolicy Bypass -Command \"Set-Location -LiteralPath '%~dp0'; & '.\\shiju.exe' gateway\"\r\n",
+    '"%~dp0shiju.exe" service start\r\n'
+    'if not errorlevel 1 exit /b 0\r\n'
+    '"%~dp0shiju.exe" service install\r\n'
+    'if errorlevel 1 goto failed\r\n'
+    '"%~dp0shiju.exe" service start\r\n'
+    'if errorlevel 1 goto failed\r\n'
+    'exit /b 0\r\n'
+    ':failed\r\n'
+    'echo Failed to start ShiJu service. See the error above.\r\n'
+    'pause\r\n'
+    'exit /b 1\r\n',
     encoding="utf-8",
 )
 PY
@@ -208,10 +218,10 @@ fi
 
 mkdir -p "$OUT_DIR"
 generate_windows_icon
-write_gateway_launcher
+write_service_launcher
 cp "$BIN_DIR/$DESKTOP_SOURCE_BIN_NAME" "$OUT_DIR/$DESKTOP_BIN_NAME"
 cp "$BIN_DIR/vw-webview.exe" "$OUT_DIR/"
-ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$GATEWAY_LAUNCHER_NAME")
+ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$SERVICE_LAUNCHER_NAME")
 if [ "${INCLUDE_CLI_IN_APP:-0}" = "1" ]; then
   if missing_binaries "$CLI_SOURCE_BIN_NAME"; then
     build_cli_binary

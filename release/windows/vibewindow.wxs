@@ -21,8 +21,9 @@
       <ComponentRef Id="WebviewHelper" />
       <ComponentRef Id="CliExecutable" />
       <ComponentRef Id="AcpExecutable" />
-      <ComponentRef Id="GatewayLauncher" />
+      <ComponentRef Id="ServiceLauncher" />
       <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
       <ComponentRef Id="PathEnvironment" />
     </Feature>
 
@@ -40,13 +41,26 @@
         <Component Id="AcpExecutable" Guid="F41598B1-552F-4280-B61B-303E00014B7F">
           <File Id="AcpExecutableFile" Source="acp.exe" Name="acp.exe" KeyPath="yes" />
         </Component>
-        <Component Id="GatewayLauncher" Guid="ECA6494B-C278-41E4-A4FE-317BD03DD1A7">
-          <File Id="GatewayLauncherFile" Source="Start ShiJu Gateway.cmd" Name="Start ShiJu Gateway.cmd" KeyPath="yes" />
+        <Component Id="ServiceLauncher" Guid="F8D4E515-6923-4080-9B27-387AE4D02369">
+          <File Id="ServiceLauncherFile" Source="Start ShiJu Service.cmd" Name="Start ShiJu Service.cmd" KeyPath="yes" />
         </Component>
         <Component Id="PathEnvironment" Guid="7A9F339C-EFD2-4C60-A54B-90BB891E1923" KeyPath="yes">
           <Environment Id="PathEnv" Name="PATH" Value="[ShiJuProgramFiles]" Permanent="no" Part="first" Action="set" System="yes" />
         </Component>
       </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="EC88E535-F182-40E9-A7B4-2A52B0204930">
+        <Shortcut
+          Id="ShiJuDesktopShortcut"
+          Name="ShiJu"
+          Description="Open ShiJu"
+          Icon="ShiJuIcon"
+          Target="[ShiJuProgramFiles]shi-ju.exe"
+          WorkingDirectory="ShiJuProgramFiles" />
+        <RegistryValue Root="HKCU" Key="Software\ShiJu" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
     </StandardDirectory>
 
     <StandardDirectory Id="ProgramMenuFolder">
@@ -60,11 +74,11 @@
             Target="[ShiJuProgramFiles]shi-ju.exe"
             WorkingDirectory="ShiJuProgramFiles" />
           <Shortcut
-            Id="ShiJuGatewayShortcut"
-            Name="Start ShiJu Gateway"
-            Description="Start the ShiJu gateway"
+            Id="ShiJuServiceShortcut"
+            Name="Start ShiJu Service"
+            Description="Start the ShiJu service (gateway, channels and scheduler)"
             Icon="ShiJuIcon"
-            Target="[ShiJuProgramFiles]Start ShiJu Gateway.cmd"
+            Target="[ShiJuProgramFiles]Start ShiJu Service.cmd"
             WorkingDirectory="ShiJuProgramFiles" />
           <RemoveFolder Id="ShiJuProgramMenu" On="uninstall" />
           <RegistryValue Root="HKCU" Key="Software\ShiJu" Name="installed" Type="integer" Value="1" KeyPath="yes" />

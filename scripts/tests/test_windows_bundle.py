@@ -55,7 +55,11 @@ class WindowsBundleTests(unittest.TestCase):
                                 self.assertEqual(archive.read(name).decode(), name)
                             self.assertIn("ShiJu.ico", archive.namelist())
                             if mode == "app":
-                                self.assertIn("Start ShiJu Gateway.cmd", archive.namelist())
+                                launcher = archive.read("Start ShiJu Service.cmd").decode()
+                                self.assertIn('"%~dp0shiju.exe" service install', launcher)
+                                self.assertEqual(launcher.count('"%~dp0shiju.exe" service start'), 2)
+                                self.assertIn("if errorlevel 1 goto failed", launcher)
+                                self.assertNotIn("Start ShiJu Gateway.cmd", archive.namelist())
 
 
 if __name__ == "__main__":

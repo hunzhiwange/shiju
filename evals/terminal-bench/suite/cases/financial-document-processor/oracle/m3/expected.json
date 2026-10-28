@@ -1,0 +1,22 @@
+{
+  "mode": "m3",
+  "expected": {
+    "a.txt": [
+      "95.00",
+      "5.00"
+    ],
+    "b.txt": [
+      "24.00",
+      "0.00"
+    ],
+    "c.txt": [
+      "36.00",
+      "6.00"
+    ]
+  },
+  "hashes": {
+    "a.txt": "ec38ff5f9dba581463939d76dd3e8b16380531d0cc7347873bbeec24cd0399ba",
+    "b.txt": "a828c7034a019f94e591cf105255a0c413d7bba7838ae72f83db37f4fb3720d2",
+    "c.txt": "bd433c61d53635b80faf23f2e10f5a9add3f10210ae7ccd29d4cdaf71df287aa"
+  }
+}

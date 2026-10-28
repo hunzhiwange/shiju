@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "parent_id": "financial-document-processor",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
+  "files": {
+    "check.py": "010a745699bf2ce0d90ac178aaa418f1b72551f9f80c70484a967bb38ab78416",
+    "fixtures/m1/documents/a.txt": "2c367c88478249f90e6d0c882777eb185e04e74d1ad324babdb1588b51d518bb",
+    "fixtures/m1/documents/b.txt": "d768cf9ca9c73262f80045ba7c0658cd85c9f06fcee95c539e2c979e3e109d53",
+    "fixtures/m1/documents/c.txt": "bf017115a788609efec70602d2a779f0157749517ae97030c28bd8b27e32e738",
+    "fixtures/m1/documents/d.txt": "757883a30e4271fb1283706c88918dba55e821635eae8bf092da249374178ba1",
+    "fixtures/m1/instruction.md": "a5c97d2b57008c38993a7e1d229682342b87a40a5445a34ccefbb2a93e7fc323",
+    "fixtures/m2/documents/a.txt": "2e56c5b617943d9ec7a3344c0844becf260e02a14c05ac452f02198e0eec0e2e",
+    "fixtures/m2/documents/b.txt": "eb2780268f40bb4968fe963d27a815e3466ff02b78459708827c43b7c3084de7",
+    "fixtures/m2/documents/c.txt": "7cdf107eeada68e82d227e7ee52fd64285589b82d6e4d42013e6e4a8552fe3a1",
+    "fixtures/m2/instruction.md": "ffd19c7ef2564ee9d1c8b31c3b327d800cd0e6a2ed393ab7ea50b81dc6a22988",
+    "fixtures/m3/documents/a.txt": "ec38ff5f9dba581463939d76dd3e8b16380531d0cc7347873bbeec24cd0399ba",
+    "fixtures/m3/documents/b.txt": "a828c7034a019f94e591cf105255a0c413d7bba7838ae72f83db37f4fb3720d2",
+    "fixtures/m3/documents/c.txt": "bd433c61d53635b80faf23f2e10f5a9add3f10210ae7ccd29d4cdaf71df287aa",
+    "fixtures/m3/instruction.md": "dbb1b751028637d4cbfd019bffe22c0e56e646fa25d233008b737834642e6cc3",
+    "fixtures/m4/documents/a.txt": "1a98188d632ae554bf075337170e2bd8187e6deab51f637dee927d8b146a5491",
+    "fixtures/m4/documents/b.txt": "8c27ef73d5e2d62847b8caf5106dee6bd5e09acf5906db528b3f56eb2bb0e7dc",
+    "fixtures/m4/documents/c.txt": "448b78d571c2a7e9173ea3761b2d2879f2dc0d07da31a354b39104c06fb525bd",
+    "fixtures/m4/instruction.md": "6fd2879608a0625a94eb1f69d53e2b9584c8ab3eefa5efd9a7123a4e4e8b8109",
+    "oracle/m1/all-invoice/solution.py": "aae761829bd77b6ad2fee6b19dbc1356cc24afd9f6d9639ff3d1bb9f4a4baddb",
+    "oracle/m1/expected.json": "45c0839872404cff607a1bd5efe740b417666db47153ecb890a89675b63090a2",
+    "oracle/m1/gold/solution.py": "bb332bf6d5b2928ed20f09b6c6e773da62d8c16360c4dfdddf3f575252f23f3d",
+    "oracle/m1/keyword-match/solution.py": "82290b38c179af40271206ba50e57e7f9687884a53f8feedceba7d2fc66ffa0d",
+    "oracle/m1/missing-document/solution.py": "f70b22c99c84eb9cd74a9f70c637a9766464aa2b47a9aff525594d844a84b376",
+    "oracle/m2/double-tax/solution.py": "f3bdfae920a5df48d7dfbe251e7a4335d70462e3096fedfd0bc71bfea353d596",
+    "oracle/m2/drops-tax/solution.py": "a706d9e6a32962102c9f5206e6b1da1a58d97726162efa8f03d3b48aa13e10d1",
+    "oracle/m2/expected.json": "755ecece9e33ccc56b7b3d8f590363bd8cf159472b31b82e2245321e6504e45c",
+    "oracle/m2/gold/solution.py": "52bdba386330b666ada084b8e2ea5263aa4f2ab5d6e1ec760f82d6ac8f94ee90",
+    "oracle/m2/net-total/solution.py": "07098674b606d1bc3cbfb2f1cb8e07f613508277bc6115714c65e3c5baf8de06",
+    "oracle/m3/amount-due-wins/solution.py": "48dae9ec217e6129d5f392de28d5c910cfca22c631a2c9ebb3a467e1d505a963",
+    "oracle/m3/expected.json": "64467ad7516f08126d3014881ef0d8e748947497a21133d632d36b19b6aca338",
+    "oracle/m3/gold/solution.py": "52bdba386330b666ada084b8e2ea5263aa4f2ab5d6e1ec760f82d6ac8f94ee90",
+    "oracle/m3/invented-vat/solution.py": "c95a0b01f363db76ecb3503d7627987511f93b6db1b15ebf1b923aa9add75235",
+    "oracle/m3/missing-total/solution.py": "9d3e5fc96760d224482e223124c5b6fa164c16c9b8a0d60ddd3a058204c34181",
+    "oracle/m4/copies-files/solution.py": "f01d77dcb7f016defd3102c4c3ab302a9ccc823ce69d2c2113ff87327f69fb3f",
+    "oracle/m4/expected.json": "594148aba87c9063b026b5f18591d070798f872c8756ca3cc24475be28e27eb2",
+    "oracle/m4/gold/solution.py": "b3bde844d9751b83528dceb42050ee202fef7a802472d27c24444810e44da01a",
+    "oracle/m4/wrong-folder/solution.py": "3c3a6ec973d3d9117718f94e8a23412885307c0b3d82a9a6c84bc6733b3ff9e8",
+    "oracle/m4/wrong-sum/solution.py": "2467d65aab27eec3bb1d8a33d974a2d3731374d9277bb1c7761e1372a4863a33",
+    "case.json": "c28b792cf9f8c07c8a78f672ce349d0fa404168dd9b36b4690da2e70e6b8ee94"
+  },
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "all-invoice",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "keyword-match",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "missing-document",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "net-total",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "drops-tax",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "double-tax",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "amount-due-wins",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "invented-vat",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "missing-total",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "copies-files",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-sum",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-folder",
+      "exit_code": 1
+    }
+  ]
+}

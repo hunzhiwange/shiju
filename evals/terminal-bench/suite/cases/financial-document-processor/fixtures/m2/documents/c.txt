@@ -1,0 +1,4 @@
+INVOICE C
+Net: 40.00
+Tax: 8.00
+Total: 48.00

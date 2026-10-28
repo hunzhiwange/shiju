@@ -1,0 +1,15 @@
+{
+  "mode": "m1",
+  "expected": {
+    "a.txt": "invoice",
+    "b.txt": "other",
+    "c.txt": "other",
+    "d.txt": "invoice"
+  },
+  "hashes": {
+    "a.txt": "2c367c88478249f90e6d0c882777eb185e04e74d1ad324babdb1588b51d518bb",
+    "b.txt": "d768cf9ca9c73262f80045ba7c0658cd85c9f06fcee95c539e2c979e3e109d53",
+    "c.txt": "bf017115a788609efec70602d2a779f0157749517ae97030c28bd8b27e32e738",
+    "d.txt": "757883a30e4271fb1283706c88918dba55e821635eae8bf092da249374178ba1"
+  }
+}

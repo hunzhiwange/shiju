@@ -1,0 +1,3 @@
+INVOICE B
+Total: 24.00
+Amount Due: 12.00

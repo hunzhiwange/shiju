@@ -1,0 +1,1 @@
+Create executable /app/target.sh ARCH OS selecting a CompCert configure target. Exactly two arguments are required. Linux x86_64 and amd64 map to x86_64-linux; Linux aarch64 and arm64 map to aarch64-linux. Print only the target plus newline. Reject other operating systems, architectures and argument counts with exit 2 and no stdout.

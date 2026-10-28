@@ -68,7 +68,7 @@ class RecoveringVerifier(Verifier):
 
     async def verify(self):
         from harbor.models.trial.paths import TrialPaths
-        from harbor.environments.docker.docker import DockerEnvironment
+        from suite.docker import SuiteDockerEnvironment
         started = time.monotonic()
         limit = self.task.config.verifier.timeout_sec
         archive = self.trial_paths.trial_dir / 'scoring'
@@ -117,7 +117,7 @@ class RecoveringVerifier(Verifier):
             image = policy['image']
             if not re.fullmatch(r'[a-zA-Z0-9_./:-]+@sha256:[a-f0-9]{64}', image):
                 raise ValueError('recovery image must be digest pinned')
-            environment = DockerEnvironment(
+            environment = SuiteDockerEnvironment(
                 environment_dir=self.task.paths.environment_dir, environment_name='verifier-recovery',
                 session_id=uuid.uuid4().hex, trial_paths=paths,
                 task_env_config=self.task.config.environment.model_copy(update={'docker_image': image}))
@@ -263,7 +263,7 @@ async def harbor_trial(task_path, directory, name, agent, kwargs=None, hook=None
     # Harbor reads an immutable owned snapshot, never a mutable caller path.
     context = tempfile.TemporaryDirectory(prefix='vw-image-cmd-') if source else nullcontext()
     with context as staging:
-        environment = {'type': 'docker', 'delete': False,
+        environment = {'import_path': 'suite.docker:SuiteDockerEnvironment', 'delete': False,
                        'cpu_enforcement_policy': 'limit', 'memory_enforcement_policy': 'limit'}
         if source:
             snapshot = Path(staging) / source.name

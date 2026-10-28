@@ -107,6 +107,46 @@ EOF
   exit 1
 }
 
+# Keep retries local to Apple requests, without rebuilding or resigning artifacts.
+retry_apple_request() {
+  local operation="$1"
+  shift
+  local attempt=1
+  local max_attempts=5
+  local delay=15
+  local result_file exit_status notary_status
+  result_file="$(mktemp -t vibewindow-apple-request)"
+
+  while true; do
+    if "$@" >"$result_file"; then
+      cat "$result_file"
+      rm -f "$result_file"
+      return 0
+    else
+      exit_status=$?
+    fi
+
+    cat "$result_file" >&2
+    notary_status="$(/usr/bin/plutil -extract status raw -o - "$result_file" 2>/dev/null || true)"
+    case "$notary_status" in
+      Invalid|Rejected)
+        echo "Error: notarization was not accepted (status: $notary_status)" >&2
+        rm -f "$result_file"
+        return "$exit_status"
+        ;;
+    esac
+    if [ "$attempt" -ge "$max_attempts" ]; then
+      echo "Error: $operation failed after $attempt attempts (exit code: $exit_status)" >&2
+      rm -f "$result_file"
+      return "$exit_status"
+    fi
+    echo "Warning: $operation failed (attempt $attempt/$max_attempts); retrying in ${delay}s..." >&2
+    sleep "$delay"
+    attempt=$((attempt + 1))
+    delay=$((delay * 2))
+  done
+}
+
 preflight_app_signing() {
   case "$MACOS_SIGN_MODE" in
     adhoc)
@@ -168,8 +208,9 @@ EOF
         if [ -n "$NOTARY_KEYCHAIN_PATH" ]; then
           notary_auth_args+=(--keychain "$NOTARY_KEYCHAIN_PATH")
         fi
-        if ! xcrun notarytool history "${notary_auth_args[@]}" --output-format json >/dev/null; then
-          echo "Error: notarization credentials are unavailable; check the keychain profile" >&2
+        if ! retry_apple_request "Notarization credential check" \
+          xcrun notarytool history "${notary_auth_args[@]}" --output-format json >/dev/null; then
+          echo "Error: notarization credentials are unavailable; check the keychain profile and Apple connectivity" >&2
           exit 1
         fi
       fi
@@ -185,6 +226,7 @@ submit_for_notarization() {
   local artifact_path="$1"
   local notary_result
   local notary_status
+  local submission_id
   local notary_auth_args=(--keychain-profile "$NOTARY_KEYCHAIN_PROFILE")
 
   prepare_signing_keychain
@@ -195,11 +237,29 @@ submit_for_notarization() {
 
   notary_result="$(mktemp -t vibewindow-notary-result)"
   echo "Submitting $(basename "$artifact_path") for notarization..."
-  if ! xcrun notarytool submit \
+  if ! retry_apple_request "Notarization submission" xcrun notarytool submit \
     "$artifact_path" \
     "${notary_auth_args[@]}" \
-    --wait \
+    --no-wait \
     --output-format json >"$notary_result"; then
+    cat "$notary_result" >&2
+    rm -f "$notary_result"
+    exit 1
+  fi
+
+  cat "$notary_result"
+  submission_id="$(/usr/bin/plutil -extract id raw -o - "$notary_result" 2>/dev/null || true)"
+  if [ -z "$submission_id" ]; then
+    echo "Error: notarization submission did not return a submission ID" >&2
+    rm -f "$notary_result"
+    exit 1
+  fi
+
+  # A network failure while polling must not upload the same archive again.
+  echo "Waiting for notarization submission $submission_id..."
+  if ! retry_apple_request "Notarization wait ($submission_id)" \
+    xcrun notarytool wait "$submission_id" "${notary_auth_args[@]}" \
+    --timeout 10m --output-format json >"$notary_result"; then
     cat "$notary_result" >&2
     rm -f "$notary_result"
     exit 1
@@ -376,7 +436,7 @@ if [ "$MACOS_NOTARIZE" = "1" ]; then
   submit_for_notarization "$ZIP_PATH"
 
   echo "Stapling notarization ticket to app bundle..."
-  xcrun stapler staple "$APP_BUNDLE"
+  retry_apple_request "App ticket stapling" xcrun stapler staple "$APP_BUNDLE"
   xcrun stapler validate "$APP_BUNDLE"
 
   echo "Repacking stapled app bundle..."
@@ -411,7 +471,7 @@ if [ "$CREATE_DMG" = "1" ]; then
     codesign --verify --strict --verbose=2 "$DMG_PATH"
     submit_for_notarization "$DMG_PATH"
     echo "Stapling notarization ticket to disk image..."
-    xcrun stapler staple "$DMG_PATH"
+    retry_apple_request "DMG ticket stapling" xcrun stapler staple "$DMG_PATH"
     xcrun stapler validate "$DMG_PATH"
     echo "Notarized DMG package: $DMG_PATH"
   fi

@@ -139,6 +139,13 @@ Output defaults to:
 The Developer ID build enables Hardened Runtime without App Sandbox. Outbound
 networking remains available, and credentials stay in the macOS keychain.
 
+Credential checks, notarization submissions, result polling, and ticket stapling
+retry failed commands up to five attempts, waiting 15, 30, 60, and 120 seconds.
+Polling retries reuse the submission ID without uploading the archive again;
+each wait attempt has a 10-minute timeout. An `Invalid` or `Rejected` notarization
+result fails immediately, and only `Accepted` proceeds to stapling. Exhausted
+retries or failed signature, ticket, or Gatekeeper validation still fail the build.
+
 #### Reuse the shiju-agent signing keychain
 
 Run on rsungM1, where the existing certificate, private key and notarization

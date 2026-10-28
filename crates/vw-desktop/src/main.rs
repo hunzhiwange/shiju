@@ -60,6 +60,19 @@ fn main_window_settings() -> iced::window::Settings {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+fn configure_native_graphics_backend() {
+    #[cfg(windows)]
+    {
+        // 已确认 Mesa/GLES 会在 fence_sync 中原生崩溃，Windows 固定使用 DX12。
+        // SAFETY: 入口第一步执行，此时尚未创建任何事件循环或工作线程。
+        unsafe {
+            std::env::set_var("ICED_BACKEND", "wgpu");
+            std::env::set_var("WGPU_BACKEND", "dx12");
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 fn init_native_tracing() {
     let terminal_filter = native_tracing_filter();
     let file_filter = native_tracing_filter();
@@ -193,6 +206,8 @@ fn boot_app() -> (app::App, iced::Task<app::Message>) {
 /// 返回 iced 运行结果，窗口或渲染器初始化失败时将错误交给进程入口处理。
 pub fn main() -> iced::Result {
     #[cfg(not(target_arch = "wasm32"))]
+    configure_native_graphics_backend();
+    #[cfg(not(target_arch = "wasm32"))]
     if let Some(result) = vw_desktop::desktop_update_helper::run_if_requested() {
         if let Err(error) = result {
             eprintln!("{error:#}");
@@ -213,6 +228,8 @@ pub fn main() -> iced::Result {
         install_macos_native_stderr_filter();
 
         init_native_tracing();
+        #[cfg(windows)]
+        tracing::info!(target: "vw_desktop", "Windows renderer forced: ICED_BACKEND=wgpu WGPU_BACKEND=dx12");
     }
 
     let result = iced::daemon(boot_app, app::App::update, app::App::view_window)

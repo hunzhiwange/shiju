@@ -177,3 +177,37 @@ fn channel_qr_flow_stops_on_close_and_fills_confirmed_credentials() {
     assert!(confirmed.credentials_ready);
     assert!(confirmed.configured);
 }
+
+#[cfg(windows)]
+#[test]
+fn windows_graphics_backend_forces_dx12_over_inherited_settings() {
+    struct RestoreBackends(Option<OsString>, Option<OsString>);
+    impl Drop for RestoreBackends {
+        fn drop(&mut self) {
+            for (name, previous) in [("WGPU_BACKEND", &self.0), ("ICED_BACKEND", &self.1)] {
+                unsafe {
+                    match previous {
+                        Some(value) => std::env::set_var(name, value),
+                        None => std::env::remove_var(name),
+                    }
+                }
+            }
+        }
+    }
+    let _restore = RestoreBackends(
+        std::env::var_os("WGPU_BACKEND"),
+        std::env::var_os("ICED_BACKEND"),
+    );
+    for inherited in [None, Some(""), Some("gl"), Some("vulkan"), Some("all")] {
+        unsafe {
+            match inherited {
+                Some(value) => std::env::set_var("WGPU_BACKEND", value),
+                None => std::env::remove_var("WGPU_BACKEND"),
+            }
+            std::env::set_var("ICED_BACKEND", "tiny-skia");
+        }
+        configure_native_graphics_backend();
+        assert_eq!(std::env::var("WGPU_BACKEND").as_deref(), Ok("dx12"));
+        assert_eq!(std::env::var("ICED_BACKEND").as_deref(), Ok("wgpu"));
+    }
+}

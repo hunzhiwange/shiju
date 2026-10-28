@@ -27,7 +27,7 @@ pub enum InstallerKind {
     Dmg,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DesktopInstaller {
     pub name: String,
     pub target: String,

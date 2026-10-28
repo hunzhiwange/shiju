@@ -180,6 +180,15 @@ fn boot_app() -> (app::App, iced::Task<app::Message>) {
 ///
 /// 返回 iced 运行结果，窗口或渲染器初始化失败时将错误交给进程入口处理。
 pub fn main() -> iced::Result {
+    #[cfg(not(target_arch = "wasm32"))]
+    if let Some(result) = vw_desktop::desktop_update_helper::run_if_requested() {
+        if let Err(error) = result {
+            eprintln!("{error:#}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
+
     #[cfg(target_arch = "wasm32")]
     {
         console_log::init().expect("Initialize logger");

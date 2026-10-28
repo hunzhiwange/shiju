@@ -39,6 +39,9 @@ pub mod app;
 pub mod apps;
 pub mod fonts;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod desktop_update_helper;
+
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;

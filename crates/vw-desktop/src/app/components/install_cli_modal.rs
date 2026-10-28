@@ -230,7 +230,7 @@ fn view_inner<'a>(
         #[cfg(not(target_arch = "wasm32"))]
         let action_row = if use_app_update_action && desktop_update.is_some_and(|state| state.ready.is_some()) {
             action_row.push(
-                button("打开安装器 / 重试")
+                button("自动更新并退出 / 重试")
                     .on_press_maybe(
                         (!is_checking)
                             .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),

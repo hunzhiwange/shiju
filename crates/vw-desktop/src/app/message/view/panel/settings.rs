@@ -502,6 +502,16 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 Ok(message) => {
                     app.cli_install_modal_title = "安装包已就绪".into();
                     app.cli_install_modal_message = message;
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        if let Some(window_id) = app.main_window_id {
+                            return start_shutdown(app, window_id);
+                        }
+                        if begin_shutdown(&mut app.shutdown_requested) {
+                            arm_shutdown_exit_watchdog();
+                            return iced::exit();
+                        }
+                    }
                     Task::none()
                 }
                 Err(error) => app_update_error(app, error),

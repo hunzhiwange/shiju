@@ -11,7 +11,7 @@
       Keywords="Installer"
       Description="ShiJu installer"
       Manufacturer="ShiJu" />
-    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of ShiJu is already installed." />
+    <MajorUpgrade Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of ShiJu is already installed." />
     <MediaTemplate EmbedCab="yes" />
     <Icon Id="ShiJuIcon" SourceFile="ShiJu.ico" />
     <Property Id="ARPPRODUCTICON" Value="ShiJuIcon" />

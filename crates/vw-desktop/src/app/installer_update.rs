@@ -1,4 +1,4 @@
-//! Persistent installer handoff; opening an installer does not complete an upgrade.
+//! Verified downloads and handoff to an independent automatic updater.
 use anyhow::{Context, Result, bail};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -9,14 +9,44 @@ use vw_shared::update::{DesktopInstaller, DesktopRelease, InstallerKind, UpdateP
 
 /// Only the verified download path can produce this result. Fields stay private so
 /// callers cannot substitute an arbitrary path or digest before opening it.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct PreparedDesktopUpdate {
     path: PathBuf,
     directory: PathBuf,
     asset: DesktopInstaller,
+    version: String,
+}
+
+/// Only the private helper protocol restores a ready download, and always rechecks it.
+pub(crate) fn deserialize_handoff<'de, D>(
+    deserializer: D,
+) -> Result<PreparedDesktopUpdate, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(serde::Deserialize)]
+    struct Handoff {
+        path: PathBuf,
+        directory: PathBuf,
+        asset: DesktopInstaller,
+        version: String,
+    }
+    let handoff = <Handoff as serde::Deserialize>::deserialize(deserializer)?;
+    let ready = PreparedDesktopUpdate {
+        path: handoff.path,
+        directory: handoff.directory,
+        asset: handoff.asset,
+        version: handoff.version,
+    };
+    verify_ready(&ready).map_err(serde::de::Error::custom)?;
+    Ok(ready)
 }
 
 impl PreparedDesktopUpdate {
+    pub fn version(&self) -> &str {
+        &self.version
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -56,14 +86,12 @@ pub async fn prepare_desktop_update(
         },
     )
     .await?;
-    finish_download(attempt, path, asset)
+    finish_download(attempt, path, asset, &release.version)
 }
 
-/// The opaque ready result is required instead of a raw path/kind pair. Recheck
-/// the file immediately before passing the path to the system's default opener.
-/// Never elevates, installs silently, exits the app, or removes the installer.
+/// Revalidate the download, then hand it to an independent updater before shutdown.
 pub fn open_desktop_installer(ready: &PreparedDesktopUpdate) -> Result<String> {
-    open_with(ready, std::env::consts::OS, |path| open::that(path).context("系统安装器启动失败"))
+    open_with(ready, std::env::consts::OS, |_| crate::desktop_update_helper::start(ready))
 }
 
 fn desktop_target(os: &str, arch: &str) -> Result<&'static str> {
@@ -88,10 +116,14 @@ fn extension(kind: InstallerKind) -> &'static str {
 
 fn instructions(kind: InstallerKind) -> &'static str {
     match kind {
-        InstallerKind::Dmg => "请将应用拖入 Applications 并退出旧版，再启动新版以确认版本。",
-        InstallerKind::Msi => "请完成系统 MSI 交互安装，再启动新版以确认版本。",
+        InstallerKind::Dmg => {
+            "点击自动更新后，应用将退出并自动替换完整应用包，无需拖拽；成功后确认启动新版。"
+        }
+        InstallerKind::Msi => {
+            "点击自动更新后，应用将退出并通过 Windows Installer 更新；请允许系统授权，成功后确认启动新版。"
+        }
         InstallerKind::Rpm => {
-            "此 RPM 仅适用于兼容 RPM 的 Linux 系统；请使用系统软件安装器打开上述文件，或在兼容系统中手动安装该 RPM，再启动新版以确认版本。"
+            "此 RPM 仅适用于已通过 RPM 安装的 Linux 系统。点击自动更新后应用将退出并请求系统授权安装，成功后确认启动新版；RPM 不提供整包原子回滚。"
         }
     }
 }
@@ -128,16 +160,21 @@ fn finish_download(
     attempt: tempfile::TempDir,
     path: PathBuf,
     asset: &DesktopInstaller,
+    version: &str,
 ) -> Result<PreparedDesktopUpdate> {
-    let ready =
-        PreparedDesktopUpdate { path, directory: attempt.path().to_owned(), asset: asset.clone() };
+    let ready = PreparedDesktopUpdate {
+        path,
+        directory: attempt.path().to_owned(),
+        asset: asset.clone(),
+        version: version.trim_start_matches('v').to_owned(),
+    };
     verify_ready(&ready)?;
     // Retain successful downloads even if the subsequent system opener fails.
     let _ = attempt.keep();
     Ok(ready)
 }
 
-fn verify_ready(ready: &PreparedDesktopUpdate) -> Result<()> {
+pub(crate) fn verify_ready(ready: &PreparedDesktopUpdate) -> Result<()> {
     if !ready.path.is_absolute()
         || ready.path != ready.directory.join(&ready.asset.name)
         || ready.path.extension().and_then(|s| s.to_str()) != Some(extension(ready.kind()))
@@ -182,8 +219,11 @@ fn open_with(
     ) {
         bail!("此安装包格式不适用于当前系统。{}", ready.instructions());
     }
-    opener(ready.path()).with_context(|| format!("无法打开安装器。{}", ready.instructions()))?;
-    Ok(format!("已打开安装器，请完成系统安装。{}", ready.instructions()))
+    opener(ready.path()).with_context(|| format!("无法启动自动更新。{}", ready.instructions()))?;
+    Ok(format!(
+        "自动更新已准备就绪，正在退出应用；更新成功后将提示启动新版。{}",
+        ready.instructions()
+    ))
 }
 
 #[cfg(test)]

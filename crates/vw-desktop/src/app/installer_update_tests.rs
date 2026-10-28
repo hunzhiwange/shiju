@@ -17,7 +17,7 @@ fn fixture(kind: InstallerKind) -> (tempfile::TempDir, PreparedDesktopUpdate) {
     let asset = asset(kind);
     let path = directory.path().join(&asset.name);
     std::fs::write(&path, b"verified").unwrap();
-    let ready = finish_download(directory, path, &asset).unwrap();
+    let ready = finish_download(directory, path, &asset, "1.2.3").unwrap();
     (root, ready)
 }
 #[test]
@@ -52,7 +52,7 @@ fn installer_update_unicode_cache_and_retries_preserve_files() {
     let asset = asset(InstallerKind::Dmg);
     let path = first.path().join(&asset.name);
     std::fs::write(&path, b"verified").unwrap();
-    let ready = finish_download(first, path.clone(), &asset).unwrap();
+    let ready = finish_download(first, path.clone(), &asset, "1.2.3").unwrap();
     drop(second);
     assert!(
         open_with(&ready, "macos", |_| anyhow::bail!("no handler"))
@@ -70,7 +70,7 @@ fn installer_update_unverified_and_modified_files_are_rejected() {
     let directory = create_attempt(root.path(), "1.2.3").unwrap();
     let path = directory.path().join("installer.dmg");
     std::fs::write(&path, b"partial").unwrap();
-    assert!(finish_download(directory, path.clone(), &asset(InstallerKind::Dmg)).is_err());
+    assert!(finish_download(directory, path.clone(), &asset(InstallerKind::Dmg), "1.2.3").is_err());
     assert!(!path.exists());
     let (_root, ready) = fixture(InstallerKind::Dmg);
     std::fs::write(ready.path(), b"tampered").unwrap();
@@ -81,7 +81,7 @@ fn installer_update_missing_download_and_wrong_platform_never_open() {
     let root = tempfile::tempdir().unwrap();
     let directory = create_attempt(root.path(), "1.2.3").unwrap();
     let path = directory.path().join("installer.dmg");
-    assert!(finish_download(directory, path, &asset(InstallerKind::Dmg)).is_err());
+    assert!(finish_download(directory, path, &asset(InstallerKind::Dmg), "1.2.3").is_err());
     let (_root, ready) = fixture(InstallerKind::Rpm);
     assert!(open_with(&ready, "windows", |_| panic!("must not open")).is_err());
     let message = open_with(&ready, "linux", |_| Ok(())).unwrap();
@@ -142,6 +142,7 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
         _ => panic!("tampered installer must fail before opening"),
     }
     assert!(!app.desktop_update.busy);
+    assert!(!app.shutdown_requested);
     assert!(app.active_toast.is_some());
     assert!(app.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
     assert!(app.desktop_update.ready.is_some());
@@ -154,7 +155,9 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     })
     .unwrap();
     app.desktop_update.busy = true;
+    app.main_window_id = Some(iced::window::Id::unique());
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Ok(message))));
+    assert!(app.shutdown_requested);
     assert_eq!(app.cli_install_modal_title, "安装包已就绪");
     assert!(!app.cli_install_modal_message.contains("更新完成"));
     assert!(ready.path().exists());

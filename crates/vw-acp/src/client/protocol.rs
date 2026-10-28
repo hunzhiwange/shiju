@@ -45,6 +45,16 @@ impl AcpClient {
         expected_session_id: &Arc<Mutex<Option<String>>>,
     ) -> Result<String, AcpError> {
         let session_id = match session_strategy {
+            // actor 已验证连接健康且 cwd 未变。活跃会话的历史仍在对端，
+            // 重复 resume/load 不仅多余，还可能失败或重放旧输出。
+            SessionStrategy::ResumeOrLoad(session_id)
+            | SessionStrategy::ResumeLoadOrNew(session_id)
+            | SessionStrategy::LoadOrNew(session_id)
+                if self.has_reusable_session(session_id)
+                    && expected_session_id.lock().as_deref() == Some(session_id.as_str()) =>
+            {
+                session_id.clone()
+            }
             SessionStrategy::New => self.new_session_id(conn, cwd).await?,
             SessionStrategy::Load(session_id) => {
                 self.load_session_id(conn, cwd, session_id.clone()).await?
@@ -53,10 +63,9 @@ impl AcpClient {
                 self.resume_session_id(conn, cwd, session_id.clone()).await?
             }
             SessionStrategy::ResumeOrLoad(session_id) => {
-                match self.resume_session_id(conn, cwd, session_id.clone()).await {
-                    Ok(session_id) => session_id,
-                    Err(_) => self.load_session_id(conn, cwd, session_id.clone()).await?,
-                }
+                self.resolve_existing_session(conn, cwd, session_id.clone(), expected_session_id)
+                    .await?;
+                session_id.clone()
             }
             SessionStrategy::ResumeLoadOrNew(session_id) => {
                 match self.resume_session_id(conn, cwd, session_id.clone()).await {
@@ -86,13 +95,27 @@ impl AcpClient {
         session_id: String,
         expected_session_id: &Arc<Mutex<Option<String>>>,
     ) -> Result<(), AcpError> {
+        if self.has_reusable_session(&session_id)
+            && expected_session_id.lock().as_deref() == Some(session_id.as_str())
+        {
+            return Ok(());
+        }
         match self.resume_session_id(conn, cwd, session_id.clone()).await {
             Ok(resolved) => {
                 *expected_session_id.lock() = Some(resolved);
                 Ok(())
             }
-            Err(_) => {
-                let resolved = self.load_session_id(conn, cwd, session_id).await?;
+            Err(resume_error) => {
+                let resolved = self.load_session_id(conn, cwd, session_id.clone()).await.map_err(
+                    |load_error| {
+                        AcpError::LoadSession(format!(
+                            "Could not restore ACP session {session_id}: \
+                             session/resume failed: {resume_error}; \
+                             session/load failed: {load_error}. \
+                             No replacement session was created; retry or explicitly start a new session."
+                        ))
+                    },
+                )?;
                 *expected_session_id.lock() = Some(resolved);
                 Ok(())
             }

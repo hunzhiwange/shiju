@@ -260,7 +260,8 @@ pub(crate) async fn do_stream_request_acp(
             prompt_client
                 .run_prompt(
                     PromptRequest::new(prompt_cwd, prompt_text)
-                        .with_session_strategy(SessionStrategy::ResumeLoadOrNew(prompt_session_id)),
+                        // 历史由 ACP 对端保存；恢复失败不能静默换成没有历史的新会话。
+                        .with_session_strategy(SessionStrategy::ResumeOrLoad(prompt_session_id)),
                     &mut on_prompt_event,
                 )
                 .await
@@ -392,15 +393,14 @@ pub(crate) async fn do_stream_request_acp(
         *cached_client.output_tx.lock() = None;
         if let Some(err) = acp_error {
             if !recovered_session_change && is_acp_session_changed_error(&err) {
-                // ACP 代理报告会话 id 改变时，本地记录已经不可信。只重试一次并强制
-                // 创建新会话，既能恢复常见漂移，又避免持续失败时无限循环。
+                // 会话漂移不是丢弃历史的授权。只重试一次恢复原记录，失败明确上抛。
                 recovered_session_change = true;
-                force_new_session = true;
+                force_new_session = false;
                 tracing::warn!(
                     target: "vw_agent",
                     model = %model.api.id,
                     acp_agent = %acp_agent_name,
-                    "ACP session changed during prompt; retrying with a new session"
+                    "ACP session changed during prompt; retrying the original session"
                 );
                 close_client_after_request_if_needed(
                     close_client_after_request,

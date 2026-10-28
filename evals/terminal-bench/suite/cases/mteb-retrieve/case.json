@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "mteb-retrieve",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "retrieve.py": "oracle/m1/gold/retrieve.py"
+      },
+      "negatives": [
+        {
+          "id": "drop-blank",
+          "files": {
+            "retrieve.py": "oracle/m1/drop-blank/retrieve.py"
+          }
+        },
+        {
+          "id": "trim",
+          "files": {
+            "retrieve.py": "oracle/m1/trim/retrieve.py"
+          }
+        },
+        {
+          "id": "latest",
+          "files": {
+            "retrieve.py": "oracle/m1/latest/retrieve.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "retrieve.py": "oracle/m2/gold/retrieve.py"
+      },
+      "negatives": [
+        {
+          "id": "dot",
+          "files": {
+            "retrieve.py": "oracle/m2/dot/retrieve.py"
+          }
+        },
+        {
+          "id": "absolute",
+          "files": {
+            "retrieve.py": "oracle/m2/absolute/retrieve.py"
+          }
+        },
+        {
+          "id": "squared",
+          "files": {
+            "retrieve.py": "oracle/m2/squared/retrieve.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "retrieve.py": "oracle/m3/gold/retrieve.py"
+      },
+      "negatives": [
+        {
+          "id": "ascending",
+          "files": {
+            "retrieve.py": "oracle/m3/ascending/retrieve.py"
+          }
+        },
+        {
+          "id": "off-by-one",
+          "files": {
+            "retrieve.py": "oracle/m3/off-by-one/retrieve.py"
+          }
+        },
+        {
+          "id": "reverse-tie",
+          "files": {
+            "retrieve.py": "oracle/m3/reverse-tie/retrieve.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "retrieve.py": "oracle/m4/gold/retrieve.py"
+      },
+      "negatives": [
+        {
+          "id": "trim",
+          "files": {
+            "retrieve.py": "oracle/m4/trim/retrieve.py"
+          }
+        },
+        {
+          "id": "one-based",
+          "files": {
+            "retrieve.py": "oracle/m4/one-based/retrieve.py"
+          }
+        },
+        {
+          "id": "id",
+          "files": {
+            "retrieve.py": "oracle/m4/id/retrieve.py"
+          }
+        }
+      ]
+    }
+  ]
+}

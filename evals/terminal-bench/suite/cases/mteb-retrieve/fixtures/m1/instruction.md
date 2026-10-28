@@ -1,0 +1,2 @@
+Implement /app/retrieve.py using Python standard library. Read one JSON value from stdin and write exactly one JSON value to stdout. The checker executes fresh processes on unseen inputs. Read text into documents using Python str.splitlines semantics: preserve blank lines and all spaces; terminal newline creates no extra document. Return exactly an object with model and revision copied from model.name and model.revision, and documents. Never substitute a model revision.
+Input example is /app/example.json. Do not access network or external models. Only write /app/retrieve.py.

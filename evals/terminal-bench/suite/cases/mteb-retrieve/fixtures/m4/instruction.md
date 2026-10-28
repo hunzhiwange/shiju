@@ -1,0 +1,2 @@
+Implement /app/retrieve.py using Python standard library. Read one JSON value from stdin and write exactly one JSON value to stdout. The checker executes fresh processes on unseen inputs. Return the exact string at the zero-based index in documents, preserving Unicode, spaces, internal newlines and duplicates. Output the document content, encoded as one JSON string.
+Input example is /app/example.json. Do not access network or external models. Only write /app/retrieve.py.

@@ -1,5 +1,8 @@
 # Independent ready-subset experiments
 
+Maintenance status: **已完成，待回归** — implementation and focused Python
+checks complete; final host Clippy awaits a stable shared cache.
+
 The default `freeze` and scope-less manifest validation still require the frozen
 89-parent catalog and all 356 children. Ready-subset is a separate, explicit
 experiment; it does not overwrite `qwen38-tb21.json` or turn missing tasks into
@@ -155,6 +158,10 @@ shared slot. The slot cache and lock directory were observed missing during that
 validation; this work did not remove them. The wrapper subsequently reported the
 already missing owner file during cleanup. Both raw logs are preserved; this is
 not counted as a final passing check, and no unrelated Rust/cache repair was made.
+The initial success applies only to the Rust inputs observed at that invocation;
+no complete Rust-input snapshot was captured, and other Rust/Cargo changes were
+present later. Input equivalence is therefore not asserted. No fresh-cache retry
+was started; wait for stable shared caches before rerunning Clippy.
 
 Both invocations dynamically claimed slot 1,
 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`, with

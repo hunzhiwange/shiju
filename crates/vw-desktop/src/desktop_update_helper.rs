@@ -43,7 +43,8 @@ pub(crate) fn start(ready: &PreparedDesktopUpdate) -> Result<()> {
         #[cfg(not(target_os = "macos"))]
         macos_stage: None,
     };
-    let helper = job.path().join(if cfg!(windows) { "updater.exe" } else { "updater" });
+    // Keep the helper an ordinary application; only Windows Installer requests elevation.
+    let helper = job.path().join(if cfg!(windows) { "shi-ju-helper.exe" } else { "updater" });
     std::fs::copy(executable, &helper).context("复制独立更新进程失败")?;
     let log = std::fs::File::create(job.path().join("update.log"))?;
     let mut child = Command::new(&helper)
@@ -68,7 +69,9 @@ pub(crate) fn start(ready: &PreparedDesktopUpdate) -> Result<()> {
             .recv_timeout(Duration::from_secs(30))
             .context("更新进程未就绪，当前应用保持运行")??;
         if response.trim() != "ready" {
-            bail!("更新进程校验失败：{}", std::fs::read_to_string(job.path().join("update.log"))?);
+            let status = child.try_wait().context("无法读取更新进程状态")?;
+            let log = std::fs::read_to_string(job.path().join("update.log"))?;
+            bail!("更新进程未确认就绪，进程状态：{status:?}，诊断：{}", log.trim());
         }
         Ok(())
     })();

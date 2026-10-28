@@ -54,12 +54,13 @@ fn installer_update_unicode_cache_and_retries_preserve_files() {
     std::fs::write(&path, b"verified").unwrap();
     let ready = finish_download(first, path.clone(), &asset, "1.2.3").unwrap();
     drop(second);
-    assert!(
-        open_with(&ready, "macos", |_| anyhow::bail!("no handler"))
-            .unwrap_err()
-            .to_string()
-            .contains(path.to_str().unwrap())
-    );
+    let error = open_with(&ready, "macos", |_| {
+        Err(anyhow::anyhow!("no handler").context("helper launch failed"))
+    })
+    .unwrap_err()
+    .to_string();
+    assert!(error.contains("helper launch failed: no handler"));
+    assert!(!error.contains("安装包已就绪"));
     open_with(&ready, "macos", |_| Ok(())).unwrap();
     drop(ready);
     assert_eq!(std::fs::read(path).unwrap(), b"verified");
@@ -143,6 +144,7 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     }
     assert!(!app.desktop_update.busy);
     assert!(!app.shutdown_requested);
+    assert_eq!(app.cli_install_modal_title, "自动更新启动失败");
     assert!(app.active_toast.is_some());
     assert!(app.cli_install_modal_message.contains(ready.path().to_str().unwrap()));
     assert!(app.desktop_update.ready.is_some());

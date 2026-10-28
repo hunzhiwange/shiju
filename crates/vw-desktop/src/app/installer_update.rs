@@ -219,7 +219,8 @@ fn open_with(
     ) {
         bail!("此安装包格式不适用于当前系统。{}", ready.instructions());
     }
-    opener(ready.path()).with_context(|| format!("无法启动自动更新。{}", ready.instructions()))?;
+    // The UI also uses Display on this error; retain the underlying launch failure there.
+    opener(ready.path()).map_err(|error| anyhow::anyhow!("无法启动自动更新：{error:#}"))?;
     Ok(format!(
         "自动更新已准备就绪，正在退出应用；更新成功后将提示启动新版。{}",
         ready.instructions()

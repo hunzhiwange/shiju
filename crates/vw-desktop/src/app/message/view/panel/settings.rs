@@ -464,7 +464,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                         })
                         .await
                         .map_err(|error| error.to_string())?
-                        .map_err(|error| error.to_string())
+                        .map_err(|error| format!("{error:#}"))
                     },
                     |result| Message::View(ViewMessage::AppUpdateFinished(result)),
                 );
@@ -933,6 +933,7 @@ fn app_update_error(app: &mut App, error: String) -> Task<Message> {
     app.cli_install_modal_message = error.clone();
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ready) = &app.desktop_update.ready {
+        app.cli_install_modal_title = "自动更新启动失败".into();
         app.cli_install_modal_show_install_action = false;
         app.cli_install_modal_message = format!("{error}\n{}", ready.instructions());
     }

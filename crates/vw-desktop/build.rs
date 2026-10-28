@@ -105,14 +105,25 @@ fn embed_windows_icon(manifest_dir: &Path, out_dir: &Path) {
 
     let icon_png = manifest_dir.join("../../assets/logo/logo.png");
     println!("cargo:rerun-if-changed={}", icon_png.display());
+    let app_manifest = manifest_dir.join("../../release/windows/shi-ju.manifest");
+    println!("cargo:rerun-if-changed={}", app_manifest.display());
 
     let icon_ico = out_dir.join("VibeWindow.ico");
     let rc_path = out_dir.join("vibewindow-icon.rc");
     let res_path = out_dir.join("vibewindow-icon.res");
 
     write_png_ico(&icon_png, &icon_ico);
-    fs::write(&rc_path, format!("IDI_ICON1 ICON \"{}\"\n", rc_quoted_path(&icon_ico)))
-        .expect("write windows icon rc");
+    // RT_MANIFEST (24), CREATEPROCESS_MANIFEST_RESOURCE_ID (1): the copied
+    // update helper must start without requiring elevation before its handshake.
+    fs::write(
+        &rc_path,
+        format!(
+            "IDI_ICON1 ICON \"{}\"\n1 24 \"{}\"\n",
+            rc_quoted_path(&icon_ico),
+            rc_quoted_path(&app_manifest)
+        ),
+    )
+    .expect("write windows application resources");
 
     for compiler in ["rc.exe", "rc", "llvm-rc.exe", "llvm-rc"] {
         if try_compile_windows_resource(compiler, &rc_path, &res_path) {

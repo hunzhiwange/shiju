@@ -217,54 +217,118 @@
       ]
     },
     "environment_variant": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "contract_sha256",
-        "image",
-        "counts_as_original_official",
-        "files"
-      ],
-      "properties": {
-        "id": {
-          "const": "build-cython-ext-compat-planarity06"
-        },
-        "contract_sha256": {
-          "type": "string",
-          "pattern": "^[a-f0-9]{64}$"
-        },
-        "image": {
-          "type": "string",
-          "pattern": "^vw-build-cython-compat@sha256:[a-f0-9]{64}$"
-        },
-        "counts_as_original_official": {
-          "const": false
-        },
-        "files": {
+      "oneOf": [
+        {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "contract.json",
-            "Dockerfile",
-            "constraints.txt"
+            "id",
+            "contract_sha256",
+            "image",
+            "counts_as_original_official",
+            "files"
           ],
           "properties": {
-            "contract.json": {
+            "id": {
+              "const": "build-cython-ext-compat-planarity06"
+            },
+            "contract_sha256": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
             },
-            "Dockerfile": {
+            "image": {
+              "type": "string",
+              "pattern": "^vw-build-cython-compat@sha256:[a-f0-9]{64}$"
+            },
+            "counts_as_original_official": {
+              "const": false
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "contract.json",
+                "Dockerfile",
+                "constraints.txt"
+              ],
+              "properties": {
+                "contract.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "Dockerfile": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "constraints.txt": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "contract_sha256",
+            "image",
+            "counts_as_original_official",
+            "files"
+          ],
+          "properties": {
+            "id": {
+              "const": "mcmc-sampling-stan-compat-cmake3283"
+            },
+            "contract_sha256": {
               "type": "string",
               "pattern": "^[a-f0-9]{64}$"
             },
-            "constraints.txt": {
+            "image": {
               "type": "string",
-              "pattern": "^[a-f0-9]{64}$"
+              "pattern": "^vw-mcmc-stan-cmake-compat@sha256:[a-f0-9]{64}$"
+            },
+            "counts_as_original_official": {
+              "const": false
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "contract.json",
+                "Dockerfile",
+                "deb-lock.json",
+                "SHA256SUMS",
+                "base-packages.json"
+              ],
+              "properties": {
+                "contract.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "Dockerfile": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "deb-lock.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "SHA256SUMS": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "base-packages.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
             }
           }
         }
-      }
+      ]
     }
   },
   "allOf": [
@@ -414,9 +478,54 @@
         ],
         "properties": {
           "case_id": {
-            "const": "build-cython-ext"
+            "enum": [
+              "build-cython-ext",
+              "mcmc-sampling-stan"
+            ]
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "environment_variant": {
+                  "properties": {
+                    "id": {
+                      "const": "build-cython-ext-compat-planarity06"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "case_id": {
+                  "const": "build-cython-ext"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "environment_variant": {
+                  "properties": {
+                    "id": {
+                      "const": "mcmc-sampling-stan-compat-cmake3283"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "case_id": {
+                  "const": "mcmc-sampling-stan"
+                }
+              }
+            }
+          }
+        ]
       },
       "else": {
         "not": {

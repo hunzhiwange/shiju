@@ -17,6 +17,8 @@ import json
 from pathlib import Path
 
 from suite.contract import validate_record
+from suite.selection import selected_parents
+from suite.state import MODEL
 
 
 def expected_cases(manifest):
@@ -55,13 +57,42 @@ def summarize(records, expected=None):
     }
 
 
-def build_report(manifest, records):
+def build_report(manifest, records, experiment=None):
     """Validate every row before aggregation; do not select the best/latest attempt."""
     expected = expected_cases(manifest)
     rows = list(records)
+    scope = None
+    selected_tasks = None
+    if experiment is not None:
+        if experiment.get('schema_version') != 1 or experiment.get('model') != MODEL:
+            raise ValueError('invalid frozen experiment metadata')
+        if 'scope' in experiment and experiment['scope'] is None:
+            raise ValueError('invalid explicit experiment scope')
+        parents = selected_parents(manifest, experiment.get('scope'))
+        wanted = [case for parent in parents for case in
+                  [parent] + [parent + '-m' + str(i) for i in range(1, 5)]]
+        if [t['taskId'] for t in experiment['tasks']] != wanted:
+            raise ValueError('incomplete frozen experiment groups')
+        selected_tasks = {t['taskId']: t['kind'] for t in experiment['tasks']}
+        selected_variants = {t['taskId']: t.get('environment_variant') for t in experiment['tasks']}
+        for task in experiment['tasks']:
+            parent = task['parent_id']
+            kind = task['kind']
+            if (parent not in parents or task['taskId'] not in
+                    [parent] + [parent + '-m' + str(i) for i in range(1, 5)]
+                    or (kind not in ('official', 'compatibility_variant') if task['taskId'] == parent
+                        else kind != 'diagnostic')):
+                raise ValueError('invalid experiment task kind or parent')
+        scope = experiment.get('scope', {'kind': 'full', 'selected': parents, 'excluded': []})
     attempts, cases, experiments = set(), set(), set()
     for row in rows:
         validate_record(row)
+        if experiment is not None and (row['experiment_id'] != experiment['experiment_id']
+                or selected_tasks.get(row['case_id']) != row['kind']
+                or selected_variants.get(row['case_id']) != row.get('environment_variant')
+                or row['hashes']['source'] != experiment['adapter']['sha256']
+                or row['hashes']['runtime'] != experiment['runtime']['binarySha256']):
+            raise ValueError('record outside selected frozen experiment')
         key = row['kind'], row['case_id']
         if row['attempt_id'] in attempts or key in cases:
             raise ValueError('duplicate attempt or case evidence')
@@ -80,7 +111,7 @@ def build_report(manifest, records):
     layers['readiness'] = summarize([row for row in rows if row['kind'] == 'readiness'])
     missing_usage = sum(row['usage_status'] == 'missing' for row in rows)
     usage_known = bool(rows) and not missing_usage
-    return {
+    report = {
         'schema_version': 1,
         'experiment_id': next(iter(experiments), None),
         'layers': layers,
@@ -99,12 +130,20 @@ def build_report(manifest, records):
         },
         'cost': {'value': None, 'reason': 'no frozen price evidence'},
     }
+    if experiment is not None:
+        report['experiment_id'] = experiment['experiment_id']
+        report['experiment_scope'] = scope
+        report['selected_execution'] = summarize(rows, len(selected_tasks))
+        report['selected_execution']['complete'] = (
+            len(rows) == len(selected_tasks) and all(r['score_status'] == 'scored' for r in rows))
+    return report
 
 
 def main(argv=None, *, emit=print):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', required=True, type=Path)
     parser.add_argument('--results', required=True, type=Path, help='contract JSONL snapshot')
+    parser.add_argument('--experiment', type=Path, help='independent frozen execution manifest with scope/exclusions')
     parser.add_argument('--audit-only', action='store_true')
     parser.add_argument('--require-parents', action='store_true')
     parser.add_argument('--require-children', action='store_true')
@@ -112,12 +151,19 @@ def main(argv=None, *, emit=print):
     try:
         manifest_bytes = args.manifest.read_bytes()
         results_bytes = args.results.read_bytes()
+        experiment_bytes = args.experiment.read_bytes() if args.experiment else None
+        experiment = json.loads(experiment_bytes) if experiment_bytes is not None else None
+        if experiment is not None and experiment.get('catalog_sha256') != hashlib.sha256(manifest_bytes).hexdigest():
+            raise ValueError('experiment catalog drift')
         report = build_report(json.loads(manifest_bytes),
-                              [json.loads(line) for line in results_bytes.splitlines() if line.strip()])
+                              [json.loads(line) for line in results_bytes.splitlines() if line.strip()], experiment)
+
         report['sources'] = {
             'manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(),
             'results_sha256': hashlib.sha256(results_bytes).hexdigest(),
         }
+        if experiment_bytes is not None:
+            report['sources']['experiment_sha256'] = hashlib.sha256(experiment_bytes).hexdigest()
     except (OSError, ValueError, KeyError, TypeError):
         # Input data and schema errors may contain secrets: never echo their payload.
         emit(json.dumps({'error': 'invalid report evidence'}, sort_keys=True))

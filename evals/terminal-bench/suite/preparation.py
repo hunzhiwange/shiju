@@ -11,6 +11,7 @@ import uuid
 from urllib.parse import unquote, urlparse
 
 from suite import diagnostics, variants
+from suite.selection import selected_parents, merge_execution_configs
 from suite.runtime import verify_runtime
 from suite.scoring import harbor_trial, summarize, checked_startup_override
 from suite.state import MODEL, load, digest, atomic_json, tree, execution_identity
@@ -169,19 +170,35 @@ def preflight(catalog, runtime, parent, output):
 
 
 def freeze(catalog, cases_root, runtime_path, output):
+    return _freeze(catalog, cases_root, runtime_path, output)
+
+
+def freeze_ready_subset(catalog, cases_root, runtime_paths, output, selection):
+    if selection is None:
+        raise ValueError('ready-subset requires explicit selection')
+    return _freeze(catalog, cases_root, runtime_paths, output, selection)
+
+
+def _freeze(catalog, cases_root, runtime_path, output, scope=None):
     catalog_value = load(catalog)
     if catalog_value['task_count'] != 89 or len(catalog_value['tasks']) != 89:
         raise ValueError('freeze requires exactly 89 official parents')
-    runtime, identity = checked_runtime(runtime_path)
+    parents = selected_parents(catalog_value, scope)
+    if isinstance(runtime_path, (list, tuple)):
+        runtime = merge_execution_configs(runtime_path)
+        _, identity = checked_runtime(runtime_path[0])
+    else:
+        runtime, identity = checked_runtime(runtime_path)
     if Path(cases_root).resolve() != Path(runtime['cases_root']).resolve():
         raise ValueError('case root differs from runtime')
-    diagnostics.validate_all(catalog, cases_root, verify_receipts=True)
+    if scope is None:
+        diagnostics.validate_all(catalog, cases_root, verify_receipts=True)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
     tasks = []
     receipts = {}
     prepared_receipts = {}
-    for parent in [task['id'] for task in catalog_value['tasks']]:
+    for parent in parents:
         _, current = inputs(catalog, runtime_path, parent, (runtime, identity))
         path = Path(cases_root).resolve() / parent / 'preparation.json'
         recovery = next(t for t in runtime['tasks'] if t['taskId'] == parent).get('recovery')
@@ -208,6 +225,8 @@ def freeze(catalog, cases_root, runtime_path, output):
                 'runtime': {'binarySha256': identity['binary_sha256'],
                             'requiredSidecars': identity['sidecars']},
                 'adapter': adapter_identity(), 'scheduler_sha256': execution_identity()}
+    if scope is not None:
+        manifest['scope'] = scope
     manifest['harbor'] = harbor_identity()
     atomic_json(output / 'manifest.json', manifest)
     return manifest
@@ -250,19 +269,21 @@ def verify_preparation(path, expected, recovery):
 
 def validate_manifest(path):
     manifest = load(path)
+    if 'scope' in manifest and manifest['scope'] is None:
+        raise ValueError('invalid explicit scope')
     scheduler = execution_identity()
     adapter = adapter_identity()
     if (manifest['schema_version'] != 1 or manifest['catalog_sha256'] != digest(CATALOG)
             or manifest['model'] != MODEL or manifest['adapter'] != adapter
             or manifest['scheduler_sha256'] != scheduler or manifest['harbor'] != harbor_identity()):
         raise ValueError('frozen execution policy drift')
-    parents = [task['id'] for task in load(CATALOG)['tasks']]
+    parents = selected_parents(load(CATALOG), manifest.get('scope'))
     expected_ids = [case for parent in parents for case in
                     [parent] + [parent + '-m' + str(n) for n in range(1, 5)]]
-    if (len(parents) != 89 or [t['taskId'] for t in manifest['tasks']] != expected_ids
+    if ([t['taskId'] for t in manifest['tasks']] != expected_ids
             or set(manifest['receipts']) != set(parents)
             or set(manifest['preparation_receipts']) != set(parents)):
-        raise ValueError('frozen manifest requires 89 complete parent groups')
+        raise ValueError('frozen manifest requires complete parent groups; full scope requires 89')
     identity = verify_runtime(manifest['runtime_root'])
     if (identity.get('generation') != 2 or manifest['runtime'] !=
             {'binarySha256': identity['binary_sha256'], 'requiredSidecars': identity['sidecars']}):

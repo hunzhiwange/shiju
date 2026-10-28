@@ -24,7 +24,8 @@ from suite.state import (MODEL, GLOBAL_LOCK, load, digest, atomic_json, locked,
                          process_identity, reserve, admit, reconcile, tree)
 from suite.scoring import (summarize, experiment_record, recovery_budget,
                            harbor_trial, scrub)
-from suite.preparation import preflight, freeze, validate_manifest
+from suite.preparation import preflight, freeze, freeze_ready_subset, validate_manifest
+from suite.selection import require_selected_task
 
 def schedule(manifest_path, parent, output, resume=False, launch=None, validate=validate_manifest):
     manifest_path, output = Path(manifest_path).resolve(), Path(output).resolve()
@@ -106,7 +107,7 @@ def worker(manifest_path, attempt):
             manifest = validate_manifest(manifest_path)
             if reservation['manifest_sha256'] != digest(manifest_path):
                 raise ValueError('reservation manifest drift')
-            task = next(t for t in manifest['tasks'] if t['taskId'] == reservation['case_id'])
+            task = require_selected_task(manifest, reservation['case_id'])
             profile_path = os.environ.get('VW_SUITE_PROFILE')
             profile = _validate_profile(profile_path)
             secret = profile['auth']['key']
@@ -177,12 +178,15 @@ def worker(manifest_path, attempt):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
-    for command in ('preflight', 'freeze', 'run', 'resume', '_worker'):
+    for command in ('preflight', 'freeze', 'freeze-ready-subset', 'run', 'resume', '_worker'):
         sub = commands.add_parser(command)
         sub.add_argument('--output', type=Path, required=True)
-        if command in ('preflight', 'freeze'):
+        if command in ('preflight', 'freeze', 'freeze-ready-subset'):
             sub.add_argument('--catalog', type=Path, required=True)
-            sub.add_argument('--runtime', type=Path, required=True)
+            sub.add_argument('--runtime', type=Path, required=True,
+                             **({'action': 'append'} if command == 'freeze-ready-subset' else {}))
+            if command == 'freeze-ready-subset':
+                sub.add_argument('--selection', type=Path, required=True)
             sub.add_argument('--parent-id' if command == 'preflight' else '--cases-root', required=True)
         else:
             sub.add_argument('--manifest', type=Path, required=True)
@@ -193,6 +197,8 @@ def main():
         preflight(args.catalog, args.runtime, args.parent_id, args.output)
     elif args.command == 'freeze':
         freeze(args.catalog, args.cases_root, args.runtime, args.output)
+    elif args.command == 'freeze-ready-subset':
+        freeze_ready_subset(args.catalog, args.cases_root, args.runtime, args.output, load(args.selection))
     elif args.command == '_worker':
         worker(args.manifest.resolve(), args.output)
     else:

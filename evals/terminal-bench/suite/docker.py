@@ -96,16 +96,12 @@ class SuiteDockerEnvironment(DockerEnvironment):
         from suite import variants
         descriptor = self.environment_variant
         if descriptor is not None:
-            descriptor = variants.resolve(variants.PARENT, descriptor)
+            descriptor = variants.resolve_descriptor(descriptor)
             if self.task_env_config.docker_image != descriptor['image']:
                 raise ValueError('variant image must be selected before agent execution')
         await super().start(*args, **kwargs)
         if descriptor is not None:
-            code = ('import importlib.metadata as m,os,json,hashlib;from pathlib import Path;'
-                    'p=Path("/opt/vw-compat/constraints.txt");'
-                    'print(json.dumps({"planarity":m.version("planarity"),'
-                    '"numpy":m.version("numpy"),"constraint":os.environ.get("PIP_CONSTRAINT"),'
-                    '"constraints_sha256":hashlib.sha256(p.read_bytes()).hexdigest()}))')
+            code = variants.probe_code(descriptor)
             result = await self.exec(command='python3 -c ' + shlex.quote(code))
             if result.return_code != 0:
                 raise ValueError('variant dependency verification failed before agent')

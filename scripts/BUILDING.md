@@ -248,7 +248,7 @@ Output location:
 
 ### 3.3 One-click Zip Bundle
 
-The project provides a script (prefers cargo-xwin; falls back to cargo build):
+The script always runs incremental Cargo builds before packaging the desktop, WebView helper, CLI and ACP binaries. Unchanged code reuses the build cache; existing executable files never bypass the freshness check. Building on macOS/Linux requires cargo-xwin; native Windows can use cargo build:
 ```bash
 bash scripts/bundle_windows.sh
 ```

@@ -39,12 +39,28 @@ class WindowsBundleTests(unittest.TestCase):
                         binary_dir = root / target_root / target / "dist"
                         binary_dir.mkdir(parents=True)
                         for name in binaries:
-                            (binary_dir / name).write_text(name)
+                            (binary_dir / name).write_text("stale:" + name)
                         commands = root / "bin"
                         commands.mkdir()
                         cargo = commands / "cargo"
-                        cargo.write_text('#!/bin/sh\necho "unexpected rebuild" >&2\nexit 1\n')
+                        cargo.write_text("""#!/usr/bin/env python3
+import os, sys
+from pathlib import Path
+args = sys.argv[1:]
+root = Path(os.environ.get("CARGO_TARGET_DIR", "target-dir"))
+target = args[args.index("--target") + 1]
+profile = args[args.index("--profile") + 1] if "--profile" in args else "release"
+output = root / target / profile
+output.mkdir(parents=True, exist_ok=True)
+for index, argument in enumerate(args):
+    if argument == "--bin":
+        name = args[index + 1] + ".exe"
+        (output / name).write_text(name)
+""")
                         cargo.chmod(0o755)
+                        host = commands / "uname"
+                        host.write_text("#!/bin/sh\necho Windows_NT\n")
+                        host.chmod(0o755)
                         env = {key: value for key, value in os.environ.items() if key not in ("CARGO_TARGET_DIR", "INCLUDE_CLI_IN_APP", "INCLUDE_ACP_IN_APP")}
                         env.update(
                             PATH=f"{commands}:{env['PATH']}", TARGET=target, PROFILE="dist",

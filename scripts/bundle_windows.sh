@@ -151,15 +151,6 @@ build_msi() {
   echo "$OUT_DIR/$msi_name"
 }
 
-missing_binaries() {
-  for binary in "$@"; do
-    if [ ! -f "$BIN_DIR/$binary" ]; then
-      return 0
-    fi
-  done
-  return 1
-}
-
 build_cli_binaries() {
   if command -v cargo-xwin >/dev/null 2>&1; then
     cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" -p vw-cli --bin shiju --bin vibe-agent --all-features
@@ -205,9 +196,7 @@ build_acp_binary() {
 BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
 
 if [ "$MODE" = "cli" ]; then
-  if missing_binaries "$CLI_SOURCE_BIN_NAME" "$CLI_COMPAT_BIN_NAME"; then
-    build_cli_binaries
-  fi
+  build_cli_binaries
   mkdir -p "$OUT_DIR"
   generate_windows_icon
   cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
@@ -223,9 +212,8 @@ if [ "$INCLUDE_CLI_IN_APP" != "1" ] || [ "$INCLUDE_ACP_IN_APP" != "1" ]; then
   exit 1
 fi
 
-if missing_binaries "$DESKTOP_SOURCE_BIN_NAME" "vw-webview.exe"; then
-  build_app_binaries
-fi
+# Always ask Cargo to check source freshness; existing files can be stale.
+build_app_binaries
 
 mkdir -p "$OUT_DIR"
 generate_windows_icon
@@ -234,23 +222,17 @@ cp "$BIN_DIR/$DESKTOP_SOURCE_BIN_NAME" "$OUT_DIR/$DESKTOP_BIN_NAME"
 cp "$BIN_DIR/vw-webview.exe" "$OUT_DIR/"
 ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$SERVICE_LAUNCHER_NAME")
 if [ "${INCLUDE_CLI_IN_APP}" = "1" ]; then
-  if missing_binaries "$CLI_SOURCE_BIN_NAME"; then
-    build_cli_binary
-  fi
+  build_cli_binary
   cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
   ZIP_FILES+=("$CLI_BIN_NAME")
   if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
-    if missing_binaries "$CLI_COMPAT_BIN_NAME"; then
-      build_cli_compat_binary
-    fi
+    build_cli_compat_binary
     cp "$BIN_DIR/$CLI_COMPAT_BIN_NAME" "$OUT_DIR/$CLI_COMPAT_BIN_NAME"
     ZIP_FILES+=("$CLI_COMPAT_BIN_NAME")
   fi
 fi
 if [ "${INCLUDE_ACP_IN_APP}" = "1" ]; then
-  if missing_binaries "$ACP_BIN_NAME"; then
-    build_acp_binary
-  fi
+  build_acp_binary
   cp "$BIN_DIR/$ACP_BIN_NAME" "$OUT_DIR/$ACP_BIN_NAME"
   ZIP_FILES+=("$ACP_BIN_NAME")
 fi

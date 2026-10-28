@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "parent_id": "build-cython-ext",
-  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "implementation_sha256": "a8a9e489bffd555e26b965af6211d6c9fac192e9db5318a4ad86768daeeb9c6f",
   "files": {
     "check.py": "bc9bcd3f436be6e9c404a76eab51a4d99ac8c027dcea90fda5d8918e7d9db314",
     "fixtures/m1/complexity.pyx": "3e71c780c01fb6c3f05a66f1288dc54fd3250ed6ae09cb327972f3883503e100",

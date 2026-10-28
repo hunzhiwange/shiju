@@ -206,6 +206,8 @@ def experiment_record(manifest, task, reservation, result, profile_sha):
            'score_status': 'scored' if normal else 'unscored',
            'reward': summary['reward'] if normal else None,
            'failure_class': summary['failure_class'] if normal else 'infrastructure'}
+    if 'environment_variant' in task:
+        row['environment_variant'] = task['environment_variant']
     row.pop('id')
     validate_record(row)
     return row
@@ -254,10 +256,13 @@ def checked_startup_override(task_id, descriptor):
 
 
 async def harbor_trial(task_path, directory, name, agent, kwargs=None, hook=None, recovery=None,
-                       startup_override=None):
+                       startup_override=None, environment_variant=None):
     from harbor.models.trial.config import TrialConfig
     from harbor.trial.trial import Trial
     from harbor.trial.hooks import TrialEvent
+    if environment_variant is not None:
+        from suite.variants import check_package
+        environment_variant = check_package(task_path, environment_variant)
     source = (checked_startup_override(Path(task_path).name, startup_override)
               if startup_override is not None else None)
     # Harbor reads an immutable owned snapshot, never a mutable caller path.
@@ -265,6 +270,8 @@ async def harbor_trial(task_path, directory, name, agent, kwargs=None, hook=None
     with context as staging:
         environment = {'import_path': 'suite.docker:SuiteDockerEnvironment', 'delete': False,
                        'cpu_enforcement_policy': 'limit', 'memory_enforcement_policy': 'limit'}
+        if environment_variant is not None:
+            environment['kwargs'] = {'environment_variant': environment_variant}
         if source:
             snapshot = Path(staging) / source.name
             snapshot.write_bytes(IMAGE_CMD_OVERRIDE)

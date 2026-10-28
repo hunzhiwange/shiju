@@ -10,7 +10,7 @@ import tomllib
 import uuid
 from urllib.parse import unquote, urlparse
 
-from suite import diagnostics
+from suite import diagnostics, variants
 from suite.runtime import verify_runtime
 from suite.scoring import harbor_trial, summarize, checked_startup_override
 from suite.state import MODEL, load, digest, atomic_json, tree, execution_identity
@@ -63,9 +63,13 @@ def case_settings(runtime, parent):
             raise ValueError('runtime task missing or duplicate')
         value = matches[0] if matches else {'workingDirectory': '/app', 'agentTimeoutSec': 900}
         settings[name] = {k: v for k, v in value.items()
-                          if k in ('workingDirectory', 'agentTimeoutSec', 'recovery', 'startup_override')}
+                          if k in ('workingDirectory', 'agentTimeoutSec', 'recovery', 'startup_override', 'environment_variant')}
         if not Path(settings[name]['workingDirectory']).is_absolute():
             raise ValueError('working directory must be absolute')
+        if 'environment_variant' in settings[name]:
+            if name != parent:
+                raise ValueError('environment variant applies only to its authorized parent')
+            settings[name]['environment_variant'] = variants.resolve(parent, settings[name]['environment_variant'])
         if 'startup_override' in settings[name]:
             checked_startup_override(name, settings[name]['startup_override'])
         recovery = settings[name].get('recovery')
@@ -103,7 +107,7 @@ def inputs(catalog_path, runtime_path, parent, checked=None):
             for name, code in [('gold', 0), ('nop', 1)] + [(n['id'], 1) for n in child['negatives']]]
     if diagnostic != calibrated:
         raise ValueError('diagnostic calibration missing or stale')
-    return runtime, {'parent_id': parent, 'catalog_sha256': digest(catalog_path),
+    receipt = {'parent_id': parent, 'catalog_sha256': digest(catalog_path),
                      'case_settings': case_settings(runtime, parent),
                      'runtime_sha256': hashlib.sha256(json.dumps({'settings': case_settings(runtime, parent), 'runtime': identity,
                           'source_root': runtime['source_root'], 'cases_root': runtime['cases_root']},
@@ -112,6 +116,13 @@ def inputs(catalog_path, runtime_path, parent, checked=None):
                      'harbor': harbor_identity(),
                      'official': str(official), 'official_files': expected,
                      'diagnostic': str(case), 'diagnostic_receipt': calibrated}
+    variant = receipt['case_settings'][parent].get('environment_variant')
+    if variant is not None:
+        if receipt['case_settings'][parent].get('recovery') or receipt['case_settings'][parent].get('startup_override'):
+            raise ValueError('variant cannot combine with verifier recovery or startup overrides')
+        receipt['environment_variant'] = variant
+        receipt['execution_files'] = variants.execution_files(official, variant)
+    return runtime, receipt
 
 
 def preflight(catalog, runtime, parent, output):
@@ -119,7 +130,10 @@ def preflight(catalog, runtime, parent, output):
     output.mkdir(parents=True, exist_ok=False)
     runtime_value, receipt = inputs(catalog, runtime, parent)
     diagnostics.materialize(receipt['diagnostic'], output / 'diagnostics')
-    tasks = [Path(receipt['official'])] + sorted((output / 'diagnostics').iterdir())
+    parent_task = Path(receipt['official'])
+    if 'environment_variant' in receipt:
+        parent_task = variants.materialize(parent_task, output / 'variants' / parent, receipt['environment_variant'])
+    tasks = [parent_task] + sorted((output / 'diagnostics').iterdir())
     receipt['calibration'] = []
     for task in tasks:
         for agent, expected in (('oracle', 1), ('nop', 0)):
@@ -129,7 +143,9 @@ def preflight(catalog, runtime, parent, output):
             result = asyncio.run(harbor_trial(task, output / 'calibration',
                                              task.name + '-' + agent, agent, recovery=recovery,
                                              **({'startup_override': receipt['case_settings'][task.name]['startup_override']}
-                                                if 'startup_override' in receipt['case_settings'][task.name] else {})))
+                                                if 'startup_override' in receipt['case_settings'][task.name] else {}),
+                                             **({'environment_variant': receipt['environment_variant']}
+                                                if task == parent_task and 'environment_variant' in receipt else {})))
             summary = summarize(result)
             scoring = output / 'calibration' / (task.name + '-' + agent) / 'scoring'
             receipt['calibration'].append({'case_id': task.name, 'agent': agent,
@@ -138,6 +154,11 @@ def preflight(catalog, runtime, parent, output):
                                            'recovery_score': load(scoring / 'recovered.json')
                                                if (scoring / 'recovered.json').exists() else None,
                                            'evidence_root': str(scoring), 'evidence_files': tree(scoring)})
+            if task == parent_task and 'environment_variant' in receipt:
+                evidence = output / 'calibration' / (task.name + '-' + agent) / 'environment-variant.json'
+                variants.check_start(load(evidence), receipt['environment_variant'])
+                receipt['calibration'][-1]['environment_variant_start'] = {
+                    'path': str(evidence.resolve()), 'sha256': digest(evidence)}
             atomic_json(output / 'preparation.json', receipt)
             if summary['score_status'] != 'scored' or summary['reward'] != expected:
                 raise ValueError('calibration/infrastructure failure; no model run permitted')
@@ -172,11 +193,14 @@ def freeze(catalog, cases_root, runtime_path, output):
         official_settings = [t for t in runtime['tasks'] if t['taskId'] == parent]
         if len(official_settings) != 1:
             raise ValueError('runtime task missing or duplicate')
-        paths = [Path(current['official'])] + sorted(package.iterdir())
+        parent_task = Path(current['official'])
+        if 'environment_variant' in current:
+            parent_task = variants.materialize(parent_task, output / 'variants' / parent, current['environment_variant'])
+        paths = [parent_task] + sorted(package.iterdir())
         for index, path in enumerate(paths):
             settings = current['case_settings'][path.name]
             tasks.append({'taskId': path.name, 'parent_id': parent,
-                          'kind': 'official' if index == 0 else 'diagnostic',
+                          'kind': ('compatibility_variant' if 'environment_variant' in current else 'official') if index == 0 else 'diagnostic',
                           'path': str(path), 'files': tree(path), **settings})
     manifest = {'schema_version': 1, 'experiment_id': uuid.uuid4().hex, 'model': MODEL,
                 'tasks': tasks, 'receipts': receipts, 'preparation_receipts': prepared_receipts,
@@ -194,13 +218,20 @@ def verify_preparation(path, expected, recovery):
     calibration = prepared.pop('calibration', [])
     parent = expected['parent_id']
     official = tomllib.loads((Path(expected['official']) / 'task.toml').read_text())
-    official_name = official.get('task', {}).get('name') or parent
+    official_name = ('terminal-bench/' + expected['environment_variant']['id']
+                     if 'environment_variant' in expected else official.get('task', {}).get('name') or parent)
     cases = [parent] + [parent + '-m' + str(n) for n in range(1, 5)]
     wanted = [(case, agent, reward) for case in cases for agent, reward in (('oracle', 1), ('nop', 0))]
     if prepared != expected or [(c['case_id'], c['agent'], c['summary']['reward'])
                                for c in calibration] != wanted:
         raise ValueError('preparation receipt drift or incomplete calibration')
     for c in calibration:
+        if c['case_id'] == parent and 'environment_variant' in expected:
+            evidence = c.get('environment_variant_start', {})
+            if (set(evidence) != {'path', 'sha256'} or digest(evidence['path']) != evidence['sha256']
+                    or c['result'].get('config', {}).get('environment', {}).get('import_path') != 'suite.docker:SuiteDockerEnvironment'):
+                raise ValueError('missing standard pre-agent variant calibration')
+            variants.check_start(load(evidence['path']), expected['environment_variant'])
         if (summarize(c['result']) != c['summary'] or c['summary']['score_status'] != 'scored'
                 or c['result']['agent_info']['name'] != c['agent']
                 or c['result']['task_name'] != (official_name if c['case_id'] == parent else c['case_id'])
@@ -247,10 +278,19 @@ def validate_manifest(path):
         task = next(t for t in manifest['tasks'] if t['taskId'] == parent)
         verify_preparation(prepared['path'], receipt, task.get('recovery'))
     for task in manifest['tasks']:
-        kind = 'official' if task['taskId'] == task['parent_id'] else 'diagnostic'
+        receipt = manifest['receipts'][task['parent_id']]
+        parent_variant = receipt.get('environment_variant')
+        kind = ('compatibility_variant' if parent_variant else 'official') if task['taskId'] == task['parent_id'] else 'diagnostic'
+        if kind == 'compatibility_variant':
+            if task.get('environment_variant') != parent_variant or variants.check_package(task['path'], parent_variant) != parent_variant:
+                raise ValueError('frozen environment variant drift')
+            if tree(receipt['official']) != receipt['official_files'] or tree(task['path']) != receipt['execution_files']:
+                raise ValueError('frozen variant or original source drift')
+        elif 'environment_variant' in task:
+            raise ValueError('variant cannot impersonate official or diagnostic task')
         if (task['kind'] != kind or task['parent_id'] not in parents
                 or tree(task['path']) != task['files']
-                or {k: task[k] for k in ('workingDirectory', 'agentTimeoutSec', 'recovery') if k in task}
+                or {k: task[k] for k in ('workingDirectory', 'agentTimeoutSec', 'recovery', 'startup_override', 'environment_variant') if k in task}
                     != manifest['receipts'][task['parent_id']]['case_settings'][task['taskId']]):
             raise ValueError('frozen task drift')
     return manifest

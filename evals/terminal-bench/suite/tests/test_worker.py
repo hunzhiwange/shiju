@@ -15,7 +15,8 @@ class WorkerTests(unittest.TestCase):
     def test_dispatch_exception_or_missing_cleanup_evidence_remains_unknown(self):
         for raises, declared, task_id in ((False, False, 'parent'), (True, False, 'parent'),
                                          (False, True, 'parent'), (True, True, 'parent'),
-                                         (False, False, 'parent-m1'), (True, False, 'parent-m1')):
+                                         (False, False, 'parent-m1'), (True, False, 'parent-m1'),
+                                         (False, False, 'build-cython-ext')):
             with self.subTest(raises=raises, declared=declared, task_id=task_id), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory)
                 manifest_path = root / 'manifest.json'
@@ -23,6 +24,10 @@ class WorkerTests(unittest.TestCase):
                 descriptor = {'source': 'restore-image-cmd.yaml', 'sha256': 'f' * 64}
                 if declared:
                     task['startup_override'] = descriptor
+                variant = None
+                if task_id == 'build-cython-ext':
+                    variant = {'id': 'build-cython-ext-compat-planarity06', 'contract_sha256': 'a'*64}
+                    task['environment_variant'] = variant
                 tasks = [task]
                 if task_id == 'parent-m1':
                     tasks.insert(0, {'taskId': 'parent', 'path': str(root), 'startup_override': descriptor})
@@ -48,6 +53,9 @@ class WorkerTests(unittest.TestCase):
                      patch.object(run, 'experiment_record', return_value={}), \
                      patch.object(run, 'harbor_trial', side_effect=trial):
                     run.worker(manifest_path, attempt)
-                self.assertEqual(captured, [{'startup_override': descriptor}] if declared else [{}])
+                expected = {'startup_override': descriptor} if declared else {}
+                if variant is not None:
+                    expected['environment_variant'] = variant
+                self.assertEqual(captured, [expected])
                 self.assertEqual(load(attempt / 'terminal.json')['state'], 'unknown')
                 self.assertIsNone(load(attempt / 'terminal.json')['reward'])

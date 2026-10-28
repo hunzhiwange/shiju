@@ -81,19 +81,33 @@ or hidden grading material. To rebuild, place the verified wheel and the two
 recipe files in an isolated build context; build with platform linux/amd64.
 An exact new manifest identity must be reviewed if rebuilding changes bytes.
 
-Calibrate this explicitly labeled variant and four fresh diagnostic pairs:
+Production uses the standard suite entry points with an explicit
+`environment_variant` setting on the `build-cython-ext` runtime task. Its
+minimal descriptor is `{ "id": "build-cython-ext-compat-planarity06",
+"contract_sha256": "<SHA256 of variant/contract.json>" }`. No other parent
+is authorized. The descriptor resolves to the pinned image and hashes of all
+three variant definition files. Standard preflight creates a separate copied
+parent package and retains all original task bytes except task.name/image.
+SuiteDockerEnvironment selects that image and checks dependencies before
+returning from start, before any agent setup/execution. No private calibration
+hook, platform override or verifier-time dependency substitution is required.
+
+After capacity admission, use a fresh output directory:
 
 ```sh
-PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/terminal-bench/suite/cases/build-cython-ext/variant.py --official evals/promptfoo/results/qwen38-suite/source/tasks/build-cython-ext --wheel evals/promptfoo/results/qwen38-suite/diagnostics/build-cython-ext/compat-wheels/planarity-0.6-cp313-cp313-linux_x86_64.whl --output evals/promptfoo/results/qwen38-suite/diagnostics/build-cython-ext/authorized-variant/new-calibration
-PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/build-cython-ext/tests -p 'test_*.py'
+PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.run preflight --catalog evals/terminal-bench/suite/catalog.json --runtime evals/promptfoo/results/qwen38-suite/diagnostics/build-cython-ext/production-wiring-20261028/runtime.json --parent-id build-cython-ext --output evals/promptfoo/results/qwen38-suite/preflight/build-cython-ext/standard-variant-next
 ```
 
-This replaces the parent's standard preflight only for the authorized variant.
-It writes `variant-calibration.json` in a separate output directory, never the
-normal official `preparation.json`. The shared official-suite freeze cannot
-mistake this receipt for original-task readiness. Variant results must remain
-separate from the 89 original official task scores. No paid model is called.
-The earlier verifier-time replacement proposal remains rejected.
+Standard preparation now binds the pre-agent observation and requires
+SuiteDockerEnvironment evidence. Freeze carries the descriptor and source
+hashes into a separate parent package; the worker forwards that same descriptor.
+The parent retains its logical case ID for grouping but has
+`kind=compatibility_variant` and explicit variant identity in formal records.
+Reporting keeps this layer separate and does not satisfy the original 89-parent
+coverage gate with variant scores. Missing/drifting definitions, evidence,
+labels or official source bytes fail closed. The historical standalone
+`variant.py` and its receipts below are archival evidence, not production
+readiness or a substitute for the shared standard calibration.
 
 Validated on 2026-10-27 under this authorized contract: the compatibility
 parent passed all 11 unmodified official tests, with oracle=1/nop=0. Four
@@ -115,3 +129,36 @@ network policy. Preparation must apply the shared capacity policy, including
 those sidecar caps, when repeating these commands. Original failures and
 canceled/rejected experiments remain separate and unchanged. No normal
 original-task preparation receipt or paid-model score was produced.
+
+2026-10-28 production wiring validation: 44 mock/file-only focused tests passed,
+including standard preflight/freeze/manifest routing, model-worker forwarding,
+shared backend startup checks, result labeling/report separation and negative
+controls. Required Clippy passed in shared slot 1 with matching target/build
+paths and jobs=1; its lock was released. No paid model was run.
+
+Fresh standard calibration completed after a new two-sided capacity admission:
+host free 21717889024 bytes, Docker VM free 94007705600 bytes; the sequential
+parent peak budget was 20178719232 bytes and diagnostic budget 10111803904.
+20 fresh fixture controls passed. Standard `suite.run preflight` then passed
+both parent controls (oracle=1 with 11/11 official tests, nop=0) and eight
+fresh diagnostic controls. Every trial used SuiteDockerEnvironment; the two
+parent receipts bind its pre-agent image/dependency proof. Frozen generation-2
+ELF `shiju --help` also passed in the compatibility image. The standard
+preparation receipt passes the current validator. No paid worker or global
+89-parent freeze/final regression was executed.
+
+The mock/file-only checks comprise 44 focused tests plus 12 record-contract
+tests; a 21-test routing/report subset was repeated after the final report
+check. All passed. One earlier broad test invocation unintentionally included
+real tiny-container tests; it was canceled with exit 130 and is not counted
+as passing evidence. All three exact container IDs were confirmed destroyed;
+raw interruption and event records are retained. No unrelated resources were
+removed. Local acceptance, capacity, raw standard trials and identity impact
+are under `results/qwen38-suite/diagnostics/build-cython-ext/production-wiring-20261028/`.
+Old successful standalone receipts were preserved byte-for-byte and were not
+reused as standard evidence.
+
+Changing shared scheduler/record/backend bytes invalidates old frozen
+identities; the current snapshot identifies two newly stale preparations
+(openssl-selfsigned-cert and path-tracing-reverse) and 34 already-stale ones.
+They must be revalidated under scheduling authority, never hash-relabelled.

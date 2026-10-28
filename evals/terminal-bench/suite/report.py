@@ -67,6 +67,8 @@ def build_report(manifest, records):
             raise ValueError('duplicate attempt or case evidence')
         if row['kind'] in expected and row['case_id'] not in expected[row['kind']]:
             raise ValueError('case outside frozen manifest')
+        if row['kind'] == 'compatibility_variant' and row['case_id'] not in expected['official']:
+            raise ValueError('variant parent outside frozen manifest')
         attempts.add(row['attempt_id'])
         cases.add(key)
         experiments.add(row['experiment_id'])
@@ -74,6 +76,7 @@ def build_report(manifest, records):
         raise ValueError('mixed experiments forbidden')
     layers = {kind: summarize([row for row in rows if row['kind'] == kind], len(ids))
               for kind, ids in expected.items()}
+    layers['compatibility_variant'] = summarize([row for row in rows if row['kind'] == 'compatibility_variant'])
     layers['readiness'] = summarize([row for row in rows if row['kind'] == 'readiness'])
     missing_usage = sum(row['usage_status'] == 'missing' for row in rows)
     usage_known = bool(rows) and not missing_usage

@@ -55,7 +55,8 @@
       "enum": [
         "official",
         "diagnostic",
-        "readiness"
+        "readiness",
+        "compatibility_variant"
       ]
     },
     "model": {
@@ -214,6 +215,56 @@
         "capability",
         "infrastructure"
       ]
+    },
+    "environment_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "contract_sha256",
+        "image",
+        "counts_as_original_official",
+        "files"
+      ],
+      "properties": {
+        "id": {
+          "const": "build-cython-ext-compat-planarity06"
+        },
+        "contract_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "image": {
+          "type": "string",
+          "pattern": "^vw-build-cython-compat@sha256:[a-f0-9]{64}$"
+        },
+        "counts_as_original_official": {
+          "const": false
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "contract.json",
+            "Dockerfile",
+            "constraints.txt"
+          ],
+          "properties": {
+            "contract.json": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "Dockerfile": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "constraints.txt": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            }
+          }
+        }
+      }
     }
   },
   "allOf": [
@@ -346,6 +397,32 @@
             "type": "number",
             "exclusiveMaximum": 1
           }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "compatibility_variant"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "environment_variant"
+        ],
+        "properties": {
+          "case_id": {
+            "const": "build-cython-ext"
+          }
+        }
+      },
+      "else": {
+        "not": {
+          "required": [
+            "environment_variant"
+          ]
         }
       }
     }

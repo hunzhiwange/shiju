@@ -11,6 +11,7 @@ import math
 import os
 from pathlib import Path
 import re
+import shlex
 
 from harbor.environments.base import ExecResult
 from harbor.environments.docker.docker import DockerEnvironment
@@ -87,6 +88,32 @@ def active_resources(containers):
 
 
 class SuiteDockerEnvironment(DockerEnvironment):
+    def __init__(self, *args, environment_variant=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.environment_variant = environment_variant
+
+    async def start(self, *args, **kwargs):
+        from suite import variants
+        descriptor = self.environment_variant
+        if descriptor is not None:
+            descriptor = variants.resolve(variants.PARENT, descriptor)
+            if self.task_env_config.docker_image != descriptor['image']:
+                raise ValueError('variant image must be selected before agent execution')
+        await super().start(*args, **kwargs)
+        if descriptor is not None:
+            code = ('import importlib.metadata as m,os,json,hashlib;from pathlib import Path;'
+                    'p=Path("/opt/vw-compat/constraints.txt");'
+                    'print(json.dumps({"planarity":m.version("planarity"),'
+                    '"numpy":m.version("numpy"),"constraint":os.environ.get("PIP_CONSTRAINT"),'
+                    '"constraints_sha256":hashlib.sha256(p.read_bytes()).hexdigest()}))')
+            result = await self.exec(command='python3 -c ' + shlex.quote(code))
+            if result.return_code != 0:
+                raise ValueError('variant dependency verification failed before agent')
+            receipt = {'environment_variant': descriptor, 'phase': 'before_agent',
+                       'facts': json.loads(result.stdout)}
+            variants.check_start(receipt, descriptor)
+            atomic_json(self.trial_paths.trial_dir / 'environment-variant.json', receipt)
+
     @property
     def _docker_compose_paths(self):
         paths = super()._docker_compose_paths

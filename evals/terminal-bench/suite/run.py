@@ -140,7 +140,9 @@ def worker(manifest_path, attempt):
                                  reservation['attempt_id'], 'suite.agent:SuiteAgent', kwargs, hook,
                                  task.get('recovery'),
                                  **({'startup_override': task['startup_override']}
-                                    if 'startup_override' in task else {})))
+                                    if 'startup_override' in task else {}),
+                                 **({'environment_variant': task['environment_variant']}
+                                    if 'environment_variant' in task else {})))
             atomic_json(attempt / 'raw-result.json', result)
             summary = summarize(result)
             transport = (((result.get('agent_result') or {}).get('metadata') or {}).get('vibewindow') or {})

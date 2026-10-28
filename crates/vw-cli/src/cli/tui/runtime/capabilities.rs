@@ -42,7 +42,7 @@ pub(crate) async fn load_session_capabilities(
                 }
                 let mut provider_models = provider.models.into_values().collect::<Vec<_>>();
                 provider_models.sort_by(|left, right| left.id.cmp(&right.id));
-                for model in provider_models {
+                for model in provider_models.into_iter().filter(|model| model.status == "active") {
                     supports_reasoning |= model.capabilities.reasoning;
                     let qualified = format!("{}/{}", provider.id, model.id);
                     matrix.model_efforts.insert(qualified.clone(), model_efforts(&model));
@@ -54,7 +54,11 @@ pub(crate) async fn load_session_capabilities(
             matrix.models = models;
             default_model = provider_defaults.into_iter().find_map(|(provider, model)| {
                 let qualified =
-                    if model.contains('/') { model } else { format!("{provider}/{model}") };
+                    if model.starts_with(&format!("{provider}/")) {
+                        model
+                    } else {
+                        format!("{provider}/{model}")
+                    };
                 matrix.models.iter().any(|candidate| candidate == &qualified).then_some(qualified)
             });
             matrix.supports_thinking = supports_reasoning;

@@ -92,6 +92,48 @@ fn runtime_for_port(port: u16) -> GatewayUiRuntime {
 }
 
 #[test]
+fn model_picker_excludes_disabled_models_and_preserves_namespaced_ids() {
+    let catalog = r#"{
+        "all":[{"id":"fixture","name":"Fixture","source":"config","env":[],
+        "models":{
+            "old":{"id":"old","providerID":"fixture","name":"Old",
+                "api":{"id":"old","url":"https://example.com","adapter":"openai-compatible"},
+                "capabilities":{"temperature":true,"reasoning":true,"attachment":false,
+                    "toolcall":true,
+                    "input":{"text":true,"audio":false,"image":false,"video":false,"pdf":false},
+                    "output":{"text":true,"audio":false,"image":false,"video":false,"pdf":false},
+                    "interleaved":false},
+                "cost":{"input":0,"output":0,"cache":{"read":0,"write":0}},
+                "limit":{"context":1000,"output":1000},"status":"disabled","release_date":""},
+            "vendor/current":{"id":"vendor/current","providerID":"fixture","name":"Current",
+                "api":{"id":"vendor/current","url":"https://example.com","adapter":"openai-compatible"},
+                "capabilities":{"temperature":true,"reasoning":false,"attachment":false,
+                    "toolcall":true,
+                    "input":{"text":true,"audio":false,"image":false,"video":false,"pdf":false},
+                    "output":{"text":true,"audio":false,"image":false,"video":false,"pdf":false},
+                    "interleaved":false},
+                "cost":{"input":0,"output":0,"cache":{"read":0,"write":0}},
+                "limit":{"context":1000,"output":1000},"status":"active","release_date":""}
+        }}],"default":{"fixture":"vendor/current"},"connected":["fixture"]
+    }"#;
+    let (port, server) = spawn_json_sequence_server(vec![
+        ("200 OK", catalog),
+        ("200 OK", r#"{"default_model":"fixture/old"}"#),
+        ("200 OK", "{}"),
+        ("200 OK", "{}"),
+    ]);
+    let loaded = crate::cli::tui::runtime::capabilities::load_session_capabilities_blocking(
+        &runtime_for_port(port),
+    );
+    server.join().expect("join capability fixture");
+    assert!(loaded.warnings.is_empty(), "{:?}", loaded.warnings);
+    assert_eq!(loaded.matrix.models, vec!["fixture/vendor/current"]);
+    assert_eq!(loaded.default_model.as_deref(), Some("fixture/vendor/current"));
+    assert!(!loaded.matrix.supports_thinking);
+    assert!(!loaded.matrix.model_efforts.contains_key("fixture/old"));
+}
+
+#[test]
 fn cd_command_rebinds_runtime_only_after_validated_project_resolution() {
     let workspace = tempfile::tempdir().expect("workspace");
     let file = workspace.path().join("not-a-directory");

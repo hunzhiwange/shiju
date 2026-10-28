@@ -73,8 +73,14 @@ fn rc_quoted_path(path: &Path) -> String {
 }
 
 fn try_compile_windows_resource(compiler: &str, rc_path: &Path, res_path: &Path) -> bool {
-    let Ok(output) =
-        Command::new(compiler).arg("/nologo").arg("/fo").arg(res_path).arg(rc_path).output()
+    // llvm-rc interprets absolute /Users paths as its /U option on Unix.
+    let Ok(output) = Command::new(compiler)
+        .current_dir(rc_path.parent().expect("resource directory"))
+        .arg("/nologo")
+        .arg("/fo")
+        .arg(res_path.file_name().expect("resource output filename"))
+        .arg(rc_path.file_name().expect("resource input filename"))
+        .output()
     else {
         return false;
     };

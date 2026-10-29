@@ -1243,7 +1243,7 @@ fn installed_shiju_directory_opener_receives_the_exact_directory() {
 fn manual_shiju_key_sync_requires_active_account() {
     let home = tempfile::tempdir().expect("home fixture");
     let selections = [SkillInstallSelection {
-        target: SkillInstallTarget::AgentSkills,
+        target: SkillInstallTarget::VibeWindow,
         scope: SkillInstallScope::Global,
     }];
     let installations = installed_targets(home.path(), &selections);
@@ -1395,7 +1395,7 @@ fn uninstall_and_sync_use_selected_installations() {
 fn direct_install_success_schedules_key_sync() {
     let home = tempfile::tempdir().expect("home fixture");
     let selections = vec![SkillInstallSelection {
-        target: SkillInstallTarget::AgentSkills,
+        target: SkillInstallTarget::VibeWindow,
         scope: SkillInstallScope::Global,
     }];
     let destination = resolve_skill_destinations(home.path(), None, &selections).unwrap().remove(0);
@@ -1449,7 +1449,7 @@ fn direct_install_success_schedules_key_sync() {
 fn install_guide_uninstall_completion_updates_local_status_and_ignores_stale_result() {
     let home = tempfile::tempdir().expect("home fixture");
     let selections = vec![SkillInstallSelection {
-        target: SkillInstallTarget::AgentSkills,
+        target: SkillInstallTarget::VibeWindow,
         scope: SkillInstallScope::Global,
     }];
     let installations = installed_targets(home.path(), &selections);

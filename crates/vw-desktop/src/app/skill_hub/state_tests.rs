@@ -287,15 +287,15 @@ fn install_guide_state_resets_requests_without_leaking_signed_urls() {
 }
 
 #[test]
-fn install_guide_defaults_to_global_shared_agents_target() {
+fn install_guide_defaults_to_global_shiju_target() {
     let state = ShijuInstallGuideState::default();
 
     assert_eq!(state.install_scope, SkillInstallScope::Global);
-    assert_eq!(state.selected_targets, vec![SkillInstallTarget::AgentSkills]);
+    assert_eq!(state.selected_targets, vec![SkillInstallTarget::VibeWindow]);
     assert_eq!(
         state.selected_install_selections(),
         vec![SkillInstallSelection {
-            target: SkillInstallTarget::AgentSkills,
+            target: SkillInstallTarget::VibeWindow,
             scope: SkillInstallScope::Global,
         }]
     );
@@ -305,7 +305,7 @@ fn install_guide_defaults_to_global_shared_agents_target() {
 fn install_guide_deduplicates_uninstall_and_preserves_local_status_on_reset() {
     let home = tempfile::tempdir().expect("home fixture");
     let selection = SkillInstallSelection {
-        target: SkillInstallTarget::AgentSkills,
+        target: SkillInstallTarget::VibeWindow,
         scope: SkillInstallScope::Global,
     };
     let destination = resolve_skill_destinations(home.path(), None, &[selection])

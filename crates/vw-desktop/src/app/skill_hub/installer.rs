@@ -220,14 +220,6 @@ pub(crate) async fn uninstall_shiju_package() -> Result<bool> {
         .context("识矩技能卸载任务异常终止")?
 }
 
-pub(crate) async fn sync_shiju_key(skey: SecretSkey) -> Result<ShijuKeySyncOutcome> {
-    let home =
-        BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf()).context("无法确定用户主目录")?;
-    tokio::task::spawn_blocking(move || sync_shiju_key_at_home(&home, &skey))
-        .await
-        .context("识矩登录信息同步任务异常终止")?
-}
-
 /// 比较纯数字点分版本；格式无效时保守地判定为不可升级。
 pub(crate) fn version_is_newer(current: &str, latest: &str) -> bool {
     let Some(current) = numeric_version(current) else {
@@ -275,7 +267,7 @@ pub(crate) async fn install_shiju_package(
         .context("识矩技能安装任务异常终止")?
 }
 
-async fn download_package(
+pub(super) async fn download_package(
     download_url: &SkillDownloadUrl,
     destination: &mut fs::File,
 ) -> Result<()> {
@@ -486,7 +478,7 @@ pub(super) fn sync_shiju_key_at_home(
         home,
         None,
         &[SkillInstallSelection {
-            target: SkillInstallTarget::WorkBuddy,
+            target: SkillInstallTarget::VibeWindow,
             scope: SkillInstallScope::Global,
         }],
         skey,

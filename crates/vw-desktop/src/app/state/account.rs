@@ -109,6 +109,7 @@ pub(crate) struct AccountState {
     pub(crate) password_editor: AccountPasswordEditorState,
     password_generation: u64,
     model_generation: u64,
+    pub(crate) native_shiju_skill: crate::app::skill_hub::NativeShijuSkillState,
 }
 
 impl Default for AccountState {
@@ -125,6 +126,7 @@ impl Default for AccountState {
             password_editor: AccountPasswordEditorState::Closed,
             password_generation: 0,
             model_generation: 0,
+            native_shiju_skill: crate::app::skill_hub::NativeShijuSkillState::default(),
         }
     }
 }
@@ -152,6 +154,9 @@ impl AccountState {
     }
 
     pub(crate) fn replace_repository(&mut self, repository: AccountRepository) {
+        self.native_shiju_skill.set_credential(
+            repository.active_account().map(|account| account.skill_hub_credential()),
+        );
         self.repository = repository;
     }
 

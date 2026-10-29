@@ -10,7 +10,7 @@ use crate::app::session_gateway::{
     gateway_shiju_account_me_async, gateway_shiju_account_password_update_async,
     gateway_shiju_account_profile_async, gateway_shiju_account_update_async,
 };
-use crate::app::skill_hub::{ShijuKeySyncOutcome, sync_shiju_key};
+use crate::app::skill_hub::NativeShijuSkillPrepared;
 use crate::app::state::{AccountOperation, AccountPasswordEditorState, AccountProfileEditorState};
 use crate::app::{App, Message};
 use iced::Task;
@@ -18,6 +18,9 @@ use std::time::Duration;
 use vw_gateway_client::{ShijuAccountMeDto, ShijuAccountPasswordUpdateRequest};
 
 const LOGIN_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+
+#[path = "account_shiju_skill.rs"]
+mod shiju_skill;
 
 #[derive(Debug, Clone, Copy)]
 /// 账号操作成功后用于生成反馈文案的动作类别。
@@ -109,7 +112,11 @@ pub(crate) enum AccountMessage {
         notice: AccountNotice,
         result: Result<AccountRepository, String>,
     },
-    ShijuKeySyncFinished(Result<ShijuKeySyncOutcome, String>),
+    NativeShijuSkillPrepared {
+        generation: u64,
+        revision: u64,
+        result: Result<NativeShijuSkillPrepared, String>,
+    },
 }
 
 /// 在后台加载账号仓储，并将结果送回账号消息循环。
@@ -216,22 +223,17 @@ fn password_update_task(
     )
 }
 
-fn shiju_key_sync_task(app: &App, notice: AccountNotice) -> Task<Message> {
+fn shiju_key_sync_task(app: &mut App, notice: AccountNotice) -> Task<Message> {
     if !matches!(
         notice,
         AccountNotice::ManualLogin | AccountNotice::BrowserLogin | AccountNotice::Switch
     ) {
         return Task::none();
     }
-    let Some(credential) =
-        app.account.active_account().map(|account| account.skill_hub_credential())
-    else {
+    if app.account.active_account().is_none() {
         return Task::none();
-    };
-    Task::perform(
-        async move { sync_shiju_key(credential).await.map_err(|error| error.to_string()) },
-        |result| Message::Account(AccountMessage::ShijuKeySyncFinished(result)),
-    )
+    }
+    shiju_skill::start(app)
 }
 
 /// 应用账号状态转换，并为需要的网关或持久化工作返回异步任务。
@@ -255,7 +257,8 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             }
             let reload = crate::app::message::skill_hub::account_changed(app);
             let models = super::settings::providers::managed_shiju::sync(app);
-            Task::batch([reload, models])
+            let native_skill = shiju_skill::start(app);
+            Task::batch([reload, models, native_skill])
         }
         AccountMessage::ToggleMenu => {
             app.account.menu_open = !app.account.menu_open;
@@ -656,14 +659,9 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 Err(error) => app.show_error_toast(format!("账户配置保存失败：{error}")),
             }
         }
-        AccountMessage::ShijuKeySyncFinished(result) => match result {
-            Ok(ShijuKeySyncOutcome::Updated | ShijuKeySyncOutcome::SkillNotInstalled) => {
-                Task::none()
-            }
-            Err(_) => {
-                app.show_warning_toast("识矩登录信息自动同步失败，可在安装页点击同步登录信息重试")
-            }
-        },
+        AccountMessage::NativeShijuSkillPrepared { generation, revision, result } => {
+            shiju_skill::finished(app, generation, revision, result)
+        }
     }
 }
 

@@ -39,6 +39,57 @@ fn repository_with_profile(secret: &str) -> AccountRepository {
     repository
 }
 
+#[test]
+fn native_shiju_skill_restored_account_schedules_preparation() {
+    let (mut app, _) = App::new();
+    let task = update(
+        &mut app,
+        AccountMessage::RepositoryLoaded(Ok(repository_with_account(
+            "startup-secret",
+            "company-1",
+        ))),
+    );
+    assert_eq!(task.units(), 3);
+}
+
+#[test]
+fn native_shiju_skill_anonymous_restore_still_schedules_detection() {
+    let (mut app, _) = App::new();
+    let task = update(&mut app, AccountMessage::RepositoryLoaded(Ok(AccountRepository::default())));
+    assert_eq!(task.units(), 2);
+    assert!(app.account.active_account().is_none());
+}
+
+#[test]
+fn native_shiju_skill_login_during_preparation_retries_after_stale_result() {
+    let (mut app, _) = App::new();
+    let _ = update(&mut app, AccountMessage::RepositoryLoaded(Ok(AccountRepository::default())));
+    assert!(shiju_skill::start(&mut app).units() == 0);
+    app.account.replace_repository(repository_with_account("latest-secret", "company-1"));
+    let revision = app.account.native_shiju_skill.revision();
+    let retry = update(
+        &mut app,
+        AccountMessage::NativeShijuSkillPrepared {
+            generation: 1,
+            revision: 0,
+            result: Err("old failure".to_string()),
+        },
+    );
+    assert_eq!(retry.units(), 1);
+    assert!(app.active_toast.is_none());
+    let stale = update(
+        &mut app,
+        AccountMessage::NativeShijuSkillPrepared {
+            generation: 1,
+            revision,
+            result: Err("late failure".to_string()),
+        },
+    );
+    assert_eq!(stale.units(), 0);
+    assert!(app.active_toast.is_none());
+    assert!(app.account.native_shiju_skill.begin().is_none());
+}
+
 fn account_me(name: &str, username: &str) -> ShijuAccountMeDto {
     ShijuAccountMeDto {
         user_id: "101026".to_string(),
@@ -322,9 +373,14 @@ fn shiju_key_sync_failure_keeps_account_active() {
     let active_account_id =
         app.account.active_account().expect("fixture should be active").id().to_string();
 
+    let (generation, revision) = app.account.native_shiju_skill.begin().unwrap();
     let _task = update(
         &mut app,
-        AccountMessage::ShijuKeySyncFinished(Err("credential-secret".to_string())),
+        AccountMessage::NativeShijuSkillPrepared {
+            generation,
+            revision,
+            result: Err("credential-secret".to_string()),
+        },
     );
 
     assert_eq!(

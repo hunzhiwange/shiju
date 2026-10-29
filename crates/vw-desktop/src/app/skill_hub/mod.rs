@@ -5,12 +5,17 @@ mod client;
 pub(crate) mod connectors;
 mod installer;
 mod models;
+mod native;
 mod package_version_cache;
 mod state;
 
 // 缓存同步和客户端只导出消息层实际需要的最小能力。
 pub(crate) use cache_sync::{SkillCacheSyncReport, sync_business_skill_cache};
 pub(crate) use client::{SkillHubClient, SkillHubError};
+pub(crate) use native::{
+    NativeShijuSkillPrepared, NativeShijuSkillState, download_native_shiju_skill,
+    prepare_native_shiju_skill,
+};
 // 安装器统一承担路径解析、归档安全校验和多目标回滚。
 pub(crate) use installer::{
     ResolvedSkillDestination, ShijuInstallItem, ShijuInstallReport, ShijuInstallation,
@@ -19,8 +24,8 @@ pub(crate) use installer::{
     SkillInstallScope, SkillInstallSelection, SkillInstallTarget,
     install_shiju_archive_for_targets, install_shiju_package, resolve_skill_destinations,
     shiju_install_dir, shiju_install_path_label, shiju_installation,
-    shiju_installations_for_targets, sync_shiju_key, sync_shiju_key_for_targets,
-    uninstall_shiju_for_targets, uninstall_shiju_package, version_is_newer,
+    shiju_installations_for_targets, sync_shiju_key_for_targets, uninstall_shiju_for_targets,
+    uninstall_shiju_package, version_is_newer,
 };
 // 传输模型在此集中导出，避免视图依赖内部模块布局。
 pub(crate) use models::{

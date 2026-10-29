@@ -232,6 +232,7 @@ fn target_paths_are_ascii_and_themes_have_contrast() {
 #[test]
 fn direct_install_progress_and_location_action_cover_all_stages() {
     let mut state = ShijuInstallGuideState::default();
+    state.selected_targets = vec![SkillInstallTarget::AgentSkills];
     assert_eq!(direct_install_progress(&state), 0.0);
     assert!(open_target_directory_message(&state, SkillInstallTarget::AgentSkills).is_none());
     assert_eq!(target_directory_action_label(&state, SkillInstallTarget::AgentSkills), "未安装");

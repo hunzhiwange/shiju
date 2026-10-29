@@ -929,7 +929,7 @@ impl Default for ShijuInstallGuideState {
             installation_generation: 0,
             install_scope: super::SkillInstallScope::Global,
             selected_project_path: None,
-            selected_targets: vec![super::SkillInstallTarget::AgentSkills],
+            selected_targets: vec![super::SkillInstallTarget::VibeWindow],
             installations: Vec::new(),
             is_installed: false,
             installed_version: None,

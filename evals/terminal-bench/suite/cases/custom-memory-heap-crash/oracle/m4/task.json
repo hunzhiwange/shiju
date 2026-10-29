@@ -1,0 +1,8 @@
+{
+  "kind": 4,
+  "input_sha256": {
+    "main.cpp": "b7ee290c4bd9790d3087f8cc37362b3c546c49499ac994bd8a97d10ffe518adf",
+    "user.h": "1be8a3f0b621da465247bbf15f75e7d8e3bf394e478ee2ff9fba0675a86da572"
+  },
+  "expected": null
+}

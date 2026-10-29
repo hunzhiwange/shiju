@@ -1,0 +1,15 @@
+{
+  "kind": 2,
+  "input_sha256": {
+    "events.json": "c143149e7ea9c2d610c60f6fbeb76c389081365e3f40b68912a4563e013cfa32"
+  },
+  "expected": [
+    {
+      "object": "cache",
+      "arena": "alpha",
+      "allocation_event": 12,
+      "destruction_event": 17,
+      "release_event": 18
+    }
+  ]
+}

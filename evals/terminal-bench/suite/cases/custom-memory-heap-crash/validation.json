@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "parent_id": "custom-memory-heap-crash",
+  "implementation_sha256": "c7bb6287ae26d3178be5f4006ae33360453613ab7c1ad7719e876202687ae4a8",
+  "files": {
+    "check.py": "0fd373e9f5a5e393350060202ee713932295d6db2bfd8cace2b275c728ad2f55",
+    "fixtures/m1/instruction.md": "28db21b323d3c07d2b83111cf3b7b70a4d697a1f46fd81f00f085edb9c233e85",
+    "fixtures/m1/main.cpp": "b7ee290c4bd9790d3087f8cc37362b3c546c49499ac994bd8a97d10ffe518adf",
+    "fixtures/m1/user.cpp": "0d6b34cab3b2ccf3f3d8150326caac6928d8dfe93a474dd8d6267d06ed4e08fe",
+    "fixtures/m1/user.h": "1be8a3f0b621da465247bbf15f75e7d8e3bf394e478ee2ff9fba0675a86da572",
+    "fixtures/m2/events.json": "c143149e7ea9c2d610c60f6fbeb76c389081365e3f40b68912a4563e013cfa32",
+    "fixtures/m2/instruction.md": "28e8d98efd11fbfedff4ceb3fc3bd1ae8aeb99d8773dd74d516292420ea559fd",
+    "fixtures/m3/instruction.md": "f4eb3386cc8753b74f0c5236591e178ba5ed5538e1c8c99bc00e13e7331377c0",
+    "fixtures/m3/main.cpp": "b7ee290c4bd9790d3087f8cc37362b3c546c49499ac994bd8a97d10ffe518adf",
+    "fixtures/m3/user.cpp": "0d6b34cab3b2ccf3f3d8150326caac6928d8dfe93a474dd8d6267d06ed4e08fe",
+    "fixtures/m3/user.h": "1be8a3f0b621da465247bbf15f75e7d8e3bf394e478ee2ff9fba0675a86da572",
+    "fixtures/m4/instruction.md": "43d765614187e94a73f75df895fc2ebb106777db93579a381c676c9890e7a30e",
+    "fixtures/m4/main.cpp": "b7ee290c4bd9790d3087f8cc37362b3c546c49499ac994bd8a97d10ffe518adf",
+    "fixtures/m4/user.cpp": "0d6b34cab3b2ccf3f3d8150326caac6928d8dfe93a474dd8d6267d06ed4e08fe",
+    "fixtures/m4/user.h": "1be8a3f0b621da465247bbf15f75e7d8e3bf394e478ee2ff9fba0675a86da572",
+    "oracle/m1/debug-crashes/repro.json": "2396281b7ed1e930e0a30571c28aba5892d8aa50b0c35e08785e413050e84118",
+    "oracle/m1/gold/repro.json": "ee4f10d516cc7a34fb10199781be5b16d1aa36ecad5696921b232aafd26cf8e1",
+    "oracle/m1/no-crash/repro.json": "1316b90b9e20bea09faed61d5bb1eeb47c6a234d9d25333fe8d98b1639f8d20b",
+    "oracle/m1/task.json": "9efccbd0095e258cfd32f3ee48d3d542dd6902b929ec0ff464722fab1a7314a0",
+    "oracle/m1/wrong-signal/repro.json": "a448d3c6d5285ede704771d7b6d66068e367d969a590403842e9beb7fa4b64e8",
+    "oracle/m2/gold/diagnosis.json": "8b45bb60f698a2fd21acaeeb7b5a25f023d5518edd96c09ab8d11f4e0a1f44f9",
+    "oracle/m2/no-violation/diagnosis.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "oracle/m2/task.json": "08d38121908ce5808000c7ef155d93f9341089a245d2ee2a2654fbbe274cfddc",
+    "oracle/m2/wrong-allocation/diagnosis.json": "d9301f81d7062012bcf5e3ac7907a7dd8ec2644a782a8318431caf592de48878",
+    "oracle/m2/wrong-owner/diagnosis.json": "bfb0325f00ec4eb7c279dd90523da902376364c7acf4d639a5b08bc3b895a58f",
+    "oracle/m3/early-exit/user.cpp": "cfae8b609ae8927e5ddc76d190f51c11f59aaffc497f7d09f9dd3fbd43f4d2cb",
+    "oracle/m3/gold/user.cpp": "9b259c18b0ce1011cda455d580d91d51af286656488fa8456c2696dde7746a8d",
+    "oracle/m3/late-init/user.cpp": "bb37635a965c3926d76ad1add4720ec5e06bbe253d0282d15108a83fb34cc6b3",
+    "oracle/m3/no-fix/user.cpp": "0d6b34cab3b2ccf3f3d8150326caac6928d8dfe93a474dd8d6267d06ed4e08fe",
+    "oracle/m3/task.json": "ca435330babf0c5ae91788e53de04fdafc9e8a27f4149fc18815e292db35f59a",
+    "oracle/m4/early-exit/user.cpp": "cfae8b609ae8927e5ddc76d190f51c11f59aaffc497f7d09f9dd3fbd43f4d2cb",
+    "oracle/m4/gold/user.cpp": "9b259c18b0ce1011cda455d580d91d51af286656488fa8456c2696dde7746a8d",
+    "oracle/m4/late-init/user.cpp": "bb37635a965c3926d76ad1add4720ec5e06bbe253d0282d15108a83fb34cc6b3",
+    "oracle/m4/runtime-protected-edit/user.cpp": "099cf0600991d4f9551e903acefb97c85a39c1afae3ae758ca537b1b74c30b01",
+    "oracle/m4/task.json": "cffaf2e2dd63d69608ce52645736d1cd28e4bb85f50e72b9630b758a2bcecefc",
+    "case.json": "f526ed48ab142d52dacbe009e66f92c05199d7993c557e44237465f246edfb0b"
+  },
+  "image": "vw-memory-diagnostics-native@sha256:b3550c423859c800161647c91b9749156a1bfbb1553f8980936387536c427dfd",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "no-crash",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "debug-crashes",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-signal",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "no-violation",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-owner",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-allocation",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "late-init",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "early-exit",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "no-fix",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "runtime-protected-edit",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "late-init",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "early-exit",
+      "exit_code": 1
+    }
+  ]
+}

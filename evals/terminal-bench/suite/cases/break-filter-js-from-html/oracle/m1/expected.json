@@ -1,0 +1,1 @@
+{"child": "m1", "expected": {"plain": "<p>Garden</p>", "script": "", "event": "<svg></svg>", "upper": "<svg ONLOAD=\"alert(29)\"></svg>"}, "inputs_sha256": {"filter.py": "eb524ecdcc3241b72ab5cebb72f1b1c4ccbd1908dcf2403cbbd0d43072dd0909", "inputs.json": "4c956204ffdb8c1e90d017fffde5009ef16a3dfb5809c903dfb0cf68df5673a2"}}

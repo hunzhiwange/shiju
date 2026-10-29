@@ -1,0 +1,2 @@
+For each HTML string in /app/pages.json, apply /app/filter.py then open the result in Chromium without interaction. Write /app/observations.json mapping every ID to a list containing the automatic alert text (string), or [] if none within one second. Inputs and filter must remain unchanged.
+All writes are confined to /app and temporary files; no network access. Budget: 24 model requests, 32 tools, 900 seconds.

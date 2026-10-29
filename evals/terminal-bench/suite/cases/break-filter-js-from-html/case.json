@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "parent_id": "break-filter-js-from-html",
+  "image": "python@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "filter.py": "fixtures/m1/filter.py",
+        "inputs.json": "fixtures/m1/inputs.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m1/expected.json"
+      },
+      "gold": {
+        "results.json": "oracle/m1/gold/results.json"
+      },
+      "negatives": [
+        {
+          "id": "all-preserved",
+          "files": {
+            "results.json": "oracle/m1/all-preserved/results.json"
+          }
+        },
+        {
+          "id": "over-filtered",
+          "files": {
+            "results.json": "oracle/m1/over-filtered/results.json"
+          }
+        },
+        {
+          "id": "lost-text",
+          "files": {
+            "results.json": "oracle/m1/lost-text/results.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "filter.py": "fixtures/m2/filter.py"
+      },
+      "oracle": {
+        "expected.json": "oracle/m2/expected.json"
+      },
+      "gold": {
+        "out.html": "oracle/m2/gold/out.html"
+      },
+      "negatives": [
+        {
+          "id": "removed-script",
+          "files": {
+            "out.html": "oracle/m2/removed-script/out.html"
+          }
+        },
+        {
+          "id": "removed-handler",
+          "files": {
+            "out.html": "oracle/m2/removed-handler/out.html"
+          }
+        },
+        {
+          "id": "interaction",
+          "files": {
+            "out.html": "oracle/m2/interaction/out.html"
+          }
+        },
+        {
+          "id": "wrong-alert",
+          "files": {
+            "out.html": "oracle/m2/wrong-alert/out.html"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "filter.py": "fixtures/m3/filter.py",
+        "pages.json": "fixtures/m3/pages.json"
+      },
+      "oracle": {
+        "expected.json": "oracle/m3/expected.json"
+      },
+      "gold": {
+        "observations.json": "oracle/m3/gold/observations.json"
+      },
+      "negatives": [
+        {
+          "id": "before-filter",
+          "files": {
+            "observations.json": "oracle/m3/before-filter/observations.json"
+          }
+        },
+        {
+          "id": "no-execution",
+          "files": {
+            "observations.json": "oracle/m3/no-execution/observations.json"
+          }
+        },
+        {
+          "id": "wrong-semantics",
+          "files": {
+            "observations.json": "oracle/m3/wrong-semantics/observations.json"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "filter.py": "fixtures/m4/filter.py"
+      },
+      "oracle": {
+        "expected.json": "oracle/m4/expected.json"
+      },
+      "gold": {
+        "probe.py": "oracle/m4/gold/probe.py"
+      },
+      "negatives": [
+        {
+          "id": "constant",
+          "files": {
+            "probe.py": "oracle/m4/constant/probe.py"
+          }
+        },
+        {
+          "id": "unfiltered",
+          "files": {
+            "probe.py": "oracle/m4/unfiltered/probe.py"
+          }
+        },
+        {
+          "id": "mutates-input",
+          "files": {
+            "probe.py": "oracle/m4/mutates-input/probe.py"
+          }
+        }
+      ]
+    }
+  ]
+}

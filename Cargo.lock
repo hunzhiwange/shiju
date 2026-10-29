@@ -11931,6 +11931,7 @@ dependencies = [
  "web-time",
  "webpki-roots 1.0.9",
  "which",
+ "windows-sys 0.61.2",
  "zip",
 ]
 

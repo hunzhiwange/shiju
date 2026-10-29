@@ -347,10 +347,8 @@ fn start_child(
     }
     let mut command = build().context("Failed to build shell process")?;
     command.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).kill_on_drop(true);
-    termination::prepare(&mut command)?;
-    let mut child = command.spawn().context("Failed to spawn shell process")?;
+    let (mut child, process_tree) = termination::spawn(&mut command)?;
     let started_at = tokio::time::Instant::now();
-    let pid = child.id();
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let snapshot = ShellProcessSnapshot {
@@ -402,12 +400,12 @@ fn start_child(
                 // Preserve a natural exit that won the race with cancellation.
                 match child.try_wait() {
                     Ok(Some(status)) => (ShellProcessState::Exited, Ok(status)),
-                    _ => (reason, termination::terminate(&mut child, pid).await),
+                    _ => (reason, process_tree.terminate(&mut child).await),
                 }
             }
         };
         // A shell may exit while descendants still hold output pipes open.
-        termination::signal(pid, true);
+        drop(process_tree);
         let _ = drain_stdout.await;
         let _ = drain_stderr.await;
         let mut entries = records.lock();
@@ -466,6 +464,10 @@ mod output_tests;
 #[cfg(all(test, unix))]
 #[path = "termination_tests.rs"]
 mod termination_tests;
+
+#[cfg(all(test, windows))]
+#[path = "termination_windows_tests.rs"]
+mod termination_windows_tests;
 
 /// Reap an existing session without initializing an unused process service.
 pub(crate) fn cancel_session(tenant: &str, workspace: &Path, session: &str) -> anyhow::Result<()> {

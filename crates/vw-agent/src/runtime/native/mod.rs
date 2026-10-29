@@ -171,8 +171,12 @@ impl ShellProgram {
                     .arg("-Command")
                     .arg(command);
             }
-            // cmd: 使用 /C 参数执行命令后退出
+            // CMD parses shell text rather than C-style argv. Preserve quotes
+            // inside the validated command, including paths with spaces.
             ShellLaunchStyle::Cmd => {
+                #[cfg(windows)]
+                process.args(["/D", "/S", "/C"]).raw_arg(format!("\"{command}\""));
+                #[cfg(not(windows))]
                 process.arg("/C").arg(command);
             }
         }
@@ -594,3 +598,6 @@ impl RuntimeAdapter for NativeRuntime {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(all(test, windows))]
+mod windows_commands_tests;

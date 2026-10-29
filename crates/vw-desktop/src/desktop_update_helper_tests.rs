@@ -11,6 +11,61 @@ fn installer_exit_codes_require_completed_installation() {
     assert!(installation_result("linux", None).is_err());
 }
 
+#[cfg(windows)]
+#[test]
+fn windows_installer_command_opens_canonical_package_in_unicode_cache() {
+    use std::ffi::OsStr;
+
+    let root = tempfile::tempdir().unwrap();
+    let cache = root.path().join("中文 cache");
+    std::fs::create_dir(&cache).unwrap();
+    let package = cache.join("ShiJu update.msi");
+    std::fs::write(&package, b"verified").unwrap();
+    let verified = package.canonicalize().unwrap();
+    assert!(matches!(
+        verified.components().next(),
+        Some(std::path::Component::Prefix(prefix)) if prefix.kind().is_verbatim()
+    ));
+
+    let command = windows_installer_command(&verified).unwrap();
+    assert_eq!(command.get_program(), msiexec().unwrap().as_os_str());
+    let args: Vec<_> = command.get_args().collect();
+    assert_eq!(args[0], OsStr::new("/i"));
+    let installer = Path::new(args[1]);
+    assert!(!matches!(
+        installer.components().next(),
+        Some(std::path::Component::Prefix(prefix)) if prefix.kind().is_verbatim()
+    ));
+    assert_eq!(installer.canonicalize().unwrap(), verified);
+    assert_eq!(std::fs::read(installer).unwrap(), b"verified");
+    assert_eq!(windows_installer_path(installer).unwrap(), installer);
+    assert_eq!(
+        &args[2..],
+        [
+            OsStr::new("/passive"),
+            OsStr::new("/norestart"),
+            OsStr::new("REBOOT=ReallySuppress"),
+            OsStr::new("MSIRESTARTMANAGERCONTROL=Disable"),
+        ]
+    );
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_installer_path_rejects_paths_that_cannot_be_safely_simplified() {
+    let long = format!(r"\\?\C:\{}\update.msi", "folder\\".repeat(50));
+    for path in [
+        long.as_str(),
+        r"\\?\C:\cache.\update.msi",
+        r"\\?\C:\cache \update.msi",
+        r"\\?\C:\NUL\update.msi",
+        r"update.msi",
+    ] {
+        let error = windows_installer_path(Path::new(path)).unwrap_err();
+        assert!(error.to_string().contains("Windows Installer"), "{path}: {error}");
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn updater_wait_is_bound_to_actual_parent_process() {

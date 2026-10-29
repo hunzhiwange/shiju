@@ -194,6 +194,7 @@ fn preflight(executable: &Path, ready: &PreparedDesktopUpdate) -> Result<()> {
         if ready.kind() != vw_shared::update::InstallerKind::Msi {
             bail!("Windows 更新需要 MSI");
         }
+        windows_installer_path(ready.path())?;
         if !msiexec()?.is_file() {
             bail!("Windows Installer 不可用");
         }
@@ -216,15 +217,7 @@ fn install(request: &UpdateRequest) -> Result<()> {
     return macos::install(request);
     #[cfg(target_os = "windows")]
     {
-        let status = Command::new(msiexec()?)
-            .arg("/i")
-            .arg(request.ready.path())
-            .args([
-                "/passive",
-                "/norestart",
-                "REBOOT=ReallySuppress",
-                "MSIRESTARTMANAGERCONTROL=Disable",
-            ])
+        let status = windows_installer_command(request.ready.path())?
             .status()
             .context("Windows Installer 启动失败")?;
         installation_result("windows", status.code())
@@ -240,6 +233,37 @@ fn install(request: &UpdateRequest) -> Result<()> {
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     bail!("当前平台不支持自动更新")
+}
+
+#[cfg(target_os = "windows")]
+fn windows_installer_path(verified: &Path) -> Result<&Path> {
+    // canonicalize() produces \\?\ paths, which Windows Installer cannot open.
+    // Only simplify when DOS path semantics still refer to the verified file.
+    let path = dunce::simplified(verified);
+    if !path.is_absolute()
+        || matches!(
+            path.components().next(),
+            Some(std::path::Component::Prefix(prefix)) if prefix.kind().is_verbatim()
+        )
+    {
+        bail!("安装包路径无法转换为 Windows Installer 支持的格式，请使用较短的本地缓存路径后重试");
+    }
+    if path.canonicalize()? != verified.canonicalize()? {
+        bail!("安装包路径转换后指向不同文件，已取消更新");
+    }
+    Ok(path)
+}
+
+#[cfg(target_os = "windows")]
+fn windows_installer_command(verified: &Path) -> Result<Command> {
+    let mut command = Command::new(msiexec()?);
+    command.arg("/i").arg(windows_installer_path(verified)?).args([
+        "/passive",
+        "/norestart",
+        "REBOOT=ReallySuppress",
+        "MSIRESTARTMANAGERCONTROL=Disable",
+    ]);
+    Ok(command)
 }
 
 #[cfg(any(test, target_os = "windows", target_os = "linux"))]

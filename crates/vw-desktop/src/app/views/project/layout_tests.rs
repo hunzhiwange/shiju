@@ -151,6 +151,8 @@ fn base_layout_builds_with_tool_detail_overlay() {
         content: "line 1\nline 2".to_string(),
         editor: text_editor::Content::with_text("line 1\nline 2"),
         editor_id: Id::unique(),
+        undo_stack: Vec::new(),
+        redo_stack: Vec::new(),
         context_menu_open: false,
         context_menu_pos: None,
         scroll_top_line: 0.0,

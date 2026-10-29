@@ -619,6 +619,8 @@ pub(crate) struct ToolDetailDialog {
     pub(crate) content: String,
     pub(crate) editor: text_editor::Content,
     pub(crate) editor_id: Id,
+    pub(crate) undo_stack: Vec<String>,
+    pub(crate) redo_stack: Vec<String>,
     pub(crate) context_menu_open: bool,
     pub(crate) context_menu_pos: Option<(f32, f32)>,
     pub(crate) scroll_top_line: f32,

@@ -107,6 +107,7 @@ pub(super) fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Me
     let editor = text_editor(&dialog.editor)
         .id(dialog.editor_id.clone())
         .on_action(|action| Message::Chat(message::ChatMessage::ToolDetailEditorAction(action)))
+        .key_binding(tool_detail_key_binding)
         .size(14.0)
         .padding([8, 10])
         .line_height(crate::app::components::chat_panel::tool_text_support::chat_text_line_height())
@@ -154,8 +155,8 @@ pub(super) fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Me
             })
         },
         TextEditorContextMenuMessages {
-            undo: None,
-            redo: None,
+            undo: Some(Message::Chat(message::ChatMessage::ToolDetailUndo)),
+            redo: Some(Message::Chat(message::ChatMessage::ToolDetailRedo)),
             // close 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             close: Message::Chat(message::ChatMessage::ToolDetailCloseContextMenu),
             // copy 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -195,6 +196,30 @@ pub(super) fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Me
         .height(Length::Fill)
         .style(tool_detail_panel_style)
         .into()
+}
+
+/// 仅在详情编辑器聚焦时处理撤销/重做，其余操作沿用 Iced 默认快捷键。
+pub(super) fn tool_detail_key_binding(
+    key_press: text_editor::KeyPress,
+) -> Option<text_editor::Binding<Message>> {
+    if !matches!(key_press.status, text_editor::Status::Focused { .. }) {
+        return None;
+    }
+
+    let custom = if key_press.modifiers.command() && !key_press.modifiers.alt() {
+        match key_press.key.to_latin(key_press.physical_key) {
+            Some('z') if key_press.modifiers.shift() => Some(message::ChatMessage::ToolDetailRedo),
+            Some('z') => Some(message::ChatMessage::ToolDetailUndo),
+            Some('y') => Some(message::ChatMessage::ToolDetailRedo),
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    custom
+        .map(|message| text_editor::Binding::Custom(Message::Chat(message)))
+        .or_else(|| text_editor::Binding::from_key_press(key_press))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]

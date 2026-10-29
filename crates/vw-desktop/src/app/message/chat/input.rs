@@ -517,6 +517,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::ToolDetailEditorAction(action) => {
             tool_detail::handle_tool_detail_editor_action(app, action)
         }
+        ChatMessage::ToolDetailUndo => tool_detail::handle_tool_detail_undo(app),
+        ChatMessage::ToolDetailRedo => tool_detail::handle_tool_detail_redo(app),
         ChatMessage::ToolDetailOpenContextMenu { x, y } => {
             tool_detail::handle_tool_detail_open_context_menu(app, x, y)
         }

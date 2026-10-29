@@ -14,6 +14,8 @@ use crate::app::state::ToolDetailDialog;
 use crate::app::{App, Message};
 use iced::{Task, mouse, widget::text_editor};
 
+const TOOL_DETAIL_HISTORY_LIMIT: usize = 100;
+
 /// 模块内可见函数，执行 handle_open_tool_detail 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn handle_open_tool_detail(
@@ -31,6 +33,8 @@ pub(super) fn handle_open_tool_detail(
             content,
             editor,
             editor_id: iced::widget::Id::unique(),
+            undo_stack: Vec::new(),
+            redo_stack: Vec::new(),
             context_menu_open: false,
             context_menu_pos: None,
             scroll_top_line: 0.0,
@@ -53,9 +57,39 @@ pub(super) fn handle_tool_detail_editor_action(
 
     if let Some(dialog) = app.tool_detail_dialog.as_mut() {
         close_tool_detail_context_menu(dialog);
+        let previous = action.is_edit().then(|| dialog.editor.text());
         dialog.editor.perform(action);
+        if let Some(previous) = previous {
+            record_tool_detail_edit(dialog, previous);
+        }
     }
 
+    Task::none()
+}
+
+/// 撤销当前工具详情弹窗中的一次文本编辑。
+pub(super) fn handle_tool_detail_undo(app: &mut App) -> Task<Message> {
+    if let Some(dialog) = app.tool_detail_dialog.as_mut() {
+        close_tool_detail_context_menu(dialog);
+        if let Some(previous) = dialog.undo_stack.pop() {
+            dialog.redo_stack.push(dialog.editor.text());
+            restore_tool_detail_text(dialog, &previous);
+        }
+        return focus_editor_task(&dialog.editor_id);
+    }
+    Task::none()
+}
+
+/// 重做当前工具详情弹窗中最近撤销的文本编辑。
+pub(super) fn handle_tool_detail_redo(app: &mut App) -> Task<Message> {
+    if let Some(dialog) = app.tool_detail_dialog.as_mut() {
+        close_tool_detail_context_menu(dialog);
+        if let Some(next) = dialog.redo_stack.pop() {
+            dialog.undo_stack.push(dialog.editor.text());
+            restore_tool_detail_text(dialog, &next);
+        }
+        return focus_editor_task(&dialog.editor_id);
+    }
     Task::none()
 }
 
@@ -95,7 +129,9 @@ pub(super) fn handle_tool_detail_context_menu_copy(app: &mut App) -> Task<Messag
 pub(super) fn handle_tool_detail_context_menu_cut(app: &mut App) -> Task<Message> {
     if let Some(dialog) = app.tool_detail_dialog.as_mut() {
         close_tool_detail_context_menu(dialog);
+        let previous = dialog.editor.text();
         let (_outcome, task) = selection_cut_task(&mut dialog.editor, &dialog.editor_id);
+        record_tool_detail_edit(dialog, previous);
         return task;
     }
     Task::none()
@@ -118,7 +154,9 @@ pub(super) fn handle_tool_detail_context_menu_paste(app: &mut App) -> Task<Messa
 pub(super) fn handle_tool_detail_context_menu_delete(app: &mut App) -> Task<Message> {
     if let Some(dialog) = app.tool_detail_dialog.as_mut() {
         close_tool_detail_context_menu(dialog);
+        let previous = dialog.editor.text();
         let (_outcome, task) = selection_delete_task(&mut dialog.editor, &dialog.editor_id);
+        record_tool_detail_edit(dialog, previous);
         return task;
     }
     Task::none()
@@ -263,6 +301,24 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
         if is_mcp { format_mcp_detail_content(&content) } else { content }
     };
     Some((title, content))
+}
+
+fn record_tool_detail_edit(dialog: &mut ToolDetailDialog, previous: String) {
+    if dialog.editor.text() == previous {
+        return;
+    }
+    if dialog.undo_stack.len() >= TOOL_DETAIL_HISTORY_LIMIT {
+        dialog.undo_stack.remove(0);
+    }
+    dialog.undo_stack.push(previous);
+    dialog.redo_stack.clear();
+}
+
+fn restore_tool_detail_text(dialog: &mut ToolDetailDialog, content: &str) {
+    dialog.editor = text_editor::Content::with_text(content);
+    // 重建 Content 会重置编辑器内部视口，同步外部滚动条。
+    dialog.scroll_top_line = 0.0;
+    dialog.scroll_remainder = 0.0;
 }
 
 fn close_tool_detail_context_menu(dialog: &mut ToolDetailDialog) {

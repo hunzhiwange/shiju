@@ -184,6 +184,8 @@ fn dialog(content: &str, scroll_top_line: f32) -> ToolDetailDialog {
         content: content.to_string(),
         editor: text_editor::Content::with_text(content),
         editor_id: Id::unique(),
+        undo_stack: Vec::new(),
+        redo_stack: Vec::new(),
         context_menu_open: true,
         context_menu_pos: Some((10.0, 20.0)),
         scroll_top_line,
@@ -520,4 +522,57 @@ fn draw_mouse_interaction_and_overlay_delegate_to_content() {
     assert_eq!(renderer.fills, vec![Rectangle { x: 4.0, y: 8.0, width: 120.0, height: 40.0 }]);
     assert_eq!(interaction, mouse::Interaction::Pointer);
     assert!(overlay.is_none());
+}
+
+#[test]
+fn tool_detail_shortcuts_support_history_and_default_editing_only_when_focused() {
+    use super::tool_detail_dialog::tool_detail_key_binding;
+    use crate::app::{Message, message::ChatMessage};
+    use iced::keyboard::{Key, Modifiers, key};
+
+    let key_press = |value: &str, modifiers| text_editor::KeyPress {
+        key: Key::Character(value.into()),
+        modified_key: Key::Character(value.into()),
+        physical_key: key::Physical::Code(key::Code::KeyZ),
+        modifiers,
+        text: None,
+        status: text_editor::Status::Focused { is_hovered: false },
+    };
+    assert!(matches!(
+        tool_detail_key_binding(key_press("z", Modifiers::COMMAND)),
+        Some(text_editor::Binding::Custom(Message::Chat(ChatMessage::ToolDetailUndo)))
+    ));
+    for (value, modifiers) in
+        [("z", Modifiers::COMMAND | Modifiers::SHIFT), ("y", Modifiers::COMMAND)]
+    {
+        assert!(matches!(
+            tool_detail_key_binding(key_press(value, modifiers)),
+            Some(text_editor::Binding::Custom(Message::Chat(ChatMessage::ToolDetailRedo)))
+        ));
+    }
+    assert!(matches!(
+        tool_detail_key_binding(key_press("c", Modifiers::COMMAND)),
+        Some(text_editor::Binding::Copy)
+    ));
+    assert!(matches!(
+        tool_detail_key_binding(key_press("x", Modifiers::COMMAND)),
+        Some(text_editor::Binding::Cut)
+    ));
+    assert!(matches!(
+        tool_detail_key_binding(key_press("v", Modifiers::COMMAND)),
+        Some(text_editor::Binding::Paste)
+    ));
+    assert!(matches!(
+        tool_detail_key_binding(key_press("a", Modifiers::COMMAND)),
+        Some(text_editor::Binding::SelectAll)
+    ));
+    let mut delete = key_press("", Modifiers::empty());
+    delete.key = Key::Named(key::Named::Delete);
+    delete.modified_key = delete.key.clone();
+    assert!(matches!(tool_detail_key_binding(delete), Some(text_editor::Binding::Delete)));
+    for status in [text_editor::Status::Active, text_editor::Status::Disabled] {
+        let mut unfocused = key_press("z", Modifiers::COMMAND);
+        unfocused.status = status;
+        assert!(tool_detail_key_binding(unfocused).is_none());
+    }
 }

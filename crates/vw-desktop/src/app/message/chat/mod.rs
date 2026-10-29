@@ -800,6 +800,8 @@ pub enum ChatMessage {
     ToggleExploreSummary(usize, usize),
     OpenToolDetail(usize, usize, String),
     ToolDetailEditorAction(text_editor::Action),
+    ToolDetailUndo,
+    ToolDetailRedo,
     ToolDetailOpenContextMenu {
         x: f32,
         y: f32,
@@ -1185,6 +1187,8 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ToolFilesFilterChanged(_)
         | ChatMessage::OpenToolDetail(_, _, _)
         | ChatMessage::ToolDetailEditorAction(_)
+        | ChatMessage::ToolDetailUndo
+        | ChatMessage::ToolDetailRedo
         | ChatMessage::ToolDetailOpenContextMenu { .. }
         | ChatMessage::ToolDetailCloseContextMenu
         | ChatMessage::ToolDetailContextMenuCopy

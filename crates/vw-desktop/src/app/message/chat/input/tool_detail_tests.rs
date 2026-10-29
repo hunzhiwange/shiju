@@ -189,6 +189,8 @@ fn tool_detail_handlers_are_safe_without_an_open_dialog() {
     super::handle_tool_detail_editor_action(&mut app, iced::widget::text_editor::Action::SelectAll);
     super::handle_tool_detail_open_context_menu(&mut app, 1.0, 2.0);
     super::handle_tool_detail_close_context_menu(&mut app);
+    super::handle_tool_detail_undo(&mut app);
+    super::handle_tool_detail_redo(&mut app);
     super::handle_tool_detail_context_menu_copy(&mut app);
     super::handle_tool_detail_context_menu_cut(&mut app);
     super::handle_tool_detail_context_menu_paste(&mut app);
@@ -384,4 +386,81 @@ fn close_tool_detail_removes_dialog() {
     super::handle_close_tool_detail(&mut app);
 
     assert!(app.tool_detail_dialog.is_none());
+}
+
+#[test]
+fn tool_detail_history_restores_paste_cut_and_delete_and_clears_redo_on_edit() {
+    use iced::widget::text_editor::{Action, Edit};
+
+    let (mut app, _task) = crate::app::App::new();
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\n原始输出".into());
+    super::handle_tool_detail_editor_action(&mut app, Action::SelectAll);
+    super::handle_tool_detail_editor_action(&mut app, super::paste_action("修改内容".into()));
+    super::handle_tool_detail_editor_action(&mut app, Action::SelectAll);
+    super::handle_tool_detail_context_menu_cut(&mut app);
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().editor.text(), "");
+
+    super::handle_tool_detail_undo(&mut app);
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().editor.text(), "修改内容");
+    super::handle_tool_detail_undo(&mut app);
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().editor.text(), "原始输出");
+    super::handle_tool_detail_redo(&mut app);
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().editor.text(), "修改内容");
+    super::handle_tool_detail_redo(&mut app);
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().editor.text(), "");
+    super::handle_tool_detail_undo(&mut app);
+
+    // 选择、复制和没有选区的删除均不应清空可重做的历史。
+    super::handle_tool_detail_editor_action(
+        &mut app,
+        Action::Move(iced::widget::text_editor::Motion::End),
+    );
+    super::handle_tool_detail_context_menu_copy(&mut app);
+    super::handle_tool_detail_context_menu_delete(&mut app);
+    assert!(!app.tool_detail_dialog.as_ref().unwrap().redo_stack.is_empty());
+
+    super::handle_tool_detail_editor_action(&mut app, Action::SelectAll);
+    super::handle_tool_detail_context_menu_delete(&mut app);
+    assert!(app.tool_detail_dialog.as_ref().unwrap().redo_stack.is_empty());
+    super::handle_tool_detail_undo(&mut app);
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().editor.text(), "修改内容");
+    super::handle_tool_detail_editor_action(&mut app, Action::Edit(Edit::Insert('新')));
+    super::handle_tool_detail_redo(&mut app);
+    assert!(app.tool_detail_dialog.as_ref().unwrap().editor.text().contains('新'));
+    assert_eq!(app.tool_detail_dialog.as_ref().unwrap().content, "原始输出");
+}
+
+#[test]
+fn tool_detail_history_is_bounded_and_resets_when_another_detail_opens() {
+    use iced::widget::text_editor::{Action, Edit};
+
+    let (mut app, _task) = crate::app::App::new();
+    super::handle_open_tool_detail(&mut app, 0, 0, "tool shell\ninitial".into());
+    for _ in 0..=super::TOOL_DETAIL_HISTORY_LIMIT {
+        super::handle_tool_detail_editor_action(&mut app, Action::Edit(Edit::Insert('a')));
+    }
+    assert_eq!(
+        app.tool_detail_dialog.as_ref().unwrap().undo_stack.len(),
+        super::TOOL_DETAIL_HISTORY_LIMIT
+    );
+    super::handle_tool_detail_open_context_menu(&mut app, 1.0, 2.0);
+    {
+        let dialog = app.tool_detail_dialog.as_mut().unwrap();
+        dialog.scroll_top_line = 5.0;
+        dialog.scroll_remainder = 0.5;
+    }
+    super::handle_tool_detail_undo(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().unwrap();
+    assert!(!dialog.context_menu_open);
+    assert_eq!(dialog.context_menu_pos, None);
+    assert_eq!(dialog.scroll_top_line, 0.0);
+    assert_eq!(dialog.scroll_remainder, 0.0);
+
+    super::handle_open_tool_detail(&mut app, 1, 0, "tool shell\nother".into());
+    super::handle_tool_detail_undo(&mut app);
+    super::handle_tool_detail_redo(&mut app);
+    let dialog = app.tool_detail_dialog.as_ref().unwrap();
+    assert_eq!(dialog.editor.text(), "other");
+    assert!(dialog.undo_stack.is_empty());
+    assert!(dialog.redo_stack.is_empty());
 }

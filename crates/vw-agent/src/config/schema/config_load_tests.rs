@@ -15,7 +15,7 @@ use vw_api_types::id::TenantScope;
 fn config_json_path_appends_stable_filename() {
     assert_eq!(
         config_json_path(std::path::Path::new("/tmp/vw")),
-        std::path::Path::new("/tmp/vw/vibewindow.json")
+        std::path::Path::new("/tmp/vw/shiju.json")
     );
 }
 
@@ -273,7 +273,7 @@ async fn load_config_merges_tenant_base_project_override_then_environment() {
     assert_eq!(loaded.default_provider.as_deref(), Some("project-provider"));
     assert_eq!(loaded.default_model.as_deref(), Some("environment-model"));
     assert_eq!(loaded.workspace_dir, project_dir);
-    assert_eq!(loaded.config_path, config_json_path(&config_dir));
+    assert_eq!(loaded.config_path, config_dir.join("shiju.json"));
     assert!(!project_dir.join(".vibewindow.json").exists());
 
     let other_loaded = load_config_for_tenant_from_store(

@@ -38,9 +38,6 @@ use crate::tools::{
 };
 use crate::ui::AppUiConfig;
 
-/// 仅用于填充运行时兼容路径；生产系统配置不从该文件读写。
-const LEGACY_CONFIG_JSON_FILENAME: &str = "vibewindow.json";
-
 /// ACP 代理进程配置。
 ///
 /// 用于描述如何启动一个 ACP 子代理，包括启动命令、参数以及附加环境变量。
@@ -329,7 +326,7 @@ impl Default for Config {
 
         Self {
             workspace_dir: vibewindow_dir.join("workspace"),
-            config_path: vibewindow_dir.join(LEGACY_CONFIG_JSON_FILENAME),
+            config_path: vibewindow_dir.join(crate::paths::CONFIG_JSON_FILENAME),
             enabled_providers: Vec::new(),
             popular_providers: vec!["shiju".to_string()],
             providers,

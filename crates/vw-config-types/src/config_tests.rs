@@ -11,7 +11,7 @@ fn config_defaults_promote_shiju_as_primary_provider() {
         )
     );
     assert!(config.config_path.ends_with(
-        std::path::PathBuf::from(crate::paths::HOME_CONFIG_DIR_NAME).join("vibewindow.json")
+        std::path::PathBuf::from(crate::paths::HOME_CONFIG_DIR_NAME).join("shiju.json")
     ));
     assert_eq!(config.default_provider.as_deref(), Some("shiju"));
     assert_eq!(config.default_model.as_deref(), Some("shiju/deepseek-v4-flash"));

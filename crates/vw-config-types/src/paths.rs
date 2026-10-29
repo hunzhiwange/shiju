@@ -4,6 +4,9 @@
 
 use std::path::{Path, PathBuf};
 
+/// 用户配置目录下的运行时兼容配置文件名；生产系统配置存储在数据库中。
+pub const CONFIG_JSON_FILENAME: &str = "shiju.json";
+
 /// 正式构建在用户主目录下使用的配置目录名。
 pub const PROD_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent";
 /// 调试构建在用户主目录下使用的隔离配置目录名。

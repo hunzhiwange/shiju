@@ -93,6 +93,4 @@ pub(crate) use config_validate::validate_config;
 pub use workspace::default_config_and_workspace_dirs;
 pub(crate) use workspace::resolve_runtime_config_dirs;
 
-/// 旧用户配置迁移来源文件名。
-const LEGACY_CONFIG_JSON_FILENAME: &str = "vibewindow.json";
 pub const CONFIG_AGENT_KEY: &str = "agent";

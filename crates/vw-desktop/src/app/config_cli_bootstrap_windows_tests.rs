@@ -54,6 +54,30 @@ fn daemon_launch_preserves_arguments_logs_and_child_across_retries() {
 
 #[cfg(unix)]
 #[test]
+fn exited_retained_daemon_is_replaced_on_retry() {
+    let dir = tempfile::tempdir().unwrap();
+    let cli = test_cli(dir.path(), "echo restarted >&2; exit 7");
+    let mut exited = std::process::Command::new("true").spawn().unwrap();
+    exited.wait().unwrap();
+    let mut child = Some(exited);
+
+    let error = ensure_daemon(
+        &cli,
+        dir.path(),
+        &GatewayRuntimeEndpoint::new("127.0.0.1", 1),
+        "build",
+        &mut child,
+        Duration::from_secs(2),
+    ).unwrap_err();
+
+    assert!(error.contains("完整服务已退出"), "{error}");
+    let log = dir.path().join(format!("logs/desktop-{}.daemon.stderr.log", std::process::id()));
+    assert!(fs::read_to_string(log).unwrap().contains("restarted"));
+    assert!(child.is_none());
+}
+
+#[cfg(unix)]
+#[test]
 fn exited_daemon_reports_failure_and_can_be_retried() {
     let dir = tempfile::tempdir().unwrap();
     let cli = test_cli(dir.path(), "echo startup-failed >&2; exit 7");

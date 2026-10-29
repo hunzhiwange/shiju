@@ -36,6 +36,13 @@ fn ensure_daemon(
         return Ok(());
     }
 
+    // An upgrade may have stopped the child retained by a previous startup attempt.
+    if let Some(process) = child.as_mut()
+        && process.try_wait().map_err(|error| format!("检查服务进程失败: {error}"))?.is_some()
+    {
+        *child = None;
+    }
+
     let logs = config_dir.join("logs");
     if let Err(error) = fs::create_dir_all(&logs) {
         tracing::warn!(target: "vw_desktop", %error, "cannot create daemon logs; startup will continue");

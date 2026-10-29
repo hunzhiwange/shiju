@@ -37,6 +37,10 @@ const GATEWAY_STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 #[path = "config_cli_bootstrap_windows.rs"]
 mod windows_bootstrap;
 
+#[cfg(all(not(target_arch = "wasm32"), any(windows, test)))]
+#[path = "config_cli_install_windows.rs"]
+mod windows_install;
+
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct GatewayRuntimeEndpoint {
@@ -150,7 +154,7 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
     }
 
     fs::create_dir_all(&install_dir).map_err(|err| format!("创建 CLI 安装目录失败: {err}"))?;
-    // Windows 不允许替换仍被常驻服务占用的可执行文件。
+    // 计划任务与桌面直接启动的 daemon 都必须退出，才能切换到新的构建。
     #[cfg(windows)]
     if target_bin.is_file() {
         run_cli_command(
@@ -158,6 +162,7 @@ fn ensure_cli_installed(home: &Path) -> Result<PathBuf, String> {
             &vw_config_types::paths::home_config_dir(home),
             &["service", "stop"],
         )?;
+        windows_install::stop_installed_daemon(&target_bin, &load_gateway_runtime_endpoint(home)?)?;
     }
     install_cli_from_source(&source_bin, &target_bin)?;
     let _ = ensure_path_profiles(home, &install_dir).map_err(|err| {
@@ -207,12 +212,7 @@ fn replace_staged_cli(staged: &Path, target: &Path) -> Result<(), String> {
 
 #[cfg(all(not(target_arch = "wasm32"), windows))]
 fn replace_staged_cli(staged: &Path, target: &Path) -> Result<(), String> {
-    if target.exists() {
-        fs::remove_file(target)
-            .map_err(|err| format!("移除旧 CLI 可执行文件失败 {}: {err}", target.display()))?;
-    }
-    fs::rename(staged, target)
-        .map_err(|err| format!("替换 CLI 可执行文件失败 {}: {err}", target.display()))
+    windows_install::replace_staged_cli(staged, target)
 }
 
 #[cfg(all(not(target_arch = "wasm32"), any(not(windows), test)))]

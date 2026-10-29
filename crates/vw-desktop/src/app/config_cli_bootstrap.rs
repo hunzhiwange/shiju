@@ -13,7 +13,9 @@ use std::path::{Path, PathBuf};
 #[cfg(not(target_arch = "wasm32"))]
 use std::process::Command;
 #[cfg(not(target_arch = "wasm32"))]
-use std::time::{Duration, Instant};
+use std::time::Duration;
+#[cfg(all(not(target_arch = "wasm32"), any(not(windows), test)))]
+use std::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 use vw_config_types::gateway::DEFAULT_GATEWAY_PORT;
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,8 +33,9 @@ const GATEWAY_HEALTH_CONNECT_TIMEOUT: Duration = Duration::from_millis(250);
 const GATEWAY_STARTUP_POLL_INTERVAL: Duration = Duration::from_millis(200);
 #[cfg(not(target_arch = "wasm32"))]
 const GATEWAY_STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
-#[cfg(all(not(target_arch = "wasm32"), target_os = "windows"))]
-const WINDOWS_TASK_NAME: &str = "ShiJu Daemon";
+#[cfg(all(not(target_arch = "wasm32"), any(windows, test)))]
+#[path = "config_cli_bootstrap_windows.rs"]
+mod windows_bootstrap;
 
 #[cfg(not(target_arch = "wasm32"))]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -70,7 +73,17 @@ impl GatewayRuntimeEndpoint {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn bootstrap_cli_service_async() -> Result<(), String> {
-    tokio::task::spawn_blocking(bootstrap_cli_service)
+    tokio::task::spawn_blocking(|| {
+        #[cfg(windows)]
+        windows_bootstrap::record_startup("begin Windows direct-daemon-v3 log-failure-nonfatal");
+        let result = bootstrap_cli_service();
+        #[cfg(windows)]
+        match &result {
+            Ok(()) => windows_bootstrap::record_startup("ready"),
+            Err(error) => windows_bootstrap::record_startup(&format!("failed: {error}")),
+        }
+        result
+    })
         .await
         .map_err(|err| format!("CLI 服务引导任务失败: {err}"))?
 }
@@ -89,39 +102,41 @@ fn bootstrap_cli_service() -> Result<(), String> {
     let cli_build_id = vw_shared::build_identity::executable_build_id(&cli)
         .map_err(|error| format!("计算 CLI 构建标识失败 {}: {error}", cli.display()))?;
     let endpoint = sync_gateway_client_bootstrap_from_runtime_config(&home)?;
-    let installed = service_installed(&home);
-    let health = gateway_health(&endpoint);
-    #[cfg(target_os = "windows")]
-    let running = health.is_some();
-    #[cfg(not(target_os = "windows"))]
-    let running = service_running(&home);
-    let running_build_id =
-        health.as_ref().and_then(|body| body.get("build_id")).and_then(serde_json::Value::as_str);
-    // Windows 旧任务可能因权限或启动参数错误而无法运行，需要重新注册才能恢复。
-    let service_outdated = installed
-        && ((cfg!(windows) && !running)
-            || (running && running_build_id != Some(cli_build_id.as_str())));
+    #[cfg(windows)]
+    return windows_bootstrap::bootstrap(&cli, &config_dir, &endpoint, &cli_build_id);
 
-    if service_install_required(service_outdated, installed) {
-        if service_outdated {
-            tracing::info!(
-                target: "vw_desktop",
-                running_build_id = ?running_build_id,
-                cli_build_id = %cli_build_id,
-                "local service is unavailable or uses a different build; reinstalling the local service"
-            );
+    #[cfg(not(windows))]
+    {
+        let installed = service_installed(&home);
+        let health = gateway_health(&endpoint);
+        let running = service_running(&home);
+        let running_build_id = health
+            .as_ref()
+            .and_then(|body| body.get("build_id"))
+            .and_then(serde_json::Value::as_str);
+        let service_outdated =
+            installed && running && running_build_id != Some(cli_build_id.as_str());
+
+        if service_install_required(service_outdated, installed) {
+            if service_outdated {
+                tracing::info!(
+                    target: "vw_desktop",
+                    running_build_id = ?running_build_id,
+                    cli_build_id = %cli_build_id,
+                    "local service is unavailable or uses a different build; reinstalling the local service"
+                );
+            }
+            run_cli_command(&cli, &config_dir, &["service", "install"])?;
         }
-        run_cli_command(&cli, &config_dir, &["service", "install"])?;
-    }
 
-    // Windows 的健康端点也可能来自单独启动的 gateway，仍需启动完整服务。
-    if cfg!(windows) || service_outdated || !running || health.is_none() {
-        run_cli_command(&cli, &config_dir, &["service", "start"])?;
-    }
+        if service_outdated || !running || health.is_none() {
+            run_cli_command(&cli, &config_dir, &["service", "start"])?;
+        }
 
-    wait_for_gateway_build(&endpoint, &cli_build_id, GATEWAY_STARTUP_TIMEOUT)
-        .then_some(())
-        .ok_or_else(|| format!("Gateway 服务启动后构建版本未就绪: {}", endpoint.describe()))
+        wait_for_gateway_build(&endpoint, &cli_build_id, GATEWAY_STARTUP_TIMEOUT)
+            .then_some(())
+            .ok_or_else(|| format!("Gateway 服务启动后构建版本未就绪: {}", endpoint.describe()))
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -200,7 +215,7 @@ fn replace_staged_cli(staged: &Path, target: &Path) -> Result<(), String> {
         .map_err(|err| format!("替换 CLI 可执行文件失败 {}: {err}", target.display()))
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), any(not(windows), test)))]
 fn service_install_required(service_outdated: bool, service_installed: bool) -> bool {
     service_outdated || !service_installed
 }
@@ -395,7 +410,7 @@ fn gateway_health_ready(endpoint: &GatewayRuntimeEndpoint) -> bool {
     gateway_health(endpoint).is_some()
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), any(not(windows), test)))]
 fn gateway_build_id(endpoint: &GatewayRuntimeEndpoint) -> Option<String> {
     gateway_health(endpoint)?
         .get("build_id")
@@ -403,7 +418,7 @@ fn gateway_build_id(endpoint: &GatewayRuntimeEndpoint) -> Option<String> {
         .map(str::to_string)
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), any(not(windows), test)))]
 fn wait_for_gateway_build(
     endpoint: &GatewayRuntimeEndpoint,
     expected_build_id: &str,
@@ -465,7 +480,7 @@ fn resolve_gateway_socket_address(endpoint: &GatewayRuntimeEndpoint) -> Option<S
         .find(|addr| addr.is_ipv4() || addr.is_ipv6())
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), not(windows)))]
 fn service_installed(_home: &Path) -> bool {
     #[cfg(target_os = "macos")]
     {
@@ -485,14 +500,6 @@ fn service_installed(_home: &Path) -> bool {
             .join("vibewindow.service")
             .exists()
             || Path::new("/etc/init.d/vibewindow").exists();
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        return background_command("schtasks")
-            .args(["/Query", "/TN", WINDOWS_TASK_NAME])
-            .output()
-            .is_ok_and(|output| output.status.success());
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]

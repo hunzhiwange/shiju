@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -12,6 +13,63 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class WindowsBundleTests(unittest.TestCase):
+    def test_packaging_finishes_when_script_changes_during_build(self):
+        for mode in ("app", "cli"):
+            with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                script = root / "bundle_windows.sh"
+                shutil.copyfile(REPO / "scripts/bundle_windows.sh", script)
+                commands = root / "bin"
+                commands.mkdir()
+                for name, body in (
+                    ("uname", "#!/bin/sh\necho Windows_NT\n"),
+                    ("cargo-xwin", "#!/bin/sh\nexit 0\n"),
+                    ("cargo", """#!/usr/bin/env python3
+import os, sys
+from pathlib import Path
+script = Path(os.environ['BUNDLE_SCRIPT'])
+marker = script.with_suffix('.changed')
+if not marker.exists():
+    script.write_text('# changed during compilation\\n' * 512 + script.read_text())
+    marker.touch()
+args = sys.argv[1:]
+output = Path(os.environ['CARGO_TARGET_DIR']) / os.environ['TARGET'] / os.environ['PROFILE']
+output.mkdir(parents=True, exist_ok=True)
+for index, argument in enumerate(args):
+    if argument == '--bin':
+        name = args[index + 1] + '.exe'
+        (output / name).write_text(name)
+"""),
+                ):
+                    command = commands / name
+                    command.write_text(body)
+                    command.chmod(0o755)
+                output = root / "output"
+                env = dict(
+                    os.environ, PATH=f"{commands}:{os.environ['PATH']}",
+                    TARGET="x86_64-pc-windows-msvc", PROFILE="release", MODE=mode,
+                    OUT_DIR=str(output), CARGO_TARGET_DIR=str(root / "target"),
+                    CREATE_ZIP="1", CREATE_MSI="0", INCLUDE_CLI_IN_APP="1",
+                    INCLUDE_ACP_IN_APP="1", INCLUDE_CLI_COMPAT_IN_APP="0",
+                    WINDOWS_ICON_SOURCE=str(REPO / "assets/logo.png"),
+                    BUNDLE_SCRIPT=str(script),
+                )
+                result = subprocess.run(
+                    ["/bin/bash", str(script)], cwd=root, env=env,
+                    capture_output=True, text=True, check=False, timeout=30,
+                )
+                self.assertTrue(script.with_suffix('.changed').exists())
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                archives = list(output.glob("*.zip"))
+                self.assertEqual(len(archives), 1)
+                binaries = (
+                    ("shi-ju.exe", "vw-webview.exe", "shiju.exe", "acp.exe")
+                    if mode == "app" else ("shiju.exe", "vibe-agent.exe")
+                )
+                with zipfile.ZipFile(archives[0]) as archive:
+                    for name in binaries:
+                        self.assertEqual(archive.read(name).decode(), name)
+
     def test_cross_build_requires_xwin_before_invoking_cargo(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

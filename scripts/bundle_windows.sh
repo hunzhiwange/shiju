@@ -192,56 +192,62 @@ build_acp_binary() {
   build_windows_package -p vw-acp --bin acp --all-features
 }
 
-BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
+# Parse the workflow before Cargo runs so edits during compilation cannot shift reads.
+main() {
+  BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
 
-if [ "$MODE" = "cli" ]; then
-  build_cli_binaries
+  if [ "$MODE" = "cli" ]; then
+    build_cli_binaries
+    mkdir -p "$OUT_DIR"
+    generate_windows_icon
+    cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
+    cp "$BIN_DIR/$CLI_COMPAT_BIN_NAME" "$OUT_DIR/$CLI_COMPAT_BIN_NAME"
+    ZIP_NAME="ShiJu-CLI-$TARGET-$PROFILE.zip"
+    zip_from_out_dir "$ZIP_NAME" "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$WINDOWS_ICON_NAME"
+    echo "$OUT_DIR/$ZIP_NAME"
+    exit 0
+  fi
+
+  if [ "$INCLUDE_CLI_IN_APP" != "1" ] || [ "$INCLUDE_ACP_IN_APP" != "1" ]; then
+    echo "Error: desktop packages require bundled shiju.exe and acp.exe; INCLUDE_CLI_IN_APP and INCLUDE_ACP_IN_APP must be 1." >&2
+    exit 1
+  fi
+
+  # Always ask Cargo to check source freshness; existing files can be stale.
+  build_app_binaries
+
   mkdir -p "$OUT_DIR"
   generate_windows_icon
-  cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
-  cp "$BIN_DIR/$CLI_COMPAT_BIN_NAME" "$OUT_DIR/$CLI_COMPAT_BIN_NAME"
-  ZIP_NAME="ShiJu-CLI-$TARGET-$PROFILE.zip"
-  zip_from_out_dir "$ZIP_NAME" "$CLI_BIN_NAME" "$CLI_COMPAT_BIN_NAME" "$WINDOWS_ICON_NAME"
-  echo "$OUT_DIR/$ZIP_NAME"
-  exit 0
-fi
-
-if [ "$INCLUDE_CLI_IN_APP" != "1" ] || [ "$INCLUDE_ACP_IN_APP" != "1" ]; then
-  echo "Error: desktop packages require bundled shiju.exe and acp.exe; INCLUDE_CLI_IN_APP and INCLUDE_ACP_IN_APP must be 1." >&2
-  exit 1
-fi
-
-# Always ask Cargo to check source freshness; existing files can be stale.
-build_app_binaries
-
-mkdir -p "$OUT_DIR"
-generate_windows_icon
-write_service_launcher
-cp "$BIN_DIR/$DESKTOP_SOURCE_BIN_NAME" "$OUT_DIR/$DESKTOP_BIN_NAME"
-cp "$BIN_DIR/vw-webview.exe" "$OUT_DIR/"
-ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$SERVICE_LAUNCHER_NAME")
-if [ "${INCLUDE_CLI_IN_APP}" = "1" ]; then
-  build_cli_binary
-  cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
-  ZIP_FILES+=("$CLI_BIN_NAME")
-  if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
-    build_cli_compat_binary
-    cp "$BIN_DIR/$CLI_COMPAT_BIN_NAME" "$OUT_DIR/$CLI_COMPAT_BIN_NAME"
-    ZIP_FILES+=("$CLI_COMPAT_BIN_NAME")
+  write_service_launcher
+  cp "$BIN_DIR/$DESKTOP_SOURCE_BIN_NAME" "$OUT_DIR/$DESKTOP_BIN_NAME"
+  cp "$BIN_DIR/vw-webview.exe" "$OUT_DIR/"
+  ZIP_FILES=("$DESKTOP_BIN_NAME" "vw-webview.exe" "$WINDOWS_ICON_NAME" "$SERVICE_LAUNCHER_NAME")
+  if [ "${INCLUDE_CLI_IN_APP}" = "1" ]; then
+    build_cli_binary
+    cp "$BIN_DIR/$CLI_SOURCE_BIN_NAME" "$OUT_DIR/$CLI_BIN_NAME"
+    ZIP_FILES+=("$CLI_BIN_NAME")
+    if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
+      build_cli_compat_binary
+      cp "$BIN_DIR/$CLI_COMPAT_BIN_NAME" "$OUT_DIR/$CLI_COMPAT_BIN_NAME"
+      ZIP_FILES+=("$CLI_COMPAT_BIN_NAME")
+    fi
   fi
-fi
-if [ "${INCLUDE_ACP_IN_APP}" = "1" ]; then
-  build_acp_binary
-  cp "$BIN_DIR/$ACP_BIN_NAME" "$OUT_DIR/$ACP_BIN_NAME"
-  ZIP_FILES+=("$ACP_BIN_NAME")
-fi
+  if [ "${INCLUDE_ACP_IN_APP}" = "1" ]; then
+    build_acp_binary
+    cp "$BIN_DIR/$ACP_BIN_NAME" "$OUT_DIR/$ACP_BIN_NAME"
+    ZIP_FILES+=("$ACP_BIN_NAME")
+  fi
 
-if [ "$CREATE_ZIP" = "1" ]; then
-  ZIP_NAME="ShiJu-$TARGET-$PROFILE.zip"
-  zip_from_out_dir "$ZIP_NAME" "${ZIP_FILES[@]}"
-  echo "$OUT_DIR/$ZIP_NAME"
-fi
+  if [ "$CREATE_ZIP" = "1" ]; then
+    ZIP_NAME="ShiJu-$TARGET-$PROFILE.zip"
+    zip_from_out_dir "$ZIP_NAME" "${ZIP_FILES[@]}"
+    echo "$OUT_DIR/$ZIP_NAME"
+  fi
 
-if [ "$CREATE_MSI" = "1" ]; then
-  build_msi
-fi
+  if [ "$CREATE_MSI" = "1" ]; then
+    build_msi
+  fi
+}
+
+# Exit in the same parsed list instead of reading a possibly modified script again.
+main "$@"; exit

@@ -31,6 +31,35 @@ Each application's `crates/vw-*/dist.toml` overrides its distribution name. Carg
 
 Linux `.deb`/`.rpm` packages are built by `scripts/bundle_linux.sh` with `dpkg-deb` and `rpmbuild` after cargo-dist has produced the target binaries.
 
+## Windows MSI
+
+The MSI wizard lets users choose the install folder (default: `C:\Program Files\ShiJu`),
+shows installation progress, and stays on a completion page until they click Finish.
+The completion page explains how to open ShiJu and use the CLI in a new terminal.
+Silent installations (`/qn`) intentionally omit these dialogs.
+
+The installer creates desktop and Start menu shortcuts, updates the system PATH,
+and registers the product with Windows Installer for repair and uninstall.
+Shortcut markers are stored under `HKCU\Software\ShiJu`; the selected folder is
+stored in the 64-bit `HKLM\Software\ShiJu\InstallLocation` value and reused on upgrades.
+Uninstall removes these installer-owned values and the installed PATH entry.
+An explicit folder supplied by the wizard or `INSTALLFOLDER` takes precedence:
+
+```powershell
+msiexec /i ShiJu-x86_64-pc-windows-msvc-dist.msi INSTALLFOLDER="D:\Apps\ShiJu"
+```
+
+MSI builds require WiX 5.0.2 and its matching UI extension (also installed by CI):
+
+```sh
+dotnet tool install --global wix --version 5.0.2
+wix extension add --global WixToolset.UI.wixext/5.0.2
+```
+
+Before publishing, verify on Windows: initial install to a path containing spaces
+and Chinese characters, visible completion page, shortcut/CLI launch, upgrade
+preserving that folder, repair, cancellation, and uninstall cleanup. Test x64 and ARM64.
+
 ## Required GitHub Secrets
 
 - `NPM_TOKEN`: required for publishing the generated npm installer package.

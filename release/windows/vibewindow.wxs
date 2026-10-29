@@ -1,4 +1,5 @@
-<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
   <Package
     Name="ShiJu"
     UpgradeCode="C8512FCC-FA63-4C65-9458-B5363A71E371"
@@ -15,6 +16,18 @@
     <MediaTemplate EmbedCab="yes" />
     <Icon Id="ShiJuIcon" SourceFile="ShiJu.ico" />
     <Property Id="ARPPRODUCTICON" Value="ShiJuIcon" />
+    <Property Id="INSTALLFOLDER" Secure="yes" />
+    <Property Id="PREVIOUSINSTALLFOLDER">
+      <RegistrySearch Id="PreviousInstallLocation" Root="HKLM" Key="Software\ShiJu" Name="InstallLocation" Type="raw" />
+    </Property>
+    <!-- Keep a directory chosen in the UI or on the command line during execute-sequence AppSearch. -->
+    <SetProperty Id="INSTALLFOLDER" Value="[PREVIOUSINSTALLFOLDER]" After="AppSearch" Sequence="both" Condition="PREVIOUSINSTALLFOLDER AND NOT INSTALLFOLDER" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" Sequence="execute" />
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="ShiJu has been installed successfully. Open ShiJu from the desktop or Start menu. To use the shiju command, open a new terminal." />
 
     <Feature Id="Complete" Title="ShiJu" Level="1">
       <ComponentRef Id="DesktopExecutable" />
@@ -25,10 +38,11 @@
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
       <ComponentRef Id="PathEnvironment" />
+      <ComponentRef Id="InstallLocation" />
     </Feature>
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="ShiJuProgramFiles" Name="ShiJu">
+      <Directory Id="INSTALLFOLDER" Name="ShiJu">
         <Component Id="DesktopExecutable" Guid="666108C4-9613-4ECD-BA56-CFFD914949AF">
           <File Id="DesktopExecutableFile" Source="{{ .Binary }}.exe" Name="shi-ju.exe" KeyPath="yes" />
         </Component>
@@ -45,7 +59,10 @@
           <File Id="ServiceLauncherFile" Source="Start ShiJu Service.cmd" Name="Start ShiJu Service.cmd" KeyPath="yes" />
         </Component>
         <Component Id="PathEnvironment" Guid="7A9F339C-EFD2-4C60-A54B-90BB891E1923" KeyPath="yes">
-          <Environment Id="PathEnv" Name="PATH" Value="[ShiJuProgramFiles]" Permanent="no" Part="first" Action="set" System="yes" />
+          <Environment Id="PathEnv" Name="PATH" Value="[INSTALLFOLDER]" Permanent="no" Part="first" Action="set" System="yes" />
+        </Component>
+        <Component Id="InstallLocation" Guid="DA978BE7-343B-4492-A50C-B8B7904756C0">
+          <RegistryValue Root="HKLM" Key="Software\ShiJu" Name="InstallLocation" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
         </Component>
       </Directory>
     </StandardDirectory>
@@ -57,8 +74,8 @@
           Name="ShiJu"
           Description="Open ShiJu"
           Icon="ShiJuIcon"
-          Target="[ShiJuProgramFiles]shi-ju.exe"
-          WorkingDirectory="ShiJuProgramFiles" />
+          Target="[INSTALLFOLDER]shi-ju.exe"
+          WorkingDirectory="INSTALLFOLDER" />
         <RegistryValue Root="HKCU" Key="Software\ShiJu" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </StandardDirectory>
@@ -71,15 +88,15 @@
             Name="ShiJu"
             Description="Open ShiJu"
             Icon="ShiJuIcon"
-            Target="[ShiJuProgramFiles]shi-ju.exe"
-            WorkingDirectory="ShiJuProgramFiles" />
+            Target="[INSTALLFOLDER]shi-ju.exe"
+            WorkingDirectory="INSTALLFOLDER" />
           <Shortcut
             Id="ShiJuServiceShortcut"
             Name="Start ShiJu Service"
             Description="Start the ShiJu service (gateway, channels and scheduler)"
             Icon="ShiJuIcon"
-            Target="[ShiJuProgramFiles]Start ShiJu Service.cmd"
-            WorkingDirectory="ShiJuProgramFiles" />
+            Target="[INSTALLFOLDER]Start ShiJu Service.cmd"
+            WorkingDirectory="INSTALLFOLDER" />
           <RemoveFolder Id="ShiJuProgramMenu" On="uninstall" />
           <RegistryValue Root="HKCU" Key="Software\ShiJu" Name="installed" Type="integer" Value="1" KeyPath="yes" />
         </Component>

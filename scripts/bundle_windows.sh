@@ -135,6 +135,13 @@ text = template.read_text(encoding="utf-8")
 text = text.replace("{{ .Version }}", match.group(1))
 text = text.replace("{{ .Binary }}", "shi-ju")
 dst.write_text(text, encoding="utf-8")
+
+# WixUI ships a placeholder EULA; display the repository's actual license instead.
+license_text = (root / "LICENSE").read_text(encoding="utf-8")
+license_text = license_text.replace("\\", "\\\\").replace("{", "\\{").replace("}", "\\}")
+license_rtf = "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Segoe UI;}}\\f0\\fs18\n"
+license_rtf += license_text.replace("\n", "\\par\n") + "}"
+(dst.parent / "License.rtf").write_text(license_rtf, encoding="ascii")
 PY
 }
 
@@ -144,10 +151,20 @@ build_msi() {
     exit 1
   fi
 
+  local wix_arch
+  case "$TARGET" in
+    x86_64-pc-windows-msvc) wix_arch=x64 ;;
+    aarch64-pc-windows-msvc) wix_arch=arm64 ;;
+    *)
+      echo "Error: unsupported Windows MSI target: $TARGET" >&2
+      return 1
+      ;;
+  esac
+
   render_wix_template
   local msi_name="ShiJu-$TARGET-$PROFILE.msi"
   rm -f "$OUT_DIR/$msi_name"
-  (cd "$OUT_DIR" && wix build vibewindow.wxs -out "$msi_name")
+  (cd "$OUT_DIR" && wix build vibewindow.wxs -arch "$wix_arch" -ext WixToolset.UI.wixext -out "$msi_name")
   echo "$OUT_DIR/$msi_name"
 }
 

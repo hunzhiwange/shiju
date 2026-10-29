@@ -94,7 +94,11 @@ pub(crate) fn discover_local_skill_source_dirs_with_provider(
 ) -> Vec<LocalSkillSourceDir> {
     let mut dirs = Vec::new();
     let mut seen = HashSet::new();
-    let home_dir = std::env::var_os("HOME").map(PathBuf::from);
+    // Windows 通常只设置 USERPROFILE；保留 OsString，避免损坏中文用户名路径。
+    let home_dir = std::env::var_os("HOME")
+        .filter(|value| !value.is_empty())
+        .or_else(|| std::env::var_os("USERPROFILE").filter(|value| !value.is_empty()))
+        .map(PathBuf::from);
 
     if let Some(workspace_dir) = workspace_dir {
         let workspace_dir =

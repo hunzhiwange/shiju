@@ -12,6 +12,50 @@ fn write_skill(dir: &Path, contents: &str) {
 }
 
 #[test]
+fn skill_discovery_loads_global_skills_from_unicode_userprofile_without_home() {
+    let _lock = env_var_lock().lock().unwrap();
+    let root = tempfile::tempdir().unwrap();
+    let home = root.path().join("熊战役");
+    let _home = EnvVarGuard::unset("HOME");
+    let _profile = EnvVarGuard::set("USERPROFILE", home.to_str().unwrap());
+    let skill_root = vw_config_types::paths::home_config_dir(&home).join("skills");
+    write_skill(&skill_root.join("shiju"), "# Shiju\nUser profile skill\n");
+
+    let sources = discover_local_skill_source_dirs(None);
+    assert_eq!(sources.len(), 1);
+    assert_eq!(sources[0].kind, LocalSkillSourceKind::Global);
+    assert_eq!(sources[0].path, skill_root);
+
+    let skills = load_skills(&root.path().join("workspace"));
+    assert_eq!(skills.len(), 1);
+    assert_eq!(skills[0].name, "shiju");
+    assert_eq!(skills[0].description, "User profile skill");
+}
+
+#[test]
+fn skill_discovery_uses_userprofile_when_home_is_empty() {
+    let _lock = env_var_lock().lock().unwrap();
+    let home = tempfile::tempdir().unwrap();
+    let _home = EnvVarGuard::set("HOME", "");
+    let _profile = EnvVarGuard::set("USERPROFILE", home.path().to_str().unwrap());
+    let skill_root = vw_config_types::paths::home_config_dir(home.path()).join("skills");
+    write_skill(&skill_root.join("shiju"), "# Shiju\n");
+
+    let sources = discover_local_skill_source_dirs(None);
+    assert_eq!(sources.len(), 1);
+    assert_eq!(sources[0].path, skill_root);
+}
+
+#[test]
+fn skill_discovery_omits_global_sources_without_home_variables() {
+    let _lock = env_var_lock().lock().unwrap();
+    let _home = EnvVarGuard::unset("HOME");
+    let _profile = EnvVarGuard::unset("USERPROFILE");
+
+    assert!(discover_local_skill_source_dirs(None).is_empty());
+}
+
+#[test]
 fn skill_discovery_parses_claude_invocation_frontmatter() {
     let root = tempfile::tempdir().unwrap();
     let skill_dir = root.path().join("skills").join("review");

@@ -169,7 +169,10 @@ impl ShellProgram {
                     .arg("-NoProfile")
                     .arg("-NonInteractive")
                     .arg("-Command")
-                    .arg(command);
+                    .arg(format!(
+                        "[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); \
+                         $OutputEncoding = [Console]::OutputEncoding; {command}"
+                    ));
             }
             // CMD parses shell text rather than C-style argv. Preserve quotes
             // inside the validated command, including paths with spaces.
@@ -414,6 +417,17 @@ impl NativeRuntime {
         Self { shell: detect_native_shell() }
     }
 
+    /// Select only PowerShell for the dedicated Windows tool, never Bash or CMD.
+    #[cfg(windows)]
+    pub(crate) fn for_powershell() -> Self {
+        let shell = [("pwsh", ShellKind::Pwsh), ("powershell", ShellKind::PowerShell)]
+            .into_iter()
+            .find_map(|(name, kind)| {
+                resolve_shell_on_path(name).map(|program| ShellProgram { kind, program })
+            });
+        Self { shell }
+    }
+
     /// 获取已选择的 shell 类型名称
     ///
     /// 返回当前配置的 shell 类型字符串，用于日志和调试。
@@ -598,6 +612,9 @@ impl RuntimeAdapter for NativeRuntime {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod shell_tool_tests;
 
 #[cfg(all(test, windows))]
 mod windows_commands_tests;

@@ -9,8 +9,16 @@ fn run_command(
     host: &ShellProcesses,
     rt: &tokio::runtime::Runtime,
     owner: &ShellProcessScope,
-    command: tokio::process::Command,
+    mut command: tokio::process::Command,
 ) -> ShellProcessSnapshot {
+    // Match the real tool path: inheriting the parent environment would hide
+    // missing SYSTEMROOT/USERPROFILE and PowerShell startup failures.
+    command.env("VW_SHELL_TEST_API_TOKEN", "must-not-leak");
+    crate::tools::shell::apply_allowed_shell_environment(
+        &mut command,
+        &crate::security::SecurityPolicy::default(),
+    );
+    assert!(!command.as_std().get_envs().any(|(key, _)| key == "VW_SHELL_TEST_API_TOKEN"));
     let started = rt.block_on(host.start(owner.clone(), move || Ok(command))).unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
     while host.snapshot(owner, &started.process_id).unwrap().state == ShellProcessState::Running {
@@ -85,6 +93,12 @@ fn shell_process_windows_powershell_executes_general_commands() {
         for (script, expected, exit_code) in [
             ("Write-Output 'builtin-ok'", "builtin-ok", 0),
             (
+                "if (-not $env:SystemRoot -or -not $env:USERPROFILE -or -not $env:ComSpec -or -not $env:PATHEXT) { throw 'missing Windows environment' }; if ($env:VW_SHELL_TEST_API_TOKEN) { throw 'secret leaked' }; Write-Output 'environment-ok'",
+                "environment-ok",
+                0,
+            ),
+            ("Write-Output '中文输出🙂'; [Console]::Error.WriteLine('中文错误')", "中文输出🙂", 0),
+            (
                 "'beta', 'alpha' | Sort-Object | Set-Content -LiteralPath 'sorted data.txt'; Get-Content -LiteralPath 'sorted data.txt'",
                 "alpha\nbeta",
                 0,
@@ -150,4 +164,46 @@ fn shell_process_windows_git_bash_executes_general_commands() {
             result.output
         );
     }
+}
+
+#[test]
+fn shell_process_windows_tool_executes_powershell_with_filtered_environment() {
+    use crate::security::{AutonomyLevel, SecurityPolicy};
+    use crate::tools::shell::ShellTool;
+    use crate::tools::traits::Tool;
+    use std::sync::Arc;
+
+    let root = tempfile::tempdir().unwrap();
+    std::fs::write(root.path().join("中文文件.txt"), "fixture").unwrap();
+    let program = which::which("powershell.exe").expect("Windows PowerShell must be available");
+    let runtime =
+        NativeRuntime::new_for_test(Some(ShellProgram { kind: ShellKind::PowerShell, program }));
+    let security = Arc::new(SecurityPolicy {
+        autonomy: AutonomyLevel::Full,
+        workspace_only: false,
+        allowed_commands: vec!["Get-Location".into(), "Get-ChildItem".into()],
+        workspace_dir: root.path().to_path_buf(),
+        ..SecurityPolicy::default()
+    });
+    let tool = ShellTool::new(security, Arc::new(runtime));
+    let context = Arc::new(crate::tools::context::ToolUseContext::new(
+        uuid::Uuid::new_v4().to_string(),
+        Some(root.path().to_string_lossy().to_string()),
+    ));
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let result = rt
+        .block_on(crate::tools::scope_tool_use_context(
+            context,
+            tool.call(serde_json::json!({
+                "command": "Get-Location; Get-ChildItem -Force",
+                "description": "inspect current directory and list all files",
+                "approved": true,
+            })),
+        ))
+        .unwrap();
+    assert!(result.is_success(), "{:?}", result.data);
+    assert_eq!(result.data["exit_code"], 0);
+    let output = result.data["output"].as_str().unwrap();
+    assert!(output.contains("中文文件.txt"), "{output}");
+    assert!(!output.contains('\0'));
 }

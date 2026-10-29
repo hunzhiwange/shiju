@@ -33,3 +33,59 @@ fn shell_output_preserves_split_utf8() {
     decoder.push(&[], true, &mut output);
     assert_eq!(output.read(0).unwrap().output, "中��");
 }
+
+#[test]
+fn shell_output_decodes_powershell_utf16_diagnostics_at_every_split() {
+    let message = "Windows PowerShell 内部错误：加载托管运行时失败 8009001d。🙂\r\n";
+    for little_endian in [true, false] {
+        for with_bom in [true, false] {
+            let mut bytes = Vec::new();
+            if with_bom {
+                bytes.extend_from_slice(if little_endian { &[0xff, 0xfe] } else { &[0xfe, 0xff] });
+            }
+            for unit in message.encode_utf16() {
+                bytes.extend_from_slice(&if little_endian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                });
+            }
+            for split in 0..=bytes.len() {
+                let mut output = OutputBuffer::default();
+                let mut decoder = OutputDecoder::new(true);
+                decoder.push(&bytes[..split], false, &mut output);
+                decoder.push(&bytes[split..], true, &mut output);
+                assert_eq!(output.read(0).unwrap().output, message, "split {split}");
+            }
+            let mut output = OutputBuffer::default();
+            let mut decoder = OutputDecoder::new(true);
+            for byte in &bytes {
+                decoder.push(&[*byte], false, &mut output);
+            }
+            decoder.push(&[], true, &mut output);
+            assert_eq!(output.read(0).unwrap().output, message);
+        }
+    }
+}
+
+#[test]
+fn shell_output_replaces_incomplete_utf16_at_eof() {
+    let mut output = OutputBuffer::default();
+    let mut decoder = OutputDecoder::new(true);
+    decoder.push(&[0xff, 0xfe, b'A', 0, 0x3d, 0xd8], false, &mut output);
+    assert_eq!(output.read(0).unwrap().output, "A");
+    decoder.push(&[0], true, &mut output);
+    assert_eq!(output.read(0).unwrap().output, "A��");
+}
+
+#[test]
+fn shell_output_preserves_utf8_chinese_and_emoji_at_every_split() {
+    let bytes = "中文输出🙂\n".as_bytes();
+    for split in 0..=bytes.len() {
+        let mut output = OutputBuffer::default();
+        let mut decoder = OutputDecoder::new(true);
+        decoder.push(&bytes[..split], false, &mut output);
+        decoder.push(&bytes[split..], true, &mut output);
+        assert_eq!(output.read(0).unwrap().output, "中文输出🙂\n");
+    }
+}

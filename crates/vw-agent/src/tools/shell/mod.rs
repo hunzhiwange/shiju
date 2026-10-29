@@ -87,6 +87,32 @@ const DEFAULT_YIELD_TIME_MS: u64 = 10_000;
 const SAFE_ENV_VARS: &[&str] =
     &["PATH", "HOME", "TERM", "LANG", "LC_ALL", "LC_CTYPE", "USER", "SHELL", "TMPDIR"];
 
+// Windows shells and their runtimes need these OS/profile locations even when
+// credentials and application-specific variables are excluded.
+#[cfg(windows)]
+const PLATFORM_SAFE_ENV_VARS: &[&str] = &[
+    "SYSTEMROOT",
+    "WINDIR",
+    "SYSTEMDRIVE",
+    "COMSPEC",
+    "PATHEXT",
+    "USERPROFILE",
+    "HOMEDRIVE",
+    "HOMEPATH",
+    "USERNAME",
+    "USERDOMAIN",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMDATA",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "PROGRAMW6432",
+    "TEMP",
+    "TMP",
+];
+#[cfg(not(windows))]
+const PLATFORM_SAFE_ENV_VARS: &[&str] = &[];
+
 /// Shell 命令执行工具
 ///
 /// 提供在沙箱环境中安全执行 Shell 命令的能力。该工具实现了 [`Tool`] trait，
@@ -132,6 +158,23 @@ struct ShellExecutionPlan {
 }
 
 impl ShellTool {
+    fn command_description(&self) -> String {
+        let shell = self
+            .runtime
+            .as_any()
+            .downcast_ref::<crate::runtime::native::NativeRuntime>()
+            .and_then(|runtime| runtime.selected_shell_kind());
+        match shell {
+            Some("powershell") => "Execute Windows PowerShell 5.1 syntax. Use pwd; ls -Force to show the current directory and list hidden files. Here pwd and ls are aliases for Get-Location and Get-ChildItem. The && and || operators are unsupported; POSIX ls flags such as -a are not supported.",
+            Some("pwsh") => "Execute PowerShell 7 syntax. Use pwd and ls -Force (Get-Location and Get-ChildItem); ls is a PowerShell alias and does not accept POSIX flags such as -a.",
+            Some("cmd") => "Execute Windows CMD syntax. Use cd to print the current directory and dir /a to list files, including hidden files. POSIX commands and PowerShell syntax are not supported.",
+            Some("bash") => "Execute Bash syntax, including POSIX commands such as pwd && ls -a.",
+            Some("sh") => "Execute POSIX sh syntax, including pwd && ls -a.",
+            Some("zsh") => "Execute Zsh syntax, including pwd && ls -a.",
+            _ => "Shell command to execute using the configured runtime's shell syntax.",
+        }.to_string()
+    }
+
     fn sandbox_config_for_security(security: &SecurityPolicy) -> SandboxConfig {
         let mut sandbox_config = SandboxConfig::for_workspace(security.workspace_dir.clone());
         if security.autonomy == AutonomyLevel::Full && !security.workspace_only {
@@ -391,15 +434,20 @@ pub(super) fn collect_allowed_shell_env_vars(security: &SecurityPolicy) -> Vec<S
     for key in SAFE_ENV_VARS
         .iter()
         .copied()
+        .chain(PLATFORM_SAFE_ENV_VARS.iter().copied())
         .chain(security.shell_env_passthrough.iter().map(|s| s.as_str()))
     {
         let candidate = key.trim();
         // 跳过空字符串和无效的变量名
-        if candidate.is_empty() || !is_valid_env_var_name(candidate) {
+        if candidate.is_empty()
+            || (!PLATFORM_SAFE_ENV_VARS.contains(&candidate) && !is_valid_env_var_name(candidate))
+        {
             continue;
         }
         // 去重：只添加未见过的变量
-        if seen.insert(candidate.to_string()) {
+        let identity =
+            if cfg!(windows) { candidate.to_ascii_uppercase() } else { candidate.to_string() };
+        if seen.insert(identity) {
             out.push(candidate.to_string());
         }
     }
@@ -407,7 +455,7 @@ pub(super) fn collect_allowed_shell_env_vars(security: &SecurityPolicy) -> Vec<S
 }
 
 pub(super) fn allowed_shell_env_value(var: &str) -> Option<String> {
-    if var == "PATH" {
+    if var == "PATH" || (cfg!(windows) && var.eq_ignore_ascii_case("PATH")) {
         crate::app::agent::shell::effective_path_env()
     } else {
         crate::app::agent::shell::shell_profile_env_var(var)
@@ -418,7 +466,7 @@ pub(super) fn allowed_shell_env_value(var: &str) -> Option<String> {
 ///
 /// 执行前会先清空环境，再重新注入允许透传的变量；其中 `PATH` 使用补全后的
 /// 路径值，尽量覆盖 GUI 启动场景下缺少 Homebrew 或用户自定义 bin 目录的问题。
-pub(super) fn apply_allowed_shell_environment(
+pub(crate) fn apply_allowed_shell_environment(
     cmd: &mut tokio::process::Command,
     security: &SecurityPolicy,
 ) {
@@ -428,6 +476,10 @@ pub(super) fn apply_allowed_shell_environment(
         if let Some(val) = allowed_shell_env_value(&var) {
             cmd.env(&var, val);
         }
+    }
+    #[cfg(windows)]
+    if allowed_shell_env_value("PATHEXT").is_none() {
+        cmd.env("PATHEXT", ".COM;.EXE;.BAT;.CMD");
     }
 }
 
@@ -630,7 +682,7 @@ impl Tool for ShellTool {
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "Shell command to execute"
+                    "description": self.command_description()
                 },
                 "description": {
                     "type": "string",
@@ -671,14 +723,18 @@ impl Tool for ShellTool {
     }
 
     fn spec(&self) -> ToolSpec {
-        ToolSpec::new("bash", self.description(), self.parameters_schema())
-            .with_display_name("bash")
-            .with_aliases(["shell"])
-            .with_read_only(false)
-            .with_destructive(true)
-            .with_concurrency_safe(false)
-            .with_requires_user_interaction(false)
-            .with_strict(true)
+        ToolSpec::new(
+            "bash",
+            format!("{}\n\n{}", self.description(), self.command_description()),
+            self.parameters_schema(),
+        )
+        .with_display_name("bash")
+        .with_aliases(["shell"])
+        .with_read_only(false)
+        .with_destructive(true)
+        .with_concurrency_safe(false)
+        .with_requires_user_interaction(false)
+        .with_strict(true)
     }
 
     /// Preserve the OS exit status in structured results and gateway metadata.
@@ -821,6 +877,9 @@ fn append_note(mut output: String, note: &str) -> String {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod environment_tests;
 
 #[cfg(all(test, not(target_arch = "wasm32")))]
 #[path = "session_tools_tests.rs"]

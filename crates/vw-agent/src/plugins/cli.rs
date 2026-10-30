@@ -20,12 +20,7 @@ pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -
         PluginCommands::Audit { source } => audit_plugin_source(&source, &plugins_dir),
         PluginCommands::Install { source } => {
             let result = install_plugin_from_source(&source, &plugins_dir)?;
-            println!(
-                "Plugin installed: {} {} at {}",
-                result.identity.as_key(),
-                result.manifest.version.as_deref().unwrap_or(""),
-                result.installed_dir.display()
-            );
+            println!("{}", installation_message(&result, config));
             Ok(())
         }
         PluginCommands::Enable { name } => {
@@ -44,6 +39,26 @@ pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -
             Ok(())
         }
     }
+}
+
+pub(super) fn installation_message(
+    result: &super::PluginInstallResult,
+    config: &crate::config::Config,
+) -> String {
+    let mut message = format!(
+        "Plugin installed: {} {} at {}",
+        result.identity.as_key(),
+        result.manifest.version.as_deref().unwrap_or(""),
+        result.installed_dir.display()
+    );
+    match super::compat::onboarding::entry(&result.manifest, &result.identity, config) {
+        Ok(Some(name)) => {
+            message.push_str(&format!("\nOnboarding available on request: ${name}"));
+        }
+        Ok(None) => {}
+        Err(error) => message.push_str(&format!("\nOnboarding unavailable: {error}")),
+    }
+    message
 }
 
 fn list_plugins(config: &crate::config::Config, plugins_dir: &Path) -> Result<()> {

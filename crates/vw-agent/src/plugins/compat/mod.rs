@@ -5,6 +5,7 @@ pub(super) mod commands;
 pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
+pub(super) mod onboarding;
 pub(super) mod path_audit;
 pub(super) mod portable_manifest;
 pub(super) mod skill_frontmatter;
@@ -55,3 +56,7 @@ mod t11_tests;
 #[cfg(test)]
 #[path = "t12_tests.rs"]
 mod t12_tests;
+
+#[cfg(test)]
+#[path = "t13_tests.rs"]
+mod t13_tests;

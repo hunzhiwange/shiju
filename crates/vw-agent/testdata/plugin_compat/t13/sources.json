@@ -1,0 +1,36 @@
+{
+  "fixture_license": "Repository-authored synthetic fixture; same license as VibeWindow. No copied prompts, credentials or user data.",
+  "sources": {
+    "codex-rs/core-plugins/src/manifest.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core-plugins/src/manifest.rs",
+      "sha256": "cb6cc5e8e2004d1533141a3f11f3460a1aa8c2e0295c9583ae9726c6a75b2802",
+      "symbols": [
+        "resolve_openai_onboarding_skill"
+      ]
+    },
+    "codex-rs/core-plugins/src/agent_plugin_manifest.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core-plugins/src/agent_plugin_manifest.rs",
+      "sha256": "31f9efd68ad2a94e45d1596123d49066886c4592aa7588935170913ced1cc660",
+      "symbols": [
+        "apply_codex_agent_plugin_extension"
+      ]
+    },
+    "codex-rs/core-plugins/src/manager.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core-plugins/src/manager.rs",
+      "sha256": "e0f904cf20c45b81c8bf22a77009e917f3c2cd45eb1c70c740da171268b75807",
+      "symbols": [
+        "read_plugin_detail_for_marketplace_plugin"
+      ]
+    }
+  },
+  "expectations": {
+    "declaration": "Legacy extensions.com.openai.onboardingSkill and portable extensions.com.openai.onboardingSkill (plus legacy overlay fallback) accept package-relative paths with or without ./, without merging portable overlays.",
+    "eligibility": "The canonical declared path must equal a currently admitted package skill entry. Onboarding does not add a skill root or grant a tool.",
+    "installation": "Only show the fully qualified normal skill entry. Never execute a skill body or bundled script during install.",
+    "invocation": "Use ordinary SkillTool explicit-user, permission, arguments, resource and plugin identity boundaries.",
+    "integrity": "Package bytes remain unchanged before/after install, discovery, display and invocation."
+  }
+}

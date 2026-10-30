@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "mcmc-sampling-stan",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "swap-counts",
+          "files": {
+            "solution.py": "oracle/m1/swap-counts/solution.py"
+          }
+        },
+        {
+          "id": "drop-zero",
+          "files": {
+            "solution.py": "oracle/m1/drop-zero/solution.py"
+          }
+        },
+        {
+          "id": "accept-invalid",
+          "files": {
+            "solution.py": "oracle/m1/accept-invalid/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "wrong-prior",
+          "files": {
+            "solution.py": "oracle/m2/wrong-prior/solution.py"
+          }
+        },
+        {
+          "id": "always-accept",
+          "files": {
+            "solution.py": "oracle/m2/always-accept/solution.py"
+          }
+        },
+        {
+          "id": "reverse-ratio",
+          "files": {
+            "solution.py": "oracle/m2/reverse-ratio/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "wrong-seed",
+          "files": {
+            "solution.py": "oracle/m3/wrong-seed/solution.py"
+          }
+        },
+        {
+          "id": "keep-warmup",
+          "files": {
+            "solution.py": "oracle/m3/keep-warmup/solution.py"
+          }
+        },
+        {
+          "id": "fake-convergence",
+          "files": {
+            "solution.py": "oracle/m3/fake-convergence/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "keep-warmup",
+          "files": {
+            "solution.py": "oracle/m4/keep-warmup/solution.py"
+          }
+        },
+        {
+          "id": "swap-parameters",
+          "files": {
+            "solution.py": "oracle/m4/swap-parameters/solution.py"
+          }
+        },
+        {
+          "id": "median-for-mean",
+          "files": {
+            "solution.py": "oracle/m4/median-for-mean/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

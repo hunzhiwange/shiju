@@ -156,3 +156,26 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 `evals/promptfoo/score.sh test` 当前exit0，配置有效，不是模型评测；没有修改默认Promptfoo配置、accuracy20例或公共执行代码。全部变更仅本题目录与编号文件。
 
 收尾/恢复入口：本题ignored authorized-cmake/blocked-acceptance.json、parents-calibration.json、children-calibration.json、formal-build/、variant-provenance.json、clippy-receipt.json、clippy-input-drift.json及所有raw日志；新variant/五个正式文件可审阅，未提交。任务56保持已阻塞并保留编号文件，不能改为已完成/待回归完成。后续需要另审Stan依赖/原始语法的兼容边界，并以新独立证据目录重校准，不能改本次raw或突破7包。当前所有本题容器、下载、Node与Cargo进程结束，自有锁释放；保留唯一OCI/真实7包依赖/47源码及Cargo缓存，4CPU/8192MiB独占窗口已释放，供主会话恢复90以内其他原会话。
+
+
+## 继续恢复：已授权保留原解依赖版本（2026-10-30，进行中）
+
+用户直接答复 call_a26b4c1e616a45608ac89d36389692da 第0问“授权该精确方案，继续校准”。审批材料与4项离线真实remotes策略函数检查在本题ignored stan-upgrade-proposal/；仅在已验证七包digest基础上新增 ENV R_REMOTES_UPGRADE=never，允许新独立变体正式接线和启动前证明，不预装R库、不改原solve.sh/模型/官方6检查/资源/超时、不调用付费模型。原日志:7609已装StanHeaders2.32.10、:7658又升级2.39.1；候选抑制自动升级但不是完整依赖锁，不能预判编译/采样成功。
+
+本次证据独立保存在authorized-remotes-never/。正式变体ID=mcmc-sampling-stan-compat-remotes-never；旧七包variant及raw不覆盖。新增严格配方/继承契约/环境事实检查及schema路由；23项协议检查、20项本题unittest通过，score.sh test exit0。Clippy动态槽位1 exit0，前后Rust输入一致，自有锁释放。正在等待其它题目释放完整4CPU/8192MiB窗口，尚未构建或执行本次父控制，保持阻塞状态，不生成就绪收据。
+
+### 新变体已构建、当前资源排队检查点
+
+正式资源受限helper构建新metadata-only镜像成功（无RUN/COPY、base无ONBUILD，因此使用剩余2CPU/4GiB；父控制仍4CPU/8192MiB独占）。原全部七包层和RootFS逐字节保持，native OCI manifest=dd7e3d1d90ed3b7b9e0510f5c2390bdf5fac692e4d306436f5847f4230cf4470，config=f31b29de166b99fe20325bc25ce6f590a9dd1412974f650eb5d287061afd8cd7；Config唯一新增R_REMOTES_UPGRADE=never，C272028078/U666092032完整流校验。实际仅新增272042496字节压缩导出档和有正上限的metadata/context；不解包或重新导入已存在层。所有S10/B2/A1/安全5预算保留；最新host103411400704、VM70583431168，未信用未来释放或删除缓存。
+
+共享diagnostics.py已由其它任务改动，仅wrapper实现SHA从a8a9e489...变为7c98dc25...，case声明、image、checker/fixture/policy均未改。旧validation快照留存；指定validate --run-fixtures重新真实运行20项（4gold、4nop、12负例）全过，刷新本题validation.json。23项协议测试与40项准备/评分/报告集成测试均通过。
+
+首个正式子题m1 oracle在Agent启动前因共享资源锁BlockingIOError失败，原始children-calibration.json及child-calibration/保留为infrastructure/unscored/reward=null，无实际Agent执行、非能力0。当前新一轮控制输出隔离到children-calibration-current.json/child-calibration-current/，队列先等待完整空闲及锁可用，再做fresh8，然后原始父oracle/nop；父控制从未启动，不重复旧Stan失败的oracle。queue-owner.json/queue-state.json记录运行PID和阶段；任务47与86等仍占用窗口。queue-current.py为恢复入口，若续接先核实进程状态和已有收据，禁止重复启动。尚无preparation.json，不能标就绪。
+
+### 本次收尾：资源阻塞，未标就绪
+
+资源准入与独占窗口累计等待超过20分钟，任务47/86等的资源预留与其它控制仍未结束；本任务不能安全撤销其它会话资源。本次自有空等队列已停止，queue-owner.json标记stopped_resource_blocked_checkpoint；当前fresh8和父控制均未启动。恢复前先看blocked-checkpoint.json、queue-owner.json、queue-state.json，重新确认进程/控制输出不存在、host/VM预算和SDK/fixture身份，再执行queue-current.py；不得盲目重复已有控制。旧首个m1在启动前锁冲突的基础设施记录保留，不能算能力分。
+
+本题必跑Clippy首次slot1 exit0且前后Rust输入一致，元数据保存clippy-earlier-pass-receipt.json。额外追加的最新工作树复验领取冷缓存slot3，主动仅终止自有cargo-clippy进程组（exit -15，0行为测试），其前后Rust输入亦一致；clippy.log/receipt与refresh-cancel-reason明确保存取消事实，不冒充通过。CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-3，CARGO_BUILD_BUILD_DIR同值、JOBS1；自有锁释放、缓存保留。未改任何Rust文件、未处理无关变更。
+
+独立blocked-checkpoint.json核验inputs、fresh20、镜像/OCI SHA、冻结ELF、47源码归档、首个子题未运行Agent、当前父题0次和无preparation。无本题容器、下载、Node、Cargo或排队进程，无自有锁；未触碰其它会话暂存/进程/锁，保留镜像及所有原始失败收据。任务保持已阻塞，编号文件保留，plan.md未改；下一步是获得完整4CPU/8192MiB独占窗口后继续fresh8与原父oracle/nop校准。

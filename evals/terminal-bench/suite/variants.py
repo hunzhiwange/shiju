@@ -16,6 +16,11 @@ ID = 'build-cython-ext-compat-planarity06'
 CMAKE_PARENT = 'mcmc-sampling-stan'
 CMAKE_ID = 'mcmc-sampling-stan-compat-cmake3283'
 CMAKE_BASE = 'alexgshaw/mcmc-sampling-stan@sha256:073fc36a3347b4f6b43bd6e98339542c41ed531c771af8bee40ba10f00cfabaf'
+STAN_ID = 'mcmc-sampling-stan-compat-remotes-never'
+STAN_BASE = 'vw-mcmc-stan-cmake-compat@sha256:a6c991f2a0f6ba19abdccbd006bef08b40b9c380549d59aa29113c8a9df95559'
+STAN_BASE_CONTRACT = '0bcab5451c3a5c90a693febef793dcd67b2b2ab315b33f52f6f498f4717e803c'
+STAN_RECIPE = ('FROM ' + STAN_BASE + '\nENV R_REMOTES_UPGRADE=never\n'
+               'LABEL vw.original-parent="mcmc-sampling-stan" vw.counts-as-original-official="false"\n')
 # Exact seven-package closure authorized for task 56; no arbitrary packages.
 CMAKE_PACKAGES = {
     'cmake': {'version': '3.28.3-1build7', 'architecture': 'amd64', 'filename': 'cmake_3.28.3-1build7_amd64.deb', 'sha256': '4b0a7f8c0daf27b26b46997d994ae5d1ee7a3d11dfcda9f7627bb1462c162295'},
@@ -33,7 +38,7 @@ def parent_for(descriptor):
         raise ValueError('invalid environment variant descriptor')
     if descriptor.get('id') == ID:
         return PARENT
-    if descriptor.get('id') == CMAKE_ID:
+    if descriptor.get('id') in (CMAKE_ID, STAN_ID):
         return CMAKE_PARENT
     if descriptor.get('id') == crack_variant.ID:
         return crack_variant.PARENT
@@ -72,6 +77,8 @@ def cmake_metadata(root, contract):
 
 
 def resolve(parent, descriptor):
+    if parent == CMAKE_PARENT and isinstance(descriptor, dict) and descriptor.get('id') == STAN_ID:
+        return resolve_stan(descriptor)
     if parent == crack_variant.PARENT and parent_for(descriptor) == parent:
         return crack_variant.resolve(CASES / parent / 'variant', descriptor)
     if parent not in (PARENT, CMAKE_PARENT) or parent_for(descriptor) != parent:
@@ -102,6 +109,36 @@ def resolve(parent, descriptor):
     minimal = {k: value[k] for k in ('id', 'contract_sha256')}
     if descriptor != minimal and descriptor != value:
         raise ValueError('environment variant descriptor drift')
+    return value
+
+
+def stan_base_descriptor():
+    return resolve(CMAKE_PARENT, {'id': CMAKE_ID, 'contract_sha256': STAN_BASE_CONTRACT})
+
+
+def resolve_stan(descriptor):
+    root = CASES / CMAKE_PARENT / 'stan-variant'
+    names = ('contract.json', 'Dockerfile')
+    if any((root / n).is_symlink() or not (root / n).is_file() for n in names):
+        raise ValueError('missing trusted Stan upgrade-policy variant files')
+    contract = load(root / 'contract.json')
+    base = stan_base_descriptor()
+    if (contract.get('variant_id') != STAN_ID
+            or contract.get('original_parent_id') != CMAKE_PARENT
+            or contract.get('counts_as_original_official') is not False
+            or contract.get('dependency_phase') != 'image_build_before_agent'
+            or contract.get('base_image') != STAN_BASE or base['image'] != STAN_BASE
+            or contract.get('base_variant') != base
+            or contract.get('environment') != {'R_REMOTES_UPGRADE': 'never'}
+            or not re.fullmatch(r'vw-mcmc-stan-remotes-never@sha256:[0-9a-f]{64}', contract.get('image', ''))
+            or (root / 'Dockerfile').read_text() != STAN_RECIPE
+            or contract.get('dockerfile_sha256') != digest(root / 'Dockerfile')):
+        raise ValueError('Stan variant exceeds authorized upgrade-policy boundary')
+    value = {'id': STAN_ID, 'contract_sha256': digest(root / 'contract.json'),
+             'image': contract['image'], 'counts_as_original_official': False,
+             'files': {n: digest(root / n) for n in names}}
+    if descriptor not in (value, {k: value[k] for k in ('id', 'contract_sha256')}):
+        raise ValueError('Stan variant descriptor drift')
     return value
 
 
@@ -151,6 +188,8 @@ def check_package(path, descriptor):
 
 def expected_facts(descriptor):
     descriptor = resolve_descriptor(descriptor)
+    if descriptor['id'] == STAN_ID:
+        return {**expected_facts(stan_base_descriptor()), 'remotes_upgrade': 'never'}
     if parent_for(descriptor) == crack_variant.PARENT:
         root = CASES / crack_variant.PARENT / 'variant'
         return crack_variant.expected_facts(root, load(root / 'contract.json'))
@@ -175,7 +214,9 @@ def probe_code(descriptor):
                 '"numpy":m.version("numpy"),"constraint":os.environ.get("PIP_CONSTRAINT"),'
                 '"constraints_sha256":hashlib.sha256(p.read_bytes()).hexdigest()}))')
     # Read-only facts before Agent. No apt, dpkg installation, network or oracle.
-    return ("import subprocess,json,hashlib\n"
+    environment_fact = ("'remotes_upgrade':os.environ.get('R_REMOTES_UPGRADE'),"
+                        if descriptor['id'] == STAN_ID else '')
+    return ("import subprocess,json,hashlib,os\n"
             "raw=subprocess.check_output(['dpkg-query','-W','-f=${Package}\\t${Version}\\t${Architecture}\\n']).decode()\n"
             "installed={}\n"
             "for line in raw.splitlines():\n"
@@ -183,7 +224,7 @@ def probe_code(descriptor):
             "names=" + repr(list(CMAKE_PACKAGES)) + "\n"
             "packages={name:installed.pop(name) for name in names}\n"
             "print(json.dumps({'cmake':subprocess.check_output(['cmake','--version']).decode().splitlines()[0],"
-            "'packages':packages,'base_inventory_sha256':hashlib.sha256(json.dumps(installed,sort_keys=True,separators=(',',':')).encode()).hexdigest()}))")
+            "'packages':packages," + environment_fact + "'base_inventory_sha256':hashlib.sha256(json.dumps(installed,sort_keys=True,separators=(',',':')).encode()).hexdigest()}))")
 
 
 def check_start(receipt, descriptor):

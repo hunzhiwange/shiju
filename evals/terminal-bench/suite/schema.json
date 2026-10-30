@@ -387,6 +387,51 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "contract_sha256",
+            "image",
+            "counts_as_original_official",
+            "files"
+          ],
+          "properties": {
+            "id": {
+              "const": "mcmc-sampling-stan-compat-remotes-never"
+            },
+            "contract_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "image": {
+              "type": "string",
+              "pattern": "^vw-mcmc-stan-remotes-never@sha256:[a-f0-9]{64}$"
+            },
+            "counts_as_original_official": {
+              "const": false
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "contract.json",
+                "Dockerfile"
+              ],
+              "properties": {
+                "contract.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "Dockerfile": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
+          }
         }
       ]
     }
@@ -572,7 +617,10 @@
                 "environment_variant": {
                   "properties": {
                     "id": {
-                      "const": "mcmc-sampling-stan-compat-cmake3283"
+                      "enum": [
+                        "mcmc-sampling-stan-compat-cmake3283",
+                        "mcmc-sampling-stan-compat-remotes-never"
+                      ]
                     }
                   }
                 }

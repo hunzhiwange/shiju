@@ -30,6 +30,8 @@ pub(crate) fn resolve_servers(
     source: &str,
 ) -> Result<Vec<McpServer>> {
     let mut http_contexts = super::mcp_auth::prepare(&mut outcome, plugin)?;
+    let mut connection_settings =
+        super::mcp_connection_settings::prepare(&mut outcome, &plugin.manifest.root)?;
     let mut contexts = HashMap::new();
     for declaration in &mut outcome.servers {
         let (name, config, portable) = match declaration {
@@ -61,6 +63,11 @@ pub(crate) fn resolve_servers(
     }
     let mut servers = outcome.into_runtime_servers(source)?;
     for server in &mut servers {
+        if let Some(settings) =
+            connection_settings.remove(crate::tools::mcp_common::server_name(server))
+        {
+            super::mcp_connection_settings::bind(server, settings)?;
+        }
         if let McpServer::Http(server) = server
             && let Some(context) = http_contexts.remove(&server.name)
         {

@@ -6,6 +6,9 @@ pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
 pub(super) mod mcp_auth;
+pub(crate) mod mcp_connection_sessions;
+pub(crate) mod mcp_connection_settings;
+pub(crate) mod mcp_connections;
 pub(super) mod mcp_environment;
 pub(super) mod mcp_legacy;
 pub(super) mod mcp_portable;
@@ -86,3 +89,7 @@ mod t17_tests;
 #[cfg(test)]
 #[path = "t17_public_tests.rs"]
 mod t17_public_tests;
+
+#[cfg(test)]
+#[path = "t18_tests.rs"]
+mod t18_tests;

@@ -98,6 +98,11 @@ pub async fn execute_tool_from_registry(
     input: Value,
     tool_use_context: Arc<ToolUseContext>,
 ) -> Result<ExecutedToolCall, ToolCallError> {
+    if let Some(root) = tool_use_context.workspace_root() {
+        crate::plugins::mcp_session_connections(tool_use_context.session(), &root)
+            .ensure_ready()
+            .map_err(|error| ToolCallError::Failed(error.to_string()))?;
+    }
     let hook_runner = tool_use_context.hook_runner();
     let started = Instant::now();
     let execution_context = tool_use_context.clone();

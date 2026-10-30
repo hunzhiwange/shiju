@@ -529,6 +529,12 @@ pub async fn update(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<Info,
         }
     })
     .await??;
+    if result.time.archived.is_some() {
+        crate::plugins::close_session_mcp_connections(
+            &result.id,
+            std::path::Path::new(&result.directory),
+        );
+    }
     // 记录更新日志
     LOGGER.info(
         "updated",
@@ -676,6 +682,12 @@ pub async fn update_any(session_id: &str, f: impl FnOnce(&mut Info)) -> Result<I
         }
     })
     .await??;
+    if result.time.archived.is_some() {
+        crate::plugins::close_session_mcp_connections(
+            &result.id,
+            std::path::Path::new(&result.directory),
+        );
+    }
     // 记录更新日志
     LOGGER.info(
         "updated",
@@ -708,6 +720,7 @@ pub async fn remove(session_id: &str) -> Result<(), Error> {
     let tenant = crate::session::ui_store::current_tenant_scope();
     // 先读取会话信息（用于事件发布）
     let info = get(session_id).await?;
+    crate::plugins::close_session_mcp_connections(&info.id, std::path::Path::new(&info.directory));
     #[cfg(not(target_arch = "wasm32"))]
     crate::tools::shell::processes::cancel_session(
         &serde_json::to_string(&tenant).expect("tenant serialization"),
@@ -776,6 +789,7 @@ pub async fn remove_any(session_id: &str) -> Result<(), Error> {
         })));
     };
     let project_id = info.project_id.clone();
+    crate::plugins::close_session_mcp_connections(&info.id, std::path::Path::new(&info.directory));
     #[cfg(not(target_arch = "wasm32"))]
     crate::tools::shell::processes::cancel_session(
         &serde_json::to_string(&tenant).expect("tenant serialization"),

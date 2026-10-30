@@ -38,8 +38,7 @@ type McpToolCallHandler = Arc<dyn Fn(String, JsonObject) -> McpToolCallFuture + 
 /// 单个动态 MCP 远端工具。
 ///
 /// 实例持有发现阶段生成的本地规格，以及执行 `tools/call` 所需的 server/tool 稳定名称。
-/// 默认执行器会从 ACP 配置查找 server，并在一次调用生命周期内通过 `with_server_peer`
-/// 建立 peer。
+/// 默认执行器从 ACP 配置查找 server；会话绑定的工具复用所属会话的活动 peer。
 #[derive(Clone)]
 pub struct McpTool {
     server_name: String,
@@ -86,8 +85,29 @@ impl McpTool {
         tool_name: impl Into<String>,
         spec: ToolSpec,
     ) -> Self {
+        Self::from_session_server(
+            server,
+            tool_name,
+            spec,
+            Arc::new(crate::plugins::McpSessionConnections::default()),
+            None,
+        )
+    }
+
+    pub(crate) fn from_session_server(
+        server: McpServer,
+        tool_name: impl Into<String>,
+        spec: ToolSpec,
+        connections: Arc<crate::plugins::McpSessionConnections>,
+        timeout: Option<std::time::Duration>,
+    ) -> Self {
         let server_name = server_name(&server).to_string();
-        Self::with_call_fn(server_name, tool_name, spec, configured_call_handler(server))
+        Self::with_call_fn(
+            server_name,
+            tool_name,
+            spec,
+            configured_call_handler(server, connections, timeout),
+        )
     }
 
     #[cfg(test)]
@@ -270,12 +290,18 @@ fn default_call_handler(server_name: String) -> McpToolCallHandler {
     })
 }
 
-fn configured_call_handler(server: McpServer) -> McpToolCallHandler {
+fn configured_call_handler(
+    server: McpServer,
+    connections: Arc<crate::plugins::McpSessionConnections>,
+    timeout: Option<std::time::Duration>,
+) -> McpToolCallHandler {
     Arc::new(move |tool_name, arguments| {
         let server = server.clone();
-        Box::pin(
-            async move { call_configured_remote_mcp_tool(&server, &tool_name, arguments).await },
-        )
+        let connections = connections.clone();
+        Box::pin(async move {
+            call_configured_remote_mcp_tool(&server, &tool_name, arguments, &connections, timeout)
+                .await
+        })
     })
 }
 
@@ -307,21 +333,24 @@ async fn call_configured_remote_mcp_tool(
     server: &McpServer,
     tool_name: &str,
     arguments: JsonObject,
+    connections: &crate::plugins::McpSessionConnections,
+    timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<CallToolResult> {
-    with_server_peer(server, |peer: &Peer<RoleClient>| {
-        let tool_name = tool_name.to_string();
-        let arguments = arguments.clone();
-        Box::pin(async move {
-            let result = peer
-                .call_tool(CallToolRequestParam {
-                    name: Cow::Owned(tool_name),
-                    arguments: Some(arguments),
-                })
-                .await?;
-            Ok(result)
+    connections
+        .with_peer(server, timeout, |peer: &Peer<RoleClient>| {
+            let tool_name = tool_name.to_string();
+            let arguments = arguments.clone();
+            Box::pin(async move {
+                let result = peer
+                    .call_tool(CallToolRequestParam {
+                        name: Cow::Owned(tool_name),
+                        arguments: Some(arguments),
+                    })
+                    .await?;
+                Ok(result)
+            })
         })
-    })
-    .await
+        .await
 }
 
 fn input_as_json_object(input: Value) -> anyhow::Result<JsonObject> {

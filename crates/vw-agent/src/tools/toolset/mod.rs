@@ -894,7 +894,7 @@ pub fn all_tools_with_runtime(
     }
 
     tool_arcs.push(Arc::new(McpStatusTool::new()));
-    register_dynamic_mcp_tools(&mut tool_arcs, workspace_dir);
+    register_dynamic_mcp_tools(&mut tool_arcs, workspace_dir, session_id_override);
 
     let catalog = ToolDiscoveryCatalog::new(tool_arcs.iter().map(|tool| tool.spec()).collect());
     if catalog.has_deferred_tools() {
@@ -940,14 +940,33 @@ fn enabled_delegate_agents_with_project_skills(
     enabled
 }
 
-fn register_dynamic_mcp_tools(tool_arcs: &mut Vec<Arc<dyn Tool>>, workspace_dir: &Path) {
+fn register_dynamic_mcp_tools(
+    tool_arcs: &mut Vec<Arc<dyn Tool>>,
+    workspace_dir: &Path,
+    session: Option<&str>,
+) {
+    let connections = session
+        .map(|id| crate::plugins::mcp_session_connections(id, workspace_dir))
+        .unwrap_or_default();
     let config = match block_on(super::mcp_common::load_resolved_acp_config_from(workspace_dir)) {
         Ok(config) => config,
         Err(error) => {
+            let _ = connections.synchronize(&[]);
             tracing::warn!("MCP toolset: failed to load ACP config for dynamic tools: {error}");
             return;
         }
     };
+
+    let enabled = config
+        .mcp_servers
+        .iter()
+        .filter(|server| super::mcp_common::management_for_server(&config, server).enabled)
+        .cloned()
+        .collect::<Vec<_>>();
+    if connections.synchronize(&enabled).is_err() {
+        connections.record_required_failure("configuration");
+        return;
+    }
 
     for server in &config.mcp_servers {
         let server_label = super::mcp_common::server_name(server).to_string();
@@ -966,6 +985,7 @@ fn register_dynamic_mcp_tools(tool_arcs: &mut Vec<Arc<dyn Tool>>, workspace_dir:
             server.clone(),
             management.clone(),
             &existing_refs,
+            connections.clone(),
         )) {
             Ok(tools) => {
                 for tool in tools {
@@ -978,7 +998,11 @@ fn register_dynamic_mcp_tools(tool_arcs: &mut Vec<Arc<dyn Tool>>, workspace_dir:
                 }
             }
             Err(error) => {
-                if management.required {
+                if management.required
+                    || crate::plugins::plugin_mcp_connection_settings(server)
+                        .is_ok_and(|settings| settings.required)
+                {
+                    connections.record_required_failure(&server_label);
                     tracing::error!(
                         server = server_label.as_str(),
                         "MCP toolset: required server failed dynamic tool discovery: {error}"
@@ -998,6 +1022,7 @@ async fn discover_dynamic_mcp_tools(
     server: agent_client_protocol::McpServer,
     management: vw_acp::McpServerManagement,
     existing_tool_ids: &[&str],
+    connections: Arc<crate::plugins::McpSessionConnections>,
 ) -> anyhow::Result<Vec<super::mcp_tool::McpTool>> {
     let server_label = super::mcp_common::server_name(&server).to_string();
     let existing_tool_ids =
@@ -1006,42 +1031,51 @@ async fn discover_dynamic_mcp_tools(
 
     let timeout = super::mcp_common::management_timeout(&management);
 
-    super::mcp_common::with_server_peer_timeout(&server, timeout, move |peer| {
-        let server_label = server_label.clone();
-        let existing_tool_ids = existing_tool_ids.clone();
-        let configured_server = configured_server.clone();
-        let management = management.clone();
-        Box::pin(async move {
-            let tools = peer.list_all_tools().await.context("failed to list MCP tools")?;
-            let server_instructions =
-                peer.peer_info().and_then(|info| info.instructions.as_deref());
-            let mut allowed_tools = Vec::new();
-            for tool in tools {
-                let tool_id = super::mcp_tool::mcp_tool_id(&server_label, tool.name.as_ref())?;
-                if super::mcp_common::mcp_tool_allowed(&management, tool.name.as_ref(), &tool_id) {
-                    allowed_tools.push(tool);
+    let tool_connections = connections.clone();
+    connections
+        .with_peer(&server, timeout, move |peer| {
+            let server_label = server_label.clone();
+            let existing_tool_ids = existing_tool_ids.clone();
+            let configured_server = configured_server.clone();
+            let management = management.clone();
+            Box::pin(async move {
+                let tools = peer.list_all_tools().await.context("failed to list MCP tools")?;
+                let server_instructions =
+                    peer.peer_info().and_then(|info| info.instructions.as_deref());
+                let mut allowed_tools = Vec::new();
+                for tool in tools {
+                    let tool_id = super::mcp_tool::mcp_tool_id(&server_label, tool.name.as_ref())?;
+                    if super::mcp_common::mcp_tool_allowed(
+                        &management,
+                        tool.name.as_ref(),
+                        &tool_id,
+                    ) {
+                        allowed_tools.push(tool);
+                    }
                 }
-            }
-            let existing_refs = existing_tool_ids.iter().map(String::as_str).collect::<Vec<_>>();
-            let specs = super::mcp_tool::mcp_tools_to_specs(
-                &server_label,
-                server_instructions,
-                &allowed_tools,
-                &existing_refs,
-            )?;
+                let existing_refs =
+                    existing_tool_ids.iter().map(String::as_str).collect::<Vec<_>>();
+                let specs = super::mcp_tool::mcp_tools_to_specs(
+                    &server_label,
+                    server_instructions,
+                    &allowed_tools,
+                    &existing_refs,
+                )?;
 
-            Ok(allowed_tools
-                .into_iter()
-                .zip(specs.into_iter())
-                .map(|(tool, spec)| {
-                    super::mcp_tool::McpTool::from_configured_server(
-                        configured_server.clone(),
-                        tool.name.to_string(),
-                        spec,
-                    )
-                })
-                .collect())
+                Ok(allowed_tools
+                    .into_iter()
+                    .zip(specs.into_iter())
+                    .map(|(tool, spec)| {
+                        super::mcp_tool::McpTool::from_session_server(
+                            configured_server.clone(),
+                            tool.name.to_string(),
+                            spec,
+                            tool_connections.clone(),
+                            super::mcp_common::management_timeout(&management),
+                        )
+                    })
+                    .collect())
+            })
         })
-    })
-    .await
+        .await
 }

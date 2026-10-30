@@ -929,7 +929,7 @@ fn register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools() 
     .unwrap();
 
     let mut tools: Vec<Arc<dyn Tool>> = vec![Arc::new(EchoTool)];
-    register_dynamic_mcp_tools(&mut tools, &workspace);
+    register_dynamic_mcp_tools(&mut tools, &workspace, None);
 
     assert_eq!(tools.len(), 1);
     assert_eq!(tools[0].name(), "echo");

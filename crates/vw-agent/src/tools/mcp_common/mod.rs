@@ -28,8 +28,6 @@ use std::{
 };
 use tokio::process::Command;
 
-const MCP_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
-
 struct UnsupportedMcpCapability {
     scope: &'static str,
     capability: &'static str,
@@ -74,7 +72,7 @@ const UNSUPPORTED_MCP_CAPABILITIES: &[UnsupportedMcpCapability] = &[
     },
 ];
 
-struct NoopClient {
+pub(crate) struct NoopClient {
     info: ClientInfo,
 }
 
@@ -521,7 +519,27 @@ pub async fn with_server_peer_timeout<T>(
         Box<dyn std::future::Future<Output = anyhow::Result<T>> + Send + 'a>,
     >,
 ) -> anyhow::Result<T> {
-    let timeout = timeout.unwrap_or(MCP_CONNECT_TIMEOUT);
+    let connections = super::context::current_tool_use_context().and_then(|context| {
+        context
+            .workspace_root()
+            .map(|root| crate::plugins::mcp_session_connections(context.session(), &root))
+    });
+    match connections {
+        Some(connections) => connections.with_peer(server, timeout, f).await,
+        None => {
+            crate::plugins::McpSessionConnections::default().with_peer(server, timeout, f).await
+        }
+    }
+}
+
+pub(crate) type RunningMcpPeer = rmcp::service::RunningService<rmcp::RoleClient, NoopClient>;
+
+/// The owner runs this handshake on a durable runtime, separate from synchronous tool bridges.
+pub(crate) async fn open_server_peer(
+    server: McpServer,
+    timeout: Duration,
+) -> anyhow::Result<RunningMcpPeer> {
+    let server = &server;
     match server {
         McpServer::Stdio(server) => {
             let mut command = Command::new(&server.command);
@@ -545,10 +563,7 @@ pub async fn with_server_peer_timeout<T>(
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
-            let result = f(running.peer()).await;
-            // 回调结束后主动取消运行中的 client，避免 stdio 子进程或网络连接泄漏到工具调用外。
-            let _ = running.cancel().await;
-            result
+            Ok(running)
         }
         McpServer::Sse(server) => {
             let client = remote_http_client(&server.headers, timeout)
@@ -567,10 +582,7 @@ pub async fn with_server_peer_timeout<T>(
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
-            let result = f(running.peer()).await;
-            // SSE 连接是长连接；这里显式取消，保证一次工具调用只占用一次会话资源。
-            let _ = running.cancel().await;
-            result
+            Ok(running)
         }
         McpServer::Http(server) => {
             let scoped_headers = crate::plugins::plugin_mcp_http_headers(server)?;
@@ -595,10 +607,7 @@ pub async fn with_server_peer_timeout<T>(
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
-            let result = f(running.peer()).await;
-            // Streamable HTTP 同样由 rmcp service 持有运行状态，回调后释放更容易定位连接边界。
-            let _ = running.cancel().await;
-            result
+            Ok(running)
         }
         _ => anyhow::bail!("unsupported MCP server transport"),
     }

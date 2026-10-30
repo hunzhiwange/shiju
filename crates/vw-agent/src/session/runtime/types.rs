@@ -19,6 +19,14 @@ use crate::session::{message, session};
 #[derive(Clone, Default)]
 pub struct SessionToolset {
     tools: Arc<Vec<Arc<dyn Tool>>>,
+    mcp_lease: Option<Arc<McpSessionLease>>,
+}
+
+struct McpSessionLease(Arc<crate::plugins::McpSessionConnections>);
+impl Drop for McpSessionLease {
+    fn drop(&mut self) {
+        self.0.shutdown();
+    }
 }
 
 impl fmt::Debug for SessionToolset {
@@ -30,7 +38,15 @@ impl fmt::Debug for SessionToolset {
 impl SessionToolset {
     /// 从已完成启动和发现的工具构造会话级集合。
     pub(crate) fn new(tools: Vec<Arc<dyn Tool>>) -> Self {
-        Self { tools: Arc::new(tools) }
+        Self { tools: Arc::new(tools), mcp_lease: None }
+    }
+
+    pub(crate) fn with_mcp_connections(
+        mut self,
+        connections: Arc<crate::plugins::McpSessionConnections>,
+    ) -> Self {
+        self.mcp_lease = Some(Arc::new(McpSessionLease(connections)));
+        self
     }
 
     /// 返回本会话的运行时工具。

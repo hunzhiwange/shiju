@@ -17,6 +17,11 @@ mod types;
 
 mod compat;
 pub(crate) use compat::mcp_auth::runtime_headers as plugin_mcp_http_headers;
+pub(crate) use compat::mcp_connection_sessions::{
+    close_session as close_session_mcp_connections, connections as mcp_session_connections,
+};
+pub(crate) use compat::mcp_connection_settings::settings as plugin_mcp_connection_settings;
+pub(crate) use compat::mcp_connections::McpSessionConnections;
 
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;

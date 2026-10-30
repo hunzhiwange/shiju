@@ -147,6 +147,7 @@ pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Resu
                 return Err(error).with_context(|| format!("failed to write {}", marker.display()));
             }
         }
+        super::compat::mcp_connection_sessions::close_plugin(&plugin_dir);
     }
 
     Ok(())
@@ -157,6 +158,7 @@ pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Resu
 pub fn remove_installed_plugin(plugins_dir: &Path, name: &str) -> Result<()> {
     let plugin_dir = plugin_dir_for_name(plugins_dir, name)?;
     ensure_installed_plugin_dir(&plugin_dir, name)?;
+    super::compat::mcp_connection_sessions::close_plugin(&plugin_dir);
     fs::remove_dir_all(&plugin_dir)
         .with_context(|| format!("failed to remove plugin: {}", plugin_dir.display()))?;
 

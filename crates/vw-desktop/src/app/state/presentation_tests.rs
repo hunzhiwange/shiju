@@ -22,14 +22,14 @@ fn top_bar_gateway_tab_defaults_to_gateway() {
 
 #[test]
 fn workspace_mode_defaults_and_round_trips_config_values() {
-    assert_eq!(WorkspaceMode::default(), WorkspaceMode::Code);
+    assert_eq!(WorkspaceMode::default(), WorkspaceMode::Work);
     assert_eq!(WorkspaceMode::Code.as_str(), "code");
     assert_eq!(WorkspaceMode::Work.as_str(), "work");
     assert_eq!(WorkspaceMode::from_config(Some("code")), WorkspaceMode::Code);
     assert_eq!(WorkspaceMode::from_config(Some("work")), WorkspaceMode::Work);
     assert_eq!(WorkspaceMode::from_config(Some(" WORK ")), WorkspaceMode::Work);
-    assert_eq!(WorkspaceMode::from_config(Some("unknown")), WorkspaceMode::Code);
-    assert_eq!(WorkspaceMode::from_config(None), WorkspaceMode::Code);
+    assert_eq!(WorkspaceMode::from_config(Some("unknown")), WorkspaceMode::Work);
+    assert_eq!(WorkspaceMode::from_config(None), WorkspaceMode::Work);
 }
 
 #[test]

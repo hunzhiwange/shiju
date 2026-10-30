@@ -4,9 +4,9 @@ use super::*;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum WorkspaceMode {
     /// 完整代码工作区。
-    #[default]
     Code,
     /// 聚焦会话的简洁工作区。
+    #[default]
     Work,
 }
 
@@ -95,7 +95,7 @@ impl WorkspaceMode {
         }
     }
 
-    /// 从可选配置读取模式；缺失或非法值使用安全的代码模式。
+    /// 从可选配置读取模式；缺失或非法值使用默认的工作模式。
     pub fn from_config(value: Option<&str>) -> Self {
         value.and_then(Self::parse).unwrap_or_default()
     }

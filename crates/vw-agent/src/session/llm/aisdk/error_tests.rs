@@ -8,7 +8,7 @@ use crate::app::agent::session::message::AssistantError;
 
 use super::{
     aisdk_assistant_error_log_fields, aisdk_error_source_chain, assistant_error_from_aisdk,
-    is_retryable_body_decode_error,
+    is_retryable_transport_error,
 };
 
 #[test]
@@ -103,18 +103,44 @@ fn api_error_marks_body_decode_failures_retryable_without_status() {
 }
 
 #[test]
-// 响应体解码失败需沿详细信息和错误源链查找暂时性网络原因。
-fn body_decode_retryability_checks_details_raw_error_and_source_chain() {
-    assert!(
-        is_retryable_body_decode_error("ERROR DECODING RESPONSE BODY", "request failed", None,)
+fn api_error_marks_request_transport_failures_retryable_without_status() {
+    let error = assistant_error_from_aisdk(
+        "alibaba-token-plan-cn",
+        AiError::ApiError {
+            details: "error sending request for url (https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions)".into(),
+            status_code: None,
+        },
     );
-    assert!(is_retryable_body_decode_error("request failed", "EOF while parsing a value", None,));
-    assert!(is_retryable_body_decode_error(
+
+    assert!(matches!(error, AssistantError::APIError { is_retryable: true, .. }));
+}
+
+#[test]
+fn api_error_client_status_prevents_transport_text_from_enabling_retry() {
+    for status in [StatusCode::BAD_REQUEST, StatusCode::UNAUTHORIZED, StatusCode::FORBIDDEN] {
+        let error = assistant_error_from_aisdk(
+            "alibaba-token-plan-cn",
+            AiError::ApiError {
+                details: "error decoding response body".into(),
+                status_code: Some(status),
+            },
+        );
+
+        assert!(matches!(error, AssistantError::APIError { is_retryable: false, .. }));
+    }
+}
+
+#[test]
+// 响应体解码失败需沿详细信息和错误源链查找暂时性网络原因。
+fn transport_retryability_checks_details_raw_error_and_source_chain() {
+    assert!(is_retryable_transport_error("ERROR DECODING RESPONSE BODY", "request failed", None,));
+    assert!(is_retryable_transport_error("request failed", "EOF while parsing a value", None,));
+    assert!(is_retryable_transport_error(
         "request failed",
         "transport closed",
         Some("error decoding response body"),
     ));
-    assert!(!is_retryable_body_decode_error(
+    assert!(!is_retryable_transport_error(
         "bad request",
         "invalid input",
         Some("provider rejected request"),

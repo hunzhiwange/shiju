@@ -776,3 +776,7 @@ fn assert_no_raw_image_paths(messages: &Value) -> Result<(), String> {
 #[cfg(test)]
 #[path = "stream_tests.rs"]
 mod stream_tests;
+
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[path = "transport_tests.rs"]
+mod transport_tests;

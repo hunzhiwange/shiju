@@ -64,7 +64,7 @@ fn test_model(provider_id: &str, api_id: &str, adapter: &str) -> provider::Model
     .expect("test model should deserialize")
 }
 
-fn test_input(provider_id: &str) -> StreamInput {
+pub(super) fn test_input(provider_id: &str) -> StreamInput {
     let model = test_model(provider_id, "model-1", "openai-compatible");
     StreamInput {
         user: message::UserInfo {

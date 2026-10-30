@@ -32,7 +32,7 @@ fn aisdk_error_source_chain(e: &AiError) -> Option<String> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn is_retryable_body_decode_error(
+fn is_retryable_transport_error(
     details: &str,
     raw_error: &str,
     source_chain: Option<&str>,
@@ -45,6 +45,7 @@ fn is_retryable_body_decode_error(
     let normalized = text.to_ascii_lowercase();
     normalized.contains("error decoding response body")
         || normalized.contains("eof while parsing a value")
+        || normalized.contains("error sending request for url")
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -113,6 +114,7 @@ pub(crate) fn aisdk_assistant_error_log_fields(
 /// 错误被标记为可重试（`is_retryable = true`）：
 /// - 状态码为 429（请求过多/速率限制）
 /// - 状态码为 5xx（服务器错误）
+/// - 没有 HTTP 状态码的请求发送或响应体读取中断（已有输出时由流处理层禁止重放）
 ///
 /// # 示例
 ///
@@ -145,11 +147,12 @@ pub(crate) fn assistant_error_from_aisdk(
         // API 调用错误 -> 转换为通用 API 错误
         // 包含详细的错误信息和可重试性判断
         AiError::ApiError { details, status_code } => {
-            // 判断错误是否可重试：
-            // - 429: 速率限制，稍后重试可能成功
-            // - 5xx: 服务器端临时故障，通常可重试
-            let retryable = status_code.is_some_and(|s| s.as_u16() == 429 || s.is_server_error())
-                || is_retryable_body_decode_error(&details, &raw_error, source_chain.as_deref());
+            // SDK 会把 reqwest 传输错误压成文本；只在缺少 HTTP 状态时使用该回退，
+            // 避免把鉴权和请求参数错误误判为临时网络错误。
+            let retryable = match status_code {
+                Some(status) => status.as_u16() == 429 || status.is_server_error(),
+                None => is_retryable_transport_error(&details, &raw_error, source_chain.as_deref()),
+            };
             let mut metadata = std::collections::HashMap::from([
                 ("source".to_string(), "aisdk".to_string()),
                 ("raw_error".to_string(), raw_error.clone()),

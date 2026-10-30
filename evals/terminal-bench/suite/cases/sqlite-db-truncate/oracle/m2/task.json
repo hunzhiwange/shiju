@@ -1,0 +1,140 @@
+{
+  "mode": "m2",
+  "expected": [
+    [
+      {
+        "rowid": 127,
+        "fields": [
+          "birch2",
+          -129
+        ]
+      },
+      {
+        "rowid": 128,
+        "fields": [
+          "雪2",
+          0
+        ]
+      },
+      {
+        "rowid": 129,
+        "fields": [
+          "oak",
+          1
+        ]
+      },
+      {
+        "rowid": 130,
+        "fields": [
+          "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          3.125
+        ]
+      },
+      {
+        "rowid": 131,
+        "fields": [
+          "blob",
+          {
+            "blob_hex": "00ff"
+          }
+        ]
+      },
+      {
+        "rowid": 132,
+        "fields": [
+          "null",
+          null
+        ]
+      },
+      {
+        "rowid": 133,
+        "fields": [
+          "wide",
+          -1099511627776
+        ]
+      },
+      {
+        "rowid": 134,
+        "fields": [
+          "last",
+          32768
+        ]
+      },
+      {
+        "rowid": 72057594037927936,
+        "fields": [
+          "nine-byte",
+          36028797018963968
+        ]
+      }
+    ],
+    [
+      {
+        "rowid": 127,
+        "fields": [
+          "birch3alternate",
+          -129
+        ]
+      },
+      {
+        "rowid": 128,
+        "fields": [
+          "雪2",
+          0
+        ]
+      },
+      {
+        "rowid": 129,
+        "fields": [
+          "oak",
+          1
+        ]
+      },
+      {
+        "rowid": 130,
+        "fields": [
+          "long-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          3.125
+        ]
+      },
+      {
+        "rowid": 131,
+        "fields": [
+          "blob",
+          {
+            "blob_hex": "00ff"
+          }
+        ]
+      },
+      {
+        "rowid": 132,
+        "fields": [
+          "null",
+          null
+        ]
+      },
+      {
+        "rowid": 133,
+        "fields": [
+          "wide",
+          -1099511627776
+        ]
+      },
+      {
+        "rowid": 134,
+        "fields": [
+          "last",
+          32768
+        ]
+      },
+      {
+        "rowid": 72057594037927936,
+        "fields": [
+          "nine-byte",
+          36028797018963968
+        ]
+      }
+    ]
+  ],
+  "input_sha256": "07bf3bef7201032e65164d710e0bc3d0575335531c2649fc767d1de81266d3b9"
+}

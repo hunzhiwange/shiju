@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "parent_id": "sqlite-db-truncate",
+  "implementation_sha256": "2365b523747f771c31c18689f42b99cae85ed73b9b77f762138e4a33b3f776c4",
+  "files": {
+    "check.py": "47cf1a84864aa7d56069da2071591fcd7b0b40ffb74757e42caafb8ec9d25add",
+    "fixtures/m1/instruction.md": "63430bbc5a59182da55c74aad90f1515fe2e93393a0f464d8345b378f20bcc3e",
+    "fixtures/m1/trunc.db": "18d6d64487bb10f29d184b919a1b5e5a1a271d07761c680fac899dbdef0ee727",
+    "fixtures/m2/instruction.md": "31ab2281cd20c4f93527498d576dee33444517fa77a5f698bc4868b582c614af",
+    "fixtures/m2/trunc.db": "07bf3bef7201032e65164d710e0bc3d0575335531c2649fc767d1de81266d3b9",
+    "fixtures/m3/instruction.md": "7b69c5cdf3f31d3df0a8b9a5cb929cf3c6add38d2dc31ade8f73814b594b1d96",
+    "fixtures/m3/trunc.db": "299010a53a25ea6dbcc025aec891ec3577ca29d428a355b7e817291377348757",
+    "fixtures/m4/instruction.md": "410658ab8240b49f09a8e01a1e30d98f55aa94da9571b9afa1fd01771f9895b0",
+    "fixtures/m4/trunc.db": "4e1bcf04f3dc709723168fe82af62f198969db10ce4d9b99383113c35c3ae8a2",
+    "oracle/m1/drop-last/solution.py": "e045022a7fe0685684b206f860727fedfaee57d34fd92708105b10b41c932e37",
+    "oracle/m1/empty/solution.py": "cb3e43c09caaa523c4110ad20db7f83b39653f802550ab45ea32a86ea03513af",
+    "oracle/m1/gold/solution.py": "27e0924c136c0c46d2692a7c5660c1e0edece5fc36a11c0f32ddff5cdea60914",
+    "oracle/m1/probe.db": "737241a01b4cd58ae4754965d9bb2cac3a6848fb55ce593e97f489eade7a3aed",
+    "oracle/m1/task.json": "58630f72ea279716169732ea33870a56c8bcfa0f336c4e1ddd98ea8607119d8e",
+    "oracle/m1/unsigned/solution.py": "c6fb79492185f8ee06a0f95e5683c3fc1b86ecea551720030569d60a117173f6",
+    "oracle/m2/drop-last/solution.py": "361da36aa0bf4f1355dd6475c9125fd63840451b127b324a5d941b5b792a4c8b",
+    "oracle/m2/empty/solution.py": "cb3e43c09caaa523c4110ad20db7f83b39653f802550ab45ea32a86ea03513af",
+    "oracle/m2/gold/solution.py": "b93ce870d59ff1b7df0889f86e38537d19fa6d0b001ce375fabbde675739c6df",
+    "oracle/m2/probe.db": "bfff5575cd6de9f3c7c1fc57d7034535cd98cacc60ec6d1fc9289d2aa296110f",
+    "oracle/m2/task.json": "809a5da3dc2566adb111699c1ec8eba580af5f0eca9978455c2f1743215a6dae",
+    "oracle/m2/unsigned/solution.py": "6b60947828ed0600c6b4e40f5c421514fb8d1693ed06fdca8d392876ec35ee85",
+    "oracle/m3/eight-byte-varint/solution.py": "88fd0a284c12ae3936e48725f9710b32ae2ecde58de0f13df68d666a46749aa2",
+    "oracle/m3/gold/solution.py": "858828884b1cc7d91997c58f6a17fd1e53ccc493fe75883e2d1e8d97e8e0db6b",
+    "oracle/m3/probe.db": "b6860fb5172f203ef194439bc1cec039519ff203d09b4f772594b4e01693a68b",
+    "oracle/m3/swapped-constants/solution.py": "22c7873990a4c99e81efa3937b63036a83ce36165880419d64a0badf126f0542",
+    "oracle/m3/task.json": "d1b5c6fbb2a84662cfb986e018d4f8a63c4f17097eafc7ba6649eb6e548da70a",
+    "oracle/m3/unsigned/solution.py": "9c6361cb1908a3c50eef2ddfa119c648e3961a82317f374e400c06f069867b2e",
+    "oracle/m4/drop-last/solution.py": "92eb8b1a770960c1734b3e91f0d04cca27aacfc6388664d65838b72796ece27d",
+    "oracle/m4/empty/solution.py": "cb3e43c09caaa523c4110ad20db7f83b39653f802550ab45ea32a86ea03513af",
+    "oracle/m4/gold/solution.py": "9b1be0e36fc9d3fc8c0b349287f01ec7db4f5b1c9030d42ff1fa111f19ce1513",
+    "oracle/m4/probe.db": "484c1b58fa159eef79b6aa9841d2f633adf71f4aaefce48e2ce5bdf5654cb175",
+    "oracle/m4/task.json": "d0454d0ed4e9e789f3200ed5848c50235b38432e22bc5faa41ab1ec95ae4f58e",
+    "oracle/m4/unsigned/solution.py": "a7196ab321750d3be11e185667fe421ab17ec63e96853f6eafb7dbd3eb45bcf9",
+    "case.json": "e57bf06682fb1dd5e4438eb314c7a4fcd030ff186257335a6df0b268df81a997"
+  },
+  "image": "python@sha256:3f1ce1c415054488586812b63270daf89d97b4f23416e1288003816790eb08de",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "empty",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "unsigned",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "drop-last",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "empty",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "unsigned",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "drop-last",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "unsigned",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "eight-byte-varint",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "swapped-constants",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "empty",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "unsigned",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "drop-last",
+      "exit_code": 1
+    }
+  ]
+}

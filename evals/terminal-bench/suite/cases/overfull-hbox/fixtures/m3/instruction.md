@@ -1,0 +1,5 @@
+# m3: Preserve protected source bytes
+
+Implement /app/answer.py, a Python 3 JSON stdin/stdout program. Read one JSON object from stdin with input (TeX string) and synonyms (lines of comma-space-separated synonym families). Return only {"input": transformed_string}. Replace eligible prose words with any member of their family so the supplied document compiles without Overfull \hbox warnings. Preserve every other byte, including whitespace, punctuation, TeX commands and word order. Never change command names even when they occur in a synonym family. A family may have more than two members. Do not delete, insert, or reorder tokens.
+
+The main.tex, input.tex and synonyms.txt files are a synthetic public example; hidden inputs use the same API and independent content. The verifier runs your program and independently compiles outputs with the installed real TeX engine. No network, package installation, privilege changes, persistent file writes outside temporary directories or changes to verifier files. Budget: 900 seconds, 24 turns, 32 tools, one attempt, 32000 output tokens, 200000 input tokens.

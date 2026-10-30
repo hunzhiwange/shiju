@@ -149,6 +149,7 @@ fn update_routes_append_text_to_context_handler() {
 #[test]
 fn stream_delta_syncs_and_prunes_think_block_state() {
     let (mut app, _task) = crate::app::App::new();
+    app.active_session_id = Some("thinking-session".into());
     app.chat_auto_scroll = false;
     app.chat = vec![crate::app::models::ChatMessage {
         role: crate::app::models::ChatRole::Assistant,
@@ -158,8 +159,15 @@ fn stream_delta_syncs_and_prunes_think_block_state() {
         processing_timing: None,
     }];
 
-    let _task =
-        super::update(&mut app, super::ChatMessage::AgentStreamDelta(u64::MAX, String::new()));
+    let content = app.chat[0].content.clone();
+    let tail = &mut app.get_session_runtime_mut("thinking-session").stream_tail_state;
+    tail.clear_tail();
+    tail.begin_message(0);
+    tail.apply_delta(&content);
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::AgentStreamDeltaFlush("thinking-session".into()),
+    );
 
     assert_eq!(app.chat_stream_think_msg_idx, Some(0));
     assert_eq!(app.chat_stream_think_count, 1);
@@ -171,8 +179,15 @@ fn stream_delta_syncs_and_prunes_think_block_state() {
     app.chat_think_collapsed.insert(key);
     app.chat[0].content = "visible answer".to_string();
 
-    let _task =
-        super::update(&mut app, super::ChatMessage::AgentStreamDelta(u64::MAX, String::new()));
+    let content = app.chat[0].content.clone();
+    let tail = &mut app.get_session_runtime_mut("thinking-session").stream_tail_state;
+    tail.clear_tail();
+    tail.begin_message(0);
+    tail.apply_delta(&content);
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::AgentStreamDeltaFlush("thinking-session".into()),
+    );
 
     assert_eq!(app.chat_stream_think_count, 0);
     assert_eq!(app.chat_stream_think_open_idx, None);
@@ -182,7 +197,7 @@ fn stream_delta_syncs_and_prunes_think_block_state() {
 }
 
 #[test]
-fn stream_flush_schedules_one_tail_ui_prepare_without_generic_chunk_sweep() {
+fn stream_flush_updates_tail_and_schedules_save_without_chunk_preparation() {
     use crate::app::components::chat_panel::virtualizer::ChatVirtualizer;
     use crate::app::models::{ChatMessage as ModelChatMessage, ChatRole};
 
@@ -218,13 +233,18 @@ fn stream_flush_schedules_one_tail_ui_prepare_without_generic_chunk_sweep() {
     let task = super::update(&mut app, super::ChatMessage::AgentStreamDeltaFlush(session_id));
 
     assert_eq!(app.chat.last().unwrap().content, "one-second tail");
-    assert_eq!(task.units(), 2, "one message prepare plus one save task");
+    assert_eq!(task.units(), 1, "stream projection is synchronous; only save is scheduled");
+    let runtime = app.get_session_runtime_mut("active");
+    assert!(runtime.stream_save_flush_scheduled);
+    assert_eq!(runtime.stream_save_dirty_records.len(), 1);
+    assert_eq!(runtime.stream_save_dirty_records[0].message.content, "one-second tail");
     assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
 }
 
 #[test]
 fn stream_delta_with_new_open_think_refreshes_autoscroll_throttle() {
     let (mut app, _task) = crate::app::App::new();
+    app.active_session_id = Some("thinking-session".into());
     app.chat_auto_scroll = true;
     app.chat_stream_autoscroll_last_ms = 0;
     app.chat = vec![crate::app::models::ChatMessage {
@@ -235,8 +255,15 @@ fn stream_delta_with_new_open_think_refreshes_autoscroll_throttle() {
         processing_timing: None,
     }];
 
-    let _task =
-        super::update(&mut app, super::ChatMessage::AgentStreamDelta(u64::MAX, String::new()));
+    let content = app.chat[0].content.clone();
+    let tail = &mut app.get_session_runtime_mut("thinking-session").stream_tail_state;
+    tail.clear_tail();
+    tail.begin_message(0);
+    tail.apply_delta(&content);
+    let _task = super::update(
+        &mut app,
+        super::ChatMessage::AgentStreamDeltaFlush("thinking-session".into()),
+    );
 
     assert_eq!(app.chat_stream_think_open_idx, Some(0));
     assert_ne!(app.chat_stream_autoscroll_last_ms, 0);
@@ -244,7 +271,7 @@ fn stream_delta_with_new_open_think_refreshes_autoscroll_throttle() {
 }
 
 #[test]
-fn non_stream_update_schedules_visible_chunk_preparation() {
+fn composer_update_skips_chunks_but_transcript_event_prepares_visible_window() {
     let (mut app, _task) = crate::app::App::new();
     app.active_session_id = Some("session-1".to_string());
     app.chat = vec![crate::app::models::ChatMessage {
@@ -261,5 +288,42 @@ fn non_stream_update_schedules_visible_chunk_preparation() {
 
     assert!(app.chat_render_cache.is_empty());
     assert!(!app.active_session_view_state.prepared_chat_ui_chunks.contains(&0));
+    assert_eq!(app.input_text, "typed");
+    assert!(app.active_session_view_state.preparing_chat_ui_chunks.is_empty());
+    let _task = super::update(&mut app, super::ChatMessage::ThinkHover(0, 0));
     assert!(app.active_session_view_state.preparing_chat_ui_chunks.contains(&0));
+}
+
+#[test]
+fn delayed_scroll_rejects_old_session_request_and_manual_scroll() {
+    use super::ChatMessage;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("original".into());
+    let _ = super::scroll_chat_to_bottom_with_followups(&mut app);
+    let generation = app.chat_autoscroll_generation;
+    let callback = ChatMessage::FollowupScrollToBottom {
+        session_id: app.active_session_id.clone(),
+        generation,
+    };
+    let task = super::input::update(&mut app, callback.clone());
+    assert!(iced_runtime::task::into_stream(task).is_some());
+    assert_eq!(app.chat_autoscroll_generation, generation);
+
+    app.active_session_id = Some("other".into());
+    assert!(
+        iced_runtime::task::into_stream(super::input::update(&mut app, callback.clone())).is_none()
+    );
+    app.active_session_id = Some("original".into());
+    super::input::apply_chat_scroll_changed(&mut app, 0.2, 0.0, 300.0);
+    assert!(!app.chat_auto_scroll);
+    assert!(
+        iced_runtime::task::into_stream(super::input::update(&mut app, callback.clone())).is_none()
+    );
+    // Resuming follow mode must not revive the earlier callbacks.
+    app.chat_auto_scroll = true;
+    assert!(
+        iced_runtime::task::into_stream(super::input::update(&mut app, callback.clone())).is_none()
+    );
+    let _ = super::scroll_chat_to_bottom_with_followups(&mut app);
+    assert!(iced_runtime::task::into_stream(super::input::update(&mut app, callback)).is_none());
 }

@@ -591,6 +591,7 @@ impl App {
             task_pet_dismissed_request_ids: HashSet::new(),
             chat_stream_autoscroll_last_ms: 0,
             chat_autoscroll_hold_until_ms: 0,
+            chat_autoscroll_generation: 0,
             chat_panel_fullscreen: false,
             chat_panel_half_fullscreen: false,
             show_chat_fullscreen_overlay: false,

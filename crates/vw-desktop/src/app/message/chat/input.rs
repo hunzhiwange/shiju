@@ -352,6 +352,20 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
         }
         ChatMessage::ScrollToBottom => super::scroll_chat_to_bottom_task(app),
+        ChatMessage::FollowupScrollToBottom { session_id, generation } => {
+            if app.active_session_id != session_id
+                || app.chat_autoscroll_generation != generation
+                || !app.chat_auto_scroll
+            {
+                return Task::none();
+            }
+            // A follow-up must not re-arm the request or enable follow mode.
+            iced::widget::operation::snap_to(
+                app.chat_scroll_id.clone(),
+                iced::widget::scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },
+            )
+            .map(|_: ()| Message::CopyDone)
+        }
         ChatMessage::LocateChatMessage(message_id) => shared::locate_chat_message(app, &message_id),
         ChatMessage::LocateChatMessageIndex(target_idx) => {
             shared::locate_chat_message_index(app, target_idx)
@@ -701,7 +715,8 @@ pub(crate) fn apply_chat_scroll_changed(
         app.sync_chat_message_estimated_heights_len();
     }
     let previous_window = app.chat_virtualizer.window();
-    let offset_changed = (app.chat_virtualizer.relative_y() - next_offset_y).abs() > 0.0005;
+    let offset_changed =
+        (app.chat_virtualizer.scroll_top_px() - absolute_offset_y.max(0.0)).abs() > 0.5;
     let viewport_changed =
         (app.chat_virtualizer.viewport_height_px() - next_viewport_h).abs() > 0.5;
     app.chat_virtualizer.set_viewport_height(next_viewport_h);
@@ -718,6 +733,9 @@ pub(crate) fn apply_chat_scroll_changed(
         next_offset_y >= 0.975
     };
 
+    if !next_auto_scroll {
+        app.chat_autoscroll_generation = app.chat_autoscroll_generation.wrapping_add(1);
+    }
     app.chat_auto_scroll = next_auto_scroll;
     if matches_turn_focus {
         // 内容增长会改变相对偏移，但绝对偏移仍然对齐本轮锚点。
@@ -725,7 +743,10 @@ pub(crate) fn apply_chat_scroll_changed(
     } else if next_auto_scroll {
         app.chat_virtualizer.snap_to_tail();
     } else {
-        app.chat_virtualizer.set_relative_y(next_offset_y);
+        // The widget's laid-out height can differ from the virtualizer's estimates.
+        // Reapplying its relative offset against those estimates moves the render
+        // window on each measurement, even when the user has not scrolled.
+        app.chat_virtualizer.set_scroll_top_px(absolute_offset_y);
     }
     app.sync_chat_scroll_compat_fields();
 

@@ -252,3 +252,80 @@ fn chat_virtualizer_truncate_rebuilds_once() {
     assert_eq!(diagnostics.prepend_rebuilds, 0);
     assert_eq!(diagnostics.truncate_rebuilds, 1);
 }
+
+fn render_range(virtualizer: &ChatVirtualizer) -> (usize, usize) {
+    let window = virtualizer.window();
+    assert!(window.render_start_idx <= window.visible_start_idx);
+    assert!(window.visible_end_idx <= window.render_end_idx);
+    assert!(window.render_end_idx <= virtualizer.len());
+    let heights = &virtualizer.estimated_heights()[window.render_start_idx..window.render_end_idx];
+    let rendered =
+        heights.iter().sum::<f32>() + CHAT_MESSAGE_GAP * heights.len().saturating_sub(1) as f32;
+    assert!(
+        (window.top_spacer_h + rendered + window.bottom_spacer_h - window.total_height_px).abs()
+            < 0.01
+    );
+    (window.render_start_idx, window.render_end_idx)
+}
+
+#[test]
+fn render_range_retains_buffer_across_scroll_and_height_jitter() {
+    let mut v = ChatVirtualizer::from_estimated_heights(&[100.0; 100]);
+    v.set_viewport_height(300.0);
+    v.set_scroll_top_px(3000.0);
+    let initial = render_range(&v);
+    let visible = v.window().visible_start_idx;
+    for offset in [3120.0, 2999.0, 3001.0, 2999.0] {
+        v.set_scroll_top_px(offset);
+        assert_eq!(render_range(&v), initial);
+    }
+    v.set_scroll_top_px(3120.0);
+    assert_ne!(v.window().visible_start_idx, visible);
+    for height in [102.0, 98.0, 101.0, 100.0] {
+        v.apply_measured_height(0, height);
+        assert_eq!(render_range(&v), initial);
+    }
+}
+
+#[test]
+fn render_range_refills_buffer_without_oscillating_at_switch_boundary() {
+    let mut v = ChatVirtualizer::from_estimated_heights(&[100.0; 100]);
+    v.set_viewport_height(300.0);
+    v.set_scroll_top_px(3000.0);
+    let initial = render_range(&v);
+    for offset in 3001..4000 {
+        v.set_scroll_top_px(offset as f32);
+        let next = render_range(&v);
+        if next != initial {
+            for jitter in [-1.0, 1.0, -2.0, 2.0] {
+                v.set_scroll_top_px(offset as f32 + jitter);
+                assert_eq!(render_range(&v), next);
+            }
+            return;
+        }
+    }
+    panic!("scrolling must eventually refill the render buffer");
+}
+
+#[test]
+fn render_range_covers_navigation_resize_and_history_changes() {
+    let mut v = ChatVirtualizer::from_estimated_heights(&[100.0; 100]);
+    v.set_viewport_height(300.0);
+    v.snap_to_tail();
+    assert_eq!(render_range(&v).1, 100);
+    v.sync_len(101, 100.0);
+    assert_eq!(render_range(&v).1, 101);
+    v.scroll_to_item_anchor(40, 0.0, 0.0);
+    render_range(&v);
+    v.set_viewport_height(5000.0);
+    render_range(&v);
+    v.set_viewport_height(300.0);
+    let small = render_range(&v);
+    assert!(small.1 - small.0 < 30);
+    v.prepend_estimated_heights(&[100.0; 5]);
+    render_range(&v);
+    v.sync_len(3, 100.0);
+    assert_eq!(render_range(&v).1, 3);
+    v.set_estimated_heights(&[]);
+    assert_eq!(render_range(&v), (0, 0));
+}

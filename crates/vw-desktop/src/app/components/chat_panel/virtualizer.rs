@@ -81,6 +81,7 @@ pub struct ChatVirtualizer {
     scroll_mode: ChatScrollMode,
     anchor: Option<ChatScrollAnchor>,
     turn_focus_user_index: Option<usize>,
+    render_range: Option<(usize, usize)>,
     #[cfg(test)]
     diagnostics: ChatVirtualizerDiagnostics,
 }
@@ -95,6 +96,7 @@ impl Default for ChatVirtualizer {
             scroll_mode: ChatScrollMode::Free,
             anchor: None,
             turn_focus_user_index: None,
+            render_range: None,
             #[cfg(test)]
             diagnostics: ChatVirtualizerDiagnostics::default(),
         }
@@ -204,6 +206,7 @@ impl ChatVirtualizer {
     }
 
     pub fn set_estimated_heights(&mut self, heights: &[f32]) {
+        self.render_range = None;
         self.heights = heights.iter().map(|height| height.max(0.0)).collect();
         self.height_index.set_heights(&self.heights);
         #[cfg(test)]
@@ -227,6 +230,7 @@ impl ChatVirtualizer {
             return 0.0;
         }
 
+        self.render_range = None;
         let prepended: Vec<f32> = heights.iter().map(|height| height.max(0.0)).collect();
         let prepended_len = prepended.len();
         let anchor_delta = prepended.iter().sum::<f32>()
@@ -255,6 +259,9 @@ impl ChatVirtualizer {
     }
 
     pub fn set_viewport_height(&mut self, viewport_h: f32) {
+        if (self.viewport_h - viewport_h.max(0.0)).abs() > 0.5 {
+            self.render_range = None;
+        }
         self.viewport_h = viewport_h.max(0.0);
         self.refresh_turn_runway();
         self.reconcile_scroll_after_height_change();
@@ -265,6 +272,7 @@ impl ChatVirtualizer {
         self.scroll_mode = ChatScrollMode::Free;
         self.anchor = None;
         self.scroll_top_px = self.clamp_scroll_top(scroll_top_px);
+        self.refresh_render_range();
     }
 
     pub fn set_relative_y(&mut self, relative_y: f32) {
@@ -308,6 +316,7 @@ impl ChatVirtualizer {
         self.scroll_mode = ChatScrollMode::Anchored;
         self.anchor = Some(anchor);
         self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_for_anchor(anchor));
+        self.refresh_render_range();
     }
 
     pub fn scroll_to_item_anchor(
@@ -330,6 +339,7 @@ impl ChatVirtualizer {
         self.scroll_mode = ChatScrollMode::Anchored;
         self.anchor = Some(anchor);
         self.scroll_top_px = scroll_top;
+        self.refresh_render_range();
     }
 
     pub fn focus_turn_on_user(&mut self, user_index: usize) {
@@ -343,6 +353,7 @@ impl ChatVirtualizer {
         self.anchor = Some(anchor);
         self.refresh_turn_runway();
         self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_for_anchor(anchor));
+        self.refresh_render_range();
     }
 
     pub fn release_turn_focus(&mut self) {
@@ -350,6 +361,7 @@ impl ChatVirtualizer {
             self.scroll_mode = ChatScrollMode::Free;
             self.anchor = None;
             self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_px);
+            self.refresh_render_range();
         }
     }
 
@@ -358,6 +370,7 @@ impl ChatVirtualizer {
         self.scroll_mode = ChatScrollMode::TailSticky;
         self.anchor = None;
         self.scroll_top_px = self.max_scroll_top_px();
+        self.refresh_render_range();
     }
 
     pub fn should_follow_tail_after_growth(&self) -> bool {
@@ -377,7 +390,38 @@ impl ChatVirtualizer {
     }
 
     pub fn window(&self) -> ChatVirtualWindow {
-        self.compute_window(CHAT_VIRTUALIZATION_OVERSCAN_PX)
+        let mut window = self.compute_window(0.0);
+        if let Some((start, end)) = self.render_range {
+            window.render_start_idx = start;
+            window.render_end_idx = end;
+            window.top_spacer_h = self.height_index.scroll_top_for_item(start);
+            let rendered_height = if end > start {
+                (self.height_index.scroll_top_for_item(end)
+                    - window.top_spacer_h
+                    - super::height_index::CHAT_MESSAGE_GAP)
+                    .max(0.0)
+            } else {
+                0.0
+            };
+            window.bottom_spacer_h =
+                (window.total_height_px - window.top_spacer_h - rendered_height).max(0.0);
+        }
+        window
+    }
+
+    fn refresh_render_range(&mut self) {
+        // Keep the mounted range until less than half the overscan remains.
+        // Visible indices and spacers still use current geometry on every read.
+        let required = self.compute_window(CHAT_VIRTUALIZATION_OVERSCAN_PX / 2.0);
+        if let Some((start, end)) = self.render_range
+            && end <= self.len()
+            && start <= required.render_start_idx
+            && end >= required.render_end_idx
+        {
+            return;
+        }
+        let next = self.compute_window(CHAT_VIRTUALIZATION_OVERSCAN_PX);
+        self.render_range = Some((next.render_start_idx, next.render_end_idx));
     }
 
     #[cfg(test)]
@@ -398,6 +442,7 @@ impl ChatVirtualizer {
             }
             _ => self.scroll_top_px = self.clamp_scroll_top(self.scroll_top_px),
         }
+        self.refresh_render_range();
     }
 
     fn refresh_turn_runway(&mut self) {

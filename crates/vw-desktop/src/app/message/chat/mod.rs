@@ -53,6 +53,7 @@ fn now_ms() -> u64 {
 }
 
 pub(super) fn arm_autoscroll_hold(app: &mut App) {
+    app.chat_autoscroll_generation = app.chat_autoscroll_generation.wrapping_add(1);
     app.chat_auto_scroll = true;
     app.chat_autoscroll_hold_until_ms = now_ms().saturating_add(AUTOSCROLL_HOLD_MS);
 }
@@ -120,10 +121,34 @@ pub(super) fn scroll_chat_to_bottom_with_followups(app: &mut App) -> Task<Messag
             scrollable::RelativeOffset { x: Some(0.0), y: Some(1.0) },
         )
         .map(|_: ()| Message::CopyDone),
-        message::after(Duration::from_millis(16), Message::Chat(ChatMessage::ScrollToBottom)),
-        message::after(Duration::from_millis(48), Message::Chat(ChatMessage::ScrollToBottom)),
-        message::after(Duration::from_millis(96), Message::Chat(ChatMessage::ScrollToBottom)),
-        message::after(Duration::from_millis(160), Message::Chat(ChatMessage::ScrollToBottom)),
+        message::after(
+            Duration::from_millis(16),
+            Message::Chat(ChatMessage::FollowupScrollToBottom {
+                session_id: app.active_session_id.clone(),
+                generation: app.chat_autoscroll_generation,
+            }),
+        ),
+        message::after(
+            Duration::from_millis(48),
+            Message::Chat(ChatMessage::FollowupScrollToBottom {
+                session_id: app.active_session_id.clone(),
+                generation: app.chat_autoscroll_generation,
+            }),
+        ),
+        message::after(
+            Duration::from_millis(96),
+            Message::Chat(ChatMessage::FollowupScrollToBottom {
+                session_id: app.active_session_id.clone(),
+                generation: app.chat_autoscroll_generation,
+            }),
+        ),
+        message::after(
+            Duration::from_millis(160),
+            Message::Chat(ChatMessage::FollowupScrollToBottom {
+                session_id: app.active_session_id.clone(),
+                generation: app.chat_autoscroll_generation,
+            }),
+        ),
     ])
 }
 
@@ -853,6 +878,10 @@ pub enum ChatMessage {
     ///
     /// 将聊天消息列表滚动到最底部（最新消息）
     ScrollToBottom,
+    FollowupScrollToBottom {
+        session_id: Option<String>,
+        generation: u64,
+    },
 
     /// 根据消息 ID 定位到聊天中的目标消息
     LocateChatMessage(String),
@@ -1157,6 +1186,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::ScrollChanged { .. }
         | ChatMessage::VisibleMessageMeasurements(_)
         | ChatMessage::ScrollToBottom
+        | ChatMessage::FollowupScrollToBottom { .. }
         | ChatMessage::LocateChatMessage(_)
         | ChatMessage::LocateChatMessageIndex(_)
         | ChatMessage::ToggleHalfFullscreen

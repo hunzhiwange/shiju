@@ -646,3 +646,34 @@ fn chat_todo_overlay_builds_only_for_matching_top_right_session_with_items() {
     app.chat_todo_placement = TodoPanelPlacement::ChatTopRight;
     keep_element(chat_todo_overlay(&app));
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[tokio::test(flavor = "multi_thread")]
+async fn virtual_content_layout_matches_height_index_at_all_scroll_positions() {
+    let renderer =
+        <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+            .await
+            .expect("headless renderer");
+    let mut virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 80]);
+    virtualizer.set_viewport_height(300.0);
+    for offset in [0.0, 3000.0, 9000.0, 0.0] {
+        virtualizer.set_scroll_top_px(offset);
+        let window = virtualizer.window();
+        let mut messages = chat_message_column();
+        for _ in window.render_start_idx..window.render_end_idx {
+            messages = messages.push(iced::widget::Space::new().height(100.0));
+        }
+        let mut element: iced::Element<'_, Message> = super::conversation_reading_column(
+            super::chat_virtual_content(messages, window.top_spacer_h, window.bottom_spacer_h),
+            iced::Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
+        )
+        .into();
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(800.0, f32::INFINITY)),
+        );
+        assert!((node.size().height - virtualizer.total_height_px()).abs() < 0.01);
+    }
+}

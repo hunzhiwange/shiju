@@ -791,6 +791,7 @@ pub struct App {
     pub(crate) chat_stream_autoscroll_last_ms: u64,
     /// 程序化贴底后的保护窗口截止时间（毫秒）
     pub(crate) chat_autoscroll_hold_until_ms: u64,
+    pub(crate) chat_autoscroll_generation: u64,
     /// 聊天面板是否全屏占据右侧区域
     pub(crate) chat_panel_fullscreen: bool,
     /// 聊天面板是否半全屏占据主内容区域但保留文件树和终端

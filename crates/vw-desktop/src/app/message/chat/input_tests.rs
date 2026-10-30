@@ -445,6 +445,31 @@ fn scroll_changed_clamps_offsets_and_updates_autoscroll() {
 }
 
 #[test]
+fn scroll_changed_preserves_absolute_position_across_height_corrections() {
+    let (mut app, _) = crate::app::App::new();
+    app.chat = (0..20).map(|_| chat_entry(ChatRole::Assistant, "answer")).collect();
+    app.chat_auto_scroll = false;
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[200.0; 20]);
+    app.chat_virtualizer.set_viewport_height(600.0);
+    app.chat_virtualizer.set_scroll_top_px(1200.0);
+    app.sync_chat_virtualizer_compat_fields();
+
+    // Layout callbacks may report a different fraction after height measurements,
+    // while the actual pixel offset remains unchanged.
+    for (height, relative_y) in [(800.0, 0.25), (200.0, 0.32), (900.0, 0.24)] {
+        app.chat_virtualizer.apply_measured_height(19, height);
+        let outcome = super::input::apply_chat_scroll_changed(&mut app, relative_y, 1200.0, 600.0);
+        assert_eq!(app.chat_virtualizer.scroll_top_px(), 1200.0);
+        assert!(!outcome.viewport_or_offset_changed);
+        assert!(!app.chat_auto_scroll);
+    }
+
+    let outcome = super::input::apply_chat_scroll_changed(&mut app, 0.24, 1260.0, 600.0);
+    assert_eq!(app.chat_virtualizer.scroll_top_px(), 1260.0);
+    assert!(outcome.viewport_or_offset_changed);
+}
+
+#[test]
 fn chat_scroll_semantics_toggle_think_preserves_manual_anchor() {
     let (mut app, _) = crate::app::App::new();
     app.chat = vec![

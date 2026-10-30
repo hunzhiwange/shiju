@@ -123,6 +123,15 @@ fn chat_message_column<'a>() -> iced::widget::Column<'a, Message> {
         .max_width(CONVERSATION_READING_COLUMN_MAX_WIDTH)
 }
 
+// Spacers must not participate in the message column's inter-message spacing.
+fn chat_virtual_content<'a>(
+    messages: iced::widget::Column<'a, Message>,
+    top: f32,
+    bottom: f32,
+) -> iced::widget::Column<'a, Message> {
+    column![Space::new().height(top), messages, Space::new().height(bottom)].width(Length::Fill)
+}
+
 pub(crate) fn conversation_reading_column<'a>(
     content: impl Into<Element<'a, Message>>,
     padding: Padding,
@@ -458,10 +467,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 构建消息列，每条消息之间间隔 18px
     let mut col = chat_message_column();
 
-    if top_spacer_h > 0.0 {
-        col = col.push(Space::new().height(Length::Fixed(top_spacer_h)));
-    }
-
     let runtime = app.current_session_runtime_ref();
     #[cfg(test)]
     performance::record_runtime_borrow();
@@ -513,14 +518,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         col = col.push(message_measure::MeasuredChatMessage::new(i, message).with_target(target));
     }
 
-    if bottom_spacer_h > 0.0 {
-        col = col.push(Space::new().height(Length::Fixed(bottom_spacer_h)));
-    }
-
     // 创建可滚动容器，包含消息列
     let scroll_content = scrollable(conversation_reading_column(
-        col,
-        Padding { top: 16.0, right: 18.0, bottom: 20.0, left: 18.0 },
+        chat_virtual_content(col, top_spacer_h, bottom_spacer_h),
+        Padding { top: 0.0, right: 18.0, bottom: 0.0, left: 18.0 },
     ))
     .direction(chat_scroll_direction())
     .id(app.chat_scroll_id.clone())

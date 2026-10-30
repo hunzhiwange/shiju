@@ -1,0 +1,569 @@
+{
+  "schema_version": 1,
+  "task": 9,
+  "items": [
+    {
+      "id": "skills.roots",
+      "tasks": [
+        9
+      ],
+      "tests": [
+        "codex_plugin_compat_t09_loads_every_skill_root",
+        "codex_plugin_compat_t09_rejects_invalid_input",
+        "codex_plugin_compat_t09_preserves_isolation",
+        "codex_plugin_compat_t09_preserves_source_and_relative_resources",
+        "codex_plugin_compat_t09_loads_default_recursive_root_and_frontmatter",
+        "codex_plugin_compat_t09_limits_portable_discovery_to_direct_markdown_children",
+        "codex_plugin_compat_t09_reports_conflicts_and_deduplicates_overlapping_roots",
+        "codex_plugin_compat_t09_rejects_bad_metadata_without_dropping_healthy_skills",
+        "codex_plugin_compat_t09_repairs_scalar_prose_and_preserves_block_bodies",
+        "codex_plugin_compat_t09_preserves_disabled_skills_and_rejects_file_roots",
+        "codex_plugin_compat_t09_rejects_symlinks_without_following_resource_cycles",
+        "codex_plugin_compat_t09_preserves_same_name_marketplace_provenance_in_runtime_merge",
+        "codex_plugin_compat_t09_rejects_literal_backslash_aliases_before_loading_body"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 86.38,
+        "record": "t09/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 181.95,
+        "record": "t09/green.log",
+        "effective_tests": 13,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 9 original-package skill root discovery, metadata validation and provenance only. Legacy command migration is task 11; invocation semantics are task 10; agents/openai.yaml metadata is task 12; Linux/Windows actual acceptance is task 64."
+    },
+    {
+      "id": "skills.discovery",
+      "tasks": [
+        9
+      ],
+      "tests": [
+        "codex_plugin_compat_t09_loads_every_skill_root",
+        "codex_plugin_compat_t09_rejects_invalid_input",
+        "codex_plugin_compat_t09_preserves_isolation",
+        "codex_plugin_compat_t09_preserves_source_and_relative_resources",
+        "codex_plugin_compat_t09_loads_default_recursive_root_and_frontmatter",
+        "codex_plugin_compat_t09_limits_portable_discovery_to_direct_markdown_children",
+        "codex_plugin_compat_t09_reports_conflicts_and_deduplicates_overlapping_roots",
+        "codex_plugin_compat_t09_rejects_bad_metadata_without_dropping_healthy_skills",
+        "codex_plugin_compat_t09_repairs_scalar_prose_and_preserves_block_bodies",
+        "codex_plugin_compat_t09_preserves_disabled_skills_and_rejects_file_roots",
+        "codex_plugin_compat_t09_rejects_symlinks_without_following_resource_cycles",
+        "codex_plugin_compat_t09_preserves_same_name_marketplace_provenance_in_runtime_merge",
+        "codex_plugin_compat_t09_rejects_literal_backslash_aliases_before_loading_body"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 86.38,
+        "record": "t09/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 181.95,
+        "record": "t09/green.log",
+        "effective_tests": 13,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 9 original-package skill root discovery, metadata validation and provenance only. Legacy command migration is task 11; invocation semantics are task 10; agents/openai.yaml metadata is task 12; Linux/Windows actual acceptance is task 64."
+    },
+    {
+      "id": "skills.frontmatter",
+      "tasks": [
+        9
+      ],
+      "tests": [
+        "codex_plugin_compat_t09_loads_every_skill_root",
+        "codex_plugin_compat_t09_rejects_invalid_input",
+        "codex_plugin_compat_t09_preserves_isolation",
+        "codex_plugin_compat_t09_preserves_source_and_relative_resources",
+        "codex_plugin_compat_t09_loads_default_recursive_root_and_frontmatter",
+        "codex_plugin_compat_t09_limits_portable_discovery_to_direct_markdown_children",
+        "codex_plugin_compat_t09_reports_conflicts_and_deduplicates_overlapping_roots",
+        "codex_plugin_compat_t09_rejects_bad_metadata_without_dropping_healthy_skills",
+        "codex_plugin_compat_t09_repairs_scalar_prose_and_preserves_block_bodies",
+        "codex_plugin_compat_t09_preserves_disabled_skills_and_rejects_file_roots",
+        "codex_plugin_compat_t09_rejects_symlinks_without_following_resource_cycles",
+        "codex_plugin_compat_t09_preserves_same_name_marketplace_provenance_in_runtime_merge",
+        "codex_plugin_compat_t09_rejects_literal_backslash_aliases_before_loading_body"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 86.38,
+        "record": "t09/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 181.95,
+        "record": "t09/green.log",
+        "effective_tests": 13,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 9 original-package skill root discovery, metadata validation and provenance only. Legacy command migration is task 11; invocation semantics are task 10; agents/openai.yaml metadata is task 12; Linux/Windows actual acceptance is task 64."
+    },
+    {
+      "id": "acceptance.t09",
+      "tasks": [
+        9
+      ],
+      "tests": [
+        "codex_plugin_compat_t09_loads_every_skill_root",
+        "codex_plugin_compat_t09_rejects_invalid_input",
+        "codex_plugin_compat_t09_preserves_isolation",
+        "codex_plugin_compat_t09_preserves_source_and_relative_resources",
+        "codex_plugin_compat_t09_loads_default_recursive_root_and_frontmatter",
+        "codex_plugin_compat_t09_limits_portable_discovery_to_direct_markdown_children",
+        "codex_plugin_compat_t09_reports_conflicts_and_deduplicates_overlapping_roots",
+        "codex_plugin_compat_t09_rejects_bad_metadata_without_dropping_healthy_skills",
+        "codex_plugin_compat_t09_repairs_scalar_prose_and_preserves_block_bodies",
+        "codex_plugin_compat_t09_preserves_disabled_skills_and_rejects_file_roots",
+        "codex_plugin_compat_t09_rejects_symlinks_without_following_resource_cycles",
+        "codex_plugin_compat_t09_preserves_same_name_marketplace_provenance_in_runtime_merge",
+        "codex_plugin_compat_t09_rejects_literal_backslash_aliases_before_loading_body"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 86.38,
+        "record": "t09/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 181.95,
+        "record": "t09/green.log",
+        "effective_tests": 13,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 9 original-package skill root discovery, metadata validation and provenance only. Legacy command migration is task 11; invocation semantics are task 10; agents/openai.yaml metadata is task 12; Linux/Windows actual acceptance is task 64."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+    "lease_released": true,
+    "lease_note": "Runner releases only its owned record after Cargo children end; another plan may immediately reuse the slot. An external cleanup once removed the active cache and lease."
+  },
+  "validation_runs": [
+    {
+      "phase": "fmt-red",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 9.12,
+      "record": "t09/fmt-red.log"
+    },
+    {
+      "phase": "red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 86.38,
+      "record": "t09/red.log",
+      "effective_tests": 3,
+      "observed_target_assertions": 3
+    },
+    {
+      "phase": "green-fixture-errors",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 144.16,
+      "record": "t09/green-fixture-errors.log",
+      "diagnostic": "Two added fixture declarations used a directory-name disabled marker and omitted the required portable schema selector. The fixture inputs were corrected without relaxing expected assertions."
+    },
+    {
+      "phase": "fmt-green-final",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.24,
+      "record": "t09/fmt-green-final.log"
+    },
+    {
+      "phase": "green-interrupted",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 130,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t09/green-interrupted.log",
+      "diagnostic": "Agent stopped only its own Cargo runner before obtaining a test result to prevent new diagnostic paths from echoing invalid metadata payloads; owned lease released."
+    },
+    {
+      "phase": "fmt-green",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.5,
+      "record": "t09/fmt-green.log"
+    },
+    {
+      "phase": "green-environment-failure",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 62.56,
+      "record": "t09/green-environment-failure.log",
+      "diagnostic": "External cleanup removed active Cargo cache and owned lease; rustc could not create a temporary directory. No behavior result claimed."
+    },
+    {
+      "phase": "fmt-retry",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.89,
+      "record": "t09/fmt-retry.log"
+    },
+    {
+      "phase": "green-path-review-interrupted",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 130,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t09/green-path-review-interrupted.log",
+      "diagnostic": "Agent stopped only its own dependency rebuild before behavior execution to preserve literal POSIX path components and reject a backslash alias rather than relabel instruction bytes; owned lease released."
+    },
+    {
+      "phase": "fmt-final",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.71,
+      "record": "t09/fmt-final.log"
+    },
+    {
+      "phase": "green-shared-regression",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 118.23,
+      "record": "t09/green-shared-regression.log",
+      "diagnostic": "Unrelated concurrent session test closure fails the new Send + static event callback requirement (E0373/E0505). No task behavior result claimed."
+    },
+    {
+      "phase": "clippy-unused-import",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 122.43,
+      "record": "t09/clippy-unused-import.log",
+      "diagnostic": "Task 9 no longer used the old directory-loader re-export; removed that unused re-export rather than allowing the warning."
+    },
+    {
+      "phase": "fmt-complete",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 9.76,
+      "record": "t09/fmt-complete.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 181.95,
+      "record": "t09/green.log",
+      "effective_tests": 13,
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 2.4,
+      "record": "t09/adjacent.log",
+      "effective_tests": 185,
+      "passed": 185,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "skills",
+      "command": "cargo test -p vw-agent --lib --all-features skills:: -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 0.62,
+      "record": "t09/skills.log"
+    },
+    {
+      "phase": "audit",
+      "command": "cargo test -p vw-agent --lib --all-features skills::audit:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 1.39,
+      "record": "t09/audit.log",
+      "effective_tests": 48,
+      "passed": 48,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "loader",
+      "command": "cargo test -p vw-agent --lib --all-features skills::loader:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 0.68,
+      "record": "t09/loader.log",
+      "effective_tests": 8,
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "clippy",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 47.17,
+      "record": "t09/clippy.log"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t09.json",
+      "exit_code": 1,
+      "record": "t09/check-evidence.log",
+      "expected": "The unchanged full frozen baseline rejects partial Task 9 macOS evidence"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t09.json",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --exit-code HEAD -- crates/vw-agent/src/skills/installer.rs crates/vw-agent/src/skills/installer_tests.rs crates/vw-agent/src/skills/cli.rs crates/vw-agent/src/skills/cli_tests.rs",
+      "exit_code": 0,
+      "meaning": "Unrelated failing install implementation and tests are unchanged"
+    }
+  ],
+  "reference_snapshot": {
+    "kind": "Local source frozen by SHA-256; no Git revision asserted",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugins/src/loader.rs": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "codex-rs/skills/src/parser.rs": "f3532df1cc16f4da423b8e5c813269940c90317bcd211b6659cad449fd877e89"
+    },
+    "symbols": [
+      "plugin_skill_roots",
+      "load_plugin_skill_inventory",
+      "parse_skill_frontmatter_metadata"
+    ]
+  },
+  "behavior_evidence": [
+    "Every sorted/deduplicated audited root contributes real Markdown skills; overlapping roots do not duplicate a skill path. A missing optional default skills/ directory is never created.",
+    "Legacy discovery is recursive; portable discovery accepts direct Markdown children only and does not select native TOML files over portable Markdown. Native packages retain their TOML/Markdown priority and existing permissive Markdown metadata behavior.",
+    "Each loaded skill retains the exact plugin identity, namespace, canonical package root and package-relative entry path. Full instructions preserve original bytes and relative resources; metadata-only mode omits the body. Serialized input cannot forge runtime plugin provenance.",
+    "Two real marketplace installs with the same skill names remain separate through the runtime merge. Existing local skill priority remains covered by adjacent tests. Within-plugin duplicate names have deterministic winners and path-specific diagnostics.",
+    "Disabled plugins and disabled skills contribute no runtime skill. Configured script and symlink rejection still apply. Malformed frontmatter, invalid metadata shapes, overlong names and file roots produce diagnostics while healthy skills remain available.",
+    "The unified audit no longer traverses symbolic-link directories under either policy. Discovery never follows symlink entry aliases, and literal POSIX backslashes are rejected without relabelling instruction bytes as a different entry.",
+    "Malformed metadata diagnostics contain position and category without raw scalar payloads. Package bytes and external fixture bytes remain unchanged."
+  ],
+  "diagnostics": [
+    "The three original red tests reached the requested runtime assertions; the host then aborted while initiating panic. The exact raw log is preserved; no failed-test summary is invented.",
+    "The first green run exposed two added fixture declaration mistakes: a directory-name disabled marker instead of the identity-key marker, and an omitted required portable schema selector. Inputs were corrected without changing expected behavior.",
+    "An external task removed all target slot caches and lease records during the first final run. The rustc temporary-directory error is preserved as an environment failure, not a behavior result.",
+    "The broader skills:: regression reached 273 tests and exposed two unchanged installation tests that search only the outer anyhow error message for an inner audit cause. The raw failure is retained; changed audit and loader modules are verified separately. No passing summary is invented for the aborted broad run.",
+    "Two agent-initiated compiler interruptions are explicitly recorded: diagnostic payload redaction and literal path-component preservation. Only owned Cargo processes were stopped; no external lock or process was touched."
+  ],
+  "security_differences": [
+    "Plugin entry paths reuse the existing strict component audit, including symlink and ambiguous spelling rejection. This is intentionally stricter than upstream link-tolerant discovery.",
+    "Native VibeWindow skill syntax and configured audit admission rules remain intact. No manifest, plugin package, permission policy or external resource is rewritten.",
+    "Invalid YAML/TOML diagnostics avoid raw source scalar payloads. Repaired scalar metadata does not rewrite the instruction body or grant invocation/tool permissions."
+  ],
+  "deferred_scope": {
+    "10": "Explicit invocation, policy and argument semantics",
+    "11": "Legacy command migration and any corresponding generated skill root",
+    "12": "Skill agents/openai.yaml interface, policy and dependency metadata",
+    "64": "Actual Linux and Windows behavior evidence"
+  },
+  "artifacts_sha256": {
+    "crates/vw-agent/testdata/plugin_compat/t09/README.md": "4df48c7b046546467ac79f41433e687acb46c0386de7e9b7cd71df4f888c6268",
+    "crates/vw-agent/testdata/plugin_compat/t09/alpha/SKILL.md": "2f2549cf46997f165e5ce9c6cfb526e2bcbd025d743051e68d22af73d9b5a0a2",
+    "crates/vw-agent/testdata/plugin_compat/t09/beta/SKILL.md": "dabfc00d70ce2cce0947c89047821914c769a10b4150374948785d5feba4a232",
+    "crates/vw-agent/testdata/plugin_compat/t09/plugin.json": "7624b7af533be5c379dbd8941c829a22941a87f19384213b96a1ceed16c91417",
+    "docs/plugin-compat/evidence/t09/adjacent.log": "d014b1fa3635e663e7de48846ff2624c0600c1f6307c8cba9b253860f7797f21",
+    "docs/plugin-compat/evidence/t09/adjacent.run.json": "56a75ed540fce68ba209b68e9148986636c7e81e6ae4011ba475e5d4d42c4ba4",
+    "docs/plugin-compat/evidence/t09/audit.log": "5d258d2375e06f40603bbfc4bf66cd996c5c7929e747f2bc4947efce085040e5",
+    "docs/plugin-compat/evidence/t09/audit.run.json": "f75a2d442b516d281e67636dcdd74a9cbb1d3ff1e240653bd8866cc3843013cc",
+    "docs/plugin-compat/evidence/t09/clippy-unused-import.log": "2b124b1640fe2c95c8a28089af61801c35db2617a4fdd152ccdf8b9aad74c348",
+    "docs/plugin-compat/evidence/t09/clippy-unused-import.run.json": "edd9b72d96da7a8f7c72a8fdcc7a1d89330d39a0ae5374c354ce9b0ef07e039a",
+    "docs/plugin-compat/evidence/t09/clippy.log": "05fcb1acc9f50ad9033d05a680cf43f2738efae4a2fd720564e39c6def313703",
+    "docs/plugin-compat/evidence/t09/clippy.run.json": "635e7b334429698658684ad4ab9511a5de4beca13eb6f74dd7b340f969d31338",
+    "docs/plugin-compat/evidence/t09/fmt-complete.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/fmt-complete.run.json": "02e102dfa5c6347308093dd7562434d8a5bf09d53dbb4fe6603b58610da8850d",
+    "docs/plugin-compat/evidence/t09/fmt-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/fmt-final.run.json": "5bac2d0c868f7c31e191c7a4a2505a48b78c47dc4a26e4184557a6cb688d9177",
+    "docs/plugin-compat/evidence/t09/fmt-green-final.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/fmt-green-final.run.json": "08281afbd6cd986308bfbe3a5fa8d0b46707b680ae99ea7bea0a8d3a3eb36018",
+    "docs/plugin-compat/evidence/t09/fmt-green.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/fmt-green.run.json": "745fdd114179022e9834d523f9da398b3643e30a64df5e5e13f742c9ffcdddb5",
+    "docs/plugin-compat/evidence/t09/fmt-red.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/fmt-red.run.json": "42a0de3ad9b6ea34280d2666512fbb797ff5be4c301cf98248f034de1e77e313",
+    "docs/plugin-compat/evidence/t09/fmt-retry.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/fmt-retry.run.json": "9b0e4e52ec2ac7692dae1cc2c977cdbbdc0e132c522f16179678a15c699457dc",
+    "docs/plugin-compat/evidence/t09/green-environment-failure.log": "11f8d8f88d5181523a7fcd54648350d71e68d5fc0d9f1ad62c4053de850779d2",
+    "docs/plugin-compat/evidence/t09/green-environment-failure.run.json": "bcc20eef4edd63ae22bdc26d461f31142955d32d8217a14d1a5c801c48551caf",
+    "docs/plugin-compat/evidence/t09/green-fixture-errors.log": "0508009b7654baeaeb94fe12b49f8b97a1a72abbe2df5d23e8a5164b9b3acdc3",
+    "docs/plugin-compat/evidence/t09/green-fixture-errors.run.json": "6ca641b0f517ac2ce848ac882fffa733af7b62aeded110e70d956ea9366379d3",
+    "docs/plugin-compat/evidence/t09/green-interrupted.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/green-interrupted.run.json": "d1b1dda106c5de30e8ff93f70f5953921e1488f8243f21705fc7bec16748828e",
+    "docs/plugin-compat/evidence/t09/green-path-review-interrupted.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t09/green-path-review-interrupted.run.json": "7cea1089be8c0ae0e0f9c7b87b214013899b1c7e8ee1fafe037190a10f53b3ad",
+    "docs/plugin-compat/evidence/t09/green-shared-regression.log": "b4cb881e0651459b6f929fbb31d815528b5ae5d15c53a095ad458452b5acef31",
+    "docs/plugin-compat/evidence/t09/green-shared-regression.run.json": "d9363063ab8499365be838abe58aad0102482e668acf22fbadc66883019a73dd",
+    "docs/plugin-compat/evidence/t09/green.log": "4019953edeb9335181a7c04ea69d53cb002e6f5885f5b48eccd5156c4cb87438",
+    "docs/plugin-compat/evidence/t09/green.run.json": "2613e7438233bebb7f9fb50993573a0b92c70d7403f6bb1a552bd69d1cf7dea5",
+    "docs/plugin-compat/evidence/t09/loader.log": "470235755e41710f7970b10d2c04942effc06f5e4b62dc1d24129b8f3e514c84",
+    "docs/plugin-compat/evidence/t09/loader.run.json": "c2f14774b6560d9a028393aa7c874ee4a99cf26eebc388b43de6754800aea896",
+    "docs/plugin-compat/evidence/t09/red.log": "866949b20ef8b18d5416d005159f9e5f8e5c3aefb83055ccc97b82cf46742626",
+    "docs/plugin-compat/evidence/t09/red.run.json": "d0e61f2ae179ac33dd69081bac0731c0a23d21a4657ef36b2d3a6586935d33ae",
+    "docs/plugin-compat/evidence/t09/skills.log": "b5e89088db86a7dc3fb3534717dffc895880546f5f867e6997fdc9df3d245af7",
+    "docs/plugin-compat/evidence/t09/skills.run.json": "1672ab9db7198286fc8c75f57fb8e17d982873335ea44a0c539ddfa9268a642c",
+    "docs/plugin-compat/evidence/t09/check-evidence.log": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479"
+  },
+  "scope_note": "Partial Task 9 macOS evidence only. Complete compatibility requires all frozen tasks and actual platform/service evidence; the unchanged full-baseline checker must reject this partial file.",
+  "status": "已完成，待回归",
+  "deferred_regression": {
+    "command": "cargo test -p vw-agent --lib --all-features skills:: -- --nocapture",
+    "record": "t09/skills.log",
+    "announced_tests": 273,
+    "observed_failed_assertions": 2,
+    "tests": [
+      "skills::cli::cli_tests::handle_install_applies_configured_security_policy",
+      "skills::installer::installer_tests::configured_skill_security_controls_loading_and_install_audit"
+    ],
+    "cause": "Unchanged install_skill_from_source wraps enforce_skill_security_audit errors with failed-to-install context. Existing tests search Error.to_string() for the inner Skill security audit failed text rather than the error chain. Those implementation/test files match HEAD; Task 9 does not modify them.",
+    "scope_validation": "Task 9 focused, plugin, changed audit and loader module checks and complete clippy all passed; broad unrelated regression requires later verification."
+  },
+  "artifact_note": "Captured log trailing whitespace and empty final lines are normalized; empty formatter output stays empty."
+}

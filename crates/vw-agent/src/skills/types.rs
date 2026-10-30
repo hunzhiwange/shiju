@@ -151,6 +151,14 @@ pub struct Skill {
     /// 技能描述
     pub description: String,
 
+    /// 插件技能的可选单行短说明。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub short_description: Option<String>,
+
+    /// 运行时审计产生的插件来源，不能由技能文件声明或反序列化伪造。
+    #[serde(skip)]
+    pub plugin_source: Option<PluginSkillSource>,
+
     /// 技能版本号
     pub version: String,
 
@@ -215,6 +223,15 @@ pub struct Skill {
     pub argument_hint: Option<String>,
 }
 
+/// 技能所属插件及原包内资源定位；相对资源以技能文件所在目录为基准。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginSkillSource {
+    pub plugin_id: String,
+    pub namespace: String,
+    pub root: PathBuf,
+    pub relative_skill_path: PathBuf,
+}
+
 impl Skill {
     /// 返回技能是否适用于给定的工作区相对路径。
     pub fn applies_to_path(&self, path: &Path) -> bool {
@@ -230,6 +247,8 @@ impl Default for Skill {
         Self {
             name: String::new(),
             description: String::new(),
+            short_description: None,
+            plugin_source: None,
             version: default_version(),
             author: None,
             tags: Vec::new(),

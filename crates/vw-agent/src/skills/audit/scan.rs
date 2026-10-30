@@ -39,7 +39,8 @@ pub(super) fn collect_paths_depth_first(root: &Path) -> Result<Vec<PathBuf>> {
     while let Some(current) = stack.pop() {
         out.push(current.clone());
 
-        if !current.is_dir() {
+        // 不进入符号链接目录；策略负责是否报告链接，遍历本身不能越过来源边界。
+        if !fs::symlink_metadata(&current)?.is_dir() {
             continue;
         }
 

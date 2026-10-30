@@ -1,0 +1,198 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 273 tests
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::desktop_skills_test_module_is_loaded ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::humanize_skill_id_formats_hyphen_and_underscore_words ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::built_in_skill_helpers_read_metadata_and_mark_recommended_group ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::create_new_skill_scaffold_writes_template ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::handlers_reject_blank_required_fields_before_config_lookup ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::normalize_optional_project_path_trims_blank_values ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::local_skill_source_key_maps_all_kinds ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::install_built_in_skill_copies_nested_resources ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::parse_skill_frontmatter_rejects_missing_or_unclosed_blocks ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::count_skill_resources_ignores_skill_documents ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::parse_skill_frontmatter_reads_yaml_block ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::delete_local_skill_errors_for_missing_skill ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::parse_skill_frontmatter_stops_before_markdown_body ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::delete_local_skill_removes_directory ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::create_new_skill_scaffold_uses_next_available_name ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::installed_skills_preserve_market_source_metadata ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::collect_catalog_skills_includes_personal_items_and_preserves_bundled_defaults ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::discover_local_skills_reads_workspace_skills_and_deduplicates ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::install_built_in_skill_copies_once_and_collect_catalog_marks_installed ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::collect_catalog_skills_orders_personal_items_by_title_then_id ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::read_local_catalog_metadata_returns_none_without_skill_document ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::resolve_project_path_requires_existing_directory ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::read_local_catalog_metadata_falls_back_for_blank_toml_fields ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::read_local_catalog_metadata_prefers_toml_manifest ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::read_local_catalog_metadata_does_not_fall_back_when_toml_is_invalid ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::discover_local_skills_ignores_non_skills_and_reports_disabled_state ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::read_local_skill_document_prefers_markdown_then_toml ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::read_local_catalog_metadata_reads_markdown_defaults_and_rejects_invalid_toml ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::skill_kind_sort_key_orders_known_kinds_first ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::unique_skill_directory_prefers_unsuffixed_name ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::collect_catalog_skills_uses_local_metadata_for_built_in_override ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::unique_skill_directory_skips_existing_names ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::router_builds_with_unit_state ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::resolve_skill_detail_reports_disabled_local_skill_capabilities ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::resolve_skill_detail_returns_personal_toml_skill_and_missing_errors ... ok
+test skills::audit::manifest::manifest_tests::manifest_audit_flags_shell_chaining_and_missing_commands ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::resolve_skill_detail_returns_built_in_and_local_variants ... ok
+test skills::audit::manifest::manifest_tests::manifest_audit_reports_missing_manifest_read_error ... ok
+test skills::audit::markdown::markdown_tests::cross_skill_references_are_detected ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::set_local_skill_enabled_noops_for_current_state_and_errors_for_missing_skill ... ok
+test skills::audit::markdown::markdown_tests::markdown_link_without_parent_reports_resolution_error ... ok
+test gateway::api::handlers::desktop_skills::desktop_skills_tests::set_local_skill_enabled_toggles_disabled_marker ... ok
+test skills::audit::report::report_tests::clean_report_has_empty_summary ... ok
+test skills::audit::report::report_tests::summary_joins_findings_in_order ... ok
+test skills::audit::risk::risk_tests::shell_chaining_detects_common_operators ... ok
+test skills::audit::scan::scan_tests::audit_path_reports_missing_path_metadata_error ... ok
+test skills::audit::scan::scan_tests::audit_path_flags_script_symlink_and_oversized_text_without_reading ... ok
+test skills::audit::markdown::markdown_tests::markdown_audit_covers_link_edge_cases ... ok
+test skills::audit::scan::scan_tests::audit_path_applies_stricter_link_checks_only_to_skill_entry_markdown ... ok
+test skills::audit::scan::scan_tests::depth_first_collection_is_deterministic ... ok
+test skills::audit::markdown::markdown_tests::markdown_audit_flags_unsafe_links ... ok
+test skills::audit::support::support_tests::helper_boundaries_reject_lookalike_paths_and_schemes ... ok
+test skills::audit::support::support_tests::extension_helpers_are_case_insensitive ... ok
+test skills::audit::support::support_tests::link_text_helpers_strip_and_classify_targets ... ok
+test skills::audit::support::support_tests::relative_display_prefers_root_relative_paths ... ok
+test skills::audit::support::support_tests::unsupported_script_allows_non_shell_shebang ... ok
+test skills::audit::support::support_tests::unsupported_script_detects_shell_shebang ... ok
+test skills::audit::tests::audit_accepts_safe_skill ... ok
+test gateway::api::handlers::shiju_skills::shiju_skills_tests::shiju_skill_routes_reject_missing_credential_and_invalid_filters ... ok
+test gateway::api::handlers::shiju_skills::shiju_skills_tests::shiju_skill_routes_forward_search_filters ... ok
+test gateway::api::handlers::shiju_skills::shiju_skills_tests::shiju_skill_readme_route_forwards_markdown_content ... ok
+test gateway::api::handlers::shiju_skills::shiju_skills_tests::shiju_skill_routes_forward_maintained_multi_value_filters ... ok
+test gateway::api::handlers::shiju_skills::shiju_skills_tests::shiju_skill_routes_forward_tag_catalogs ... ok
+test gateway::api::handlers::shiju_skills::shiju_skills_tests::shiju_skill_routes_forward_empty_and_version_install_bodies ... ok
+test skills::audit::tests::audit_counts_nested_directories_and_files ... ok
+test skills::audit::tests::audit_allows_shell_script_files_and_links ... ok
+test skills::audit::tests::audit_rejects_missing_or_non_directory_sources ... ok
+test skills::audit::tests::audit_allows_missing_cross_skill_reference_with_bare_filename ... ok
+test skills::audit::tests::audit_rejects_high_risk_patterns ... ok
+test skills::audit::risk::risk_tests::high_risk_snippet_reports_expected_labels ... ok
+test skills::audit::tests::audit_rejects_chained_commands_in_manifest ... ok
+test skills::audit::tests::audit_rejects_high_risk_patterns_in_resource_markdown ... ok
+test skills::audit::tests::audit_allows_missing_cross_skill_reference_with_parent_dir ... ok
+test skills::audit::tests::audit_allows_missing_cross_skill_reference_with_dot_slash ... ok
+test skills::audit::markdown::markdown_tests::markdown_resource_skips_link_integrity_checks_but_keeps_risk_detection ... ok
+test skills::audit::manifest::manifest_tests::manifest_audit_flags_empty_commands_and_risky_prompts ... ok
+test skills::audit::tests::audit_allows_existing_cross_skill_reference ... ok
+test skills::audit::tests::audit_allows_resource_markdown_example_links ... ok
+test skills::audit::tests::is_cross_skill_reference_detection ... ok
+test skills::audit::tests::audit_rejects_markdown_escape_links ... ok
+test skills::audit::tests::audit_rejects_obfuscated_backdoor_patterns ... ok
+test skills::audit::tests::audit_rejects_missing_local_markdown_file ... ok
+test skills::audit::tests::audit_reports_missing_manifest_and_counts_root ... ok
+test skills::audit::tests::open_skill_markdown_returns_clean_single_file_report ... ok
+test skills::audit::tests::open_skill_markdown_rejects_directory_input ... ok
+test skills::audit::tests::open_skill_markdown_rejects_missing_and_outside_repo_paths ... ok
+test skills::audit::tests::open_skill_markdown_rejects_symlink_escape_from_repo ... ok
+test skills::cli::cli_tests::handle_audit_reports_error_for_existing_file_source ... ok
+test skills::audit::tests::open_skill_markdown_rejects_missing_repository_root ... ok
+test skills::audit::tests::open_skill_markdown_checks_repo_boundaries_and_missing_files ... ok
+test skills::audit::tests::audit_rejects_prompt_injection_override_patterns ... ok
+Installing skill from: missing-source
+test skills::cli::cli_tests::handle_remove_rejects_each_unsafe_name_form ... ok
+  ✓ Skill installed and audited: /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpDVzXED/git-skill (3 files scanned)
+  ✓ Skill installed from skills.sh: /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpDVzXED/skills-sh-skill (4 files scanned)
+test skills::audit::tests::audit_rejects_phishing_secret_harvest_patterns ... ok
+test skills::cli::cli_tests::print_install_success_covers_git_and_skills_sh_messages ... ok
+test skills::cli::cli_tests::skills_dir_helper_points_under_workspace ... ok
+test skills::cli::cli_tests::handle_remove_reports_missing_when_skills_dir_has_not_been_created ... ok
+test skills::cli::cli_tests::handle_remove_reports_filesystem_error_when_target_is_not_directory ... ok
+test skills::cli::cli_tests::handle_remove_rejects_symlink_that_escapes_skills_directory ... ok
+  ✓ Skill audit passed for /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpPL9DTC/.vibewindow/skills/safe (2 files scanned).
+  ✗ Skill audit failed for /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpPL9DTC/.vibewindow/skills/unsafe
+    - SKILL.md: detected high-risk command pattern (curl-pipe-shell).
+test skills::cli::cli_tests::handle_install_reports_skills_directory_creation_failure ... ok
+test skills::cli::cli_tests::handle_audit_reports_success_missing_and_findings ... ok
+test skills::discovery_tests::skill_discovery_parses_claude_invocation_frontmatter ... ok
+  ✓ Skill audit passed for /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmprwnFbx/.vibewindow/skills/installed-safe (2 files scanned).
+test skills::cli::cli_tests::handle_audit_resolves_installed_skill_name ... ok
+test skills::init::init_tests::init_creates_skills_directory_and_readme ... ok
+test skills::init::init_tests::init_returns_error_when_policy_path_is_directory ... ok
+Installing skill from: /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmp1SAimR/local-skill
+test skills::init::init_tests::init_returns_error_when_skills_path_is_file ... ok
+test skills::init::init_tests::init_returns_error_when_readme_write_fails ... ok
+test skills::init::init_tests::init_preserves_existing_readme ... ok
+  ✓ Skill installed and audited: /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpZKOkNJ/.vibewindow/skills/local-skill (3 files scanned)
+  Security audit completed successfully.
+test skills::installer::installer_tests::builtin_preloaded_skills_create_markdown_and_metadata_once ... ok
+Installing skill from: /var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmp1SAimR/rejected-skill
+test skills::installer::installer_tests::builtin_preloaded_skills_preserve_existing_skill_directories ... ok
+test skills::installer::installer_tests::builtin_preloaded_skills_write_source_specific_metadata ... ok
+
+thread 'skills::cli::cli_tests::handle_install_applies_configured_security_policy' (48166596) panicked at crates/vw-agent/src/skills/cli_tests.rs:332:5:
+assertion failed: error.to_string().contains("Skill security audit failed")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'skills::installer::installer_tests::configured_skill_security_controls_loading_and_install_audit' (48166621) panicked at crates/vw-agent/src/skills/installer_tests.rs:472:5:
+assertion failed: error.to_string().contains("Skill security audit failed")
+test skills::discovery_tests::skill_discovery_applies_source_precedence_and_dynamic_paths ... ok
+test skills::installer::installer_tests::git_metadata_removal_is_idempotent_when_metadata_is_absent ... ok
+test skills::discovery_tests::skill_discovery_loads_global_skills_from_unicode_userprofile_without_home ... ok
+test skills::discovery_tests::skill_discovery_omits_global_sources_without_home_variables ... ok
+test skills::installer::installer_tests::git_source_detection_accepts_schemes_and_scp_form ... ok
+test skills::discovery_tests::skill_discovery_uses_userprofile_when_home_is_empty ... ok
+test skills::installer::installer_tests::git_source_detection_rejects_incomplete_or_non_git_urls ... ok
+test skills::installer::installer_tests::git_source_helpers_require_matching_scheme_and_strict_scp_components ... ok
+test skills::installer::installer_tests::install_directory_detection_reports_missing_root ... ok
+test skills::installer::installer_tests::install_directory_detection_reports_zero_and_multiple_new_dirs ... ok
+test skills::installer::installer_tests::install_directory_detection_ignores_existing_directories_and_new_files ... ok
+test skills::installer::installer_tests::install_directory_detection_requires_exactly_one_new_dir ... ok
+test skills::installer::installer_tests::install_skill_from_source_rejects_blank_source_as_local_path ... ok
+test skills::installer::installer_tests::install_skill_from_source_dispatches_local_sources ... ok
+test skills::installer::installer_tests::install_skill_from_source_trims_local_source_and_wraps_local_errors ... ok
+test skills::installer::installer_tests::secure_copy_preserves_nested_directories_and_files ... ok
+test skills::installer::installer_tests::secure_copy_rejects_symlink_sources_and_entries ... ok
+test skills::installer::installer_tests::secure_copy_reports_missing_source_with_path_context ... ok
+test skills::installer::installer_tests::local_install_success_and_failure_paths_are_audited_and_cleaned ... ok
+test skills::installer::installer_tests::security_audit_rejects_unsafe_content_without_mutating_source ... ok
+test skills::installer::installer_tests::security_audit_git_metadata_and_secure_copy_helpers_cover_local_paths ... ok
+test skills::installer::installer_tests::skill_children_snapshot_records_files_and_directories ... ok
+test skills::invoked_tests::invoked_skill_reload_uses_current_file_state ... ok
+test skills::audit::tests::audit_rules_default_off_and_enable_independently ... ok
+test skills::listing_tests::codex_skills_catalog_includes_canonical_source_and_usage_without_body ... ok
+test skills::listing_tests::codex_skills_catalog_does_not_reopen_body_when_preparing_metadata ... ok
+test skills::listing_tests::codex_skills_catalog_preserves_source_priority_and_omits_unverified_or_disabled_items ... ok
+test skills::listing_tests::skill_listing_truncates_descriptions_and_respects_budget_deterministically ... ok
+test skills::listing_tests::skill_listing_sends_only_budgeted_deltas_per_agent ... ok
+test skills::loader::loader_tests::directory_loader_rejects_file_path_as_skills_directory ... ok
+test skills::loader::loader_tests::markdown_description_helpers_return_defaults_and_read_errors ... ok
+test skills::invoked_tests::invoked_skills_restore_after_compaction_resume_and_fork ... ok
+test skills::loader::loader_tests::load_skills_from_directory_skips_disabled_and_missing_directories ... ok
+test skills::loader::loader_tests::markdown_metadata_parser_handles_body_fallbacks_and_invalid_frontmatter ... ok
+test skills::loader::loader_tests::markdown_metadata_parser_uses_frontmatter_when_present ... ok
+test skills::loader::loader_tests::markdown_loader_uses_unknown_name_without_directory_component ... ok
+test skills::loader::loader_tests::markdown_loader_keeps_invocation_metadata_in_metadata_only_mode ... ok
+test skills::loader::loader_tests::read_markdown_skill_metadata_reads_from_disk ... ok
+test skills::installer::installer_tests::git_and_skills_sh_install_errors_are_reported ... ok
+test skills::marketplace::install_tests::market_skill_install_accepts_only_verified_atomic_artifact ... ok
+test skills::marketplace::install_tests::expert_package_rejects_mismatched_meta_identity ... ok
+test skills::marketplace::install_tests::market_skill_install_applies_configured_static_audit ... ok
+test skills::marketplace::install_tests::expert_package_rejects_mismatched_children ... ok
+test skills::marketplace::provider::provider_tests::mock_provider_covers_all_current_read_capabilities ... ok
+test skills::marketplace::install_tests::expert_package_installs_valid_meta_and_members ... ok
+test skills::marketplace::provider::provider_tests::provider_registry_registers_skillhub_as_default_source ... ok
+test skills::marketplace::provider::provider_tests::provider_registry_rejects_unknown_source ... ok
+test skills::marketplace::provider::provider_tests::provider_registry_resolves_stable_source_key ... ok
+test skills::marketplace::install_tests::market_skill_multi_target_install_rolls_back_completed_targets ... ok
+test skills::marketplace::install_tests::market_skill_install_rejects_download_limit_device_entry_and_target_conflict ... ok
+test skills::marketplace::skillhub_tests::expert_package_rejects_unresolved_members_before_download ... ok
+test skills::marketplace::skillhub_tests::skillhub_artifact_redirect_accepts_only_the_trusted_https_zip_path ... ok
+test skills::marketplace::skillhub_tests::skillhub_file_redirect_accepts_only_the_trusted_https_object_path ... ok
+test skills::marketplace::skillhub_tests::expert_package_rejects_mismatched_resolution_and_download_redirect ... ok
+test skills::marketplace::install_tests::market_skillset_install_is_atomic_and_records_source_membership ... ok
+test skills::marketplace::skillhub_tests::expert_package_resolves_and_pins_member_versions ... ok
+test skills::marketplace::skillhub_tests::skillhub_provider_displays_unresolved_skillset_members_but_rejects_installation ... ok
+test skills::marketplace::skillhub_tests::skillhub_provider_encodes_queries_and_namespace ... ok
+test skills::marketplace::skillhub_tests::skillhub_provider_preserves_unsigned_artifact_for_explicit_rejection ... ok
+test skills::marketplace::skillhub_tests::skillhub_provider_rejects_upstream_errors_without_payload_leak ... ok
+fatal runtime error: failed to initiate panic, error fatal runtime error: failed to initiate panic, error 55, aborting
+, aborting
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a 'skills::' --nocapture` (signal: 6, SIGABRT: process abort signal)

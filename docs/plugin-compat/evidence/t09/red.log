@@ -1,0 +1,28 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 26s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 3 tests
+
+thread 'plugins::compat::t09_tests::codex_plugin_compat_t09_loads_every_skill_root' (47750499) panicked at crates/vw-agent/src/plugins/compat/t09_tests.rs:55:5:
+assertion `left == right` failed: every audited root must contribute skills
+  left: []
+ right: ["alpha", "beta"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'plugins::compat::t09_tests::codex_plugin_compat_t09_preserves_isolation' (47750500) panicked at crates/vw-agent/src/plugins/compat/t09_tests.rs:92:5:
+assertion `left == right` failed: enabled plugin must load all roots even when another plugin is disabled
+  left: []
+ right: ["alpha", "beta"]
+
+thread 'plugins::compat::t09_tests::codex_plugin_compat_t09_rejects_invalid_input' (47750501) panicked at crates/vw-agent/src/plugins/compat/t09_tests.rs:72:5:
+assertion `left == right` failed: reject the unsafe skill while retaining the healthy audited root
+  left: []
+ right: ["alpha"]
+fatal runtime error: failed to initiate panic, error fatal runtime error: failed to initiate panic, error 55fatal runtime error: failed to initiate panic, error , aborting
+, aborting
+5, aborting
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a codex_plugin_compat_t09_ --nocapture` (signal: 6, SIGABRT: process abort signal)

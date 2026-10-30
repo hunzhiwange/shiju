@@ -1,0 +1,14 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 8 tests
+test skills::loader::loader_tests::markdown_metadata_parser_uses_frontmatter_when_present ... ok
+test skills::loader::loader_tests::markdown_metadata_parser_handles_body_fallbacks_and_invalid_frontmatter ... ok
+test skills::loader::loader_tests::read_markdown_skill_metadata_reads_from_disk ... ok
+test skills::loader::loader_tests::markdown_description_helpers_return_defaults_and_read_errors ... ok
+test skills::loader::loader_tests::directory_loader_rejects_file_path_as_skills_directory ... ok
+test skills::loader::loader_tests::markdown_loader_uses_unknown_name_without_directory_component ... ok
+test skills::loader::loader_tests::markdown_loader_keeps_invocation_metadata_in_metadata_only_mode ... ok
+test skills::loader::loader_tests::load_skills_from_directory_skips_disabled_and_missing_directories ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 10519 filtered out; finished in 0.06s

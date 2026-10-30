@@ -49,11 +49,11 @@ mod source;
 mod types;
 
 pub(crate) use invoked::{InvokedSkillRecord, InvokedSkillReplay};
-pub(crate) use loader::{load_skills_from_directory, read_markdown_skill_metadata};
+pub(crate) use loader::{load_skill_directory, read_markdown_skill_metadata};
 pub use prompt::{skills_to_prompt, skills_to_prompt_with_mode};
 pub(crate) use session_state::SkillListingSessionState;
 pub(crate) use types::SkillLoadMode;
-pub use types::{Skill, SkillTool};
+pub use types::{PluginSkillSource, Skill, SkillTool};
 
 const SKILL_DISABLED_MARKER_FILE: &str = "SKILL.disabled";
 const COMMON_PROJECT_SKILL_SOURCE_PATHS: [&str; 2] = ["skills", ".agents/skills"];
@@ -246,9 +246,28 @@ fn discover_ancestor_scan_stop(workspace_dir: &Path, home_dir: Option<&Path>) ->
     None
 }
 
-fn extend_unique_skills(target: &mut Vec<Skill>, seen: &mut HashSet<String>, items: Vec<Skill>) {
+fn extend_unique_skills(
+    target: &mut Vec<Skill>,
+    seen: &mut HashSet<(Option<String>, String)>,
+    items: Vec<Skill>,
+) {
     for skill in items {
-        if seen.insert(skill.name.clone()) {
+        let key = match &skill.plugin_source {
+            Some(source) => {
+                // 项目同名技能仍优先；不同插件的同名技能保留各自身份供调用层消歧。
+                if seen.contains(&(None, skill.name.clone())) {
+                    tracing::warn!(
+                        plugin = source.plugin_id,
+                        skill = skill.name,
+                        "plugin skill shadowed by a local skill"
+                    );
+                    continue;
+                }
+                (Some(source.plugin_id.clone()), skill.name.clone())
+            }
+            None => (None, skill.name.clone()),
+        };
+        if seen.insert(key) {
             target.push(skill);
         }
     }

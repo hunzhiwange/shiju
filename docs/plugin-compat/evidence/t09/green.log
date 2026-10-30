@@ -1,0 +1,26 @@
+   Compiling vw-config-types v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-config-types)
+   Compiling vw-api-types v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-api-types)
+   Compiling vw-shared v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-shared)
+   Compiling vw-acp v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-acp)
+   Compiling vw-gateway-client v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-gateway-client)
+   Compiling vw-provider-resolver v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-provider-resolver)
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 01s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 13 tests
+test plugins::compat::t09_tests::codex_plugin_compat_t09_rejects_literal_backslash_aliases_before_loading_body ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_loads_default_recursive_root_and_frontmatter ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_loads_every_skill_root ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_repairs_scalar_prose_and_preserves_block_bodies ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_preserves_disabled_skills_and_rejects_file_roots ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_rejects_symlinks_without_following_resource_cycles ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_preserves_source_and_relative_resources ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_reports_conflicts_and_deduplicates_overlapping_roots ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_limits_portable_discovery_to_direct_markdown_children ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_rejects_invalid_input ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_rejects_bad_metadata_without_dropping_healthy_skills ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_preserves_isolation ... ok
+test plugins::compat::t09_tests::codex_plugin_compat_t09_preserves_same_name_marketplace_provenance_in_runtime_merge ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10514 filtered out; finished in 0.07s

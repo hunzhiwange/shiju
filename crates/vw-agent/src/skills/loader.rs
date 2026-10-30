@@ -194,52 +194,40 @@ pub(crate) fn load_skills_from_directory(
         return Vec::new();
     }
 
-    let mut skills = Vec::new();
-
-    for path in crate::app::agent::skills::discovery::discover_skill_directories(skills_dir) {
-        if crate::app::agent::skills::is_local_skill_disabled(&path) {
-            continue;
-        }
-
-        // 对技能目录进行安全审计，确保不包含危险文件或符号链接
-        match crate::app::agent::skills::audit::audit_skill_directory_with_security(&path, security)
-        {
-            // 审计通过，继续加载
-            Ok(report) if report.is_clean() => {}
-            // 审计发现问题，跳过该技能并记录警告
-            Ok(report) => {
-                tracing::warn!(
-                    "skipping insecure skill directory {}: {}",
-                    path.display(),
-                    report.summary()
-                );
-                continue;
+    crate::app::agent::skills::discovery::discover_skill_directories(skills_dir)
+        .into_iter()
+        .filter_map(|path| match load_skill_directory(&path, load_mode, security, false) {
+            Ok(skill) => skill,
+            Err(error) => {
+                tracing::warn!("skipping skill directory {}: {error:#}", path.display());
+                None
             }
-            // 审计过程出错，跳过该技能并记录警告
-            Err(err) => {
-                tracing::warn!("skipping unauditable skill directory {}: {err}", path.display());
-                continue;
-            }
-        }
+        })
+        .collect()
+}
 
-        // 按优先级尝试加载清单文件：SKILL.toml 优先，SKILL.md 备用
-        let manifest_path = path.join("SKILL.toml");
-        let md_path = path.join("SKILL.md");
-
-        if manifest_path.exists() {
-            // 尝试加载 TOML 清单
-            if let Ok(skill) = load_skill_toml(&manifest_path, load_mode) {
-                skills.push(skill);
-            }
-        } else if md_path.exists() {
-            // 尝试加载 Markdown 清单
-            if let Ok(skill) = load_skill_md(&md_path, &path, load_mode) {
-                skills.push(skill);
-            }
-        }
+/// 加载一个已发现的技能目录，所有来源复用相同的禁用及安全策略。
+pub(crate) fn load_skill_directory(
+    path: &Path,
+    load_mode: SkillLoadMode,
+    security: &SkillSecurityConfig,
+    markdown_only: bool,
+) -> Result<Option<Skill>> {
+    if crate::app::agent::skills::is_local_skill_disabled(path) {
+        return Ok(None);
     }
-
-    skills
+    let report =
+        crate::app::agent::skills::audit::audit_skill_directory_with_security(path, security)?;
+    anyhow::ensure!(report.is_clean(), "insecure skill directory: {}", report.summary());
+    let manifest_path = path.join("SKILL.toml");
+    let md_path = path.join("SKILL.md");
+    if !markdown_only && manifest_path.exists() {
+        load_skill_toml(&manifest_path, load_mode).map(Some)
+    } else if md_path.exists() {
+        load_skill_md(&md_path, path, load_mode).map(Some)
+    } else {
+        Ok(None)
+    }
 }
 
 /// 从 TOML 清单文件加载技能
@@ -267,7 +255,8 @@ fn load_skill_toml(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
     match load_mode {
         // 完整加载模式：解析所有字段
         SkillLoadMode::Full => {
-            let manifest: SkillManifest = toml::from_str(&content)?;
+            let manifest: SkillManifest = toml::from_str(&content)
+                .map_err(|_| anyhow::anyhow!("invalid skill TOML manifest: {}", path.display()))?;
 
             Ok(Skill {
                 name: manifest.skill.name,
@@ -283,7 +272,8 @@ fn load_skill_toml(path: &Path, load_mode: SkillLoadMode) -> Result<Skill> {
         }
         // 仅元数据模式：跳过工具和提示词以提升性能
         SkillLoadMode::MetadataOnly => {
-            let manifest: SkillMetadataManifest = toml::from_str(&content)?;
+            let manifest: SkillMetadataManifest = toml::from_str(&content)
+                .map_err(|_| anyhow::anyhow!("invalid skill TOML manifest: {}", path.display()))?;
 
             Ok(Skill {
                 name: manifest.skill.name,
@@ -339,6 +329,8 @@ fn load_skill_md(path: &Path, dir: &Path, load_mode: SkillLoadMode) -> Result<Sk
     Ok(Skill {
         name,
         description,
+        short_description: None,
+        plugin_source: None,
         version: "0.1.0".to_string(),
         author: None,
         tags: Vec::new(),

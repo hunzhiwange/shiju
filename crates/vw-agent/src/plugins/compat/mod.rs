@@ -5,6 +5,8 @@ pub(super) mod identity;
 pub(super) mod legacy_manifest;
 pub(super) mod path_audit;
 pub(super) mod portable_manifest;
+pub(super) mod skill_frontmatter;
+pub(super) mod skill_roots;
 pub(super) mod transaction_install;
 
 #[cfg(test)]
@@ -34,3 +36,7 @@ mod t07_tests;
 #[cfg(test)]
 #[path = "t08_tests.rs"]
 mod t08_tests;
+
+#[cfg(test)]
+#[path = "t09_tests.rs"]
+mod t09_tests;

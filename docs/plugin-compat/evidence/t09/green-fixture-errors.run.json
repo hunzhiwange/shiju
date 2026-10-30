@@ -1,0 +1,11 @@
+{
+  "phase": "green-fixture-errors",
+  "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t09_ -- --nocapture",
+  "exit_code": 101,
+  "slot": 2,
+  "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+  "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+  "elapsed_seconds": 144.16,
+  "record": "t09/green-fixture-errors.log",
+  "diagnostic": "Two added fixture declarations used a directory-name disabled marker and omitted the required portable schema selector. The fixture inputs were corrected without relaxing expected assertions."
+}

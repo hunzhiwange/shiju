@@ -290,6 +290,7 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         turn_count: 0,
         timezone: chrono_tz::Asia::Shanghai,
         hook_runtime: None,
+        skill_session: None,
     }
 }
 
@@ -1005,3 +1006,6 @@ fn build_tool_descriptions_includes_browser_open_when_enabled() {
     assert!(descriptions.iter().any(|(name, _)| *name == "BrowserOpen"));
     assert!(descriptions.iter().any(|(name, _)| *name == "Browser"));
 }
+
+#[path = "query_engine_skills_tests.rs"]
+mod skills_tests;

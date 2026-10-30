@@ -27,7 +27,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::super::approval::{NonCliApprovalContext, TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT};
 use super::TOOL_LOOP_REPLY_TARGET;
-use super::tool_loop::run_tool_call_loop;
+use super::tool_loop::{run_tool_call_loop, run_tool_call_loop_with_skills};
 
 #[cfg(test)]
 #[path = "turn_tests.rs"]
@@ -96,9 +96,10 @@ pub(crate) async fn agent_turn(
     multimodal_config: &crate::app::agent::config::MultimodalConfig,
     max_iterations: usize,
     hooks: Option<Arc<HookRunner>>,
+    skills: Option<&mut super::skills::CoreSkillSession>,
 ) -> Result<String> {
     // 调用工具调用循环，使用默认参数（无审批管理器、无取消令牌等）
-    run_tool_call_loop(
+    run_tool_call_loop_with_skills(
         provider,
         history,
         tools_registry,
@@ -116,6 +117,7 @@ pub(crate) async fn agent_turn(
         hooks,
         None, // 无安全策略上下文
         &[],  // 无排除的工具
+        skills,
     )
     .await
 }

@@ -555,3 +555,6 @@ async fn turn_with_stream_auto_saves_and_uses_memory_context() {
     assert!(user.content.contains("] stream memory"));
     assert!(!collect_chunks(rx).await.is_empty());
 }
+
+#[path = "turn_skills_tests.rs"]
+mod skills_tests;

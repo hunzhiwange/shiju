@@ -87,6 +87,7 @@ pub struct Agent {
     pub(super) route_model_by_hint: HashMap<String, String>,
     pub(super) multimodal_config: crate::app::agent::config::MultimodalConfig,
     pub(super) timezone: Tz,
+    pub(super) skill_session: crate::agent::loop_::core::skills::CoreSkillSession,
 }
 
 impl Agent {
@@ -138,6 +139,7 @@ impl Agent {
     /// ```
     pub fn clear_history(&mut self) {
         self.history.clear();
+        self.skill_session.clear();
     }
 
     /// 从配置创建代理实例
@@ -245,7 +247,7 @@ impl Agent {
             .collect();
         let available_hints: Vec<String> = route_model_by_hint.keys().cloned().collect();
 
-        Agent::builder()
+        let mut agent = Agent::builder()
             .provider(provider)
             .tools(tools)
             .memory(memory)
@@ -270,7 +272,9 @@ impl Agent {
             .auto_save(config.memory.auto_save)
             .multimodal_config(config.multimodal.clone())
             .timezone(timezone)
-            .build()
+            .build()?;
+        agent.skill_session.config = Some(Arc::new(config.clone()));
+        Ok(agent)
     }
 
     pub(super) fn trim_history(&mut self) {

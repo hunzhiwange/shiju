@@ -67,6 +67,50 @@ pub async fn run_tool_call_loop(
     security: Option<Arc<SecurityPolicy>>,
     excluded_tools: &[String],
 ) -> Result<String> {
+    run_tool_call_loop_with_skills(
+        provider,
+        history,
+        tools_registry,
+        observer,
+        provider_name,
+        model,
+        temperature,
+        silent,
+        approval,
+        channel_name,
+        multimodal_config,
+        max_iterations,
+        cancellation_token,
+        on_delta,
+        hooks,
+        security,
+        excluded_tools,
+        None,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn run_tool_call_loop_with_skills(
+    provider: &dyn Provider,
+    history: &mut Vec<ChatMessage>,
+    tools_registry: &[Box<dyn Tool>],
+    observer: &dyn Observer,
+    provider_name: &str,
+    model: &str,
+    temperature: f64,
+    silent: bool,
+    approval: Option<Arc<ApprovalManager>>,
+    channel_name: &str,
+    multimodal_config: &crate::app::agent::config::MultimodalConfig,
+    max_iterations: usize,
+    cancellation_token: Option<CancellationToken>,
+    on_delta: Option<tokio::sync::mpsc::Sender<String>>,
+    hooks: Option<Arc<HookRunner>>,
+    security: Option<Arc<SecurityPolicy>>,
+    excluded_tools: &[String],
+    mut skills: Option<&mut super::skills::CoreSkillSession>,
+) -> Result<String> {
     let non_cli_approval_context =
         TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT.try_with(Clone::clone).ok().flatten();
     let channel_reply_target = TOOL_LOOP_REPLY_TARGET
@@ -75,7 +119,8 @@ pub async fn run_tool_call_loop(
         .flatten()
         .or_else(|| non_cli_approval_context.as_ref().map(|ctx| ctx.reply_target.clone()));
     let max_iterations = if max_iterations == 0 { DEFAULT_MAX_ITERATIONS } else { max_iterations };
-    let authorized_specs: Vec<crate::app::agent::tools::ToolSpec> = tools_registry
+    let initial_history_len = history.len();
+    let mut authorized_specs: Vec<crate::app::agent::tools::ToolSpec> = tools_registry
         .iter()
         .filter(|tool| {
             let tool_id = tool.spec().id;
@@ -84,7 +129,6 @@ pub async fn run_tool_call_loop(
         .map(|tool| tool.spec())
         .collect();
     let use_native_tools = provider.supports_native_tools() && !authorized_specs.is_empty();
-    let discovery = Arc::new(ToolDiscoverySession::new(authorized_specs));
     let turn_id = Uuid::new_v4().to_string();
     let mut seen_tool_signatures: HashSet<(String, String)> = HashSet::new();
     let mut missing_tool_call_retry_used = false;
@@ -110,7 +154,6 @@ pub async fn run_tool_call_loop(
         .with_provider(provider_name.to_string())
         .with_model(model.to_string())
         .with_turn_id(turn_id.clone())
-        .with_tool_discovery(discovery.clone())
         .with_bypass_non_cli_approval_for_turn(bypass_non_cli_approval_for_turn);
     if let Some(security) = security.clone() {
         tool_use_context = tool_use_context.with_security(security);
@@ -130,6 +173,12 @@ pub async fn run_tool_call_loop(
     if let Some(non_cli) = non_cli_approval_context.clone() {
         tool_use_context = tool_use_context.with_non_cli_approval_context(non_cli);
     }
+    if let Some(skills) = skills.as_deref_mut() {
+        tool_use_context = Box::pin(skills.configure(tool_use_context)).await?;
+        skills.refresh_skill_spec(&mut authorized_specs);
+    }
+    let discovery = Arc::new(ToolDiscoverySession::new(authorized_specs));
+    tool_use_context = tool_use_context.with_tool_discovery(discovery.clone());
     let mut image_turn = prepare_legacy_image_turn(history, model, multimodal_config).await?;
     if let Some(ctx) = image_turn.as_mut() {
         tool_use_context.set_image_asset_scope(&ctx.scope);
@@ -162,18 +211,32 @@ pub async fn run_tool_call_loop(
             ctx.attach_pending_reloads_to_chat(history, &pending_reloads);
         }
 
-        let request_history = if !use_native_tools && !tool_specs.is_empty() {
-            let instructions =
-                super::super::instructions::build_exposed_tool_instructions(&tool_specs);
-            let mut request_history = history.clone();
-            request_history.insert(
-                0,
-                ChatMessage::user(format!("<system-reminder>\n{instructions}\n</system-reminder>")),
-            );
-            Some(request_history)
-        } else {
-            None
+        let skill_messages = match skills.as_deref_mut() {
+            Some(skills) => skills.messages(tool_specs.iter().any(|spec| spec.id == "skill"))?,
+            None => Vec::new(),
         };
+        let request_history =
+            if !skill_messages.is_empty() || (!use_native_tools && !tool_specs.is_empty()) {
+                let mut request_history = history.clone();
+                // Keep the entry point's system reminder first; skill messages remain
+                // request-local and never enter history or tool-result persistence.
+                let offset =
+                    usize::from(request_history.first().is_some_and(is_transient_protocol_message));
+                request_history.splice(offset..offset, skill_messages);
+                if !use_native_tools && !tool_specs.is_empty() {
+                    let instructions =
+                        super::super::instructions::build_exposed_tool_instructions(&tool_specs);
+                    request_history.insert(
+                        0,
+                        ChatMessage::user(format!(
+                            "<system-reminder>\n{instructions}\n</system-reminder>"
+                        )),
+                    );
+                }
+                Some(request_history)
+            } else {
+                None
+            };
         let round = run_llm_round(
             provider,
             request_history.as_deref().unwrap_or(history.as_slice()),
@@ -335,6 +398,10 @@ pub async fn run_tool_call_loop(
             use_native_tools,
         )
         .await?;
+        if let Some(skills) = skills.as_deref_mut() {
+            Box::pin(skills.consume(tool_use_context.as_ref(), history, initial_history_len))
+                .await?;
+        }
     }
 
     runtime_trace::record_event(

@@ -300,7 +300,7 @@ pub struct SafetySection;
 
 /// 已废弃的技能片段占位符。
 ///
-/// 技能元数据由临时元用户提醒装配，完整正文只由 Skill Tool 成功调用后注入。
+/// 技能目录由临时 developer 消息装配，默认项和成功调用的正文由 user 消息重放。
 pub struct SkillsSection;
 
 /// 工作区片段 - 目录结构与 Git 状态
@@ -365,6 +365,10 @@ impl PromptSection for ToolsSection {
             ctx.tools.iter().map(|tool| tool.spec()).collect(),
         );
         for spec in discovery.exposed_specs() {
+            if spec.id == "skill" {
+                out.push_str("- **skill**: Load a skill from the current developer catalog.\n");
+                continue;
+            }
             let _ = writeln!(
                 out,
                 "- **{}**: {}\n  Parameters: `{}`",

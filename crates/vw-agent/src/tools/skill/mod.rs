@@ -24,6 +24,10 @@ use std::sync::Arc;
 mod invocation;
 mod prompt;
 
+pub(crate) fn description_for_skills(workspace_dir: &Path, skills: Vec<skills::Skill>) -> String {
+    prompt::build_description_text_for_skills(workspace_dir, skills)
+}
+
 /// skill 工具的参数结构体
 ///
 /// 用于接收技能名称参数，通过反序列化从 JSON 值构造
@@ -710,6 +714,19 @@ where
     F: Future + Send,
     F::Output: Send,
 {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let project =
+        crate::project::instance::project().map(|project| crate::project::instance::Context {
+            directory: crate::project::instance::directory(),
+            worktree: crate::project::instance::worktree(),
+            project,
+        });
+    let fut = crate::session::ui_store::with_tenant_scope(tenant, async move {
+        match project {
+            Some(project) => crate::project::instance::provide_context(project, fut).await,
+            None => fut.await,
+        }
+    });
     if tokio::runtime::Handle::try_current().is_ok() {
         std::thread::scope(|scope| {
             scope

@@ -1,5 +1,5 @@
 use super::core::Agent;
-use crate::app::agent::agent::loop_::run_tool_call_loop;
+use crate::agent::loop_::core::run_tool_call_loop_with_skills;
 use crate::app::agent::memory::MemoryCategory;
 use crate::app::agent::providers::ChatMessage;
 use anyhow::Result;
@@ -38,6 +38,15 @@ impl Agent {
     /// # Ok::<(), anyhow::Error>(())
     /// ```
     pub async fn turn(&mut self, user_message: &str) -> Result<String> {
+        let context = Box::pin(self.skill_session.project_context()).await?;
+        let execution = Box::pin(self.turn_in_project(user_message));
+        match context {
+            Some(context) => crate::project::instance::provide_context(context, execution).await,
+            None => execution.await,
+        }
+    }
+
+    async fn turn_in_project(&mut self, user_message: &str) -> Result<String> {
         if self.auto_save {
             let _ = self
                 .memory
@@ -64,10 +73,12 @@ impl Agent {
         let effective_model = self.classify_model(user_message).await?;
         let persistent_len = self.history.len();
         let mut request_history = self.ephemeral_request_history()?;
+        self.skill_session.begin_turn(user_message, &request_history[0].content, &self.history);
+        Box::pin(self.skill_session.set_model_context(&effective_model)).await?;
         let transient_len = request_history.len();
         request_history.extend(self.history.iter().cloned());
 
-        let final_response = run_tool_call_loop(
+        let final_response = run_tool_call_loop_with_skills(
             self.provider.as_ref(),
             &mut request_history,
             &self.tools,
@@ -85,6 +96,7 @@ impl Agent {
             None,
             self.security.clone(),
             &[],
+            Some(&mut self.skill_session),
         )
         .await?;
 
@@ -133,6 +145,19 @@ impl Agent {
         user_message: &str,
         on_delta: tokio::sync::mpsc::Sender<String>,
     ) -> Result<String> {
+        let context = Box::pin(self.skill_session.project_context()).await?;
+        let execution = Box::pin(self.turn_with_stream_in_project(user_message, on_delta));
+        match context {
+            Some(context) => crate::project::instance::provide_context(context, execution).await,
+            None => execution.await,
+        }
+    }
+
+    async fn turn_with_stream_in_project(
+        &mut self,
+        user_message: &str,
+        on_delta: tokio::sync::mpsc::Sender<String>,
+    ) -> Result<String> {
         if self.auto_save {
             let _ = self
                 .memory
@@ -159,10 +184,12 @@ impl Agent {
         let effective_model = self.classify_model(user_message).await?;
         let persistent_len = self.history.len();
         let mut request_history = self.ephemeral_request_history()?;
+        self.skill_session.begin_turn(user_message, &request_history[0].content, &self.history);
+        Box::pin(self.skill_session.set_model_context(&effective_model)).await?;
         let transient_len = request_history.len();
         request_history.extend(self.history.iter().cloned());
 
-        let final_response = run_tool_call_loop(
+        let final_response = run_tool_call_loop_with_skills(
             self.provider.as_ref(),
             &mut request_history,
             &self.tools,
@@ -180,6 +207,7 @@ impl Agent {
             None,
             self.security.clone(),
             &[],
+            Some(&mut self.skill_session),
         )
         .await?;
 

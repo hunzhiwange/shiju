@@ -21,6 +21,7 @@
 mod constants;
 mod errors;
 mod history;
+pub(crate) mod skills;
 mod timeouts;
 mod tool_loop;
 mod turn;
@@ -43,6 +44,7 @@ tokio::task_local! {
 pub use errors::is_tool_iteration_limit_error;
 pub(crate) use errors::{ToolLoopCancelled, is_tool_loop_cancelled};
 pub use tool_loop::run_tool_call_loop;
+pub(crate) use tool_loop::run_tool_call_loop_with_skills;
 pub(crate) use turn::agent_turn;
 #[cfg(test)]
 pub(crate) use turn::run_tool_call_loop_with_non_cli_approval_context;

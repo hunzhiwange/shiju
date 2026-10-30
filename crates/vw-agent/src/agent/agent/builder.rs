@@ -271,6 +271,15 @@ impl AgentBuilder {
         let tools = self.tools.ok_or_else(|| anyhow::anyhow!("tools are required"))?;
         let tool_specs = tools.iter().map(|tool| tool.spec()).collect();
 
+        let workspace_dir = self.workspace_dir.unwrap_or_else(|| std::path::PathBuf::from("."));
+        let skills = self.skills.unwrap_or_default();
+        let config = self.config.unwrap_or_default();
+        let skill_session = crate::agent::loop_::core::skills::CoreSkillSession::new(
+            workspace_dir.clone(),
+            skills.clone(),
+            config.clone(),
+        );
+
         Ok(Agent {
             provider: self.provider.ok_or_else(|| anyhow::anyhow!("provider is required"))?,
             tools,
@@ -283,14 +292,14 @@ impl AgentBuilder {
             memory_loader: self
                 .memory_loader
                 .unwrap_or_else(|| Box::new(DefaultMemoryLoader::default())),
-            config: self.config.unwrap_or_default(),
+            config,
             model_name: self
                 .model_name
                 .unwrap_or_else(|| "anthropic/claude-sonnet-4-20250514".into()),
             temperature: self.temperature.unwrap_or(0.7),
-            workspace_dir: self.workspace_dir.unwrap_or_else(|| std::path::PathBuf::from(".")),
+            workspace_dir,
             identity_config: self.identity_config.unwrap_or_default(),
-            skills: self.skills.unwrap_or_default(),
+            skills,
             skills_prompt_mode: self.skills_prompt_mode.unwrap_or_default(),
             auto_save: self.auto_save.unwrap_or(false),
             history: Vec::new(),
@@ -299,6 +308,7 @@ impl AgentBuilder {
             route_model_by_hint: self.route_model_by_hint.unwrap_or_default(),
             multimodal_config: self.multimodal_config.unwrap_or_default(),
             timezone: self.timezone.unwrap_or(chrono_tz::Asia::Shanghai),
+            skill_session,
         })
     }
 }

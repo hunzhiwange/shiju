@@ -26,7 +26,7 @@ use vw_config_types::agent::merged_agent_configs;
 use super::context::build_context;
 use super::core::agent_turn;
 use super::history::compact_history_with_internal_service;
-use super::instructions::{build_shell_policy_instructions, build_tool_instructions};
+use super::instructions::build_shell_policy_instructions;
 
 /// 会话级查询引擎。
 ///
@@ -99,6 +99,7 @@ pub(crate) struct QueryEngine {
     turn_count: usize,
     timezone: Tz,
     hook_runtime: Option<crate::app::agent::hooks::HookRuntime>,
+    skill_session: Option<super::core::skills::CoreSkillSession>,
 }
 
 #[derive(Debug, Default)]
@@ -289,10 +290,6 @@ impl QueryEngine {
             timezone,
         );
 
-        if !native_tools {
-            system_prompt.push_str(&build_tool_instructions(&tools_registry));
-        }
-
         system_prompt.push_str(&build_shell_policy_instructions(&config.autonomy));
 
         let parsed_model = crate::app::agent::provider::provider::parse_model(&model_name);
@@ -311,6 +308,11 @@ impl QueryEngine {
             }
         };
 
+        let skill_session = Some(super::core::skills::CoreSkillSession::from_config(
+            Arc::new(config.clone()),
+            session_id,
+            usize::try_from(model_limit.context).unwrap_or(usize::MAX),
+        ));
         Ok(Self {
             session_id: session_id.to_string(),
             reliability: config.reliability.clone(),
@@ -332,11 +334,24 @@ impl QueryEngine {
             turn_count: 0,
             timezone,
             hook_runtime,
+            skill_session,
         })
     }
 
     /// 提交一条用户消息并在当前会话历史上执行一次 agent 轮次。
     pub(crate) async fn submit_message(&mut self, message: &str) -> Result<String> {
+        let context = match self.skill_session.as_ref() {
+            Some(skills) => Box::pin(skills.project_context()).await?,
+            None => None,
+        };
+        let execution = Box::pin(self.submit_message_in_project(message));
+        match context {
+            Some(context) => crate::project::instance::provide_context(context, execution).await,
+            None => execution.await,
+        }
+    }
+
+    async fn submit_message_in_project(&mut self, message: &str) -> Result<String> {
         let history_snapshot = self.history.clone();
         let memory_context =
             build_context(self.memory.as_ref(), message, self.min_memory_relevance_score).await;
@@ -349,6 +364,9 @@ impl QueryEngine {
         };
 
         self.history.push(ChatMessage::user(enriched));
+        if let Some(skills) = self.skill_session.as_mut() {
+            skills.begin_turn(message, &self.request_system_prompt, &self.history);
+        }
         let context = match self.compact_before_primary_request(false).await {
             Ok(context) => context,
             Err(error) => {
@@ -376,6 +394,7 @@ impl QueryEngine {
             &self.multimodal_config,
             self.max_iterations,
             self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+            self.skill_session.as_mut(),
         )
         .await;
 
@@ -410,6 +429,7 @@ impl QueryEngine {
                     &self.multimodal_config,
                     self.max_iterations,
                     self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot()),
+                    self.skill_session.as_mut(),
                 )
                 .await;
                 if retry.is_ok() {

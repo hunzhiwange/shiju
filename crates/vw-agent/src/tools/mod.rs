@@ -48,6 +48,9 @@ pub mod cron_update;
 mod decision;
 pub mod delegate;
 pub(crate) mod delegated_tools;
+// Consumed by the search tool and request loops in the following plan tasks.
+#[allow(dead_code)]
+pub(crate) mod discovery;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod enter_worktree;
 mod executor;

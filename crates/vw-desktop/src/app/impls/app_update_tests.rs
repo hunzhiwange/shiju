@@ -739,3 +739,27 @@ fn app_update_late_bootstrap_preserves_checked_release() {
     assert_eq!(app.desktop_update.release, Some(release));
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));
 }
+
+#[test]
+fn bootstrap_reasoning_effort_restores_open_history_and_preserves_local_default_selection() {
+    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+
+    let mut app = test_app();
+    app.session_reasoning_efforts.clear();
+    app.prepare_historical_session_model("history");
+    app.active_session_id = Some("history".to_string());
+    app.apply_bootstrap_app_config(json!({
+        "session_reasoning_efforts": {"history": "xhigh"}
+    }));
+    assert_eq!(app.current_session_runtime().reasoning_effort, Some(ReasoningEffortDto::Xhigh));
+    assert_eq!(app.reasoning_effort, Some(ReasoningEffortDto::Xhigh));
+
+    app.session_reasoning_efforts.insert("history".to_string(), None);
+    app.get_session_runtime_mut("history").reasoning_effort = None;
+    app.apply_bootstrap_app_config(json!({
+        "session_reasoning_efforts": {"history": "high", "other": "max"}
+    }));
+    assert_eq!(app.current_session_runtime().reasoning_effort, None);
+    assert_eq!(app.reasoning_effort, None);
+    assert_eq!(app.get_session_runtime("other").reasoning_effort, Some(ReasoningEffortDto::Max));
+}

@@ -68,6 +68,8 @@ impl App {
                 self.default_session_model(),
                 self.default_session_auto_model(),
             );
+            runtime.reasoning_effort =
+                self.session_reasoning_efforts.get(session_id).copied().flatten();
             runtime.acp_agent = self.acp_agent.clone();
             runtime.acp_history_mode = self.acp_history_mode;
             runtime.acp_recent_count = self.acp_recent_count;
@@ -83,6 +85,7 @@ impl App {
         &mut self,
         session_id: &str,
     ) -> &mut crate::app::state::SessionRuntimeState {
+        let reasoning_effort = self.session_reasoning_efforts.get(session_id).copied().flatten();
         let model = self.default_session_model();
         let auto_model = self.default_session_auto_model();
         let acp_agent = self.acp_agent.clone();
@@ -90,7 +93,10 @@ impl App {
         let acp_recent_count = self.acp_recent_count;
         let runtime =
             self.session_runtime_states.entry(session_id.to_string()).or_insert_with(|| {
-                crate::app::state::SessionRuntimeState::with_defaults(model, auto_model)
+                let mut runtime =
+                    crate::app::state::SessionRuntimeState::with_defaults(model, auto_model);
+                runtime.reasoning_effort = reasoning_effort;
+                runtime
             });
         if runtime.acp_agent.is_none() {
             runtime.acp_agent = acp_agent;

@@ -5,6 +5,21 @@ use super::gateway::{gateway_client, run_gateway_call, spawn_gateway_task};
 use crate::app::Message;
 use iced::Task;
 
+/// 独立解码每个会话，避免未知值影响其它会话的偏好恢复。
+pub(crate) fn session_reasoning_efforts_from_config(
+    cfg: &serde_json::Value,
+) -> std::collections::HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>
+{
+    cfg.get("session_reasoning_efforts")
+        .and_then(serde_json::Value::as_object)
+        .into_iter()
+        .flatten()
+        .filter_map(|(id, value)| {
+            serde_json::from_value(value.clone()).ok().map(|effort| (id.clone(), effort))
+        })
+        .collect()
+}
+
 /// 公开函数，执行 load_app_config_async 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub async fn load_app_config_async() -> Result<serde_json::Value, String> {

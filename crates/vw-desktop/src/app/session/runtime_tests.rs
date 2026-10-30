@@ -653,3 +653,45 @@ fn advance_status_animation_frame_expires_old_summary_animation() {
     assert_eq!(state.current_summary_text, "new");
     assert_eq!(state.changed_at_ms, None);
 }
+
+#[test]
+fn historical_session_restores_persisted_reasoning_effort_without_affecting_model_restore() {
+    use vw_gateway_client::vw_api_types::ReasoningEffortDto;
+
+    let mut app = test_app();
+    let cfg = serde_json::json!({
+        "session_reasoning_efforts": {
+            "history": "high",
+            "default": null,
+            "disabled": "none",
+            "unknown": "invalid"
+        }
+    });
+    app.session_reasoning_efforts = crate::app::config::session_reasoning_efforts_from_config(&cfg);
+    app.session_runtime_states.clear();
+    assert!(!app.session_reasoning_efforts.contains_key("unknown"));
+    assert_eq!(app.session_reasoning_efforts.get("default"), Some(&None));
+
+    app.prepare_historical_session_model("history");
+    app.active_session_id = Some("history".to_string());
+    app.sync_active_session_preferences();
+    assert_eq!(app.reasoning_effort, Some(ReasoningEffortDto::High));
+    assert!(app.restore_session_model_from_history("history", "provider/history-model"));
+    assert_eq!(app.current_session_runtime().reasoning_effort, Some(ReasoningEffortDto::High));
+    assert_eq!(app.get_session_runtime("default").reasoning_effort, None);
+    assert_eq!(
+        app.get_session_runtime("disabled").reasoning_effort,
+        Some(ReasoningEffortDto::None)
+    );
+    assert_eq!(app.get_session_runtime("new").reasoning_effort, None);
+
+    // 模拟退出后从序列化配置重新进入历史会话。
+    let saved = serde_json::json!({"session_reasoning_efforts": app.session_reasoning_efforts});
+    app.session_runtime_states.clear();
+    app.session_reasoning_efforts =
+        crate::app::config::session_reasoning_efforts_from_config(&saved);
+    assert_eq!(
+        app.get_session_runtime_mut("history").reasoning_effort,
+        Some(ReasoningEffortDto::High)
+    );
+}

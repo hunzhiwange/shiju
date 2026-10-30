@@ -257,6 +257,16 @@ impl App {
             self.desktop_update = crate::app::desktop_update::DesktopUpdate::from_config(&cfg);
             self.desktop_update.initial_check_started = initial_check_started;
         }
+        let mut efforts = crate::app::config::session_reasoning_efforts_from_config(&cfg);
+        // 启动配置返回前发生的本地选择（包括默认值）优先。
+        efforts.extend(self.session_reasoning_efforts.clone());
+        for (id, runtime) in &mut self.session_runtime_states {
+            if let Some(effort) = efforts.get(id) {
+                runtime.reasoning_effort = *effort;
+            }
+        }
+        self.session_reasoning_efforts = efforts;
+        self.reasoning_effort = self.current_session_runtime().reasoning_effort;
         self.auto_model =
             cfg.get("auto_model").and_then(|v| v.as_bool()).unwrap_or(self.auto_model);
         self.model = cfg.get("model").and_then(|v| v.as_str()).unwrap_or(&self.model).to_string();

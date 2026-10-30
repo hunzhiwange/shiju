@@ -35,6 +35,16 @@ fn chat_reasoning_effort_is_isolated_by_session() {
     assert_eq!(app.current_session_runtime().reasoning_effort, Some(ReasoningEffortDto::High));
     assert_eq!(app.reasoning_effort, Some(ReasoningEffortDto::High));
     assert_eq!(app.get_session_runtime("session-c").reasoning_effort, None);
+
+    let _ = super::update(&mut app, super::ChatMessage::ReasoningEffortSelected(None));
+    assert_eq!(app.session_reasoning_efforts.get("session-a"), Some(&None));
+    app.session_runtime_states.remove("session-a");
+    app.session_runtime_states.remove("session-b");
+    assert_eq!(app.get_session_runtime("session-a").reasoning_effort, None);
+    assert_eq!(
+        app.get_session_runtime("session-b").reasoning_effort,
+        Some(ReasoningEffortDto::Max)
+    );
 }
 
 fn chat_message(

@@ -325,6 +325,26 @@ fn persist_acp_history_preferences(
     }
 }
 
+fn persist_session_reasoning_effort(app: &mut App) -> Task<Message> {
+    let Some(session_id) = app.active_session_id.clone() else {
+        return Task::none();
+    };
+    let effort = app.current_session_runtime().reasoning_effort;
+    app.session_reasoning_efforts.insert(session_id, effort);
+    let value = serde_json::json!(app.session_reasoning_efforts);
+    #[cfg(target_arch = "wasm32")]
+    {
+        save_config_field_task("session_reasoning_efforts", value)
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        crate::app::config::save_app_config(&serde_json::json!({
+            "session_reasoning_efforts": value,
+        }));
+        Task::none()
+    }
+}
+
 fn persist_chat_preferences(
     app: &App,
     model: &str,
@@ -1218,7 +1238,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.current_session_runtime_mut().reasoning_effort = reasoning_effort;
             app.reasoning_effort = reasoning_effort;
             app.show_reasoning_effort_popover = false;
-            Task::none()
+            persist_session_reasoning_effort(app)
         }
         ChatMessage::AcpAgentSelected(agent) => {
             if app.current_session_has_started() {
@@ -1302,7 +1322,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             app.auto_model = auto_model;
             app.show_model_popover = false;
             app.show_mode_popover = false;
-            persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())
+            app.reasoning_effort = app.current_session_runtime().reasoning_effort;
+            let reasoning_task = persist_session_reasoning_effort(app);
+            Task::batch([
+                reasoning_task,
+                persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref()),
+            ])
         }
         ChatMessage::ModelInputChanged(m) => {
             if let Some(session_id) = app.active_session_id.clone() {
@@ -1329,7 +1354,12 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             app.model = model.clone();
             app.auto_model = auto_model;
-            persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())
+            app.reasoning_effort = app.current_session_runtime().reasoning_effort;
+            let reasoning_task = persist_session_reasoning_effort(app);
+            Task::batch([
+                reasoning_task,
+                persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref()),
+            ])
         }
         ChatMessage::SessionToolBucketToggled(bucket) => {
             let base_tools = base_tools_without_delegate_agent(app);
@@ -2020,6 +2050,8 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         app.active_session_id = Some(id.clone());
         let runtime = app.get_session_runtime_mut(&id);
         runtime.full_access_enabled = pending_runtime.full_access_enabled;
+        runtime.reasoning_effort = pending_runtime.reasoning_effort;
+        save_tasks.push(persist_session_reasoning_effort(app));
     }
 
     let request_history = item.request_history_override.clone().unwrap_or_else(|| app.chat.clone());

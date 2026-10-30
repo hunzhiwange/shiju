@@ -518,6 +518,9 @@ pub struct App {
     pub(crate) session_history_reset_boundaries: HashMap<String, Vec<Option<String>>>,
     /// 会话运行时状态映射（会话 ID -> 运行时状态）
     pub(crate) session_runtime_states: HashMap<String, SessionRuntimeState>,
+    /// 持久化的会话推理强度；缺省表示使用模型默认值。
+    pub(crate) session_reasoning_efforts:
+        HashMap<String, Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>>,
     /// 已归档的会话 ID 集合
     pub(crate) archived_session_ids: HashSet<String>,
     /// 项目会话映射（项目路径 -> 会话列表）

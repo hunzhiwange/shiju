@@ -1,0 +1,2 @@
+FROM vw-polyglot-rust-c-tools:task70@sha256:20a0f6d71e716c237e1ccc84c243548d75eac2ded6395004217ff55da77124d9
+WORKDIR /app

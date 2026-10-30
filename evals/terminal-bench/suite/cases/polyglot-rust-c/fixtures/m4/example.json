@@ -1,0 +1,6 @@
+{
+  "arguments": [
+    "-123"
+  ],
+  "contract": "For one decimal signed integer n in -1000000..1000000 print two space-separated decimal integers: n*n+5*n+19 and (n*n+31) modulo 103, then a newline. Both compiler entry points must agree for every permitted input."
+}

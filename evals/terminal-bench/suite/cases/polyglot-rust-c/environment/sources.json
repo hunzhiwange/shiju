@@ -1,0 +1,14 @@
+[
+  {
+    "name": "rustc-1.75.0-x86_64-unknown-linux-gnu.tar.xz",
+    "url": "https://static.rust-lang.org/dist/2023-12-28/rustc-1.75.0-x86_64-unknown-linux-gnu.tar.xz",
+    "compressed_bytes": 64420052,
+    "sha256": "2824ba4045acdddfa436da4f0bb72807b64a089aa2e7c9a66ca1a3a571114ce7"
+  },
+  {
+    "name": "rust-std-1.75.0-x86_64-unknown-linux-gnu.tar.xz",
+    "url": "https://static.rust-lang.org/dist/2023-12-28/rust-std-1.75.0-x86_64-unknown-linux-gnu.tar.xz",
+    "compressed_bytes": 24719960,
+    "sha256": "136b132199f7bbda2aa0bbff6d1e6ae7d5fca2994a2f2a432a5e99de224b6314"
+  }
+]

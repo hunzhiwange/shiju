@@ -1,0 +1,6 @@
+{
+  "arguments": [
+    "1"
+  ],
+  "contract": "For one decimal integer n in 0..1000000, print the sum of squares 1²+2²+...+n² as a decimal integer followed by a newline."
+}

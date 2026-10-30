@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "polyglot-rust-c",
+  "implementation_sha256": "2365b523747f771c31c18689f42b99cae85ed73b9b77f762138e4a33b3f776c4",
+  "files": {
+    "check.py": "075598728570e65a1f932be4ea3b0a9fa561d35aa783137e5aaefa88a214fa0a",
+    "fixtures/m1/example.json": "ace89f269cf6f68a672582ee60f21cd902a33e376ef34853cffa89cc82a0f65b",
+    "fixtures/m1/instruction.md": "c7fc87d68b85bc5c0f1d9f70d8191319642d095477bdc1f097f995b9409e3bd1",
+    "fixtures/m2/example.json": "e9aec7fa40da8de414b786f3ce3d4f5aa652a68d3269e6a5aa0fa393cde50254",
+    "fixtures/m2/instruction.md": "567c9eaac9f0528397c5f20f0d46d27403f6b6133b52db0f8455009567ffb00e",
+    "fixtures/m3/example.json": "99ee7680acfb8065c703f9c563fa166eab7456d325c34999f2b01013aa673b73",
+    "fixtures/m3/instruction.md": "d95d126fe9bb6e668ad46d2ea7d80a2020340de4056d07cb68f410eb06689eed",
+    "fixtures/m4/example.json": "6ca8a34874158f6181053f204a087013e3e855b823739ee152d593fe0b315a70",
+    "fixtures/m4/instruction.md": "0572f42a95a70a738f8a4a485157247d06011449b476f4759f44472b833da984",
+    "oracle/m1/cpp-divergence/shared.rs": "0631f68080e132c33de4db62ffcd4bfa32344f121e415103390e513d700d83ad",
+    "oracle/m1/gold/shared.rs": "9ab1681aac9b08492d0d7cf8419018757825c16d44c02f9cf775b1017ba0f78b",
+    "oracle/m1/stderr-only/shared.rs": "3c4da51a88af4a0ded1334ec6c62a425b402217caec29ef322bc2875e13baaef",
+    "oracle/m1/task.json": "21f3dd3da5b1bc1b6b67bc4efd288af3728963a83508fb600b65e89b07d3d9b5",
+    "oracle/m1/wrong-value/shared.rs": "389a71506b90674118b19ae481e4fad00e9ae5cb9bcece1400b5ea4baf22e12c",
+    "oracle/m2/cpp-divergence/shared.rs": "0b518915cf3b969ff931cddf42aa3a7c9797475c49567fb390a8776ebcbe0a83",
+    "oracle/m2/gold/shared.rs": "c84e6dc95b2d33e4c086b2c00e499a0b0a94766193cae22a24ea06cf62ce313b",
+    "oracle/m2/stderr-only/shared.rs": "f6395029046a3f343cbca54d54149b849387d80a953eb466d8a0646bbe0e6541",
+    "oracle/m2/task.json": "d9dd17516c683b15b64cbfdc76630463bfa79f7bbbd6512ad5ccdb6c2c82f91a",
+    "oracle/m2/wrong-value/shared.rs": "3442850990b3998248b7b49c9e260aaf413359100516ed4bbbea22807561acaa",
+    "oracle/m3/accept-sign/shared.rs": "98eb222c5d31a31c1789a98a4a7303de5692cc40f0af78279c867928f0636eff",
+    "oracle/m3/cpp-divergence/shared.rs": "7f54cb8cec64df53791b9b3b0d828b213f0c0af645385a8115e3cf612a33ae86",
+    "oracle/m3/gold/shared.rs": "24b2f7099874966187d2b26e5740480cd1da469b864ba4fc57212d515aacf4e3",
+    "oracle/m3/task.json": "09b0a7c7d7c471633e0aaa475a205d8e920a4e995df051865f61b25a5261696f",
+    "oracle/m3/wrong-value/shared.rs": "ad74845f73be35878434218c0d75f2087745bb4046ede5ef034e16417478a46f",
+    "oracle/m4/cpp-divergence/shared.rs": "8f45da92f3899a693f758771d6c2fe0ed7d3c489d5e0a9c4290245f461c4de63",
+    "oracle/m4/gold/shared.rs": "573d2bdff0cae7db793697b87259dc0c80dc22178b7ddc14d547f2dd4068e739",
+    "oracle/m4/stderr-only/shared.rs": "8c6b021ee6c814454e082ebd37cc91bfcac99cc6612ae3c42d194b120d5b2c51",
+    "oracle/m4/task.json": "4283bdb5cc1c88a8540304be673a45d33ffba99f16d7b3ce7b4dbf34173f7a21",
+    "oracle/m4/wrong-value/shared.rs": "796bc4456007c3f3d48f5e822fdf5f7aeb6410477d3380ff980e4a4682fdcbb3",
+    "case.json": "6b983ea27fcce48cbee90bf7e8f2e6c8554a336dbe0fc8bff7412d598527b89f"
+  },
+  "image": "vw-polyglot-rust-c-tools:task70@sha256:20a0f6d71e716c237e1ccc84c243548d75eac2ded6395004217ff55da77124d9",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "wrong-value",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "cpp-divergence",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "stderr-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-value",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "cpp-divergence",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "stderr-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "wrong-value",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "cpp-divergence",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accept-sign",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-value",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "cpp-divergence",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "stderr-only",
+      "exit_code": 1
+    }
+  ]
+}

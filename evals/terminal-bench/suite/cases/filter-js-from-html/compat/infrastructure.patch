@@ -1,0 +1,29 @@
+--- a/tests/test_outputs.py
++++ b/tests/test_outputs.py
+@@ -132,7 +132,7 @@
+             driver.get(file_url)
+         except Exception as e:
+             print(f"  Failed to load URL: {e}")
+-            return False
++            raise
+ 
+         try:
+             # Wait 3 seconds for potential alerts
+@@ -146,13 +146,14 @@
+             print("  No alert detected")
+         except Exception as e:
+             print(f"  Error checking for alert: {e}")
+-            alert_detected = False
++            raise
+ 
+     except TimeoutError:
+-        print(f"  Test timed out after {timeout} seconds - treating as passed")
+-        alert_detected = False
++        print(f"  Browser execution timed out after {timeout} seconds")
++        raise
+     except Exception as e:
+         print(f"  Failed to create driver or process file: {e}")
++        raise
+     finally:
+         # Cancel the alarm
+         signal.alarm(0)

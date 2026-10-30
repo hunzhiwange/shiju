@@ -1,0 +1,5 @@
+--- a/tests/test_outputs.py
++++ b/tests/test_outputs.py
+@@ -98,1 +98,1 @@
+-def run_test_alert_file(file_path, timeout=20):
++def run_test_alert_file(file_path, timeout=120):

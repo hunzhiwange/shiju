@@ -187,7 +187,7 @@ fn expert_package_protocol_replays_main_before_child() {
 }
 
 #[test]
-fn delegate_skill_policy_keeps_all_skills_visible_and_preloads_defaults() {
+fn codex_skills_defaults_strict_policy_restricts_catalog_and_preloads_once() {
     let workspace = tempfile::tempdir().expect("skill workspace");
     let default_path = workspace.path().join("default/SKILL.md");
     let user_path = workspace.path().join("user/SKILL.md");
@@ -236,6 +236,21 @@ fn delegate_skill_policy_keeps_all_skills_visible_and_preloads_defaults() {
     assert!(!first.iter().any(|message| {
         message["content"].as_str().is_some_and(|content| content.contains("USER_SKILL_BODY"))
     }));
+}
+
+#[test]
+fn codex_skills_defaults_missing_source_is_an_error() {
+    let mut protocol = super::DesktopSessionProtocol::new(Vec::new(), "main", 20_000);
+    let error = protocol
+        .preload_skills(&["missing-default".to_string()].into_iter().collect())
+        .expect_err("missing configured default must not silently succeed");
+    assert!(error.contains("missing-default"));
+    let item = crate::skills::Skill { name: "unlocated-default".into(), ..Default::default() };
+    let mut protocol = super::DesktopSessionProtocol::new(vec![item], "main", 20_000);
+    let error = protocol
+        .preload_skills(&["unlocated-default".into()].into_iter().collect())
+        .expect_err("discovered defaults need a real source");
+    assert!(error.contains("unlocated-default"));
 }
 
 use crate::app::agent::session::llm;
@@ -2188,5 +2203,188 @@ fn codex_skills_catalog_processor_reloads_changed_and_removed_sources_between_re
         assert!(!contents[1].contains("INITIAL_CATALOG_META"));
         assert!(!contents[2].contains("UPDATED_CATALOG_META"));
         assert!(!contents.iter().any(|s| s.contains("SECRET_CATALOG_BODY")));
+    });
+}
+
+fn defaults_skill_source(
+    workspace: &std::path::Path,
+    name: &str,
+    metadata: &str,
+) -> std::path::PathBuf {
+    let source = workspace.join("skills").join(name).join("SKILL.md");
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    std::fs::write(
+        &source,
+        format!("---\nname: {name}\ndescription: {name} metadata\n{metadata}---\nBODY_{name}\n"),
+    )
+    .unwrap();
+    source
+}
+
+#[test]
+fn codex_skills_defaults_strict_selection_cannot_expand_catalog_or_invocation() {
+    with_discovery_processor_test(|workspace, _| {
+        defaults_skill_source(workspace.path(), "default-fixture", "");
+        defaults_skill_source(workspace.path(), "blocked-fixture", "");
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({
+            "allowed_tools":["skill"], "full_access":true,
+            "delegate_skill_policy":"strict",
+            "delegate_default_allowed_skills":["default-fixture"],
+            "delegate_trusted_user_selected_skills":["blocked-fixture"],
+            "selected_skills":["blocked-fixture"]
+        });
+        let session = req.session.clone();
+        discovery_stream(&[(
+            "blocked-call",
+            "skill",
+            serde_json::json!({"skill":"blocked-fixture"}),
+        )]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 2);
+        for request in &requests {
+            let catalog =
+                request.messages.iter().find(|message| message["role"] == "developer").unwrap();
+            assert!(!catalog["content"].as_str().unwrap().contains("blocked-fixture"));
+            assert_eq!(
+                request
+                    .messages
+                    .iter()
+                    .filter(|message| message["content"]
+                        .as_str()
+                        .is_some_and(|content| content.contains("BODY_default-fixture")))
+                    .count(),
+                1
+            );
+            assert!(!request.messages.iter().any(|message| {
+                message["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("BODY_blocked-fixture"))
+            }));
+        }
+        assert!(requests[1].messages.iter().any(|message| message["tool_call_id"]
+            == "blocked-call"
+            && message["content"].as_str().is_some_and(|content| content.contains("未找到技能"))));
+    });
+}
+
+#[test]
+fn codex_skills_defaults_denied_default_fails_before_model_request() {
+    with_discovery_processor_test(|workspace, runtime| {
+        defaults_skill_source(workspace.path(), "review", "");
+        runtime
+            .block_on(crate::config::update_project(
+                workspace.path(),
+                serde_json::json!({"permission":{"skill":{"review":"deny"}}}),
+            ))
+            .unwrap();
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill"],"delegate_skill_policy":"strict","delegate_default_allowed_skills":["review"]});
+        let session = req.session.clone();
+        discovery_stream(&[]);
+        let errors = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured = errors.clone();
+        super::run(req, move |event| {
+            if let super::StreamEvent::Error(error) = event {
+                captured.lock().unwrap().push(error);
+            }
+            true
+        });
+        assert!(
+            super::llm_runner::take_test_llm_messages(&session).is_empty(),
+            "denied defaults cannot be preloaded"
+        );
+        assert!(errors.lock().unwrap().iter().any(|error| error.contains("review")));
+    });
+}
+
+#[test]
+fn codex_skills_defaults_unavailable_defaults_fail_before_model_request() {
+    with_discovery_processor_test(|workspace, _| {
+        let disabled = defaults_skill_source(
+            workspace.path(),
+            "disabled-fixture",
+            "disable-model-invocation: true\n",
+        );
+        let deleted = defaults_skill_source(workspace.path(), "deleted-fixture", "");
+        std::fs::remove_file(deleted).unwrap();
+        assert!(disabled.exists());
+        for name in ["missing-fixture", "disabled-fixture", "deleted-fixture"] {
+            let mut req = discovery_request(workspace.path());
+            req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true,"delegate_skill_policy":"strict","delegate_default_allowed_skills":[name]});
+            let session = req.session.clone();
+            let errors = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+            let captured = errors.clone();
+            super::run(req, move |event| {
+                if let super::StreamEvent::Error(error) = event {
+                    captured.lock().unwrap().push(error);
+                }
+                true
+            });
+            assert!(
+                super::llm_runner::take_test_llm_messages(&session).is_empty(),
+                "{name} must fail before LLM"
+            );
+            let errors = errors.lock().unwrap().clone();
+            assert!(errors.iter().any(|error| error.contains(name)), "{name}: {errors:?}");
+        }
+    });
+}
+
+#[test]
+fn codex_skills_defaults_selected_agent_deny_filters_catalog_and_call() {
+    with_discovery_processor_test(|workspace, runtime| {
+        defaults_skill_source(workspace.path(), "review", "");
+        runtime.block_on(crate::config::update_project(workspace.path(),serde_json::json!({
+            "agents":{
+                "main":{"provider":"model-recovery","model":"original","permission":{"skill":"allow"}},
+                "reviewer":{"provider":"model-recovery","model":"original","permission":{"skill":{"review":"deny"}}}
+            }
+        }))).unwrap();
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"agent":"reviewer","allowed_tools":["skill"],"delegate_skill_policy":"unrestricted"});
+        let session = req.session.clone();
+        discovery_stream(&[("denied-call", "skill", serde_json::json!({"skill":"review"}))]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 2);
+        for request in &requests {
+            assert!(!request.messages.iter().any(|message| {
+                message["role"] == "developer"
+                    && message["content"]
+                        .as_str()
+                        .is_some_and(|content| content.contains("review metadata"))
+            }));
+            assert!(!request.messages.iter().any(|message| {
+                message["content"].as_str().is_some_and(|content| content.contains("BODY_review"))
+            }));
+        }
+        assert!(
+            requests[1].messages.iter().any(|message| message["tool_call_id"] == "denied-call"
+                && message["content"].as_str().is_some_and(|content| content.contains("Denied")))
+        );
+    });
+}
+
+#[test]
+fn codex_skills_defaults_invalid_policy_fails_before_model_request() {
+    with_discovery_processor_test(|workspace, _| {
+        let mut req = discovery_request(workspace.path());
+        req.options =
+            serde_json::json!({"allowed_tools":["skill"],"delegate_skill_policy":"unsupported"});
+        let session = req.session.clone();
+        let errors = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured = errors.clone();
+        super::run(req, move |event| {
+            if let super::StreamEvent::Error(error) = event {
+                captured.lock().unwrap().push(error);
+            }
+            true
+        });
+        assert!(super::llm_runner::take_test_llm_messages(&session).is_empty());
+        assert!(errors.lock().unwrap().iter().any(|error| error.contains("技能能力策略")));
     });
 }

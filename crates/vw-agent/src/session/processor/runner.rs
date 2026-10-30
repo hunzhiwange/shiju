@@ -401,14 +401,14 @@ fn delegated_skill_policy_resolution(
     skills: &[crate::app::agent::skills::Skill],
     options: &Value,
 ) -> Option<crate::session::capability_policy::CapabilityPolicyResolution> {
-    options.get("delegate_skill_policy").cloned().and_then(|value| {
+    let policy = options.get("delegate_skill_policy").cloned().and_then(|value| {
         serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
     })?;
     Some(crate::session::capability_policy::resolve_skill_capabilities(
         skills.iter().map(|skill| skill.name.as_str()),
         option_string_values(options, "delegate_default_allowed_skills"),
         option_string_values(options, "delegate_trusted_user_selected_skills"),
-        vw_config_types::agent::DelegateCapabilityPolicy::Unrestricted,
+        policy,
         std::iter::empty::<&str>(),
     ))
 }
@@ -532,6 +532,28 @@ fn run_in_project(
         selected_model.step_event_model(),
     )
     .with_auto_model_selection(model_selected_by_auto);
+    if let Some(name) = agent_key.as_deref() {
+        tool_use_context = tool_use_context.with_agent_name(name);
+    }
+    let delegated_skill_policy = match req.options.get("delegate_skill_policy") {
+        Some(value) => match serde_json::from_value::<
+            vw_config_types::agent::DelegateCapabilityPolicy,
+        >(value.clone())
+        {
+            Ok(policy) => Some(policy),
+            Err(error) => {
+                on_event(StreamEvent::Error(format!("无效的技能能力策略：{error}")));
+                return;
+            }
+        },
+        None => None,
+    };
+    if let Some(policy) = delegated_skill_policy {
+        tool_use_context = tool_use_context.with_delegate_skill_policy(
+            policy,
+            option_string_values(&req.options, "delegate_default_allowed_skills"),
+        );
+    }
     match crate::hooks::execution_hook_runner(&config) {
         Ok(Some(runner)) => tool_use_context = tool_use_context.with_hook_runner(runner),
         Ok(None) => {}
@@ -591,13 +613,6 @@ fn run_in_project(
         agent_key.as_deref().unwrap_or("main"),
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
-    if let Some(resolution) = &skill_policy_resolution
-        && let Err(message) = session_protocol.preload_skills(&resolution.default_injected_ids)
-    {
-        on_event(StreamEvent::Error(message));
-        return;
-    }
-
     if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;
@@ -619,11 +634,7 @@ fn run_in_project(
                 .iter()
                 .map(|instruction| instruction.content.as_str()),
         );
-    if let Err(message) = session_protocol.preload_skills(&agents_referenced_skills) {
-        on_event(StreamEvent::Error(message));
-        return;
-    }
-    let mut explicitly_requested_skills = agents_referenced_skills;
+    let mut explicitly_requested_skills = agents_referenced_skills.clone();
     explicitly_requested_skills.extend(
         crate::app::agent::tools::skill::explicitly_referenced_skill_names(
             &session_protocol.skills,
@@ -641,6 +652,37 @@ fn run_in_project(
         .clone()
         .with_explicitly_requested_skills(explicitly_requested_skills);
     ctx = ctx.with_tool_use_context(tool_use_context);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        session_protocol.skills = crate::tools::skill::accessible_skills(
+            std::mem::take(&mut session_protocol.skills),
+            Some(ctx.tool_use_context().as_ref()),
+        );
+    }
+    // 验证原始默认 ID，不能先与已发现项求交而把丢失/禁用项静默丢弃。
+    let default_skills = option_string_values(&req.options, "delegate_default_allowed_skills")
+        .into_iter()
+        .map(|name| name.to_lowercase())
+        .collect::<std::collections::BTreeSet<_>>();
+    if let Some(resolution) = &skill_policy_resolution
+        && let Some(missing) = default_skills.difference(&resolution.default_injected_ids).next()
+    {
+        on_event(StreamEvent::Error(format!(
+            "默认技能不存在、已禁用或不在当前权限范围内：{missing}"
+        )));
+        return;
+    }
+    let default_skills = skill_policy_resolution
+        .as_ref()
+        .map(|resolution| &resolution.default_injected_ids)
+        .unwrap_or(&default_skills);
+    if let Err(message) = session_protocol
+        .preload_skills(default_skills)
+        .and_then(|()| session_protocol.preload_skills(&agents_referenced_skills))
+    {
+        on_event(StreamEvent::Error(message));
+        return;
+    }
     // AGENTS.md 和用户显式点名的技能必须先进入可信工具上下文，再生成工具目录。
     // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
     // 无法执行的协议要求。

@@ -92,16 +92,34 @@ impl SkillListingSessionState {
         skills: &[Skill],
         default_skill_names: &std::collections::BTreeSet<String>,
     ) -> Result<(), String> {
-        for skill in skills {
-            if skill.disable_model_invocation
-                || !default_skill_names.contains(&skill.name.trim().to_lowercase())
-            {
-                continue;
+        for name in default_skill_names {
+            let skill = skills
+                .iter()
+                .find(|skill| {
+                    if skill.name.trim().to_lowercase() == *name {
+                        return true;
+                    }
+                    let Some(source) = skill.location.as_deref() else { return false };
+                    let file_name =
+                        source.file_name().and_then(|name| name.to_str()).unwrap_or_default();
+                    let id = if file_name.eq_ignore_ascii_case("SKILL.md")
+                        || file_name.eq_ignore_ascii_case("SKILL.toml")
+                    {
+                        source.parent().and_then(|path| path.file_name())
+                    } else {
+                        source.file_stem()
+                    };
+                    id.and_then(|id| id.to_str()).is_some_and(|id| id.to_lowercase() == *name)
+                })
+                .ok_or_else(|| format!("默认技能不存在、已禁用或不在当前权限范围内：{name}"))?;
+            if skill.disable_model_invocation {
+                return Err(format!("默认技能已禁止模型调用：{}", skill.name));
             }
             let Some(source) = skill.location.as_deref() else {
-                continue;
+                return Err(format!("默认技能缺少来源：{}", skill.name));
             };
             let record = InvokedSkillRecord::new(&skill.name, source, None)?;
+            record.replay()?;
             self.register_invoked(agent_id, record);
         }
         Ok(())

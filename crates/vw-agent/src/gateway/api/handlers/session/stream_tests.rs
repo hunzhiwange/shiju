@@ -5,6 +5,103 @@ use crate::config::DelegateAgentConfig;
 use axum::http::header;
 
 #[test]
+fn codex_skills_defaults_gateway_main_and_child_preload_before_first_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let source = workspace.path().join("skills/review/SKILL.md");
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    std::fs::write(
+        &source,
+        "---\nname: review\ndescription: Review fixture\n---\nDEFAULT_REVIEW_BODY\n",
+    )
+    .unwrap();
+    runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+        "agents": {
+            "main": {"provider":"model-recovery","model":"original","allowed_tools":["file_read"],"allowed_skills":["review"],"skill_policy":"strict"},
+            "reviewer": {"provider":"model-recovery","model":"original","allowed_tools":["skill","file_read"],"allowed_skills":["review"],"skill_policy":"strict"}
+        }
+    }))).unwrap();
+    for name in ["main", "reviewer"] {
+        let session_id = format!("ses_defaults_{}", uuid::Uuid::new_v4());
+        agent_session::processor::enqueue_test_llm_stream(vec![
+            agent_session::llm::StreamEvent::Delta("ready".into()),
+            agent_session::llm::StreamEvent::Done {
+                usage: Default::default(),
+                finish_reason: Some("stop".into()),
+            },
+        ]);
+        let request = GatewayChatStreamRequest {
+            session_id: Some(session_id.clone().into()),
+            messages: vec![
+                serde_json::json!({"role":"user","content":"inspect the requested change"}),
+            ],
+            model: Some("model-recovery/original".into()),
+            agent: Some(name.into()),
+            allowed_tools: Some(vec!["skill".into(), "file_read".into()]),
+            options: Some(serde_json::json!({"full_access":true})),
+            ..Default::default()
+        };
+        let directory = workspace.path().to_string_lossy().to_string();
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        runtime.block_on(async {
+            let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
+                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+            })
+            .await
+            .unwrap();
+            loop {
+                let payload =
+                    tokio::time::timeout(std::time::Duration::from_secs(20), receiver.recv())
+                        .await
+                        .unwrap()
+                        .expect("terminal gateway event");
+                assert_ne!(payload["type"], "chat.error", "{payload}");
+                if payload["type"] == "chat.done" {
+                    break;
+                }
+            }
+        });
+        let captured = agent_session::processor::take_test_llm_messages(&session_id);
+        assert_eq!(captured.len(), 1, "{name} request capture");
+        let bodies = captured[0]
+            .messages
+            .iter()
+            .filter(|message| {
+                message["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("DEFAULT_REVIEW_BODY"))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 1, "{name} must preload configured default once");
+        assert_eq!(bodies[0]["role"], "user");
+        let tool_ids = agent_session::processor::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(tool_ids.len(), 1);
+        assert!(tool_ids[0].contains(&"skill".to_string()), "{name} must keep requested tools");
+        assert!(tool_ids[0].contains(&"file_read".to_string()));
+    }
+}
+
+#[test]
+fn codex_skills_defaults_gateway_empty_defaults_replace_untrusted_request_allowance() {
+    let options = merge_delegate_capability_policy_options(
+        serde_json::json!({"delegate_default_allowed_skills":["unconfigured"],"delegate_skill_policy":"unrestricted","allowed_tools":["file_read"]}),
+        None,
+        Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict),
+        None,
+    );
+    assert_eq!(options["delegate_default_allowed_skills"], serde_json::json!([]));
+    assert_eq!(options["delegate_skill_policy"], "strict");
+    assert_eq!(options["allowed_tools"], serde_json::json!(["file_read"]));
+}
+
+#[test]
 fn codex_skills_transport_gateway_preserves_directory_and_untrusted_body_roles() {
     let prepared = prepare_stream_history(
         vec![

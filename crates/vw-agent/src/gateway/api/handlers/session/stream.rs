@@ -798,6 +798,8 @@ async fn resolve_delegate_request_overrides(
             agent: Some(agent_name),
             model,
             allowed_tools: explicit_allowed_tools,
+            default_allowed_skills: normalize_tool_ids(config.allowed_skills),
+            skill_policy: Some(config.skill_policy),
             chat_system_prompt,
             temperature: config.temperature,
             top_p: config.top_p,
@@ -831,10 +833,16 @@ fn merge_delegate_capability_policy_options(
     trusted_user_selected_skills: Option<Vec<String>>,
 ) -> Value {
     if let Some(options) = options.as_object_mut() {
-        if let Some(default_allowed_skills) = default_allowed_skills {
+        if default_allowed_skills.is_some() || skill_policy.is_some() {
             options.insert(
                 "delegate_default_allowed_skills".to_string(),
-                Value::Array(default_allowed_skills.into_iter().map(Value::String).collect()),
+                Value::Array(
+                    default_allowed_skills
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(Value::String)
+                        .collect(),
+                ),
             );
         }
         if let Some(skill_policy) = skill_policy {

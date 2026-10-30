@@ -102,6 +102,7 @@ impl PendingImageReloadQueue {
 #[derive(Clone)]
 pub struct ToolUseContext {
     session: String,
+    agent_name: Option<String>,
     root: Option<String>,
     message_id: Option<String>,
     tool_call_id: Option<String>,
@@ -172,6 +173,7 @@ impl ToolUseContext {
     pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
         Self {
             session: session.into(),
+            agent_name: None,
             root,
             message_id: None,
             tool_call_id: None,
@@ -206,6 +208,16 @@ impl ToolUseContext {
     /// 返回当前会话 ID。
     pub fn session(&self) -> &str {
         &self.session
+    }
+
+    /// 返回请求边界确定的代理，用于技能权限查询。
+    pub(crate) fn agent_name(&self) -> Option<&str> {
+        self.agent_name.as_deref()
+    }
+
+    pub(crate) fn with_agent_name(mut self, agent_name: impl Into<String>) -> Self {
+        self.agent_name = Some(agent_name.into());
+        self
     }
 
     /// 返回当前工作区根路径字符串。

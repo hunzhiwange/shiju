@@ -237,7 +237,12 @@ impl SkillTool {
         if current_tool_use_context().is_some_and(|context| context.full_access_enabled()) {
             return Ok(());
         }
-        let agent_name = agent::default_agent().await.unwrap_or_else(|_| "main".to_string());
+        let agent_name = match current_tool_use_context()
+            .and_then(|context| context.agent_name().map(ToOwned::to_owned))
+        {
+            Some(name) => name,
+            None => agent::default_agent().await.unwrap_or_else(|_| "main".to_string()),
+        };
         let ruleset = match agent::permission_rules(&agent_name).await {
             Some(ruleset) => ruleset,
             None if agent_name != "main" => {
@@ -576,7 +581,10 @@ pub(crate) fn accessible_skills(
     if context.is_some_and(ToolUseContext::full_access_enabled) {
         return skills;
     }
-    let agent_name = block_on(agent::default_agent()).unwrap_or_else(|_| "main".to_string());
+    let agent_name = match context.and_then(ToolUseContext::agent_name) {
+        Some(name) => name.to_string(),
+        None => block_on(agent::default_agent()).unwrap_or_else(|_| "main".to_string()),
+    };
     let ruleset = block_on(agent::permission_rules(&agent_name))
         .or_else(|| block_on(agent::permission_rules("main")))
         .unwrap_or_default();

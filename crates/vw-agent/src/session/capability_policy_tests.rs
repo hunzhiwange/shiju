@@ -28,3 +28,28 @@ fn skill_capability_policy_resolves_both_modes_without_model_self_authorization(
         CapabilityPolicyResolution::new(["review", "rustcodegraph"], std::iter::empty::<&str>(),)
     );
 }
+
+#[test]
+fn codex_skills_defaults_disabled_ids_stay_outside_strict_and_unrestricted_capabilities() {
+    for policy in [DelegateCapabilityPolicy::Strict, DelegateCapabilityPolicy::Unrestricted] {
+        let resolution = resolve_skill_capabilities(
+            ["review", "disabled"],
+            [" REVIEW ", "disabled"],
+            ["disabled"],
+            policy,
+            ["disabled"],
+        );
+        assert_eq!(resolution, CapabilityPolicyResolution::new(["review"], ["review"]));
+    }
+    let resolution = resolve_skill_capabilities(
+        ["review"],
+        std::iter::empty::<&str>(),
+        ["review"],
+        DelegateCapabilityPolicy::Strict,
+        std::iter::empty::<&str>(),
+    );
+    assert_eq!(
+        resolution,
+        CapabilityPolicyResolution::new(std::iter::empty::<&str>(), std::iter::empty::<&str>())
+    );
+}

@@ -243,6 +243,17 @@ pub struct SessionMessageDeltaResult {
     pub truncated_rows: usize,
 }
 
+/// 可由调用方修正的增量错误；数据库故障保留原始错误类型。
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum SessionMessageDeltaError {
+    #[error("{0}")]
+    Invalid(String),
+    #[error("{0}")]
+    Conflict(String),
+    #[error("session message delta target does not exist")]
+    NotFound,
+}
+
 /// 一个已完成 LLM 调用的稳定标识。
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct LlmRawStepKey {
@@ -455,7 +466,8 @@ impl SessionStore {
         scope: &ProjectScope,
         delta: &SessionMessageDelta,
     ) -> Result<SessionMessageDeltaResult> {
-        validate_session_message_delta(delta)?;
+        validate_session_message_delta(delta)
+            .map_err(|error| SessionMessageDeltaError::Invalid(error.to_string()))?;
         match &self.provider {
             SessionStoreProvider::Sqlite(database) => database
                 .with_sqlite_transaction(TransactionBehavior::Immediate, |transaction| {
@@ -1659,7 +1671,10 @@ fn resulting_message_count(
             .checked_add(u64::try_from(offset).context("session message delta size overflow")?)
             .context("session message count overflow")?;
         if *seq_no != expected {
-            bail!("session message delta would create a seq_no gap at {expected}");
+            return Err(SessionMessageDeltaError::Conflict(format!(
+                "session message delta would create a seq_no gap at {expected}"
+            ))
+            .into());
         }
     }
     base_count
@@ -1779,15 +1794,16 @@ fn apply_session_message_delta_sqlite(
             |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
         )
         .optional()?
-        .context("session message delta target does not exist")?;
+        .ok_or(SessionMessageDeltaError::NotFound)?;
     let stored_updated_ms = from_i64(stored_updated_ms, "session updated_ms")?;
     if stored_updated_ms != delta.expected_updated_ms {
-        bail!(
+        return Err(SessionMessageDeltaError::Conflict(format!(
             "stale session message delta for {}: expected updated_ms {}, stored updated_ms {}",
             delta.session_id,
             delta.expected_updated_ms,
             stored_updated_ms
-        );
+        ))
+        .into());
     }
     let message_count = resulting_message_count(
         from_i64(stored_message_count, "session message_count")?,

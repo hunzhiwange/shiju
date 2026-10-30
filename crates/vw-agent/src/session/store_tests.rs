@@ -107,6 +107,10 @@ fn session_message_delta_rejects_stale_version() -> Result<()> {
 
     let error = fixture.store.apply_session_message_delta(&scope, &delta).unwrap_err();
     assert!(error.to_string().contains("stale session message delta"));
+    assert!(matches!(
+        error.downcast_ref::<super::store::SessionMessageDeltaError>(),
+        Some(super::store::SessionMessageDeltaError::Conflict(_))
+    ));
     Ok(())
 }
 
@@ -177,6 +181,10 @@ fn session_message_delta_truncates_only_after_boundary_and_rejects_gaps() -> Res
         )
         .expect_err("a sequence gap must roll back the delta");
     assert!(error.to_string().contains("seq_no gap"));
+    assert!(matches!(
+        error.downcast_ref::<super::store::SessionMessageDeltaError>(),
+        Some(super::store::SessionMessageDeltaError::Conflict(_))
+    ));
     Ok(())
 }
 

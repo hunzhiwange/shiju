@@ -19,6 +19,34 @@ use vw_shared::session::info::{Info as AgentSessionInfo, TimeInfo as AgentSessio
 static TEST_HOME: Once = Once::new();
 static UI_OPS_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+#[test]
+fn session_message_delta_storage_failures_remain_retryable() {
+    for code in [rusqlite::ffi::SQLITE_BUSY, rusqlite::ffi::SQLITE_LOCKED] {
+        let error = anyhow::Error::new(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(code),
+            None,
+        ))
+        .context("persist session message delta");
+        let response = session_message_delta_api_error(error);
+        assert_eq!(response.status, axum::http::StatusCode::INTERNAL_SERVER_ERROR);
+    }
+}
+
+#[test]
+fn session_message_delta_domain_errors_preserve_client_status() {
+    use crate::session::store::SessionMessageDeltaError;
+    use axum::http::StatusCode;
+
+    for (error, expected) in [
+        (SessionMessageDeltaError::Invalid("duplicate sequence".into()), StatusCode::BAD_REQUEST),
+        (SessionMessageDeltaError::Conflict("stale version".into()), StatusCode::CONFLICT),
+        (SessionMessageDeltaError::NotFound, StatusCode::NOT_FOUND),
+    ] {
+        let error = anyhow::Error::new(error).context("apply session delta");
+        assert_eq!(session_message_delta_api_error(error).status, expected);
+    }
+}
+
 fn ensure_test_home() {
     TEST_HOME.call_once(|| {
         let dir = ui_ops_test_home();
@@ -294,6 +322,35 @@ async fn session_ui_messages_rejects_foreign_cursor() {
     .await
     .expect_err("foreign cursor must fail");
     assert!(error.to_string().contains("does not match request scope"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_ui_message_delta_rejects_invalid_and_missing_targets() {
+    let _guard = UI_OPS_TEST_LOCK.lock().await;
+    ensure_test_home();
+    let project = TempDir::new().unwrap();
+    let body = scoped_session("invalid-delta", "Delta", "0", 20);
+    save_runtime_session(project.path(), &body);
+    for (id, updated_ms, expected_status) in [
+        (body.id.as_str(), 19, axum::http::StatusCode::BAD_REQUEST),
+        ("missing-delta", 21, axum::http::StatusCode::NOT_FOUND),
+    ] {
+        let error = session_ui_message_delta(
+            Path(id.to_string()),
+            Query(query_for(project.path())),
+            HeaderMap::new(),
+            Json(ui_models::SessionMessageDelta {
+                session_id: id.to_string(),
+                expected_updated_ms: 20,
+                updated_ms,
+                upserts: Vec::new(),
+                truncate_after: None,
+            }),
+        )
+        .await
+        .expect_err("invalid delta must fail");
+        assert_eq!(error.status, expected_status);
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]

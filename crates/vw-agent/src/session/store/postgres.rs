@@ -15,9 +15,10 @@ use vw_shared::session::ui_types::{
 };
 
 use super::{
-    LlmRawArtifact, LlmRawRound, LlmRawTurnContext, SessionMessageDeltaResult, from_i64,
-    from_i64_usize, message_processing_values, parse_agent_info, resulting_message_count,
-    role_from_db, role_to_db, session_last_content, to_i64, usize_to_i64,
+    LlmRawArtifact, LlmRawRound, LlmRawTurnContext, SessionMessageDeltaError,
+    SessionMessageDeltaResult, from_i64, from_i64_usize, message_processing_values,
+    parse_agent_info, resulting_message_count, role_from_db, role_to_db, session_last_content,
+    to_i64, usize_to_i64,
     validate_session_message_delta,
 };
 use crate::global_database::GlobalDatabase;
@@ -421,7 +422,8 @@ impl PostgresSessionStore {
         scope: &ProjectScope,
         delta: &SessionMessageDelta,
     ) -> Result<SessionMessageDeltaResult> {
-        validate_session_message_delta(delta)?;
+        validate_session_message_delta(delta)
+            .map_err(|error| SessionMessageDeltaError::Invalid(error.to_string()))?;
         let mut connection = self.database.connect_postgres()?;
         let mut transaction =
             connection.transaction().context("begin PostgreSQL session message delta")?;
@@ -1075,15 +1077,16 @@ fn apply_session_message_delta_postgres(
              FOR UPDATE",
             scoped_id_params!(scope, &delta.session_id),
         )?
-        .context("session message delta target does not exist")?;
+        .ok_or(SessionMessageDeltaError::NotFound)?;
     let stored_updated_ms = from_i64(row.try_get(0)?, "session updated_ms")?;
     if stored_updated_ms != delta.expected_updated_ms {
-        bail!(
+        return Err(SessionMessageDeltaError::Conflict(format!(
             "stale session message delta for {}: expected updated_ms {}, stored updated_ms {}",
             delta.session_id,
             delta.expected_updated_ms,
             stored_updated_ms
-        );
+        ))
+        .into());
     }
     let message_count = resulting_message_count(
         from_i64(row.try_get(1)?, "session message_count")?,

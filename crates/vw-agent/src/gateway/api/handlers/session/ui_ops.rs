@@ -210,10 +210,19 @@ pub(super) async fn session_ui_message_delta(
             upserted_rows: result.upserted_rows,
             truncated_rows: result.truncated_rows,
         })),
-        Err(error) if error.to_string().contains("stale session message delta") => {
-            Err(ApiError::conflict(error.to_string()))
-        }
-        Err(error) => Err(ApiError::bad_request(error.to_string())),
+        Err(error) => Err(session_message_delta_api_error(error)),
+    }
+}
+
+fn session_message_delta_api_error(error: anyhow::Error) -> ApiError {
+    use crate::session::store::SessionMessageDeltaError;
+
+    match error.downcast_ref::<SessionMessageDeltaError>() {
+        Some(SessionMessageDeltaError::Invalid(_)) => ApiError::bad_request(error.to_string()),
+        Some(SessionMessageDeltaError::Conflict(_)) => ApiError::conflict(error.to_string()),
+        Some(SessionMessageDeltaError::NotFound) => ApiError::not_found(error.to_string()),
+        // 存储故障不能伪装成非法请求，否则客户端会停止重试并留下未保存消息。
+        None => ApiError::internal(error.to_string()),
     }
 }
 

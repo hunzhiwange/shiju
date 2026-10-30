@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -44,10 +45,24 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         raise ValueError('GitHub API redirect refused to protect authorization')
 
 
+def github_token():
+    for key in ('GITHUB_TOKEN', 'GH_TOKEN'):
+        token = os.environ.get(key, '').strip()
+        if token:
+            return token
+    try:
+        result = subprocess.run(
+            ['gh', 'auth', 'token', '--hostname', 'github.com'],
+            capture_output=True, text=True, timeout=TIMEOUT, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
 def fetch_release(version):
     url = f'https://api.github.com/repos/{REPOSITORY}/releases/tags/v{version}'
     headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'vibewindow-release-preparer'}
-    token = os.environ.get('GITHUB_TOKEN')
+    token = github_token()
     if token:
         headers['Authorization'] = 'Bearer ' + token
     opener = urllib.request.build_opener(NoRedirect())
@@ -56,10 +71,23 @@ def fetch_release(version):
             with opener.open(urllib.request.Request(url, headers=headers), timeout=TIMEOUT) as response:
                 return json.load(response)
         except (OSError, http.client.HTTPException) as error:
+            message = 'GitHub metadata request failed; check network, proxy and TLS certificates'
             if isinstance(error, urllib.error.HTTPError):
+                message = f'GitHub metadata request failed (HTTP {error.code})'
+                if error.code in (403, 429) and error.headers.get('X-RateLimit-Remaining') == '0':
+                    message += '; API rate limit exhausted; set GITHUB_TOKEN/GH_TOKEN or run gh auth login --hostname github.com, or wait for the quota to reset'
+                elif error.code == 401:
+                    message += '; credentials rejected; check GITHUB_TOKEN/GH_TOKEN or gh authentication'
+                elif error.code == 404:
+                    message += f'; verify published tag v{version} and repository access'
+                elif error.code == 403:
+                    message += '; access forbidden; check credential permissions and GitHub API limits'
+                retryable = error.code == 429 or 500 <= error.code < 600
                 error.close()
+                if not retryable:
+                    raise ValueError(message) from error
             if attempt == ATTEMPTS - 1:
-                raise ValueError('GitHub metadata request failed; check access and retry') from error
+                raise ValueError(message) from error
             time.sleep(attempt + 1)
 
 

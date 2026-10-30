@@ -1,12 +1,13 @@
 import hashlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 SPEC = importlib.util.spec_from_file_location('prepare', Path(__file__).parents[1] / 'prepare_oss_release.py')
 prepare = importlib.util.module_from_spec(SPEC)
@@ -97,6 +98,69 @@ class ReleaseTests(unittest.TestCase):
         handler = prepare.NoRedirect()
         with self.assertRaises(ValueError):
             handler.redirect_request(None, None, 302, 'redirect', {}, 'https://elsewhere.invalid')
+
+
+class MetadataTests(unittest.TestCase):
+    def test_environment_credentials_take_priority_over_cli(self):
+        for env, expected in [({'GITHUB_TOKEN': 'first', 'GH_TOKEN': 'second'}, 'first'),
+                              ({'GH_TOKEN': 'second'}, 'second')]:
+            with self.subTest(env=env), patch.dict('os.environ', env, clear=True), patch.object(
+                    prepare.subprocess, 'run') as run:
+                self.assertEqual(prepare.github_token(), expected)
+                run.assert_not_called()
+
+    def test_cli_credentials_and_anonymous_fallback(self):
+        for result, expected in [(Mock(returncode=0, stdout='cli-token\n'), 'cli-token'),
+                                 (Mock(returncode=1, stdout=''), None)]:
+            with self.subTest(expected=expected), patch.dict('os.environ', {}, clear=True), patch.object(
+                    prepare.subprocess, 'run', return_value=result) as run:
+                self.assertEqual(prepare.github_token(), expected)
+                self.assertEqual(run.call_args.args[0], ['gh', 'auth', 'token', '--hostname', 'github.com'])
+        with patch.dict('os.environ', {}, clear=True), patch.object(
+                prepare.subprocess, 'run', side_effect=FileNotFoundError):
+            self.assertIsNone(prepare.github_token())
+
+    def test_metadata_uses_credentials_only_on_api_request(self):
+        opener = Mock()
+        opener.open.return_value = io.BytesIO(json.dumps(fixture()).encode())
+        with patch.object(prepare, 'github_token', return_value='secret'), patch.object(
+                prepare.urllib.request, 'build_opener', return_value=opener):
+            self.assertEqual(prepare.fetch_release('0.5.10'), fixture())
+        request = opener.open.call_args.args[0]
+        self.assertEqual(request.full_url, 'https://api.github.com/repos/hunzhiwange/shiju/releases/tags/v0.5.10')
+        self.assertEqual(request.get_header('Authorization'), 'Bearer secret')
+
+    def test_http_failures_are_actionable_and_do_not_expose_response_secrets(self):
+        for status, headers, expected in [(403, {'X-RateLimit-Remaining': '0'}, 'rate limit exhausted'),
+                                          (401, {}, 'credentials rejected'),
+                                          (404, {}, 'published tag v0.5.10'),
+                                          (403, {}, 'access forbidden')]:
+            body = io.BytesIO(b'sensitive response')
+            error = prepare.urllib.error.HTTPError('https://api.github.com', status, 'secret', headers, body)
+            opener = Mock()
+            opener.open.side_effect = error
+            with self.subTest(status=status, headers=headers), patch.object(
+                    prepare, 'github_token', return_value=None), patch.object(
+                    prepare.urllib.request, 'build_opener', return_value=opener), patch.object(
+                    prepare.time, 'sleep') as sleep:
+                with self.assertRaisesRegex(ValueError, expected) as caught:
+                    prepare.fetch_release('0.5.10')
+                self.assertNotIn('secret', str(caught.exception))
+                self.assertNotIn('sensitive', str(caught.exception))
+                opener.open.assert_called_once()
+                sleep.assert_not_called()
+                self.assertTrue(body.closed)
+
+    def test_server_failure_retries_then_succeeds(self):
+        error = prepare.urllib.error.HTTPError('https://api.github.com', 503, 'Unavailable', {}, io.BytesIO())
+        opener = Mock()
+        opener.open.side_effect = [error, io.BytesIO(json.dumps(fixture()).encode())]
+        with patch.object(prepare, 'github_token', return_value=None), patch.object(
+                prepare.urllib.request, 'build_opener', return_value=opener), patch.object(
+                prepare.time, 'sleep') as sleep:
+            self.assertEqual(prepare.fetch_release('0.5.10'), fixture())
+            self.assertEqual(opener.open.call_count, 2)
+            sleep.assert_called_once_with(1)
 
 
 class DownloadTests(unittest.TestCase):

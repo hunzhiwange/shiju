@@ -22,6 +22,7 @@
 //! - `memory` - 管理会话历史记录
 
 use super::*;
+use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 
 /// 处理 LLM 执行结果并发送响应消息
 ///
@@ -252,9 +253,9 @@ pub(crate) async fn handle_llm_result(
                 sanitized_response
             };
 
-            // 记录出站消息事件
+            // 记录已准备的逻辑响应；此时尚未获得平台投递确认。
             runtime_trace::record_event(
-                "channel_message_outbound",
+                "channel_message_response_prepared",
                 Some(msg.channel.as_str()),
                 Some(route.provider.as_str()),
                 Some(route.model.as_str()),
@@ -325,7 +326,7 @@ pub(crate) async fn handle_llm_result(
 
             // 在控制台打印响应摘要
             println!(
-                "  🤖 Reply ({}ms): {}",
+                "  🤖 Generated reply ({}ms): {}",
                 started_at.elapsed().as_millis(),
                 truncate_with_ellipsis(&delivered_response, 80)
             );
@@ -338,14 +339,28 @@ pub(crate) async fn handle_llm_result(
                         .finalize_draft(&msg.reply_target, draft_id, &delivered_response)
                         .await
                     {
-                        // 草稿完成失败，回退到发送新消息
-                        tracing::warn!("Failed to finalize draft: {e}; sending as new message");
-                        let _ = channel
-                            .send(
-                                &SendMessage::new(&delivered_response, &msg.reply_target)
-                                    .in_thread(msg.thread_ts.clone()),
-                            )
-                            .await;
+                        let delivery = e.downcast_ref::<ChannelDeliveryError>();
+                        if delivery.is_some_and(|error| {
+                            error.confirmed_parts > 0 || error.kind == DeliveryFailureKind::Unknown
+                        }) {
+                            log_delivery_failure(channel.name(), &e);
+                        } else {
+                            // Only a known zero-delivery failure, or a legacy draft error,
+                            // may use the existing whole-reply fallback.
+                            tracing::warn!(
+                                channel = channel.name(),
+                                "Draft finalization failed; using new-message fallback"
+                            );
+                            if let Err(error) = channel
+                                .send(
+                                    &SendMessage::new(&delivered_response, &msg.reply_target)
+                                        .in_thread(msg.thread_ts.clone()),
+                                )
+                                .await
+                            {
+                                log_delivery_failure(channel.name(), &error);
+                            }
+                        }
                     }
                 } else {
                     // 直接发送新消息
@@ -356,7 +371,7 @@ pub(crate) async fn handle_llm_result(
                         )
                         .await
                     {
-                        eprintln!("  ❌ Failed to reply on {}: {e}", channel.name());
+                        log_delivery_failure(channel.name(), &e);
                     }
                 }
             }
@@ -588,6 +603,22 @@ pub(crate) async fn handle_llm_result(
         let _ = channel.remove_reaction(&msg.reply_target, &msg.id, "\u{1F440}").await;
         // 添加完成表情（通常是 ✅）
         let _ = channel.add_reaction(&msg.reply_target, &msg.id, reaction_done_emoji).await;
+    }
+}
+
+/// Delivery errors contain only progress; never log their anyhow context or upstream payload.
+fn log_delivery_failure(channel: &str, error: &anyhow::Error) {
+    if let Some(delivery) = error.downcast_ref::<ChannelDeliveryError>() {
+        tracing::warn!(
+            channel,
+            confirmed_parts = delivery.confirmed_parts,
+            total_parts = delivery.total_parts,
+            failed_part_index = delivery.failed_part_index,
+            kind = ?delivery.kind,
+            "Channel reply delivery stopped"
+        );
+    } else {
+        tracing::warn!(channel, "Channel reply delivery failed");
     }
 }
 

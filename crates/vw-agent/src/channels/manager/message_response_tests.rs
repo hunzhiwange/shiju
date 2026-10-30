@@ -8,6 +8,7 @@ use crate::app::agent::memory::NoneMemory;
 use crate::app::agent::observability::NoopObserver;
 use crate::app::agent::providers::Provider;
 use crate::app::agent::tools::{Tool, ToolResult};
+use crate::channels::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 
 #[derive(Default)]
 struct RecordingChannel {
@@ -16,6 +17,9 @@ struct RecordingChannel {
     cancelled: tokio::sync::Mutex<Vec<String>>,
     reactions: tokio::sync::Mutex<Vec<String>>,
     fail_finalize: bool,
+    send_error: Option<ChannelDeliveryError>,
+    finalize_error: Option<ChannelDeliveryError>,
+    routes: tokio::sync::Mutex<Vec<(String, Option<String>)>>,
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait::async_trait(?Send))]
@@ -27,6 +31,10 @@ impl Channel for RecordingChannel {
 
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
         self.sent.lock().await.push(message.content.clone());
+        self.routes.lock().await.push((message.recipient.clone(), message.thread_ts.clone()));
+        if let Some(error) = &self.send_error {
+            return Err(anyhow::Error::new(error.clone()).context("fixture send"));
+        }
         Ok(())
     }
 
@@ -45,6 +53,9 @@ impl Channel for RecordingChannel {
         text: &str,
     ) -> anyhow::Result<()> {
         self.finalized.lock().await.push(format!("{message_id}:{text}"));
+        if let Some(error) = &self.finalize_error {
+            return Err(anyhow::Error::new(error.clone()).context("fixture finalize"));
+        }
         if self.fail_finalize {
             anyhow::bail!("finalize failed");
         }
@@ -766,5 +777,132 @@ async fn timeout_finalizes_existing_draft() {
         [
             "draft-1:\u{26A0}\u{FE0F} Request timed out while waiting for the model. Please try again."
         ]
+    );
+}
+
+fn delivery_error(confirmed_parts: usize, kind: DeliveryFailureKind) -> ChannelDeliveryError {
+    ChannelDeliveryError {
+        confirmed_parts,
+        total_parts: 3,
+        failed_part_index: confirmed_parts,
+        kind,
+    }
+}
+
+async fn deliver_fixture(
+    ctx: &ChannelRuntimeContext,
+    channel: &Arc<RecordingChannel>,
+    draft: Option<&str>,
+) {
+    let channel_dyn: Arc<dyn Channel> = channel.clone();
+    handle_llm_result(
+        ctx,
+        message("qq"),
+        Some(&channel_dyn),
+        &route(),
+        LlmExecutionResult::Completed(Ok(Ok("complete logical reply".to_string()))),
+        "delivery-history",
+        &[],
+        0,
+        true,
+        Instant::now(),
+        draft,
+        "user turn",
+        None,
+        "✅",
+        &crate::app::agent::security::CanaryGuard::new(false),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn markdown_delivery_runtime_partial_error_does_not_resend() {
+    for draft in [None, Some("draft-1")] {
+        for kind in [
+            DeliveryFailureKind::Rejected,
+            DeliveryFailureKind::NotSent,
+            DeliveryFailureKind::Unknown,
+        ] {
+            let ctx = context(1);
+            let error = delivery_error(1, kind);
+            let channel = Arc::new(RecordingChannel {
+                send_error: Some(error.clone()),
+                finalize_error: Some(error),
+                ..RecordingChannel::default()
+            });
+            deliver_fixture(&ctx, &channel, draft).await;
+            assert_eq!(
+                channel.sent.lock().await.len(),
+                usize::from(draft.is_none()),
+                "confirmed prefix must not be replayed"
+            );
+            assert_eq!(channel.finalized.lock().await.len(), usize::from(draft.is_some()));
+            if draft.is_none() {
+                assert_eq!(
+                    channel.routes.lock().await.as_slice(),
+                    [("recipient".to_string(), Some("thread".to_string()))]
+                );
+            }
+            let histories = ctx.conversation_histories.lock().unwrap();
+            let history = &histories["delivery-history"];
+            assert_eq!(history.len(), 1);
+            assert_eq!(history[0].content, "complete logical reply");
+        }
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_runtime_unknown_draft_error_suppresses_fallback() {
+    let ctx = context(1);
+    let channel = Arc::new(RecordingChannel {
+        finalize_error: Some(delivery_error(0, DeliveryFailureKind::Unknown)),
+        ..RecordingChannel::default()
+    });
+    deliver_fixture(&ctx, &channel, Some("draft-1")).await;
+    assert!(channel.sent.lock().await.is_empty(), "unknown outcome must not replay the full reply");
+    assert_eq!(channel.finalized.lock().await.as_slice(), ["draft-1:complete logical reply"]);
+}
+
+#[tokio::test]
+async fn markdown_delivery_runtime_safety_gate_runs_before_first_chunk() {
+    let ctx = context_with_sending_hook(SendingHookMode::Cancel);
+    let channel = Arc::new(RecordingChannel::default());
+    deliver_fixture(&ctx, &channel, Some("draft-1")).await;
+    assert!(channel.sent.lock().await.is_empty());
+    assert!(channel.finalized.lock().await.is_empty());
+    assert!(!ctx.conversation_histories.lock().unwrap().contains_key("delivery-history"));
+}
+
+#[tokio::test]
+async fn markdown_delivery_runtime_zero_delivery_draft_preserves_safe_fallback() {
+    for kind in [DeliveryFailureKind::NotSent, DeliveryFailureKind::Rejected] {
+        let ctx = context(1);
+        let channel = Arc::new(RecordingChannel {
+            finalize_error: Some(delivery_error(0, kind)),
+            ..RecordingChannel::default()
+        });
+        deliver_fixture(&ctx, &channel, Some("draft-1")).await;
+        assert_eq!(channel.finalized.lock().await.as_slice(), ["draft-1:complete logical reply"]);
+        assert_eq!(channel.sent.lock().await.as_slice(), ["complete logical reply"]);
+        assert_eq!(
+            channel.routes.lock().await.as_slice(),
+            [("recipient".to_string(), Some("thread".to_string()))]
+        );
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_runtime_hook_mutation_keeps_original_route() {
+    let ctx = context_with_sending_hook(SendingHookMode::Modify("safe {content}".to_string()));
+    let channel = Arc::new(RecordingChannel::default());
+    deliver_fixture(&ctx, &channel, None).await;
+    assert_eq!(channel.sent.lock().await.as_slice(), ["safe complete logical reply"]);
+    assert_eq!(
+        channel.routes.lock().await.as_slice(),
+        [("recipient".to_string(), Some("thread".to_string()))]
+    );
+    assert_eq!(
+        ctx.conversation_histories.lock().unwrap()["delivery-history"][0].content,
+        "safe complete logical reply"
     );
 }

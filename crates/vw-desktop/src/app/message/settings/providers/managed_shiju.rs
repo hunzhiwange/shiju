@@ -5,6 +5,7 @@ use crate::app::message::account::AccountMessage;
 use crate::app::state::SHIJU_OFFICIAL_PROVIDER_ID;
 use crate::app::{App, Message};
 use iced::Task;
+use std::time::Duration;
 use vw_gateway_client::ShijuModelTokenDto;
 use vw_shared::auth;
 
@@ -23,6 +24,13 @@ fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), 
 pub(crate) fn sync(app: &mut App) -> Task<Message> {
     let generation = app.account.begin_model_sync();
     Task::done(Message::Account(AccountMessage::ResetModels { generation }))
+}
+
+fn retry_task(generation: u64) -> Task<Message> {
+    // 沿用当前代次；切换账号、退出或手动重试会使旧定时任务失效。
+    Task::perform(async { tokio::time::sleep(Duration::from_secs(10)).await }, move |()| {
+        Message::Account(AccountMessage::ResetModels { generation })
+    })
 }
 
 pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
@@ -74,7 +82,7 @@ pub(crate) fn token_loaded(
     }
     let token = match result {
         Ok(token) => token,
-        Err(error) => return app.show_warning_toast(format!("识矩模型自动配置失败：{error}")),
+        Err(_) => return retry_task(generation),
     };
     // 网关响应仍需在持久化边界校验，避免错误配置将模型密钥发送给其他服务。
     if let Err(error) = save_token(&super::models::auth_filepath(), &token) {
@@ -109,7 +117,7 @@ pub(crate) fn configured(
             super::tasks::refresh_task(),
             app.show_success_toast("识矩模型已自动配置"),
         ]),
-        Err(_) => app.show_warning_toast("识矩模型配置未完成，请在提供商页面点击识矩重试"),
+        Err(_) => retry_task(generation),
     }
 }
 

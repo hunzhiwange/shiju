@@ -327,7 +327,7 @@ pub fn skills_to_prompt_with_mode(
         let _ = writeln!(prompt, "  <skill>");
 
         // 写入技能基本信息
-        write_xml_text_element(&mut prompt, 4, "name", &skill.name);
+        write_xml_text_element(&mut prompt, 4, "name", &skill.invocation_name());
         write_xml_text_element(&mut prompt, 4, "description", &skill.description);
 
         // 解析并写入技能位置

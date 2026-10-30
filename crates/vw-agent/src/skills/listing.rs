@@ -25,13 +25,13 @@ pub(crate) fn skill_listing_entries(skills: &[Skill]) -> Vec<SkillListingEntry> 
     let mut entries = skills
         .iter()
         // 保留加载器给出的来源优先级，不让后面的同名项覆盖禁用的高优先级项。
-        .filter(|skill| seen_names.insert(skill.name.clone()))
+        .filter(|skill| seen_names.insert(skill.invocation_name()))
         .filter(|skill| !skill.disable_model_invocation)
         .filter_map(|skill| {
             let location = skill.location.as_ref()?.canonicalize().ok()?;
             let location = location.to_str()?.to_string();
             let metadata = serde_json::json!({
-                "name": skill.name, "description": skill.description,
+                "name": skill.invocation_name(), "description": skill.description,
                 "location": location, "version": skill.version,
                 "when_to_use": skill.when_to_use, "allowed_tools": skill.allowed_tools,
                 "model": skill.model, "user_invocable": skill.user_invocable,
@@ -39,7 +39,7 @@ pub(crate) fn skill_listing_entries(skills: &[Skill]) -> Vec<SkillListingEntry> 
                 "effort": skill.effort, "argument_hint": skill.argument_hint,
             });
             Some(SkillListingEntry {
-                name: skill.name.clone(),
+                name: skill.invocation_name(),
                 description: truncate_description(&skill.description),
                 location,
                 fingerprint: hex::encode(Sha256::digest(metadata.to_string().as_bytes())),

@@ -419,7 +419,7 @@ fn delegated_skill_policy_resolution(
         serde_json::from_value::<vw_config_types::agent::DelegateCapabilityPolicy>(value).ok()
     })?;
     Some(crate::session::capability_policy::resolve_skill_capabilities(
-        skills.iter().map(|skill| skill.name.as_str()),
+        skills.iter().map(|skill| skill.invocation_name()),
         option_string_values(options, "delegate_default_allowed_skills"),
         option_string_values(options, "delegate_trusted_user_selected_skills"),
         policy,
@@ -617,7 +617,9 @@ fn run_in_project(
     let skills = if let Some(resolution) = skill_policy_resolution.as_ref() {
         skills
             .into_iter()
-            .filter(|skill| resolution.visible_ids.contains(&skill.name.trim().to_lowercase()))
+            .filter(|skill| {
+                resolution.visible_ids.contains(&skill.invocation_name().trim().to_lowercase())
+            })
             .collect()
     } else {
         skills
@@ -838,7 +840,9 @@ fn run_in_project(
                 skills
                     .into_iter()
                     .filter(|skill| {
-                        resolution.visible_ids.contains(&skill.name.trim().to_lowercase())
+                        resolution
+                            .visible_ids
+                            .contains(&skill.invocation_name().trim().to_lowercase())
                     })
                     .collect()
             } else {

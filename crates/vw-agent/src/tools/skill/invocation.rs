@@ -21,7 +21,7 @@ pub(super) fn build_invocation_result(
     if !skill.paths.is_empty() {
         return Err(format!(
             "技能 \"{}\" 使用了未支持的 paths 条件：{}",
-            skill.name,
+            skill.invocation_name(),
             skill.paths.join(", ")
         ));
     }
@@ -31,13 +31,13 @@ pub(super) fn build_invocation_result(
     let base_dir = base_dir_url(directory);
     let content = format!(
         "<system-reminder>\nSkill \"{}\" is now active. Its base directory is {}. Relative paths in the skill resolve from that directory.\n\n{}\n</system-reminder>",
-        skill.name,
+        skill.invocation_name(),
         base_dir,
         skill_prompt_content(skill, args),
     );
 
     let mut context_updates = vec![
-        update("skill.name", Value::String(skill.name.clone())),
+        update("skill.name", Value::String(skill.invocation_name())),
         update("skill.base_dir", Value::String(base_dir.clone())),
     ];
     if !skill.allowed_tools.is_empty() {
@@ -62,10 +62,10 @@ pub(super) fn build_invocation_result(
     Ok(ToolCallResult {
         data: json!({
             "success": true,
-            "skill": skill.name,
+            "skill": skill.invocation_name(),
             "base_dir": base_dir,
         }),
-        model_result: Value::String(format!("Skill \"{}\" loaded.", skill.name)),
+        model_result: Value::String(format!("Skill \"{}\" loaded.", skill.invocation_name())),
         context_updates,
         extra_messages: vec![ToolExtraMessage::meta_user_text(content)],
         telemetry: Some(ToolCallTelemetry { success: true, ..ToolCallTelemetry::default() }),

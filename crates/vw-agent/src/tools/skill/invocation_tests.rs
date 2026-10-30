@@ -6,15 +6,13 @@ use crate::app::agent::skills::Skill;
 use serde_json::json;
 use std::fs;
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 fn skill() -> (Skill, PathBuf) {
-    let root = std::env::temp_dir().join(format!(
-        "vw-agent-skill-tool-{}-{}",
-        std::process::id(),
-        SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock").as_nanos(),
-    ));
-    fs::create_dir_all(&root).expect("create temporary skill directory");
+    let root = tempfile::Builder::new()
+        .prefix("vw-agent-skill-tool-")
+        .tempdir()
+        .expect("create unique temporary skill directory")
+        .keep();
     let location = root.join("SKILL.md");
     fs::write(&location, "# Review\nInspect $ARGUMENTS before responding.\n")
         .expect("write temporary SKILL.md");
@@ -88,4 +86,35 @@ fn skill_tool_rejects_model_disabled_and_path_scoped_skills() {
     );
     fs::remove_dir_all(disabled_root).expect("remove disabled temporary skill directory");
     fs::remove_dir_all(path_scoped_root).expect("remove path-scoped temporary skill directory");
+}
+
+#[test]
+fn codex_plugin_compat_t10_qualified_permission_preserves_legacy_denials() {
+    use crate::permission::next::{Action, from_config};
+    let (mut skill, root) = skill();
+    skill.plugin_source = Some(crate::skills::PluginSkillSource {
+        plugin_id: "pack@first".into(),
+        namespace: "pack".into(),
+        root: root.clone(),
+        relative_skill_path: "SKILL.md".into(),
+    });
+    let rules =
+        from_config(&json!({"skill":{"*":"allow","review":"deny","pack@first:review":"allow"}}));
+    assert_eq!(super::skill_permission_rule(&skill, &rules).action, Action::Deny);
+    let rules = from_config(&json!({"skill":{"*":"allow","pack@first:review":"deny"}}));
+    assert_eq!(super::skill_permission_rule(&skill, &rules).action, Action::Deny);
+    skill.plugin_source.as_mut().unwrap().plugin_id = "pack@second".into();
+    assert_eq!(super::skill_permission_rule(&skill, &rules).action, Action::Allow);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn codex_plugin_compat_t10_preserves_local_reference_case_aliases() {
+    let skill = Skill {
+        name: "Review".into(),
+        location: Some(PathBuf::from("/fixture/review/SKILL.md")),
+        ..Default::default()
+    };
+    let references = super::explicitly_referenced_skill_names(&[skill], ["Use $review"]);
+    assert_eq!(references, ["review".to_owned()].into_iter().collect());
 }

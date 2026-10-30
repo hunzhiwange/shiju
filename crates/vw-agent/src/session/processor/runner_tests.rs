@@ -2617,3 +2617,99 @@ fn codex_skills_replay_duplicate_calls_replace_arguments_and_compaction_rebuilds
         }
     });
 }
+
+#[test]
+fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() {
+    use crate::tools::traits::Tool;
+    use std::sync::Arc;
+
+    let _guard = super::llm_runner::test_llm_stream_guard();
+    let temp = tempfile::tempdir().unwrap();
+    let workspace = temp.path().join("workspace");
+    let source = temp.path().join("original");
+    std::fs::create_dir_all(source.join(".codex-plugin")).unwrap();
+    std::fs::create_dir_all(source.join("skills/review")).unwrap();
+    std::fs::write(
+        source.join(".codex-plugin/plugin.json"),
+        include_bytes!("../../../testdata/plugin_compat/t10/plugin.json"),
+    )
+    .unwrap();
+    std::fs::write(
+        source.join("skills/review/SKILL.md"),
+        include_bytes!("../../../testdata/plugin_compat/t10/SKILL.md"),
+    )
+    .unwrap();
+    for market in ["first", "second"] {
+        crate::plugins::install_plugin_from_marketplace(
+            source.to_str().unwrap(),
+            &workspace.join("plugins"),
+            market,
+        )
+        .unwrap();
+    }
+    let mut config = crate::config::Config::default();
+    config.workspace_dir = workspace.clone();
+    config.config_path = temp.path().join("config/vibewindow.json");
+    let config = Arc::new(config);
+    let context = Arc::new(
+        crate::tools::ToolUseContext::new("t10-compaction", None).with_full_access_enabled(true),
+    );
+    let tool = crate::tools::skill::SkillTool::new_with_runtime_config(
+        Arc::new(crate::security::SecurityPolicy::default()),
+        "t10-compaction".into(),
+        false,
+        workspace.clone(),
+        config.clone(),
+    );
+    let result = crate::session::prompt::block_on(crate::tools::scope_tool_use_context(
+        context.clone(), tool.call(serde_json::json!({"skill":"invocation-pack@second:review","args":"retained arguments"})),
+    )).unwrap();
+    assert_eq!(result.data["success"], true);
+    let skills = crate::skills::load_skills_full_with_config(&workspace, &config);
+    let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 100_000);
+    for record in context.take_invoked_skills() {
+        protocol.skill_state.register_invoked("main", record);
+    }
+    let mut history = vec![
+        serde_json::json!({"role":"user","content":"prior task"}),
+        serde_json::json!({"role":"assistant","content":"prior details"}),
+        serde_json::json!({"role":"user","content":"continue selected plugin"}),
+    ];
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("retain selected plugin".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
+    super::compact_transient_history_for_request(
+        "t10-compaction",
+        &[],
+        &mut history,
+        "provider/model",
+        &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+        &mut |_| true,
+        None,
+        &crate::provider::provider::resolve_model_limit(None, None, None),
+    )
+    .unwrap();
+    assert_eq!(history.len(), 2);
+    assert_eq!(history[1]["content"], "continue selected plugin");
+    protocol.skill_state =
+        serde_json::from_value(serde_json::to_value(&protocol.skill_state).unwrap()).unwrap();
+    protocol.skill_state.reset_catalog("main");
+    for _ in 0..2 {
+        let assembled = protocol.assemble(&history, &[], true).unwrap();
+        let bodies = assembled
+            .messages
+            .iter()
+            .filter_map(|message| message["content"].as_str())
+            .filter(|body| body.contains("Relative paths in the skill resolve"))
+            .collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 1);
+        assert!(bodies[0].contains("invocation-pack@second:review"));
+        assert!(bodies[0].contains("with retained arguments"));
+        assert!(!bodies[0].contains("invocation-pack@first/skills/review"));
+        assert_eq!(history.len(), 2);
+    }
+}

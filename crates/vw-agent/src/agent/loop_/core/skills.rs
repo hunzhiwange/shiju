@@ -129,7 +129,7 @@ impl CoreSkillSession {
             .filter_map(|name| crate::session::capability_policy::normalize_capability_id(name))
             .collect::<BTreeSet<_>>();
         let resolution = crate::session::capability_policy::resolve_skill_capabilities(
-            self.skills.iter().map(|skill| skill.name.as_str()),
+            self.skills.iter().map(|skill| skill.invocation_name()),
             defaults.iter().map(String::as_str),
             std::iter::empty::<&str>(),
             self.definition.skill_policy,
@@ -138,8 +138,9 @@ impl CoreSkillSession {
         if let Some(missing) = defaults.difference(&resolution.default_injected_ids).next() {
             bail!("默认技能不存在、已禁用或不在当前权限范围内：{missing}");
         }
-        self.skills
-            .retain(|skill| resolution.visible_ids.contains(&skill.name.trim().to_lowercase()));
+        self.skills.retain(|skill| {
+            resolution.visible_ids.contains(&skill.invocation_name().trim().to_lowercase())
+        });
         let user_references =
             crate::tools::skill::explicitly_referenced_skill_names(&self.skills, [&*self.query]);
         let instruction_references = crate::tools::skill::explicitly_referenced_skill_names(

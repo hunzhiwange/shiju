@@ -41,7 +41,7 @@ pub(super) fn build_description_text_for_skills(
 
     for skill in skills {
         lines.push("  <skill>".to_string());
-        lines.push(format!("    <name>{}</name>", xml_escape(&skill.name)));
+        lines.push(format!("    <name>{}</name>", xml_escape(&skill.invocation_name())));
         if let Some(id) = skill_file_id(&skill)
             && id != skill.name
         {

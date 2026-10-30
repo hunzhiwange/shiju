@@ -6,6 +6,7 @@ pub(super) mod legacy_manifest;
 pub(super) mod path_audit;
 pub(super) mod portable_manifest;
 pub(super) mod skill_frontmatter;
+pub(super) mod skill_invocation;
 pub(super) mod skill_roots;
 pub(super) mod transaction_install;
 
@@ -40,3 +41,7 @@ mod t08_tests;
 #[cfg(test)]
 #[path = "t09_tests.rs"]
 mod t09_tests;
+
+#[cfg(test)]
+#[path = "t10_tests.rs"]
+mod t10_tests;

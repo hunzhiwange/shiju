@@ -20,6 +20,7 @@ mod compat;
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;
 pub use cli::handle_command;
+pub(crate) use compat::skill_invocation::reference_text as plugin_skill_reference_text;
 pub(crate) use hook_handler::trusted_plugin_hook_handlers;
 pub use hook_trust::{
     PluginHookTrustStatus, PluginHookTrustStore, plugin_hook_trust_file, plugin_hook_trust_hash,

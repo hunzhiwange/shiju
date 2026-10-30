@@ -39,7 +39,7 @@ impl InvokedSkillRecord {
         } else {
             !skill.disable_model_invocation
         };
-        skill.name == self.skill_name
+        skill.invocation_name() == self.skill_name
             && skill.paths.is_empty()
             && invocation_allowed
             && skill

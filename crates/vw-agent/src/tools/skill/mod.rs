@@ -15,7 +15,7 @@ use crate::session::capability_policy::resolve_skill_capabilities;
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::path::Path;
 use std::path::PathBuf;
@@ -211,7 +211,7 @@ impl SkillTool {
     ///
     /// # 参数
     ///
-    /// - `name`: 要加载的技能名称
+    /// - `skill`: 已审计技能及其插件限定调用身份
     ///
     /// # 返回值
     ///
@@ -236,7 +236,8 @@ impl SkillTool {
     /// - 权限规则为 Deny
     /// - 用户选择拒绝
     /// - 配置更新失败
-    async fn ask_skill_permission(&self, name: &str) -> Result<(), String> {
+    async fn ask_skill_permission(&self, skill: &skills::Skill) -> Result<(), String> {
+        let name = skill.invocation_name();
         // 完全访问由请求上下文授权，不能再被全局代理的交互审批规则覆盖。
         if current_tool_use_context().is_some_and(|context| context.full_access_enabled()) {
             return Ok(());
@@ -256,7 +257,7 @@ impl SkillTool {
         };
 
         // 评估权限规则
-        let mut rule = permission_next::evaluate("skill", name, &[ruleset]);
+        let mut rule = skill_permission_rule(skill, &ruleset);
 
         // 如果启用了强制提示模式，且规则为通配符允许，则转为 Ask 模式
         // 这确保了即使有宽松的权限规则，也会让用户明确确认
@@ -358,6 +359,15 @@ impl SkillTool {
                 &self.workspace_dir,
                 self.root_config.as_ref(),
             );
+            // Resolve namespace ambiguity before delegation hides other identities.
+            if skills.iter().filter(|skill| skill_matches_name(skill, &args.skill)).take(2).count()
+                > 1
+            {
+                return failure_result(format!(
+                    "技能名称有歧义，请使用完整插件身份限定调用：{}",
+                    args.skill
+                ));
+            }
             let skills = filter_delegate_skills(skills);
             let Some(skill) =
                 skills.iter().find(|skill| skill_matches_name(skill, &args.skill)).cloned()
@@ -368,15 +378,14 @@ impl SkillTool {
                     available_skill_names(&skills)
                 ));
             };
+            let invocation_name = skill.invocation_name();
             if explicitly_requested && !skill.user_invocable {
                 return failure_result(format!("技能 \"{}\" 禁止用户显式调用", skill.name));
             }
             if skill.disable_model_invocation && !explicitly_requested {
                 return failure_result(format!("技能 \"{}\" 禁止模型调用", skill.name));
             }
-            if !explicitly_requested
-                && let Err(error) = self.ask_skill_permission(&skill.name).await
-            {
+            if !explicitly_requested && let Err(error) = self.ask_skill_permission(&skill).await {
                 return failure_result(error);
             }
             match invocation::build_invocation_result(
@@ -388,7 +397,8 @@ impl SkillTool {
                 Ok(result) => {
                     let source = skill_location(&skill, &self.workspace_dir);
                     let record =
-                        match skills::InvokedSkillRecord::new(&skill.name, &source, args.args) {
+                        match skills::InvokedSkillRecord::new(&invocation_name, &source, args.args)
+                        {
                             Ok(record) => record.with_explicit_request(explicitly_requested),
                             Err(error) => return failure_result(error),
                         };
@@ -419,37 +429,57 @@ fn filter_delegate_skills_for_context(
     };
     let trusted = context.trusted_user_selected_skills();
     let visible = resolve_skill_capabilities(
-        skills.iter().map(|skill| skill.name.as_str()),
+        skills.iter().map(skills::Skill::invocation_name),
         defaults.iter().map(String::as_str),
         trusted.iter().map(String::as_str),
         policy,
         std::iter::empty::<&str>(),
     )
     .visible_ids;
-    skills.into_iter().filter(|skill| visible.contains(&skill.name.trim().to_lowercase())).collect()
+    skills
+        .into_iter()
+        .filter(|skill| visible.contains(&skill.invocation_name().trim().to_lowercase()))
+        .collect()
 }
 
-/// 从可信用户输入和已加载仓库协议中找出明确引用的技能名称及文件 ID。
+/// 解析可信用户及仓库协议中的技能引用；精确插件链接只消歧被点名的技能。
 pub(crate) fn explicitly_referenced_skill_names<'a>(
     skills: &[skills::Skill],
     sources: impl IntoIterator<Item = &'a str>,
 ) -> BTreeSet<String> {
-    let sources = sources.into_iter().collect::<Vec<_>>();
+    let sources =
+        sources.into_iter().map(crate::plugins::plugin_skill_reference_text).collect::<Vec<_>>();
+    let mut alias_counts = BTreeMap::<String, usize>::new();
+    for name in skills.iter().flat_map(skills::Skill::invocation_aliases) {
+        *alias_counts.entry(name.to_lowercase()).or_default() += 1;
+    }
     let mut requested = BTreeSet::new();
     for skill in skills {
-        let mut names = vec![skill.name.as_str()];
-        let file_id = skill_file_id(skill);
-        if let Some(file_id) = file_id.as_deref()
-            && !names.iter().any(|name| name.eq_ignore_ascii_case(file_id))
-        {
-            names.push(file_id);
-        }
-        if !names
+        let names = skill
+            .invocation_aliases()
+            .into_iter()
+            .filter(|name| alias_counts.get(&name.to_lowercase()) == Some(&1))
+            .collect::<Vec<_>>();
+        let plugin_selected = skill
+            .plugin_source
+            .as_ref()
+            .is_some_and(|source| sources.iter().any(|(_, ids)| ids.contains(&source.plugin_id)));
+        let explicitly_named = names
             .iter()
-            .any(|name| sources.iter().any(|source| text_contains_skill_reference(source, name)))
-        {
+            .any(|name| sources.iter().any(|(text, _)| text_contains_skill_reference(text, name)));
+        // A plugin selection disambiguates a named skill; it does not invoke every skill.
+        let selected_skill_named = plugin_selected
+            && sources.iter().any(|(text, _)| {
+                text_contains_skill_reference(text, &skill.name)
+                    || skill
+                        .invocation_aliases()
+                        .iter()
+                        .any(|name| text_contains_skill_reference(text, name))
+            });
+        if !explicitly_named && !selected_skill_named {
             continue;
         }
+        requested.insert(skill.invocation_name().trim().to_lowercase());
         requested.extend(names.into_iter().map(|name| name.trim().to_lowercase()));
     }
     requested
@@ -512,7 +542,7 @@ pub(crate) fn user_explicitly_requests_skill_use(text: &str) -> bool {
 pub(crate) fn user_invocable_skill_names(skills: &[skills::Skill]) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     for skill in skills.iter().filter(|skill| skill.user_invocable) {
-        names.insert(skill.name.trim().to_lowercase());
+        names.insert(skill.invocation_name().trim().to_lowercase());
         if let Some(file_id) = skill_file_id(skill) {
             names.insert(file_id.trim().to_lowercase());
         }
@@ -535,7 +565,12 @@ fn skill_request_is_explicit(name: &str) -> bool {
                 message.role == "user" && !message.content.trim().starts_with("<system-reminder>")
             })
         })
-        .is_some_and(|message| text_contains_skill_reference(&message.content, name))
+        .is_some_and(|message| {
+            text_contains_skill_reference(
+                &crate::plugins::plugin_skill_reference_text(&message.content).0,
+                name,
+            )
+        })
 }
 
 fn text_contains_skill_reference(text: &str, name: &str) -> bool {
@@ -554,7 +589,7 @@ fn text_contains_skill_reference(text: &str, name: &str) -> bool {
 }
 
 fn is_skill_name_char(ch: char) -> bool {
-    ch.is_alphanumeric() || matches!(ch, '-' | '_' | ':')
+    ch.is_alphanumeric() || matches!(ch, '-' | '_' | ':' | '@')
 }
 
 fn failure_result(error: String) -> ToolCallResult {
@@ -609,41 +644,38 @@ pub(crate) fn accessible_skills(
         .filter(|skill| {
             context.is_some_and(|context| skill_is_explicitly_requested(context, skill))
                 || !matches!(
-                    permission_next::evaluate(
-                        "skill",
-                        &skill.name,
-                        std::slice::from_ref(&ruleset),
-                    )
-                    .action,
+                    skill_permission_rule(skill, &ruleset).action,
                     permission_next::Action::Deny
                 )
         })
         .collect()
 }
 
+// A qualified allow must not bypass a pre-existing denial on the raw skill name.
+fn skill_permission_rule(
+    skill: &skills::Skill,
+    ruleset: &permission_next::Ruleset,
+) -> permission_next::Rule {
+    let legacy = permission_next::evaluate("skill", &skill.name, std::slice::from_ref(ruleset));
+    if legacy.action == permission_next::Action::Deny {
+        return legacy;
+    }
+    permission_next::evaluate("skill", &skill.invocation_name(), std::slice::from_ref(ruleset))
+}
+
 fn skill_is_explicitly_requested(context: &ToolUseContext, skill: &skills::Skill) -> bool {
-    context.is_skill_explicitly_requested(&skill.name)
+    context.is_skill_explicitly_requested(&skill.invocation_name())
         || skill_file_id(skill)
             .as_deref()
             .is_some_and(|file_id| context.is_skill_explicitly_requested(file_id))
 }
 
 fn skill_file_id(skill: &skills::Skill) -> Option<String> {
-    let location = skill.location.as_ref()?;
-    let file_name = location.file_name().and_then(|name| name.to_str()).unwrap_or_default();
-    if file_name.eq_ignore_ascii_case("SKILL.md") || file_name.eq_ignore_ascii_case("SKILL.toml") {
-        return location
-            .parent()
-            .and_then(|parent| parent.file_name())
-            .and_then(|name| name.to_str())
-            .map(ToOwned::to_owned);
-    }
-
-    location.file_stem().and_then(|name| name.to_str()).map(ToOwned::to_owned)
+    skill.file_id()
 }
 
 fn skill_matches_name(skill: &skills::Skill, requested: &str) -> bool {
-    skill.name == requested || skill_file_id(skill).as_deref() == Some(requested)
+    skill.invocation_aliases().iter().any(|name| name == requested)
 }
 
 fn skill_location(skill: &skills::Skill, workspace_dir: &Path) -> PathBuf {
@@ -656,7 +688,7 @@ fn skill_location(skill: &skills::Skill, workspace_dir: &Path) -> PathBuf {
 fn available_skill_names(skills: &[skills::Skill]) -> String {
     let mut names = BTreeSet::new();
     for skill in skills {
-        names.insert(skill.name.clone());
+        names.insert(skill.invocation_name());
         if let Some(id) = skill_file_id(skill) {
             names.insert(id);
         }

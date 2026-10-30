@@ -46,7 +46,6 @@
 //! }).await?;
 //! ```
 
-use super::outbound_format::normalize_chat_markdown;
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
@@ -56,7 +55,7 @@ use tokio::sync::RwLock;
 use tokio_tungstenite::tungstenite::Message;
 use uuid::Uuid;
 
-const DINGTALK_MARKDOWN_MAX_CHARS: usize = 3_500;
+mod outbound;
 
 /// 钉钉机器人回调消息的订阅主题
 ///
@@ -205,26 +204,6 @@ impl DingTalkChannel {
 
     fn websocket_url(gw: &GatewayResponse) -> String {
         format!("{}?ticket={}", gw.endpoint, gw.ticket)
-    }
-
-    fn webhook_reply_body(message: &SendMessage) -> serde_json::Value {
-        let title = message.subject.as_deref().unwrap_or("VibeWindow");
-        if message.content.chars().count() > DINGTALK_MARKDOWN_MAX_CHARS {
-            return serde_json::json!({
-                "msgtype": "text",
-                "text": {
-                    "content": message.content,
-                }
-            });
-        }
-        let content = normalize_chat_markdown(&message.content);
-        serde_json::json!({
-            "msgtype": "markdown",
-            "markdown": {
-                "title": title,
-                "text": content,
-            }
-        })
     }
 
     fn frame_message_id(frame: &serde_json::Value) -> &str {
@@ -431,30 +410,7 @@ impl Channel for DingTalkChannel {
     /// 如果未找到会话 webhook，会返回明确的错误提示，
     /// 说明需要用户先发送消息建立会话。
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
-        // 从缓存中获取会话对应的 webhook URL
-        let webhooks = self.session_webhooks.read().await;
-        let webhook_url = webhooks.get(&message.recipient).ok_or_else(|| {
-            anyhow::anyhow!(
-                "未找到聊天 {} 的会话 webhook。用户必须先发送消息以建立会话。",
-                message.recipient
-            )
-        })?;
-
-        // 构建消息体，使用 Markdown 格式
-        let body = Self::webhook_reply_body(message);
-
-        // 发送消息到 webhook
-        let resp = self.http_client().post(webhook_url).json(&body).send().await?;
-
-        // 处理非成功响应
-        if !resp.status().is_success() {
-            let status = resp.status();
-            let err = resp.text().await.unwrap_or_default();
-            let sanitized = crate::app::agent::providers::sanitize_api_error(&err);
-            anyhow::bail!("钉钉 webhook 回复失败 ({status}): {sanitized}");
-        }
-
-        Ok(())
+        self.send_webhook_reply(message).await
     }
 
     /// 启动消息监听循环
@@ -597,3 +553,6 @@ impl Channel for DingTalkChannel {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod outbound_tests;

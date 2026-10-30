@@ -248,7 +248,7 @@ mod tests {
         .unwrap_err()
         .to_string();
 
-        assert!(error.contains("missing-chat"));
+        assert!(error.contains("未找到会话"));
         assert!(error.contains("webhook"));
     }
 
@@ -355,10 +355,15 @@ mod tests {
 
     #[test]
     fn webhook_reply_body_uses_subject_or_default_title() {
-        let with_subject =
-            DingTalkChannel::webhook_reply_body(&SendMessage::with_subject("hello", "chat-1", "T"));
+        let with_subject = DingTalkChannel::webhook_reply_payloads(&SendMessage::with_subject(
+            "hello", "chat-1", "T",
+        ))
+        .map(|b| serde_json::from_slice::<serde_json::Value>(&b[0]).unwrap())
+        .unwrap();
         let without_subject =
-            DingTalkChannel::webhook_reply_body(&SendMessage::new("hello", "chat-1"));
+            DingTalkChannel::webhook_reply_payloads(&SendMessage::new("hello", "chat-1"))
+                .map(|b| serde_json::from_slice::<serde_json::Value>(&b[0]).unwrap())
+                .unwrap();
 
         assert_eq!(with_subject["msgtype"], "markdown");
         assert_eq!(with_subject["markdown"]["title"], "T");
@@ -373,22 +378,13 @@ mod tests {
             "chat-1",
         );
 
-        let body = DingTalkChannel::webhook_reply_body(&message);
+        let payloads = DingTalkChannel::webhook_reply_payloads(&message).unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&payloads[0]).unwrap();
 
         assert_eq!(
             body["markdown"]["text"],
             "说明\n\n1. 第一步\n2. 第二步\n\n```rust\nfn main() {}\n```"
         );
-    }
-
-    #[test]
-    fn webhook_reply_body_uses_plain_text_for_long_content() {
-        let content = "界".repeat(DINGTALK_MARKDOWN_MAX_CHARS + 1);
-        let body = DingTalkChannel::webhook_reply_body(&SendMessage::new(&content, "chat-1"));
-
-        assert_eq!(body["msgtype"], "text");
-        assert_eq!(body["text"]["content"], content);
-        assert!(body.get("markdown").is_none());
     }
 
     #[test]
@@ -459,7 +455,7 @@ mod tests {
 
     #[tokio::test]
     async fn send_posts_cached_webhook_markdown_body() {
-        let (url, server) = one_shot_http_server("HTTP/1.1 200 OK", "{}").await;
+        let (url, server) = one_shot_http_server("HTTP/1.1 200 OK", r#"{"errcode":0}"#).await;
         let ch = DingTalkChannel::new("id".into(), "secret".into(), vec!["*".into()]);
         ch.session_webhooks.write().await.insert("chat-1".into(), url);
 

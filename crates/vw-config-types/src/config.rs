@@ -316,8 +316,8 @@ impl Default for Config {
                 "env": ["SHIJU_API_KEY"],
                 "adapter": "openai-compatible",
                 "models": {
-                    "deepseek-v4-flash": {
-                        "id": "deepseek-v4-flash",
+                    "deepseek-v4.1-flash": {
+                        "id": "deepseek-v4.1-flash",
                         "status": "active"
                     }
                 }
@@ -335,7 +335,7 @@ impl Default for Config {
             api_url: None,
             default_provider: Some("shiju".to_string()),
             provider_api: None,
-            default_model: Some("shiju/deepseek-v4-flash".to_string()),
+            default_model: Some("shiju/deepseek-v4.1-flash".to_string()),
             model_providers: HashMap::new(),
             provider: ProviderConfig::default(),
             default_temperature: 0.7,

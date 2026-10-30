@@ -14,7 +14,7 @@ fn config_defaults_promote_shiju_as_primary_provider() {
         std::path::PathBuf::from(crate::paths::HOME_CONFIG_DIR_NAME).join("shiju.json")
     ));
     assert_eq!(config.default_provider.as_deref(), Some("shiju"));
-    assert_eq!(config.default_model.as_deref(), Some("shiju/deepseek-v4-flash"));
+    assert_eq!(config.default_model.as_deref(), Some("shiju/deepseek-v4.1-flash"));
     assert_eq!(config.default_temperature, 0.7);
     assert!(config.enabled_providers.is_empty());
     assert_eq!(config.popular_providers, ["shiju"]);
@@ -25,8 +25,8 @@ fn config_defaults_promote_shiju_as_primary_provider() {
             "env": ["SHIJU_API_KEY"],
             "adapter": "openai-compatible",
             "models": {
-                "deepseek-v4-flash": {
-                    "id": "deepseek-v4-flash",
+                "deepseek-v4.1-flash": {
+                    "id": "deepseek-v4.1-flash",
                     "status": "active"
                 }
             }

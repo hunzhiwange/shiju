@@ -83,3 +83,22 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/sparql-university/`，含 host-red.log、host-green.log、host-schema.json、host-receipt.json（逐文件SHA256及上游SHA256）、cargo-slot.txt、clippy.log、promptfoo-validation.log。
 
 恢复入口：56结束且调度释放后在原会话继续，审查并固定带rdflib的诊断镜像digest，再执行本文件指定 --run-fixtures、标准 SuiteDockerEnvironment 四题oracle/nop和父题preflight。不得私有platform/Trial/Compose覆盖或更改官方checker；校准完成才串行提交、报告证据并删除本任务文件。
+
+## 2026-10-30 恢复：镜像与20个Linux夹具完成，标准校准仍待准备窗口
+
+状态保持 `已阻塞`，但旧的56独占/禁止Docker边界已解除。读取56终态确认独占释放，并重新核查完整上游题面、两份RDF、solve.sh及全部官方测试；原题树与catalog逐文件匹配。原参考查询在宿主rdflib 7.1.4实际执行，结果匹配官方四行预期；这只是宿主排查，不是父题通过收据。
+
+本轮新增真实证据位于 `evals/promptfoo/results/qwen38-suite/diagnostics/sparql-university/resume-20261030/`：
+
+- 诊断镜像经正式 `SuiteDockerEnvironment._limited_build` 受限构建，首个依赖安装RUN实际inspect为CPU period/quota=100000/100000、Memory=MemorySwap=536870912。没有私有platform/FROM/Trial/Compose/Builder覆盖；固定原有amd64 Python base，安装rdflib7.1.4与pyparsing3.2.3。`build-admission.json`、`build-receipt.json`、`build-container-inspects.json`及formal-build保留真实命令/资源输出。
+- 镜像固定为 `vw-sparql-diagnostics@sha256:9e6dc822eca5fb90deba43c400115d0a915f0e2e9e139c7b7248020d7af87584`；C=47611993、完整流解压U=134902272 bytes，正Ucap=536870912。原导出tar与固定digest归档均保留SHA；逐压缩blob SHA、config、解压diff_id和本地RootFS一致，见 `diagnostic-identity.json`。case.json已移除全零占位，Dockerfile和README同步真实状态。
+- `suite.diagnostics.validate(case, run_fixtures=True)` 正式API真实执行20个受限离线Linux夹具，全通过：4 gold退出0、4 nop及12错误查询退出1。持有同一共享资源锁并重新检查另一题/CPU/内存后串行执行；未同时启动第三题。`fixtures.py.log`、`fixture-admission.json`、`fixture-validation.json`与case下validation.json为证据。此处是API调用，不伪称指定CLI命令已执行；恢复时仍按原指定CLI验证。
+- 原镜像manifest `sha256:92fa4304e51167f9fb4466144eba33ef9272a7df0ac1cab9fc3986bccd1ab708`，config `sha256:4b477a009da63f0cff40da8caa52e09a382bf4a0ce011cd371c09650e665ba9c`。Registry API下载同一digest所有blob，校验压缩SHA及完整解压diff_id后流式OCI导入；C=29725003、U=80648704、正Ucap=268435456 bytes。未创建冗余分片或tar副本，原配置/架构/RootFS及上游tag指向一致，见parent-admission、parent-layer-verification、parent-import与parent-image-inspect。网络令牌仅驻留内存，没有原题改写或评分绕过。
+- `checked-inputs.json`核验官方树、20夹具收据、冻结generation2运行时、安装Harbor源码与当前执行身份 `7ad9affa98d787ab12315fd30889d1c650700a33e16857dc5f3d602d57ea7318`。本题ignored runtime.json正确引用runtime-v2，未修改公共runtime.json、执行代码、catalog或其他case。
+- 指定宿主unittest 27项退出0；`evals/promptfoo/score.sh test`退出0，Configuration is valid。`cargo clippy --all-targets --all-features -- -D warnings`退出0，0行为测试；动态原子领取槽位1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR同值、CARGO_BUILD_JOBS=1。自有锁已释放、缓存保留，无Rust修改或全量测试/fmt检查/wasm/Makefile。
+
+当前实际阻塞只有准备任务数准入：任务47的 `vw-task47-x86-reservation`（2CPU/4GiB）与任务86的 `vw-task86-preparation-reservation`（0.25CPU/64MiB）同时保留窗口，不能启动第三题。共享构建锁竞争曾造成等待，已改为在同一锁上阻塞排队后完成镜像/夹具；宿主空间曾降至约19GiB，随后由其他任务释放，最新约82.1GB，磁盘不足不再作为当前阻塞。`blocked-current.json`保留时间、精确容器ID/标签/资源和待办；旧的磁盘等待中断另保留wait-interruption.json，不覆盖历史。
+
+剩余未运行：原题/诊断镜像的受限amd64冻结ELF与容器端点探测、指定CLI的 --run-fixtures、四子题8个标准Harbor oracle/nop、父题2个标准oracle/nop。没有父preparation.json，没有正常终态冒充官方通过，没有付费调用；按原要求，未校准资产仍不提交，编号文件保留。
+
+恢复入口：释放一个准备窗口后，使用本题ignored目录的 `probe.py`（检查输出probe-receipt.json的全部端点/ELF结果）、原指定CLI `suite.diagnostics validate --case .../sparql-university/case.json --run-fixtures`，再执行 `preflight.py` 或原指定suite.run preflight命令（运行时改为本题ignored runtime.json）。预备preflight.py只调用正式suite.run，保留1CPU/2048MiB/10240MiB及900/900秒原题资源，记录真实容器资源和宿主/VM剩余磁盘；遇端点失败须先审定verifier-only依赖修复，不直接正式运行。标准输出目录预设 `preflight/sparql-university-20261030`，尚未创建。全部本题下载、构建、夹具、Cargo和排队进程已结束；未停止其他容器、未改别人锁或缓存。完整校准后才提交本题资产并删除编号文件，plan.md始终只读。

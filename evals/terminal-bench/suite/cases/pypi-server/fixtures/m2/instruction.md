@@ -1,0 +1,2 @@
+Create /app/build.py. Running python3 build.py in /app must build exactly one valid pure-Python wheel in /app/dist for coppervec version 0.4.2 from supplied src/coppervec/__init__.py. Wheel must install offline with pip --no-deps and expose coppervec.norm2. Include valid METADATA, WHEEL and RECORD with SHA256 hashes and sizes. Do not change the supplied API.
+All work is confined to /app; no external network or permission changes. One attempt; 24 requests and 32 tools maximum.

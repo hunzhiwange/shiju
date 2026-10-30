@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "parent_id": "pypi-server",
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "spec.txt": "fixtures/m1/spec.txt"
+      },
+      "oracle": {
+        "expected.json": "oracle/m1/expected.json"
+      },
+      "gold": {
+        "tinyvec/__init__.py": "oracle/m1/gold/tinyvec/__init__.py"
+      },
+      "negatives": [
+        {
+          "id": "sum-only",
+          "files": {
+            "tinyvec/__init__.py": "oracle/m1/sum-only/tinyvec/__init__.py"
+          }
+        },
+        {
+          "id": "absolute-only",
+          "files": {
+            "tinyvec/__init__.py": "oracle/m1/absolute-only/tinyvec/__init__.py"
+          }
+        },
+        {
+          "id": "skip-last",
+          "files": {
+            "tinyvec/__init__.py": "oracle/m1/skip-last/tinyvec/__init__.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "src/coppervec/__init__.py": "fixtures/m2/src/coppervec/__init__.py"
+      },
+      "oracle": {
+        "expected.json": "oracle/m2/expected.json"
+      },
+      "gold": {
+        "build.py": "oracle/m2/gold/build.py"
+      },
+      "negatives": [
+        {
+          "id": "wrong-version",
+          "files": {
+            "build.py": "oracle/m2/wrong-version/build.py"
+          }
+        },
+        {
+          "id": "missing-module",
+          "files": {
+            "build.py": "oracle/m2/missing-module/build.py"
+          }
+        },
+        {
+          "id": "broken-record",
+          "files": {
+            "build.py": "oracle/m2/broken-record/build.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "index/packages/ambervec-0.4.2-py3-none-any.whl": "fixtures/m3/index/packages/ambervec-0.4.2-py3-none-any.whl",
+        "index/simple/ambervec/index.html": "fixtures/m3/index/simple/ambervec/index.html"
+      },
+      "oracle": {
+        "expected.json": "oracle/m3/expected.json"
+      },
+      "gold": {
+        "serve.py": "oracle/m3/gold/serve.py"
+      },
+      "negatives": [
+        {
+          "id": "wrong-root",
+          "files": {
+            "serve.py": "oracle/m3/wrong-root/serve.py"
+          }
+        },
+        {
+          "id": "no-server",
+          "files": {
+            "serve.py": "oracle/m3/no-server/serve.py"
+          }
+        },
+        {
+          "id": "always-200",
+          "files": {
+            "serve.py": "oracle/m3/always-200/serve.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "index/packages/ambervec-0.4.2-py3-none-any.whl": "fixtures/m4/index/packages/ambervec-0.4.2-py3-none-any.whl",
+        "index/simple/ambervec/index.html": "fixtures/m4/index/simple/ambervec/index.html"
+      },
+      "oracle": {
+        "expected.json": "oracle/m4/expected.json"
+      },
+      "gold": {
+        "install.py": "oracle/m4/gold/install.py"
+      },
+      "negatives": [
+        {
+          "id": "no-install",
+          "files": {
+            "install.py": "oracle/m4/no-install/install.py"
+          }
+        },
+        {
+          "id": "wrong-version",
+          "files": {
+            "install.py": "oracle/m4/wrong-version/install.py"
+          }
+        },
+        {
+          "id": "wrong-target",
+          "files": {
+            "install.py": "oracle/m4/wrong-target/install.py"
+          }
+        }
+      ]
+    }
+  ]
+}

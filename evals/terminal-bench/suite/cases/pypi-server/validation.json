@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "parent_id": "pypi-server",
+  "implementation_sha256": "2365b523747f771c31c18689f42b99cae85ed73b9b77f762138e4a33b3f776c4",
+  "files": {
+    "check.py": "9c4c279bbaacbf0d05294594750d1becb63c48d308d9e3b216e53e6ccca6e463",
+    "fixtures/m1/instruction.md": "db52c497a923baf786794ab644cb29157c00b840baedd1947ee5235dba5ea403",
+    "fixtures/m1/spec.txt": "93942e60a426e4ffc83c21394ac317306945ecb6b523642c9f6fcd5feea8cf99",
+    "fixtures/m2/instruction.md": "0760b7219415bef8b0bb6bfabf748c8b89bdc068de513b51906ceffd513ac9fe",
+    "fixtures/m2/src/coppervec/__init__.py": "e043c6c6f9e735a3c9c6337db09cedbeafc9111f0ff7559581b7afb844e721a6",
+    "fixtures/m3/index/packages/ambervec-0.4.2-py3-none-any.whl": "e824d539226397519dd038d735587a439fd5c3c3232a46e99a82567fbc717891",
+    "fixtures/m3/index/simple/ambervec/index.html": "57bd802dd78334436ebd541ca5d81fb9ea39a75a4b9855bc09c8be62a6480aeb",
+    "fixtures/m3/instruction.md": "904ea86704d102cf3d6bec224e09cce6ce935fc2d82cf6a0d5273eb45b46fcda",
+    "fixtures/m4/index/packages/ambervec-0.4.2-py3-none-any.whl": "e824d539226397519dd038d735587a439fd5c3c3232a46e99a82567fbc717891",
+    "fixtures/m4/index/simple/ambervec/index.html": "57bd802dd78334436ebd541ca5d81fb9ea39a75a4b9855bc09c8be62a6480aeb",
+    "fixtures/m4/instruction.md": "6592898843179d68aa2c742f34a3ad47e389f945d9af65b5dea21132bab87d99",
+    "oracle/m1/absolute-only/tinyvec/__init__.py": "a6438be6188aa6b319fe8129c8af8575048cc78b01466ed689bf9b3bea3ea44f",
+    "oracle/m1/expected.json": "334997aff04e43ab543dc96e768310058e44441cc7e5cc74afecee5397c7797d",
+    "oracle/m1/gold/tinyvec/__init__.py": "f167646706160dac39ccce456329d64d0e851235cf722bfd6bd2f037583584da",
+    "oracle/m1/skip-last/tinyvec/__init__.py": "950731f62d2a70cd2911d32205388ac1d14e3db1cdfdaae54ad17a1fe873862d",
+    "oracle/m1/sum-only/tinyvec/__init__.py": "e4702578937544ae8486794c616761e8cc17295c0edcfb5faaf57249d431ae8a",
+    "oracle/m2/broken-record/build.py": "b0d31730d08eebe171cd96d296a7d60ef1fa0d888341613b9136283b2232a0fc",
+    "oracle/m2/expected.json": "f17dbf9c25f92902dbf62683ee7d6ff4799967d00449fc0e1025811f826ef701",
+    "oracle/m2/gold/build.py": "4e61c7f29febeb91b422b792b6e9765a52165f73e1cb2348b6b44f8dc323fded",
+    "oracle/m2/missing-module/build.py": "727a69e3bcef8a4132d2965a05dad85ba606154bd76a188a86a63e4f50968e66",
+    "oracle/m2/wrong-version/build.py": "d51e26a6389e2270c4ae5cbec29bf0aec64236399ee94474238a5fd6b0d834a5",
+    "oracle/m3/always-200/serve.py": "24a783c8ccd8ac9ceab954e4328e63f106ba9f8f482ff9f39241064d4cb2d7a3",
+    "oracle/m3/expected.json": "570c8f27f672c1f1f3cb566db54c9cd56f7c0980bd1d0d230c44eefa2d522d55",
+    "oracle/m3/gold/serve.py": "775a8fb04708c560978ab68deb1304e0f3db1fbf005535647558b1751fab75ac",
+    "oracle/m3/no-server/serve.py": "0e0e7eaed7cbb486356c6101499ffe3dfbb88d49e884aaa1d604f970fb8c214c",
+    "oracle/m3/wrong-root/serve.py": "c4ab76a059769d1a473eb82997f85980abe3733ac01924fb051b295c8d6f0835",
+    "oracle/m4/expected.json": "abc9582e448d664b3ad124599d24c6dceaf11f39421e281f64b095bb3225361a",
+    "oracle/m4/gold/install.py": "039d78c513542f73ac22ea01fb56d15858ae64f5b651cbf5de1837e5b9c8cc14",
+    "oracle/m4/no-install/install.py": "1ecb789f0a1b5531e974aa03b5ff1dc97929435ac143df4b8f9ef3431a16b88e",
+    "oracle/m4/wrong-target/install.py": "de60d4c2a6e6a1a5caf77b983266c29ed17a1a707474b58ccd4511f4d168a1dc",
+    "oracle/m4/wrong-version/install.py": "ee0bc8a20101d78ce10c926d39504bfc3e530a1d4410129ac550ecd4d3eabee5",
+    "case.json": "90362bbb05b2944b5e31df10346a8ee45b849d40c6f7b6607e55293b446bc3cd"
+  },
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "sum-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "absolute-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "skip-last",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-version",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "missing-module",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "broken-record",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "wrong-root",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "no-server",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "always-200",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "no-install",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-version",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-target",
+      "exit_code": 1
+    }
+  ]
+}

@@ -188,9 +188,9 @@ async fn mcp_capability_status_reports_unsupported_capabilities() {
     assert!(unsupported_ids.contains(&"elicitation"));
     assert!(unsupported_ids.contains(&"roots"));
     assert!(unsupported_ids.contains(&"resources.subscribe"));
-    assert!(unsupported_ids.contains(&"resources.listChanged"));
-    assert!(unsupported_ids.contains(&"prompts.listChanged"));
-    assert!(unsupported_ids.contains(&"tools.listChanged"));
+    assert!(!unsupported_ids.contains(&"resources.listChanged"));
+    assert!(!unsupported_ids.contains(&"prompts.listChanged"));
+    assert!(!unsupported_ids.contains(&"tools.listChanged"));
 }
 
 #[tokio::test]

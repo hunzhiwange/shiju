@@ -55,30 +55,22 @@ const UNSUPPORTED_MCP_CAPABILITIES: &[UnsupportedMcpCapability] = &[
         capability: "resources.subscribe",
         reason: "vw-agent MCP client performs one-shot resource reads and does not keep resource subscriptions open.",
     },
-    UnsupportedMcpCapability {
-        scope: "server",
-        capability: "resources.listChanged",
-        reason: "vw-agent MCP client does not automatically refresh cached resources from listChanged notifications.",
-    },
-    UnsupportedMcpCapability {
-        scope: "server",
-        capability: "prompts.listChanged",
-        reason: "vw-agent MCP client does not automatically refresh cached prompts from listChanged notifications.",
-    },
-    UnsupportedMcpCapability {
-        scope: "server",
-        capability: "tools.listChanged",
-        reason: "vw-agent MCP client does not automatically refresh cached tools from listChanged notifications.",
-    },
 ];
 
 pub(crate) struct NoopClient {
     info: ClientInfo,
+    pub(crate) catalogs: std::sync::Arc<crate::plugins::McpCatalogs>,
 }
 
 impl Default for NoopClient {
     fn default() -> Self {
+        Self::with_cancellation(tokio_util::sync::CancellationToken::new())
+    }
+}
+impl NoopClient {
+    fn with_cancellation(closed: tokio_util::sync::CancellationToken) -> Self {
         Self {
+            catalogs: std::sync::Arc::new(crate::plugins::McpCatalogs::new(closed)),
             info: ClientInfo {
                 protocol_version: rmcp::model::ProtocolVersion::LATEST,
                 capabilities: mcp_client_capabilities(),
@@ -144,25 +136,55 @@ impl rmcp::ClientHandler for NoopClient {
 
     fn on_resource_list_changed(
         &self,
-        _context: NotificationContext<RoleClient>,
+        context: NotificationContext<RoleClient>,
     ) -> impl Future<Output = ()> + Send + '_ {
-        tracing::debug!("ignoring unsupported MCP resources.listChanged notification");
+        if context
+            .peer
+            .peer_info()
+            .and_then(|i| i.capabilities.resources.as_ref())
+            .and_then(|c| c.list_changed)
+            == Some(true)
+        {
+            self.catalogs.resources_changed();
+        } else {
+            tracing::debug!("ignoring unadvertised MCP resources.listChanged notification");
+        }
         std::future::ready(())
     }
 
     fn on_tool_list_changed(
         &self,
-        _context: NotificationContext<RoleClient>,
+        context: NotificationContext<RoleClient>,
     ) -> impl Future<Output = ()> + Send + '_ {
-        tracing::debug!("ignoring unsupported MCP tools.listChanged notification");
+        if context
+            .peer
+            .peer_info()
+            .and_then(|i| i.capabilities.tools.as_ref())
+            .and_then(|c| c.list_changed)
+            == Some(true)
+        {
+            self.catalogs.tools_changed();
+        } else {
+            tracing::debug!("ignoring unadvertised MCP tools.listChanged notification");
+        }
         std::future::ready(())
     }
 
     fn on_prompt_list_changed(
         &self,
-        _context: NotificationContext<RoleClient>,
+        context: NotificationContext<RoleClient>,
     ) -> impl Future<Output = ()> + Send + '_ {
-        tracing::debug!("ignoring unsupported MCP prompts.listChanged notification");
+        if context
+            .peer
+            .peer_info()
+            .and_then(|i| i.capabilities.prompts.as_ref())
+            .and_then(|c| c.list_changed)
+            == Some(true)
+        {
+            self.catalogs.prompts_changed();
+        } else {
+            tracing::debug!("ignoring unadvertised MCP prompts.listChanged notification");
+        }
         std::future::ready(())
     }
 }
@@ -524,15 +546,26 @@ pub async fn with_server_peer_timeout<T>(
         Box<dyn std::future::Future<Output = anyhow::Result<T>> + Send + 'a>,
     >,
 ) -> anyhow::Result<T> {
+    with_server_client_timeout(server, timeout, |client| f(client.peer())).await
+}
+
+pub(crate) async fn with_server_client_timeout<T>(
+    server: &McpServer,
+    timeout: Option<Duration>,
+    f: impl for<'a> FnOnce(
+        &'a RunningMcpPeer,
+    )
+        -> std::pin::Pin<Box<dyn Future<Output = anyhow::Result<T>> + Send + 'a>>,
+) -> anyhow::Result<T> {
     let connections = super::context::current_tool_use_context().and_then(|context| {
         context
             .workspace_root()
             .map(|root| crate::plugins::mcp_session_connections(context.session(), &root))
     });
     match connections {
-        Some(connections) => connections.with_peer(server, timeout, f).await,
+        Some(connections) => connections.with_client(server, timeout, f).await,
         None => {
-            crate::plugins::McpSessionConnections::default().with_peer(server, timeout, f).await
+            crate::plugins::McpSessionConnections::default().with_client(server, timeout, f).await
         }
     }
 }
@@ -543,6 +576,7 @@ pub(crate) type RunningMcpPeer = rmcp::service::RunningService<rmcp::RoleClient,
 pub(crate) async fn open_server_peer(
     server: McpServer,
     timeout: Duration,
+    closed: tokio_util::sync::CancellationToken,
 ) -> anyhow::Result<RunningMcpPeer> {
     let server = &server;
     match server {
@@ -564,7 +598,10 @@ pub(crate) async fn open_server_peer(
                 }
             }))?;
             let running = with_connect_timeout(&server.name, timeout, async move {
-                NoopClient::default().serve(transport).await.map_err(anyhow::Error::from)
+                NoopClient::with_cancellation(closed)
+                    .serve(transport)
+                    .await
+                    .map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
@@ -583,7 +620,10 @@ pub(crate) async fn open_server_peer(
             .await
             .with_context(|| format!("failed to start SSE MCP transport for '{}'", server.name))?;
             let running = with_connect_timeout(&server.name, timeout, async move {
-                NoopClient::default().serve(transport).await.map_err(anyhow::Error::from)
+                NoopClient::with_cancellation(closed)
+                    .serve(transport)
+                    .await
+                    .map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
@@ -608,7 +648,10 @@ pub(crate) async fn open_server_peer(
                 StreamableHttpClientTransportConfig::with_uri(server.url.clone()),
             );
             let running = with_connect_timeout(&server.name, timeout, async move {
-                NoopClient::default().serve(transport).await.map_err(anyhow::Error::from)
+                NoopClient::with_cancellation(closed)
+                    .serve(transport)
+                    .await
+                    .map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;

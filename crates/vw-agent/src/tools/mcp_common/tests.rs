@@ -580,21 +580,6 @@ fn mcp_unsupported_capabilities_report_stable_policy_details() {
                 "scope": "server",
                 "capability": "resources.subscribe",
                 "reason": "vw-agent MCP client performs one-shot resource reads and does not keep resource subscriptions open."
-            },
-            {
-                "scope": "server",
-                "capability": "resources.listChanged",
-                "reason": "vw-agent MCP client does not automatically refresh cached resources from listChanged notifications."
-            },
-            {
-                "scope": "server",
-                "capability": "prompts.listChanged",
-                "reason": "vw-agent MCP client does not automatically refresh cached prompts from listChanged notifications."
-            },
-            {
-                "scope": "server",
-                "capability": "tools.listChanged",
-                "reason": "vw-agent MCP client does not automatically refresh cached tools from listChanged notifications."
             }
         ])
     );
@@ -649,7 +634,7 @@ async fn noop_client_rejects_unsupported_server_requests_through_rmcp_transport(
 }
 
 #[tokio::test]
-async fn noop_client_ignores_unsupported_list_changed_notifications() {
+async fn noop_client_ignores_unadvertised_list_changed_notifications() {
     assert!(
         run_noop_client_notification(ServerNotification::ResourceListChangedNotification(
             ResourceListChangedNotification::default(),

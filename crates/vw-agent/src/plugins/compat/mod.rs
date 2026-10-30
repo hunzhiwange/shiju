@@ -98,3 +98,7 @@ mod t18_tests;
 mod t19_tests;
 
 pub(crate) mod mcp_catalog;
+pub(crate) mod mcp_notifications;
+
+#[cfg(test)]
+mod t20_tests;

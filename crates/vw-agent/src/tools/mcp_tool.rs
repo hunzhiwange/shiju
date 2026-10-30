@@ -23,7 +23,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     future::Future,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 use vw_api_types::tools::ToolResultContentDto;
 
@@ -307,12 +307,21 @@ fn configured_call_handler(
     connections: Arc<crate::plugins::McpSessionConnections>,
     timeout: Option<std::time::Duration>,
 ) -> McpToolCallHandler {
+    let binding = Arc::new(Mutex::new(connections.tool_binding(&server)));
     Arc::new(move |tool_name, arguments| {
         let server = server.clone();
         let connections = connections.clone();
+        let binding = binding.clone();
         Box::pin(async move {
-            call_configured_remote_mcp_tool(&server, &tool_name, arguments, &connections, timeout)
-                .await
+            call_configured_remote_mcp_tool(
+                &server,
+                &tool_name,
+                arguments,
+                &connections,
+                timeout,
+                &binding,
+            )
+            .await
         })
     })
 }
@@ -347,25 +356,47 @@ async fn call_configured_remote_mcp_tool(
     arguments: JsonObject,
     connections: &crate::plugins::McpSessionConnections,
     timeout: Option<std::time::Duration>,
+    binding: &Arc<Mutex<Option<crate::plugins::ToolCatalogBinding>>>,
 ) -> anyhow::Result<CallToolResult> {
     if !crate::plugins::plugin_mcp_tool_allowed(server, tool_name)? {
         anyhow::bail!("plugin MCP tool is disabled by its declaration");
     }
     connections
-        .with_peer(server, timeout, |peer: &Peer<RoleClient>| {
+        .with_client(server, timeout, |client| {
             let tool_name = tool_name.to_string();
             let arguments = arguments.clone();
+            let binding = binding.clone();
             Box::pin(async move {
+                let peer = client.peer();
+                let catalogs = &client.service().catalogs;
+                let tools = catalogs.tools(peer).await?;
+                let admitted = {
+                    let mut expected =
+                        binding.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                    match expected.as_ref() {
+                        Some(expected) => expected.matches(catalogs, &tools),
+                        None => {
+                            *expected = catalogs.binding();
+                            true
+                        }
+                    }
+                };
+                if !admitted {
+                    // Admission failure does not close a healthy connection or invalidate new bindings.
+                    return Ok(Err(anyhow::anyhow!(
+                        "MCP tool catalog changed; refresh the tool binding before calling"
+                    )));
+                }
                 let result = peer
                     .call_tool(CallToolRequestParam {
                         name: Cow::Owned(tool_name),
                         arguments: Some(arguments),
                     })
                     .await?;
-                Ok(result)
+                Ok(Ok(result))
             })
         })
-        .await
+        .await?
 }
 
 fn input_as_json_object(input: Value) -> anyhow::Result<JsonObject> {

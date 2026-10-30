@@ -2,7 +2,7 @@
 
 use super::mcp_common::{
     auth_method_names, load_resolved_acp_config, management_for_server, management_timeout,
-    server_name, server_transport, unsupported_mcp_capabilities_json, with_server_peer_timeout,
+    server_name, server_transport, unsupported_mcp_capabilities_json, with_server_client_timeout,
 };
 use super::traits::{Tool, ToolResult, ToolSpec};
 use async_trait::async_trait;
@@ -131,9 +131,9 @@ async fn inspect_server(
     server: &agent_client_protocol::McpServer,
     management: &vw_acp::McpServerManagement,
 ) -> anyhow::Result<usize> {
-    with_server_peer_timeout(server, management_timeout(management), |peer| {
+    with_server_client_timeout(server, management_timeout(management), |client| {
         Box::pin(async move {
-            let tools = crate::plugins::list_mcp_catalog_tools(peer).await?;
+            let tools = client.service().catalogs.tools(client.peer()).await?;
             Ok(tools.len())
         })
     })

@@ -1,0 +1,595 @@
+{
+  "schema_version": 1,
+  "task": 20,
+  "status": "已完成",
+  "scope": "Connection-local tools/resources/templates/prompts catalog invalidation, bounded coherent refresh, frozen tool binding admission, reconnect and cancellation. No resource subscriptions, managed connector or full baseline compatibility claimed.",
+  "items": [
+    {
+      "id": "mcp.pagination",
+      "tasks": [
+        20
+      ],
+      "tests": [
+        "codex_plugin_compat_t20_invalidates_catalog_after_notification",
+        "codex_plugin_compat_t20_rejects_invalid_input",
+        "codex_plugin_compat_t20_preserves_isolation",
+        "codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs",
+        "codex_plugin_compat_t20_retries_notification_during_initial_listing_without_mixed_publication",
+        "codex_plugin_compat_t20_rejects_persistent_notification_churn",
+        "codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_current_binding",
+        "codex_plugin_compat_t20_notification_does_not_revoke_an_already_admitted_call",
+        "codex_plugin_compat_t20_equal_notification_preserves_bindings_and_shutdown_closes_catalogs",
+        "codex_plugin_compat_t20_unadvertised_changes_do_not_enable_persistent_caching",
+        "codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cycles",
+        "codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 92.43,
+        "record": "t20/red.log",
+        "summary": [],
+        "effective_tests": 2,
+        "observed_target_assertions": 2,
+        "result_note": "Observed target runtime assertions before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 34.18,
+        "record": "t20/final3-focused.log",
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10649 filtered out; finished in 0.11s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task20 local real-rmcp notification behavior only; other mapped tasks/platform evidence and complete frozen-baseline compatibility are not claimed."
+    },
+    {
+      "id": "mcp.refresh",
+      "tasks": [
+        20
+      ],
+      "tests": [
+        "codex_plugin_compat_t20_invalidates_catalog_after_notification",
+        "codex_plugin_compat_t20_rejects_invalid_input",
+        "codex_plugin_compat_t20_preserves_isolation",
+        "codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs",
+        "codex_plugin_compat_t20_retries_notification_during_initial_listing_without_mixed_publication",
+        "codex_plugin_compat_t20_rejects_persistent_notification_churn",
+        "codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_current_binding",
+        "codex_plugin_compat_t20_notification_does_not_revoke_an_already_admitted_call",
+        "codex_plugin_compat_t20_equal_notification_preserves_bindings_and_shutdown_closes_catalogs",
+        "codex_plugin_compat_t20_unadvertised_changes_do_not_enable_persistent_caching",
+        "codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cycles",
+        "codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 92.43,
+        "record": "t20/red.log",
+        "summary": [],
+        "effective_tests": 2,
+        "observed_target_assertions": 2,
+        "result_note": "Observed target runtime assertions before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 34.18,
+        "record": "t20/final3-focused.log",
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10649 filtered out; finished in 0.11s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task20 local real-rmcp notification behavior only; other mapped tasks/platform evidence and complete frozen-baseline compatibility are not claimed."
+    },
+    {
+      "id": "acceptance.t20",
+      "tasks": [
+        20
+      ],
+      "tests": [
+        "codex_plugin_compat_t20_invalidates_catalog_after_notification",
+        "codex_plugin_compat_t20_rejects_invalid_input",
+        "codex_plugin_compat_t20_preserves_isolation",
+        "codex_plugin_compat_t20_inspection_refreshes_only_notified_resource_and_prompt_catalogs",
+        "codex_plugin_compat_t20_retries_notification_during_initial_listing_without_mixed_publication",
+        "codex_plugin_compat_t20_rejects_persistent_notification_churn",
+        "codex_plugin_compat_t20_reconnect_rejects_old_binding_without_closing_current_binding",
+        "codex_plugin_compat_t20_notification_does_not_revoke_an_already_admitted_call",
+        "codex_plugin_compat_t20_equal_notification_preserves_bindings_and_shutdown_closes_catalogs",
+        "codex_plugin_compat_t20_unadvertised_changes_do_not_enable_persistent_caching",
+        "codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cycles",
+        "codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 92.43,
+        "record": "t20/red.log",
+        "summary": [],
+        "effective_tests": 2,
+        "observed_target_assertions": 2,
+        "result_note": "Observed target runtime assertions before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 34.18,
+        "record": "t20/final3-focused.log",
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10649 filtered out; finished in 0.11s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task20 local real-rmcp notification behavior only; other mapped tasks/platform evidence and complete frozen-baseline compatibility are not claimed."
+    }
+  ],
+  "source_verification": [
+    {
+      "source": "codex:codex-rs/codex-mcp/src/rmcp_client.rs",
+      "kind": "source",
+      "path": "codex-rs/codex-mcp/src/rmcp_client.rs",
+      "tree": "codex",
+      "sha256": "096694dd52c0bbd4134de487f74f3e0d018cddc20adacfca46048ca2ddf191fd"
+    },
+    {
+      "source": "codex:codex-rs/codex-mcp/src/pagination.rs",
+      "kind": "source",
+      "path": "codex-rs/codex-mcp/src/pagination.rs",
+      "tree": "codex",
+      "sha256": "21d3ff86f9d5775a73cddf8e4cbba13681b531c1db232ea28c62aa44da2fb3fb"
+    },
+    {
+      "source": "codex:codex-rs/codex-mcp/src/runtime.rs",
+      "kind": "source",
+      "path": "codex-rs/codex-mcp/src/runtime.rs",
+      "tree": "codex",
+      "sha256": "120282b123e782efa44260cc126df0ee340544cf0f7fa5d2b5bcf0cf478936e9"
+    }
+  ],
+  "additional_reference_sources": [
+    {
+      "tree": "codex",
+      "path": "codex-rs/codex-mcp/src/client_tool_catalog.rs",
+      "symbol": "refresh_after_notifications/run_with_snapshot",
+      "sha256": "f2e897412330005b7eb60e4e7cc3864d3240ea459ddba3f315af02c101fb47e9"
+    },
+    {
+      "tree": "codex",
+      "path": "codex-rs/rmcp-client/src/logging_client_handler.rs",
+      "symbol": "on_resource_list_changed/on_prompt_list_changed",
+      "sha256": "e5fa7ccc11b008d05f6d4cca9fbebc5e25b326194e77f997e76323210c1d0918"
+    },
+    {
+      "tree": "codex",
+      "path": "codex-rs/codex-mcp/src/connection_manager.rs",
+      "symbol": "refresh_notified_catalog",
+      "sha256": "b226c90ffe1b5daea7b6816408fe50c48ef7d3a8cec95aece29bbbea608316b2"
+    }
+  ],
+  "implementation_notes": [
+    "Only advertised listChanged capabilities enable persistent caches; unadvertised catalogs are freshly listed. Notifications only invalidate their connection and catalog kind, with resource notifications also invalidating templates.",
+    "Refresh serializes fetching and retries one intervening notification; each refresh is bounded by 30 seconds, 100 pages, 2048 items and 64KiB cursor limits, and cyclic/churning catalogs fail without publishing partial pages.",
+    "Live runtime discovery, MCP status and inspection consume the connection-owned cache. Catalog snapshots freeze complete definitions; changed/replaced connections reject old tool bindings without closing the healthy current connection. Already-admitted calls may finish.",
+    "Existing configured direct-call and permission policies remain unchanged; snapshot admission does not impose a new directory-membership permission. Shutdown/error closes catalog publication along with the owned peer.",
+    "Frozen Codex tool catalog uses notification revisions. Its resource/prompt handler only logs notifications; this numbered task explicitly requires resource/prompt cache invalidation, implemented at the existing inspection boundary. Resource subscription remains reported as unsupported."
+  ],
+  "fixture": {
+    "kind": "real_local_rmcp_server",
+    "handler": "crates/vw-agent/src/plugins/compat/t20_tests.rs::Service",
+    "transport": "production stdio through loopback byte bridge",
+    "license": "MIT",
+    "no_provider_or_network_substitute": true,
+    "fixture_and_baseline_hashes_unchanged": {
+      "docs/plugin-compat/baseline.json": "118a4328714a33812e8f1300ea1a0f18bd3a4b1c2492b52a6f4f5bd238cdd9c9",
+      "crates/vw-agent/testdata/plugin_compat/t20/bridge.py": "4045ae06b70636650d8a3d2605b8d0d3fd67371733e4ec45b529ba1e5e9d82b3",
+      "crates/vw-agent/testdata/plugin_compat/t20/README.md": "298d7727de088271403c5affdb6edcf92b9958d220380b63ca1dd0e2801de6c4"
+    }
+  },
+  "additional_red_green": [
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_preserves_isolation -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.82,
+        "record": "t20/red-isolation.log",
+        "summary": [],
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "result_note": "Observed target runtime assertions before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_preserves_isolation -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.48,
+        "record": "t20/green-isolation.log",
+        "summary": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10660 filtered out; finished in 0.08s"
+        ],
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    }
+  ],
+  "validations": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.7,
+      "record": "t20/format6.log",
+      "summary": []
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 34.18,
+      "record": "t20/final3-focused.log",
+      "summary": [
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10649 filtered out; finished in 0.11s"
+      ],
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 12
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 7.83,
+      "record": "t20/final3-plugins.log",
+      "summary": [
+        "test result: ok. 313 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 7.16s"
+      ],
+      "passed": 313,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 313
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.52,
+      "record": "t20/final3-mcp.log",
+      "summary": [
+        "test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 10595 filtered out; finished in 0.16s"
+      ],
+      "passed": 66,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 66
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features dynamic_mcp -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.48,
+      "record": "t20/final3-dynamic.log",
+      "summary": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 10657 filtered out; finished in 0.12s"
+      ],
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 4
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 40.56,
+      "record": "t20/final3-clippy.log",
+      "summary": []
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t20_preserves_isolation -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.48,
+      "record": "t20/green-isolation.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10660 filtered out; finished in 0.08s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    }
+  ],
+  "diagnostics": [
+    {
+      "record": "t20/final-focused.log",
+      "reason": "Test handler ServiceError to ErrorData conversion corrected; compilation is not behavioral red evidence."
+    },
+    {
+      "record": "t20/verified-plugins.log",
+      "reason": "Removed unintended extra catalog-membership restriction, preserving the existing explicit configured-call timeout path; all adjacent tests then passed."
+    },
+    {
+      "record": "t20/final2-mcp.log",
+      "reason": "Updated display-only unsupported-capability assertions after real list-change support was verified; all client request and resource-subscription refusal assertions retained."
+    },
+    {
+      "record": "t20/final2-plugins.log",
+      "reason": "Fixed fixture-only Python buffered-stdin daemon shutdown abort with unbuffered input; final fixture/regression run has no such failure."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_catalog.rs",
+      "sha256": "61f1c54b27d3b570b88e519e2e582c2214b868739e11dda44da442b327821a93"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_connections.rs",
+      "sha256": "840a2a03d49727c7f79e806fa8764c045b8135eefcd38f557a291874a660ae59"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_notifications.rs",
+      "sha256": "48bbcaf534140bd788b79f9e2f4c86c32a2567dbcf27108cbf0851247b39f541"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/t20_tests.rs",
+      "sha256": "262f54bb3d2a10de138c2ef74d02fe7d2310a3a6a890fcfb3052bc91b940466d"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mod.rs",
+      "sha256": "cec91f8b5385470490a159932e428fcb85b03d561afd5f2218fc7b3be6bfeb2f"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mod.rs",
+      "sha256": "c2207e1803458bdf17ddae414323e35b29d9eceb1c74631caef0019310874685"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "sha256": "4b76071b38cfa3601b97eda103ea4ef048e6eb91d365a4a427844b325d341d80"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/tests.rs",
+      "sha256": "2d15940559a6d8e63eacaa2702f5f13cb4493fb09f271284a8c4117300449fe3"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_inspect.rs",
+      "sha256": "ff197dfd6ad004a9e8ed414f1461c07bfd71685608d379c3486864ba1b258dc6"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_status/mod.rs",
+      "sha256": "1cbdf5e6ec483b09ec2209abb63f6d48bca785f7c64f5480549e6a0b527762e5"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_status/tests.rs",
+      "sha256": "9d76298ece4ea04753597018006e89ea2638f161780424d20bc35630856c02ac"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_tool.rs",
+      "sha256": "feb3e1eeb20abd256691c41eeb5fc01e895b5344215194a176cb3f7087605687"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/toolset/mod.rs",
+      "sha256": "bfcf5abb80633a23e42cd70713e2e9ffeb19b83e4c3e71f12ffb8f618d04c286"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t20/bridge.py",
+      "sha256": "4045ae06b70636650d8a3d2605b8d0d3fd67371733e4ec45b529ba1e5e9d82b3"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t20/README.md",
+      "sha256": "298d7727de088271403c5affdb6edcf92b9958d220380b63ca1dd0e2801de6c4"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final-focused.log",
+      "sha256": "24d8219aec11883197176bab087c48957be09a8323cd7cdc0b5d58af2a3eb2bd",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final2-focused.log",
+      "sha256": "8384a3e3f91f891052d1db6682c0bd3e172bf9b12d284c5c5b674a656f7d80bf",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final2-mcp.log",
+      "sha256": "09e70a21d27c3562dbafac59fa9de37bc70d4f3576241f6588d50bc03b84d9da",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final2-plugins.log",
+      "sha256": "62fe6c3495ad477a998f4ab616885b0dc2bc402f9f4e8efc530ea022072ebde1",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final3-clippy.log",
+      "sha256": "2427bc8d56fe6391d36853b8bf478cf34db2150b0f550bb3036673444bc25830",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final3-dynamic.log",
+      "sha256": "0c082b7e6338703b1a18cac50fed628a91e40cbdd363e2881370910b3bc6933b",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final3-focused.log",
+      "sha256": "5221da90acd8f2a971ca034eafd44db0070a8425a2aaee6c6fe46bbcb8664e79",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final3-mcp.log",
+      "sha256": "634f1dcb1e67f2aeaa6e4129b3b336819d831afda0d17b05a7c0ff3e80cbde3d",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/final3-plugins.log",
+      "sha256": "4fa6cf1e6e9256aa0bfe64701f9dca651e8ef860d33af7478cf70a46c37b644b",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/format.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/format2.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/format3.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/format4.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/format5.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/format6.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/green-isolation.log",
+      "sha256": "7bfa0719d530bbc6314402399c32480d2d98a65aebdd6ce461ee914bfd29ca8b",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/green.log",
+      "sha256": "0abedb4b8980c31d1590260dc8f4e722b72f2a0514bfdfebfc4d623b1d800863",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/red-isolation.log",
+      "sha256": "0c755e8b7b17302f35b2a1552dd5880d3812d7ceaebcbcaad90f20c20754e118",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/red.log",
+      "sha256": "e8c9d14e00c2e4cf0e7443af3333099acd8d95a99d0863113e255adaedf008cc",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/verified-focused.log",
+      "sha256": "53add5e76abb625ade008067e9448ec1e2c050820f9e308908fa8ae9cac3003a",
+      "storage": "local_only_ignored_log"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t20/verified-plugins.log",
+      "sha256": "c34469f192d1c60983fbc40eb676765f9c05e2555b571328fe99a84b42794ebc",
+      "storage": "local_only_ignored_log"
+    }
+  ],
+  "build": {
+    "actual_slots": [
+      1
+    ],
+    "target_directories": [
+      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1"
+    ],
+    "build_dir_override": "$CARGO_TARGET_DIR/build",
+    "own_locks_released": true
+  },
+  "log_policy": "Raw *.log and *.run.json files stay local and ignored. Only this structured summary and source/fixtures are committed.",
+  "complete_baseline_checker": {
+    "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t20.json",
+    "exit_code": 1,
+    "record": "t20/checker.log",
+    "expected_rejection": true,
+    "output": "Evidence rejected: discovery.legacy-order: missing evidence item",
+    "reason": "Task-local evidence intentionally does not cover all frozen baseline capabilities or other platforms."
+  }
+}

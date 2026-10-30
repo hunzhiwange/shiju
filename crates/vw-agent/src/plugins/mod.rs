@@ -22,6 +22,7 @@ pub(crate) use compat::mcp_connection_sessions::{
 };
 pub(crate) use compat::mcp_connection_settings::settings as plugin_mcp_connection_settings;
 pub(crate) use compat::mcp_connections::McpSessionConnections;
+pub(crate) use compat::mcp_notifications::{McpCatalogs, ToolCatalogBinding};
 
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;

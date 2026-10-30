@@ -23,6 +23,7 @@ struct Entry {
     source_root: Option<std::path::PathBuf>,
     closed: CancellationToken,
     client: Arc<AsyncMutex<Option<RunningPeer>>>,
+    catalogs: Mutex<std::sync::Weak<super::mcp_notifications::McpCatalogs>>,
 }
 impl Drop for Entry {
     fn drop(&mut self) {
@@ -67,7 +68,9 @@ struct ActiveConnection {
 impl Drop for ActiveConnection {
     fn drop(&mut self) {
         if !self.keep {
-            self.client.take();
+            if let Some(client) = self.client.take() {
+                client.service().catalogs.close();
+            }
         }
     }
 }
@@ -98,6 +101,29 @@ fn connection_key(server: &McpServer, configuration: &str) -> Result<String> {
     Ok(hex::encode(hash.finalize()))
 }
 impl McpSessionConnections {
+    #[cfg(test)]
+    pub(crate) async fn list_tools(
+        &self,
+        server: &McpServer,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<rmcp::model::Tool>> {
+        self.with_client(server, timeout, |client| {
+            Box::pin(async move {
+                Ok(client.service().catalogs.tools(client.peer()).await?.as_ref().clone())
+            })
+        })
+        .await
+    }
+    pub(crate) fn tool_binding(
+        &self,
+        server: &McpServer,
+    ) -> Option<super::mcp_notifications::ToolCatalogBinding> {
+        let state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let entry = state.entries.get(crate::tools::mcp_common::server_name(server))?;
+        let catalogs =
+            entry.catalogs.lock().unwrap_or_else(std::sync::PoisonError::into_inner).upgrade()?;
+        catalogs.binding()
+    }
     pub(crate) fn synchronize(&self, servers: &[McpServer]) -> Result<()> {
         let mut allowed = HashMap::new();
         for server in servers {
@@ -162,6 +188,14 @@ impl McpSessionConnections {
         timeout: Option<Duration>,
         f: impl for<'a> FnOnce(&'a Peer<RoleClient>) -> PeerFuture<'a, T>,
     ) -> Result<T> {
+        self.with_client(server, timeout, |client| f(client.peer())).await
+    }
+    pub(crate) async fn with_client<T>(
+        &self,
+        server: &McpServer,
+        timeout: Option<Duration>,
+        f: impl for<'a> FnOnce(&'a RunningPeer) -> PeerFuture<'a, T>,
+    ) -> Result<T> {
         let abort = crate::tools::current_tool_use_context().and_then(|c| c.abort_token().cloned());
         if abort.as_ref().is_some_and(CancellationToken::is_cancelled) {
             bail!("MCP call cancelled");
@@ -217,6 +251,7 @@ impl McpSessionConnections {
                         source_root: settings.source_root.clone(),
                         closed: CancellationToken::new(),
                         client: Arc::new(AsyncMutex::new(None)),
+                        catalogs: Mutex::new(std::sync::Weak::new()),
                     })
                 })
                 .clone()
@@ -233,12 +268,16 @@ impl McpSessionConnections {
         }
         if active.client.is_none() {
             let server = server.clone();
+            let closed = entry.closed.child_token();
             let task = runtime().spawn(async move {
                 let operation = async {
                     let client =
-                        crate::tools::mcp_common::open_server_peer(server, startup).await?;
+                        crate::tools::mcp_common::open_server_peer(server, startup, closed).await?;
                     if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {
-                        super::mcp_catalog::list_tools(client.peer())
+                        client
+                            .service()
+                            .catalogs
+                            .tools(client.peer())
                             .await
                             .context("failed to obtain initial MCP tool catalog")?;
                     }
@@ -261,16 +300,18 @@ impl McpSessionConnections {
                     }
                 },
             };
+            *entry.catalogs.lock().unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Arc::downgrade(&client.service().catalogs);
             *active.client = Some(client);
         }
-        let peer = active.client.as_ref().expect("initialized MCP connection").peer();
+        let client = active.client.as_ref().expect("initialized MCP connection");
         let result = tokio::select! {
             biased;
             _ = entry.closed.cancelled() => Err(anyhow::anyhow!("MCP session connection was closed")),
             _ = async { match &abort { Some(token) => token.cancelled().await, None => std::future::pending().await } } => Err(anyhow::anyhow!("MCP call cancelled")),
-            result = tokio::time::timeout(call, f(peer)) => result.context("MCP operation timed out")?,
+            result = tokio::time::timeout(call, f(client)) => result.context("MCP operation timed out")?,
         };
-        active.keep = result.is_ok() && !peer.is_transport_closed();
+        active.keep = result.is_ok() && !client.peer().is_transport_closed();
         result
     }
 }

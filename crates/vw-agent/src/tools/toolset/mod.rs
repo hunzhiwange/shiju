@@ -1033,19 +1033,23 @@ async fn discover_dynamic_mcp_tools(
 
     let tool_connections = connections.clone();
     connections
-        .with_peer(&server, timeout, move |peer| {
+        .with_client(&server, timeout, move |client| {
             let server_label = server_label.clone();
             let existing_tool_ids = existing_tool_ids.clone();
             let configured_server = configured_server.clone();
             let management = management.clone();
             Box::pin(async move {
-                let tools = crate::plugins::list_mcp_catalog_tools(peer)
+                let peer = client.peer();
+                let tools = client
+                    .service()
+                    .catalogs
+                    .tools(peer)
                     .await
                     .context("failed to list MCP tools")?;
                 let server_instructions =
                     peer.peer_info().and_then(|info| info.instructions.as_deref());
                 let mut allowed_tools = Vec::new();
-                for tool in tools {
+                for tool in tools.iter().cloned() {
                     let tool_id = super::mcp_tool::mcp_tool_id(&server_label, tool.name.as_ref())?;
                     if super::mcp_common::mcp_tool_allowed(
                         &management,

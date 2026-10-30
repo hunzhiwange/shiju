@@ -4,7 +4,7 @@
 
 use super::mcp_common::{
     management_for_server, management_timeout, mcp_tool_allowed, server_name, server_transport,
-    with_server_peer_timeout,
+    with_server_client_timeout,
 };
 use anyhow::Context;
 use serde_json::Value;
@@ -104,19 +104,18 @@ async fn inspect_server(
     let server_label = server_name(server).to_string();
     let management = management.clone();
 
-    with_server_peer_timeout(server, management_timeout(&management), move |peer| {
+    with_server_client_timeout(server, management_timeout(&management), move |client| {
         let server_label = server_label.clone();
         let configured_server = configured_server.clone();
         let management = management.clone();
         Box::pin(async move {
+            let peer = client.peer();
+            let catalogs = &client.service().catalogs;
             let mut payload = ServerInspectPayload::default();
-            match crate::plugins::list_mcp_catalog_tools(peer)
-                .await
-                .context("failed to list MCP tools")
-            {
+            match catalogs.tools(peer).await.context("failed to list MCP tools") {
                 Ok(tools) => {
                     let mut allowed_tools = Vec::new();
-                    for tool in tools {
+                    for tool in tools.iter().cloned() {
                         let tool_id =
                             super::mcp_tool::mcp_tool_id(&server_label, tool.name.as_ref())?;
                         if mcp_tool_allowed(&management, tool.name.as_ref(), &tool_id)
@@ -142,8 +141,8 @@ async fn inspect_server(
                 Err(error) => payload.tools_error = Some(summarize_error(&error)),
             }
 
-            match peer.list_all_resources().await.context("failed to list MCP resources") {
-                Ok(resources) => match serde_json::to_value(resources) {
+            match catalogs.resources(peer).await.context("failed to list MCP resources") {
+                Ok(resources) => match serde_json::to_value(resources.as_ref()) {
                     Ok(Value::Array(resources)) => payload.resources = resources,
                     Ok(_) => {
                         payload.resources_error =
@@ -157,12 +156,8 @@ async fn inspect_server(
                 Err(error) => payload.resources_error = Some(summarize_error(&error)),
             }
 
-            match peer
-                .list_all_resource_templates()
-                .await
-                .context("failed to list MCP resource templates")
-            {
-                Ok(resource_templates) => match serde_json::to_value(resource_templates) {
+            match catalogs.templates(peer).await.context("failed to list MCP resource templates") {
+                Ok(resource_templates) => match serde_json::to_value(resource_templates.as_ref()) {
                     Ok(Value::Array(resource_templates)) => {
                         payload.resource_templates = resource_templates;
                     }
@@ -180,8 +175,8 @@ async fn inspect_server(
                 Err(error) => payload.resource_templates_error = Some(summarize_error(&error)),
             }
 
-            match peer.list_all_prompts().await.context("failed to list MCP prompts") {
-                Ok(prompts) => match serde_json::to_value(prompts) {
+            match catalogs.prompts(peer).await.context("failed to list MCP prompts") {
+                Ok(prompts) => match serde_json::to_value(prompts.as_ref()) {
                     Ok(Value::Array(prompts)) => payload.prompts = prompts,
                     Ok(_) => {
                         payload.prompts_error =

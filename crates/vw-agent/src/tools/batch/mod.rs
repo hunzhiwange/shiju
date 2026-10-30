@@ -66,7 +66,12 @@ impl BatchTool {
     }
 
     fn available_tool_names(&self) -> Vec<String> {
-        self.tools.iter().map(|tool| tool.spec().id).collect()
+        let context = super::context::current_tool_use_context();
+        self.tools
+            .iter()
+            .map(|tool| tool.spec().id)
+            .filter(|id| context.as_ref().is_none_or(|context| context.tool_is_exposed(id)))
+            .collect()
     }
 
     fn find_tool(&self, name: &str) -> Option<Arc<dyn Tool>> {
@@ -154,7 +159,23 @@ impl Tool for BatchTool {
                 };
 
                 let params = args.unwrap_or_else(|| serde_json::Value::Object(Default::default()));
-                match target.execute(params).await {
+                let execution = if let Some(context) = super::context::current_tool_use_context() {
+                    // Keep inner calls inside the same authorization, exposure,
+                    // permission and hook chain as ordinary runtime calls.
+                    let registry =
+                        super::toolset::boxed_registry_from_arcs(self.tools.as_ref().clone());
+                    super::execute_tool_from_registry(&registry, &tool, params, context)
+                        .await
+                        .map(|executed| ToolResult {
+                            success: executed.result.is_success(),
+                            output: executed.result.model_text(),
+                            error: executed.result.error_text(),
+                        })
+                        .map_err(anyhow::Error::new)
+                } else {
+                    target.execute(params).await
+                };
+                match execution {
                     Ok(result) => {
                         if result.success {
                             CallResult {

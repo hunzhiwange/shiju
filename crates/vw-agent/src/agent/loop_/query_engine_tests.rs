@@ -101,6 +101,7 @@ struct ProviderState {
     seen_messages: Mutex<Vec<Vec<ChatMessage>>>,
     seen_models: Mutex<Vec<String>>,
     seen_temperatures: Mutex<Vec<f64>>,
+    seen_tools: Mutex<Vec<Vec<String>>>,
 }
 
 #[derive(Clone, Default)]
@@ -168,6 +169,11 @@ impl Provider for ScriptedProvider {
         self.state.seen_messages.lock().unwrap().push(request.messages.to_vec());
         self.state.seen_models.lock().unwrap().push(model.to_string());
         self.state.seen_temperatures.lock().unwrap().push(temperature);
+        self.state
+            .seen_tools
+            .lock()
+            .unwrap()
+            .push(request.tools.unwrap_or_default().iter().map(|spec| spec.id.clone()).collect());
 
         match self.state.steps.lock().unwrap().pop_front() {
             Some(ProviderStep::Response(response)) => Ok(response),
@@ -285,6 +291,76 @@ fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngi
         timezone: chrono_tz::Asia::Shanghai,
         hook_runtime: None,
     }
+}
+
+struct DiscoveryReadTool(std::path::PathBuf);
+
+#[async_trait::async_trait]
+impl Tool for DiscoveryReadTool {
+    fn name(&self) -> &str {
+        "mcp__fixture__ledger"
+    }
+    fn description(&self) -> &str {
+        "Read ledger"
+    }
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({"type":"object"})
+    }
+    fn is_read_only(&self) -> bool {
+        true
+    }
+    async fn execute(&self, _: serde_json::Value) -> anyhow::Result<ToolResult> {
+        Ok(ToolResult { success: true, output: std::fs::read_to_string(&self.0)?, error: None })
+    }
+}
+
+#[tokio::test]
+async fn codex_discovery_core_query_engine_loads_and_resets_tools_between_user_turns() {
+    let workspace = tempfile::tempdir().unwrap();
+    let file = workspace.path().join("ledger");
+    std::fs::write(&file, "query-ledger-content").unwrap();
+    let call = |id: &str, name: &str, input: serde_json::Value| {
+        ProviderStep::Response(ChatResponse {
+            text: None,
+            tool_calls: vec![crate::providers::ToolCall {
+                id: id.into(),
+                name: name.into(),
+                arguments: input.to_string(),
+            }],
+            usage: None,
+            reasoning_content: None,
+        })
+    };
+    let provider = ScriptedProvider::with_steps(vec![
+        call("search", "tool_search", serde_json::json!({"query":"ledger"})),
+        call("read", "mcp__fixture__ledger", serde_json::json!({})),
+        ProviderStep::Response(chat_text("first final", None)),
+        ProviderStep::Response(chat_text("second final", None)),
+    ]);
+    let handle = provider.clone();
+    let mut engine = test_engine(provider, Arc::new(crate::memory::NoneMemory));
+    engine.max_iterations = 4;
+    engine.tools_registry.push(Box::new(DiscoveryReadTool(file)));
+    let catalog = crate::tools::discovery::ToolDiscoveryCatalog::new(
+        engine.tools_registry.iter().map(|tool| tool.spec()).collect(),
+    );
+    engine.tools_registry.push(Box::new(crate::tools::tool_search::ToolSearchTool::new(&catalog)));
+    assert_eq!(engine.submit_message("read ledger").await.unwrap(), "first final");
+    assert_eq!(engine.submit_message("next request").await.unwrap(), "second final");
+    let tools = handle.state.seen_tools.lock().unwrap().clone();
+    assert_eq!(tools[0], ["tool_search"]);
+    assert_eq!(tools[1], ["mcp__fixture__ledger", "tool_search"]);
+    assert_eq!(tools[3], ["tool_search"]);
+    let messages = handle.seen_messages();
+    assert!(messages[2].iter().any(|message| message.role == "tool"
+        && message.content.contains("query-ledger-content")
+        && message.content.contains("\"tool_call_id\":\"read\"")));
+    assert!(
+        engine
+            .history_snapshot()
+            .iter()
+            .all(|message| !message.content.contains("## Tool Use Protocol"))
+    );
 }
 
 #[tokio::test]

@@ -9,6 +9,10 @@ mod output;
 mod tool_execution;
 
 #[cfg(test)]
+#[path = "tool_loop/discovery_tests.rs"]
+mod discovery_tests;
+
+#[cfg(test)]
 #[path = "tool_loop_tests.rs"]
 mod tool_loop_tests;
 
@@ -21,6 +25,7 @@ use crate::app::agent::providers::{ChatMessage, Provider};
 use crate::app::agent::security::SecurityPolicy;
 use crate::app::agent::tools::{Tool, ToolUseContext};
 use crate::app::agent::util::truncate_with_ellipsis;
+use crate::tools::tool_search::ToolDiscoverySession;
 use anyhow::Result;
 use std::collections::HashSet;
 use std::io::Write as _;
@@ -70,7 +75,7 @@ pub async fn run_tool_call_loop(
         .flatten()
         .or_else(|| non_cli_approval_context.as_ref().map(|ctx| ctx.reply_target.clone()));
     let max_iterations = if max_iterations == 0 { DEFAULT_MAX_ITERATIONS } else { max_iterations };
-    let tool_specs: Vec<crate::app::agent::tools::ToolSpec> = tools_registry
+    let authorized_specs: Vec<crate::app::agent::tools::ToolSpec> = tools_registry
         .iter()
         .filter(|tool| {
             let tool_id = tool.spec().id;
@@ -78,7 +83,8 @@ pub async fn run_tool_call_loop(
         })
         .map(|tool| tool.spec())
         .collect();
-    let use_native_tools = provider.supports_native_tools() && !tools_registry.is_empty();
+    let use_native_tools = provider.supports_native_tools() && !authorized_specs.is_empty();
+    let discovery = Arc::new(ToolDiscoverySession::new(authorized_specs));
     let turn_id = Uuid::new_v4().to_string();
     let mut seen_tool_signatures: HashSet<(String, String)> = HashSet::new();
     let mut missing_tool_call_retry_used = false;
@@ -104,6 +110,7 @@ pub async fn run_tool_call_loop(
         .with_provider(provider_name.to_string())
         .with_model(model.to_string())
         .with_turn_id(turn_id.clone())
+        .with_tool_discovery(discovery.clone())
         .with_bypass_non_cli_approval_for_turn(bypass_non_cli_approval_for_turn);
     if let Some(security) = security.clone() {
         tool_use_context = tool_use_context.with_security(security);
@@ -141,14 +148,35 @@ pub async fn run_tool_call_loop(
 
         update_thinking_progress(on_delta.as_ref(), iteration).await;
 
+        // Search can change the next request, never another call in this round.
+        let tool_specs = discovery.exposed_specs();
+        let round_tool_use_context = Arc::new(
+            tool_use_context
+                .as_ref()
+                .clone()
+                .with_tool_exposure_snapshot(tool_specs.iter().map(|spec| spec.id.clone())),
+        );
+
         let pending_reloads = tool_use_context.peek_pending_image_reloads();
         if let Some(ctx) = image_turn.as_ref() {
             ctx.attach_pending_reloads_to_chat(history, &pending_reloads);
         }
 
+        let request_history = if !use_native_tools && !tool_specs.is_empty() {
+            let instructions =
+                super::super::instructions::build_exposed_tool_instructions(&tool_specs);
+            let mut request_history = history.clone();
+            request_history.insert(
+                0,
+                ChatMessage::user(format!("<system-reminder>\n{instructions}\n</system-reminder>")),
+            );
+            Some(request_history)
+        } else {
+            None
+        };
         let round = run_llm_round(
             provider,
-            history,
+            request_history.as_deref().unwrap_or(history.as_slice()),
             observer,
             provider_name,
             model,
@@ -298,7 +326,7 @@ pub async fn run_tool_call_loop(
             model,
             &turn_id,
             iteration,
-            &tool_use_context,
+            &round_tool_use_context,
             on_delta.as_ref(),
             excluded_tools,
             bypass_non_cli_approval_for_turn,

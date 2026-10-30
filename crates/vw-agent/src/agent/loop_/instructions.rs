@@ -45,7 +45,7 @@ pub fn build_tool_instructions(tools_registry: &[Box<dyn Tool>]) -> String {
     build_tool_instructions_from_specs(&specs)
 }
 
-/// 从工具规格列表构建工具指令块
+/// 从授权注册规格构建初始可见工具的指令块。
 ///
 /// 该函数接受一个工具规格的切片，生成包含工具使用协议和可用工具列表的指令文本。
 /// 与 `build_tool_instructions` 不同，该函数直接操作规格结构体，适用于规格已经预先生成的场景。
@@ -74,6 +74,14 @@ pub fn build_tool_instructions(tools_registry: &[Box<dyn Tool>]) -> String {
 /// let instructions = build_tool_instructions_from_specs(&specs);
 /// ```
 pub(crate) fn build_tool_instructions_from_specs(
+    tool_specs: &[crate::app::agent::tools::ToolSpec],
+) -> String {
+    let discovery = crate::tools::tool_search::ToolDiscoverySession::new(tool_specs.to_vec());
+    build_exposed_tool_instructions(&discovery.exposed_specs())
+}
+
+/// Render a request's already-authorized exposure snapshot without resetting it.
+pub(crate) fn build_exposed_tool_instructions(
     tool_specs: &[crate::app::agent::tools::ToolSpec],
 ) -> String {
     let mut instructions = String::new();

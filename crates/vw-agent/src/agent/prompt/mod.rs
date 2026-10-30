@@ -285,7 +285,7 @@ pub struct IdentitySection;
 
 /// 工具片段 - 可用工具列表与参数定义
 ///
-/// 枚举所有可用工具及其名称、描述和参数 schema。
+/// 枚举初始可见工具；延迟工具由工具循环按需提供。
 pub struct ToolsSection;
 
 /// 行动片段 - 代理行为指导
@@ -360,9 +360,11 @@ impl PromptSection for ToolsSection {
 
         out.push_str("You have access to the following tools:\n\n");
 
-        // 遍历并格式化每个工具的信息
-        for tool in ctx.tools {
-            let spec = tool.spec();
+        // Initial prompts must not duplicate deferred schemas from registration.
+        let discovery = crate::tools::tool_search::ToolDiscoverySession::new(
+            ctx.tools.iter().map(|tool| tool.spec()).collect(),
+        );
+        for spec in discovery.exposed_specs() {
             let _ = writeln!(
                 out,
                 "- **{}**: {}\n  Parameters: `{}`",

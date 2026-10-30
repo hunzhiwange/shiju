@@ -2,7 +2,7 @@
 
 批次：【批次 37】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已阻塞
+状态：已完成，待回归验证
 
 目的：为“请求日志配置”准备原题完整环境与四道独立诊断题。
 
@@ -133,3 +133,17 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 - 另保留1次m2 nop启动前争用公共锁的BlockingIOError，unscored。核验锁已空闲后在resume-after-shared-lock新Trial路径续跑5项；原3项有效first未重复。总9次Trial含8有效+1基础设施失败，失败原raw/first与旧CE全部保留、不改hash冒充新证明、不删或绕过共享锁。两份children-calibration-production-backend.json、各controls/resource/first、reuse-check、ELF probe与stage-final均在diag-current-b35499/。62旧capacity-probe限制未伪造恢复。
 - 本阶段无评测代码/资产变更，未额外运行Cargo；完整任务完成前仍须按原契约动态slot/绝对target与builddir/JOBS1/Clippy及聚焦验证、串行提交自身资产。当前仅任务状态与ignored证据，保持编号文件、不提交就绪；plan.md只读。
 - 收尾进程清点首次遇到系统ps输出非UTF8，改用errors=replace只读解码后完成核验，不涉及评测或评分变化。**当前本题进程0、容器0、锁0，独立diag窗口已释放**。下一步只等待主调度父窗口后重测完整父S10GiB/C/U/全部副本/B/A/安全余量，完成官方父oracle/nop与准备验收；本阶段不称全题就绪。
+
+
+## 2026-10-30 父题阻塞突破与公共身份回归边界
+
+- 用户明确要求继续突破；按执行计划/创建评测技能恢复，仅操作本题目录与本编号文件，无付费调用，无上游、公共实现、其他题或模型预算修改。
+- 原容量阻塞解除：host=44527923200、VM=74117140480，min覆盖2C+正Ucap1GiB+S10GiB+B2GiB+A1GiB+安全5GiB=20535650052。Registry原单manifest sha256:693e64431a0dbf45952e8b91a298d54fd60247e501c6623fb8fa3ebc07fc3d3d，config sha256:41217bae6667f04a767dc1b2c5c12b034dfc51a18226202003313aaf86832055，linux/amd64；7层压缩摘要/diff_id均验证，C=67277698、完整U=164346880。两缺层按精确size/hash读取；stream OCI导入不落完整归档，实际config/RootFS/manifest匹配，不清理业务/他题/共享缓存。
+- 原父容器内实际uname=x86_64、Python3.13.7；APT、uv0.9.5、PyPI pytest/requests/pytest-json-ctrf探针均200；冻结runtime-v2 ELF/sidecars在原镜像offline/read-only --help退出0。父原题/参考解/官方tests/资源/900秒超时不改，无verifier bootstrap/recovery。
+- 新CE 7faf6e3471f51146cfdcf0d6ce62a6d63df5deaec17fb3866e6e723de9afd6c5下，正式suite.scoring.harbor_trial→SuiteDockerEnvironment共10个fresh控制全部有效first：父oracle reward1（官方8/8），父nop reward0（官方0/8），四子题各oracle1/nop0。实际main父1CPU/2048MiB、子1CPU/512MiB，sidecar0.25CPU/64MiB；资源收据、容量监控、原始first/CTRF全部保留，无恢复/回放。控制器仅添加生命周期资源记录/本题容器清理，没有替代Trial/平台/FROM/Compose/评分。
+- **不宣称当前就绪**：末尾inputs身份保护真实退出1，因其他会话修改公共suite/variants.py，scheduler由7faf6e…变f5218f…；下一轮准入等待期间再次变7ad9affa98d787ab12315fd30889d1c650700a33e16857dc5f3d602d57ea7318。第一轮10结果完整保留，未改旧hash、未写当前case/preparation.json。第二控制器只等待，因其他准备题占满最多2题窗口，未启动任何新控制；已停止自有等待进程。按无关变更阻断分支标记“已完成，待回归验证”，保留本任务，不删除。
+- 指定unittest退出0，20有效测试；指定diagnostics validate --run-fixtures退出0，20 fresh fixture控制。验证记录在resume-20261030/{unittest,validate}.log。代码未变时未重复红测；原checker状态码mutation红绿证据与真实Nginx rootfs红测均原样保留。
+- cargo clippy --all-targets --all-features -- -D warnings退出0；动态槽位1，CARGO_TARGET_DIR与CARGO_BUILD_BUILD_DIR均/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_JOBS=1，有效Rust行为测试0，自有锁已释放。未改Rust，未跑fmt/全量cargo test/wasm/Makefile。
+- evals/promptfoo/score.sh test首次npm镜像源等待被终止，退出143；本机旧cache直接调用退出1（缺cookie）；任务独立cache+官方Registry运行同一固定0.122.0校验命令退出0（Configuration is valid）。局部npm安装缓存实测3089555456字节，超原B2GiB预算，停止后续校准并仅删除该自有可重建缓存；保留package hash/命令日志/精确路径/前后空间收据npm-cleanup-receipt.json，不伪报全程未超限，下一轮须重新准入。无全局npm配置修改。
+- 当前恢复入口：先保证公共执行代码稳定及最多2题窗口，按当前min(host,VM)扣其他活动任务未来增长重新准入；resume-20261030-current/calibrate.py具有15秒复查、900秒有界等待与本题资源/身份保护。须在新输出目录重新运行当前完整10项，末尾inputs相等且verify_preparation通过后才发布preparation.json。旧20fixture可在case/checker/image/policy全哈希不变时复用，但旧10 Harbor不能冒充新CE。完成后再删除本编号文件；plan.md只读。
+- 本次将已验收的独立资产及准确README按git-commit技能单独提交；本题进程/容器/Cargo锁为0，忽略证据保留于diagnostics/nginx-request-logging/resume-20261030/与resume-20261030-current/，无共享资源占用。

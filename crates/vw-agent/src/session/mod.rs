@@ -10,6 +10,8 @@ pub mod child_agent;
 #[cfg(test)]
 #[path = "child_agent_tests.rs"]
 mod child_agent_tests;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod codex_alignment_tests;
 /// 声明 compaction 子模块，保持当前领域的职责拆分清晰。
 pub mod compaction;
 pub(crate) mod compaction_checkpoint;

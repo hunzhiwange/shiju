@@ -1,2 +1,0 @@
-Implement /app/retrieve.py using Python standard library. Read one JSON value from stdin and write exactly one JSON value to stdout. The checker executes fresh processes on unseen inputs. Return the zero-based index of the document at the requested one-based rank. Sort scores descending, breaking exact ties by original zero-based index ascending. Rank is valid; ties occupy separate ordinal positions.
-Input example is /app/example.json. Do not access network or external models. Only write /app/retrieve.py.

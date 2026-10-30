@@ -1,4 +1,0 @@
-INVOICE A
-Amount Due: 70.00
-Total: 95.00
-VAT: 5.00

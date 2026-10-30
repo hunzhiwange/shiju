@@ -1,3 +1,0 @@
-Apply do(Y=2) to /app/bn.json, a linear structural Bayesian network: each node equals intercept plus the sum of parent coefficient times parent value plus independent zero-mean noise with noise_sd. Write /app/intervened_bn.json in the identical JSON schema. Intervention replaces Y with an exact constant: remove every incoming coefficient, set intercept to 2 and noise_sd to 0. Preserve every other node, its parameters, and outgoing effects of Y. This task requires no estimation or sampling.
-
-Work in /app. Only write the requested output files; no network or external data. Each task is independent. Budget: 900 seconds, 24 model requests, 32 tool executions.

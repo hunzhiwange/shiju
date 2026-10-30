@@ -1,5 +1,0 @@
-> look
-> take glass token
-> look
-> unlock arch
-> enter arch

@@ -1,3 +1,0 @@
-Inspect setup_fragment.py and the three synthetic .pyx files. Write /app/report.json with exactly these keys: extensions (the complete list of extension import names, in setup order), array_extension (the module using a NumPy typed array), removed_type (its obsolete NumPy Cython typedef), replacement_type (the explicit signed 64-bit NumPy Cython typedef), runtime_dtype (the corresponding NumPy dtype name). Do not build or modify sources.
-
-Work only in /app. Preserve NumPy 2.3.0 and the supplied module names. No network access, dependency installation, or reading /tests or /solution. Budget: 24 turns, 32 tools, 900 seconds. The evaluator independently runs your artifacts.

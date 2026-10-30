@@ -1,3 +1,0 @@
-Implement /app/answer.py using Python3 standard library. Run python3 answer.py INPUT.json and print JSON probabilities, loss, weights. Inputs: weights is a rectangular C by D matrix, x length D, label in 0..C-1, positive lr. Compute logits W*x, numerically stable softmax, natural-log cross-entropy for label, then exactly ONE SGD step on every weight using gradient (p_i - indicator(i==label))*x_j. Return probabilities and loss BEFORE the update, and the updated weight matrix. No bias, clipping, averaging or regularization. Inputs are finite valid numbers.
-
-A public synthetic example is provided at /app/example.json.

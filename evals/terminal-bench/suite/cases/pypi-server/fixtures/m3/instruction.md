@@ -1,2 +1,0 @@
-Write /app/serve.py: python3 serve.py PORT ROOT must serve the supplied sandbox index ROOT on 127.0.0.1:PORT until terminated. Support GET /simple/ambervec/ and linked wheel downloads with exact bytes, accept a runtime port and root, and return HTTP 404 for absent projects. Use only Python standard library; no external network, fake response files or package installs.
-All work is confined to /app; no external network or permission changes. One attempt; 24 requests and 32 tools maximum.

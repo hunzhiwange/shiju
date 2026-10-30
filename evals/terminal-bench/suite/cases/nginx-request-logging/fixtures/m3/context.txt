@@ -1,1 +1,0 @@
-Python 3 and nginx are installed. All inputs are synthetic. Work only in the supplied directory.

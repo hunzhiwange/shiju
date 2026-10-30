@@ -1,8 +1,0 @@
-{
-  "id": "m3",
-  "modules": [
-    "ribbon.helpers",
-    "ribbon.complexity",
-    "ribbon.invariants"
-  ]
-}

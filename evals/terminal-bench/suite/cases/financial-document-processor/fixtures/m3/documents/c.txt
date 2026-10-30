@@ -1,3 +1,0 @@
-INVOICE C
-Amount Due: 36.00
-Tax: 6.00

@@ -1,4 +1,0 @@
-Filter language and metric coverage
-
-Create /app/leaderboard.py. It reads one JSON object from standard input and writes exactly one JSON value to standard output. Use only the Python standard library. Do not access the network or write outside /app. example.json is synthetic, not a live leaderboard. The checker also supplies other inputs with the same schema. Budget: 24 turns, 32 tools, 900 seconds; one attempt.
-Input has languages (required codes), tasks (required task names), metric and rows. A row has model, languages and scores (task -> metric -> number or null). Return model IDs in input order only when all required languages are supported and every required task has a non-null numeric score for the requested metric. Zero is a valid score; extra tasks/languages are allowed. Ignore scores for other metrics.

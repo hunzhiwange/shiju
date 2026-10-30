@@ -1,8 +1,0 @@
-{
-  "inputs": {
-    "events.json": "66ec5a149f2ce46e0aa9592d76b54ca0c1fcbbcc7f97e117691335ec0dc9dc51"
-  },
-  "output": "solution.txt",
-  "expected": "look\ntake glass token\nlook\nunlock arch\nenter arch\n",
-  "format": "text"
-}

@@ -1,6 +1,0 @@
-{
-  "input": "GATCGTACCTGCAAGTTCGG",
-  "boundary": 4,
-  "insert": "AACCTA",
-  "rotation": 7
-}

@@ -1,3 +1,0 @@
-INVOICE A
-Total: 120.00
-VAT: 20.00

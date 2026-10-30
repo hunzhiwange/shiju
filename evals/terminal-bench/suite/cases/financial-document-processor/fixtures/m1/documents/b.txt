@@ -1,4 +1,0 @@
-PURCHASE ORDER
-Requested parts
-Total: 350.00
-Tax: 50.00

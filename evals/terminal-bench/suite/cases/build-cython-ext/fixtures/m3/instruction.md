@@ -1,3 +1,0 @@
-Write /app/build.py using setuptools and Cython to build all supplied helpers.pyx, complexity.pyx and invariants.pyx as native extensions named ribbon.helpers, ribbon.complexity and ribbon.invariants. The package ribbon/__init__.py already exists. The evaluator runs python build.py build_ext --inplace and then imports each module in a fresh interpreter, requiring an ExtensionFileLoader and the identity() values from the supplied sources. Preserve the sources; do not supply Python replacements.
-
-Work only in /app. Preserve NumPy 2.3.0 and the supplied module names. No network access, dependency installation, or reading /tests or /solution. Budget: 24 turns, 32 tools, 900 seconds. The evaluator independently runs your artifacts.

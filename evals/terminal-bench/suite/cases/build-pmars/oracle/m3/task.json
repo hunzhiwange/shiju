@@ -1,7 +1,0 @@
-{
-  "child": "m3",
-  "immutable_fixtures": {
-    "loop.red": "8d937eff0463e5016fc41b1f87c10873ae0b1d45531752d8439aae4fce3d1abd",
-    "dead.red": "951f29f706a4d5f9415c54f544300e586bf686facad3e06ea831dbdbf11f59a9"
-  }
-}

@@ -1,3 +1,0 @@
-Read /app/positions.json. Each independent record has id, complete standard chess FEN and a proposed UCI move. For each, determine whether the move is legal under standard chess rules (including king safety, castling through attack, promotion and en passant). If legal, determine whether the resulting position checks the opponent. Write /app/result.json as an object keyed by id, each value exactly {"legal": boolean, "gives_check": boolean or null}. gives_check must be null for illegal moves. Do not modify input.
-
-Use only this independent synthetic input. Do not access the network, other tasks or evaluator files. Budget: 900 seconds, 24 model requests and 32 tools. Produce the file; final prose is not graded.

@@ -1,5 +1,0 @@
-INVOICE No: A17
-Seller: Cedar
-Buyer: Iris
-Total: 120.00
-VAT: 20.00

@@ -1,5 +1,0 @@
-{
-  "id": "m3",
-  "main": "\\documentclass{article}\n\\setlength{\\textwidth}{100pt}\n\\begin{document}\n\\input{input.tex}\n\\end{document}\n",
-  "long": "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
-}

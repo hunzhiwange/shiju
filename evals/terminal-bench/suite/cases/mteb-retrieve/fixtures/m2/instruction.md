@@ -1,2 +1,0 @@
-Implement /app/retrieve.py using Python standard library. Read one JSON value from stdin and write exactly one JSON value to stdout. The checker executes fresh processes on unseen inputs. Compute cosine similarity for query against each vector in order. Inputs are equal-length finite real vectors. Any zero vector gives similarity 0. Return a JSON number array; absolute error tolerance 1e-9. Preserve negative signs and normalize both vectors.
-Input example is /app/example.json. Do not access network or external models. Only write /app/retrieve.py.

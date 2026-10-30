@@ -1,1 +1,0 @@
-Synthetic grid rotation exercise; no parent data.

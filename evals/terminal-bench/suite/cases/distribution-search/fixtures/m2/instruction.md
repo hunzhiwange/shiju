@@ -1,2 +1,0 @@
-Find any strictly positive normalized probability vector of the requested size in /app/input.json whose forward and backward KL to uniform match targets within tolerance. Forward=sum p*ln(p*n), backward=sum -ln(p*n)/n; natural logs. Save /app/result.json as {"probabilities": [numbers]}. Sum tolerance is 1e-10. The target is small and feasible; no parent task data is needed.
-Do not modify input.json. Write only under /app; no network or extra permissions are needed.

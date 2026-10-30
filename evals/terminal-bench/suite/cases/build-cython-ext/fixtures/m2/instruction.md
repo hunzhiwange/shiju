@@ -1,3 +1,0 @@
-Repair /app/order_api.pyx so total(values) accepts a one-dimensional numpy.int64 array, including a strided view, and returns the exact signed integer sum with at least 64-bit accumulation. Empty arrays return zero. Keep the typed NumPy array interface and reject float64 arrays. The current np.int_t typedef is incompatible with NumPy 2.3.0. The evaluator builds the source with Cython 3.1.3 and imports the resulting extension. No result JSON is requested.
-
-Work only in /app. Preserve NumPy 2.3.0 and the supplied module names. No network access, dependency installation, or reading /tests or /solution. Budget: 24 turns, 32 tools, 900 seconds. The evaluator independently runs your artifacts.

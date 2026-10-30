@@ -1,3 +1,0 @@
-Reconstruct the target circular sequence: insert insert immediately after the first boundary bases of input (0-based boundary), then rotate the resulting sequence left by rotation bases. Write result.json with exactly sequence (uppercase DNA), length (integer nucleotide count), sha256 (lowercase hex SHA256 of the sequence ASCII bytes without newline). Do not complement the template or insert.
-
-Read /app/input.json; write /app/result.json. Do not modify inputs, access network, or inspect hidden verifier/solution files. Use only the supplied synthetic inputs; no packages are required. Budget: 24 turns, 32 tools, 900 seconds, one attempt.

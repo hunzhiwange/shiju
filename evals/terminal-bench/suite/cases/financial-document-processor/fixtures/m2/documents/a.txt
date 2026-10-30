@@ -1,4 +1,0 @@
-INVOICE A
-Subtotal: 100.00
-VAT: 20.00
-Grand Total: 120.00

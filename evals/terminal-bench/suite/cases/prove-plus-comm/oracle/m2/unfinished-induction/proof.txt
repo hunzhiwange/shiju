@@ -1,1 +1,0 @@
-intros n. induction n as [|k IH]. - reflexivity. - simpl.

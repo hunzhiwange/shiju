@@ -1,3 +1,0 @@
-id,note,xmin,ymin,xmax,ymax,coords_x,coords_y
-a,"keep,comma",0,0,1,1,"[0,1,0]","[0,0,1]"
-b,second,0,0,1,1,"[0,1,0]","[0,0,1]"

@@ -1,1 +1,0 @@
-Synthetic independent exercise. All numeric data is supplied at runtime.

@@ -1,7 +1,0 @@
-{
-  "fasta": ">d description\nMAVM\nKL\n\n>x\nGEAT\n",
-  "filter": {
-    "excitation_nm": 481,
-    "emission_nm": 623
-  }
-}

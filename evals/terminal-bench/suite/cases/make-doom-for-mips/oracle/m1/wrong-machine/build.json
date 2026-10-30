@@ -1,1 +1,0 @@
-{"assembler_args": ["--64"], "linker_args": ["-EL", "-static", "-e", "main", "-Ttext", "0x10000"]}

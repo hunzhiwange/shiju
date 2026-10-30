@@ -1,2 +1,0 @@
-# Streaming fixtures preserve CRLF and chunk boundaries byte for byte.
-fixtures/m3/part-*.txt -text whitespace=cr-at-eol

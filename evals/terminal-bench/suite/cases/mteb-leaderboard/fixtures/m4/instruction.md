@@ -1,4 +1,0 @@
-Canonical model identifiers
-
-Create /app/leaderboard.py. It reads one JSON object from standard input and writes exactly one JSON value to standard output. Use only the Python standard library. Do not access the network or write outside /app. example.json is synthetic, not a live leaderboard. The checker also supplies other inputs with the same schema. Budget: 24 turns, 32 tools, 900 seconds; one attempt.
-Input has records, each with a display label, organization and model_name. Output a JSON list of canonical organization/model_name strings in input order. Strip surrounding whitespace in organization/model_name, preserve case and internal punctuation, ignore display. Keep duplicate records. The fields are nonempty and contain no slash. Do not use display labels or convert hyphens to underscores.

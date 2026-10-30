@@ -1,4 +1,0 @@
-INVOICE B
-Subtotal: 250.00
-GST: 25.00
-Amount Due: 275.00

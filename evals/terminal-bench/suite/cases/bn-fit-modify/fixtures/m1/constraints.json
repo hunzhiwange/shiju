@@ -1,5 +1,0 @@
-{
-  "root": "Z",
-  "edge_count": 2,
-  "direction_rule": "If data cannot identify an edge direction, the alphabetically earlier node is the child."
-}

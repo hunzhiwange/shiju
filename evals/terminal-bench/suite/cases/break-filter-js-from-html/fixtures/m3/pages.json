@@ -1,1 +1,0 @@
-{"plain": "<p>Garden</p>", "script": "<script>alert(17)</script>", "event": "<svg onload=\"alert(23)\"></svg>", "upper": "<svg ONLOAD=\"alert(29)\"></svg>"}

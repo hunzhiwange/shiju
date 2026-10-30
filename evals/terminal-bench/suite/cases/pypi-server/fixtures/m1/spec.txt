@@ -1,1 +1,0 @@
-API: tinyvec.norm2(list) -> numeric sum of squares; empty list is valid.

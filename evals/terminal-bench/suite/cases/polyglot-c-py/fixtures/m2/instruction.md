@@ -1,2 +1,0 @@
-Create /app/shared.py.c, a single unchanged C/Python polyglot. python3 shared.py.c N and gcc shared.py.c -o result followed by ./result N must each print the decimal triangular sum 1+...+N and newline, exit 0. Inputs are decimal integers 0 <= N <= 1000000. Exact integer arithmetic is required. No auxiliary source files.
-Only write /app/shared.py.c. No network or permission changes. Budget: 900 seconds, 24 turns, 32 tools; output 32000 tokens, input window 200000.

@@ -1,2 +1,0 @@
-module: services/storage
-symbol: resolve_endpoint

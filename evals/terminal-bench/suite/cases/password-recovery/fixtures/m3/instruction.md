@@ -1,2 +1,0 @@
-Filter fictional password candidates. Implement solution.py reading JSON {candidates: [strings]} on stdin. Return a sorted unique JSON array of candidates that are exactly 23 ASCII uppercase letters/digits, start with 8XD, and end with W54. Match the whole string; do not strip whitespace, normalize case, or accept PASSWORD= prefixes. Do not modify inputs.
-Use Python 3 standard library. Submit /app/solution.py; evaluator runs it against fresh requests. The context.txt file identifies the synthetic fixture.

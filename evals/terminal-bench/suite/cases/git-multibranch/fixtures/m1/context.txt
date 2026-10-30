@@ -1,1 +1,0 @@
-Synthetic standalone Git deployment laboratory; no parent assets or credentials.

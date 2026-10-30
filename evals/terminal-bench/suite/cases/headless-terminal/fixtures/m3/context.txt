@@ -1,1 +1,0 @@
-Synthetic m3 PTY interface; implement terminal.py according to instruction.md.

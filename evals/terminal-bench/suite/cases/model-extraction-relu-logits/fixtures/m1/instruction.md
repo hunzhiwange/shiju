@@ -1,3 +1,0 @@
-Implement /app/solution.py, a Python 3 JSON-stdin / JSON-stdout program. Import forward from forward.py and query forward(x) for every scalar in input {"queries": [x, ...]}. Return the corresponding numeric JSON list, in the same order including duplicates. The callable is a finite scalar continuous piecewise-linear ReLU sum, returning a float. Inputs and coefficients are finite and modest. Do not inspect forward.py, globals or source; use only the forward(x) API. The verifier replaces this module with independent synthetic functions and sends unseen queries. Empty queries must return [].
-
-Write only /app/solution.py; no network access or other writes. Budget: 24 turns, 32 tool calls, 900 seconds, one attempt.

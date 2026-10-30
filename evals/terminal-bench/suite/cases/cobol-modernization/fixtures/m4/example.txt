@@ -1,1 +1,0 @@
-Inputs are directory paths supplied as two command-line arguments.

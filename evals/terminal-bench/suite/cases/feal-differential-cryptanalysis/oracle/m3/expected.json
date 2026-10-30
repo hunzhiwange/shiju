@@ -1,8 +1,0 @@
-{
-  "child": "m3",
-  "expected": [
-    127,
-    255
-  ],
-  "input_sha256": "0cf231ddff14d2ba0687603d22016fe1741732efdad556db5f987b805804174b"
-}

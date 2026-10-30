@@ -1,3 +1,0 @@
-Locate the unique single contiguous insertion converting the circular input into output (same forward orientation, no substitutions/deletions). Return result.json with exactly boundary (0-based number of input bases before insertion, 0 <= boundary < input length), insert (uppercase DNA), and rotation. Build unrotated=input[:boundary]+insert+input[boundary:]; output=unrotated[rotation:]+unrotated[:rotation], 0 <= rotation < output length. The supplied instance has one unique triple.
-
-Read /app/input.json; write /app/result.json. Do not modify inputs, access network, or inspect hidden verifier/solution files. Use only the supplied synthetic inputs; no packages are required. Budget: 24 turns, 32 tools, 900 seconds, one attempt.

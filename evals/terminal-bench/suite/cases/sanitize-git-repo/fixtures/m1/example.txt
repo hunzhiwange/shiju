@@ -1,2 +1,0 @@
-Synthetic example: SYNTH_HF_DEMO0001 -> <your-huggingface-token>
-Near match SYNTH_HF_SHORT stays unchanged.

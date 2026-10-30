@@ -1,3 +1,0 @@
-north
-# INSERT ROUTE HERE
-south

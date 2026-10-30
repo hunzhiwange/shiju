@@ -1,3 +1,0 @@
-Read /app/moves.json, a JSON array of move records with lowercase algebraic src and dst, and optional lowercase promotion q/r/b/n. Format each as UCI src+dst+promotion (if present). Deduplicate the formatted strings and sort lexicographically. Write /app/move.txt, exactly one lowercase UCI move per line with a final newline and no commentary or spaces. This is a formatting task; do not infer chess legality or drop promotion.
-
-Use only this independent synthetic input. Do not access the network, other tasks or evaluator files. Budget: 900 seconds, 24 model requests and 32 tools. Produce the file; final prose is not graded.

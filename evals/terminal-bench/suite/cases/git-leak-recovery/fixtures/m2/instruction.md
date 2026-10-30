@@ -1,3 +1,0 @@
-Write /app/solution.py accepting REPO OUTPUT. Recover the unique fictional test credential matching secret[nonempty text without brackets or newlines] from any stored blob, including unreachable packed blobs, and write exactly that string plus one newline to OUTPUT. The credential is absent from current files and reachable history. Ignore ordinary notes and commit messages. Do not modify the repository, refs, reflogs or objects. All credentials are synthetic; no network access is needed.
-
-Run using python3 /app/solution.py and the listed positional arguments. The verifier supplies fresh synthetic repositories; only create your program under /app. Stay offline and do not access files outside the supplied paths. Budget: 24 requests, 32 tools, 900 seconds; one attempt.

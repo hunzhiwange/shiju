@@ -1,3 +1,0 @@
-Read /app/position.json, containing a complete standard chess FEN and piece_square. White is to move. Enumerate every legal move of that specific white knight, including captures and excluding friendly occupied squares and moves leaving its king in check. Write /app/result.json as a JSON array of destination squares, sorted lexicographically, once each. Do not include moves of other pieces or source squares.
-
-Use only this independent synthetic input. Do not access the network, other tasks or evaluator files. Budget: 900 seconds, 24 model requests and 32 tools. Produce the file; final prose is not graded.

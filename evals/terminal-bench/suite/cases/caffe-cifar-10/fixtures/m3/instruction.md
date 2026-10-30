@@ -1,3 +1,0 @@
-Implement /app/answer.py using Python3 standard library. Run python3 answer.py INPUT.json. Inputs: seed unsigned32, initial scalar, nonempty targets, nonnegative integer steps, lr. Initialize state=seed and weight=initial on EACH invocation. Exactly steps times: state=(1664525*state+1013904223) modulo 2^32; choose i=state modulo len(targets); update weight=weight-lr*(weight-targets[i]). Print JSON iterations=steps, indices=all chosen i in order, weight=final scalar, state=final state. A zero-step run preserves initial state and weight. No extra warmup or final update.
-
-A public synthetic example is provided at /app/example.json.

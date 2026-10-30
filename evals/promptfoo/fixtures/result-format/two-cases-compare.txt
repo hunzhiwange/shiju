@@ -1,3 +1,0 @@
-$ node evals/promptfoo/compare-results.mjs evals/promptfoo/fixtures/result-format/two-cases.json evals/promptfoo/fixtures/result-format/two-cases.json
-对比失败：before 结果包含重复记录：offline-fixed :: case-pass
-exitCode=1

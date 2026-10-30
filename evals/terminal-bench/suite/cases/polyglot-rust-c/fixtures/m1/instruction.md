@@ -1,1 +1,0 @@
-Create /app/shared.rs, one self-contained source file compiled unchanged by both `rustc /app/shared.rs -o /app/rust-entry` and `g++ -x c++ /app/shared.rs -o /app/cpp-entry`. No additional files or external programs may be needed. Print exactly bridge-43 followed by a newline, with no arguments. The evaluator compiles fresh binaries and runs both independently.

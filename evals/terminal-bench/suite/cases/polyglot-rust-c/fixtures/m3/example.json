@@ -1,6 +1,0 @@
-{
-  "arguments": [
-    ""
-  ],
-  "contract": "Accept exactly one argument consisting of 1..6 ASCII decimal digits representing n in 0..999999 (leading zeros allowed). Print n*1000000007+23 and a newline. Missing/extra arguments, signs, whitespace, non-ASCII digits, empty strings, longer inputs, or other characters must exit 2 with empty stdout."
-}

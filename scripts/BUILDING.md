@@ -255,7 +255,7 @@ Output location:
 
 ### 3.3 One-click Zip Bundle
 
-The script always runs incremental Cargo builds before packaging the desktop, WebView helper, CLI and ACP binaries. Unchanged code reuses the build cache; existing executable files never bypass the freshness check. Building on macOS/Linux requires cargo-xwin; native Windows can use cargo build:
+By default, the script runs incremental Cargo builds before packaging the desktop, WebView helper, CLI and ACP binaries. Unchanged code reuses the build cache. Building on macOS/Linux requires cargo-xwin; native Windows can use cargo build:
 ```bash
 bash scripts/bundle_windows.sh
 ```
@@ -267,3 +267,8 @@ Optional environment variables:
 ```bash
 TARGET=x86_64-pc-windows-msvc PROFILE=release OUT_DIR=dist/windows bash scripts/bundle_windows.sh
 ```
+
+Release CI sets `SKIP_BUILD=1 PROFILE=dist TARGET=<triple>` to package the
+binaries already produced by cargo-dist in `target-dir/<triple>/dist/`
+(or under `CARGO_TARGET_DIR` when overridden). This skips all Cargo invocations
+and fails if any required executable is missing, without rebuilding it.

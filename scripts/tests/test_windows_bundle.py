@@ -15,6 +15,55 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class WindowsBundleTests(unittest.TestCase):
+    def test_prebuilt_packages_skip_cargo_and_reject_missing_inputs(self):
+        for mode, binaries in (
+            ("app", ("shi-ju.exe", "vw-webview.exe", "shiju.exe", "acp.exe", "vibe-agent.exe")),
+            ("cli", ("shiju.exe", "vibe-agent.exe")),
+        ):
+            for target in ("x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"):
+                with self.subTest(mode=mode, target=target), tempfile.TemporaryDirectory() as temp:
+                    root = Path(temp)
+                    binary_dir = root / "target-dir" / target / "dist"
+                    binary_dir.mkdir(parents=True)
+                    for name in binaries:
+                        (binary_dir / name).write_text("prebuilt:" + name)
+                    commands = root / "bin"
+                    commands.mkdir()
+                    cargo_marker = root / "cargo-called"
+                    cargo = commands / "cargo"
+                    cargo.write_text(f'#!/bin/sh\ntouch "{cargo_marker}"\nexit 42\n')
+                    cargo.chmod(0o755)
+                    output = root / "output"
+                    env = dict(
+                        os.environ, PATH=f"{commands}:{os.environ['PATH']}",
+                        TARGET=target, PROFILE="dist", MODE=mode, SKIP_BUILD="1",
+                        CARGO_TARGET_DIR=str(root / "target-dir"), OUT_DIR=str(output),
+                        CREATE_ZIP="1", CREATE_MSI="0", INCLUDE_CLI_IN_APP="1",
+                        INCLUDE_ACP_IN_APP="1", INCLUDE_CLI_COMPAT_IN_APP="1",
+                        WINDOWS_ICON_SOURCE=str(REPO / "assets/logo.png"),
+                    )
+                    result = subprocess.run(
+                        ["bash", str(REPO / "scripts/bundle_windows.sh")],
+                        cwd=root, env=env, capture_output=True, text=True, check=False,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    with zipfile.ZipFile(next(output.glob("*.zip"))) as archive:
+                        for name in binaries:
+                            self.assertEqual(archive.read(name).decode(), "prebuilt:" + name)
+                    shutil.rmtree(output)
+                    for name in binaries:
+                        with self.subTest(missing=name):
+                            (binary_dir / name).unlink()
+                            result = subprocess.run(
+                                ["bash", str(REPO / "scripts/bundle_windows.sh")],
+                                cwd=root, env=env, capture_output=True, text=True, check=False,
+                            )
+                            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                            self.assertIn(f"expected prebuilt executable not found: {binary_dir / name}", result.stderr)
+                            self.assertFalse(output.exists())
+                            (binary_dir / name).write_text("prebuilt:" + name)
+                    self.assertFalse(cargo_marker.exists())
+
     def test_packaging_finishes_when_script_changes_during_build(self):
         for mode in ("app", "cli"):
             with self.subTest(mode=mode), tempfile.TemporaryDirectory() as temp:
@@ -87,14 +136,7 @@ for index, argument in enumerate(args):
                 commands.mkdir()
                 for name, body in (
                     ("uname", "#!/bin/sh\necho Windows_NT\n"),
-                    ("cargo", """#!/usr/bin/env python3
-import os
-from pathlib import Path
-output = Path(os.environ['CARGO_TARGET_DIR']) / os.environ['TARGET'] / os.environ['PROFILE']
-output.mkdir(parents=True, exist_ok=True)
-for name in ('shi-ju.exe', 'vw-webview.exe', 'shiju.exe', 'acp.exe'):
-    (output / name).write_text(name)
-"""),
+                    ("cargo", "#!/bin/sh\necho 'unexpected cargo invocation' >&2\nexit 42\n"),
                     ("wix", """#!/usr/bin/env python3
 import json, sys
 from pathlib import Path
@@ -106,9 +148,13 @@ Path(sys.argv[sys.argv.index('-out') + 1]).write_text('fixture MSI')
                     command.write_text(body)
                     command.chmod(0o755)
                 output = root / "安装包 output"
+                binary_dir = root / "target" / target / "dist"
+                binary_dir.mkdir(parents=True)
+                for name in ("shi-ju.exe", "vw-webview.exe", "shiju.exe", "acp.exe"):
+                    (binary_dir / name).write_text(name)
                 env = dict(
                     os.environ, PATH=f"{commands}:{os.environ['PATH']}", TARGET=target,
-                    PROFILE="dist", MODE="app", OUT_DIR=str(output),
+                    PROFILE="dist", MODE="app", SKIP_BUILD="1", OUT_DIR=str(output),
                     CARGO_TARGET_DIR=str(root / "target"), CREATE_ZIP="0", CREATE_MSI="1",
                     INCLUDE_CLI_IN_APP="1", INCLUDE_ACP_IN_APP="1", INCLUDE_CLI_COMPAT_IN_APP="0",
                     WINDOWS_ICON_SOURCE=str(REPO / "assets/logo.png"),

@@ -3,6 +3,8 @@ set -euo pipefail
 
 TARGET="${TARGET:-x86_64-pc-windows-msvc}"
 PROFILE="${PROFILE:-release}"
+# CI packages the binaries already produced by cargo-dist.
+SKIP_BUILD="${SKIP_BUILD:-0}"
 TARGET_ROOT="${CARGO_TARGET_DIR:-target-dir}"
 OUT_DIR="${OUT_DIR:-dist/windows}"
 MODE="${MODE:-app}"
@@ -170,6 +172,10 @@ build_msi() {
 
 # Plain cargo cannot configure the Windows SDK and C compiler on Unix hosts.
 build_windows_package() {
+  if [ "$SKIP_BUILD" = "1" ]; then
+    return
+  fi
+
   if command -v cargo-xwin >/dev/null 2>&1; then
     cargo xwin build "${PROFILE_ARGS[@]}" --target "$TARGET" "$@"
     return
@@ -213,6 +219,24 @@ build_acp_binary() {
 main() {
   BIN_DIR="$TARGET_ROOT/$TARGET/$PROFILE"
 
+  if [ "$SKIP_BUILD" = "1" ]; then
+    if [ "$MODE" = "cli" ]; then
+      required_binaries=("$CLI_SOURCE_BIN_NAME" "$CLI_COMPAT_BIN_NAME")
+    else
+      required_binaries=("$DESKTOP_SOURCE_BIN_NAME" vw-webview.exe "$CLI_SOURCE_BIN_NAME" "$ACP_BIN_NAME")
+      if [ "${INCLUDE_CLI_COMPAT_IN_APP:-0}" = "1" ]; then
+        required_binaries+=("$CLI_COMPAT_BIN_NAME")
+      fi
+    fi
+    for binary_name in "${required_binaries[@]}"; do
+      if [ ! -f "$BIN_DIR/$binary_name" ]; then
+        echo "Error: expected prebuilt executable not found: $BIN_DIR/$binary_name" >&2
+        exit 1
+      fi
+    done
+    echo "Packaging prebuilt Windows binaries from $BIN_DIR..."
+  fi
+
   if [ "$MODE" = "cli" ]; then
     build_cli_binaries
     mkdir -p "$OUT_DIR"
@@ -230,7 +254,7 @@ main() {
     exit 1
   fi
 
-  # Always ask Cargo to check source freshness; existing files can be stale.
+  # Local builds check source freshness; CI explicitly opts into prebuilt inputs.
   build_app_binaries
 
   mkdir -p "$OUT_DIR"

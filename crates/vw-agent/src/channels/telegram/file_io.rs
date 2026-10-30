@@ -55,6 +55,7 @@ impl TelegramChannel {
         let resp = self
             .http_client()
             .get(&url)
+            .timeout(std::time::Duration::from_secs(120))
             .send()
             .await
             .context("Failed to download Telegram file")?;

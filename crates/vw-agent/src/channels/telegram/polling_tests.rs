@@ -370,7 +370,8 @@ async fn listen_impl_delivers_approval_callback_queries() {
     server.abort();
 }
 
-#[tokio::test(start_paused = true)]
+// 本地 HTTP 需要真实 I/O；冻结时钟会在 socket 就绪前自动推进请求超时。
+#[tokio::test]
 async fn listen_impl_retries_startup_probe_errors_before_entering_main_loop() {
     let state = MockTelegramState::default();
     state.push_get_updates_reply(MockReply::Text(StatusCode::OK, "{invalid".to_string())).await;
@@ -407,9 +408,6 @@ async fn listen_impl_retries_startup_probe_errors_before_entering_main_loop() {
     drop(rx);
 
     let listen = tokio::spawn(async move { channel.listen_impl(tx).await });
-    tokio::task::yield_now().await;
-    tokio::time::advance(Duration::from_secs(16)).await;
-    tokio::task::yield_now().await;
 
     listen.await.expect("listen task should finish").expect("closed receiver should stop polling");
 
@@ -420,7 +418,7 @@ async fn listen_impl_retries_startup_probe_errors_before_entering_main_loop() {
     server.abort();
 }
 
-#[tokio::test(start_paused = true)]
+#[tokio::test]
 async fn listen_impl_uses_defaults_for_sparse_api_responses() {
     let state = MockTelegramState::default();
     state.push_get_updates_reply(MockReply::ok_json(json!({}))).await;
@@ -443,9 +441,6 @@ async fn listen_impl_uses_defaults_for_sparse_api_responses() {
     drop(rx);
 
     let listen = tokio::spawn(async move { channel.listen_impl(tx).await });
-    tokio::task::yield_now().await;
-    tokio::time::advance(Duration::from_secs(6)).await;
-    tokio::task::yield_now().await;
 
     listen.await.expect("listen task should finish").expect("closed receiver should stop polling");
 
@@ -456,7 +451,7 @@ async fn listen_impl_uses_defaults_for_sparse_api_responses() {
     server.abort();
 }
 
-#[tokio::test(start_paused = true)]
+#[tokio::test]
 async fn listen_impl_retries_main_loop_errors_and_skips_unauthorized_updates() {
     let state = MockTelegramState::default();
     state
@@ -497,9 +492,6 @@ async fn listen_impl_retries_main_loop_errors_and_skips_unauthorized_updates() {
     drop(rx);
 
     let listen = tokio::spawn(async move { channel.listen_impl(tx).await });
-    tokio::task::yield_now().await;
-    tokio::time::advance(Duration::from_secs(46)).await;
-    tokio::task::yield_now().await;
 
     listen.await.expect("listen task should finish").expect("closed receiver should stop polling");
 
@@ -519,7 +511,7 @@ async fn listen_impl_retries_main_loop_errors_and_skips_unauthorized_updates() {
     server.abort();
 }
 
-#[tokio::test(start_paused = true)]
+#[tokio::test]
 async fn listen_impl_prefetches_and_recovers_bot_username_in_mention_only_mode() {
     let state = MockTelegramState::default();
     state

@@ -135,7 +135,7 @@ impl QQChannel {
     ///
     /// 使用全局运行时代理配置创建 HTTP 客户端实例。
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client("channel.qq")
+        crate::channels::http::proxied_client("channel.qq")
     }
 
     fn auth_url(&self) -> &str {

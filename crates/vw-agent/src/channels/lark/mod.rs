@@ -357,7 +357,8 @@ impl LarkChannel {
     ///
     /// 创建配置了平台代理设置的 HTTP 客户端实例。
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client(self.platform.proxy_service_key())
+        // 令牌获取和媒体下载也必须有期限，不能在模型执行超时之外永久占用聊天。
+        crate::channels::http::proxied_client(self.platform.proxy_service_key())
     }
 
     /// 获取通道名称

@@ -162,7 +162,7 @@ impl MattermostChannel {
     ///
     /// 使用应用全局配置构建支持代理的 reqwest 客户端。
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client("channel.mattermost")
+        crate::channels::http::proxied_client("channel.mattermost")
     }
 
     /// 检查用户 ID 是否在允许列表中

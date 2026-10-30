@@ -144,6 +144,7 @@ pub(crate) mod config;
 pub(crate) mod format;
 /// 会话历史管理
 pub(crate) mod history;
+mod http;
 /// 通道管理器
 pub(crate) mod manager;
 /// 跨平台出站消息格式规整

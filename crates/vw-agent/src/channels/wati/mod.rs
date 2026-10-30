@@ -33,7 +33,7 @@ impl WatiChannel {
             api_url,
             tenant_id,
             allowed_numbers,
-            client: crate::app::agent::config::build_runtime_proxy_client("channel.wati"),
+            client: crate::channels::http::proxied_client("channel.wati"),
         }
     }
 

@@ -79,7 +79,14 @@ impl LinqChannel {
     /// );
     /// ```
     pub fn new(api_token: String, from_phone: String, allowed_senders: Vec<String>) -> Self {
-        Self { api_token, from_phone, allowed_senders, client: reqwest::Client::new() }
+        Self {
+            api_token,
+            from_phone,
+            allowed_senders,
+            client: crate::channels::http::client_builder()
+                .build()
+                .expect("channel HTTP client should build"),
+        }
     }
 
     /// 检查发送者电话号码是否在白名单中

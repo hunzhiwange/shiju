@@ -56,7 +56,7 @@ impl WhatsAppChannel {
     }
 
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client("channel.whatsapp")
+        crate::channels::http::proxied_client("channel.whatsapp")
     }
 
     #[cfg(test)]

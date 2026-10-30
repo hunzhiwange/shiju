@@ -64,7 +64,7 @@ impl TelegramChannel {
             bot_token,
             allowed_users: Arc::new(RwLock::new(normalized_allowed)),
             pairing: None,
-            client: reqwest::Client::new(),
+            client: crate::channels::http::proxied_client("channel.telegram"),
             stream_mode: StreamMode::Off,
             draft_update_interval_ms: 1000,
             last_draft_edit: Mutex::new(std::collections::HashMap::new()),

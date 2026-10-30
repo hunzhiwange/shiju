@@ -43,7 +43,7 @@ impl WeChatChannel {
         Ok(Self {
             bot_token,
             base_url,
-            client: Client::builder()
+            client: crate::channels::http::client_builder()
                 .retry(reqwest::retry::never())
                 .redirect(reqwest::redirect::Policy::none())
                 .build()
@@ -57,7 +57,9 @@ impl WeChatChannel {
     }
 
     async fn post(&self, path: &str, body: Value) -> anyhow::Result<Value> {
-        let request = self.client.post(self.endpoint(path));
+        // getupdates 是长轮询，给服务端等待及响应传输预留独立预算。
+        let request =
+            self.client.post(self.endpoint(path)).timeout(std::time::Duration::from_secs(60));
         let response = with_json_headers(request, Some(&self.bot_token))
             .json(&body)
             .send()

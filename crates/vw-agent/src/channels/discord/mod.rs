@@ -253,7 +253,7 @@ impl DiscordChannel {
     ///
     /// 返回配置了代理设置的 `reqwest::Client` 实例
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client("channel.discord")
+        crate::channels::http::proxied_client("channel.discord")
     }
 }
 

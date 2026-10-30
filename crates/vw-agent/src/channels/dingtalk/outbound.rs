@@ -68,7 +68,7 @@ impl DingTalkChannel {
         let webhook_url = webhook_url
             .ok_or_else(|| delivery_error(0, total, 0, DeliveryFailureKind::NotSent))
             .context("未找到会话 webhook，用户必须先发送消息以建立会话")?;
-        let builder = reqwest::Client::builder()
+        let builder = crate::channels::http::client_builder()
             .retry(reqwest::retry::never())
             .redirect(reqwest::redirect::Policy::none());
         let client =

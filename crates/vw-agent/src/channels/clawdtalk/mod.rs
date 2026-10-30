@@ -87,13 +87,9 @@ impl ClawdTalkChannel {
             connection_id: config.connection_id,
             from_number: config.from_number,
             allowed_destinations: config.allowed_destinations,
-            // 初始化 HTTP 客户端，非 WASM 环境下设置 30 秒超时
-            client: {
-                let builder = Client::builder();
-                #[cfg(not(target_arch = "wasm32"))]
-                let builder = builder.timeout(std::time::Duration::from_secs(30));
-                builder.build().unwrap_or_else(|_| Client::new())
-            },
+            client: crate::channels::http::client_builder()
+                .build()
+                .expect("ClawdTalk HTTP client should build"),
             #[cfg(test)]
             telnyx_api_url: Self::TELNYX_API_URL.to_string(),
             webhook_secret: config.webhook_secret,

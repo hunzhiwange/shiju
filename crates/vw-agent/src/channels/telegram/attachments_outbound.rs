@@ -64,7 +64,12 @@ impl TelegramChannel {
         // 步骤 2：构建文件下载 URL 并下载图片二进制数据
         // Telegram 文件下载 URL 格式：https://api.telegram.org/file/bot<token>/<file_path>
         let download_url = format!("{}/file/bot{}/{}", self.api_base, self.bot_token, file_path);
-        let img_resp = self.http_client().get(&download_url).send().await?;
+        let img_resp = self
+            .http_client()
+            .get(&download_url)
+            .timeout(std::time::Duration::from_secs(120))
+            .send()
+            .await?;
         let bytes = img_resp.bytes().await?;
 
         // 步骤 3：在阻塞线程池中处理图片（调整尺寸并转换为 JPEG）

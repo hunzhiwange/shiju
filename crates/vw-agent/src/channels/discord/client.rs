@@ -195,6 +195,7 @@ pub(super) async fn send_discord_message_with_files_to_url(
     let resp = client
         .post(url)
         .header("Authorization", format!("Bot {bot_token}"))
+        .timeout(std::time::Duration::from_secs(120))
         .multipart(form)
         .send()
         .await?;

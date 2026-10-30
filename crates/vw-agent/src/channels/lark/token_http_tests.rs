@@ -6,6 +6,24 @@ use crate::app::agent::channels::traits::{Channel, SendMessage};
 use std::time::{Duration, Instant};
 
 #[tokio::test]
+async fn get_tenant_access_token_times_out_when_server_never_responds() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let ch = test_channel(&format!("http://{}", listener.local_addr().unwrap()));
+    let request = ch.get_tenant_access_token();
+    tokio::pin!(request);
+    // 保持连接打开但不返回响应，验证客户端自身的超时而非连接失败。
+    let (_connection, _) = tokio::select! {
+        connection = listener.accept() => connection.unwrap(),
+        result = &mut request => panic!("request ended before connection: {result:?}"),
+    };
+    let error = tokio::time::timeout(Duration::from_secs(35), request)
+        .await
+        .expect("token request must not hold the chat indefinitely")
+        .unwrap_err();
+    assert!(error.downcast_ref::<reqwest::Error>().unwrap().is_timeout());
+}
+
+#[tokio::test]
 async fn lark_channel_send_posts_markdown_as_rich_text() {
     let mut server = TestServer::spawn(vec![MockResponse::json(200, r#"{"code":0}"#)]).await;
     let ch = test_channel(&server.base_url);

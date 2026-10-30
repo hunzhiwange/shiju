@@ -172,7 +172,7 @@ impl DingTalkChannel {
     ///
     /// 返回配置好的 `reqwest::Client` 实例
     fn http_client(&self) -> reqwest::Client {
-        crate::app::agent::config::build_runtime_proxy_client("channel.dingtalk")
+        crate::channels::http::proxied_client("channel.dingtalk")
     }
 
     /// 检查用户是否在允许列表中

@@ -72,7 +72,7 @@ pub(super) async fn process_attachments(
             parts.push(format!("[IMAGE:{url}]"));
         } else if ct.starts_with("text/") {
             // 文本类型：直接获取内容并内联
-            match client.get(url).send().await {
+            match client.get(url).timeout(std::time::Duration::from_secs(120)).send().await {
                 Ok(resp) if resp.status().is_success() => {
                     if let Ok(text) = resp.text().await {
                         parts.push(format!("[{name}]\n{text}"));

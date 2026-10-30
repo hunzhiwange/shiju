@@ -66,7 +66,13 @@ impl TelegramChannel {
         }
 
         // 发送请求并校验响应状态
-        let resp = self.http_client().post(self.api_url(method)).json(&body).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url(method))
+            .timeout(std::time::Duration::from_secs(120))
+            .json(&body)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -120,8 +126,13 @@ impl TelegramChannel {
         }
 
         // 发送 multipart 请求并校验响应
-        let resp =
-            self.http_client().post(self.api_url("sendDocument")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendDocument"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -167,8 +178,13 @@ impl TelegramChannel {
             form = form.text("caption", cap.to_string());
         }
 
-        let resp =
-            self.http_client().post(self.api_url("sendDocument")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendDocument"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -216,8 +232,13 @@ impl TelegramChannel {
             form = form.text("caption", cap.to_string());
         }
 
-        let resp =
-            self.http_client().post(self.api_url("sendPhoto")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendPhoto"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -263,8 +284,13 @@ impl TelegramChannel {
             form = form.text("caption", cap.to_string());
         }
 
-        let resp =
-            self.http_client().post(self.api_url("sendPhoto")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendPhoto"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -312,8 +338,13 @@ impl TelegramChannel {
             form = form.text("caption", cap.to_string());
         }
 
-        let resp =
-            self.http_client().post(self.api_url("sendVideo")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendVideo"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -361,8 +392,13 @@ impl TelegramChannel {
             form = form.text("caption", cap.to_string());
         }
 
-        let resp =
-            self.http_client().post(self.api_url("sendAudio")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendAudio"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -411,8 +447,13 @@ impl TelegramChannel {
             form = form.text("caption", cap.to_string());
         }
 
-        let resp =
-            self.http_client().post(self.api_url("sendVoice")).multipart(form).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendVoice"))
+            .timeout(std::time::Duration::from_secs(120))
+            .multipart(form)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -458,7 +499,13 @@ impl TelegramChannel {
             body["caption"] = serde_json::Value::String(cap.to_string());
         }
 
-        let resp = self.http_client().post(self.api_url("sendDocument")).json(&body).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendDocument"))
+            .timeout(std::time::Duration::from_secs(120))
+            .json(&body)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;
@@ -503,7 +550,13 @@ impl TelegramChannel {
             body["caption"] = serde_json::Value::String(cap.to_string());
         }
 
-        let resp = self.http_client().post(self.api_url("sendPhoto")).json(&body).send().await?;
+        let resp = self
+            .http_client()
+            .post(self.api_url("sendPhoto"))
+            .timeout(std::time::Duration::from_secs(120))
+            .json(&body)
+            .send()
+            .await?;
 
         if !resp.status().is_success() {
             let err = resp.text().await?;

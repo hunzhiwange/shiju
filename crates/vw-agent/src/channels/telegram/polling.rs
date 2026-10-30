@@ -116,7 +116,15 @@ impl TelegramChannel {
                 "allowed_updates": ["message", "callback_query"]
             });
 
-            let resp = match self.http_client().post(&url).json(&body).send().await {
+            // 服务端长轮询等待 30 秒，HTTP 期限须为响应传输留出余量。
+            let resp = match self
+                .http_client()
+                .post(&url)
+                .timeout(Duration::from_secs(60))
+                .json(&body)
+                .send()
+                .await
+            {
                 Ok(r) => r,
                 Err(e) => {
                     let sanitized = Self::sanitize_telegram_error(&e.to_string());

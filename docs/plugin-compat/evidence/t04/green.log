@@ -1,0 +1,16 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 10s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 9 tests
+test plugins::compat::t04_tests::codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_keeps_fixed_components_and_default_interface ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_rejects_invalid_input ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_reads_inline_onboarding_from_namespace ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_prefers_inline_openai_overlay ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_preserves_isolation ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_uses_overlay_only_without_inline_object ... ok
+test plugins::compat::t04_tests::codex_plugin_compat_t04_validates_metadata_and_name_boundaries ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 10419 filtered out; finished in 0.01s

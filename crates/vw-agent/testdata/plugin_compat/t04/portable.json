@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "portable-example",
+  "version": " 1.2.3 ",
+  "description": " Portable example ",
+  "author": { "name": " Example Author ", "email": "author@example.com" },
+  "homepage": " https://example.com ",
+  "repository": "https://example.com/repository",
+  "license": "MIT",
+  "keywords": ["portable", ""],
+  "extensions": {
+    "com.openai": {
+      "interface": { "displayName": "Inline" },
+      "hooks": { "inline": true }
+    }
+  }
+}

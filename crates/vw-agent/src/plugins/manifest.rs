@@ -1,4 +1,4 @@
-//! 原生与旧版生态插件清单的解析与字段校验。
+//! 原生、便携与旧版生态插件清单的解析与字段校验。
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -10,12 +10,17 @@ use super::types::{
     PluginAuthor, PluginHookSource, PluginInterface, PluginManifest, PluginMcpServers, PluginPath,
 };
 
-/// Load and statically audit a native or legacy local plugin manifest.
+/// Load and statically audit a native, portable or legacy local plugin manifest.
 /// 从插件根目录读取、解析并规范化插件清单。
 ///
-/// 所有组件路径在返回前均完成静态审计，调用方无需再次解析原始相对路径。
+/// 显式组件路径均完成静态审计；便携格式保留尚不存在的固定约定路径供运行时检查。
 pub fn load_plugin_manifest(plugin_root: &Path) -> Result<PluginManifest> {
     let canonical_root = canonical_plugin_root(plugin_root)?;
+    if let Some(manifest) =
+        super::compat::portable_manifest::load_portable_manifest(&canonical_root)?
+    {
+        return Ok(manifest);
+    }
     let manifest_path = plugin_manifest_path(&canonical_root)?;
     let manifest_bytes = fs::read(&manifest_path)
         .with_context(|| format!("failed to read plugin manifest: {}", manifest_path.display()))?;

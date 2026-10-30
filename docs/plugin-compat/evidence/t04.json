@@ -1,0 +1,817 @@
+{
+  "schema_version": 1,
+  "task": 4,
+  "items": [
+    {
+      "id": "discovery.portable-precedence",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [
+        7
+      ],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.$schema",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.name",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.version",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.description",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.author",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.homepage",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.repository",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.license",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.keywords",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.extensions",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.fixed-components",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [
+        9,
+        15
+      ],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.overlay",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "manifest.portable.unknown",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "onboarding.path",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [
+        3,
+        13
+      ],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "acceptance.t04",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    },
+    {
+      "id": "official.portable",
+      "tasks": [
+        4
+      ],
+      "remaining_mapped_tasks": [
+        15
+      ],
+      "tests": [
+        "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+        "codex_plugin_compat_t04_rejects_invalid_input",
+        "codex_plugin_compat_t04_preserves_isolation",
+        "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+        "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+        "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+        "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+        "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+        "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t04/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t04/green.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 4 portable declaration loading only; initial red proves the root-entry gap, additional green assertions verify frozen field semantics. Later mapped runtime, discovery and platform acceptance remain separate."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR": [
+      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2"
+    ],
+    "CARGO_BUILD_BUILD_DIR": [
+      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build"
+    ],
+    "lease_released": true
+  },
+  "validation_runs": [
+    {
+      "phase": "red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "exit_code": 101,
+      "record": "t04/red.log",
+      "effective_tests": 3,
+      "observed_target_assertions": 3
+    },
+    {
+      "phase": "fmt",
+      "command": "cargo fmt --all",
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "exit_code": 0,
+      "record": "t04/fmt.log"
+    },
+    {
+      "phase": "fmt-final",
+      "command": "cargo fmt --all",
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "exit_code": 0,
+      "record": "t04/fmt-final.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "exit_code": 0,
+      "record": "t04/green.log",
+      "effective_tests": 9
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "exit_code": 0,
+      "record": "t04/adjacent.log",
+      "effective_tests": 132
+    },
+    {
+      "phase": "clippy",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "exit_code": 0,
+      "record": "t04/clippy.log"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t04.json",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t04.json",
+      "exit_code": 1,
+      "expected": "Full frozen baseline rejects partial Task 4 evidence",
+      "diagnostic": "Evidence rejected: discovery.legacy-order: missing evidence item"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "additional_tests": [
+    "codex_plugin_compat_t04_prefers_inline_openai_overlay",
+    "codex_plugin_compat_t04_rejects_invalid_input",
+    "codex_plugin_compat_t04_preserves_isolation",
+    "codex_plugin_compat_t04_keeps_fixed_components_and_default_interface",
+    "codex_plugin_compat_t04_uses_overlay_only_without_inline_object",
+    "codex_plugin_compat_t04_reads_inline_onboarding_from_namespace",
+    "codex_plugin_compat_t04_validates_metadata_and_name_boundaries",
+    "codex_plugin_compat_t04_rejects_nonregular_root_before_legacy_fallback",
+    "codex_plugin_compat_t04_rejects_symlink_roots_components_and_overlays"
+  ],
+  "red_note": "All three original target assertions were observed at runtime in the registered real-loader tests. The host subsequently aborted while initiating panic (SIGABRT); no completed failed-test summary is invented. This is a target behavior failure, not a compilation error. The same three tests are included in the 9-test green run.",
+  "reference_snapshot": {
+    "kind": "local source frozen by SHA-256; no Git revision is asserted",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugins/src/agent_plugin_manifest.rs": "31f9efd68ad2a94e45d1596123d49066886c4592aa7588935170913ced1cc660",
+      "codex-rs/utils/plugins/src/plugin_namespace.rs": "1515279deb99c997b407b987abae681ee6b3b3b8a7c7cdd1b33dd5a2ec240bad",
+      "codex-rs/core-plugins/src/manifest.rs": "cb6cc5e8e2004d1533141a3f11f3460a1aa8c2e0295c9583ae9726c6a75b2802",
+      "codex-rs/core-plugins/src/manifest/manifest_cache.rs": "5f04a10ef3f9d5cf402746ff5558b20fab09ab6a25379aac72a4b832461f0acc"
+    }
+  },
+  "artifacts_sha256": {
+    "docs/plugin-compat/evidence/t04/fmt.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/plugin-compat/evidence/t04/red.log": "82bcebdab2bf00d2010addd88519ab43645ef4e9c0cee62115e4130db46c2594",
+    "docs/plugin-compat/evidence/t04/green.log": "a1edf0be5e432d379d8edafe3eec57a8f208ab76029bd5b89183f09d9b3a6059",
+    "docs/plugin-compat/evidence/t04/clippy.log": "16e39ab22928c15fb6f3fd04207d16287afe1a1f0d1b0892947508dac9b7b05e",
+    "docs/plugin-compat/evidence/t04/adjacent.log": "387da9675417e3cbd44edb98eb36f214339e3d3f4f3407a036b8309701e76c13",
+    "docs/plugin-compat/evidence/t04/fmt-final.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/plugin-compat/evidence/t04/green.run.json": "13145ecccc775ae46b8f852e1540a4c8f194bc5e720636c72e4e93af64b3e346",
+    "docs/plugin-compat/evidence/t04/clippy.run.json": "4eeca964ca4de9861be40a8d5208b84d5c1041e6b6a44248d733a63e91f9a92d",
+    "docs/plugin-compat/evidence/t04/red.run.json": "342cd536aac2d257757c17fd2fbbbe254ad477172d3f3fd136a2af2b22b52e13",
+    "docs/plugin-compat/evidence/t04/fmt.run.json": "3c30a698182890d60a74fcede1b25311feac890f07ff4ff0eb4663d67acbb0b7",
+    "docs/plugin-compat/evidence/t04/fmt-final.run.json": "14e5dd1bf99f361370fe26e0ef3be14855eb847f5c59a4b7fe8c1710fcf0c330",
+    "docs/plugin-compat/evidence/t04/adjacent.run.json": "2d051b4ad2607ee97738b159e82607dd657b7e18d4804541d99737a23fff055a",
+    "crates/vw-agent/testdata/plugin_compat/t04/portable.json": "3dc29f1c6cbba7c6b01a0fbd11d8df551d99f04a479de72d63d0d2dc1e944920",
+    "crates/vw-agent/testdata/plugin_compat/t04/README.md": "0cd13e09d3c1188329bbbf003f8d5c975e4fdcc406274e6d24c7e204e31339fd"
+  },
+  "package_isolation": [
+    "Original root manifest bytes remain identical after real loading in independent temporary package roots.",
+    "Legacy overlay bytes remain unchanged; inline namespaces replace rather than merge the overlay.",
+    "Loading creates no native manifest, skills/MCP resources, configuration, credentials, cache or evidence inside a package."
+  ],
+  "security_differences": [
+    "Existing strict host auditing rejects symlinks, traversal, missing explicit overlay/component resources, and selected-file read/metadata failures rather than warning-and-ignoring them.",
+    "Only the implicit fixed root-level skills and mcp.json conventions may be absent at parse time; their runtime consumers still require separate validation. User-supplied paths do not bypass the existing audit.",
+    "An unused legacy overlay is not inspected or followed when a com.openai inline object is present, including an empty object."
+  ],
+  "deferred_scope": {
+    "5": "Component audit and compatibility-difference review.",
+    "7": "Installed package discovery, full source ordering and deduplication.",
+    "9": "Multiple/default skill directory runtime loading.",
+    "13": "Actual onboarding skill invocation.",
+    "15": "Portable MCP declaration execution and optional fixed-file behavior.",
+    "17": "Independent MCP environment/auth overlay behavior, not merged with com.openai declarations.",
+    "55": "Actual desktop compatibility display.",
+    "64": "Actual Linux and Windows evidence."
+  },
+  "scope_note": "Partial Task 4 macOS declaration evidence only. It does not establish complete plugin compatibility, public-service behavior, desktop rendering, other platforms or completion of joint mapped tasks. The complete frozen-baseline checker must reject this partial record.",
+  "artifact_note": "Captured log content is retained with trailing blank lines normalized to one final newline for diff checks."
+}

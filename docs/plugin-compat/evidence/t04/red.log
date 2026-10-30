@@ -1,0 +1,27 @@
+   Compiling vw-shared v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-shared)
+   Compiling vw-acp v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-acp)
+   Compiling vw-gateway-client v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-gateway-client)
+   Compiling vw-provider-resolver v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-provider-resolver)
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 33s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 3 tests
+
+thread 'plugins::compat::t04_tests::codex_plugin_compat_t04_preserves_isolation' (45774890) panicked at crates/vw-agent/src/plugins/compat/t04_tests.rs:70:52:
+independent portable package loads: plugin manifest not found under /private/var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpL1C8ik/first: plugin.json
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'plugins::compat::t04_tests::codex_plugin_compat_t04_rejects_invalid_input' (45774891) panicked at crates/vw-agent/src/plugins/compat/t04_tests.rs:51:51:
+unknown schema cannot fall back: PluginManifest { root: "/private/var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpPQ80Mr", manifest_path: "/private/var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T/.tmpPQ80Mr/.codex-plugin/plugin.json", name: "legacy", version: None, description: None, author: None, homepage: None, repository: None, license: None, keywords: [], skills: [], mcp_servers: None, hooks: [], apps: None, onboarding_skill: None, interface: None }
+
+thread 'plugins::compat::t04_tests::codex_plugin_compat_t04_prefers_inline_openai_overlay' (45774889) panicked at crates/vw-agent/src/plugins/compat/t04_tests.rs:31:54:
+portable root manifest must load: Plugin manifest field skills path does not exist: ./missing
+
+Caused by:
+    No such file or directory (os error 2)
+fatal runtime error: failed to initiate panic, error 5, aborting
+fatal runtime error: failed to initiate panic, error 5fatal runtime error: failed to initiate panic, error error: test failed, to rerun pass `-p vw-agent --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a codex_plugin_compat_t04_ --nocapture` (signal: 6, SIGABRT: process abort signal)

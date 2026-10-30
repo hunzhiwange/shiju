@@ -2,7 +2,7 @@
 
 批次：【批次 41】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已阻塞
+状态：已阻塞（候选参考解修复已通过真实官方评分，待确认 oracle 校准范围）
 
 目的：为“融合蛋白序列设计”准备原题完整环境与四道独立诊断题。
 
@@ -102,3 +102,17 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 恢复入口：由上游恢复与冻结参考解相容的 PDB 数据契约，或先明确更新上游冻结源与 catalog，再修复参考解的修饰残基解析；不能在本任务内改只读原包或悄悄接受哈希漂移。恢复后使用忽略目录 `resume-20261030/runtime.json` 与新输出目录重跑标准完整 preflight，要求原题 oracle=1/nop=0 后才能解除阻塞。模型仍固定 token-plan/qwen3.8-flash、32000 输出、200000 输入窗口；本轮没有付费调用。
 
 提交检查清理了 9 个错误 fixture 的多余末尾空行，随后重新运行 4 个 unittest 与 20 个容器控制并刷新 validation.json。`child-materialization-reverified.json` 证明最终字节重新物化的四任务与已通过的 8 次 Harbor 任务逐字相同；`final-checkpoint.json` 绑定最终收据及依赖哈希。
+
+## 2026-10-31 参考解修复的真实突破
+
+已在忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/protein-assembly/repair-20261031/` 准备并验证候选补丁 `reference-ccd.patch`，没有修改只读原包、catalog、公共 Suite/Harbor 或被测 Agent。候选包的 11 个文件中仅 `solution/solve.sh` 不同；新脚本 SHA256 为 `994368639bc219093ac4b37ed34a7acfe0698bc7b2c81c2cf9acfc9c14603055`。原包 11 文件再次逐一通过 catalog SHA256 校验，未创建 preparation.json。
+
+- 修复不依赖已消失的 `modified_monomer` feature：对齐原始序列中的化学组分 token 与 canonical 序列，再从真实 RCSB `chemcomp` API 的 `mon_nstd_parent_comp_id` 展开标准残基；多残基展开不改变后续 token 的对齐位置。HTTP 失败、缺失/未知 parent、非法 token 和序列冲突明确失败；没有硬编码 PDB ID、官方序列、API 回放或评分豁免。接口依据：[RCSB API](https://data.rcsb.org/redoc/index.html)、[wwPDB parent component 定义](https://www.wwpdb.org/data/ccd-content/table1.html)。四份原始 API 响应与 HTTP/时间/SHA 收据保存在忽略目录。
+- 11 个聚焦测试先运行原参考解函数，得到 11 个失败断言；候选修复后 11 个测试全部通过，覆盖两个真实 API 响应及合成多组分/错误数据。原诊断 4 个 unittest 与 `evals/promptfoo/score.sh test` 重新运行退出 0；本轮没有更改诊断资产，不用重复旧容器结果冒充新增证据。
+- 候选包通过标准 `SuiteDockerEnvironment` 完成两次 fresh Harbor Trials：**修复版 oracle=1，nop=0**，原官方 `tests/test.sh` 与 `test_outputs.py` 字节未变。oracle 的官方 verifier 实际执行 1 个测试并通过；实际生成的 gBlock 为 2706 nt，2657 个 50nt 窗口的 GC 数在 16–35 之间。没有注入缓存答案或响应快照。`candidate-calibration.json`、原始 agent/verifier 日志、产物和两次实际容器 HostConfig 均已归档。
+- 两次 Trial 保留原镜像、1 CPU、4096MiB、MemorySwap=Memory、storage=10240MiB，以及原 agent/verifier 各 1800 秒；每次启动前重新测量宿主/VM 空间并校验 19GiB 准入，保留公共 backend 的资源收据。所有容器和构建均正常结束；未停止其他会话的容器或进程。
+- 新鲜 `cargo clippy --all-targets --all-features -- -D warnings` 退出 0。动态槽位 **4**，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-4`，`CARGO_BUILD_JOBS=1`；有效行为证据为 11 个 resolver 测试、4 个诊断测试与 2 个候选父题 Trials，Clippy 自身有效测试数 0。自有槽位锁已释放，缓存保留；没有 Rust 修改、全量测试、fmt check、wasm、Makefile 或付费模型调用。
+
+`repair-checkpoint.json` 绑定本轮证据哈希；`source-boundary.json` 证明原包未变；`proposal.json` 记录候选身份及接入建议。**本轮通过的是显式修复后的参考解，不是原版 oracle；原版失败证据保持原样。** 因此任务文件保留，不标 ready，不修改 plan.md。
+
+下一步：已向用户请求确认，将哈希锁定的补丁作为“仅用于 oracle 校准的参考解修复”显式接入，实际 Agent 仍使用原冻结任务字节，并在准备收据中区分原版和修复版 oracle。该选择改变本任务原先仅允许 verifier 依赖修复的范围；未收到答复前不接入、不替换冻结源、不伪造 readiness。获得授权后，先实现该窄契约及篡改拒绝测试，再用新输出目录执行完整父子预检。

@@ -86,9 +86,38 @@ fn desktop_release_rejects_invalid_manifest_fields() {
     let mut duplicate = oss.clone();
     duplicate["assets"][1] = duplicate["assets"][0].clone();
     assert!(parse_desktop_release(UpdateSource::Shiju, duplicate).is_err());
-    let mut missing = oss;
-    missing["assets"].as_array_mut().unwrap().pop();
-    assert!(parse_desktop_release(UpdateSource::Shiju, missing).is_err());
+}
+
+#[test]
+fn desktop_release_missing_installers_do_not_block_available_targets() {
+    let (oss, github) = manifests();
+    for (source, payload) in [(UpdateSource::Shiju, oss), (UpdateSource::Github, github)] {
+        // Historical six-package releases have no Linux DEB installers.
+        for count in [6, 1] {
+            let mut partial = payload.clone();
+            let assets = partial["assets"].as_array_mut().unwrap();
+            assets.drain(..assets.len() - count);
+            let release = parse_desktop_release(source, partial).unwrap();
+            assert_eq!(release.assets.len(), count);
+            assert!(release.is_newer_than("1.2.9").unwrap());
+            assert!(
+                release.installer_for_target("x86_64-apple-darwin", InstallerKind::Dmg).is_ok()
+            );
+            let error = release
+                .installer_for_target("x86_64-unknown-linux-gnu", InstallerKind::Deb)
+                .unwrap_err();
+            assert!(error.to_string().contains("x86_64-unknown-linux-gnu"));
+        }
+    }
+}
+
+#[test]
+fn desktop_release_rejects_empty_installer_lists() {
+    let (oss, github) = manifests();
+    for (source, mut payload) in [(UpdateSource::Shiju, oss), (UpdateSource::Github, github)] {
+        payload["assets"] = json!([]);
+        assert!(parse_desktop_release(source, payload).is_err());
+    }
 }
 
 #[test]
@@ -99,8 +128,6 @@ fn desktop_release_rejects_invalid_github_assets_and_unstable_releases() {
         ("/prerelease", json!(true)),
         ("/tag_name", json!("v1.2.10-rc1")),
         ("/assets/0/digest", Value::Null),
-        ("/assets/0/name", json!("installer.zip")),
-        ("/assets/0/name", json!("../installer.rpm")),
         ("/assets/0/browser_download_url", json!("http://example.com/a.rpm")),
         ("/assets/0/size", json!(0)),
     ] {

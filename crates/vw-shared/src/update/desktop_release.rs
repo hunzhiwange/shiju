@@ -58,26 +58,28 @@ impl DesktopRelease {
         kind: InstallerKind,
     ) -> Result<&DesktopInstaller> {
         self.validate()?;
-        self.assets
-            .iter()
-            .find(|a| a.target == target && a.kind == kind)
-            .context("Unsupported desktop target")
+        self.assets.iter().find(|a| a.target == target && a.kind == kind).with_context(|| {
+            format!("No {kind:?} installer available for desktop target: {target}")
+        })
     }
 
     fn validate(&self) -> Result<()> {
         let version = canonical_version(&self.version)?;
         let specs = installer_specs(version);
-        if self.assets.len() != specs.len() {
-            bail!("Expected exactly eight desktop installers (including Linux DEB and RPM)");
+        if self.assets.is_empty() {
+            bail!("No desktop installers available");
         }
-        for (target, kind, name) in specs {
-            let matches: Vec<_> =
-                self.assets.iter().filter(|a| a.target == target && a.kind == kind).collect();
-            if matches.len() != 1 {
-                bail!("Missing or duplicate installer target: {target}");
+        for (index, asset) in self.assets.iter().enumerate() {
+            let target = &asset.target;
+            let kind = asset.kind;
+            let Some((_, _, name)) = specs.iter().find(|(t, k, _)| t == target && *k == kind)
+            else {
+                bail!("Unsupported installer target/kind: {target}/{kind:?}");
+            };
+            if self.assets[..index].iter().any(|a| a.target == *target && a.kind == kind) {
+                bail!("Duplicate installer target: {target}");
             }
-            let asset = matches[0];
-            if asset.name != name || asset.kind != kind {
+            if asset.name != *name {
                 bail!("Installer name/kind does not match target: {target}");
             }
             if asset.size == 0
@@ -208,8 +210,11 @@ fn parse_desktop_release(
             for (target, kind, name) in installer_specs(&version) {
                 let matches: Vec<_> =
                     raw.assets.iter().filter(|a| a["name"].as_str() == Some(&name)).collect();
-                if matches.len() != 1 {
-                    bail!("Missing or duplicate GitHub installer: {name}");
+                if matches.is_empty() {
+                    continue;
+                }
+                if matches.len() > 1 {
+                    bail!("Duplicate GitHub installer: {name}");
                 }
                 let asset = matches[0];
                 assets.push(DesktopInstaller {

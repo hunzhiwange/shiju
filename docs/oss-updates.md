@@ -42,8 +42,11 @@ API 重定向直接拒绝。安装包下载不附带该令牌，不读取 OSS �
 | aarch64-apple-darwin | dmg | ShiJu-macos-aarch64-apple-darwin-dist.dmg |
 | x86_64-apple-darwin | dmg | ShiJu-macos-x86_64-apple-darwin-dist.dmg |
 
-只按上述精确文件名选择，缺失或重复直接失败。其它 CLI/desktop/webview ZIP/TAR
+生成器只按上述精确文件名选择，缺失或重复直接失败。其它 CLI/desktop/webview ZIP/TAR
 资产被忽略。顺序固定为上表顺序，不受 API 数组顺序影响。
+桌面更新消费端允许清单缺少部分平台或安装器（包括历史六包清单），检查更新时校验
+已有安装包，选择下载时才检查所需 target/kind 是否存在。空清单、重复条目及已有包的
+非法字段仍拒绝；GitHub 来源同样允许缺包，并继续忽略其它非桌面安装资产。
 
 ## 清单与发布边界
 

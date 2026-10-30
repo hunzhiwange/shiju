@@ -129,6 +129,7 @@ pub struct ToolUseContext {
     workflow: Arc<Mutex<WorkflowState>>,
     pending_image_reloads: Arc<Mutex<PendingImageReloadQueue>>,
     tool_discovery: Option<Arc<super::tool_search::ToolDiscoverySession>>,
+    tool_exposure_snapshot: Option<Arc<BTreeSet<String>>>,
 }
 
 impl Default for ToolUseContext {
@@ -198,6 +199,7 @@ impl ToolUseContext {
             workflow: Arc::new(Mutex::new(WorkflowState::default())),
             pending_image_reloads: Arc::new(Mutex::new(PendingImageReloadQueue::default())),
             tool_discovery: None,
+            tool_exposure_snapshot: None,
         }
     }
 
@@ -231,14 +233,26 @@ impl ToolUseContext {
         self.tool_discovery.clone()
     }
 
-    // Request-loop construction is wired in the following plan tasks.
-    #[allow(dead_code)]
     pub(crate) fn with_tool_discovery(
         mut self,
         discovery: Arc<super::tool_search::ToolDiscoverySession>,
     ) -> Self {
         self.tool_discovery = Some(discovery);
         self
+    }
+
+    /// Immutable visibility for the model request that produced these calls.
+    pub(crate) fn with_tool_exposure_snapshot(
+        mut self,
+        ids: impl IntoIterator<Item = String>,
+    ) -> Self {
+        self.tool_exposure_snapshot = Some(Arc::new(ids.into_iter().collect()));
+        self
+    }
+
+    pub(crate) fn tool_is_exposed(&self, id: &str) -> bool {
+        self.tool_discovery.as_ref().is_none_or(|discovery| discovery.authorizes(id))
+            && self.tool_exposure_snapshot.as_ref().is_none_or(|ids| ids.contains(id))
     }
 
     /// 返回当前会话是否启用了完全访问权限。

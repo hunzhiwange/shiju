@@ -218,6 +218,12 @@ async fn prepare_tool_input(
     };
 
     let spec = tool.spec();
+    if !context.tool_is_exposed(&spec.id) {
+        return Err(ToolCallError::denied(format!(
+            "tool not exposed in this model request: {}",
+            spec.id
+        )));
+    }
     let normalized = normalize_tool_args(spec.id.as_str(), input);
     let validated = tool.validate_input(normalized).map_err(classify_anyhow_error)?;
     let approved_input = finalize_tool_input(tool, validated, context).await?;

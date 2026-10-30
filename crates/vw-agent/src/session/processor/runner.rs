@@ -634,6 +634,12 @@ fn run_in_project(
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
     let allowed_tools =
         allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
+    let discovery = std::sync::Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(
+        available_tool_specs.into_iter().filter(|spec| allowed_tools.contains(&spec.id)).collect(),
+    ));
+    ctx = ctx.clone().with_tool_use_context(
+        ctx.tool_use_context().as_ref().clone().with_tool_discovery(discovery.clone()),
+    );
     let prompt_tool_ids = allowed_tools.iter().cloned().collect::<Vec<_>>();
     base_system = base_system.with_runtime_context_and_modes(
         selected_model.step_event_model(),
@@ -724,7 +730,17 @@ fn run_in_project(
         let is_last_step = step >= turn_policy.max_iterations;
         let empty_tools = HashSet::<String>::new();
         let system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
-        let tools_for_step = if is_last_step { &empty_tools } else { &allowed_tools };
+        let tool_specs_for_context =
+            if is_last_step { Vec::new() } else { discovery.exposed_specs() };
+        let exposed_tools =
+            tool_specs_for_context.iter().map(|spec| spec.id.clone()).collect::<HashSet<_>>();
+        let tools_for_step = &exposed_tools;
+        let step_ctx = ctx.clone().with_tool_use_context(
+            ctx.tool_use_context()
+                .as_ref()
+                .clone()
+                .with_tool_exposure_snapshot(exposed_tools.iter().cloned()),
+        );
 
         let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
         tracing::debug!(
@@ -748,15 +764,6 @@ fn run_in_project(
         // LLM step will actually receive. In particular, OCR's nested request
         // disables tools and should not spend its input budget on every local
         // tool schema.
-        let tool_specs_for_context = if is_last_step {
-            Vec::new()
-        } else {
-            available_tool_specs
-                .iter()
-                .filter(|spec| allowed_tools.contains(&spec.id))
-                .cloned()
-                .collect::<Vec<_>>()
-        };
         let assembled_messages = match session_protocol.assemble(
             &llm_messages,
             base_system.instruction_context(),
@@ -866,7 +873,7 @@ fn run_in_project(
             &system,
             Some(selected_model.model.clone()),
             &provider_options,
-            &available_tool_specs,
+            &tool_specs_for_context,
             tools_for_step,
             &mut on_event,
             &mut retry_budget,
@@ -1025,8 +1032,8 @@ fn run_in_project(
                 let ran_todo_update = handle_structured_tool_calls(
                     &req,
                     &mut session,
-                    &ctx,
-                    &allowed_tools,
+                    &step_ctx,
+                    tools_for_step,
                     &base_system.content,
                     &mut llm_messages,
                     &mut total_usage,
@@ -1061,8 +1068,8 @@ fn run_in_project(
         if handle_assistant_text_branch(
             &req,
             &mut session,
-            &ctx,
-            &allowed_tools,
+            &step_ctx,
+            tools_for_step,
             &mut llm_messages,
             &mut total_usage,
             &mut on_event,

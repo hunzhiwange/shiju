@@ -12,6 +12,36 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 static NEXT_SESSION: AtomicU64 = AtomicU64::new(0);
 
 #[test]
+fn codex_discovery_processor_batch_inner_call_respects_request_snapshot() {
+    let workspace = tempfile::tempdir().unwrap();
+    let file = workspace.path().join("private.txt");
+    std::fs::write(&file, "PRIVATE_FIXTURE_CONTENT").unwrap();
+    let ctx = ToolRuntimeContext::new(
+        "snapshot-batch",
+        Some(workspace.path().to_string_lossy().into_owned()),
+    )
+    .with_test_config(crate::config::Config::default())
+    .with_tool_use_context(
+        ToolUseContext::new(
+            "snapshot-batch",
+            Some(workspace.path().to_string_lossy().into_owned()),
+        )
+        .with_tool_exposure_snapshot(["batch".to_string()]),
+    );
+    let mut session = Session::new("snapshot-batch".to_string());
+    let output = super::run_batch_tool_and_record(
+        &mut session,
+        &json!({"tool_calls":[{"tool":"file_read","parameters":{"path":file}}]}).to_string(),
+        &ctx,
+        false,
+        &mut |_| true,
+        &mut Default::default(),
+    );
+    assert!(output.contains("not exposed"), "{output}");
+    assert!(!output.contains("PRIVATE_FIXTURE_CONTENT"));
+}
+
+#[test]
 fn typed_tool_event_keeps_call_id_status_and_sanitized_payload() {
     let event = super::tool_stream_event(
         "call-1".to_string(),

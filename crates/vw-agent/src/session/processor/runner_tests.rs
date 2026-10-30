@@ -1710,3 +1710,313 @@ fn manual_main_model_save_changes_next_auto_request_in_same_session() {
         );
     }
 }
+
+struct DiscoveryFileTool {
+    id: &'static str,
+    path: std::path::PathBuf,
+}
+
+#[async_trait::async_trait]
+impl crate::tools::Tool for DiscoveryFileTool {
+    fn name(&self) -> &str {
+        self.id
+    }
+    fn description(&self) -> &str {
+        self.id
+    }
+    fn parameters_schema(&self) -> serde_json::Value {
+        serde_json::json!({"type":"object","properties":{},"additionalProperties":false})
+    }
+    async fn execute(&self, _: serde_json::Value) -> anyhow::Result<crate::tools::ToolResult> {
+        std::fs::write(&self.path, "invoked")?;
+        Ok(crate::tools::ToolResult {
+            success: true,
+            output: "local fixture completed".into(),
+            error: None,
+        })
+    }
+}
+
+const DISCOVERY_ALPHA: &str = "mcp__fixture__alpha";
+const DISCOVERY_BETA: &str = "mcp__fixture__beta";
+
+fn discovery_stream(calls: &[(&str, &str, serde_json::Value)]) {
+    use crate::session::llm::{StreamEvent, ToolCall};
+    let mut events = if calls.is_empty() {
+        vec![StreamEvent::Delta("finished".into())]
+    } else {
+        vec![StreamEvent::ToolCalls(
+            calls
+                .iter()
+                .map(|(id, name, args)| ToolCall {
+                    id: (*id).into(),
+                    name: (*name).into(),
+                    arguments: args.to_string(),
+                })
+                .collect(),
+        )]
+    };
+    events
+        .push(StreamEvent::Done { usage: Default::default(), finish_reason: Some("stop".into()) });
+    super::llm_runner::enqueue_test_llm_stream(events);
+}
+
+fn discovery_request(workspace: &std::path::Path) -> super::Request {
+    let mut req = request_with_session(&unique_session_id("discovery-processor"));
+    req.query = "perform the requested action".into();
+    req.root = Some(workspace.to_string_lossy().into_owned());
+    req.model = Some("model-recovery/original".into());
+    req.options = serde_json::json!({"allowed_tools":["tool_search", DISCOVERY_ALPHA, DISCOVERY_BETA, "batch"], "full_access":true});
+    req.reliability.provider_backoff_ms = 0;
+    req.session_tools = crate::session::runtime::SessionToolset::new(vec![
+        std::sync::Arc::new(DiscoveryFileTool {
+            id: DISCOVERY_ALPHA,
+            path: workspace.join("alpha"),
+        }),
+        std::sync::Arc::new(DiscoveryFileTool { id: DISCOVERY_BETA, path: workspace.join("beta") }),
+    ]);
+    req
+}
+
+#[test]
+fn codex_discovery_processor_search_exposes_only_hit_on_next_request_and_calls_it() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = super::llm_runner::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let req = discovery_request(workspace.path());
+    let session = req.session.clone();
+    discovery_stream(&[("search", "tool_search", serde_json::json!({"query":"alpha"}))]);
+    discovery_stream(&[("invoke", DISCOVERY_ALPHA, serde_json::json!({}))]);
+    discovery_stream(&[]);
+    super::run(req, |_| true);
+    let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+    assert_eq!(ids.len(), 3);
+    assert!(
+        !ids[0].iter().any(|id| id.starts_with("mcp__")),
+        "first request must defer schemas: {ids:?}"
+    );
+    assert!(ids[0].contains(&"tool_search".to_string()));
+    assert!(ids[1].contains(&DISCOVERY_ALPHA.to_string()));
+    assert!(!ids[1].contains(&DISCOVERY_BETA.to_string()));
+    assert!(workspace.path().join("alpha").exists());
+    assert!(!workspace.path().join("beta").exists());
+    let requests = super::llm_runner::take_test_llm_messages(&session);
+    assert!(requests[1].messages.iter().any(|m| m["tool_call_id"] == "search"
+        && m["content"].as_str().is_some_and(|s| s.contains(DISCOVERY_ALPHA))));
+    assert!(requests[2].messages.iter().any(|m| m["tool_call_id"] == "invoke"
+        && m["content"].as_str().is_some_and(|s| s.contains("local fixture completed"))));
+}
+
+fn with_discovery_processor_test(run: impl FnOnce(&tempfile::TempDir, &tokio::runtime::Runtime)) {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = super::llm_runner::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    run(&workspace, &runtime);
+}
+
+#[test]
+fn codex_discovery_processor_same_round_search_cannot_authorize_direct_call() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        discovery_stream(&[
+            ("search", "tool_search", serde_json::json!({"query":"alpha"})),
+            ("premature", DISCOVERY_ALPHA, serde_json::json!({})),
+        ]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        assert!(!workspace.path().join("alpha").exists());
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 2);
+        assert!(requests[1].messages.iter().any(|m| m["tool_call_id"] == "premature"
+            && m["content"].as_str().is_some_and(|s| s.contains("tool denied"))));
+        assert!(
+            super::llm_runner::take_test_llm_stream_tool_ids()[1]
+                .contains(&DISCOVERY_ALPHA.to_string())
+        );
+    });
+}
+
+#[test]
+fn codex_discovery_processor_same_round_search_cannot_authorize_batch_inner_call() {
+    with_discovery_processor_test(|workspace, _| {
+        let req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        discovery_stream(&[
+            ("search", "tool_search", serde_json::json!({"query":"alpha"})),
+            (
+                "batch",
+                "batch",
+                serde_json::json!({"tool_calls":[{"tool":DISCOVERY_ALPHA,"parameters":{}}]}),
+            ),
+        ]);
+        discovery_stream(&[(
+            "later",
+            "batch",
+            serde_json::json!({"tool_calls":[{"tool":DISCOVERY_ALPHA,"parameters":{}}]}),
+        )]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert!(requests[1].messages.iter().any(|m| m["tool_call_id"] == "batch"
+            && m["content"].as_str().is_some_and(|s| s.contains("not exposed"))));
+        assert!(requests[2].messages.iter().any(|m| m["tool_call_id"] == "later"
+            && m["content"].as_str().is_some_and(|s| s.contains("local fixture completed"))));
+        assert!(workspace.path().join("alpha").exists());
+    });
+}
+
+#[test]
+fn codex_discovery_processor_failed_search_preserves_visibility_and_repeated_hits_are_unique() {
+    with_discovery_processor_test(|workspace, _| {
+        discovery_stream(&[("bad", "tool_search", serde_json::json!({"query":" "}))]);
+        discovery_stream(&[("valid", "tool_search", serde_json::json!({"query":"alpha"}))]);
+        discovery_stream(&[("repeat", "tool_search", serde_json::json!({"query":"alpha"}))]);
+        discovery_stream(&[]);
+        super::run(discovery_request(workspace.path()), |_| true);
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 4);
+        assert_eq!(ids[0], ids[1]);
+        assert_eq!(ids[2], ids[3]);
+        assert_eq!(ids[2].iter().filter(|id| id.as_str() == DISCOVERY_ALPHA).count(), 1);
+        assert!(!workspace.path().join("alpha").exists());
+    });
+}
+
+#[test]
+fn codex_discovery_processor_final_step_omits_tools_even_after_loading() {
+    with_discovery_processor_test(|workspace, runtime| {
+        runtime
+            .block_on(crate::config::update(
+                serde_json::json!({"agents":{"main":{"provider":"model-recovery","model":"original","max_iterations":1}}}),
+            ))
+            .unwrap();
+        discovery_stream(&[("search", "tool_search", serde_json::json!({"query":"alpha"}))]);
+        discovery_stream(&[]);
+        super::run(discovery_request(workspace.path()), |_| true);
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 2);
+        assert!(ids[0].contains(&"tool_search".to_string()));
+        assert!(ids[1].is_empty());
+    });
+}
+
+#[test]
+fn codex_discovery_processor_retry_preserves_loaded_snapshot_without_duplicates() {
+    with_discovery_processor_test(|workspace, _| {
+        let mut req = discovery_request(workspace.path());
+        req.reliability.provider_retries = 1;
+        discovery_stream(&[("search", "tool_search", serde_json::json!({"query":"alpha"}))]);
+        super::llm_runner::enqueue_test_llm_stream(vec![crate::session::llm::StreamEvent::Error(
+            crate::session::message::AssistantError::APIError {
+                message: "temporary failure".into(),
+                status_code: Some(503),
+                is_retryable: true,
+                response_headers: None,
+                response_body: None,
+                metadata: None,
+            },
+        )]);
+        discovery_stream(&[("invoke", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 4);
+        assert_eq!(ids[1], ids[2]);
+        assert_eq!(ids[1].iter().filter(|id| id.as_str() == DISCOVERY_ALPHA).count(), 1);
+        assert!(workspace.path().join("alpha").exists());
+    });
+}
+
+#[test]
+fn codex_discovery_processor_cancelled_turn_does_not_restore_loaded_tools_from_history() {
+    with_discovery_processor_test(|workspace, _| {
+        let mut req = discovery_request(workspace.path());
+        let session = req.session.clone();
+        discovery_stream(&[("search", "tool_search", serde_json::json!({"query":"alpha"}))]);
+        super::run(req.clone(), |event| !matches!(event, super::StreamEvent::PostToolRound { .. }));
+        assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids().len(), 1);
+        req.history = vec![crate::session::ui_types::ChatMessage {
+            role: crate::session::ui_types::ChatRole::Tool,
+            content: serde_json::json!({
+                "tools":[{"id":DISCOVERY_ALPHA}],
+                "context_updates":[{"key":"loaded_tools","value":[DISCOVERY_ALPHA]}]
+            })
+            .to_string(),
+            model: None,
+            think_timing: Vec::new(),
+            processing_timing: None,
+        }];
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 1);
+        assert!(!ids[0].contains(&DISCOVERY_ALPHA.to_string()));
+        assert!(!workspace.path().join("alpha").exists());
+        super::llm_runner::take_test_llm_messages(&session);
+    });
+}
+
+#[test]
+fn codex_discovery_processor_disable_tools_omits_search_and_deferred_tools() {
+    with_discovery_processor_test(|workspace, _| {
+        let mut req = discovery_request(workspace.path());
+        req.options["disable_tools"] = serde_json::json!(true);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        assert_eq!(super::llm_runner::take_test_llm_stream_tool_ids(), vec![Vec::<String>::new()]);
+    });
+}
+
+#[test]
+fn codex_discovery_processor_forbidden_tool_cannot_be_searched_or_called() {
+    with_discovery_processor_test(|workspace, _| {
+        let mut req = discovery_request(workspace.path());
+        req.options["allowed_tools"] = serde_json::json!(["tool_search", DISCOVERY_ALPHA]);
+        let session = req.session.clone();
+        discovery_stream(&[("search", "tool_search", serde_json::json!({"query":"beta"}))]);
+        discovery_stream(&[("forbidden", DISCOVERY_BETA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        assert!(!workspace.path().join("beta").exists());
+        assert!(
+            super::llm_runner::take_test_llm_stream_tool_ids()
+                .iter()
+                .all(|ids| !ids.contains(&DISCOVERY_BETA.to_string()))
+        );
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert!(requests[1].messages.iter().any(|m| m["tool_call_id"] == "search"
+            && m["content"].as_str().is_some_and(|s| s.contains("\"tools\":[]"))));
+        assert!(requests[2].messages.iter().any(|m| m["tool_call_id"] == "forbidden"
+            && m["content"].as_str().is_some_and(|s| s.contains("tool denied"))));
+    });
+}
+
+#[test]
+fn codex_discovery_processor_search_disabled_exposes_authorized_mcp_directly() {
+    with_discovery_processor_test(|workspace, _| {
+        let mut req = discovery_request(workspace.path());
+        req.options["allowed_tools"] = serde_json::json!([DISCOVERY_ALPHA]);
+        discovery_stream(&[("direct", DISCOVERY_ALPHA, serde_json::json!({}))]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let ids = super::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(ids.len(), 2);
+        assert!(ids[0].contains(&DISCOVERY_ALPHA.to_string()));
+        assert!(!ids[0].contains(&DISCOVERY_BETA.to_string()));
+        assert!(!ids[0].contains(&"tool_search".to_string()));
+        assert!(workspace.path().join("alpha").exists());
+    });
+}

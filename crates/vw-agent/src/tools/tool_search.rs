@@ -19,8 +19,6 @@ pub(crate) struct ToolDiscoverySession {
 }
 
 impl ToolDiscoverySession {
-    // Request-loop construction is wired in the following plan tasks.
-    #[allow(dead_code)]
     pub(crate) fn new(authorized_specs: Vec<ToolSpec>) -> Self {
         let search_allowed = authorized_specs.iter().any(|spec| spec.id == TOOL_SEARCH_ID);
         let catalog = ToolDiscoveryCatalog::new(authorized_specs);

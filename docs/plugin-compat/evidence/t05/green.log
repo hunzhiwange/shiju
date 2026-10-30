@@ -1,0 +1,16 @@
+    Blocking waiting for file lock on package cache
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 01s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 8 tests
+test plugins::compat::t05_tests::codex_plugin_compat_t05_rejects_component_escape ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_rejects_invalid_input ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_preserves_isolation ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host ... ok
+test plugins::compat::t05_tests::codex_plugin_compat_t05_audits_each_explicit_path_and_array ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 10440 filtered out; finished in 0.02s

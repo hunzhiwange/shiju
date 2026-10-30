@@ -3,7 +3,7 @@
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use serde_json::Value;
-use std::path::{Component, Path};
+use std::path::Path;
 
 use super::super::audit::resolve_component_path;
 use super::super::manifest::{RawPluginInterface, normalize_interface};
@@ -65,7 +65,7 @@ pub(crate) fn parse_legacy_manifest(
         .filter(|interface| interface != &PluginInterface::default());
     let mcp_servers = match raw.mcp_servers {
         Some(Value::String(path)) => {
-            Some(PluginMcpServers::Path(legacy_path(root, "mcpServers", &path)?))
+            Some(PluginMcpServers::Path(resolve_component_path(root, "mcpServers", &path)?))
         }
         Some(Value::Object(servers)) => Some(PluginMcpServers::Inline(servers)),
         None => None,
@@ -81,7 +81,7 @@ pub(crate) fn parse_legacy_manifest(
         .and_then(Value::as_str)
         .map(|path| {
             let path = format!("./{}", path.strip_prefix("./").unwrap_or(path));
-            legacy_path(root, "extensions.com.openai.onboardingSkill", &path)
+            resolve_component_path(root, "extensions.com.openai.onboardingSkill", &path)
         })
         .transpose()?;
     Ok(PluginManifest {
@@ -101,7 +101,7 @@ pub(crate) fn parse_legacy_manifest(
         skills: paths(root, "skills", raw.skills)?,
         mcp_servers,
         hooks: hooks(root, raw.hooks)?,
-        apps: raw.apps.map(|path| legacy_path(root, "apps", &path)).transpose()?,
+        apps: raw.apps.map(|path| resolve_component_path(root, "apps", &path)).transpose()?,
         onboarding_skill,
         interface,
     })
@@ -120,21 +120,7 @@ fn paths(root: &Path, field: &str, value: Option<Value>) -> Result<Vec<PluginPat
             return Ok(Vec::new());
         }
     };
-    paths.iter().map(|path| legacy_path(root, field, path)).collect()
-}
-
-fn legacy_path(root: &Path, field: &str, path: &str) -> Result<PluginPath> {
-    let relative = path.strip_prefix("./").unwrap_or(path);
-    if relative.is_empty()
-        || Path::new(relative).components().any(|part| {
-            matches!(part, Component::ParentDir | Component::RootDir | Component::Prefix(_))
-        })
-    {
-        bail!(
-            "Plugin manifest field {field} path escapes plugin root or contains a parent component: {path}"
-        );
-    }
-    resolve_component_path(root, field, path)
+    paths.iter().map(|path| resolve_component_path(root, field, path)).collect()
 }
 
 fn hooks(root: &Path, value: Option<Value>) -> Result<Vec<PluginHookSource>> {

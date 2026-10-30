@@ -1,0 +1,24 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+error[E0277]: the trait bound `Array<u8, UInt<UInt<UInt<UInt<_, B0>, B0>, B0>, B0>>: LowerHex` is not satisfied
+  --> crates/vw-agent/src/skills/listing.rs:45:46
+   |
+45 |                 fingerprint: format!("{:x}", Sha256::digest(metadata.to_string().as_bytes())),
+   |                                       ----   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `LowerHex` is not implemented for `Array<u8, UInt<UInt<UInt<UInt<UInt<_, B0>, B0>, B0>, B0>, B0>>`
+   |                                       |
+   |                                       required by this formatting parameter
+   |
+   = help: the following other types implement trait `LowerHex`:
+             &T
+             &mut T
+             AttrCheckFlags
+             BinlogDumpFlags
+             BlockHash
+             Braced
+             BytesMut
+             CapabilityFlags
+           and 346 others
+   = note: the full name for the type has been written to '/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a.long-type-17276163857155267169.txt'
+   = note: consider using `--verbose` to print the full type name to the console
+
+For more information about this error, try `rustc --explain E0277`.
+error: could not compile `vw-agent` (lib test) due to 1 previous error

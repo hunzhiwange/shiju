@@ -1,0 +1,521 @@
+{
+  "schema_version": 1,
+  "task": 5,
+  "items": [
+    {
+      "id": "manifest.interface.composerIcon",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [
+        3,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    },
+    {
+      "id": "manifest.interface.logo",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [
+        3,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    },
+    {
+      "id": "manifest.interface.logoDark",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [
+        3,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    },
+    {
+      "id": "manifest.interface.screenshots",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [
+        3,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    },
+    {
+      "id": "paths.manifest",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [
+        64
+      ],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    },
+    {
+      "id": "mcp.portable.path-boundary",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [
+        16,
+        64
+      ],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    },
+    {
+      "id": "acceptance.t05",
+      "tasks": [
+        5
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t05_rejects_component_escape",
+        "codex_plugin_compat_t05_rejects_invalid_input",
+        "codex_plugin_compat_t05_preserves_isolation",
+        "codex_plugin_compat_t05_audits_each_explicit_path_and_array",
+        "codex_plugin_compat_t05_rejects_absolute_and_windows_spelling_on_every_host",
+        "codex_plugin_compat_t05_distinguishes_optional_defaults_from_explicit_missing_paths",
+        "codex_plugin_compat_t05_retains_file_directory_array_and_inline_origins",
+        "codex_plugin_compat_t05_rejects_internal_external_and_broken_symlinks"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "record": "t05/green.log",
+        "effective_tests": 8
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 5 static manifest component admission only. Joint task mappings, MCP runtime root/data expansion, execution permissions, UI rendering and real Linux/Windows acceptance remain separate."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      2
+    ],
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+    "lease_released": true,
+    "lease_note": "Each owned lease was released by the runner finally block after all child processes ended. A subsequent owner may reuse the shared slot."
+  },
+  "validation_runs": [
+    {
+      "phase": "fmt-red",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/fmt-red.log"
+    },
+    {
+      "phase": "red-compile-interference",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/red-compile-interference.log"
+    },
+    {
+      "phase": "red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/red.log",
+      "effective_tests": 3,
+      "observed_target_assertions": 3
+    },
+    {
+      "phase": "fmt",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/fmt.log"
+    },
+    {
+      "phase": "green-test-compile-fix",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/green-test-compile-fix.log"
+    },
+    {
+      "phase": "fmt-final",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/fmt-final.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t05_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/green.log",
+      "effective_tests": 8
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/adjacent.log",
+      "effective_tests": 140
+    },
+    {
+      "phase": "clippy",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "record": "t05/clippy.log"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t05.json",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t05.json",
+      "exit_code": 1,
+      "expected": "Unmodified full frozen baseline rejects partial Task 5 evidence",
+      "diagnostic": "Evidence rejected: discovery.legacy-order: missing evidence item"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "red_note": "All three original registered real-loader target assertions executed and panicked on the pre-change implementation. The host subsequently aborted while initiating panic (SIGABRT); no completed failed-test summary is invented. A separate initial compile failure in concurrent skills/listing.rs is excluded from behavioral evidence. The same three tests are in the final 8-test green run.",
+  "reference_snapshot": {
+    "kind": "Local source frozen by SHA-256; no Git revision asserted",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugins/src/manifest.rs": "cb6cc5e8e2004d1533141a3f11f3460a1aa8c2e0295c9583ae9726c6a75b2802",
+      "codex-rs/codex-mcp/src/agent_plugin_config.rs": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a"
+    },
+    "symbols": [
+      "resolve_manifest_path",
+      "resolve_manifest_paths",
+      "resolve_interface_asset_path",
+      "resolve_openai_onboarding_skill",
+      "resolve_manifest_mcp_servers",
+      "resolve_manifest_hooks",
+      "resolve_existing_path_prefix",
+      "resolve_contained_host_path",
+      "is_portable_path_suffix"
+    ]
+  },
+  "package_isolation": [
+    "Real public-loader tests reject parent escape and re-entry before granting a trusted resource path.",
+    "Original manifest bytes, synthetic resources and adjacent external sentinel bytes stay unchanged; a failed load does not contaminate later loads.",
+    "No implicit default directories/files, native manifest, cache, state or credentials are written into packages. Inline MCP and Hooks data are retained without execution."
+  ],
+  "security_differences": [
+    "All formats now share component lexical admission, including interface arrays and onboarding after its documented optional-prefix normalization.",
+    "Invalid explicit paths reject the manifest rather than the Codex warning-and-skip behavior. Existing resources and symlink-free components are required; internal, external and broken symlinks are rejected.",
+    "Windows drive roots and backslash spelling are rejected on every host, including filenames that POSIX could otherwise accept. All parent components and root-only aliases are rejected before traversal.",
+    "Only implicit fixed portable skills and mcp.json conventions may be absent at parse time; explicit missing resources still fail. Static admission does not replace runtime checks or grant execution rights."
+  ],
+  "deferred_scope": {
+    "9": "Actual loading/use of default and multiple skill directories.",
+    "15": "Portable MCP optional-file execution semantics.",
+    "16": "MCP runtime cwd and root/data placeholder expansion, including allowed generated child directories.",
+    "55": "Actual desktop interface rendering.",
+    "64": "Real Linux and Windows acceptance; lexical spelling cases on macOS are not platform execution evidence."
+  },
+  "artifacts_sha256": {
+    "crates/vw-agent/testdata/plugin_compat/t05/README.md": "6df7d1b496aa09147a7c0bac460bc4f61325b0af04e57a7903c21cd77b0b9ea3",
+    "crates/vw-agent/testdata/plugin_compat/t05/root_aliases.json": "01f80139b91257e689c9a5e791355a43aea8fe712b3c4ea5f5eff0ba5681891c",
+    "docs/plugin-compat/evidence/t05/adjacent.log": "a302d08667d31f0302e379276aac7fa27032a995c18dd6b7b24e0d7f31844791",
+    "docs/plugin-compat/evidence/t05/adjacent.run.json": "680e6656abb840d0768ce423f3a0c38d3e41a7d38d1d61f6a9068c7f4920ca10",
+    "docs/plugin-compat/evidence/t05/clippy.log": "96e22c48475be67222e133df45d3a47bbba09ac86e1e6b9c198f580e56916bdb",
+    "docs/plugin-compat/evidence/t05/clippy.run.json": "7d1dd8d23091b26b2dd14386ecad92f87d53a81bc85b3b52357d55478997d1e0",
+    "docs/plugin-compat/evidence/t05/fmt-final.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/plugin-compat/evidence/t05/fmt-final.run.json": "fd5ee3454d5849b85e890e2a5dcb8aaf65d2fbdcc398d1b21ce7eb223a280217",
+    "docs/plugin-compat/evidence/t05/fmt-red.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/plugin-compat/evidence/t05/fmt-red.run.json": "ab2f9f1fc0506ccec631ec7c2df170a6f4fe8438d8d338338ff083b03ced0e25",
+    "docs/plugin-compat/evidence/t05/fmt.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "docs/plugin-compat/evidence/t05/fmt.run.json": "4bcdc695615c54dabc5e2628d28d0cdff9cbcddf7219ed965dfe4c9ea495af94",
+    "docs/plugin-compat/evidence/t05/green-test-compile-fix.log": "52b058a783c8a02acc3f56d89943b31c9a2bc3b6f67073eee7d4a8b26f47e196",
+    "docs/plugin-compat/evidence/t05/green-test-compile-fix.run.json": "d9650039cd50582cc2b74ad33862848c77b1e22dbe5a6bb0ad8b939e9986cdf0",
+    "docs/plugin-compat/evidence/t05/green.log": "10f6daa3afe4b08eff13b0e8e455da9df1739681f0c466dd40ef5c334a7760f9",
+    "docs/plugin-compat/evidence/t05/green.run.json": "d3910469995d2b5b66af65ef6f8c071b36a1e6dfa541096cd79df181d7017a8e",
+    "docs/plugin-compat/evidence/t05/red-compile-interference.log": "e8b675acb702ef3ea3f7ab84aacff84b9a3864a930a469f3cfe343613da2985e",
+    "docs/plugin-compat/evidence/t05/red-compile-interference.run.json": "fad441f22b7c0d2875021bcfa52258389a39ae8e1386130fdc4244f6cc381561",
+    "docs/plugin-compat/evidence/t05/red.log": "8941a71bf01e005eea7897db2f878063affb0f6b51bb0151b81cc6b79b59828c",
+    "docs/plugin-compat/evidence/t05/red.run.json": "49c5e56bc8d4fb9a630e673837c3e24e3971ff2d938c1feb272a0f344c2bffcb"
+  },
+  "artifact_note": "Captured logs retain runtime output with nonsemantic trailing whitespace and final blank lines normalized for diff checks.",
+  "scope_note": "Partial Task 5 macOS evidence, not a claim of complete plugin compatibility. The unmodified complete frozen-baseline checker must reject this partial task record."
+}

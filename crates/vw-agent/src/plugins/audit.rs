@@ -6,6 +6,7 @@ use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
+use super::compat::path_audit::validate_component_path;
 use super::types::PluginPath;
 
 /// 规范化插件根目录，并拒绝符号链接或非目录入口。
@@ -63,9 +64,7 @@ pub(super) fn resolve_component_path(
     field: &str,
     raw: &str,
 ) -> Result<PluginPath> {
-    if !raw.starts_with("./") {
-        bail!("Plugin manifest field {field} path must start with './': {raw}");
-    }
+    validate_component_path(field, raw)?;
 
     let relative = Path::new(raw);
     if relative.is_absolute() {
@@ -92,16 +91,29 @@ fn ensure_no_symlink_components(canonical_root: &Path, relative: &Path, field: &
         match component {
             Component::CurDir => {}
             Component::ParentDir => {
-                current.pop();
+                bail!(
+                    "Plugin manifest field {field} path escapes plugin root or contains a parent component: {}",
+                    relative.display()
+                );
             }
             Component::Normal(part) => {
                 current.push(part);
-                if let Ok(metadata) = fs::symlink_metadata(&current) {
-                    if metadata.file_type().is_symlink() {
+                match fs::symlink_metadata(&current) {
+                    Ok(metadata) if metadata.file_type().is_symlink() => {
                         bail!(
                             "Plugin manifest field {field} path includes symlink: {}",
                             current.display()
                         );
+                    }
+                    Ok(_) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(error) => {
+                        return Err(error).with_context(|| {
+                            format!(
+                                "failed to inspect plugin manifest field {field} path: {}",
+                                current.display()
+                            )
+                        });
                     }
                 }
             }

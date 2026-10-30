@@ -1,0 +1,15 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+error[E0507]: cannot move out of `map` in pattern guard
+   --> crates/vw-agent/src/plugins/compat/t05_tests.rs:236:101
+    |
+236 |                 matches!(manifest.mcp_servers, Some(PluginMcpServers::Inline(map)) if Value::Object(map) == servers)
+    |                                                                                                     ^^^ move occurs because `map` has type `serde_json::Map<std::string::String, serde_json::Value>`, which does not implement the `Copy` trait
+    |
+    = note: variables bound in patterns cannot be moved from until after the end of the pattern guard
+help: consider cloning the value if the performance cost is acceptable
+    |
+236 |                 matches!(manifest.mcp_servers, Some(PluginMcpServers::Inline(map)) if Value::Object(map.clone()) == servers)
+    |                                                                                                        ++++++++
+
+For more information about this error, try `rustc --explain E0507`.
+error: could not compile `vw-agent` (lib test) due to 1 previous error

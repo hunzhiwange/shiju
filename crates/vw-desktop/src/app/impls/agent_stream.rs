@@ -310,6 +310,7 @@ fn workflow_role_label(role: crate::app::models::ChatRole) -> &'static str {
         crate::app::models::ChatRole::User => "User",
         crate::app::models::ChatRole::Assistant => "Assistant",
         crate::app::models::ChatRole::System => "System",
+        crate::app::models::ChatRole::Developer => "Developer",
         crate::app::models::ChatRole::Tool => "Tool",
     }
 }
@@ -2072,6 +2073,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                         models::ChatRole::User => "user",
                         models::ChatRole::Assistant => "assistant",
                         models::ChatRole::System => "system",
+                        models::ChatRole::Developer => "developer",
                         models::ChatRole::Tool => "tool",
                     },
                     "content": message.content,

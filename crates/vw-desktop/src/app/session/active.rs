@@ -57,7 +57,7 @@ fn build_message_meta_labels(
                     message_meta_text(message.model.as_deref(), time_ms)
                 }
             }
-            ChatRole::System | ChatRole::Tool => None,
+            ChatRole::System | ChatRole::Developer | ChatRole::Tool => None,
         };
         labels.push(label);
     }
@@ -90,7 +90,7 @@ fn build_message_meta_label(
                 message_meta_text(message.model.as_deref(), time_ms)
             }
         }
-        ChatRole::System | ChatRole::Tool => None,
+        ChatRole::System | ChatRole::Developer | ChatRole::Tool => None,
     }
 }
 

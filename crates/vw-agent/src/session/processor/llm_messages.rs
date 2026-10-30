@@ -84,6 +84,9 @@ pub(crate) fn session_message_to_llm_message(message: &Message) -> Option<serde_
             Some(serde_json::json!({ "role": "assistant", "content": message.content }))
         }
         Role::System => Some(serde_json::json!({ "role": "system", "content": message.content })),
+        Role::Developer => {
+            Some(serde_json::json!({ "role": "developer", "content": message.content }))
+        }
         Role::Tool => Some(serde_json::json!({ "role": "assistant", "content": message.content })),
     }
 }

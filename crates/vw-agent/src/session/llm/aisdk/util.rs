@@ -197,6 +197,8 @@ pub(crate) fn openai_messages_to_aisdk_messages(
     let mut tool_name_by_id: HashMap<String, String> = HashMap::new();
     let is_deepseek_reasoner = model.api.id.contains("deepseek-reasoner")
         || model.provider_id.to_ascii_lowercase().contains("deepseek");
+    let uses_anthropic_instructions = model.api.adapter.trim() == "anthropic"
+        || model.api.url.trim().trim_end_matches('/').ends_with("/messages");
 
     let tool_result_message = |obj: &Map<String, Value>, tool_names: &HashMap<String, String>| {
         let id = obj.get("tool_call_id").and_then(Value::as_str).unwrap_or_default();
@@ -305,6 +307,22 @@ pub(crate) fn openai_messages_to_aisdk_messages(
         }
 
         match role {
+            "system" | "developer" if uses_anthropic_instructions => {
+                let text = openai_message_content_to_text(obj.get("content"));
+                if !text.trim().is_empty() {
+                    // The SDK maps Developer to user and keeps only the last System.
+                    // Merge explicit instruction roles into Anthropic's one system channel.
+                    if let Some(aisdk::core::Message::System(system)) = out
+                        .iter_mut()
+                        .find(|message| matches!(message, aisdk::core::Message::System(_)))
+                    {
+                        system.content.push_str("\n\n");
+                        system.content.push_str(&text);
+                    } else {
+                        out.push(aisdk::core::Message::System(text.into()));
+                    }
+                }
+            }
             "system" => {
                 let text = openai_message_content_to_text(obj.get("content"));
                 if !text.trim().is_empty() {

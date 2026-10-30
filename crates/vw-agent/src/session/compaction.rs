@@ -428,6 +428,7 @@ fn snapshot_checkpoint_source(
                         "assistant"
                     }
                     super::ui_types::ChatRole::System => "system",
+                    super::ui_types::ChatRole::Developer => "developer",
                 };
                 json!({"role": role, "content": message.content})
             })

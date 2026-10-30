@@ -71,7 +71,7 @@ pub(crate) fn visible_editor_text_for_message(
     let raw = match role {
         ChatRole::Assistant => assistant_visible,
         ChatRole::Tool => tool_display_text,
-        ChatRole::User | ChatRole::System => content,
+        ChatRole::User | ChatRole::System | ChatRole::Developer => content,
     };
     let (without_attachments, _) =
         crate::app::components::input_panel::attachment::parse_attachment_markers(raw);

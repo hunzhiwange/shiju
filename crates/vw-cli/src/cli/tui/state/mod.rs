@@ -580,7 +580,7 @@ impl TuiState {
                         is_error: parsed.is_error,
                     })
                 }
-                ChatRole::System => {
+                ChatRole::System | ChatRole::Developer => {
                     deserialize_extended_message(message.content.as_str(), base.clone())
                         .unwrap_or_else(|| {
                             UiMessage::System(UiSystemMessage {
@@ -969,7 +969,7 @@ fn terminal_from_snapshot(session: &ChatSession) -> UiTurnTerminal {
     }
 
     match session.messages.last().map(|message| message.role) {
-        Some(ChatRole::Assistant | ChatRole::System | ChatRole::Tool) => {
+        Some(ChatRole::Assistant | ChatRole::System | ChatRole::Developer | ChatRole::Tool) => {
             UiTurnTerminal::Done { finish_reason: None }
         }
         Some(ChatRole::User) | None => UiTurnTerminal::Pending,

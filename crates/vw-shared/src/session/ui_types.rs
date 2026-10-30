@@ -17,6 +17,8 @@ pub enum ChatRole {
     User,
     Assistant,
     System,
+    /// Trusted runtime instructions, distinct from user content.
+    Developer,
     Tool,
 }
 

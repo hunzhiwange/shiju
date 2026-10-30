@@ -359,6 +359,7 @@ pub(crate) async fn run_session_processor_for_channel(
 /// - `"user"` -> `ChatRole::User`
 /// - `"assistant"` -> `ChatRole::Assistant`
 /// - `"system"` -> `ChatRole::System`
+/// - `"developer"` -> `ChatRole::Developer`
 /// - `"tool"` -> `ChatRole::Tool`
 /// - 其他 -> 跳过（过滤掉）
 ///
@@ -376,6 +377,7 @@ pub(crate) fn to_session_history(
                 "user" => crate::session::ui_types::ChatRole::User,
                 "assistant" => crate::session::ui_types::ChatRole::Assistant,
                 "system" => crate::session::ui_types::ChatRole::System,
+                "developer" => crate::session::ui_types::ChatRole::Developer,
                 "tool" => crate::session::ui_types::ChatRole::Tool,
                 _ => return None,
             };

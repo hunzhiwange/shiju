@@ -80,6 +80,8 @@ pub enum Role {
     Assistant,
     /// 系统消息
     System,
+    /// 开发者指令消息
+    Developer,
     /// 工具调用消息
     Tool,
 }

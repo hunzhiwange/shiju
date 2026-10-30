@@ -3850,6 +3850,7 @@ fn gateway_role(role: ChatRole) -> &'static str {
         ChatRole::User => "user",
         ChatRole::Assistant => "assistant",
         ChatRole::System => "system",
+        ChatRole::Developer => "developer",
         ChatRole::Tool => "tool",
     }
 }

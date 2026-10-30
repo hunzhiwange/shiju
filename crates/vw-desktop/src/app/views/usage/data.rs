@@ -101,7 +101,7 @@ impl UsageData {
                 match m.role {
                     models::ChatRole::User => u += 1,
                     models::ChatRole::Assistant => a += 1,
-                    models::ChatRole::System => sys += 1,
+                    models::ChatRole::System | models::ChatRole::Developer => sys += 1,
                     models::ChatRole::Tool => tool += 1,
                 }
             }

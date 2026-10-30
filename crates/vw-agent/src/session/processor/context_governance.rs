@@ -264,8 +264,11 @@ pub(crate) fn compact_context_for_next_request(
 
 /// 裁剪旧的非系统历史消息，保留系统消息和最近的对话。
 pub(crate) fn trim_session_history(session: &mut Session, max_non_system_messages: usize) -> usize {
-    let non_system_count =
-        session.messages.iter().filter(|message| message.role != Role::System).count();
+    let non_system_count = session
+        .messages
+        .iter()
+        .filter(|message| !matches!(message.role, Role::System | Role::Developer))
+        .count();
     let removed = non_system_count.saturating_sub(max_non_system_messages);
     if removed == 0 {
         return 0;
@@ -273,7 +276,7 @@ pub(crate) fn trim_session_history(session: &mut Session, max_non_system_message
 
     let mut remaining = removed;
     session.messages.retain(|message| {
-        if message.role == Role::System {
+        if matches!(message.role, Role::System | Role::Developer) {
             return true;
         }
         if remaining == 0 {

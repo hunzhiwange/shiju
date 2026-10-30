@@ -2241,6 +2241,7 @@ fn role_to_db(role: ChatRole) -> &'static str {
         ChatRole::User => "user",
         ChatRole::Assistant => "assistant",
         ChatRole::System => "system",
+        ChatRole::Developer => "developer",
         ChatRole::Tool => "tool",
     }
 }
@@ -2250,6 +2251,7 @@ fn role_from_db(role: &str) -> Result<ChatRole> {
         "user" => Ok(ChatRole::User),
         "assistant" => Ok(ChatRole::Assistant),
         "system" => Ok(ChatRole::System),
+        "developer" => Ok(ChatRole::Developer),
         "tool" => Ok(ChatRole::Tool),
         _ => bail!("invalid stored session message role: {role}"),
     }

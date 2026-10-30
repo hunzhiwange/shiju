@@ -75,7 +75,7 @@ fn assign_message_model_to_step(
                 assistant_count = assistant_count.saturating_add(1);
                 assistant_count
             }
-            ChatRole::System | ChatRole::Tool => continue,
+            ChatRole::System | ChatRole::Developer | ChatRole::Tool => continue,
         };
         if message_step == step_index && (overwrite || message.model.is_none()) {
             message.model = Some(model.to_string());

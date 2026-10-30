@@ -521,6 +521,7 @@ fn prepare_stream_history(
         let mapped_role = match role {
             "assistant" => ui_models::ChatRole::Assistant,
             "system" => ui_models::ChatRole::System,
+            "developer" => ui_models::ChatRole::Developer,
             "tool" => ui_models::ChatRole::Tool,
             _ => ui_models::ChatRole::User,
         };

@@ -24,6 +24,7 @@ pub(crate) fn build_prompt(
             Role::User => "user",
             Role::Assistant => "assistant",
             Role::System => "system",
+            Role::Developer => "developer",
             Role::Tool => "tool",
         };
         let mut content = msg.content.as_str();

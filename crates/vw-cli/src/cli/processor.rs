@@ -356,6 +356,7 @@ fn gateway_role(role: models::ChatRole) -> &'static str {
         models::ChatRole::User => "user",
         models::ChatRole::Assistant => "assistant",
         models::ChatRole::System => "system",
+        models::ChatRole::Developer => "developer",
         models::ChatRole::Tool => "tool",
     }
 }

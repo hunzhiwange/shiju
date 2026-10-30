@@ -57,7 +57,7 @@ impl SessionLlmProvider {
         messages
             .iter()
             .filter_map(|message| match message.role.as_str() {
-                "system" | "user" | "assistant" => {
+                "system" | "developer" | "user" | "assistant" => {
                     Some(serde_json::json!({"role": message.role, "content": message.content}))
                 }
                 "tool" => {

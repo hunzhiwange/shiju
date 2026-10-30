@@ -74,6 +74,7 @@ fn session_messages_payload(session: &Session) -> Vec<Value> {
             Role::User => "user",
             Role::Assistant => "assistant",
             Role::System => "system",
+            Role::Developer => "developer",
             Role::Tool => "tool",
         };
         let value = json!({

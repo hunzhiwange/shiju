@@ -497,6 +497,7 @@ fn run_in_project(
                 models::ChatRole::User => Role::User,
                 models::ChatRole::Assistant => Role::Assistant,
                 models::ChatRole::System => Role::System,
+                models::ChatRole::Developer => Role::Developer,
                 models::ChatRole::Tool => Role::Tool,
             },
             content: message.content.clone(),
@@ -1573,11 +1574,16 @@ fn build_image_turn_context_for_request(
     let history: Vec<ChatMessage> = session
         .messages
         .iter()
-        .filter(|message| matches!(message.role, Role::User | Role::Assistant | Role::System))
+        .filter(|message| {
+            matches!(message.role, Role::User | Role::Assistant | Role::System | Role::Developer)
+        })
         .map(|message| match message.role {
             Role::User => ChatMessage::user(&message.content),
             Role::Assistant => ChatMessage::assistant(&message.content),
             Role::System => ChatMessage::system(&message.content),
+            Role::Developer => {
+                ChatMessage { role: "developer".into(), content: message.content.clone() }
+            }
             Role::Tool => ChatMessage::assistant(&message.content),
         })
         .collect();

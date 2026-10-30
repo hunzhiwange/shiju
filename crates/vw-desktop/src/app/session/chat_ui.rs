@@ -69,7 +69,9 @@ fn parse_chat_ui_artifacts(
         };
         let visible = match message.role {
             ChatRole::Assistant => crate::app::ui::chat::split_think(display_content.as_ref()).1,
-            ChatRole::Tool | ChatRole::User | ChatRole::System => display_content.to_string(),
+            ChatRole::Tool | ChatRole::User | ChatRole::System | ChatRole::Developer => {
+                display_content.to_string()
+            }
         };
         let copy_hash =
             crate::app::components::chat_panel::message_view::hash_chat_content(&visible);

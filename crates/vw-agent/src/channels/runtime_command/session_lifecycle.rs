@@ -284,6 +284,7 @@ async fn restore_channel_session(
                 crate::session::ui_types::ChatRole::User => "user",
                 crate::session::ui_types::ChatRole::Assistant => "assistant",
                 crate::session::ui_types::ChatRole::System => "system",
+                crate::session::ui_types::ChatRole::Developer => "developer",
                 crate::session::ui_types::ChatRole::Tool => "tool",
             };
             ChatMessage { role: role.into(), content: message.content }

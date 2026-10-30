@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "parent_id": "gcode-to-text",
+  "image": "python@sha256:fcf02c9e248b995ae2ca9aac6fa24b489f34b589dbfdc44698ad245d2ad41d1e",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.gcode": "fixtures/m1/input.gcode"
+      },
+      "oracle": {
+        "probes.json": "oracle/m1/probes.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "draw-travel",
+          "files": {
+            "solution.py": "oracle/m1/draw-travel/solution.py"
+          }
+        },
+        {
+          "id": "reset-omitted",
+          "files": {
+            "solution.py": "oracle/m1/reset-omitted/solution.py"
+          }
+        },
+        {
+          "id": "draw-retraction",
+          "files": {
+            "solution.py": "oracle/m1/draw-retraction/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.gcode": "fixtures/m2/input.gcode"
+      },
+      "oracle": {
+        "probes.json": "oracle/m2/probes.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "join-strokes",
+          "files": {
+            "solution.py": "oracle/m2/join-strokes/solution.py"
+          }
+        },
+        {
+          "id": "drop-start",
+          "files": {
+            "solution.py": "oracle/m2/drop-start/solution.py"
+          }
+        },
+        {
+          "id": "reverse-points",
+          "files": {
+            "solution.py": "oracle/m2/reverse-points/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.gcode": "fixtures/m3/input.gcode"
+      },
+      "oracle": {
+        "probes.json": "oracle/m3/probes.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "ignore-relative",
+          "files": {
+            "solution.py": "oracle/m3/ignore-relative/solution.py"
+          }
+        },
+        {
+          "id": "ignore-reset",
+          "files": {
+            "solution.py": "oracle/m3/ignore-reset/solution.py"
+          }
+        },
+        {
+          "id": "always-relative-e",
+          "files": {
+            "solution.py": "oracle/m3/always-relative-e/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "input.gcode": "fixtures/m4/input.gcode",
+        "alphabet.json": "fixtures/m4/alphabet.json"
+      },
+      "oracle": {
+        "probes.json": "oracle/m4/probes.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "reverse-text",
+          "files": {
+            "solution.py": "oracle/m4/reverse-text/solution.py"
+          }
+        },
+        {
+          "id": "lowercase",
+          "files": {
+            "solution.py": "oracle/m4/lowercase/solution.py"
+          }
+        },
+        {
+          "id": "example-only",
+          "files": {
+            "solution.py": "oracle/m4/example-only/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

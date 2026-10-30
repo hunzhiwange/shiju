@@ -2,7 +2,7 @@
 
 批次：【批次 23】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已阻塞
+状态：已完成，待回归验证
 
 目的：为“打印路径文字识别”准备原题完整环境与四道独立诊断题。
 
@@ -93,3 +93,16 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 完整证据与恢复脚本：`evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/blocked-evidence.json`、`oracle-timeout.txt`、`runtime-bootstrap.json`、`independent-child-controls.json`、`independent-parent-nop.json`、`*-resource.json`；原题原始超时与评分日志位于`evals/promptfoo/results/qwen38-suite/preflight/gcode-to-text/calibration/gcode-to-text-oracle/`。实际Agent执行区间与异常已核对，不使用超时后产物。
 
 恢复入口：在原Agent下载网络恢复后，保留本轮失败证据，将现有本题preflight目录归档到本题忽略目录，再用上述任务局部runtime与原900秒时限重新校准完整原题oracle/nop及四子题；获得全部有效证据后才可完成、按顺序提交并删除任务文件。不得向Agent注入依赖、延长时限或用固定答案替代原oracle。
+
+
+## 续接执行记录（2026-10-30）
+
+已解除原题下载超时阻塞：原镜像、原 oracle、原资源和 900 秒限制均保持不变；本轮 Agent 于北京时间 16:48:25.841998 开始、16:54:41.254200 完成，耗时 375.412202 秒。官方 oracle reward=1，原 pytest 两项全过；fresh nop reward=0，两项全失败；异常均为空。未向 Agent 注入依赖，零付费模型调用。
+
+四子题本轮均获得 fresh oracle=1/nop=0：m1–m3 在标准 preflight 内完成，m4 独立补跑完成。20 项聚焦 unittest、20 次隔离正负例校准均退出 0；`evals/promptfoo/score.sh test` 退出 0；Clippy 原命令退出 0，动态领取槽位 1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR` 同路径，`CARGO_BUILD_JOBS=1`，锁已释放；未修改 Rust，Rust 行为测试 0 项。
+
+当前剩余问题属于共享基础设施：标准 preflight 执行到 m4 oracle 时，共享 Docker resource lock 被其他任务占用，抛出 `BlockingIOError: [Errno 35] Resource temporarily unavailable`，退出 1。首次独立补跑又因其他任务占满 4 CPU / 8 GiB 容量被拒绝；等资源释放后补跑 m4 oracle/nop 均成功，未删除其他任务锁或放宽资源门槛。同时其他任务修改 `suite/variants.py`，对当前 `inputs()` 复核发现仅 `scheduler_sha256` 与本轮收据不同。因此不拼接/重签旧收据，不生成正式 `cases/gcode-to-text/preparation.json`，不宣称全套准入就绪；按计划标记已完成、待回归并保留本文件。
+
+恢复入口：共享调度代码与 builder 稳定、资源空闲后，将当前 preflight 完整归档，再以任务局部 `runtime-bootstrap.json` 和原命令重跑完整标准 preflight（10 个 fresh controls）；使用 `suite.preparation.inputs` / `verify_preparation` 验证当前代码、原始日志与收据一致后，再删除本任务文件。旧 2026-10-28 失败证据已整体保存于 `diagnostics/gcode-to-text/preflight-20261028-archived/`，本轮标准日志在原 `preflight/gcode-to-text/`。
+
+本轮证据均位于忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/`：`resume-evidence-20261030.json`、`preflight-resume-20261030.log`、`preflight-resume-20261030-exit.json`、`m4-controls-20261030-capacity-retry.json`、`m4-controls-20261030-capacity-retry/`、`*-20261030-resource.json`、`unittest-20261030.log`、`validate-20261030.log`、`promptfoo-test-20261030.log`、`clippy.json`。补跑命令为 `PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/gcode-to-text/calibrate-m4-retry-20261030.py`，退出 0。

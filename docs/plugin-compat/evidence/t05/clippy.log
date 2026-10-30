@@ -1,8 +1,0 @@
-    Checking vw-shared v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-shared)
-   Compiling vw-desktop v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-desktop)
-    Checking vw-acp v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-acp)
-    Checking vw-gateway-client v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-gateway-client)
-    Checking vw-provider-resolver v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-provider-resolver)
-    Checking vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
-    Checking vw-cli v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-cli)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 38.18s

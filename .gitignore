@@ -4,7 +4,9 @@ build/
 coverage/
 target-local/
 logs/
+# Generated logs stay local; do not force-add them.
 *.log
+/docs/plugin-compat/evidence/**/*.run.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

@@ -1,4 +1,0 @@
-   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
-error: couldn't create a temp dir: No such file or directory (os error 2) at path "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build/debug/deps/rmetaLwOe0l"
-
-error: could not compile `vw-agent` (lib test) due to 1 previous error

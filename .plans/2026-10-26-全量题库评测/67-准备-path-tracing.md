@@ -2,7 +2,7 @@
 
 批次：【批次 39】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已阻塞
+状态：已完成，待回归验证
 
 目的：为“图像生成复现”准备原题完整环境与四道独立诊断题。
 
@@ -114,3 +114,21 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 - 当前原父题registry manifest=`sha256:4b44725102cd627dfa895191a5a30d16dae3c5623bb43da6459f79135db6b482`，linux/amd64，压缩层C=399386034字节；仅metadata/config和严格206 Range每层8字节尾探针，gzip ISIZE得到U下界1095040000，不是精确U/Ucap，不将未知当0。未下载完整层。
 - 最新容量：host=18662809600字节，VM=92007329792字节，min仍低于18GiB=19327352832字节总预留，尚未计全部压缩副本、正Ucap、metadata。因此父题下载/完整oracle/nop与preflight仍不可准入，父题控制数0。capacity-final.json、checkpoint.json保存精确证据；整体状态保持已阻塞，保留本文件和未提交资产，不宣称就绪。
 - 最终host聚焦unittest再次退出0（2方法/23候选控制）；Clippy沿用本阶段已记录退出0与动态slot1绝对target路径，自有锁已释放。剩余恢复动作仅为容量满足完整下载准入后，经公共preflight完成原父题oracle/nop并绑定整套preparation，随后按契约提交、报告并删除编号任务文件；不等待磁盘变化、不清他人缓存。
+
+
+### 2026-10-30 恢复：父容量解除、官方父控制通过
+
+- 本轮用户授权继续突破阻塞。重新准入：下载前host=44793032704、VM=74008850432 bytes；按3C+2GiB正硬Ucap+原18GiB预留+128MiB metadata需22807212310 bytes，通过。原manifest未漂移，逐层stream SHA/diff_id全验证，精确U=1095040000 bytes；无磁盘OCI归档的stream load退出0，原manifest/config/amd64/RootFS/Config全部回读一致。父镜像保留供后续使用，旧容量不足已解除。
+- 冻结ELF在原父镜像离线--help退出0；原父环境gcc、图像存在，apt/astral/PyPI端点均200。probe-parent-resume.py与parent-*-probe-resume.json保留确切命令和输出；不预改Agent环境或官方verifier。
+- 本轮公共身份为7ad9affa98d787ab12315fd30889d1c650700a33e16857dc5f3d602d57ea7318，旧8项子控制不能冒用。原命令公共suite.run preflight已实际执行：父oracle首次reward=1、5项官方测试通过；父nop首次reward=0、5项官方测试失败；m1 oracle=1/nop=0。均原始官方评分，无恢复/付费调用。完整原父与上游树未改。
+- m2 oracle在Agent/评分启动前因公共非阻塞资源锁BlockingIOError Errno35失败，preflight退出1；不计能力失败，不伪造整套ready。原始证据位于preflight/path-tracing，preflight-exit.json保存原命令。complete-controls.py只经公共harbor_trial补剩余m2..m4六项、启动前等待至最多一个其他任务及锁空闲，不改公共Trial/Compose/Builder/平台或公共锁；当前仍等待共享窗口，不能生成完整preparation或删除编号文件。
+- 本轮聚焦unittest退出0：2方法/23候选；diagnostics validate --run-fixtures退出0：20控制。Clippy退出0，动态slot1，CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_JOBS=1；自有锁已清理。无Rust修改，无fmt/全量测试。Promptfoo最初等待及本地npm cookie缺失均留原日志；缓存恢复后npm_config_offline=true evals/promptfoo/score.sh test退出0，Configuration is valid，未改默认配置。
+- 所有新下载/导入/身份/资源/命令日志在ignored diagnostics/path-tracing/；当前恢复入口complete-controls.log、completed-preparation.json（仅完成后存在）、audit-ready.py。最终须verify_preparation绑定10项本轮有效控制、当前身份及资源，才可提交本题资产与删除编号文件。
+
+
+#### 本轮交接：实现完成，等待共享资源回归
+
+- 公共diagnostics.py在本轮等待期间加入另一题rstan-to-pystan的2048MiB分支，导致implementation_sha256由a8a9e489…变为7c98dc25d3b3595b3166f07d8fd68d5d6764c387404b064a0b4320c021589eba；本题512MiB路径未变。重跑同一validate --run-fixtures退出0，20控制通过；重新materialize后整棵文件树与原preflight/diagnostics逐字节相同，diagnostic-implementation-impact.json保存证明。原4项标准成功评分日志与preflight收据均原样保留，没有回写历史哈希。
+- 等待窗口期间，任务47预约实际2CPU/4294967296 bytes，任务86预约0.25CPU/67108864 bytes；另有共享控制器活动。按最多2题规则不能启动本题六项，且公共锁由其他活跃控制器持有，未删除/替换其锁或停止其进程/预约。当前原因是无关共享准入，不是旧父容量或本题checker；按任务契约改为“已完成，待回归验证”，保留编号文件和未提交评测资产，不标整题ready。
+- 已停止自有等待进程，核验并清空本题容器、网络、卷；没有活跃本题Trial、后台控制或Cargo锁。父镜像与已校验原层/证据保留，未清共享缓存。resume-checkpoint.json保存最终当前身份、4项成功评分、剩余6项、20项当前夹具、23个host控制和Clippy/Promptfoo证据。audit-ready.py尚未运行，cases/path-tracing/preparation.json不存在。
+- 可用窗口后的确切入口：`PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python evals/promptfoo/results/qwen38-suite/diagnostics/path-tracing/complete-controls.py`；它核对当前身份和materialize字节，仅调用公共harbor_trial补m2..m4共6项，并由公共verify_preparation验证完整10项后写正式preparation。随后运行同目录audit-ready.py核验资源与源码，再更新README、单独提交本题资产、报告证据并删除本编号。若公共身份再变化，先按变动影响复核；不能跳过断言或修改旧证据来强行通过。

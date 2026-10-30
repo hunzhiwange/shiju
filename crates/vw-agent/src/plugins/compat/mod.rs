@@ -9,6 +9,7 @@ pub(super) mod mcp_auth;
 pub(crate) mod mcp_connection_sessions;
 pub(crate) mod mcp_connection_settings;
 pub(crate) mod mcp_connections;
+pub(super) mod mcp_content;
 pub(super) mod mcp_environment;
 pub(super) mod mcp_legacy;
 pub(super) mod mcp_portable;
@@ -102,3 +103,6 @@ pub(crate) mod mcp_notifications;
 
 #[cfg(test)]
 mod t20_tests;
+
+#[cfg(test)]
+mod t21_tests;

@@ -294,7 +294,13 @@ async fn discover_and_call_configured_mcp_tool_through_stdio_fixture() {
         tool.call(json!({ "message": "hello" })).await.expect("fixture tool should execute");
 
     assert!(result.is_success());
-    assert_eq!(result.model_result, json!("echo:hello"));
+    assert_eq!(
+        result.model_result,
+        json!({
+            "content":[{"type":"text","text":"echo:hello"}],
+            "structuredContent":{"echoed":"hello"}
+        })
+    );
     assert_eq!(result.data["structured_content"], json!({ "echoed": "hello" }));
 }
 

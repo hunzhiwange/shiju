@@ -893,7 +893,13 @@ fn execute_tool_call_runs_dynamic_mcp_tool_through_context_registry() {
     let result = execute_tool_call(MCP_FIXTURE_TOOL_ID, r#"{"message":"hello"}"#, &ctx).unwrap();
 
     assert!(result.is_success());
-    assert_eq!(result.model_text(), "echo:hello");
+    assert_eq!(
+        result.model_result,
+        json!({
+            "content":[{"type":"text","text":"echo:hello"}],
+            "structuredContent":{"echoed":"hello"}
+        })
+    );
     assert_eq!(result.data["server"], json!("Fixture Server"));
 }
 

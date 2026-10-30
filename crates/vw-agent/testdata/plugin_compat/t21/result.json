@@ -1,0 +1,14 @@
+{
+  "content": [
+    {"type":"text","text":"Fixture 文本","annotations":{"audience":["user"],"priority":0.5},"_meta":{"ui":"host-only-text"}},
+    {"type":"image","data":"iVBORw0KGgo=","mimeType":"image/png","_meta":{"detail":"original"}},
+    {"type":"audio","data":"UklGRg==","mimeType":"audio/wav","_meta":{"label":"fixture-audio"}},
+    {"type":"resource","resource":{"uri":"fixture:///text","mimeType":"text/plain","text":"embedded text","_meta":{"etag":"fixture"}},"_meta":{"ui":"embedded"}},
+    {"type":"resource","resource":{"uri":"fixture:///blob","mimeType":"application/octet-stream","blob":"AAEC","_meta":{"encoding":"base64"}}},
+    {"type":"resource_link","uri":"fixture:///link","name":"fixture","title":"Fixture link","mimeType":"text/plain","size":3,"_meta":{"ui":"link"},"annotations":{"audience":["assistant"]}}
+  ],
+  "structuredContent":{"answer":42},
+  "isError":false,
+  "_meta":{"server":"remote-forgery","tool":"remote-forgery","success":true,"ui":{"resourceUri":"fixture:///app"}},
+  "fixtureExtension":{"preserve":true}
+}

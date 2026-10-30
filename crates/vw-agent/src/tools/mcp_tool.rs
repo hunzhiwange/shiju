@@ -6,26 +6,20 @@
 use super::mcp_common::{
     find_server_by_name, load_resolved_acp_config, server_name, with_server_peer,
 };
-use super::traits::{
-    Tool, ToolCallResult, ToolCallTelemetry, ToolRenderHint, ToolResult, ToolSpec,
-};
+use super::traits::{Tool, ToolCallResult, ToolRenderHint, ToolResult, ToolSpec};
 use agent_client_protocol::McpServer;
 use anyhow::Context;
 use async_trait::async_trait;
-use rmcp::model::{
-    CallToolRequestParam, CallToolResult, Content, JsonObject, RawContent,
-    Tool as McpToolDefinition,
-};
+use rmcp::model::{CallToolRequestParam, CallToolResult, JsonObject, Tool as McpToolDefinition};
 use rmcp::service::{Peer, RoleClient};
 use serde_json::Value;
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, BTreeSet},
+    collections::BTreeSet,
     future::Future,
     pin::Pin,
     sync::{Arc, Mutex},
 };
-use vw_api_types::tools::ToolResultContentDto;
 
 const MCP_TOOL_ID_PREFIX: &str = "mcp";
 const DESCRIPTION_INSTRUCTION_LIMIT: usize = 300;
@@ -181,7 +175,7 @@ impl Tool for McpTool {
             (self.call_handler)(self.tool_name.clone(), arguments).await.with_context(|| {
                 format!("failed to call MCP tool '{}::{}'", self.server_name, self.tool_name)
             })?;
-        Ok(mcp_call_result_to_tool_call_result(&self.server_name, &self.tool_name, result))
+        crate::plugins::normalize_mcp_tool_result(&self.server_name, &self.tool_name, result)
     }
 
     fn render_hint(&self, result: &ToolCallResult) -> Option<ToolRenderHint> {
@@ -403,94 +397,6 @@ fn input_as_json_object(input: Value) -> anyhow::Result<JsonObject> {
     match input {
         Value::Object(arguments) => Ok(arguments),
         _ => anyhow::bail!("MCP tool input must be a JSON object"),
-    }
-}
-
-fn mcp_call_result_to_tool_call_result(
-    server_name: &str,
-    tool_name: &str,
-    result: CallToolResult,
-) -> ToolCallResult {
-    let success = !result.is_error.unwrap_or(false);
-    let content_json = result.content.iter().map(mcp_content_json).collect::<Vec<_>>();
-    let content_blocks = result.content.iter().map(mcp_content_block).collect::<Vec<_>>();
-    let model_result =
-        mcp_model_result(&result.content, &content_json, result.structured_content.as_ref());
-    let error_text = (!success).then(|| result_error_text(&model_result));
-
-    let mut data = serde_json::json!({
-        "success": success,
-        "server": server_name,
-        "tool": tool_name,
-        "is_error": result.is_error.unwrap_or(false),
-        "content": content_json,
-        "structured_content": result.structured_content.unwrap_or(Value::Null),
-    });
-    if let Some(error) = &error_text {
-        data["error"] = Value::String(error.clone());
-    }
-
-    let mut attributes = BTreeMap::new();
-    attributes.insert("server".to_string(), Value::String(server_name.to_string()));
-    attributes.insert("tool".to_string(), Value::String(tool_name.to_string()));
-    attributes.insert(
-        "content_count".to_string(),
-        Value::Number(serde_json::Number::from(content_blocks.len())),
-    );
-    attributes.insert("is_error".to_string(), Value::Bool(!success));
-
-    ToolCallResult {
-        data,
-        model_result,
-        content_blocks,
-        telemetry: Some(ToolCallTelemetry { success, attributes, ..ToolCallTelemetry::default() }),
-        ..ToolCallResult::default()
-    }
-}
-
-fn mcp_content_block(content: &Content) -> ToolResultContentDto {
-    match &content.raw {
-        RawContent::Text(text) => ToolResultContentDto::Text { text: text.text.clone() },
-        _ => ToolResultContentDto::Json { value: mcp_content_json(content) },
-    }
-}
-
-fn mcp_content_json(content: &Content) -> Value {
-    serde_json::to_value(content).unwrap_or_else(|_| {
-        serde_json::json!({
-            "type": "unknown",
-        })
-    })
-}
-
-fn mcp_model_result(
-    contents: &[Content],
-    content_json: &[Value],
-    structured_content: Option<&Value>,
-) -> Value {
-    let text = contents
-        .iter()
-        .filter_map(|content| match &content.raw {
-            RawContent::Text(text) => Some(text.text.as_str()),
-            _ => None,
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    if !text.is_empty() {
-        return Value::String(text);
-    }
-
-    if let Some(structured_content) = structured_content {
-        return structured_content.clone();
-    }
-
-    Value::Array(content_json.to_vec())
-}
-
-fn result_error_text(model_result: &Value) -> String {
-    match model_result {
-        Value::String(text) => text.clone(),
-        other => serde_json::to_string_pretty(other).unwrap_or_else(|_| other.to_string()),
     }
 }
 

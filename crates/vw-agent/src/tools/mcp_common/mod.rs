@@ -16,8 +16,8 @@ use rmcp::model::{
 };
 use rmcp::service::{NotificationContext, Peer, RequestContext, RoleClient, ServiceExt};
 use rmcp::transport::{
-    ConfigureCommandExt, SseClientTransport, StreamableHttpClientTransport, TokioChildProcess,
-    sse_client::SseClientConfig, streamable_http_client::StreamableHttpClientTransportConfig,
+    SseClientTransport, StreamableHttpClientTransport, sse_client::SseClientConfig,
+    streamable_http_client::StreamableHttpClientTransportConfig,
 };
 use serde_json::{Value, json};
 use std::{
@@ -27,6 +27,9 @@ use std::{
     time::Duration,
 };
 use tokio::process::Command;
+
+mod wire_http;
+mod wire_stdio;
 
 struct UnsupportedMcpCapability {
     scope: &'static str,
@@ -591,12 +594,11 @@ pub(crate) async fn open_server_peer(
                 .iter()
                 .map(|env| (env.name.clone(), env.value.clone()))
                 .collect::<Vec<_>>();
-            let transport = TokioChildProcess::new(command.configure(move |cmd| {
-                cmd.args(args);
-                for (key, value) in &env {
-                    cmd.env(key, value);
-                }
-            }))?;
+            command.args(args);
+            for (key, value) in &env {
+                command.env(key, value);
+            }
+            let transport = wire_stdio::StdioTransport::new(command)?;
             let running = with_connect_timeout(&server.name, timeout, async move {
                 NoopClient::with_cancellation(closed)
                     .serve(transport)
@@ -613,7 +615,7 @@ pub(crate) async fn open_server_peer(
             let config =
                 SseClientConfig { sse_endpoint: server.url.clone().into(), ..Default::default() };
             let transport = with_connect_timeout(&server.name, timeout, async move {
-                SseClientTransport::start_with_client(client, config)
+                SseClientTransport::start_with_client(wire_http::HttpClient(client), config)
                     .await
                     .map_err(anyhow::Error::from)
             })
@@ -644,7 +646,7 @@ pub(crate) async fn open_server_peer(
             }
             .with_context(|| format!("failed to build HTTP MCP client for '{}'", server.name))?;
             let transport = StreamableHttpClientTransport::with_client(
-                client,
+                wire_http::HttpClient(client),
                 StreamableHttpClientTransportConfig::with_uri(server.url.clone()),
             );
             let running = with_connect_timeout(&server.name, timeout, async move {

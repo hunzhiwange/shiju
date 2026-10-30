@@ -11890,6 +11890,7 @@ dependencies = [
  "shell-words",
  "shellexpand",
  "similar",
+ "sse-stream",
  "strsim",
  "tempfile",
  "thiserror 2.0.21",

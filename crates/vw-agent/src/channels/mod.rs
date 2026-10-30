@@ -43,6 +43,7 @@ pub mod lark;
 /// Linq 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod linq;
+pub(crate) mod markdown_chunk;
 /// Mattermost 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod mattermost;

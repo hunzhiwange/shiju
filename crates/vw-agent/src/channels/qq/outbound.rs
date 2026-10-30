@@ -147,7 +147,12 @@ async fn send_message_with_client(
 
     let (text_content, image_urls) = parse_outgoing_content(&message.content);
 
-    if let Some(body) = build_markdown_message_body(&text_content, passive_msg_id, msg_seq) {
+    // This is a conservative local budget, not the platform's advertised limit.
+    let text_chunks = super::super::markdown_chunk::split_markdown(&text_content, 3000)?;
+    for text_content in text_chunks {
+        let Some(body) = build_markdown_message_body(&text_content, passive_msg_id, msg_seq) else {
+            continue;
+        };
         if let Err(error) =
             post_json_with_client(client, token, message_url, &body, "send message").await
         {

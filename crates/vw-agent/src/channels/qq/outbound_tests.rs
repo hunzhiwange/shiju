@@ -588,3 +588,99 @@ async fn send_message_with_client_falls_back_after_markdown_validation_error() {
         json!({"content": "访问 [链接已省略]", "msg_type": 0})
     );
 }
+
+#[tokio::test]
+async fn markdown_delivery_qq_sends_chunks_in_order() {
+    let lines = (0..300).map(|i| format!("let value_{i} = {i};\n")).collect::<String>();
+    let content = format!("```rust\n{lines}```\n[IMAGE:https://cdn.qq.test/a.png]");
+    let certificate = CertificateDer::from_pem_slice(TEST_CERT_PEM.as_bytes()).unwrap();
+    let key = PrivateKeyDer::from_pem_slice(TEST_KEY_PEM.as_bytes()).unwrap();
+    install_rustls_provider();
+    let config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![certificate], key)
+        .unwrap();
+    let acceptor = TlsAcceptor::from(Arc::new(config));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("https://localhost:{}", listener.local_addr().unwrap().port());
+    let (stop, mut stopped) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        let mut requests = Vec::new();
+        loop {
+            let stream = tokio::select! {
+                _ = &mut stopped => break,
+                result = listener.accept() => result.unwrap().0,
+            };
+            let request = tokio::time::timeout(std::time::Duration::from_secs(5), async {
+                let mut stream = acceptor.accept(stream).await.unwrap();
+                let request = read_request(&mut stream).await;
+                let body =
+                    if request.path == "/files" { r#"{"file_info":"fixture"}"# } else { "{}" };
+                let reply = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(reply.as_bytes()).await.unwrap();
+                request
+            })
+            .await
+            .unwrap();
+            requests.push(request);
+        }
+        requests
+    });
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        send_message_with_client(
+            &test_client(),
+            "fixture",
+            &format!("{base}/messages"),
+            &format!("{base}/files"),
+            &SendMessage::new(content, "user:fixture").in_thread(Some("fixture".into())),
+        ),
+    )
+    .await;
+    let _ = stop.send(());
+    let requests = server.await.unwrap();
+    result.unwrap().unwrap();
+    let bodies = requests
+        .iter()
+        .filter(|r| r.path == "/messages")
+        .map(|r| parse_json(&r.body))
+        .collect::<Vec<_>>();
+    let mut reconstructed = String::new();
+    for (index, body) in bodies[..bodies.len() - 1].iter().enumerate() {
+        let text = body["markdown"]["content"].as_str().unwrap();
+        assert!(text.len() <= 3000, "body exceeds the local byte budget: {}", text.len());
+        assert!(text.starts_with("```rust\n") && text.ends_with("```"));
+        reconstructed
+            .push_str(text.strip_prefix("```rust\n").unwrap().strip_suffix("```").unwrap());
+        assert_eq!(body["msg_seq"], index + 1);
+    }
+    assert!(bodies.len() > 2);
+    assert_eq!(reconstructed, lines);
+    assert_eq!(bodies.last().unwrap()["msg_seq"], bodies.len());
+    assert_eq!(bodies.last().unwrap()["media"]["file_info"], "fixture");
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_rejects_long_code_line_before_network() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("https://localhost:{}", listener.local_addr().unwrap().port());
+    let content = format!("first paragraph\n\n```rust\n{}\n```", "x".repeat(3000));
+    let error = send_message_with_client(
+        &test_client(),
+        "fixture",
+        &format!("{base}/messages"),
+        &format!("{base}/files"),
+        &SendMessage::new(content, "user:fixture"),
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("code line exceeds"));
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(50), listener.accept())
+            .await
+            .is_err()
+    );
+}

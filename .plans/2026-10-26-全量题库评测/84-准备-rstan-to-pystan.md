@@ -2,7 +2,28 @@
 
 批次：【批次 48】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已阻塞
+状态：已完成，待回归
+
+## 本次授权恢复与交接（2026-10-30）
+
+- 用户已明确授权仅本题四子题使用 2GiB，保持 1CPU、无 swap 和原超时。真实最小正态模型编译并产生10个样本，峰值1845981184B；独立3观测/2特征的合成GP也编译并采样成功，峰值2147483648B、`oom_kill=0`。512MiB历史OOM全部保留。未增加父题预算、模型预算、超时或付费尝试。
+- 四个独立合成资产已实现：m1 CSV与设计矩阵；m2 RStan采样参数映射及真实Stan GP密度校验；m3参数维度、正值和显式seed检查；m4后验均值与预测CSV。每题正解/nop/三个语义负例。额外目标列的checker漏检先以回归失败复现，再新增黑盒探针修复；不接受自述、关键词或模拟采样器。
+- 最终公开工具镜像 `vw-rstan-pystan-diagnostics@sha256:ebaf0987df9c994c99dbe2b0980cb2f2bacc4ac34bc343cd227d683ba6de0ed6`：Python3.12.12/PyStan3.10.0/httpstan4.13.0/clang14.0.6。固定来源的解释器、23个wheel和9个Debian包全部回读SHA；镜像manifest/config/逐层完整SHA及diff_id、amd64与RootFS验证通过。仅公开依赖进入镜像，无原题输入、参考解、checker、gold或编译模型缓存。冻结ELF `--help`、真实运行时LD_LIBRARY_PATH下的clang与PyStan导入均通过；clang库已注册系统加载器。构建使用统一受限classic命令0.5CPU/2GiB/无网络；未覆盖正式Trial的platform/FROM/Compose。
+- 统一诊断运行器仅对 `rstan-to-pystan` 显式使用2048MiB，fixture无swap，标准Harbor由现有资源策略固定无swap；其他子题仍为512MiB。两个预算回归先失败后通过，12项协议回归全部通过。共享锁竞争曾使首个子题和父题在Agent启动前以BlockingIOError失败，原证据保留；最小底层修复为可取消的异步锁等待，原Harbor超时和4CPU/8GiB准入均保留。12项构建/资源测试通过，含事件循环可运行、等待可取消、异常后释放及容量拒绝。
+- 最终镜像：5项本题测试通过（含20个真实隔离fixture控制）；独立 `suite.diagnostics validate --run-fixtures` 的20项全部通过；8个fresh标准 `suite.scoring.harbor_trial` / `SuiteDockerEnvironment` 控制全部匹配 oracle=1/nop=0，各main实际1CPU/2147483648B、MemorySwap同值，源字节不变。当前执行身份 `94dec6f0c90690b5c0ea348c8142a22b0cec1d62fa174df762f6dc93cb7653df`。共享实现哈希改变，其他题旧validation/preparation收据须在后续freeze前刷新；本轮未改其他题资产或预算。
+- 三条原任务命令已实际执行：前两条退出0；原preflight的根 `runtime.json` 是历史证据报告，缺 `historical_root`，退出1。未篡改历史报告；另建忽略目录的合法 `runtime-20261030.json`，保持generation2冻结运行时和父题1800秒。修复锁后的正式preflight已实际到达容量准入，以 `suite Docker capacity exceeds 4 CPU / 8 GiB` 在Agent启动前退出1；其他任务仍占资源，无法满足原父独占窗口。没有新官方verifier测试或新能力评分，reward/capability均为null；原始apt失败及raw reward=0仍按invalid/unscored保留，不能用端点恢复200替代父题oracle通过。
+- 最终Clippy动态领取槽位1：`CARGO_TARGET_DIR`、`CARGO_BUILD_BUILD_DIR` 均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，JOBS=1，`cargo clippy --all-targets --all-features -- -D warnings` 退出0，有效行为测试数0；自己的owner/锁已释放，缓存保留。此前本轮首阶段槽位2同命令也退出0。未修改Rust、未运行fmt、全量cargo test、wasm或Makefile。`evals/promptfoo/score.sh test` 退出0。
+- 新证据入口 `evals/promptfoo/results/qwen38-suite/diagnostics/rstan-to-pystan/checkpoint-20261030.json`；各阶段原始日志、依赖/镜像锁、TDD、资源、正式控制、容量与Cargo收据在同目录。两个2GiB探针完整/tmp归档经tar完整读取和SHA验证后按精确ID删除；本轮失败builder及8组自有Trial容器已精确清理，未删除其他会话的锁、进程或缓存。
+- 当前“已完成，待回归”仅表示本轮实现及诊断验收完成，剩余正式父题验证被无关共享资源阻断；**完整题尚未校准，不就绪，不生成case preparation/readiness，不删除本任务**。恢复时先取得可容纳原父4CPU/8GiB的空闲独占窗口，使用下方合法私有runtime和新输出目录执行原父oracle/nop及完整preflight；可按严格哈希审计复用本轮8个子题控制。不得沿用旧容量快照，不得调大总资源或用无效父题记录填分。
+
+## 本次恢复证据（2026-10-30）
+
+- 已执行上一轮恢复入口的官方 clang 探针，未提高预算：固定原诊断镜像 `sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf`，离线运行 Python 3.12.12 / PyStan 3.10.0 / httpstan 4.13.0，以 Debian clang 14.0.6 编译同一个最小正态模型。真实编译退出 1，clang 进程退出 -9，Docker `OOMKilled=true`；cgroup `memory.peak=536870912`、`oom=1`、`oom_kill=1`、`memory.swap.max=0`、`cpu.max=100000 100000`。尚未进入采样；没有样本、预编译答案、源码补丁或模拟采样器。clang 也不能在已测的默认编译路径下突破 512MiB 限制。
+- 工具链通过原镜像 Debian bookworm 官方源的 apt 签名与包体校验取得，九个真实 deb，clang 固定 `1:14.0.6-12`；各包 SHA256 再与 apt 元数据逐一比对。首次获取在 `cap-drop ALL` 下因 apt 降权失败，第二次因旧 archives/partial 的 DAC 权限失败；第三次只改获取命令使用 root sandbox user 和独立 `/tmp/archives`，保留 ALL capabilities drop，未关闭签名或包体校验。三次原始日志均保留。
+- 新容量准入实测 host/VM，并保存 `admission.json`，按 `3Ccap+Ucap+S1+B2+A1+安全5GiB`，Ccap=512MiB、Ucap=2GiB；仅下载约42MB官方包，无原父层重拉、全局清理或共享 builder 修改。原父 oracle 的 apt 下载失败仍是独立未解决阻塞，不能由本次 Debian 工具链成功获取推断 Ubuntu 父题已通过。
+- 新证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/rstan-to-pystan/clang-20261030/`，包括 deb-lock、官方 apt lists/元数据、SHA256SUMS、完整命令、原始日志、容器 inspect、cgroup 和清理收据。探针完整 `/tmp` 归档 664243712B，经 tar 完整读取与 SHA256 校验（`e196c4103329a46e434656eed3384560553f807e34d8d83bfb269f2a75f584d1`）后，四个本轮已停止容器按记录的精确 ID 删除；未触碰其他会话的容器、锁、源码或缓存。
+- 本轮没有修改业务/评测代码，没有运行 Cargo、20 fixture、8 子题标准控制、父题重校准或三条正式验证命令；这些仍无新增通过证据。保持已阻塞，不生成 readiness/preparation，不删除任务文件，不提交仅阻塞记录更新。
+- 恢复入口：已向用户请求明确授权本题诊断内存从512MiB调至2GiB，保持1CPU、无swap与原超时，先验证真实编译；2GiB是否足够尚未实测，未获授权不得执行或改共享诊断预算。若授权，需只对本题显式接入预算并验证其他题仍保持512MiB，再制作四子题、完成原定全部验收。原父安装路径的基础设施失败需另行处理，不得修改官方题面、oracle或checker后冒充原题成功。
 
 ## 本次执行证据（2026-10-28）
 
@@ -63,7 +84,7 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 ```
 
 ```bash
-PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.run preflight --catalog evals/terminal-bench/suite/catalog.json --runtime evals/promptfoo/results/qwen38-suite/runtime.json --parent-id rstan-to-pystan --output evals/promptfoo/results/qwen38-suite/preflight/rstan-to-pystan
+PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m suite.run preflight --catalog evals/terminal-bench/suite/catalog.json --runtime evals/promptfoo/results/qwen38-suite/diagnostics/rstan-to-pystan/runtime-20261030.json --parent-id rstan-to-pystan --output evals/promptfoo/results/qwen38-suite/preflight/rstan-to-pystan-resume-20261030
 ```
 
 ## 步骤

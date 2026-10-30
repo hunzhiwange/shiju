@@ -58,6 +58,37 @@ class DiagnosticsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate(self.path)
 
+    def test_rstan_memory_exception_is_scoped_and_materialized(self):
+        import tomllib
+        for parent, expected in [('rstan-to-pystan', 2048), ('example', 512),
+                                 ('mcmc-sampling-stan', 512)]:
+            with self.subTest(parent=parent):
+                self.case['parent_id'] = parent
+                self.save()
+                out = self.root / ('budget-' + parent)
+                materialize(self.path, out)
+                for child in out.iterdir():
+                    config = tomllib.loads((child / 'task.toml').read_text())
+                    self.assertEqual(config['environment']['memory_mb'], expected)
+                    self.assertEqual(config['environment']['cpus'], 1)
+                    self.assertEqual(config['agent']['timeout_sec'], 900)
+                    self.assertEqual(config['verifier']['timeout_sec'], 120)
+
+    def test_rstan_fixture_memory_matches_standard_tasks_without_swap(self):
+        from unittest.mock import patch
+        from suite.diagnostics import run_checker
+        child = self.case['children'][0]
+        for parent, memory in [('rstan-to-pystan', '2048m'), ('example', '512m')]:
+            with self.subTest(parent=parent), patch('suite.diagnostics.subprocess.run') as run:
+                run.return_value.returncode = 0
+                run_checker(self.image, self.root, child, child['gold'], parent_id=parent)
+                command = run.call_args_list[0].args[0]
+                self.assertEqual(command[command.index('--memory') + 1], memory)
+                self.assertEqual(command[command.index('--cpus') + 1], '1')
+                if parent == 'rstan-to-pystan':
+                    self.assertEqual(command[command.index('--memory-swap') + 1], memory)
+                self.assertEqual(run.call_args_list[0].kwargs['timeout'], 120)
+
     def test_dotted_official_parent_id_is_preserved(self):
         for identity in ('install-windows-3.11', 'install-windows-3.11-m1',
                          'a', '0', 'a-', 'a--b'):

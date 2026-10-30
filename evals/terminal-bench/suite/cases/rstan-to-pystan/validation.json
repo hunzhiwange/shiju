@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "rstan-to-pystan",
+  "implementation_sha256": "2365b523747f771c31c18689f42b99cae85ed73b9b77f762138e4a33b3f776c4",
+  "files": {
+    "check.py": "2c7367543bd2ceea54c74c60c329c067c4c133163d361148eb04c4d4f243e89a",
+    "fixtures/m1/example.json": "c0ce4e9989865f5073bfaca6d9bfb8841eb124984661eb8fe804b758e49520a4",
+    "fixtures/m1/instruction.md": "7f006004dadd07b02dd45e09a211f44cfc71acdc36ada7bf3b807f27f3b91e8d",
+    "fixtures/m2/example.json": "d6cf80776f9f938fb4f109083320f9e82dcbe4090b94a1410ea9822b20fcd94f",
+    "fixtures/m2/instruction.md": "55c20fce517fabfffc300a7611428e358e8594302b9fa1889ef5774fbd661c41",
+    "fixtures/m3/example.json": "d89e5c010829bb06c4aa00c921e0d57bbe1ed08f661b299ddbe2977e42a8c0ac",
+    "fixtures/m3/instruction.md": "4fb4ab97fa639a822698d7bd137d995a5760fc266d0c96804a86deeb95cd56f9",
+    "fixtures/m4/example.json": "478d16686ddaed61f39bff515a70b6905dff3f19ca27e6688d47e3eca211efe5",
+    "fixtures/m4/instruction.md": "66b873f27137000130204f577859717d593fdfb8e0d33711125e544da07a30fb",
+    "oracle/m1/allow-extra-column/solution.py": "4b9028e1b29f119e3aefb7b474e4b3c4b5158acaa2d014fad5499090c3bfe681",
+    "oracle/m1/gold/solution.py": "cf24a951ad5ce4971fc73d82dca34beada608f2b52557b3e0ea73c84ef9f7d93",
+    "oracle/m1/header-order/solution.py": "99ffe66763d3b4b90148ba5bfc1a1174f17df59f1a0a3378d389a67678919ccf",
+    "oracle/m1/no-intercept/solution.py": "703ef90e33de7cf676fb1421206e85866dc442fcfc5e66cb71a2560a8b0db72d",
+    "oracle/m1/task.json": "f0d2fa9b9d531147a98452d49b7faca96c91a497f4ecdc2538af9dc534ca1a6c",
+    "oracle/m2/gold/solution.py": "2567f0901ac92295d06a8213237eaf6189d991ff1774f8bbde103e14c3eb02c4",
+    "oracle/m2/task.json": "5a6f93220e9e6458e2bf1e8879c39128fb480516bd06aa4b4a2c0675e66677c3",
+    "oracle/m2/total-iterations/solution.py": "36c36d76d254cec4a2e9a2a8dc0df6e6f8e970c6da0d0b388b72b44d0ae182c5",
+    "oracle/m2/wrong-amplitude/solution.py": "31f4a34adde3732fa5334f325265536cc9f8126021b89c1439fea48d1348dcd0",
+    "oracle/m2/wrong-control/solution.py": "9eb7dc13b5fd7eb8ae9951909e450082c8e1c04b55c904a41c3f029076f2e81f",
+    "oracle/m3/allow-zero-scale/solution.py": "99aa0e4419f377106d6dad2c81dd873fc9fbfd5dd32cd629e17a8f90aa0d63a6",
+    "oracle/m3/gold/solution.py": "9a287c4426dda182db0ee0e17a3695bb55855b8f92f813c82cda84c12356f2a1",
+    "oracle/m3/swapped-dimensions/solution.py": "a01badb8116fbdd5d673d203f8dab5701a31f32c8ea3c16f873d3964cd11b221",
+    "oracle/m3/task.json": "bb56168fcacc6f74b68a5a20c3c95d639430714dcf469a8983e2d575c6ffad7d",
+    "oracle/m3/wrong-seed/solution.py": "c839b16fe3c0f69814e7b3925e18326bb57501edd86011bf97b9127a3d877ba3",
+    "oracle/m4/absolute-beta/solution.py": "907f59ac12d27e37822a8850a304fec8685c33eaf71156c09e52fc88390a2904",
+    "oracle/m4/first-draw/solution.py": "ef7e960f76dd42103754df2ca72fc51ca86a2422faf32aa5267c9f7e616bedf9",
+    "oracle/m4/gold/solution.py": "ead1c178d8485775cc4bc0d5f29057a3d49a800ca9ef8cee2ef937df2f22510a",
+    "oracle/m4/task.json": "cd4b32565aac6175c465acf0425e61c1146a7549324f6cefac4b9e6eb98db9c8",
+    "oracle/m4/wrong-axis/solution.py": "04499ddbeab5764c7bb131431eb2380db0b3aa0f33a618db5c54c9d7f5309c05",
+    "case.json": "985c31b9527318d3a282298142592fc85c199797c4df7c3b154218b6d381e859"
+  },
+  "image": "vw-rstan-pystan-diagnostics@sha256:ebaf0987df9c994c99dbe2b0980cb2f2bacc4ac34bc343cd227d683ba6de0ed6",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "header-order",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "no-intercept",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "allow-extra-column",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "total-iterations",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-control",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "wrong-amplitude",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "swapped-dimensions",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "wrong-seed",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "allow-zero-scale",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "first-draw",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "absolute-beta",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-axis",
+      "exit_code": 1
+    }
+  ]
+}

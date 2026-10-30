@@ -15,6 +15,8 @@ for hidden material by per-case preparation. Calibration uses fresh, offline,
 resource-limited Docker containers, no parent task or repository mount.
 validation.json binds every declared byte and this implementation; it records
 local fixture calibration, not official scoring or model readiness.
+The user-authorized rstan-to-pystan children use 2048 MiB without swap;
+all other children retain the 512 MiB budget.
 """
 import argparse
 import hashlib
@@ -160,7 +162,12 @@ def copy_files(root, mapping, destination):
         shutil.copy(source(root, name), output)
 
 
-def run_checker(image, root, child, candidate):
+def memory_mb(parent_id):
+    # Authorized after real GCC and Clang OOM probes at 512 MiB (2026-10-30).
+    return 2048 if parent_id == 'rstan-to-pystan' else 512
+
+
+def run_checker(image, root, child, candidate, *, parent_id=None):
     with tempfile.TemporaryDirectory(prefix='vw-diagnostic-') as directory:
         work = Path(directory)
         app = work / 'app'
@@ -172,9 +179,10 @@ def run_checker(image, root, child, candidate):
         copy_files(root, child['oracle'], tests / 'oracle')
         shutil.copyfile(source(root, child['checker']), tests / 'check.py')
         name = 'vw-diagnostic-' + uuid.uuid4().hex
+        swap = ['--memory-swap', '2048m'] if parent_id == 'rstan-to-pystan' else []
         command = ['docker', 'run', '--pull', 'never', '--rm', '--name', name,
-                   '--network', 'none', '--cpus', '1', '--memory', '512m',
-                   '--pids-limit', '128', '--cap-drop', 'ALL',
+                   '--network', 'none', '--cpus', '1', '--memory', f'{memory_mb(parent_id)}m',
+                   *swap, '--pids-limit', '128', '--cap-drop', 'ALL',
                    '--security-opt', 'no-new-privileges', '--read-only',
                    '--tmpfs', '/tmp:rw,size=64m', '--workdir', '/app',
                    '--mount', f'type=bind,src={app},dst=/app',
@@ -202,7 +210,8 @@ def validate(path, run_fixtures=False):
             candidates = [('gold', child['gold'], 0), ('nop', {}, 1)]
             candidates += [(n['id'], n['files'], 1) for n in child['negatives']]
             for identity, files, expected in candidates:
-                code = run_checker(case['image'], path.parent, child, files)
+                code = run_checker(case['image'], path.parent, child, files,
+                                   parent_id=case['parent_id'])
                 if code != expected:
                     raise ValueError(f"{child['id']} {identity}: checker calibration failed")
                 receipt['checks'].append({'child_id': child['id'], 'fixture': identity,
@@ -272,7 +281,7 @@ def materialize(path, output):
         # Suite scheduling must enforce this policy; Harbor owns the timeouts.
         config = ('schema_version = "1.1"\n[agent]\ntimeout_sec = 900\n'
                   '[verifier]\ntimeout_sec = 120\n[environment]\n'
-                  'cpus = 1\nmemory_mb = 512\nstorage_mb = 1024\ngpus = 0\n'
+                  f'cpus = 1\nmemory_mb = {memory_mb(case["parent_id"])}\nstorage_mb = 1024\ngpus = 0\n'
                   'network_mode = "no-network"\n[metadata]\nkind = "diagnostic"\n'
                   f'parent_id = "{case["parent_id"]}"\nchild_id = "{child["id"]}"\n'
                   'policy_json = ' + json.dumps(json.dumps(POLICY, sort_keys=True)) + '\n')

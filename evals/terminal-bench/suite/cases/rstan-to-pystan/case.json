@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "rstan-to-pystan",
+  "image": "vw-rstan-pystan-diagnostics@sha256:ebaf0987df9c994c99dbe2b0980cb2f2bacc4ac34bc343cd227d683ba6de0ed6",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m1/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "header-order",
+          "files": {
+            "solution.py": "oracle/m1/header-order/solution.py"
+          }
+        },
+        {
+          "id": "no-intercept",
+          "files": {
+            "solution.py": "oracle/m1/no-intercept/solution.py"
+          }
+        },
+        {
+          "id": "allow-extra-column",
+          "files": {
+            "solution.py": "oracle/m1/allow-extra-column/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m2/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "total-iterations",
+          "files": {
+            "solution.py": "oracle/m2/total-iterations/solution.py"
+          }
+        },
+        {
+          "id": "wrong-control",
+          "files": {
+            "solution.py": "oracle/m2/wrong-control/solution.py"
+          }
+        },
+        {
+          "id": "wrong-amplitude",
+          "files": {
+            "solution.py": "oracle/m2/wrong-amplitude/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m3/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "swapped-dimensions",
+          "files": {
+            "solution.py": "oracle/m3/swapped-dimensions/solution.py"
+          }
+        },
+        {
+          "id": "wrong-seed",
+          "files": {
+            "solution.py": "oracle/m3/wrong-seed/solution.py"
+          }
+        },
+        {
+          "id": "allow-zero-scale",
+          "files": {
+            "solution.py": "oracle/m3/allow-zero-scale/solution.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "solution.py": "oracle/m4/gold/solution.py"
+      },
+      "negatives": [
+        {
+          "id": "first-draw",
+          "files": {
+            "solution.py": "oracle/m4/first-draw/solution.py"
+          }
+        },
+        {
+          "id": "absolute-beta",
+          "files": {
+            "solution.py": "oracle/m4/absolute-beta/solution.py"
+          }
+        },
+        {
+          "id": "wrong-axis",
+          "files": {
+            "solution.py": "oracle/m4/wrong-axis/solution.py"
+          }
+        }
+      ]
+    }
+  ]
+}

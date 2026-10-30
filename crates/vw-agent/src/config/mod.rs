@@ -364,6 +364,17 @@ pub async fn get() -> Config {
     }
 }
 
+/// 读取当前请求租户与项目的配置，每次读取都包含已保存的覆盖。
+pub(crate) async fn get_current() -> Result<Config, Error> {
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let directory = crate::project::instance::directory();
+    if directory.is_empty() {
+        get_global_for_tenant(&tenant).await
+    } else {
+        get_project_for_tenant(&tenant, Path::new(&directory)).await
+    }
+}
+
 pub async fn get_global_for_tenant(tenant: &TenantScope) -> Result<Config, Error> {
     let mut config = schema::load_or_init_config_for_tenant(tenant, None)
         .await

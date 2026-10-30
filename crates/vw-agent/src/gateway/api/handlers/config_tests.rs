@@ -1088,3 +1088,90 @@ async fn config_patch_stateful_rejects_invalid_project_patch_without_mutating_ru
     assert!(error.message.contains("config patch must be a JSON object"));
     assert_eq!(state.config.lock().default_provider, expected_provider);
 }
+
+#[tokio::test]
+async fn manual_agent_save_updates_live_resolution_and_survives_instance_restart() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = TempDir::new().unwrap();
+    let _root = EnvGuard::set("VW_MODEL_RECOVERY_TEST_ROOT", home.path().as_os_str());
+    let _config_dir =
+        EnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path().join("config").as_os_str());
+    let _workspace = EnvGuard::unset("VIBEWINDOW_WORKSPACE");
+    let tenant = TenantScope::new("save-test", "company").unwrap();
+
+    for project_override in [false, true] {
+        let project = home.path().join(if project_override { "project" } else { "global" });
+        std::fs::create_dir_all(&project).unwrap();
+        let directory = project.to_string_lossy().to_string();
+        let scoped_directory = directory.clone();
+        let scoped_tenant = tenant.clone();
+        crate::session::ui_store::with_tenant_scope(
+            tenant.clone(),
+            with_instance(directory.clone(), move || {
+                Box::pin(async move {
+                    let state = state(config::Config::default(), false, &[]);
+                    // 两次保存之间不销毁实例，先读旧值使历史缓存问题可被复现。
+                    for (provider, model) in [("before", "old-model"), ("after", "saved-model")] {
+                        let model_ref = format!("{provider}/{model}");
+                        let Json(saved) = config_patch_stateful(
+                            Extension(scoped_tenant.clone()),
+                            State(state.clone()),
+                            Query(InstanceQuery {
+                                directory: project_override.then(|| scoped_directory.clone()),
+                            }),
+                            HeaderMap::new(),
+                            Json(serde_json::json!({
+                                "agents": {"main": {"provider": provider, "model": model}},
+                                "default_provider": provider,
+                                "default_model": model_ref,
+                            })),
+                        )
+                        .await?;
+                        assert_eq!(saved["agents"]["main"]["model"], model);
+                        let runtime = config::get_current().await.unwrap();
+                        assert_eq!(runtime.agents["main"].provider, provider);
+                        assert_eq!(runtime.agents["main"].model, model);
+                        let agent = crate::agent::get("main").await.expect("live main agent");
+                        let resolved = crate::agent::resolve_model_ref(&agent).unwrap();
+                        assert_eq!(resolved.provider_id, provider);
+                        assert_eq!(resolved.model_id, model);
+                        let default_model =
+                            crate::provider::provider::default_model().await.unwrap();
+                        assert_eq!(default_model.provider_id, provider);
+                        assert_eq!(default_model.model_id, model);
+                    }
+                    crate::project::instance::dispose().await;
+                    Ok(())
+                })
+            }),
+        )
+        .await
+        .unwrap();
+
+        // 从数据库创建新的实例，不能依赖上一实例或桌面草稿中的值。
+        crate::session::ui_store::with_tenant_scope(
+            tenant.clone(),
+            with_instance(directory.clone(), || {
+                Box::pin(async {
+                    let runtime = config::get_current().await.unwrap();
+                    assert_eq!(runtime.default_model.as_deref(), Some("after/saved-model"));
+                    let agent = crate::agent::get("main").await.unwrap();
+                    assert_eq!(agent.provider, "after");
+                    assert_eq!(agent.model, "saved-model");
+                    crate::project::instance::dispose().await;
+                    Ok(())
+                })
+            }),
+        )
+        .await
+        .unwrap();
+        let store = local_store(home.path());
+        let payload = if project_override {
+            store.get_project(&tenant, &directory).unwrap().unwrap()
+        } else {
+            store.get(&tenant).unwrap().unwrap()
+        };
+        let payload: Value = serde_json::from_str(&payload).unwrap();
+        assert_eq!(payload["agents"]["main"]["model"], "saved-model");
+    }
+}

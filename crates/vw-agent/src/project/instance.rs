@@ -86,6 +86,11 @@ pub(crate) async fn provide_context<R>(
     CONTEXT.scope(context, future).await
 }
 
+/// 将已解析的项目上下文带入同步会话执行线程。
+pub(crate) fn provide_context_sync<R>(context: Context, operation: impl FnOnce() -> R) -> R {
+    CONTEXT.sync_scope(context, operation)
+}
+
 /// 返回当前上下文的调用目录。
 ///
 /// 未处于项目上下文时返回空字符串。

@@ -48,15 +48,12 @@ pub use loop_::process_message;
 use crate::app::agent::global;
 use crate::app::agent::permission::next as permission_next;
 use crate::app::agent::permission::next::Ruleset;
-use crate::app::agent::project::instance;
 use crate::app::agent::provider::provider;
 use crate::app::agent::skill;
-use crate::app::config as app_config;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
 use vw_config_types::agent::{DelegateAgentConfig, merged_agent_configs};
 
 /// 代理生成提示词模板
@@ -93,7 +90,7 @@ struct ResolvedAgentDefinition {
 
 /// 根据名称获取代理信息
 ///
-/// 从实例状态中查找指定名称的代理配置信息。
+/// 从当前租户与项目的最新配置中查找指定名称的代理。
 ///
 /// # 参数
 ///
@@ -111,7 +108,7 @@ struct ResolvedAgentDefinition {
 /// }
 /// ```
 pub async fn get(name: &str) -> Option<DelegateAgentConfig> {
-    instance_state()().await.agents.get(name).map(|agent| agent.definition.clone())
+    load_state().await.ok()?.agents.get(name).map(|agent| agent.definition.clone())
 }
 
 /// 获取默认代理名称
@@ -140,7 +137,7 @@ pub async fn get(name: &str) -> Option<DelegateAgentConfig> {
 /// }
 /// ```
 pub async fn default_agent() -> Result<String, String> {
-    let state = instance_state()().await;
+    let state = load_state().await?;
     choose_default_agent(&state)
 }
 
@@ -163,7 +160,13 @@ pub async fn default_agent() -> Result<String, String> {
 /// }
 /// ```
 pub async fn list() -> Vec<Info> {
-    let state = instance_state()().await;
+    let state = match load_state().await {
+        Ok(state) => state,
+        Err(error) => {
+            tracing::error!(%error, "failed to load agent definitions");
+            return Vec::new();
+        }
+    };
     let mut out = state
         .agents
         .iter()
@@ -194,30 +197,8 @@ struct State {
     default_agent: Option<String>,
 }
 
-/// 获取实例状态访问器
-///
-/// 返回一个闭包，用于访问项目级别的代理状态。
-/// 状态在首次访问时懒加载，并缓存在项目实例中。
-///
-/// # 返回值
-///
-/// 返回一个异步闭包，调用该闭包可获取 `Arc<State>`
-fn instance_state()
--> impl Fn() -> crate::app::agent::project::BoxFuture<Arc<State>> + Send + Sync + 'static {
-    instance::state(
-        "agent",
-        || async { load_state().await },
-        None::<fn(Arc<State>) -> crate::app::agent::project::BoxFuture<()>>,
-    )
-}
-
-/// 初始化代理模块
-///
-/// 预热代理状态缓存，确保后续访问时状态已加载。
-/// 通常在应用启动时调用。
-pub fn init() {
-    let _ = instance_state();
-}
+/// 保留启动入口；代理定义在请求时读取，避免缓存覆盖已保存的配置。
+pub fn init() {}
 
 /// 判断代理是否为主要且可见的
 ///
@@ -314,7 +295,7 @@ fn normalize_agent_mode(raw: &str) -> String {
 }
 
 pub async fn permission_rules(name: &str) -> Option<Ruleset> {
-    instance_state()().await.agents.get(name).map(|agent| agent.permission.clone())
+    load_state().await.ok()?.agents.get(name).map(|agent| agent.permission.clone())
 }
 
 fn load_agent_configs(cfg: &Value) -> HashMap<String, DelegateAgentConfig> {
@@ -425,13 +406,17 @@ fn merge_json_value(target: &mut Value, source: &Value) {
 /// # 返回值
 ///
 /// 返回初始化完成的 `State` 结构体
-async fn load_state() -> State {
-    // 加载应用配置
-    let cfg: Value =
-        tokio::task::spawn_blocking(app_config::load_app_config).await.unwrap_or_else(|error| {
-            tracing::error!(%error, "join application config load task failed");
-            serde_json::json!({})
-        });
+async fn load_state() -> Result<State, String> {
+    let config = crate::config::get_current().await.map_err(|error| error.to_string())?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    // 桌面偏好只提供兼容权限字段；代理定义必须来自租户/项目配置。
+    let mut cfg = tokio::task::spawn_blocking(move || {
+        crate::session::ui_config::load_app_config_result(&tenant)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    cfg["agents"] = serde_json::to_value(config.agents).map_err(|error| error.to_string())?;
     let configured_agents = load_agent_configs(&cfg);
 
     // 解析用户权限配置
@@ -499,5 +484,5 @@ async fn load_state() -> State {
     // 获取配置中的默认代理
     let default_agent = cfg.get("default_agent").and_then(Value::as_str).map(|s| s.to_string());
 
-    State { agents, default_agent }
+    Ok(State { agents, default_agent })
 }

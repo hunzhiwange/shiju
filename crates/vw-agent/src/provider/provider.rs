@@ -123,13 +123,7 @@ async fn provider_config() -> Result<config::Config, config::Error> {
     if let Some(kind) = CONFIG_READ_FAILURES.with(|faults| faults.borrow_mut().pop_front()) {
         return Err(config::Error::Io(std::io::Error::new(kind, "isolated catalog storage read")));
     }
-    let tenant = crate::session::ui_store::current_tenant_scope();
-    let directory = instance::directory();
-    let result = if directory.is_empty() {
-        config::get_global_for_tenant(&tenant).await
-    } else {
-        config::get_project_for_tenant(&tenant, std::path::Path::new(&directory)).await
-    };
+    let result = config::get_current().await;
     #[cfg(test)]
     if let Ok(boundary) = CONFIG_READ_BOUNDARY.try_with(Arc::clone) {
         boundary().await;

@@ -428,7 +428,34 @@ fn ensure_persistent_request_message_id(req: &mut Request) -> Result<(), String>
 ///
 /// 本函数保留原有入口签名，对外仍通过 `processor::run` 暴露；
 /// 这里仅将实现迁移至独立文件，方便后续按职责维护。
-pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
+pub fn run(req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static) {
+    let Some(root) = req.root.as_deref().filter(|root| !root.trim().is_empty()) else {
+        return run_in_project(req, on_event);
+    };
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let project =
+        prompt::block_on(crate::project::from_directory(&tenant, std::path::Path::new(root)));
+    match project {
+        Ok((project, worktree)) => {
+            let context = crate::project::instance::Context {
+                directory: root.to_string(),
+                worktree,
+                project,
+            };
+            crate::project::instance::provide_context_sync(context, || {
+                run_in_project(req, on_event)
+            })
+        }
+        Err(error) => {
+            on_event(StreamEvent::Error(format!("Failed to load request project: {error}")));
+        }
+    }
+}
+
+fn run_in_project(
+    mut req: Request,
+    mut on_event: impl FnMut(StreamEvent) -> bool + Send + 'static,
+) {
     if let Err(message) = ensure_persistent_request_message_id(&mut req) {
         on_event(StreamEvent::Error(message));
         return;
@@ -440,7 +467,13 @@ pub fn run(mut req: Request, mut on_event: impl FnMut(StreamEvent) -> bool + Sen
     let app_session_scope = req.app_session_scope.as_deref();
 
     let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
-    let config = prompt::block_on(config::get());
+    let config = match prompt::block_on(config::get_current()) {
+        Ok(config) => config,
+        Err(error) => {
+            on_event(StreamEvent::Error(format!("Failed to load request config: {error}")));
+            return;
+        }
+    };
     let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
     let mut initial_budget =
         super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms);

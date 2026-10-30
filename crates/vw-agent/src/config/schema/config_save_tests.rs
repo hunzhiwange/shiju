@@ -327,3 +327,41 @@ fn prepare_project_override_rejects_base_config_path_without_parent() {
 
     assert!(error.to_string().contains("Tenant base config path must have a parent directory"));
 }
+
+#[tokio::test]
+async fn main_agent_model_override_survives_store_reopen() {
+    let temp = TempDir::new().unwrap();
+    let project = temp.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    let tenant = TenantScope::new("platform", "company").unwrap();
+    let base = Config {
+        config_path: temp.path().join("shiju.json"),
+        workspace_dir: project.clone(),
+        ..Default::default()
+    };
+    let patch = serde_json::json!({
+        "agents": {"main": {"provider": "custom", "model": "saved-model"}},
+        "default_provider": "custom",
+        "default_model": "custom/saved-model"
+    });
+    let prepared = prepare_project_override(&base, serde_json::json!({}), patch).unwrap();
+    let db = store(&temp);
+    save_config_to_store(&base, &tenant, &db).unwrap();
+    save_project_config_to_store(&db, &tenant, &project, &prepared).unwrap();
+    drop(db);
+    let reopened = store(&temp);
+    let loaded = super::config_load::load_config_for_tenant_from_store(
+        &reopened,
+        &tenant,
+        Some(&project),
+        temp.path(),
+        project.clone(),
+        super::workspace::ConfigResolutionSource::DefaultConfigDir,
+        |_| {},
+    )
+    .await
+    .unwrap();
+    assert_eq!(loaded.default_model.as_deref(), Some("custom/saved-model"));
+    assert_eq!(loaded.agents["main"].provider, "custom");
+    assert_eq!(loaded.agents["main"].model, "saved-model");
+}

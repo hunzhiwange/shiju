@@ -1654,3 +1654,59 @@ fn model_recovery_preflight_exhaustion_and_permanent_resolution_stop() {
     assert!(result.is_err());
     assert_eq!(reads, 1);
 }
+
+#[test]
+fn manual_main_model_save_changes_next_auto_request_in_same_session() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env_lock = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            Some("fixture-key"),
+        ));
+    runtime
+        .block_on(crate::config::update_global(serde_json::json!({
+            "providers": {"model-recovery": {"models": {
+                "original": {"status": "active", "tool_call": true},
+                "replacement": {"status": "active", "tool_call": true}
+            }}}
+        })))
+        .unwrap();
+    let project = tempfile::tempdir().unwrap();
+    for model in ["original", "replacement"] {
+        runtime
+            .block_on(crate::config::update_project(
+                project.path(),
+                serde_json::json!({
+                    "agents": {"main": {"provider": "model-recovery", "model": model}},
+                    "default_provider": "model-recovery",
+                    "default_model": format!("model-recovery/{model}"),
+                }),
+            ))
+            .unwrap();
+        let mut req = request_with_session("same-session-after-save");
+        req.query = "hello".into();
+        req.root = Some(project.path().to_string_lossy().into());
+        req.options["agent"] = serde_json::json!("main");
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured = events.clone();
+        // 新执行线程没有 task-local 项目状态；必须从请求的 root 恢复。
+        std::thread::spawn(move || {
+            super::run(req, move |event| {
+                let keep_running = !matches!(event, super::StreamEvent::StepStart { .. });
+                captured.lock().unwrap().push(event);
+                keep_running // 已抵达真实推理步骤入口，不发送外部模型请求。
+            })
+        })
+        .join()
+        .unwrap();
+        let events = events.lock().unwrap();
+        assert!(
+            events.iter().any(|event| matches!(
+                event, super::StreamEvent::StepStart { model: Some(selected), .. }
+                    if selected == &format!("model-recovery/{model}")
+            )),
+            "unexpected request events: {events:?}"
+        );
+    }
+}

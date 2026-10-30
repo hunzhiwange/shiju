@@ -315,7 +315,7 @@ fn invoked_skill_context_restore_replaces_stale_messages_and_preserves_updates()
 
 #[test]
 fn auto_compaction_caps_total_threshold_at_input_and_output_budgets() {
-    for model_limit in [limit(1_000, Some(500), 100), limit(1_000, None, 500)] {
+    for model_limit in [limit(1_000, Some(500), 100), limit(1_000, Some(500), 500)] {
         assert!(!should_compact(499, &model_limit));
         assert!(should_compact(500, &model_limit));
     }
@@ -323,4 +323,18 @@ fn auto_compaction_caps_total_threshold_at_input_and_output_budgets() {
     assert!(should_compact(900, &limit(1_000, None, 100)));
     assert!(!should_compact(899, &limit(0, Some(1_000), 0)));
     assert!(should_compact(900, &limit(0, Some(1_000), 0)));
+    assert!(!should_compact(749, &limit(1_000, None, 1_000)));
+    assert!(should_compact(750, &limit(1_000, None, 1_000)));
+}
+
+#[test]
+fn auto_compaction_unknown_window_uses_runtime_fallback_and_kimi_keeps_input_room() {
+    for unknown in [limit(0, None, 0), limit(0, Some(0), 0)] {
+        assert!(!should_compact(179_999, &unknown));
+        assert!(should_compact(180_000, &unknown));
+    }
+    let kimi = limit(1_048_576, None, 1_048_576);
+    assert!(!should_compact(1, &kimi));
+    assert!(!should_compact(943_718, &kimi));
+    assert!(should_compact(943_719, &kimi));
 }

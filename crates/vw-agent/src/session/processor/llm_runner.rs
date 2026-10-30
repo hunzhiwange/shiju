@@ -221,7 +221,7 @@ fn spawn_llm_stream_thread(
             session_id, messages, system, model, options, tools, abort_rx, tx,
         );
     }
-    llm_runner_tests::record_test_llm_messages(session_id.clone(), messages);
+    llm_runner_tests::record_test_llm_messages(session_id.clone(), messages, options);
     llm_runner_tests::spawn_test_llm_stream_thread(&session_id, tools, abort_rx, tx)
 }
 

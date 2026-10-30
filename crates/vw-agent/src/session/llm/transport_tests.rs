@@ -16,6 +16,51 @@ enum Interruption {
     AfterOutput,
 }
 
+#[test]
+fn compaction_output_budget_reaches_openai_compatible_request() {
+    crate::env::provide_with(
+        HashMap::from([("VW_MODEL_RECOVERY_TEST_KEY".into(), "fixture-key".into())]),
+        || {
+            tokio::runtime::Runtime::new().unwrap().block_on(async {
+                let _env = crate::test_support::global_async_env_lock().lock().await;
+                let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+                let address = listener.local_addr().unwrap();
+                let server = std::thread::spawn(move || {
+                    for socket in listener.incoming() {
+                        let mut socket = socket.unwrap();
+                        let request = read_request(&mut socket);
+                        if request.starts_with(b"GET ") {
+                            let body = r#"{"data":[{"id":"original"}]}"#;
+                            write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+                            continue;
+                        }
+                        let end = request.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
+                        let payload: Value = serde_json::from_slice(&request[end + 4..]).unwrap();
+                        let chunk = json!({"id":"fixture","object":"chat.completion.chunk","created":0,
+                            "model":"original","choices":[{"index":0,"delta":{"content":"checkpoint"},"finish_reason":"stop"}]});
+                        let body = format!("data: {chunk}\n\ndata: [DONE]\n\n");
+                        write!(socket, "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()).unwrap();
+                        return payload;
+                    }
+                    panic!("expected summary request");
+                });
+                let fixture = RecoveryConfig::new(&format!("http://{address}/v1"), Some("fixture-key")).await;
+                let mut input = test_input("model-recovery");
+                input.model = provider::get_model("model-recovery", "original").await.unwrap();
+                input.model.limit = provider::ModelLimit { context: 1_048_576, input: None, output: 1_048_576 };
+                let budget = crate::session::processor::context_governance::summary_output_budget(&input.model.limit);
+                input.agent.options.insert("max_output_tokens".into(), json!(budget));
+                input.agent.options.insert("disable_tools".into(), json!(true));
+                let result = stream(input, |_| {}).await;
+                assert!(result.is_ok(), "{result:?}");
+                let payload = server.join().unwrap();
+                assert_eq!(payload.get("max_tokens").or_else(|| payload.get("max_completion_tokens")), Some(&json!(20_000)));
+                drop(fixture);
+            });
+        },
+    );
+}
+
 fn read_request(socket: &mut TcpStream) -> Vec<u8> {
     socket.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
     let mut request = Vec::new();

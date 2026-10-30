@@ -30,13 +30,10 @@ pub(crate) fn summarize(
     }
     let mut input = history.to_vec();
     input.push(json!({"role": "user", "content": SUMMARY_PROMPT}));
-    // Some legacy providers have no catalog limit. Preserve their request and
-    // learn by shrinking after an actual overflow instead of inventing a window.
-    let mut budget = if limit.context == 0 && limit.input.is_none_or(|input| input == 0) {
-        request_input::estimated_tokens(&input)
-    } else {
-        request_input::input_budget(limit)
-    };
+    // The fallback is a local scheduling budget. Actual provider overflows still
+    // shrink only this request copy, including when a custom model is smaller.
+    let mut budget = request_input::input_budget(limit);
+    let output_budget = crate::session::processor::context_governance::summary_output_budget(limit);
     let mut omitted = request_input::fit(&mut input, budget)?;
     let mut recoveries = 0;
     loop {
@@ -48,7 +45,7 @@ pub(crate) fn summarize(
             &input,
             &[],
             Some(model.to_string()),
-            &json!({"disable_tools": true}),
+            &json!({"disable_tools": true, "max_output_tokens": output_budget}),
             &[],
             &Default::default(),
             &mut |_| true,

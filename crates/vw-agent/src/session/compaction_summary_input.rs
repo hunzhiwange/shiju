@@ -8,15 +8,7 @@ const TRUNCATED: &str =
 const MIN_CONTENT_BYTES: usize = 256;
 
 pub(super) fn input_budget(limit: &ModelLimit) -> u64 {
-    let window = if limit.context == 0 {
-        limit.input.filter(|input| *input > 0).unwrap_or(0)
-    } else {
-        limit
-            .input
-            .filter(|input| *input > 0)
-            .unwrap_or(limit.context)
-            .min(limit.context.saturating_sub(limit.output))
-    };
+    let window = crate::session::processor::context_governance::compaction_input_window(limit);
     // Leave room for estimation/protocol overhead as well as the model's output allocation.
     (u128::from(window) * 95 / 100) as u64
 }

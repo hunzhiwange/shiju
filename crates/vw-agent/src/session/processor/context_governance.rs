@@ -47,21 +47,47 @@ pub(crate) fn effective_input_window(limit: &ModelLimit) -> u64 {
     vw_shared::provider::state::effective_input_window(limit)
 }
 
+/// Unknown windows use the existing runtime fallback, not a claimed provider capability.
+pub(crate) fn compaction_context_window(limit: &ModelLimit) -> u64 {
+    if limit.context > 0 {
+        limit.context
+    } else {
+        limit
+            .input
+            .filter(|input| *input > 0)
+            .unwrap_or(vw_shared::provider::state::DEFAULT_MODEL_CONTEXT_LIMIT)
+    }
+}
+
+/// Reserve the summary's request allocation, never the model's entire output capacity.
+pub(crate) fn summary_output_budget(limit: &ModelLimit) -> u64 {
+    let output = if limit.output > 0 {
+        limit.output
+    } else {
+        vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT
+    };
+    output.min(20_000).min((compaction_context_window(limit) / 4).max(1))
+}
+
+pub(crate) fn compaction_input_window(limit: &ModelLimit) -> u64 {
+    let context = compaction_context_window(limit);
+    let input = limit.input.filter(|input| *input > 0).unwrap_or(context);
+    // An input-only limit does not describe a combined input/output window.
+    if limit.context == 0 && limit.input.is_some_and(|input| input > 0) {
+        input
+    } else {
+        input.min(context.saturating_sub(summary_output_budget(limit)))
+    }
+}
+
 /// 判断当前输入是否达到自动压缩边界。
 pub(crate) fn should_compact(input_tokens: u64, limit: &ModelLimit) -> bool {
-    if limit.context == 0 && limit.input.is_none() {
-        return false;
-    }
-    let window = if limit.context == 0 {
-        effective_input_window(limit)
-    } else {
-        effective_input_window(limit).min(limit.context.saturating_sub(limit.output))
-    };
+    let window = compaction_input_window(limit);
     if window == 0 {
         return input_tokens > 0;
     }
 
-    let total = if limit.context == 0 { window } else { limit.context };
+    let total = compaction_context_window(limit);
     let threshold = ((u128::from(total) * u128::from(AUTO_COMPACTION_THRESHOLD_PERCENT))
         .div_ceil(100) as u64)
         .min(window);

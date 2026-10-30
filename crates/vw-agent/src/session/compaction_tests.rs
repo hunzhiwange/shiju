@@ -237,10 +237,10 @@ async fn cleanup_session(session_id: &str) {
 }
 
 #[tokio::test]
-async fn overflow_distinguishes_unlimited_and_unusable_context() {
+async fn overflow_uses_fallback_for_unknown_and_respects_explicit_input() {
     let tokens = token_info(Some(1_000_000), 0, 0, 0, 0);
 
-    assert!(!is_overflow(&tokens, &model_with_limits(0, None, 0)).await);
+    assert!(is_overflow(&tokens, &model_with_limits(0, None, 0)).await);
     assert!(is_overflow(&tokens, &model_with_limits(10_000, Some(10), 50_000)).await);
 }
 
@@ -269,12 +269,12 @@ async fn overflow_treats_negative_counts_as_zero() {
 }
 
 #[tokio::test]
-// 上下文预算先预留模型输出空间，不能把整个窗口都耗在输入上。
-async fn overflow_reserves_model_output_space() {
+// 自动压缩预留摘要输出预算，不占用模型的全部最大输出容量。
+async fn overflow_reserves_summary_output_space() {
     let model = model_with_limits(100_000, None, 50_000);
 
-    assert!(!is_overflow(&token_info(Some(49_999), 0, 0, 0, 0), &model).await);
-    assert!(is_overflow(&token_info(Some(50_000), 0, 0, 0, 0), &model).await);
+    assert!(!is_overflow(&token_info(Some(79_999), 0, 0, 0, 0), &model).await);
+    assert!(is_overflow(&token_info(Some(80_000), 0, 0, 0, 0), &model).await);
 }
 
 #[tokio::test]

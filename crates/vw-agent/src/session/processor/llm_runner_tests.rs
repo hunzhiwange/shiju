@@ -17,16 +17,22 @@ pub(crate) struct RecordedLlmRequest {
     pub(crate) directory: String,
     pub(crate) tenant: vw_api_types::id::TenantScope,
     pub(crate) messages: Vec<serde_json::Value>,
+    pub(crate) options: serde_json::Value,
 }
 type RecordedMessages = std::collections::HashMap<String, Vec<RecordedLlmRequest>>;
 static TEST_LLM_MESSAGES: std::sync::LazyLock<std::sync::Mutex<RecordedMessages>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(Default::default()));
 
-pub(super) fn record_test_llm_messages(session: String, messages: Vec<serde_json::Value>) {
+pub(super) fn record_test_llm_messages(
+    session: String,
+    messages: Vec<serde_json::Value>,
+    options: serde_json::Value,
+) {
     TEST_LLM_MESSAGES.lock().unwrap().entry(session).or_default().push(RecordedLlmRequest {
         directory: crate::project::instance::directory(),
         tenant: crate::session::ui_store::current_tenant_scope(),
         messages,
+        options,
     });
 }
 

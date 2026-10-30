@@ -297,7 +297,51 @@ fn compaction_budget_reserves_output_and_accepts_unset_input_limit() {
     assert_eq!(request_input::input_budget(&model_limit(1000, 1000, 200)), 760);
     assert_eq!(request_input::input_budget(&model_limit(1000, 500, 200)), 475);
     assert_eq!(request_input::input_budget(&model_limit(1000, 0, 200)), 760);
-    assert_eq!(request_input::input_budget(&model_limit(1000, 1000, 2000)), 0);
+    assert_eq!(request_input::input_budget(&model_limit(1000, 1000, 2000)), 712);
+}
+
+#[test]
+fn compaction_equal_context_and_output_uses_bounded_request_allocation() {
+    let _guard = processor::test_llm_stream_guard();
+    processor::enqueue_test_llm_stream(response("checkpoint"));
+    let limit = ModelLimit { context: 1_048_576, input: None, output: 1_048_576 };
+    let history = vec![json!({"role":"user", "content":"Continue the task"})];
+    assert_eq!(
+        summarize("kimi-summary", &history, "shiju/kimi-k3", &reliability(), None, &limit).unwrap(),
+        "checkpoint"
+    );
+    let requests = processor::take_test_llm_messages("kimi-summary");
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].options["max_output_tokens"], 20_000);
+    assert_eq!(requests[0].options["disable_tools"], true);
+    assert_eq!(request_input::input_budget(&limit), 977_147);
+    assert_eq!(&requests[0].messages[..history.len()], history);
+}
+
+#[test]
+fn compaction_unknown_window_recovers_from_provider_overflow_without_changing_history() {
+    let _guard = processor::test_llm_stream_guard();
+    processor::enqueue_test_llm_stream(vec![overflow_error("context_length_exceeded")]);
+    processor::enqueue_test_llm_stream(response("checkpoint"));
+    let limit = ModelLimit { context: 0, input: None, output: 0 };
+    let history = vec![json!({"role":"user", "content":"x".repeat(1_000_000)})];
+    let before = history.clone();
+    summarize("unknown-summary", &history, "custom/model", &reliability(), None, &limit).unwrap();
+    let requests = processor::take_test_llm_messages("unknown-summary");
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[0].options["max_output_tokens"], 4096);
+    assert_eq!(requests[1].options, requests[0].options);
+    assert!(
+        request_input::estimated_tokens(&requests[0].messages)
+            <= request_input::input_budget(&limit)
+    );
+    assert!(
+        request_input::estimated_tokens(&requests[1].messages)
+            < request_input::estimated_tokens(&requests[0].messages)
+    );
+    assert_eq!(history, before);
+    assert_eq!(request_input::input_budget(&limit), 186_108);
+    assert_eq!(request_input::input_budget(&ModelLimit { input: Some(0), ..limit }), 186_108);
 }
 
 #[test]

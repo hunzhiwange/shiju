@@ -209,6 +209,21 @@ RPM_VERSION="$(printf '%s' "$VERSION" | tr '-' '~')"
 
 mkdir -p "$OUT_DIR"
 
+# Local release packaging can build missing inputs; CI dist packaging stays unchanged.
+if [ "$PROFILE" = "release" ]; then
+  for binary in shi-ju vw-webview shiju acp; do
+    if [ ! -f "$BIN_DIR/$binary" ]; then
+      need_cmd cargo
+      cargo build --release --target "$TARGET" \
+        -p vw-desktop --bin shi-ju \
+        -p vw-webview --bin vw-webview \
+        -p vw-cli --bin shiju \
+        -p vw-acp --bin acp
+      break
+    fi
+  done
+fi
+
 require_binary shi-ju
 require_binary vw-webview
 require_binary shiju

@@ -5,7 +5,7 @@ its resolved contexts/tags and standard start sequence, but use the classic
 builder's supported cgroup limits and forbid implicit builds during up.
 """
 import asyncio
-from contextlib import contextmanager
+from contextlib import asynccontextmanager
 import json
 import math
 import os
@@ -129,10 +129,22 @@ class SuiteDockerEnvironment(DockerEnvironment):
             raise RuntimeError('Docker resource query failed: ' + stderr.decode(errors='replace'))
         return stdout.decode()
 
-    @contextmanager
-    def _resource_lock(self):
-        with locked(LOCK):
+    @asynccontextmanager
+    async def _resource_lock(self):
+        # Waiting must remain cancellable by Harbor's existing trial timeout.
+        # A blocking flock here would also stop that timeout's event loop.
+        while True:
+            lock = locked(LOCK)
+            try:
+                lock.__enter__()
+            except BlockingIOError:
+                await asyncio.sleep(0.1)
+                continue
+            break
+        try:
             yield
+        finally:
+            lock.__exit__(None, None, None)
 
     async def _admit(self, cpu, memory):
         ids = (await self._docker(['ps', '-q'])).split()
@@ -208,7 +220,7 @@ class SuiteDockerEnvironment(DockerEnvironment):
     async def _run_docker_compose_command(self, command, *args, **kwargs):
         if not command or command[0] not in ('build', 'up'):
             return await super()._run_docker_compose_command(command, *args, **kwargs)
-        with self._resource_lock():
+        async with self._resource_lock():
             services, resources = await self._resolved_services()
             if command[0] == 'build':
                 if command != ['build']:
@@ -231,7 +243,7 @@ class SuiteDockerEnvironment(DockerEnvironment):
         key = docker_build_context_hash(context=context, dockerfile_path=dockerfile,
                                         build_args={}, platform=platform)
         image = _compute_image_name(self._EGRESS_CONTROL_SIDECAR_DOCKER_NAME, key)
-        with self._resource_lock():
+        async with self._resource_lock():
             if not await docker_image_exists(image):
                 cpu, memory = limits(self._effective_cpus, self._effective_memory_mb * 2**20)
                 await self._limited_build({'image': image, 'platform': platform,

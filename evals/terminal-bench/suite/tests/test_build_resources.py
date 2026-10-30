@@ -58,6 +58,45 @@ class BuildTests(unittest.TestCase):
         self.service = {'image': 'same-harbor-tag', 'platform': 'linux/amd64',
                         'build': {'context': str(environment), 'network': 'none'}}
 
+    def test_shared_lock_waits_without_blocking_event_loop(self):
+        from suite import docker
+        from suite.state import locked
+        async def exercise():
+            holder = locked(docker.LOCK)
+            holder.__enter__()
+            released = False
+            async def release():
+                nonlocal released
+                await asyncio.sleep(0.02)
+                holder.__exit__(None, None, None)
+                released = True
+            async def enter():
+                async with self.env._resource_lock():
+                    self.assertTrue(released)
+            try:
+                await asyncio.wait_for(asyncio.gather(enter(), release()), 1)
+            finally:
+                if not released:
+                    holder.__exit__(None, None, None)
+        asyncio.run(exercise())
+
+    def test_shared_lock_wait_respects_cancellation_and_releases_after_body_error(self):
+        from suite import docker
+        from suite.state import locked
+        async def acquire():
+            async with self.env._resource_lock():
+                pass
+        async def exercise():
+            with locked(docker.LOCK):
+                with self.assertRaises(asyncio.TimeoutError):
+                    await asyncio.wait_for(acquire(), 0.02)
+            await asyncio.wait_for(acquire(), 1)
+            with self.assertRaisesRegex(BlockingIOError, 'body failure'):
+                async with self.env._resource_lock():
+                    raise BlockingIOError('body failure')
+            await asyncio.wait_for(acquire(), 1)
+        asyncio.run(exercise())
+
     def test_every_run_is_bounded_before_build_and_context_network_platform_are_preserved(self):
         command = build_command(self.service, 1, 512 * 2**20)
         for flag, value in [('--memory', str(512 * 2**20)), ('--memory-swap', str(512 * 2**20)),

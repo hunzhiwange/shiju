@@ -2,7 +2,7 @@
 
 批次：【批次 41】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已阻塞
+状态：已完成，待回归验证
 
 目的：为“投资组合计算加速”准备原题完整环境与四道独立诊断题。
 
@@ -106,3 +106,20 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 当前父题阻塞数字：清理后再次 3 次真实 host/VM 采样，min(host,VM)=12,366,946,304 字节；父题原 S10+B2+A1+安全5GiB+128MiB metadata 底线为 19,461,570,560 字节，未计镜像 C/U 所有副本已差 7,094,624,256 字节。父题 C、完整 U、正 Ucap 尚未知，不填 0；基础底线已失败，未下载任何父 layer body、未进口原父、未运行父 oracle/nop。原父 Agent ABI 与官方 verifier 的 Python3.13/NumPy2.3.2/uv 及网络/bootstrap 边界均待验证；未预修 Agent 或替换官方评分。当前不生成 preparation.json、不宣称整题 ready。
 
 恢复：维护者释放至少上述缺口并预留真实 C/U 所有副本/完整峰值后，重新三次 min(host,VM) 准入（如采用正硬停止 cap，须原始全 stream SHA/diff_id/U 验证）；再按原 S10/1CPU/4GiB/3600 秒运行标准原父 oracle/nop，必要 verifier-only 修复须保留官方 checker 并重新校准。不能只凭诊断通过完成/提交/删除。本次最终证据：`evals/promptfoo/results/qwen38-suite/diagnostics/portfolio-optimization/checkpoint-linux-calibrated-parent-blocked.json`。
+
+
+## 2026-10-31 续跑检查点（原环境阻塞已解除，待 Clippy 回归）
+
+- 已完成本题准备与确定性校准；唯一剩余门槛是下述无关 Rust 编译错误。保留本任务文件，未修改 plan.md、原题、旧评测、模型或预算，无付费调用。
+- 原父真实 Docker v2 amd64 leaf `sha256:93461db3cec697c31585941a3b9387c1398495aa1ff0aee2ac752c7230b50ef8`，config `sha256:b0ef263fdd85ca609faafead645c86c8a03f534178b3368e3eedc0a273b3fed9`。12 层完整压缩 SHA256 与解压 diff_id 全部通过；C=196450772、完整 U=592377344 字节，非 inspect Size/ISIZE 推断。以正 2GiB Ucap、2C、S10+B2+A1+安全5GiB+128MiB metadata 及三次 min(host,VM) 准入后流式 OCI 导入，无额外 archive 文件；Config/RootFS/实际架构一致。
+- 首轮容量充足后，被其他并行工作消耗；父 nop 在创建容器前取消，子题后续触发独立 S1+B2+A1+安全5GiB+128MiB=9797894144 字节守卫。未把基础设施中止记作能力失败。空间恢复后，三次重新采样 min(host,VM)=56239910912 字节，缓存复用新增 C/U 均为 0。另一次公共 4CPU/8GiB 准入拒绝完整保留；之后等待容量，未放宽限制。
+- 全部沿公共 `suite.scoring.harbor_trial -> SuiteDockerEnvironment` 执行。原父 oracle 官方 reward=1，6/6 官方测试通过（154.29 秒，包含 5000/6000/8000 资产）；nop 官方 reward=0，1 基线通过、5 实现失败（27.17 秒）。4 子题各 fresh oracle=1/nop=0，共 10/10 有效 first-score、无评分恢复或结果回放。先核验已通过 oracle 的原始评分和文件哈希，未重复执行该正解。
+- 主容器创建即 1CPU，父 4096MiB、子 512MiB，swap 与 memory 一致；子题 sidecar 创建即 0.25CPU/64MiB。镜像实际均 amd64；父 RootFS 精确一致，子 RootFS 继承声明的 cached leaf。RUN 前受限、up --no-build；父 S10 与子 S1 独立保留。原父 3600 秒、官方 checker 与完整 15 文件源哈希均未改。
+- host 聚焦 unittest 退出 0：1 个方法覆盖 20 个真实进程；`suite.diagnostics validate --case .../case.json --run-fixtures` 退出 0：20/20 Linux 控制（4 gold=0、4 nop=1、12 语义负例=1）。现行 validation.json 绑定公共实现与声明文件。m4 新标准 oracle 实测 baseline=0.008099916998617118、native=0.00052829199921689 秒，加速 15.332272702641673x。
+- `calibrate-admitted.py` 退出 0，公共 verify_preparation 对 ignored 和 case 两份完整 preparation.json 均通过。现行执行身份 `588690e423e955cab7b2c335d302678cae81598b2ec421946065c88f964ce16c` 起止一致；旧 ce05045... 子题证据仅保留为历史，未冒充现行结果。完整本机 preparation.json 含绝对路径，不进入资产提交。
+- 原父 Python3.13.7/NumPy2.3.2/setuptools78.1.1/gcc/headers 实测通过；冻结 ELF `847823c5cd99a6828cddfc2e3e5dbb67c5ddcc9f8693a13d539d8a8fa47c9dae` 及全部声明 sidecar 在原父中离线只读、ELF 所有者 --help 通过。Python HTTP uv 安装器探测曾 403，但原官方 curl 流程成功安装 uv0.9.5 并执行全部测试；未启用 verifier bootstrap，未安装 Agent 依赖，未改官方测试。
+- `evals/promptfoo/score.sh test` 退出 0。无 Rust 源码修改，未运行全量 cargo test、fmt check、wasm 或 Makefile。
+- 必需 `cargo clippy --all-targets --all-features -- -D warnings` 首轮槽 1 退出 101：共享槽的 serde rmeta 消失，原锁也在运行期间消失；现有新锁不属于本会话，未动它。重新动态领取槽 **4**，`CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-4`，`CARGO_BUILD_JOBS=1`，遇到既有并行改动 `crates/vw-agent/src/session/processor/runner_tests.rs:2416` 的 E0425：`super::llm_runner::TestLlmMessages` 不存在。Clippy 行为测试数 0，不替代 30 项校准；依仓库规则不修无关 Rust 问题。
+- 当前证据目录：`evals/promptfoo/results/qwen38-suite/diagnostics/portfolio-optimization/resume-20261030/`。保留原始容量中断、共享准入拒绝、Clippy 两轮日志、全部 first-score/官方 stdout、层校验、资源 inspect、runtime/fixture/checker 身份；最终核验见 `final-checkpoint.json`。所有本题容器/网络/卷均按归属检查；不清理业务、共享缓存或其他会话资源。
+
+恢复入口：由相关会话修复上述 Rust 测试类型引用后，重新按共享槽位规则执行完整 Clippy 门槛；通过后报告新证据并删除本编号文件。若公共执行身份改变，须重新 inputs 校验并补受影响的 Harbor 校准，不能修改历史评分或替换旧 hash。当前允许认定本题环境与 4 子题校准已准备完成，不能声称本次 Clippy 已通过。

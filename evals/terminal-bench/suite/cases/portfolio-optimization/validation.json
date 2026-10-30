@@ -1,0 +1,151 @@
+{
+  "schema_version": 1,
+  "parent_id": "portfolio-optimization",
+  "implementation_sha256": "2365b523747f771c31c18689f42b99cae85ed73b9b77f762138e4a33b3f776c4",
+  "files": {
+    "check.py": "06fc96b32376ed5a98db120e57a611b2d4aeade395f363f87b984570a1296755",
+    "fixtures/m1/example.json": "8cb84f60b60d95a13b9d28916dfca28cdb9e0cf73a8ba1f107170b3e398b794f",
+    "fixtures/m1/instruction.md": "35ef1b6bb671bf58f5f2510aa81db2adc00c286aaab52d933cebb261bcad78af",
+    "fixtures/m2/example.json": "9dd6fcf7ec48acec8a4d0f7ca9397daf459c0c20bfcde3fee68e018028852ae2",
+    "fixtures/m2/instruction.md": "a5561ccdcba83a527fff78bdaeeffeb7d3283fb7c5e3b6f5a2e9cdd8ccb2ea30",
+    "fixtures/m3/example.json": "9dd6fcf7ec48acec8a4d0f7ca9397daf459c0c20bfcde3fee68e018028852ae2",
+    "fixtures/m3/instruction.md": "b4c5fa0a7649ed4e9722d12e160e08286597c93774f582aa6e2f544b7c3fdb06",
+    "fixtures/m4/example.json": "9fd8e4b2f2744519ab33ff3611c1b91437d6c329d11b1ea8f57127e94a7b9de4",
+    "fixtures/m4/instruction.md": "dac9c877b46a74f26f1f059f7775ad6a0701a4723c0c305426c84e619454cf00",
+    "oracle/m1/gold/layout.py": "7cc30ad6e012f4ea7c6cbcc69f769d388b1b9fdaa43565fadfb95e9ccee243cd",
+    "oracle/m1/ignore-column/layout.py": "6cff0b559c6d4a3d65d03fa36751ae3e35a7b9e6ff488fdfaf3ecc7e17273135",
+    "oracle/m1/normalize-weights/layout.py": "abc7fa3a6bbd3ead809f242ad21039ace283967017676e155bfc05cb0d8c55aa",
+    "oracle/m1/reverse-returns/layout.py": "f2b02e3a6a9d630733c336fa4765a62dd58992056657627cb83f37182494df88",
+    "oracle/m1/task.json": "aa2bc1dec073676e423c3d10c4450feedc2fe004620991056abcc70389d24244",
+    "oracle/m2/diagonal-only/kernel.py": "29a2d4ec521a3abb65d322cbdb804151579b1d8d69c4f55eb467f09d873cd05a",
+    "oracle/m2/gold/kernel.py": "b2e0261beda7e1b234b2002861a96a84d7ebc52d1768366b655c07a61cdf2f56",
+    "oracle/m2/no-square-root/kernel.py": "5f5b789268f1060332add79e3cdb7d8e67a89fe3334470ef9a2545b30707bc3b",
+    "oracle/m2/skip-last-return/kernel.py": "dbe4db762bf19797f697a1ab31740f06c5335a3aec1d95ef1e63bdb4cc494317",
+    "oracle/m2/task.json": "5fab5b7b2f717c33633ac9972f1314dfa4e09821cab90c2b97659311868a2d56",
+    "oracle/m3/accept-negative/kernel.py": "9fcf38a667335a27e43fbbb26bf792a610f944f4d99ac09f734c7efa860c25e7",
+    "oracle/m3/gold/kernel.py": "b2e0261beda7e1b234b2002861a96a84d7ebc52d1768366b655c07a61cdf2f56",
+    "oracle/m3/rounded-result/kernel.py": "e14628a37c2cedd01922913ae690c6f9edb484c7f7ed336a42e27adf621ad2b9",
+    "oracle/m3/task.json": "aba11eb909a233882ca3ac3f4302598cc9fa377924e0c34815915b499299bc1f",
+    "oracle/m3/truncate-shapes/kernel.py": "e0bf2890792d6ff162e3f9fc85d131cb4f37d0beeb3a922f1771c3fd32470c62",
+    "oracle/m4/gold/native.c": "5f114facc26f0be7b258a73428f839bc5fb87851b7a9bbcc84031d2a15228f6c",
+    "oracle/m4/no-square-root/native.c": "54f81ce49c7747c100515e55d3b796b10d953d6ddf4acd986d9d5ebc8109f2e1",
+    "oracle/m4/slow-entry/native.c": "03e28436c26a99dd0f6dd073012a0108755d59ec0a97b0e14a931f414076fd1c",
+    "oracle/m4/task.json": "279e3fc9dccbb6ecce8f5e54751fc9dcf400332307ca1f57ff308cc946315631",
+    "oracle/m4/wrong-return/native.c": "612396d43edbaa512d6bed11d2291d189de958839e09b0eddbce4befcf77fd36",
+    "case.json": "64d7f59abe19324f74273a075a07b59563cd0c6aec7d1d0e6570203edeb43ebe"
+  },
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "checks": [
+    {
+      "child_id": "m1",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m1",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "ignore-column",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "normalize-weights",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m1",
+      "fixture": "reverse-returns",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m2",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "no-square-root",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "diagonal-only",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m2",
+      "fixture": "skip-last-return",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m3",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "rounded-result",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "accept-negative",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m3",
+      "fixture": "truncate-shapes",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "gold",
+      "exit_code": 0
+    },
+    {
+      "child_id": "m4",
+      "fixture": "nop",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "no-square-root",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "wrong-return",
+      "exit_code": 1
+    },
+    {
+      "child_id": "m4",
+      "fixture": "slow-entry",
+      "exit_code": 1
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "portfolio-optimization",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "layout.py": "oracle/m1/gold/layout.py"
+      },
+      "negatives": [
+        {
+          "id": "ignore-column",
+          "files": {
+            "layout.py": "oracle/m1/ignore-column/layout.py"
+          }
+        },
+        {
+          "id": "normalize-weights",
+          "files": {
+            "layout.py": "oracle/m1/normalize-weights/layout.py"
+          }
+        },
+        {
+          "id": "reverse-returns",
+          "files": {
+            "layout.py": "oracle/m1/reverse-returns/layout.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "kernel.py": "oracle/m2/gold/kernel.py"
+      },
+      "negatives": [
+        {
+          "id": "no-square-root",
+          "files": {
+            "kernel.py": "oracle/m2/no-square-root/kernel.py"
+          }
+        },
+        {
+          "id": "diagonal-only",
+          "files": {
+            "kernel.py": "oracle/m2/diagonal-only/kernel.py"
+          }
+        },
+        {
+          "id": "skip-last-return",
+          "files": {
+            "kernel.py": "oracle/m2/skip-last-return/kernel.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "kernel.py": "oracle/m3/gold/kernel.py"
+      },
+      "negatives": [
+        {
+          "id": "rounded-result",
+          "files": {
+            "kernel.py": "oracle/m3/rounded-result/kernel.py"
+          }
+        },
+        {
+          "id": "accept-negative",
+          "files": {
+            "kernel.py": "oracle/m3/accept-negative/kernel.py"
+          }
+        },
+        {
+          "id": "truncate-shapes",
+          "files": {
+            "kernel.py": "oracle/m3/truncate-shapes/kernel.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "native.c": "oracle/m4/gold/native.c"
+      },
+      "negatives": [
+        {
+          "id": "no-square-root",
+          "files": {
+            "native.c": "oracle/m4/no-square-root/native.c"
+          }
+        },
+        {
+          "id": "wrong-return",
+          "files": {
+            "native.c": "oracle/m4/wrong-return/native.c"
+          }
+        },
+        {
+          "id": "slow-entry",
+          "files": {
+            "native.c": "oracle/m4/slow-entry/native.c"
+          }
+        }
+      ]
+    }
+  ]
+}

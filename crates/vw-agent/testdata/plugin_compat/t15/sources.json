@@ -1,0 +1,44 @@
+{
+  "task": 15,
+  "license": "MIT: neutral fixtures authored in this repository. Codex Apache-2.0 source consulted for behavior; no implementation or credentials copied.",
+  "fixture": "mcp.json",
+  "sources": {
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs": {
+      "sha256": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a",
+      "symbols": [
+        "AgentPluginMcpFile",
+        "AgentPluginMcpServer",
+        "normalize_agent_plugin_stdio_server",
+        "validate_agent_plugin_url",
+        "validate_agent_plugin_headers"
+      ]
+    },
+    "codex-rs/core-plugins/src/agent_plugin_mcp_overlay.rs": {
+      "sha256": "ef05f5a92a3a3697599ccc13460d5086657a48e6d410e6dda60d9cbf6305d682",
+      "symbols": [
+        "apply_codex_env_overlay",
+        "environment_names_match"
+      ]
+    },
+    "codex-rs/core-plugins/src/agent_plugin_manifest.rs": {
+      "sha256": "31f9efd68ad2a94e45d1596123d49066886c4592aa7588935170913ced1cc660",
+      "symbols": [
+        "parse_agent_plugin_manifest_uri"
+      ]
+    },
+    "codex-rs/core-plugins/src/loader.rs": {
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "load_plugin_mcp_servers_from_manifest_with_format",
+        "load_mcp_servers_from_file"
+      ]
+    }
+  },
+  "expectations": {
+    "schema": "Exact Agent Plugins MCP 1.0.0, required mcpServers object, strict fields per server type.",
+    "transport": "type selects stdio/streamable-http; SSE and unknown protocols are explicit per-server errors.",
+    "auth": "Portable headers validate before client-owned headers are stripped. The separate Codex overlay only supplies local env_vars to existing stdio servers; no OAuth extension is invented.",
+    "runtime": "Task 15 preserves unexpanded stdio cwd/env declarations and HTTP header metadata; runtime rejects unsupported settings until tasks 16/17 connect them. No service/process starts.",
+    "isolation": "Package bytes unchanged; defaults optional, disabled packages absent, independent overlay cannot inject servers or change transports."
+  }
+}

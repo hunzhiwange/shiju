@@ -9,6 +9,7 @@ use std::path::PathBuf;
 pub(crate) enum PluginMcpDeclaration {
     Acp(McpServer),
     Legacy { name: String, config: Map<String, Value> },
+    Portable { name: String, config: Map<String, Value> },
 }
 
 pub(crate) struct PluginMcpServerError {
@@ -30,7 +31,8 @@ impl PluginMcpParseOutcome {
         for declaration in self.servers {
             match declaration {
                 PluginMcpDeclaration::Acp(server) => servers.push(server),
-                PluginMcpDeclaration::Legacy { name, config } => {
+                PluginMcpDeclaration::Legacy { name, config }
+                | PluginMcpDeclaration::Portable { name, config } => {
                     if config.get("enabled") == Some(&Value::Bool(false)) {
                         continue;
                     }

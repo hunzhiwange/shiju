@@ -1,0 +1,643 @@
+{
+  "schema_version": 1,
+  "task": 15,
+  "status": "已完成",
+  "scope": "Portable Agent Plugins MCP declaration parsing through audited package discovery, typed protocol selection and separate local-env overlay. Package files remain unchanged.",
+  "items": [
+    {
+      "id": "mcp.portable.file",
+      "tasks": [
+        15
+      ],
+      "tests": [
+        "codex_plugin_compat_t15_selects_declared_transport",
+        "codex_plugin_compat_t15_rejects_invalid_input",
+        "codex_plugin_compat_t15_preserves_isolation",
+        "codex_plugin_compat_t15_rejects_document_shape_and_missing_package_schema",
+        "codex_plugin_compat_t15_retains_siblings_and_reports_transport_fields",
+        "codex_plugin_compat_t15_validates_stdio_fields_and_preserves_raw_arguments",
+        "codex_plugin_compat_t15_validates_http_before_filtering_client_headers",
+        "codex_plugin_compat_t15_limits_independent_overlay_to_local_env_references",
+        "codex_plugin_compat_t15_keeps_pending_runtime_settings_explicit",
+        "codex_plugin_compat_t15_keeps_manifest_format_authoritative",
+        "codex_plugin_compat_t15_reaudits_portable_files_and_overlay_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.86,
+        "record": "t15/red-1.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions are present before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 45.73,
+        "record": "t15/final-fixed-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 15 schema/type declaration normalization and existing strict runtime admission on macOS only. This does not claim stdio cwd/env execution, HTTP credential/header application, public-service or other-platform acceptance."
+    },
+    {
+      "id": "mcp.portable.sse",
+      "tasks": [
+        15
+      ],
+      "tests": [
+        "codex_plugin_compat_t15_selects_declared_transport",
+        "codex_plugin_compat_t15_rejects_invalid_input",
+        "codex_plugin_compat_t15_preserves_isolation",
+        "codex_plugin_compat_t15_rejects_document_shape_and_missing_package_schema",
+        "codex_plugin_compat_t15_retains_siblings_and_reports_transport_fields",
+        "codex_plugin_compat_t15_validates_stdio_fields_and_preserves_raw_arguments",
+        "codex_plugin_compat_t15_validates_http_before_filtering_client_headers",
+        "codex_plugin_compat_t15_limits_independent_overlay_to_local_env_references",
+        "codex_plugin_compat_t15_keeps_pending_runtime_settings_explicit",
+        "codex_plugin_compat_t15_keeps_manifest_format_authoritative",
+        "codex_plugin_compat_t15_reaudits_portable_files_and_overlay_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.86,
+        "record": "t15/red-1.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions are present before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 45.73,
+        "record": "t15/final-fixed-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 15 schema/type declaration normalization and existing strict runtime admission on macOS only. This does not claim stdio cwd/env execution, HTTP credential/header application, public-service or other-platform acceptance."
+    },
+    {
+      "id": "acceptance.t15",
+      "tasks": [
+        15
+      ],
+      "tests": [
+        "codex_plugin_compat_t15_selects_declared_transport",
+        "codex_plugin_compat_t15_rejects_invalid_input",
+        "codex_plugin_compat_t15_preserves_isolation",
+        "codex_plugin_compat_t15_rejects_document_shape_and_missing_package_schema",
+        "codex_plugin_compat_t15_retains_siblings_and_reports_transport_fields",
+        "codex_plugin_compat_t15_validates_stdio_fields_and_preserves_raw_arguments",
+        "codex_plugin_compat_t15_validates_http_before_filtering_client_headers",
+        "codex_plugin_compat_t15_limits_independent_overlay_to_local_env_references",
+        "codex_plugin_compat_t15_keeps_pending_runtime_settings_explicit",
+        "codex_plugin_compat_t15_keeps_manifest_format_authoritative",
+        "codex_plugin_compat_t15_reaudits_portable_files_and_overlay_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.86,
+        "record": "t15/red-1.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions are present before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 45.73,
+        "record": "t15/final-fixed-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 15 schema/type declaration normalization and existing strict runtime admission on macOS only. This does not claim stdio cwd/env execution, HTTP credential/header application, public-service or other-platform acceptance."
+    }
+  ],
+  "commands": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.03,
+      "record": "t15/final-fixed-0.log"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 45.73,
+      "record": "t15/final-fixed-1.log",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 11
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_keeps_manifest_format_authoritative -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.64,
+      "record": "t15/final-fixed-2.log",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 2.08,
+      "record": "t15/final-fixed-3.log",
+      "passed": 252,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 252
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.53,
+      "record": "t15/final-fixed-4.log",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 36
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 16.41,
+      "record": "t15/final-fixed-5.log"
+    }
+  ],
+  "diagnostic_runs": {
+    "red": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.59,
+        "record": "t15/red-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.86,
+        "record": "t15/red-1.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_rejects_invalid_input -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.79,
+        "record": "t15/red-2.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_preserves_isolation -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.44,
+        "record": "t15/red-3.log"
+      }
+    ],
+    "green": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.69,
+        "record": "t15/green-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 59.36,
+        "record": "t15/green-1.log"
+      }
+    ],
+    "green-fixed": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 8.63,
+        "record": "t15/green-fixed-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 47.11,
+        "record": "t15/green-fixed-1.log"
+      }
+    ],
+    "original-green": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.53,
+        "record": "t15/original-green-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 71.19,
+        "record": "t15/original-green-1.log",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 3
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_rejects_invalid_input -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.64,
+        "record": "t15/original-green-2.log",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_preserves_isolation -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.36,
+        "record": "t15/original-green-3.log",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    ],
+    "final": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.61,
+        "record": "t15/final-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.25,
+        "record": "t15/final-1.log",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 2.4,
+        "record": "t15/final-2.log",
+        "passed": 251,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 251
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.53,
+        "record": "t15/final-3.log",
+        "passed": 36,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 36
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 29.44,
+        "record": "t15/final-4.log"
+      }
+    ],
+    "format-red": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.63,
+        "record": "t15/format-red-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_keeps_manifest_format_authoritative -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.77,
+        "record": "t15/format-red-1.log"
+      }
+    ]
+  },
+  "additional_red_green": [
+    {
+      "test": "codex_plugin_compat_t15_keeps_manifest_format_authoritative",
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_keeps_manifest_format_authoritative -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.77,
+        "record": "t15/format-red-1.log",
+        "effective_tests": 1,
+        "observed_target_assertions": 1
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t15_keeps_manifest_format_authoritative -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.64,
+        "record": "t15/final-fixed-2.log",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    }
+  ],
+  "sources": {
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs": {
+      "sha256": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a",
+      "symbols": [
+        "AgentPluginMcpFile",
+        "AgentPluginMcpServer",
+        "normalize_agent_plugin_stdio_server",
+        "validate_agent_plugin_url",
+        "validate_agent_plugin_headers"
+      ]
+    },
+    "codex-rs/core-plugins/src/agent_plugin_mcp_overlay.rs": {
+      "sha256": "ef05f5a92a3a3697599ccc13460d5086657a48e6d410e6dda60d9cbf6305d682",
+      "symbols": [
+        "apply_codex_env_overlay",
+        "environment_names_match"
+      ]
+    },
+    "codex-rs/core-plugins/src/agent_plugin_manifest.rs": {
+      "sha256": "31f9efd68ad2a94e45d1596123d49066886c4592aa7588935170913ced1cc660",
+      "symbols": [
+        "parse_agent_plugin_manifest_uri"
+      ]
+    },
+    "codex-rs/core-plugins/src/loader.rs": {
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "load_plugin_mcp_servers_from_manifest_with_format",
+        "load_mcp_servers_from_file"
+      ]
+    }
+  },
+  "package_integrity": {
+    "test": "codex_plugin_compat_t15_selects_declared_transport / codex_plugin_compat_t15_preserves_isolation / codex_plugin_compat_t15_limits_independent_overlay_to_local_env_references",
+    "basis": "Actual mcp.json and independent overlay bytes compared before/after file reading, discovery, normalization and merge. No service/process starts or package/config/data writes."
+  },
+  "observed_behavior": [
+    "Exact schema/mcpServers and type-specific fields validated. stdio and streamable-http normalize distinctly; missing/unknown types and SSE yield named per-server errors while valid declaration siblings remain visible. Runtime still rejects the whole invalid configuration.",
+    "HTTP URL validation rejects user information, fragments, non-HTTP(S), and non-loopback HTTP. Header names/values and case-insensitive duplicates validate before all client-owned headers are stripped; preserved custom headers normalize to http_headers.",
+    "Portable stdio command/args/env/cwd types and reserved names validate. Default cwd remains explicit ${PLUGIN_ROOT}; placeholders are retained unexpanded for task 16. Runtime rejects the still-unimplemented cwd/header/env-reference settings instead of dropping them.",
+    "Package format is authoritative. Portable manifests require strict mcp.json; legacy packages retain command/url inference even with schema metadata. Missing optional portable mcp.json is skipped, disabled packages do not contribute, and previously audited package/overlay paths are reaudited for links.",
+    "Independent .codex-plugin overlay can add only local env_vars to existing same-name stdio declarations, even if root com.openai inline metadata exists. It cannot replace commands/args/cwd/URL, change HTTP transport, add servers, or import remote references. Matching literal env placeholders are removed only for corresponding local references."
+  ],
+  "intentional_safety_differences": [
+    "Existing host component policy rejects all parent components, Windows drive spellings and symlink components; it remains stricter than the snapshot's contained-parent path normalization. No path policy is weakened.",
+    "Existing strict whole-configuration runtime rejection remains in force despite valid sibling declaration visibility. Invalid local overlay references are explicit errors; reserved PLUGIN_ROOT/PLUGIN_DATA cannot be imported from overlay environment variables."
+  ],
+  "deferred_capabilities": [
+    {
+      "id": "mcp.portable.stdio.command",
+      "tasks": [
+        15,
+        16
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    },
+    {
+      "id": "mcp.portable.stdio.args",
+      "tasks": [
+        15,
+        16
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    },
+    {
+      "id": "mcp.portable.stdio.env",
+      "tasks": [
+        15,
+        16
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    },
+    {
+      "id": "mcp.portable.stdio.cwd",
+      "tasks": [
+        15,
+        16
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    },
+    {
+      "id": "mcp.portable.http-url",
+      "tasks": [
+        15,
+        17
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    },
+    {
+      "id": "mcp.portable.http-headers",
+      "tasks": [
+        15,
+        17
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    },
+    {
+      "id": "mcp.portable.env-overlay",
+      "tasks": [
+        15,
+        17
+      ],
+      "status": "declaration_verified_runtime_pending_owning_task"
+    }
+  ],
+  "source_boundary": "The frozen portable MCP schema rejects extensions as unknown. The actual com.openai metadata namespace is in plugin.json; separate Codex MCP overlay is local env_vars only. No unimplemented public OAuth extension, private/hosted credentials or connector identity is invented. Tasks 16/17 own working-directory/env/header execution; later OAuth tasks own public authorization.",
+  "artifacts": {
+    "crates/vw-agent/src/plugins/compat/mcp_legacy.rs": "3a6f0608a7fc197b87dfbd915d2b2d730041f73b957c7ca2c98959c083eb67ab",
+    "crates/vw-agent/src/plugins/compat/mcp_portable.rs": "e8a321dbee324e564f9841a23835755b11764b674bb5ada9ba14445c38ab642c",
+    "crates/vw-agent/src/plugins/compat/mcp_portable_overlay.rs": "f28dc12285788655ba0731c1754df68ce41921a923f23f7ecd07727bf9910b1f",
+    "crates/vw-agent/src/plugins/compat/mod.rs": "d8c611d0e273f15ce6c01a15a45c9c34c57d4e7eb3fdd873a3de1429f9827da8",
+    "crates/vw-agent/src/plugins/compat/t15_tests.rs": "42812ad3dd4d419f5d301309dabd2f024c8920314b60ac65d855102003a5180f",
+    "crates/vw-agent/src/plugins/mcp.rs": "7fb57a37cba2d811accaf8cb8d180f547bc1ae605031894465f153ecea814352",
+    "crates/vw-agent/testdata/plugin_compat/t15/mcp.json": "d7f8f47c6580f435b046f52e252ea873a108d44ffaea3d9ed17e420285a16677",
+    "crates/vw-agent/testdata/plugin_compat/t15/sources.json": "3a62e8c027473ddce4305189d24dd0e029ad18fefdc5ad09a96f250ad9d858e9",
+    "docs/plugin-compat/evidence/t15/check-evidence.log": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479",
+    "docs/plugin-compat/evidence/t15/final-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/final-1.log": "758bcd11c1d8be9253f6bdfda44b0e284eb67ba9768fb1347b54b57709cbec48",
+    "docs/plugin-compat/evidence/t15/final-2.log": "12710e27cd1617ed0138a31c50ce7a9ccee1db4bc95f7244d13358a942e99578",
+    "docs/plugin-compat/evidence/t15/final-3.log": "1e8dd7af0083a5bba4eb52990e3ca66837a3df5a421ae92a8b2b3984724b2384",
+    "docs/plugin-compat/evidence/t15/final-4.log": "50d4c7074063ac4b19ab2d691db79d6064c034ae3b5f429fb1d084fd0abc71e5",
+    "docs/plugin-compat/evidence/t15/final-fixed-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/final-fixed-1.log": "a04f20bab3c7f1d07415cb75b4071cb5f58650f74116ae885fcbd123addddb79",
+    "docs/plugin-compat/evidence/t15/final-fixed-2.log": "58a27be2e4264ad3d0030a6dce1a6077e6dde3006ad37d27196d5bac7191040f",
+    "docs/plugin-compat/evidence/t15/final-fixed-3.log": "069b30a7bc84969811c70ed88ff95c1aa847574c5e3b9d2b3be803b3db406e9c",
+    "docs/plugin-compat/evidence/t15/final-fixed-4.log": "0586957d3738f7d6da1fc3270255b2dc1dc34dec9dc5fa204e87f358e59b1c97",
+    "docs/plugin-compat/evidence/t15/final-fixed-5.log": "c18cdb980b67872622b08bb54cfef73a749575a6eddfaee50279dac513d01127",
+    "docs/plugin-compat/evidence/t15/final-fixed.run.json": "8f3f148a3c0bf8ba1c0a19095c767cb5c2a70f50abc58036b323f67c4b84a7ae",
+    "docs/plugin-compat/evidence/t15/final.run.json": "7e1931cd893268163d8ab7f799ac4faec3151c673098c57d3c6592031ccd88d5",
+    "docs/plugin-compat/evidence/t15/format-red-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/format-red-1.log": "395ea128f962f9618c53268bb3333a6ee0b943d8e402205a728f7bc5b5d92a3c",
+    "docs/plugin-compat/evidence/t15/format-red.run.json": "e50d722768f582181afba343dae88e2bdce28289b5e51440dfec7af5abfb7d50",
+    "docs/plugin-compat/evidence/t15/green-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/green-1.log": "b27b1304b7127204dda6e4333bf3330c5cdbd7d39f79c2704a6955f21072639a",
+    "docs/plugin-compat/evidence/t15/green-fixed-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/green-fixed-1.log": "f04f4392b3589b979dbe28468f5cb31cc373df283ae11f902d8ea0a506fcd1aa",
+    "docs/plugin-compat/evidence/t15/green-fixed.run.json": "e2f8562956fdf1b87bee365cc4d897dae5f4a45932a56c8721a2f50663db7379",
+    "docs/plugin-compat/evidence/t15/green.run.json": "5889077048473e495f7c320c10e10b50f483b706dc19370b6b8f23c7f8ecf8a0",
+    "docs/plugin-compat/evidence/t15/original-green-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/original-green-1.log": "515feede02213cf80414257aa7b63cde743617e3c5bbf11767097ac9c7e2d9af",
+    "docs/plugin-compat/evidence/t15/original-green-2.log": "3392e496a02e0283f2c79e9f2406783acd1a65af28daefe5c75e4a377a25bf37",
+    "docs/plugin-compat/evidence/t15/original-green-3.log": "c90ef7ee60d7d165bef5c45b3ed7b3fbdfebddcb527e7350ff856acdb4b92668",
+    "docs/plugin-compat/evidence/t15/original-green.run.json": "6430239b2ba43263cac8416aef1549f84b992aad7e78e559bf7893c623727d07",
+    "docs/plugin-compat/evidence/t15/red-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t15/red-1.log": "0781b333bd9225f82a70877773fbd74b628d1b6bc7111ee8ee1ad6bd13fe60b7",
+    "docs/plugin-compat/evidence/t15/red-2.log": "d68663713df320e20b7657d33f726e815f845c0848ef1a08eafe8cc80e4ea541",
+    "docs/plugin-compat/evidence/t15/red-3.log": "26a5fc0ef4c8dbaceb1315d6d1011173672ac30f7d32a17b59ac3d80c26e89c5",
+    "docs/plugin-compat/evidence/t15/red.run.json": "16c3073cc229c58125c1430bc3a5535266135eefe4db03d3ed1a7c08e5374196"
+  },
+  "artifact_note": "Raw *.log and *.run.json stay local or in CI under scope.md/.gitignore; only structured summary, code and neutral fixtures are submitted.",
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "verification": [
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t15.json",
+      "exit_code": 0,
+      "record": "t15/verification-0.log"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t15.json",
+      "exit_code": 1,
+      "record": "t15/verification-1.log",
+      "expected_result": "Full frozen baseline rejects task-only partial evidence; no full compatibility or platform claim."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "record": "t15/verification-2.log"
+    }
+  ]
+}

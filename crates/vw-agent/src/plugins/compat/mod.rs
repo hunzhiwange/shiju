@@ -6,6 +6,8 @@ pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
 pub(super) mod mcp_legacy;
+pub(super) mod mcp_portable;
+pub(super) mod mcp_portable_overlay;
 pub(super) mod onboarding;
 pub(super) mod path_audit;
 pub(super) mod portable_manifest;
@@ -65,3 +67,7 @@ mod t13_tests;
 #[cfg(test)]
 #[path = "t14_tests.rs"]
 mod t14_tests;
+
+#[cfg(test)]
+#[path = "t15_tests.rs"]
+mod t15_tests;

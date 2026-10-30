@@ -1,0 +1,23 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "local": {
+      "type": "stdio",
+      "command": "fixture-server",
+      "args": [
+        "serve"
+      ],
+      "env": {
+        "FIXTURE": " value "
+      }
+    },
+    "remote": {
+      "type": "streamable-http",
+      "url": "https://example.test/mcp",
+      "headers": {
+        "Authorization": "fixture-only-secret",
+        "X-Plugin": "fixture"
+      }
+    }
+  }
+}

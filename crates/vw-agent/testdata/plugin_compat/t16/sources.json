@@ -1,0 +1,40 @@
+{
+  "task": 16,
+  "license": "MIT: neutral Python MCP fixture and tests authored in this repository. Codex Apache-2.0 sources consulted for observable behavior; no credentials or production payloads copied.",
+  "fixture": "server.py",
+  "sources": {
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs": {
+      "sha256": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a",
+      "symbols": [
+        "normalize_agent_plugin_stdio_server",
+        "expand_agent_plugin_placeholders",
+        "resolve_existing_path_prefix"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/codex-mcp/src/plugin_config.rs": {
+      "sha256": "53c68f3bb8d97da30aa9681223e1f353d1429c3e69c62e5565b0745db8926d41",
+      "symbols": [
+        "normalize_plugin_mcp_server_value",
+        "environment_cwd",
+        "bind_environment_env_vars"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/codex-mcp/src/plugin_config_tests.rs": {
+      "sha256": "a276d8c6ba2000dc4437946366f2bed10d9d5bc891c22631dbca01b3078f0bbd",
+      "symbols": [
+        "agent_plugin_placeholder_expansion_is_single_pass"
+      ],
+      "basis": "additional task-16 test source observed directly; baseline unchanged"
+    }
+  },
+  "expectations": {
+    "process": "Actual local Python stdio MCP handshake and tools/list report cwd, reserved root/data variables, opaque arguments and one-pass expansion.",
+    "data": "Host config/plugin-data namespace hashes canonical discovery source plus stable identity, never package version. Package replacement retains data; distinct sources/identities cannot alias data via symlink.",
+    "boundary": "Contained portable ./ command and cwd; existing-prefix canonicalization allows missing cwd but never creates package directories. Paths re-audited immediately before spawn. Native plugin ACP arrays cannot supply host context metadata.",
+    "legacy": "Explicit host cwd resolves relative to package; local environment references are supported with missing/remote sources denied. Unconfigured cwd and arguments retain host behavior.",
+    "scope": "Only local-host execution is implemented. No remote environment/PathUri is converted to a local path. Remote execution remains explicit unsupported, and HTTP credentials/lifecycle remain later tasks.",
+    "security_difference": "Host cwd is contained even for legacy declarations and reserved host env cannot be overridden; these are deliberate fail-closed restrictions. Portable lexical parent-component rejection established by earlier path audit is retained."
+  }
+}

@@ -524,7 +524,10 @@ pub async fn with_server_peer_timeout<T>(
     let timeout = timeout.unwrap_or(MCP_CONNECT_TIMEOUT);
     match server {
         McpServer::Stdio(server) => {
-            let command = Command::new(&server.command);
+            let mut command = Command::new(&server.command);
+            if let Some(cwd) = crate::plugins::plugin_mcp_runtime_cwd(server)? {
+                command.current_dir(cwd);
+            }
             let args = server.args.clone();
             let env = server
                 .env

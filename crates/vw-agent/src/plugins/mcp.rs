@@ -65,14 +65,19 @@ pub(crate) fn merge_enabled_plugin_mcp_servers(
 
     for plugin in discovery.enabled {
         let (outcome, source_path) = load_plugin_mcp_declarations(&plugin.manifest)?;
-        let plugin_servers =
-            outcome.into_runtime_servers(&source_path.to_string_lossy()).with_context(|| {
-                format!(
-                    "failed to load MCP servers for plugin '{}': {}",
-                    plugin.manifest.name,
-                    source_path.display()
-                )
-            })?;
+        let plugin_servers = super::compat::mcp_environment::resolve_servers(
+            outcome,
+            &plugin,
+            options,
+            &source_path.to_string_lossy(),
+        )
+        .with_context(|| {
+            format!(
+                "failed to load MCP servers for plugin '{}': {}",
+                plugin.manifest.name,
+                source_path.display()
+            )
+        })?;
 
         for server in plugin_servers {
             let name = mcp_server_name(&server);

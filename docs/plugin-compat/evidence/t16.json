@@ -1,0 +1,1069 @@
+{
+  "schema_version": 1,
+  "task": 16,
+  "status": "已完成",
+  "scope": "Resolve portable MCP root/data placeholders and contained commands/cwd, host legacy cwd and local environment references through actual package discovery and VibeWindow MCP process launch. Original package bytes are not rewritten.",
+  "items": [
+    {
+      "id": "mcp.legacy.cwd",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.portable.stdio.command",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.portable.stdio.args",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.portable.stdio.env",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.portable.stdio.cwd",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.portable.path-boundary",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "acceptance.t16",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.command",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.args",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.env",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.env_vars",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.cwd",
+      "tasks": [
+        16
+      ],
+      "tests": [
+        "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+        "codex_plugin_compat_t16_rejects_invalid_input",
+        "codex_plugin_compat_t16_preserves_isolation",
+        "codex_plugin_compat_t16_uses_data_cwd_without_creating_package_directories",
+        "codex_plugin_compat_t16_keeps_legacy_relative_cwd_and_local_environment",
+        "codex_plugin_compat_t16_rejects_legacy_escape_and_remote_environment",
+        "codex_plugin_compat_t16_expands_once_and_preserves_opaque_arguments",
+        "codex_plugin_compat_t16_launches_contained_relative_command_and_reaudits_links",
+        "codex_plugin_compat_t16_rejects_symlinked_cwd_and_forged_context",
+        "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+        "codex_plugin_compat_t16_allows_missing_cwd_prefix_but_does_not_create_it",
+        "codex_plugin_compat_t16_reaudits_cwd_after_discovery"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT. No completed failing-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 16 local-host stdio process context only; source/identity data separation and actual MCP child verified on macOS. Remote execution, external ACP executor consumption, other platforms and later auth/lifecycle capabilities are not claimed."
+    }
+  ],
+  "commands": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t16/final-fixed-0.log",
+      "elapsed_seconds": 8.85,
+      "summary": []
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t16/final-fixed-1.log",
+      "elapsed_seconds": 51.4,
+      "summary": [
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+      ],
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 12
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t16/final-fixed-2.log",
+      "elapsed_seconds": 2.36,
+      "summary": [
+        "test result: ok. 264 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 1.73s"
+      ],
+      "passed": 264,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 264
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t16/final-fixed-3.log",
+      "elapsed_seconds": 0.52,
+      "summary": [
+        "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10576 filtered out; finished in 0.16s"
+      ],
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 36
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t16/final-fixed-4.log",
+      "elapsed_seconds": 30.2,
+      "summary": []
+    }
+  ],
+  "diagnostic_runs": {
+    "green": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/green-0.log",
+        "elapsed_seconds": 9.13,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/green-1.log",
+        "elapsed_seconds": 74.86,
+        "summary": [
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.08s"
+        ],
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 3
+      }
+    ],
+    "red": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-0.log",
+        "elapsed_seconds": 8.66,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/red-1.log",
+        "elapsed_seconds": 55.07,
+        "summary": []
+      }
+    ],
+    "alias-red": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/alias-red-0.log",
+        "elapsed_seconds": 9.06,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_rejects_data_alias_between_plugins -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/alias-red-1.log",
+        "elapsed_seconds": 50.98,
+        "summary": []
+      }
+    ],
+    "final": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-0.log",
+        "elapsed_seconds": 8.87,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-1.log",
+        "elapsed_seconds": 48.97,
+        "summary": []
+      }
+    ]
+  },
+  "additional_red_green": [
+    {
+      "test": "codex_plugin_compat_t16_rejects_data_alias_between_plugins",
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_rejects_data_alias_between_plugins -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/alias-red-1.log",
+        "elapsed_seconds": 50.98,
+        "summary": [],
+        "effective_tests": 1,
+        "observed_target_assertions": 1
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t16_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t16/final-fixed-1.log",
+        "elapsed_seconds": 51.4,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10600 filtered out; finished in 0.09s"
+        ],
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 12
+      },
+      "note": "Same named runtime assertion is part of the final 12-test successful run."
+    }
+  ],
+  "sources": {
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs": {
+      "sha256": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a",
+      "symbols": [
+        "normalize_agent_plugin_stdio_server",
+        "expand_agent_plugin_placeholders",
+        "resolve_existing_path_prefix"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/codex-mcp/src/plugin_config.rs": {
+      "sha256": "53c68f3bb8d97da30aa9681223e1f353d1429c3e69c62e5565b0745db8926d41",
+      "symbols": [
+        "normalize_plugin_mcp_server_value",
+        "environment_cwd",
+        "bind_environment_env_vars"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/codex-mcp/src/plugin_config_tests.rs": {
+      "sha256": "a276d8c6ba2000dc4437946366f2bed10d9d5bc891c22631dbca01b3078f0bbd",
+      "symbols": [
+        "agent_plugin_placeholder_expansion_is_single_pass"
+      ],
+      "basis": "additional task-16 test source observed directly; baseline unchanged"
+    }
+  },
+  "observed_behavior": [
+    "Real Python stdio MCP handshake/tools-list reports cwd, reserved directories and one-pass argument/environment substitution. Unknown placeholders remain opaque. Relative package executable launches from its canonical package location.",
+    "Canonical discovery source plus stable plugin identity determines a host config/plugin-data hash namespace; package replacement preserves existing user data, while distinct plugins remain isolated. Data directory leaf aliases are rejected, including aliases within the shared host data root.",
+    "Existing path prefixes are canonicalized. Missing cwd is admitted but never created under the package; process launch fails until it exists. Cwd and package executable paths are checked again immediately before actual spawn.",
+    "Local environment references are resolved without logging values. Explicit reserved variables are rejected, remote execution and unavailable references fail clearly. Legacy unconfigured cwd and literal arguments retain existing host behavior.",
+    "The host-generated shiju/plugin-process-context ACP metadata carries root/data/cwd without global mutable maps; plugin ACP-array declarations cannot inject that reserved context. Existing non-plugin server behavior is unchanged."
+  ],
+  "intentional_safety_differences": [
+    "Legacy host cwd must remain in the package; reserved PLUGIN_ROOT/PLUGIN_DATA cannot be overridden by object-style plugin env or environment references. This is a fail-closed restriction beyond legacy snapshot behavior.",
+    "Earlier portable path policy still rejects lexical parent components. No security/path policy is relaxed."
+  ],
+  "deferred_capabilities": [
+    "No remote environment execution or PathUri-to-host conversion. Such declarations fail explicitly.",
+    "Only the VibeWindow MCP launch path consumes the host metadata. External ACP executors are not claimed to honor that extension.",
+    "HTTP credential/header application, lifecycle settings and public authorization are owned by later tasks.",
+    "Cross-platform evidence remains task 64; this task ran on macOS only."
+  ],
+  "package_integrity": {
+    "test": "codex_plugin_compat_t16_starts_in_contained_plugin_directory",
+    "basis": "mcp.json bytes compared before/after actual subprocess execution; executable and host data remain separate. Package replacement persistence tested by removing/recreating the package while retaining host data."
+  },
+  "artifact_note": "Raw .log and .run.json remain local/CI only under repository rules; only code, neutral fixtures and this structured summary are submitted.",
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "verification": [
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t16.json",
+      "exit_code": 1,
+      "record": "t16/check-evidence.log",
+      "expected_result": "Complete baseline rejects task-only partial evidence; no complete compatibility claim."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "record": "t16/diff-check.log"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_environment.rs",
+      "sha256": "4733485c8e3913a34ed561a976c5357a68bd3fc83f1eb964fbef0429b651b5c8"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/t16_tests.rs",
+      "sha256": "925217e00c7fdd16074fdd3a5bde9b6985dfb75a24cf3e42f2baaf60fc6e79df"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mod.rs",
+      "sha256": "73f1be9e450b6cf59871f9a030e1ac6131a5a58d921986e82155728c5bc0c95c"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mcp.rs",
+      "sha256": "860b15e86edbd18547e7fe8f95d0bce79fe6cd26513dd1646cf3b7fdc6987e68"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mod.rs",
+      "sha256": "488fc95038c701be31a373f0ccd098f79a2448824baf4971543c8ea9d12eb13a"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "sha256": "4aa50a520a82748bb3bf837dbdd03ca86383b1afdb2e3b1f668a0bb623908459"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t16/server.py",
+      "sha256": "86057fddf683f96c8da34a64c488514b707ba9b7aa1813b72cc008047e541d03"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t16/sources.json",
+      "sha256": "ad0d34ffe75ecb00d63579f9c01992b356669e59de9007cb833091fef317da6b"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/alias-red-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/alias-red-1.log",
+      "sha256": "aaf08b9f2c9630bbbe59db861b4ba9212adbc381f2f17ad15c7969e525e07b5d"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/alias-red.run.json",
+      "sha256": "4593b63e3acf215f1cbe13d0e90cd7f6dac631e0457443a7720dd61d8178c586"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/check-evidence.log",
+      "sha256": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-1.log",
+      "sha256": "da579c15ce59624f18d8daa0ffddea88a933e7d867d794a5f27a5a762a5ac121"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-fixed-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-fixed-1.log",
+      "sha256": "6dc34a0cc659850135de0211bd824e443f911f354caf67120e1bc2051209e909"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-fixed-2.log",
+      "sha256": "d436f2066352499d8b72654d9b37cf92966d4a4ed19826216fec7c66b362ad73"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-fixed-3.log",
+      "sha256": "b9f3885975786c691a147e47157edd1546d1579a981af0fee9085427731a9945"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-fixed-4.log",
+      "sha256": "4e5ab0b3bbf7caa11f0f59602407e77779cf537411963cdb9bbee204f3d78f44"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final-fixed.run.json",
+      "sha256": "546429805355681f81a7e4eb40d7bc18b230c041167fd8ed2c70266e2a49677a"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/final.run.json",
+      "sha256": "cc449fcc402a492f31fb1d5d64cc1622484f054878888e78766adfa566944ee2"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/green-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/green-1.log",
+      "sha256": "cd75f94c40251b3eca64fd1c72a3e7a2003eafbb9a6940b2025f8c99c0808ba9"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/green.run.json",
+      "sha256": "be75cc327eae4165d493a29a7bbc25956d39824a870592e06c26b0efc4fe16e4"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/red-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/red-1.log",
+      "sha256": "7511913a40b1723779d2da79846872b00cf4907465b0edcace9f8b8de189647b"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t16/red.run.json",
+      "sha256": "c910a053f1da3a17288125c2a21f1b98d79e3c5a737c9e69e72122755aed5d46"
+    }
+  ]
+}

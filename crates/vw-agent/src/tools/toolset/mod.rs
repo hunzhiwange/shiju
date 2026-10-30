@@ -1,4 +1,6 @@
 use super::context::ToolUseContext;
+use super::discovery::ToolDiscoveryCatalog;
+use super::tool_search::{TOOL_SEARCH_ID, ToolSearchTool};
 use super::*;
 use crate::app::agent::config::schema::load_or_init_config;
 use crate::app::agent::config::{Config, DelegateAgentConfig};
@@ -300,6 +302,23 @@ fn execution_environment_for_config(
         tools = scoped_tools;
     }
 
+    // Session tools may replace registry entries, but cannot supply a forged
+    // search implementation or widen the caller's authorized catalog.
+    tools.retain(|tool| tool.name() != TOOL_SEARCH_ID);
+    if let Some(discovery) = tool_use_context.tool_discovery() {
+        tools.retain(|tool| discovery.authorizes(&tool.spec().id));
+        if discovery.authorizes(TOOL_SEARCH_ID) {
+            // The description comes from the authorized snapshot, including
+            // deferred server names rather than the currently exposed subset.
+            tools.push(Box::new(discovery.search_tool()));
+        }
+    } else {
+        let catalog = ToolDiscoveryCatalog::new(tools.iter().map(|tool| tool.spec()).collect());
+        if catalog.has_deferred_tools() {
+            tools.push(Box::new(ToolSearchTool::new(&catalog)));
+        }
+    }
+
     (tools, tool_use_context)
 }
 
@@ -310,7 +329,11 @@ fn execution_environment_for_context_with_agent_callback(
     let config = runtime_config_for_context(ctx);
     let (mut tools, tool_use_context) = execution_environment_for_config(ctx, config.clone());
     let delegate_agents = enabled_delegate_agents(&config.agents);
-    if !delegate_agents.is_empty() {
+    if !delegate_agents.is_empty()
+        && tool_use_context
+            .tool_discovery()
+            .is_none_or(|discovery| discovery.authorizes("AgentTool"))
+    {
         tools.retain(|tool| tool.name() != "AgentTool");
         let workspace_dir = tool_use_context.workspace_root().unwrap_or_else(|| {
             ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
@@ -348,6 +371,9 @@ fn security_for_tool_context(
 
 /// 枚举当前上下文下的所有工具规格。
 pub fn tool_specs_for_context(ctx: &ToolRuntimeContext) -> Vec<ToolSpec> {
+    if let Some(discovery) = ctx.tool_use_context().tool_discovery() {
+        return discovery.exposed_specs();
+    }
     execution_environment_for_context(ctx).0.into_iter().map(|tool| tool.spec()).collect()
 }
 
@@ -869,6 +895,11 @@ pub fn all_tools_with_runtime(
 
     tool_arcs.push(Arc::new(McpStatusTool::new()));
     register_dynamic_mcp_tools(&mut tool_arcs, workspace_dir);
+
+    let catalog = ToolDiscoveryCatalog::new(tool_arcs.iter().map(|tool| tool.spec()).collect());
+    if catalog.has_deferred_tools() {
+        tool_arcs.push(Arc::new(ToolSearchTool::new(&catalog)));
+    }
 
     let batch_tools = Arc::new(tool_arcs.clone());
     tool_arcs.push(Arc::new(BatchTool::new(batch_tools)));

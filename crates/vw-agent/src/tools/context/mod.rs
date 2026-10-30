@@ -128,6 +128,7 @@ pub struct ToolUseContext {
     bypass_non_cli_approval_for_turn: bool,
     workflow: Arc<Mutex<WorkflowState>>,
     pending_image_reloads: Arc<Mutex<PendingImageReloadQueue>>,
+    tool_discovery: Option<Arc<super::tool_search::ToolDiscoverySession>>,
 }
 
 impl Default for ToolUseContext {
@@ -196,6 +197,7 @@ impl ToolUseContext {
             bypass_non_cli_approval_for_turn: false,
             workflow: Arc::new(Mutex::new(WorkflowState::default())),
             pending_image_reloads: Arc::new(Mutex::new(PendingImageReloadQueue::default())),
+            tool_discovery: None,
         }
     }
 
@@ -222,6 +224,21 @@ impl ToolUseContext {
     /// 返回当前工具调用 ID。
     pub fn tool_call_id(&self) -> Option<&str> {
         self.tool_call_id.as_deref()
+    }
+
+    /// Shared authorized catalog and exposure state for this user turn only.
+    pub(crate) fn tool_discovery(&self) -> Option<Arc<super::tool_search::ToolDiscoverySession>> {
+        self.tool_discovery.clone()
+    }
+
+    // Request-loop construction is wired in the following plan tasks.
+    #[allow(dead_code)]
+    pub(crate) fn with_tool_discovery(
+        mut self,
+        discovery: Arc<super::tool_search::ToolDiscoverySession>,
+    ) -> Self {
+        self.tool_discovery = Some(discovery);
+        self
     }
 
     /// 返回当前会话是否启用了完全访问权限。

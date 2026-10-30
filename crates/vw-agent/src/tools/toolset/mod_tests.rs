@@ -662,6 +662,96 @@ fn tool_specs_for_context_registers_dynamic_mcp_tools_from_workspace_config() {
 }
 
 #[test]
+fn codex_discovery_tool_factory_registers_search_for_deferred_tools() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = write_mcp_fixture_workspace(dir.path());
+    let ctx = ToolRuntimeContext::new("discovery-specs", Some(workspace.display().to_string()))
+        .with_test_config(test_config(&workspace));
+    let specs = tool_specs_for_context(&ctx);
+    let search = specs.iter().find(|spec| spec.id == "tool_search");
+    assert!(search.is_some(), "deferred MCP tools require a registered search entry");
+    let search = search.unwrap();
+    assert!(search.read_only && search.concurrency_safe);
+    assert!(search.description.contains("fixture_server"));
+    assert!(!search.description.contains("inputSchema"));
+}
+
+#[test]
+fn codex_discovery_tool_factory_omits_search_without_deferred_tools() {
+    let dir = tempfile::tempdir().unwrap();
+    let ctx = ToolRuntimeContext::new("discovery-empty", Some(dir.path().display().to_string()))
+        .with_test_config(test_config(dir.path()));
+    assert!(tool_specs_for_context(&ctx).iter().all(|spec| spec.id != "tool_search"));
+}
+
+#[test]
+fn codex_discovery_tool_factory_searches_authorized_catalog_without_remote_calls() {
+    use super::super::tool_search::ToolDiscoverySession;
+
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = write_mcp_fixture_workspace(dir.path());
+    let marker = dir.path().join("remote_calls");
+    let script = dir.path().join("fixture_mcp_server.py");
+    let source = std::fs::read_to_string(&script).unwrap().replace(
+        "    elif method == \"tools/call\":\n",
+        &format!(
+            "    elif method == \"tools/call\":\n        with open({}, 'a') as calls:\n            calls.write('called\\n')\n",
+            serde_json::to_string(&marker.display().to_string()).unwrap(),
+        ),
+    );
+    std::fs::write(&script, source).unwrap();
+    let ctx = ToolRuntimeContext::new("discovery-call", Some(workspace.display().to_string()))
+        .with_test_config(test_config(&workspace));
+    let authorized = tool_specs_for_context(&ctx)
+        .into_iter()
+        .filter(|spec| spec.id == MCP_FIXTURE_TOOL_ID || spec.id == TOOL_SEARCH_ID)
+        .collect();
+    let discovery = Arc::new(ToolDiscoverySession::new(authorized));
+    let ctx = ctx.with_tool_use_context(
+        ToolUseContext::new("discovery-call", Some(workspace.display().to_string()))
+            .with_tool_discovery(discovery.clone()),
+    );
+    assert!(tool_specs_for_context(&ctx).iter().all(|spec| spec.id != MCP_FIXTURE_TOOL_ID));
+    let result = execute_tool_call(TOOL_SEARCH_ID, r#"{"query":"echo"}"#, &ctx).unwrap();
+    let output: Value = serde_json::from_str(&result.model_text()).unwrap();
+    assert_eq!(output["tools"][0]["id"], MCP_FIXTURE_TOOL_ID);
+    assert_eq!(output["tools"][0]["input_schema"]["required"], json!(["message"]));
+    assert!(!marker.exists(), "catalog search must not execute the remote MCP tool");
+    assert!(tool_specs_for_context(&ctx).iter().any(|spec| spec.id == MCP_FIXTURE_TOOL_ID));
+
+    let result =
+        execute_tool_call(MCP_FIXTURE_TOOL_ID, r#"{"message":"after-search"}"#, &ctx).unwrap();
+    assert!(result.model_text().contains("after-search"));
+    assert_eq!(std::fs::read_to_string(marker).unwrap(), "called\n");
+}
+
+#[test]
+fn codex_discovery_tool_factory_respects_disabled_and_denied_search() {
+    use super::super::tool_search::ToolDiscoverySession;
+
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = write_mcp_fixture_workspace(dir.path());
+    let ctx = ToolRuntimeContext::new("discovery-denied", Some(workspace.display().to_string()))
+        .with_test_config(test_config(&workspace));
+    let mcp = tool_specs_for_context(&ctx)
+        .into_iter()
+        .find(|spec| spec.id == MCP_FIXTURE_TOOL_ID)
+        .unwrap();
+    for authorized in [Vec::new(), vec![mcp]] {
+        let discovery = Arc::new(ToolDiscoverySession::new(authorized));
+        let restricted = ctx.clone().with_tool_use_context(
+            ToolUseContext::new("discovery-denied", Some(workspace.display().to_string()))
+                .with_tool_discovery(discovery.clone()),
+        );
+        assert!(execute_tool_call(TOOL_SEARCH_ID, r#"{"query":"echo"}"#, &restricted).is_err());
+        let specs = tool_specs_for_context(&restricted);
+        assert_eq!(specs.len(), usize::from(discovery.authorizes(MCP_FIXTURE_TOOL_ID)));
+        assert!(specs.iter().all(|spec| spec.id == MCP_FIXTURE_TOOL_ID));
+        assert!(specs.iter().all(|spec| spec.id != TOOL_SEARCH_ID));
+    }
+}
+
+#[test]
 fn execution_environment_registers_agent_tool_from_loaded_config() {
     let dir = tempfile::tempdir().unwrap();
     let workspace = dir.path();

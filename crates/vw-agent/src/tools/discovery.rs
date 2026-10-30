@@ -67,6 +67,10 @@ impl ToolDiscoveryCatalog {
         !self.snapshot.documents.is_empty()
     }
 
+    pub(crate) fn contains(&self, id: &str) -> bool {
+        self.snapshot.specs.contains_key(id)
+    }
+
     /// Server names only: the search entry can describe sources without schemas.
     pub(crate) fn deferred_server_names(&self) -> Vec<&str> {
         self.snapshot

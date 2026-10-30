@@ -45,7 +45,7 @@ fn delegate_agent_entry_uses_builtin_worker_defaults() {
     assert!(entry.allow_as_subagent);
     assert_eq!(entry.temperature, 0.2);
     assert_eq!(entry.max_depth, 1);
-    assert_eq!(entry.max_iterations, 32);
+    assert_eq!(entry.max_iterations, 64);
 }
 
 #[test]
@@ -270,10 +270,11 @@ fn default_allowed_tools_preserves_existing_selection() {
 }
 
 #[test]
-fn agents_settings_default_initializes_complete_idle_state() {
+fn agents_settings_default_waits_for_config_before_allowing_save() {
     let state = AgentsSettingsState::default();
 
-    assert!(!state.loading);
+    assert!(state.loading);
+    assert!(!state.config_ready);
     assert!(state.providers.is_empty());
     assert!(state.provider_models.is_empty());
     assert_eq!(state.selected_agent, MAIN_AGENT_KEY);
@@ -300,7 +301,7 @@ fn agents_settings_default_initializes_complete_idle_state() {
     assert!(state.workspace_identity_root_path.is_none());
     assert!(state.save_error.is_none());
     assert!(!state.save_in_flight);
-    assert!(!state.save_pending);
+    assert!(!state.dirty);
 
     let expected_keys = builtin_agent_keys();
     assert_eq!(state.entries.len(), expected_keys.len());
@@ -327,4 +328,21 @@ fn agents_settings_default_initializes_complete_idle_state() {
         assert!(file.size_bytes.is_none());
         assert!(file.modified_at_ms.is_none());
     }
+}
+
+#[test]
+fn main_agent_fields_preserve_saved_binding_over_global_default() {
+    let config = DelegateAgentConfig {
+        provider: "custom".into(),
+        model: "saved-model".into(),
+        ..Default::default()
+    };
+    assert_eq!(
+        super::main_agent_model_fields(
+            &config,
+            Some("shiju"),
+            Some("shiju/deepseek-v4.1-flash"),
+        ),
+        ("custom".into(), "saved-model".into()),
+    );
 }

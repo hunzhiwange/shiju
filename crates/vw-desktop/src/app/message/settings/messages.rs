@@ -540,6 +540,8 @@ pub enum ThemesMessage {
 #[allow(private_interfaces)]
 pub enum AgentsMessage {
     Refresh,
+    Save,
+    DiscardChanges,
     Loaded(AgentsLoaded),
     ConfigLoaded {
         project_path: Option<String>,

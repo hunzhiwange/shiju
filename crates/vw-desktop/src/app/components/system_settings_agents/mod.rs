@@ -34,10 +34,10 @@ use self::shared::{
     agent_sidebar_button_style, detail_tab_button, entry_kind_label, section_card, selected_entry,
 };
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_error_banner, settings_muted_text_style,
-    settings_page_intro, settings_panel_style, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_segment_button_style, settings_text_input_style,
-    settings_value_badge,
+    primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
+    settings_muted_text_style, settings_page_intro, settings_panel_style,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
@@ -376,7 +376,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
     );
     let project_options = agent_project_options(app);
-    let selected_project = settings.project_path.clone().or_else(|| app.project_path.clone());
+    let selected_project = settings.project_path.clone();
     let project_switcher: Element<'_, Message> = if project_options.is_empty() {
         text("尚未打开项目；当前编辑全局智能体配置。")
             .size(12)
@@ -388,7 +388,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
             pick_list(project_options, selected_project, |path| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectSelected(path)))
             })
-            .placeholder("选择项目目录")
+            .placeholder("全局智能体配置")
             .padding([9, 12])
             .text_size(12)
             .width(Length::Fill)
@@ -443,9 +443,35 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         title,
         section_card(
             "项目配置作用域",
-            "切换项目会恢复该项目的智能体配置；修改保存到项目配置数据库。",
+            "修改后点击保存配置；切换项目之前请先保存或放弃修改。身份文件正文仍单独即时写入。",
         ),
         project_switcher,
+        row![
+            text(if settings.save_in_flight {
+                "正在保存…"
+            } else if settings.dirty {
+                "有未保存的修改"
+            } else {
+                "无未保存的修改"
+            })
+            .size(12)
+            .style(settings_muted_text_style),
+            button(text(if settings.save_in_flight { "保存中…" } else { "保存配置" }).size(13))
+                .on_press_maybe(
+                    (!settings.save_in_flight)
+                        .then_some(Message::Settings(SettingsMessage::Agents(AgentsMessage::Save)))
+                )
+                .padding([8, 14])
+                .style(primary_action_btn_style),
+            button(text("放弃修改并刷新").size(13))
+                .on_press_maybe((!settings.save_in_flight).then_some(Message::Settings(
+                    SettingsMessage::Agents(AgentsMessage::DiscardChanges)
+                )))
+                .padding([8, 14])
+                .style(rounded_action_btn_style),
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
         row![
             container(
                 scrollable(container(detail).padding(iced::Padding::default().right(12.0)))

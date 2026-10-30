@@ -1161,7 +1161,7 @@ impl App {
                     available_tools,
                     save_error: None,
                     save_in_flight: false,
-                    save_pending: false,
+                    dirty: false,
                 }
             },
 

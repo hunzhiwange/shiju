@@ -178,7 +178,7 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     main.max_history_messages = 456;
     main.max_iterations = 50_002;
     main.parallel_tools = true;
-    main.allow_as_subagent = true;
+    main.allow_as_subagent = false;
     main.max_parallel_subagents = 3;
     let worker_key = app
         .agents_settings
@@ -199,7 +199,7 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
 
     assert_eq!(patch["agents"]["main"]["provider"], "openrouter");
     assert_eq!(patch["agents"]["main"]["model"], "glm-5");
-    assert_eq!(patch["agents"]["main"]["allow_as_subagent"], true);
+    assert!(patch["agents"]["main"].get("allow_as_subagent").is_none());
     assert_eq!(patch["agents"]["main"]["max_parallel_subagents"], 3);
     assert_eq!(patch["agents"]["main"]["max_iterations"], 50_002);
     assert_eq!(patch["agents"]["main"]["compact_context"], true);
@@ -207,7 +207,7 @@ fn agents_settings_patch_uses_current_main_model_and_combines_runtime_fields() {
     assert_eq!(patch["agents"]["main"]["parallel_tools"], true);
     assert_eq!(patch["default_provider"], "openrouter");
     assert_eq!(patch["default_model"], "openrouter/glm-5");
-    assert_eq!(patch["default_temperature"], 0.2);
+    assert!((patch["default_temperature"].as_f64().unwrap() - 0.2).abs() < f32::EPSILON as f64);
     assert!(patch.get("identity").is_none());
     assert!(patch.get("agent").is_none());
     assert_eq!(patch["agents"][&worker_key]["compact_context"], true);
@@ -303,11 +303,11 @@ fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
     let patch = build_agents_settings_patch(&entries).expect("fresh settings should serialize");
     let researcher = &patch["agents"]["researcher"];
 
-    for field in
-        ["allow_as_subagent", "max_parallel_subagents", "max_depth", "agentic", "max_iterations"]
-    {
+    for field in ["allow_as_subagent", "max_parallel_subagents", "max_depth", "agentic"] {
         assert!(researcher.get(field).is_none(), "unexpected fixed boundary: {field}");
     }
+    // 最大迭代次数是所有角色均可编辑的运行参数，角色资格与递归边界仍固定。
+    assert_eq!(researcher["max_iterations"], 32);
     assert_eq!(
         researcher["allowed_tools"],
         serde_json::json!([
@@ -372,7 +372,8 @@ fn workspace_identity_enabled_toggle_adds_removes_deduplicates_and_isolates_agen
             enabled: true,
         }),
     );
-    assert!(app.agents_settings.save_in_flight);
+    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.save_in_flight);
     let _ = update(
         &mut app,
         SettingsMessage::Agents(AgentsMessage::WorkspaceIdentityEnabledToggled {
@@ -714,7 +715,8 @@ fn summarize_providers_labels_config_source_and_sorts_equal_names_by_id() {
         vec!["a-config", "z-config"]
     );
     assert!(summary.iter().all(|provider| provider.source_label == "配置"));
-    assert!(summary.iter().all(|provider| provider.connected));
+    assert!(summary[0].connected);
+    assert!(!summary[1].connected, "配置存在但没有密钥，不应显示为已连接");
 }
 
 #[test]
@@ -1233,7 +1235,7 @@ fn available_tools_exclude_mcp_dynamic_ids() {
 }
 
 #[test]
-fn loaded_tool_catalog_removes_all_stale_selections_and_schedules_save() {
+fn loaded_tool_catalog_removes_all_stale_selections_and_marks_draft_dirty() {
     let mut app = test_app();
     entry_mut(&mut app, "main").allowed_tools =
         vec!["removed_a".to_string(), "read".to_string(), "removed_b".to_string()];
@@ -1252,11 +1254,12 @@ fn loaded_tool_catalog_removes_all_stale_selections_and_schedules_save() {
         ["read".to_string()]
     );
     assert_eq!(entry(&app, "main").allowed_tools, ["read"]);
-    assert!(app.agents_settings.save_in_flight);
+    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.save_in_flight);
 }
 
 #[test]
-fn config_loaded_after_tool_catalog_removes_stale_selections_and_schedules_save() {
+fn config_loaded_after_tool_catalog_removes_stale_selections_and_marks_draft_dirty() {
     let mut app = test_app();
     app.agents_settings.config_ready = false;
     app.agents_settings.available_tools = vec!["read".to_string()];
@@ -1276,7 +1279,8 @@ fn config_loaded_after_tool_catalog_removes_stale_selections_and_schedules_save(
     );
 
     assert!(entry(&app, "custom").allowed_tools.is_empty());
-    assert!(app.agents_settings.save_in_flight);
+    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.save_in_flight);
 }
 
 #[test]
@@ -1401,41 +1405,77 @@ fn allowed_tool_messages_sort_select_invert_and_apply_presets() {
 }
 
 #[test]
-fn agent_config_save_coalesces_changes_while_request_is_in_flight() {
+fn agent_config_saves_only_on_click_and_retains_edits_during_save() {
     let mut app = test_app();
-    app.agents_settings.available_tools = vec!["bash".to_string(), "read".to_string()];
-    entry_mut(&mut app, "main").allowed_tools.clear();
-
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
-            "main".to_string(),
-            "read".to_string(),
-            true,
-        )),
+        SettingsMessage::Agents(AgentsMessage::ModelChanged("main".into(), "first".into())),
     );
-    assert!(app.agents_settings.save_in_flight);
-    assert!(!app.agents_settings.save_pending);
+    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.save_in_flight);
 
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
+    assert!(app.agents_settings.save_in_flight);
+    assert!(!app.agents_settings.dirty);
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::AllowedToolToggled(
-            "main".to_string(),
-            "bash".to_string(),
-            true,
-        )),
+        SettingsMessage::Agents(AgentsMessage::ModelChanged("main".into(), "second".into())),
     );
-    assert!(app.agents_settings.save_in_flight);
-    assert!(app.agents_settings.save_pending);
-
-    let _ = handle_agents_config_saved(&mut app, Ok(()));
-    assert!(app.agents_settings.save_in_flight);
-    assert!(!app.agents_settings.save_pending);
-    assert_eq!(entry(&app, "main").allowed_tools, vec!["bash", "read"]);
-
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
+    assert!(app.agents_settings.dirty, "duplicate save must not consume later edits");
     let _ = handle_agents_config_saved(&mut app, Ok(()));
     assert!(!app.agents_settings.save_in_flight);
-    assert!(!app.agents_settings.save_pending);
+    assert!(app.agents_settings.dirty);
+    assert_eq!(entry(&app, "main").model, "second");
+
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
+    let _ = handle_agents_config_saved(&mut app, Ok(()));
+    assert!(!app.agents_settings.save_in_flight);
+    assert!(!app.agents_settings.dirty);
+}
+
+#[test]
+fn agent_config_failed_save_keeps_draft_for_manual_retry() {
+    let mut app = test_app();
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ModelChanged("main".into(), "saved-later".into())),
+    );
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
+    let _ = handle_agents_config_saved(&mut app, Err("offline".into()));
+    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.save_in_flight);
+    assert!(app.agents_settings.save_error.as_deref().unwrap().contains("offline"));
+    assert_eq!(entry(&app, "main").model, "saved-later");
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
+    assert!(app.agents_settings.save_in_flight);
+    assert!(app.agents_settings.save_error.is_none());
+}
+
+#[test]
+fn agent_config_draft_survives_refresh_scope_change_and_stale_load() {
+    let mut app = test_app();
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ModelChanged("main".into(), "draft".into())),
+    );
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Refresh));
+    let _ =
+        update(&mut app, SettingsMessage::Agents(AgentsMessage::ProjectChanged("/other".into())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
+            project_path: None,
+            result: Ok(Box::default()),
+        }),
+    );
+    assert_eq!(entry(&app, "main").model, "draft");
+    assert!(app.agents_settings.dirty);
+    assert!(app.agents_settings.project_path.is_none());
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::DiscardChanges));
+    assert!(!app.agents_settings.dirty);
+    assert!(!app.agents_settings.config_ready);
+    assert!(app.agents_settings.loading);
 }
 
 #[test]
@@ -1547,4 +1587,17 @@ fn editor_actions_persist_only_for_text_edits_and_leave_unknown_files_unchanged(
         )),
     );
     assert_eq!(app.agents_settings.save_error.as_deref(), Some("unknown remains"));
+}
+
+#[test]
+fn successful_catalog_refresh_preserves_unsaved_config_error() {
+    let mut app = test_app();
+    app.agents_settings.dirty = true;
+    app.agents_settings.save_error = Some("save failed".into());
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::Loaded(Ok((vec![], vec![], vec![])))),
+    );
+    assert_eq!(app.agents_settings.save_error.as_deref(), Some("save failed"));
+    assert!(app.agents_settings.dirty);
 }

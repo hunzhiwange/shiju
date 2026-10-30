@@ -109,6 +109,10 @@ pub(crate) fn main_agent_model_fields(
     default_provider: Option<&str>,
     default_model: Option<&str>,
 ) -> (String, String) {
+    if !config.provider.trim().is_empty() && !config.model.trim().is_empty() {
+        return (config.provider.trim().to_string(), config.model.trim().to_string());
+    }
+
     if let Some((provider, model)) = default_model
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -337,7 +341,7 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) available_tools: Vec<String>,
     pub(crate) save_error: Option<String>,
     pub(crate) save_in_flight: bool,
-    pub(crate) save_pending: bool,
+    pub(crate) dirty: bool,
 }
 
 impl Default for AgentsSettingsState {
@@ -378,7 +382,7 @@ impl Default for AgentsSettingsState {
             available_tools: Vec::new(),
             save_error: None,
             save_in_flight: false,
-            save_pending: false,
+            dirty: false,
         }
     }
 }

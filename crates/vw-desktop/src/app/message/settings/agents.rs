@@ -596,12 +596,12 @@ fn persist_agents_settings(app: &mut App) -> Task<Message> {
     }
 
     if app.agents_settings.save_in_flight {
-        app.agents_settings.save_pending = true;
         return Task::none();
     }
 
     app.agents_settings.save_in_flight = true;
-    app.agents_settings.save_pending = false;
+    app.agents_settings.dirty = false;
+    app.agents_settings.save_error = None;
     let entries = app.agents_settings.entries.clone();
     let project_path = app.agents_settings.project_path.clone();
     let agents_task = crate::app::config::spawn_gateway_task("agent", async move {
@@ -621,10 +621,32 @@ pub(super) fn handle_agents_config_saved(
     result: Result<(), String>,
 ) -> Task<Message> {
     app.agents_settings.save_in_flight = false;
-    app.agents_settings.save_error =
-        result.err().map(crate::app::config::server_config_unreachable_error);
+    match result {
+        Ok(()) => {
+            app.agents_settings.save_error = None;
+            if app.agents_settings.dirty {
+                app.show_success_toast("已保存提交的配置；后续修改尚未保存")
+            } else {
+                app.show_success_toast("智能体配置已保存，将用于下一次请求")
+            }
+        }
+        Err(error) => {
+            app.agents_settings.dirty = true;
+            let message = format!("保存智能体配置失败：{error}");
+            app.agents_settings.save_error = Some(message.clone());
+            app.show_error_toast(message)
+        }
+    }
+}
 
-    if app.agents_settings.save_pending { persist_agents_settings(app) } else { Task::none() }
+fn mark_agents_settings_dirty(app: &mut App) -> Task<Message> {
+    if !app.agents_settings.config_ready {
+        app.agents_settings.save_error =
+            Some("Gateway 配置尚未加载完成，已拒绝保存默认快照。请刷新后重试。".to_string());
+        return Task::none();
+    }
+    app.agents_settings.dirty = true;
+    Task::none()
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
@@ -637,7 +659,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     };
 
     match message {
+        AgentsMessage::Save => persist_agents_settings(app),
+        AgentsMessage::DiscardChanges => {
+            if app.agents_settings.save_in_flight {
+                return Task::none();
+            }
+            app.agents_settings.dirty = false;
+            update(app, SettingsMessage::Agents(AgentsMessage::Refresh))
+        }
         AgentsMessage::Refresh => {
+            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
+                return app.show_warning_toast("请先保存或放弃智能体配置修改，再刷新或切换项目");
+            }
             app.agents_settings.loading = true;
             app.agents_settings.config_ready = false;
             app.agents_settings.registered_tools = None;
@@ -648,6 +681,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AgentsMessage::Loaded(res) => {
             let removed_stale_tools = match res {
                 Ok((providers, provider_models, available_tools)) => {
+                    if !app.agents_settings.dirty && !app.agents_settings.save_in_flight {
+                        app.agents_settings.save_error = None;
+                    }
                     app.agents_settings.providers = providers;
                     app.agents_settings.provider_models = provider_models;
                     if available_tools.is_empty() {
@@ -679,12 +715,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             };
             if removed_stale_tools && app.agents_settings.config_ready {
-                persist_agents_settings(app)
+                mark_agents_settings_dirty(app)
             } else {
                 Task::none()
             }
         }
         AgentsMessage::ConfigLoaded { project_path, result } => {
+            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
+                return Task::none();
+            }
             if app.agents_settings.project_path != project_path {
                 return Task::none();
             }
@@ -695,7 +734,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     let removed_stale_tools = apply_config(app, config.as_ref());
                     app.agents_settings.config_ready = true;
                     if removed_stale_tools {
-                        return persist_agents_settings(app);
+                        return mark_agents_settings_dirty(app);
                     }
                 }
                 Err(error) => {
@@ -706,12 +745,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         AgentsMessage::ProjectSelected(project_path) => {
+            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
+                return app.show_warning_toast("智能体配置草稿仍保留在原项目，请先保存或放弃修改");
+            }
             if app.project_path.as_deref() == Some(project_path.as_str()) {
                 return crate::app::projects::project_settings_refresh_task(project_path);
             }
             app.open_project_and_index(project_path)
         }
         AgentsMessage::ProjectChanged(project_path) => {
+            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
+                return app.show_warning_toast("智能体配置草稿仍保留在原项目，请先保存或放弃修改");
+            }
             app.agents_settings.project_path = Some(project_path.clone());
             app.agents_settings.loading = true;
             app.agents_settings.config_ready = false;
@@ -719,6 +764,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             project_config_task(project_path)
         }
         AgentsMessage::ProjectConfigLoaded { project_path, result } => {
+            if app.agents_settings.dirty || app.agents_settings.save_in_flight {
+                return Task::none();
+            }
             if app.agents_settings.project_path.as_deref() != Some(project_path.as_str()) {
                 return Task::none();
             }
@@ -730,7 +778,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.agents_settings.config_ready = true;
                     app.agents_settings.save_error = None;
                     if removed_stale_tools {
-                        return persist_agents_settings(app);
+                        return mark_agents_settings_dirty(app);
                     }
                 }
                 Err(error) => {
@@ -781,7 +829,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let selected_agent = app.agents_settings.selected_agent.clone();
             let active_prompt_tab = app.agents_settings.active_prompt_tab.clone();
 
-            let mut tasks = vec![persist_agents_settings(app)];
+            let mut tasks = vec![mark_agents_settings_dirty(app)];
             if active_prompt_tab != AGENT_PROMPT_SYSTEM_TAB {
                 tasks.push(load_workspace_identity_file_task(selected_agent, active_prompt_tab));
             }
@@ -852,7 +900,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::WorkspaceIdentityDefaultRestored {
             agent_key,
@@ -919,7 +967,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.model.clear();
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::ProviderCleared(agent_key) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
@@ -927,28 +975,28 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.model.clear();
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::ModelChanged(agent_key, model) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.model = model;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::ModelCleared(agent_key) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.model.clear();
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::ForceModelSelectionToggled(agent_key, force_model_selection) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.force_model_selection = force_model_selection;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::EnabledToggled(agent_key, enabled) => {
             if let Some(entry) = find_entry_mut(app, &agent_key)
@@ -957,21 +1005,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.enabled = enabled;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowAsSubagentToggled(agent_key, allow_as_subagent) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.allow_as_subagent = allow_as_subagent;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::MaxParallelSubagentsChanged(agent_key, max_parallel_subagents) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.max_parallel_subagents = max_parallel_subagents.clamp(1, 32);
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::SystemPromptAction(agent_key, action) => {
             let should_persist = matches!(action, text_editor::Action::Edit(_));
@@ -980,7 +1028,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             if should_persist {
                 app.agents_settings.save_error = None;
-                return persist_agents_settings(app);
+                return mark_agents_settings_dirty(app);
             }
             Task::none()
         }
@@ -989,49 +1037,49 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.api_key_input = api_key;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::TemperatureChanged(agent_key, temperature) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.temperature = temperature.clamp(0.0, 2.0);
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::CompactContextToggled(agent_key, value) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.compact_context = value;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::MaxHistoryMessagesChanged(agent_key, value) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.max_history_messages = value.clamp(1, 1000);
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::ParallelToolsToggled(agent_key, value) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.parallel_tools = value;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::MaxDepthChanged(agent_key, max_depth) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.max_depth = max_depth.clamp(1, 32);
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AgenticToggled(agent_key, agentic) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.agentic = agentic;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolToggled(agent_key, tool_id, enabled) => {
             if !enabled && vw_config_types::tools::is_builtin_required_tool_id(&tool_id) {
@@ -1053,7 +1101,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolsSelectAll(agent_key) => {
             let available_tools = app.agents_settings.available_tools.clone();
@@ -1064,7 +1112,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 );
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolsInvertSelection(agent_key) => {
             let available_tools = app.agents_settings.available_tools.clone();
@@ -1078,7 +1126,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     crate::app::state::merge_builtin_required_tools(&inverted, &available_tools);
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedToolsApplyPreset(agent_key, preset_key) => {
             let available_tools = app.agents_settings.available_tools.clone();
@@ -1090,7 +1138,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 );
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::ToolsListTabSelected(tab_key) => {
             app.agents_settings.active_tools_list_tab = tab_key;
@@ -1101,7 +1149,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.skill_policy = skill_policy;
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedSkillToggled(agent_key, skill_id, enabled) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
@@ -1115,7 +1163,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedSkillsSelectAll(agent_key, scope) => {
             let available_skills = app
@@ -1142,7 +1190,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.allowed_skills.dedup();
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::AllowedSkillsInvertSelection(agent_key, scope) => {
             let available_skills = app
@@ -1171,14 +1219,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 entry.allowed_skills.dedup();
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
         AgentsMessage::MaxIterationsChanged(agent_key, max_iterations) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
                 entry.max_iterations = max_iterations.max(1);
             }
             app.agents_settings.save_error = None;
-            persist_agents_settings(app)
+            mark_agents_settings_dirty(app)
         }
     }
 }

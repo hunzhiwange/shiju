@@ -1235,7 +1235,7 @@ fn available_tools_exclude_mcp_dynamic_ids() {
 }
 
 #[test]
-fn loaded_tool_catalog_removes_all_stale_selections_and_marks_draft_dirty() {
+fn loaded_tool_catalog_removes_stale_selections_without_creating_user_edits() {
     let mut app = test_app();
     entry_mut(&mut app, "main").allowed_tools =
         vec!["removed_a".to_string(), "read".to_string(), "removed_b".to_string()];
@@ -1254,12 +1254,12 @@ fn loaded_tool_catalog_removes_all_stale_selections_and_marks_draft_dirty() {
         ["read".to_string()]
     );
     assert_eq!(entry(&app, "main").allowed_tools, ["read"]);
-    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.dirty);
     assert!(!app.agents_settings.save_in_flight);
 }
 
 #[test]
-fn config_loaded_after_tool_catalog_removes_stale_selections_and_marks_draft_dirty() {
+fn config_loaded_after_tool_catalog_removes_stale_selections_without_creating_user_edits() {
     let mut app = test_app();
     app.agents_settings.config_ready = false;
     app.agents_settings.available_tools = vec!["read".to_string()];
@@ -1279,7 +1279,7 @@ fn config_loaded_after_tool_catalog_removes_stale_selections_and_marks_draft_dir
     );
 
     assert!(entry(&app, "custom").allowed_tools.is_empty());
-    assert!(app.agents_settings.dirty);
+    assert!(!app.agents_settings.dirty);
     assert!(!app.agents_settings.save_in_flight);
 }
 
@@ -1600,4 +1600,68 @@ fn successful_catalog_refresh_preserves_unsaved_config_error() {
     );
     assert_eq!(app.agents_settings.save_error.as_deref(), Some("save failed"));
     assert!(app.agents_settings.dirty);
+}
+
+#[test]
+fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
+    for project_path in [None, Some("/project-a".to_string())] {
+        for catalog_first in [false, true] {
+            let mut app = test_app();
+            app.project_path = project_path.clone();
+            app.agents_settings.project_path = project_path.clone();
+            let _ = update(
+                &mut app,
+                SettingsMessage::Agents(AgentsMessage::ModelChanged(
+                    "main".into(),
+                    "saved-model".into(),
+                )),
+            );
+            let patch = build_agents_settings_patch(&app.agents_settings.entries).unwrap();
+            let mut saved_config = vw_config_types::config::Config::default();
+            for (key, value) in patch["agents"].as_object().unwrap() {
+                if !value.is_null() {
+                    saved_config.agents.insert(
+                        key.clone(),
+                        serde_json::from_value(value.clone()).unwrap(),
+                    );
+                }
+            }
+            let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
+            let _ = handle_agents_config_saved(&mut app, Ok(()));
+            assert!(!app.agents_settings.dirty);
+
+            for _ in 0..2 {
+                let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::DiscardChanges));
+                let catalog = AgentsMessage::Loaded(Ok((vec![], vec![], vec!["read".into()])));
+                let config = match &project_path {
+                    Some(path) => AgentsMessage::ProjectConfigLoaded {
+                        project_path: path.clone(),
+                        result: Ok(Box::new(saved_config.clone())),
+                    },
+                    None => AgentsMessage::ConfigLoaded {
+                        project_path: None,
+                        result: Ok(Box::new(saved_config.clone())),
+                    },
+                };
+                let responses = if catalog_first { [catalog, config] } else { [config, catalog] };
+                for response in responses {
+                    let _ = update(&mut app, SettingsMessage::Agents(response));
+                    assert!(!app.agents_settings.dirty);
+                    assert!(!app.agents_settings.save_in_flight);
+                }
+                assert!(app.agents_settings.config_ready);
+                assert_eq!(entry(&app, "main").model, "saved-model");
+                assert!(entry(&app, "main").allowed_tools.iter().all(|tool| tool == "read"));
+            }
+            let _ = update(
+                &mut app,
+                SettingsMessage::Agents(AgentsMessage::ModelChanged("main".into(), "draft".into())),
+            );
+            let _ = update(
+                &mut app,
+                SettingsMessage::Agents(AgentsMessage::Loaded(Ok((vec![], vec![], vec!["read".into()])))),
+            );
+            assert!(app.agents_settings.dirty, "catalog refresh must preserve actual edits");
+        }
+    }
 }

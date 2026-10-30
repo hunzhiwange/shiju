@@ -6,6 +6,7 @@ pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
 pub(super) mod mcp_auth;
+pub(super) mod mcp_capabilities;
 pub(crate) mod mcp_connection_sessions;
 pub(crate) mod mcp_connection_settings;
 pub(crate) mod mcp_connections;
@@ -110,3 +111,6 @@ mod t21_tests;
 
 #[cfg(test)]
 mod t22_tests;
+
+#[cfg(test)]
+mod t23_tests;

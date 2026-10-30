@@ -1,7 +1,7 @@
 //! Keep raw JSON and SSE tool results before the rmcp HTTP decoder narrows content types.
 use futures_util::StreamExt;
 use rmcp::{
-    model::ClientJsonRpcMessage,
+    model::{ClientJsonRpcMessage, ClientRequest, RequestId, ServerInfo},
     transport::{
         common::client_side_sse::BoxedSseResponse,
         sse_client::{SseClient, SseTransportError},
@@ -12,17 +12,57 @@ use rmcp::{
     },
 };
 use serde_json::Value;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+
+#[derive(Default)]
+struct HttpProtocol {
+    initialize_id: Option<RequestId>,
+    version: Option<String>,
+}
+
+impl HttpProtocol {
+    fn capture(&mut self, value: &Value) {
+        let id = value.get("id").and_then(|id| serde_json::from_value(id.clone()).ok());
+        if self.initialize_id.is_none() || self.initialize_id != id {
+            return;
+        }
+        let Some(result) = value.get("result") else { return };
+        let Ok(info) = serde_json::from_value::<ServerInfo>(result.clone()) else { return };
+        if crate::plugins::validate_mcp_server_protocol(Some(&info)).is_ok() {
+            self.version = Some(info.protocol_version.to_string());
+        }
+        self.initialize_id = None;
+    }
+}
 
 #[derive(Clone)]
-pub(super) struct HttpClient(
-    pub(super) reqwest_012::Client,
-    pub(super) Arc<crate::plugins::RawMcpResponse>,
-);
+pub(super) struct HttpClient {
+    client: reqwest_012::Client,
+    responses: Arc<crate::plugins::RawMcpResponse>,
+    protocol: Arc<Mutex<HttpProtocol>>,
+}
+
+impl HttpClient {
+    pub(super) fn new(
+        client: reqwest_012::Client,
+        responses: Arc<crate::plugins::RawMcpResponse>,
+    ) -> Self {
+        Self { client, responses, protocol: Default::default() }
+    }
+
+    fn request(&self, request: reqwest_012::RequestBuilder) -> reqwest_012::RequestBuilder {
+        let protocol = self.protocol.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        match &protocol.version {
+            Some(version) => request.header("mcp-protocol-version", version),
+            None => request,
+        }
+    }
+}
 
 fn events(
     stream: BoxedSseResponse,
     responses: Arc<crate::plugins::RawMcpResponse>,
+    protocol: Arc<Mutex<HttpProtocol>>,
 ) -> BoxedSseResponse {
     stream
         .map(move |event| {
@@ -30,6 +70,10 @@ fn events(
                 if matches!(event.event.as_deref(), None | Some("") | Some("message")) {
                     if let Some(data) = &event.data {
                         if let Ok(mut value) = serde_json::from_str::<Value>(data) {
+                            protocol
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                                .capture(&value);
                             responses.capture(&value);
                             crate::plugins::preserve_mcp_wire_result(&mut value);
                             event.data = Some(value.to_string());
@@ -52,8 +96,17 @@ impl StreamableHttpClient for HttpClient {
         session: Option<Arc<str>>,
         auth: Option<String>,
     ) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
-        let mut request =
-            self.0.post(uri.as_ref()).header("accept", "text/event-stream, application/json");
+        if let ClientJsonRpcMessage::Request(request) = &message {
+            if matches!(request.request, ClientRequest::InitializeRequest(_)) {
+                let mut protocol =
+                    self.protocol.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                protocol.initialize_id = Some(request.id.clone());
+                protocol.version = None;
+            }
+        }
+        let mut request = self.request(
+            self.client.post(uri.as_ref()).header("accept", "text/event-stream, application/json"),
+        );
         if let Some(session) = session {
             request = request.header("mcp-session-id", session.as_ref());
         }
@@ -90,13 +143,21 @@ impl StreamableHttpClient for HttpClient {
             .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
         match kind.as_deref() {
             Some(kind) if kind.starts_with("application/json") => {
-                let message = super::wire_stdio::decode(response.json::<Value>().await?, &self.1)?;
+                let value = response.json::<Value>().await?;
+                self.protocol
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .capture(&value);
+                let message = super::wire_stdio::decode(value, &self.responses)?;
                 Ok(StreamableHttpPostResponse::Json(message, session))
             }
             Some(kind) if kind.starts_with("text/event-stream") => {
                 let stream =
                     sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
-                Ok(StreamableHttpPostResponse::Sse(events(stream, self.1.clone()), session))
+                Ok(StreamableHttpPostResponse::Sse(
+                    events(stream, self.responses.clone(), self.protocol.clone()),
+                    session,
+                ))
             }
             _ => Err(StreamableHttpError::UnexpectedContentType(kind)),
         }
@@ -108,7 +169,16 @@ impl StreamableHttpClient for HttpClient {
         session: Arc<str>,
         auth: Option<String>,
     ) -> Result<(), StreamableHttpError<Self::Error>> {
-        StreamableHttpClient::delete_session(&self.0, uri, session, auth).await
+        let mut request = self
+            .request(self.client.delete(uri.as_ref()).header("mcp-session-id", session.as_ref()));
+        if let Some(auth) = auth {
+            request = request.bearer_auth(auth);
+        }
+        let response = request.send().await?;
+        if response.status() != reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
+            response.error_for_status()?;
+        }
+        Ok(())
     }
 
     async fn get_stream(
@@ -118,9 +188,32 @@ impl StreamableHttpClient for HttpClient {
         last: Option<String>,
         auth: Option<String>,
     ) -> Result<BoxedSseResponse, StreamableHttpError<Self::Error>> {
-        StreamableHttpClient::get_stream(&self.0, uri, session, last, auth)
-            .await
-            .map(|stream| events(stream, self.1.clone()))
+        let mut request = self.request(
+            self.client
+                .get(uri.as_ref())
+                .header("accept", "text/event-stream")
+                .header("mcp-session-id", session.as_ref()),
+        );
+        if let Some(last) = last {
+            request = request.header("last-event-id", last);
+        }
+        if let Some(auth) = auth {
+            request = request.bearer_auth(auth);
+        }
+        let response = request.send().await?;
+        if response.status() == reqwest_012::StatusCode::METHOD_NOT_ALLOWED {
+            return Err(StreamableHttpError::ServerDoesNotSupportSse);
+        }
+        let response = response.error_for_status()?;
+        let kind = response
+            .headers()
+            .get("content-type")
+            .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
+        if !kind.as_ref().is_some_and(|kind| kind.starts_with("text/event-stream")) {
+            return Err(StreamableHttpError::UnexpectedContentType(kind));
+        }
+        let stream = sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
+        Ok(events(stream, self.responses.clone(), self.protocol.clone()))
     }
 }
 
@@ -133,7 +226,7 @@ impl SseClient for HttpClient {
         message: ClientJsonRpcMessage,
         auth: Option<String>,
     ) -> Result<(), SseTransportError<Self::Error>> {
-        SseClient::post_message(&self.0, uri, message, auth).await
+        SseClient::post_message(&self.client, uri, message, auth).await
     }
 
     async fn get_stream(
@@ -142,8 +235,8 @@ impl SseClient for HttpClient {
         last: Option<String>,
         auth: Option<String>,
     ) -> Result<BoxedSseResponse, SseTransportError<Self::Error>> {
-        SseClient::get_stream(&self.0, uri, last, auth)
+        SseClient::get_stream(&self.client, uri, last, auth)
             .await
-            .map(|stream| events(stream, self.1.clone()))
+            .map(|stream| events(stream, self.responses.clone(), self.protocol.clone()))
     }
 }

@@ -1,0 +1,918 @@
+{
+  "schema_version": 1,
+  "task": 23,
+  "status": "已完成",
+  "scope": "Native initialize version 2025-06-18, known fallback validation and connection-local HTTP version headers; no roots/sampling/elicitation/UI grants without actual host handlers.",
+  "items": [
+    {
+      "id": "mcp.initialize",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    },
+    {
+      "id": "mcp.tool-filter",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "No filter behavior changed in task23. Prior task19 filtering evidence remains applicable; the 342-test plugin regression revalidates it after shared connection changes. The task23 red record concerns protocol negotiation, not a fabricated filtering failure."
+    },
+    {
+      "id": "mcp.capability.openai/form",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    },
+    {
+      "id": "mcp.capability.openai/elicitation",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    },
+    {
+      "id": "mcp.capability.openai/standard-form-input",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    },
+    {
+      "id": "mcp.capability.io.modelcontextprotocol/ui",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    },
+    {
+      "id": "mcp.capability.privileged",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    },
+    {
+      "id": "acceptance.t23",
+      "tasks": [
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t23_advertises_only_implemented_capabilities",
+        "codex_plugin_compat_t23_rejects_invalid_input",
+        "codex_plugin_compat_t23_preserves_isolation",
+        "codex_plugin_compat_t23_retains_known_fallbacks_without_advertising_roots",
+        "codex_plugin_compat_t23_rejects_unknown_versions_without_reflecting_payloads",
+        "codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 68.28,
+        "record": "t23/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 61.84,
+        "record": "t23/final2-focused.log",
+        "summary": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+        ],
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 6
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task23 native initialize/negotiation and existing refusal policy only. Reverse input/UI handlers are not installed and no extensions are advertised. The red assertions prove protocol negotiation gaps, not a fabricated pre-existing extension advertisement failure. Other mapped tasks, platform acceptance and modern/cross-chat protocols are not claimed."
+    }
+  ],
+  "validation": {
+    "final1-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.66,
+      "record": "t23/final1-fmt.log",
+      "summary": []
+    },
+    "final1-focused": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 102.07,
+      "record": "t23/final1-focused.log",
+      "summary": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.28s"
+      ],
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 6
+    },
+    "final2-clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 35.99,
+      "record": "t23/final2-clippy.log",
+      "summary": []
+    },
+    "final2-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.17,
+      "record": "t23/final2-fmt.log",
+      "summary": []
+    },
+    "final2-focused": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 61.84,
+      "record": "t23/final2-focused.log",
+      "summary": [
+        "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.24s"
+      ],
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 6
+    },
+    "final2-mcp": {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.54,
+      "record": "t23/final2-mcp.log",
+      "summary": [
+        "test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 10624 filtered out; finished in 0.16s"
+      ],
+      "passed": 66,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 66
+    },
+    "final2-plugins": {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.23,
+      "record": "t23/final2-plugins.log",
+      "summary": [
+        "test result: ok. 342 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 7.52s"
+      ],
+      "passed": 342,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 342
+    },
+    "green-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.97,
+      "record": "t23/green-fmt.log",
+      "summary": []
+    },
+    "green-http": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.63,
+      "record": "t23/green-http.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10689 filtered out; finished in 0.23s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    "green": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 17.1,
+      "record": "t23/green.log",
+      "summary": []
+    },
+    "green2-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.63,
+      "record": "t23/green2-fmt.log",
+      "summary": []
+    },
+    "green2": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 62.28,
+      "record": "t23/green2.log",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10684 filtered out; finished in 0.06s"
+      ],
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 3
+    },
+    "red-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.67,
+      "record": "t23/red-fmt.log",
+      "summary": []
+    },
+    "red-http-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.66,
+      "record": "t23/red-http-fmt.log",
+      "summary": []
+    },
+    "red-http": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_sends_negotiated_http_version_on_each_request -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 68.18,
+      "record": "t23/red-http.log",
+      "summary": [],
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "result_note": "Actual HTTP handshake failed without its negotiated protocol header; the asserted failure preceded host SIGABRT."
+    },
+    "red": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 68.28,
+      "record": "t23/red.log",
+      "summary": [],
+      "effective_tests": 3,
+      "observed_target_assertions": 3,
+      "result_note": "All three named target runtime assertions were observed before host SIGABRT; no completed failed-test summary is claimed."
+    }
+  },
+  "sources": [
+    {
+      "path": "codex-rs/codex-mcp/src/client_capabilities.rs",
+      "sha256": "9e28a7c6b1d6eb460c006c3bf55a92ed5b2612b631424f7617febb1af557c414",
+      "matches_frozen_baseline": true
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/rmcp_client.rs",
+      "sha256": "096694dd52c0bbd4134de487f74f3e0d018cddc20adacfca46048ca2ddf191fd",
+      "matches_frozen_baseline": true
+    }
+  ],
+  "supplementary_sources": [
+    {
+      "path": "codex-rs/rmcp-client/src/logging_client_handler.rs",
+      "sha256": "e5fa7ccc11b008d05f6d4cca9fbebc5e25b326194e77f997e76323210c1d0918",
+      "role": "supplementary read-only evidence; no baseline mutation"
+    },
+    {
+      "path": "codex-rs/rmcp-client/src/elicitation_client_service.rs",
+      "sha256": "133d4447020af4db640626733e1c985ae5e40caa31e09a88d2ec34e7096f9ca4",
+      "role": "supplementary read-only evidence; no baseline mutation"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_capabilities.rs",
+      "sha256": "0ce2bbe7f4a0cf91ecd79163e9695adb8009c0675903bd58e0527bec20365e2b",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mod.rs",
+      "sha256": "7e2736fd3620f13f6c2d05e01fa745db11571d08e55560e3157350e81fd77c1a",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/t23_tests.rs",
+      "sha256": "91b4753bc93c0616121413cc4a791c5ae1d5c7c0c002375d76a7b51777ccf82f",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mod.rs",
+      "sha256": "1b061611f2b5d62208361ae4f78f3c1f19bec6a41bb6ae364a815149f78595d1",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "sha256": "1a4d56cfde1ffe85d8827fc679cb891833953397b321908a70a3b59c542fca80",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/wire_http.rs",
+      "sha256": "508c31961f1bd32bceb280a21b629b8bb323ddbd7165a4953fc9147b6a91d23b",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/README.md",
+      "sha256": "93d20b148ab10933fd766da51e4674589b0eb53579be65878ab5a70b41d1138c",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/http_server.py",
+      "sha256": "74b782cb88172ebfa0cae1ede3b073662c7428a210f3199f82706984db34be78",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t23/server.py",
+      "sha256": "8743a5079b624c7eb6432539f082bc79cb08ba7191e032ad4f8195ec31d6a833",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final1-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final1-fmt.run.json",
+      "sha256": "87ce9d8d761a7e606a455568402871cfd3b7281762713c386ca4e1351f4be27c",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final1-focused.log",
+      "sha256": "9ee7385423cd9257bf5911585feb16501f32702bb4e7947228b4db1fafd01ab0",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final1-focused.run.json",
+      "sha256": "e51790b1e6c9eaa72162f5c5c1e38e7d431194e8905d2bd863421acf56446521",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-clippy.log",
+      "sha256": "24de76a804b7d5b221a59e47faca112787dd910922f2bbf833cce985f6e0cee4",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-clippy.run.json",
+      "sha256": "64ea4f0cb55610512e3064581a11cfdd3a48bbe9c6160571007a75b7c8b2554f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-fmt.run.json",
+      "sha256": "46cbc7678f294950ae9d1dfd047f21c73a986043a7776f071ceec380881e7489",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-focused.log",
+      "sha256": "b912050b93ee318864722055a8908bfb4ed12219ec159a5601633b271ae81d7f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-focused.run.json",
+      "sha256": "7b1db4f1cfba6dea1a5adfd3a5a418d68abd685fac6d7b3980759f7c7c5777ab",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-mcp.log",
+      "sha256": "2f910f3d592ad476c2d245f71a3fd28fabbd1b03bd9e4fde56c5060fbc7c13b9",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-mcp.run.json",
+      "sha256": "f8bb1969f5032ed979891decf6e6ea569b7d241002e8c3ea7c92a5342eb558a8",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-plugins.log",
+      "sha256": "5ea9dcd4a309c9cce3cb8aba9934380c8e7d33992e0943ee0839a711f0c2f215",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/final2-plugins.run.json",
+      "sha256": "48ba24c9e4a43f626b9962bf8be293a8941c652de501cd6e913c99d2330b742a",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green-fmt.run.json",
+      "sha256": "a8ba01580b9a58e6a029cce07f1b3b288d9f04915eb089ce9d2a5bc9e3ad64ac",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green-http.log",
+      "sha256": "2b2e43c14b5c3db452e9604413ae5218fc8ec868f522559cbaacfbe42aa97a26",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green-http.run.json",
+      "sha256": "d755595d0bfbf4d70ce551e871e76f4db53f58da4584ac235606332f5e2beac6",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green.log",
+      "sha256": "340936fe1b26a1714b8ae492ccacf02ee13e0538ebb2c93a9818cfa8cbcf4dcc",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green.run.json",
+      "sha256": "b39428991202c346c3e340c4948a34a7fe0fe31b5fe5aa8955a61d5ab9673ea2",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green2-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green2-fmt.run.json",
+      "sha256": "670bea25ca72906d6aa10be029c8f94183a1f3fb4c28b24fb1dbb33932594b48",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green2.log",
+      "sha256": "5da514e3e19612607a695a9a18a84d47f08bc284266504752e87499c2c906586",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/green2.run.json",
+      "sha256": "2f7ff76e966670713b1ee853148858987acd7fdc03bdc33dc71f53ca7b89f63a",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red-fmt.run.json",
+      "sha256": "5e42d4e31d730ebd5cb4ad28cee025d847e0cd51f2192eff28219118862485bd",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red-http-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red-http-fmt.run.json",
+      "sha256": "b0c00319202d3aafde3ae86969b04e2b10fa4cb234ca09852e11d8ee2513ca1d",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red-http.log",
+      "sha256": "eb2131257addc88144945b3ac5177e4fdc54400e9b14f4a572e1236cce586eba",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red-http.run.json",
+      "sha256": "1df69f45bb1cfa769311098aa9383d74076f4e78c90ba289e024e4c59edae16f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red.log",
+      "sha256": "968af788080919271115f214dfcf56d9e877aedd3012e65eee097d4a44400826",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t23/red.run.json",
+      "sha256": "061d1b13e9d9b5c449f70bd92defd00dc88b583b20c0198b70e87a871152d131",
+      "storage": "local_only"
+    }
+  ],
+  "platform": "Darwin",
+  "source_review": {
+    "roots": "Codex initialize does not advertise roots; LoggingClientHandler has no roots implementation. Preserve explicit refusal instead of inventing a workspace-root API.",
+    "sampling": "Neither advertised nor implemented in reference handler; native client explicitly refuses.",
+    "elicitation": "Reference declares actual elicitation; host dispatch/UI are later tasks 24/25. No native task23 handler exists, so capability stays omitted and requests are rejected.",
+    "extensions": "No native host extension handler/declaration is installed. Peer names (including codex_apps), remote capability payloads and other sessions cannot grant extensions/userVerification/network policy. No speculative configuration or host identity bypass is introduced.",
+    "version": "rmcp 0.8.5 LATEST is 2025-03-26 and its client handshake does not reject arbitrary returned versions. Native initialize now requests the frozen 2025-06-18; known 2024-11-05/2025-03-26 fallbacks are retained. Unsupported versions are closed before catalog/tool use and unknown version strings are not reflected into errors.",
+    "http": "JSON and SSE initialize responses determine connection-local protocol headers for subsequent POST/GET/DELETE; known fallback version remains separate from requested version."
+  },
+  "limitations": [
+    "No claimed roots disclosure, model sampling, user interaction or MCP Apps rendering.",
+    "No claimed 2025-11-25 or 2026-07-28 negotiation, cross-chat connection sharing or private hosted identity.",
+    "Existing extension/refusal behavior was already fail-closed before this task; no synthetic red assertion is claimed for that existing behavior.",
+    "macOS local-process/loopback verification only; Linux/Windows and public-service acceptance belong to later tasks.",
+    "Raw logs and *.run.json remain local and ignored; only this structured summary and code/fixtures are committed."
+  ],
+  "summary_checks": {
+    "artifact_hashes": 41,
+    "json": true,
+    "git_diff_check_exit_code": 0,
+    "full_baseline_checker": {
+      "exit_code": 1,
+      "expected_rejection": true,
+      "message": "Evidence rejected: discovery.legacy-order: missing evidence item",
+      "note": "This is a task-local summary, not final complete coverage or cross-platform acceptance."
+    }
+  }
+}

@@ -11,8 +11,8 @@ use agent_client_protocol::{HttpHeader, McpServer};
 use anyhow::Context;
 use reqwest_012::header::{HeaderMap, HeaderName, HeaderValue};
 use rmcp::model::{
-    ClientCapabilities, ClientInfo, CreateElicitationRequestParam, CreateElicitationResult,
-    CreateMessageRequestParam, CreateMessageResult, ErrorData, ListRootsResult, ResourceContents,
+    ClientInfo, CreateElicitationRequestParam, CreateElicitationResult, CreateMessageRequestParam,
+    CreateMessageResult, ErrorData, ListRootsResult, ResourceContents,
 };
 use rmcp::service::{NotificationContext, Peer, RequestContext, RoleClient, ServiceExt};
 use rmcp::transport::{
@@ -76,17 +76,9 @@ impl NoopClient {
         Self {
             raw_responses: Default::default(),
             catalogs: std::sync::Arc::new(crate::plugins::McpCatalogs::new(closed)),
-            info: ClientInfo {
-                protocol_version: rmcp::model::ProtocolVersion::LATEST,
-                capabilities: mcp_client_capabilities(),
-                client_info: Default::default(),
-            },
+            info: crate::plugins::mcp_client_info(),
         }
     }
-}
-
-fn mcp_client_capabilities() -> ClientCapabilities {
-    ClientCapabilities { experimental: None, roots: None, sampling: None, elicitation: None }
 }
 
 pub(crate) fn unsupported_mcp_capabilities_json() -> Value {
@@ -586,7 +578,7 @@ pub(crate) async fn open_server_peer(
     let peer_client = NoopClient::with_cancellation(closed);
     let responses = peer_client.raw_responses.clone();
     let server = &server;
-    match server {
+    let running = match server {
         McpServer::Stdio(server) => {
             let mut command = Command::new(&server.command);
             if let Some(cwd) = crate::plugins::plugin_mcp_runtime_cwd(server)? {
@@ -603,12 +595,11 @@ pub(crate) async fn open_server_peer(
                 command.env(key, value);
             }
             let transport = wire_stdio::StdioTransport::new(command, responses)?;
-            let running = with_connect_timeout(&server.name, timeout, async move {
+            with_connect_timeout(&server.name, timeout, async move {
                 peer_client.serve(transport).await.map_err(anyhow::Error::from)
             })
             .await
-            .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
-            Ok(running)
+            .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }
         McpServer::Sse(server) => {
             let client = remote_http_client(&server.headers, timeout)
@@ -617,7 +608,7 @@ pub(crate) async fn open_server_peer(
                 SseClientConfig { sse_endpoint: server.url.clone().into(), ..Default::default() };
             let transport = with_connect_timeout(&server.name, timeout, async move {
                 SseClientTransport::start_with_client(
-                    wire_http::HttpClient(client, responses),
+                    wire_http::HttpClient::new(client, responses),
                     config,
                 )
                 .await
@@ -625,12 +616,11 @@ pub(crate) async fn open_server_peer(
             })
             .await
             .with_context(|| format!("failed to start SSE MCP transport for '{}'", server.name))?;
-            let running = with_connect_timeout(&server.name, timeout, async move {
+            with_connect_timeout(&server.name, timeout, async move {
                 peer_client.serve(transport).await.map_err(anyhow::Error::from)
             })
             .await
-            .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
-            Ok(running)
+            .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }
         McpServer::Http(server) => {
             let scoped_headers = crate::plugins::plugin_mcp_http_headers(server)?;
@@ -647,18 +637,24 @@ pub(crate) async fn open_server_peer(
             }
             .with_context(|| format!("failed to build HTTP MCP client for '{}'", server.name))?;
             let transport = StreamableHttpClientTransport::with_client(
-                wire_http::HttpClient(client, responses),
+                wire_http::HttpClient::new(client, responses),
                 StreamableHttpClientTransportConfig::with_uri(server.url.clone()),
             );
-            let running = with_connect_timeout(&server.name, timeout, async move {
+            with_connect_timeout(&server.name, timeout, async move {
                 peer_client.serve(transport).await.map_err(anyhow::Error::from)
             })
             .await
-            .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
-            Ok(running)
+            .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }
         _ => anyhow::bail!("unsupported MCP server transport"),
+    };
+    // rmcp 0.8 accepts arbitrary initialize versions. Retire an unsupported peer before
+    // catalog discovery or tool execution can use it.
+    if let Err(error) = crate::plugins::validate_mcp_server_protocol(running.peer_info()) {
+        let _ = running.cancel().await;
+        return Err(error);
     }
+    Ok(running)
 }
 
 pub fn management_for_server(

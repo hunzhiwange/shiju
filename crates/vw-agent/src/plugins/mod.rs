@@ -17,6 +17,9 @@ mod types;
 
 mod compat;
 pub(crate) use compat::mcp_auth::runtime_headers as plugin_mcp_http_headers;
+pub(crate) use compat::mcp_capabilities::{
+    client_info as mcp_client_info, validate_server_protocol as validate_mcp_server_protocol,
+};
 pub(crate) use compat::mcp_connection_sessions::{
     close_session as close_session_mcp_connections, connections as mcp_session_connections,
 };

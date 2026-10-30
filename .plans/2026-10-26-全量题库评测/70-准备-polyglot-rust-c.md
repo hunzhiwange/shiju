@@ -4,7 +4,7 @@
 
 状态：已阻塞
 
-阻塞说明：Linux诊断20控制和8正式控制已通过；原父题容量底线不足，待新容量准入及主调度窗口。
+阻塞说明：单题串行容量现已满足；当前任务47占用窗口，两题联合准入仍不足。旧Linux20控制有效，调度器身份变化，父题及8项正式控制待新窗口校准。
 
 目的：为“双编译器公共源码”准备原题完整环境与四道独立诊断题。
 
@@ -97,3 +97,20 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 Linux Python3.13.7、g++12.2.0、rustc1.75.0真实编译执行及冻结x86_64 ELF --help退出0。指定 `suite.diagnostics validate --case evals/terminal-bench/suite/cases/polyglot-rust-c/case.json --run-fixtures` 退出0，有效20控制（4gold/4nop/12语义负例）。公共 `suite.scoring.harbor_trial` -> SuiteDockerEnvironment 8个正式控制全部首评分oracle=1/nop=0，执行身份ce05045daeb0b6f9a28b5cd179f2f4363cfbbaf143a099565e27218a494a4bd1，main1CPU512MiB/sidecar0.25CPU64MiB，题字节与身份前后一致。没有私有Trial/Compose/platform包装、付费模型或评分/预算变更。最新指定host unittest退出0（20控制）；最新Clippy退出0，动态槽1，CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，JOBS=1，锁释放且缓存保留。无全量cargo test/fmtcheck/wasm/Makefile。
 
 最终三次实测min(host,VM)=11813294080字节；父S10+B2+A1+安全5GiB+128MiB metadata最小19461570560，尚缺7648276480字节，且未计父镜像副本。父C=271241474，U/Ucap仍未知，父body下载/进口/控制均0；原父preflight因明确容量不足未运行，无退出码，不冒充通过。当前精确已阻塞，仅父容量缺口；保留编号文件和未提交资产。自有容器/网络/卷均清空，保留唯一工具镜像与发行包/原始证据/依赖。恢复入口：主调度新窗口+新父容量准入后运行原任务指定parent preflight/oracle/nop；诊断已绑定当前身份的20+8证据可先核对复用，不无故重跑。最终ignored收据：checkpoint-linux-calibrated-parent-blocked.json、parent-capacity-linux-final.json、children-calibration-production-leaf.json、linux-tooling/full-stream-verified.json。
+
+
+### 继续突破结果（2026-10-30，取代此前“仅父容量缺口”结论）
+
+本轮按用户继续指令重新取样，未清理、停止或改变其他任务/业务资源。先后观察到 gcode-to-text、password-recovery、path-tracing 等准备容器；最终仍有 `vw-task47-x86-reservation`（ID `3503ca2fe97b527ad9dd2ed8649a34d67cb81891036a792ad94203b3e78fa52b`，2CPU/4294967296字节内存）及对应活跃Lima/QEMU作业。自有准入等待进程已停止，无遗留下载、构建或自动续跑进程；其他资源未改动。
+
+本次采用不落盘OCI归档/完整分片的流式导入配方，显式计入宿主blob、daemon incoming/store三份C，以及daemon解压暂存/最终snapshot两份Ucap，未扣共享层。父C仍为271241474，正数硬停止Ucap=1073741824（未经完整流核验不得当实际U）；每个父题保持S10+B2+A1，联合安全余量5GiB，每题metadata128MiB。单题要求22422778630字节；两父题要求36515640070字节。最终三次min(host,VM)=25288339456字节（VM71611011072），单题串行已可准入；与任务47并行仍缺11227300614字节。因此原先“本机连单题底线也不足”的阻塞已经解除，剩余为可用串行窗口/联合容量约束；不得通过忽略任务47官方存储、停止其作业或降低原题资源绕过。
+
+原父manifest/config重新从Registry只读核验：manifest `3ba84f0e138a4b65e58c53f920a0fc852571e6402901c3bdbb876e9dab6e6c5e`、config `42e1c101034156ab6a0cbefc63ee654ab7fccb668e1580a090abba89244f6a93`，linux/amd64及RootFS声明一致。令牌只在内存；父层body下载/导入/容器控制均0，实际U未知。原父preflight未启动、退出码null、有效父控制0，未冒充校准成功。
+
+指定宿主unittest首次退出1，4个gold失败；定位为rustup仅配置仓库stable覆盖、未配置临时目录默认工具链。直接复现得到 `rustup could not choose a version of rustc`，不是checker或fixture语义退化。未改全局rustup或checker；仅将已安装真实编译器目录加到PATH后，原指定命令退出0，1个unittest方法包含20个真实控制（4gold/4nop/12语义负例）。完整命令前缀：`PATH="/Users/xiangmin/.rustup/toolchains/stable-aarch64-apple-darwin/bin:$PATH" PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python -m unittest discover -s evals/terminal-bench/suite/cases/polyglot-rust-c/tests -p test_cases.py`。当前rustc1.99.1/Apple clang21，不能替代父题编译器或Linux校准。
+
+最新 `cargo clippy --all-targets --all-features -- -D warnings` 退出0，动态槽位1；`CARGO_TARGET_DIR=CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，JOBS=1，正常完成后仅释放自有锁、保留缓存。lint有效行为测试数0，行为证据来自上述20控制；无Rust源码修改、无全量cargo test/fmtcheck/wasm/Makefile、无付费调用。
+
+公共 `suite.preparation.inputs` 校验退出0；冻结上游、runtime、Harbor、诊断校准收据等与旧身份相比仅 `scheduler_sha256` 改变，本轮inputs采样时为 `5c0763881dd3de0cf83385c6f67a62ddb6fba2ebad143053602ea65113b507d5`。所以旧Linux20fixture字节证据可复核保留，但旧8项正式控制不能直接充作当前调度器的完成收据。恢复时先重新实测当前空间、占用与CPU/内存；取得串行窗口后按本次硬cap配方校验完整层SHA/diff_id/fulltar U并流式导入原digest，再受限探测真实工具/网络/隐藏材料隔离，运行原计划 `suite.run preflight ... --parent-id polyglot-rust-c`，以当前公共入口重新取得父oracle/nop和8个子题正式控制。不私改共享调度器、不合成preparation.json、不重跑付费模型。
+
+新证据均在ignored `diagnostics/polyglot-rust-c/resume-20261030/`：`metadata-receipt.json`、`parent-manifest.json`、`parent-config.json`、`current-inputs.json`、`host-tests.log`、`clippy-receipt.txt`、`clippy.log`、`capacity-final.json`、`other-reservation-readonly.json`、`import-*.log`及可续接 `import-parent.py`。其中早期双题保守预留被拒绝和等待记录保留，未覆盖旧证据。当前继续已阻塞，保留编号文件及尚未就绪的诊断资产；本次仅更新本编号阻塞记录，不提交未校准资产。

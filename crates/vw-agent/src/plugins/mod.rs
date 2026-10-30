@@ -16,6 +16,7 @@ mod skills;
 mod types;
 
 mod compat;
+pub(crate) use compat::mcp_auth::runtime_headers as plugin_mcp_http_headers;
 
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;

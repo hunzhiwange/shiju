@@ -126,7 +126,7 @@ fn normalize_stdio(object: &Map<String, Value>) -> Result<Map<String, Value>> {
 }
 
 fn normalize_http(object: &Map<String, Value>) -> Result<Map<String, Value>> {
-    fields(object, &["type", "url", "headers"])?;
+    fields(object, &["type", "url", "headers", "extensions"])?;
     let raw = string(object, "url")?;
     let url = Url::parse(raw)
         .map_err(|_| anyhow::anyhow!("portable MCP url must be absolute HTTP(S)"))?;
@@ -177,6 +177,10 @@ fn normalize_http(object: &Map<String, Value>) -> Result<Map<String, Value>> {
         if !retained.is_empty() {
             config.insert("http_headers".into(), Value::Object(retained));
         }
+    }
+    if let Some(extensions) = object.get("extensions") {
+        config.insert("extensions".into(), extensions.clone());
+        super::mcp_public_auth::policy(&config)?;
     }
     Ok(config)
 }

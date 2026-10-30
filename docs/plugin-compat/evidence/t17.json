@@ -1,0 +1,2788 @@
+{
+  "schema_version": 1,
+  "task": 17,
+  "status": "\u5df2\u5b8c\u6210",
+  "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed.",
+  "items": [
+    {
+      "id": "acceptance.t17",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.bearer_token_env_var",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.http_headers",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.transport.env_http_headers",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.bearer_token",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.config.oauth",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.config.scopes",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.config.oauth_resource",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.config.auth",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.client_id",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.client_secret",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.callback_url",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.callback_port",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.token_endpoint_auth_method",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.authorization_server_issuer",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.ema_registration",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.portable.http-url",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "mcp.portable.http-headers",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "Three target runtime assertions observed before host SIGABRT; no completed failing-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.oauth",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.api-key",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.type",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.client.mode",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.client.clientId",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.client.tokenEndpointAuthMethod",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.authorizationUrl",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.tokenUrl",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.registrationUrl",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.authorizationServerBase",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.resource",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.baseScopes",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.defaultScopes",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.oidcEnabled",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.oidcConfigurationUrl",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.oidcUserinfoEndpoint",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.oidcScopesSupported",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.headerScheme",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    },
+    {
+      "id": "official.auth.headerName",
+      "tasks": [
+        17
+      ],
+      "tests": [
+        "codex_plugin_compat_t17_sends_scoped_authorization_header",
+        "codex_plugin_compat_t17_rejects_invalid_input",
+        "codex_plugin_compat_t17_preserves_isolation",
+        "codex_plugin_compat_t17_applies_header_precedence_without_serializing_values",
+        "codex_plugin_compat_t17_rejects_header_injection_and_host_owned_fields",
+        "codex_plugin_compat_t17_keeps_public_oauth_configuration_without_starting_login",
+        "codex_plugin_compat_t17_rejects_invalid_oauth_and_private_authentication",
+        "codex_plugin_compat_t17_reaudits_source_and_rejects_forged_context",
+        "codex_plugin_compat_t17_filters_portable_client_owned_headers",
+        "codex_plugin_compat_t17_does_not_forward_credentials_on_redirect",
+        "codex_plugin_compat_t17_rejects_insecure_credential_endpoints",
+        "codex_plugin_compat_t17_accepts_public_auth_declarations_without_claiming_login",
+        "codex_plugin_compat_t17_rejects_invalid_public_auth_without_values"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 17 declaration parsing and actual local HTTP request assembly only. Public OAuth/API-key declarations are not credentials. Interactive authorization, stored-token exchange/refresh, protected public-service and other-platform evidence are not claimed."
+    }
+  ],
+  "commands": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t17/public-final-fixed-0.log",
+      "elapsed_seconds": 8.69,
+      "summary": []
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t17/public-final-fixed-1.log",
+      "elapsed_seconds": 49.74,
+      "summary": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+      ],
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 13
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t17/public-final-fixed-2.log",
+      "elapsed_seconds": 2.45,
+      "summary": [
+        "test result: ok. 277 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 1.82s"
+      ],
+      "passed": 277,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 277
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t17/public-final-fixed-3.log",
+      "elapsed_seconds": 0.53,
+      "summary": [
+        "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10589 filtered out; finished in 0.16s"
+      ],
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 36
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t17/public-final-fixed-4.log",
+      "elapsed_seconds": 25.75,
+      "summary": []
+    }
+  ],
+  "diagnostic_runs": {
+    "public-red.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-0.log",
+        "elapsed_seconds": 8.84,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": []
+      }
+    ],
+    "green.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/green-0.log",
+        "elapsed_seconds": 9.1,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/green-1.log",
+        "elapsed_seconds": 26.94,
+        "summary": []
+      }
+    ],
+    "red.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-0.log",
+        "elapsed_seconds": 8.63,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/red-1.log",
+        "elapsed_seconds": 64.29,
+        "summary": []
+      }
+    ],
+    "final.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-0.log",
+        "elapsed_seconds": 8.69,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-1.log",
+        "elapsed_seconds": 58.51,
+        "summary": []
+      }
+    ],
+    "final-fixed.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-fixed-0.log",
+        "elapsed_seconds": 8.62,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-fixed-1.log",
+        "elapsed_seconds": 48.26,
+        "summary": [
+          "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ]
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-fixed-2.log",
+        "elapsed_seconds": 2.42,
+        "summary": [
+          "test result: ok. 275 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 1.76s"
+        ]
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-fixed-3.log",
+        "elapsed_seconds": 0.53,
+        "summary": [
+          "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10587 filtered out; finished in 0.16s"
+        ]
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/final-fixed-4.log",
+        "elapsed_seconds": 30.34,
+        "summary": []
+      }
+    ],
+    "green-fixed.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/green-fixed-0.log",
+        "elapsed_seconds": 8.63,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/green-fixed-1.log",
+        "elapsed_seconds": 73.09,
+        "summary": [
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.02s"
+        ]
+      }
+    ],
+    "public-green.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-green-0.log",
+        "elapsed_seconds": 8.76,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-green-1.log",
+        "elapsed_seconds": 64.58,
+        "summary": [
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ]
+      }
+    ],
+    "public-final.run": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-0.log",
+        "elapsed_seconds": 8.7,
+        "summary": []
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-1.log",
+        "elapsed_seconds": 52.22,
+        "summary": []
+      }
+    ]
+  },
+  "additional_red_green": [
+    {
+      "behavior": "public auth extension admission",
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-red-1.log",
+        "elapsed_seconds": 51.65,
+        "summary": [],
+        "effective_tests": 12,
+        "observed_target_assertions": 1,
+        "result_note": "Actual source loading rejects extensions before implementation; target admission assertion observed before host SIGABRT."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      }
+    },
+    {
+      "behavior": "auth none rejects secret/unknown fields",
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-1.log",
+        "elapsed_seconds": 52.22,
+        "summary": [],
+        "effective_tests": 13,
+        "observed_target_assertions": 1,
+        "result_note": "Strict rejection assertion observed when serde ignored extra fields on auth.type=none; fixed with explicit field validation."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "record": "t17/public-final-fixed-1.log",
+        "elapsed_seconds": 49.74,
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10612 filtered out; finished in 0.13s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      }
+    }
+  ],
+  "sources": {
+    "codex-rs/codex-mcp/src/plugin_config.rs": {
+      "sha256": "53c68f3bb8d97da30aa9681223e1f353d1429c3e69c62e5565b0745db8926d41",
+      "symbols": [
+        "normalize_plugin_mcp_server",
+        "normalize_plugin_mcp_server_value"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs": {
+      "sha256": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a",
+      "symbols": [
+        "normalize_agent_plugin_http_server",
+        "validate_agent_plugin_headers"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/config/src/mcp_types.rs": {
+      "sha256": "af5fb824c092cd74e3a42297979a4d250c332008f5409e14890253728747e71a",
+      "symbols": [
+        "McpServerOAuthConfig",
+        "RawMcpServerConfig"
+      ],
+      "basis": "frozen baseline source"
+    },
+    "codex-rs/rmcp-client/src/utils.rs": {
+      "sha256": "29e49df7365ecdd1f718c8c3e2d084c1a4aea5787bf8cf1f337e05f20ebfdcbf",
+      "symbols": [
+        "build_default_headers"
+      ],
+      "basis": "additional task-17 source inspected directly; baseline unchanged"
+    }
+  },
+  "official_sources": [
+    {
+      "url": "https://developers.openai.com/plugins/build/plugins#oauth-configuration-reference",
+      "retrieved_on": "2026-10-31",
+      "basis": "Official markdown retrieved using OpenAI Docs after source search; supplemental section observation, frozen baseline unchanged.",
+      "section_sha256": "c6b0f3e76f8e9bfcf3c5ebff796425dbbce6649ce2a6ac8c3123a5807bf71e2f",
+      "record": "t17/official-oauth.log"
+    },
+    {
+      "url": "https://developers.openai.com/plugins/build/plugins#fixed-bearer-tokens-and-api-keys",
+      "retrieved_on": "2026-10-31",
+      "basis": "Official markdown retrieved using OpenAI Docs after source search; declarations contain no credential values.",
+      "section_sha256": "104ae871f6e9e5c11051c20ec63d42f617bad8d8f0bbf06a02b9c2eb87c9fe19",
+      "record": "t17/official-api-key.log"
+    }
+  ],
+  "observed_behavior": [
+    "Actual loopback HTTP MCP initialize/tools/list requests carry static and environment-backed headers and bearer credentials with environment-over-static and bearer-over-Authorization precedence. No credential values are copied into serializable ACP metadata.",
+    "Source-bound host context hashes package root/manifest, discovered source identity, name, URL and declaration. Connection revalidates the source and rejects changed URL/name/config or package-injected host context, with no global credential map.",
+    "Credentials require HTTPS except loopback. Header values are marked sensitive; bad names/values, unavailable environment references, inline bearer_token, private auth and transport-owned overrides fail with value-free diagnostics. Plugin HTTP redirects are disabled; actual redirect trap receives no request.",
+    "Strict public per-server extensions.com.openai.auth none/oauth/mixed/api_key fields are parsed and retained verbatim, including explicit empty scopes. OAuth client provided/dcr/cimd, supported client auth methods, endpoints and OIDC settings have typed validation. Declarations never contain connection secrets. none/mixed can issue actual anonymous requests; oauth/API-key without separate host setup fail before HTTP. Explicit host connection configuration retains existing precedence.",
+    "Legacy OAuth aliases/configuration, resource and scopes are preserved in re-readable source declarations while client secrets never enter serializable runtime context; separate login is explicitly required. Portable client-owned headers remain filtered. Package manifest bytes remain unchanged during actual connection."
+  ],
+  "intentional_safety_differences": [
+    "Snapshot header resolution warns/skips invalid values; this implementation fails the entire plugin MCP runtime admission for invalid or unavailable values.",
+    "Legacy credential-bearing non-loopback HTTP, transport-owned header overrides, all plugin redirects and ambiguous HTTP credential sources are rejected.",
+    "Public documented auth extensions are an explicit capability added beyond the frozen portable snapshot deny_unknown_fields behavior, with supplemental official section hashes recorded; unknown extension namespaces/fields and secret-bearing declarations remain rejected."
+  ],
+  "deferred_capabilities": [
+    "OAuth discovery/authorization/user interaction and credential storage are tasks 26/27; token expiry/refresh is task 28. No OAuth completion or public protected-service evidence is claimed here.",
+    "HTTP header command helpers and other lifecycle/per-tool policy settings not implemented by this task remain explicit runtime errors. No helper shell command is executed.",
+    "Host context is consumed by VibeWindow MCP transport only, not claimed as an external ACP executor capability.",
+    "Only macOS local deterministic network evidence; actual public-service and cross-platform acceptance remain tasks 62-64."
+  ],
+  "package_integrity": {
+    "test": "codex_plugin_compat_t17_sends_scoped_authorization_header",
+    "basis": "Original package manifest bytes compared before and after actual MCP HTTP exchange."
+  },
+  "artifact_note": "Raw .log and *.run.json stay local under repository rules; only code, neutral source metadata and this structured summary are committed.",
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "verification": [
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t17.json",
+      "exit_code": 1,
+      "record": "t17/check-evidence.log",
+      "expected_result": "Complete frozen baseline rejects task-only partial evidence; no complete compatibility claim."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "record": "t17/diff-check.log"
+    },
+    {
+      "command": "Source, official section, artifact hash and resolved-environment-value redaction validation",
+      "exit_code": 0
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-1.log",
+      "sha256": "eb67fe0a16c2e73cd98694f5a90a8b1b4ecc1d930db91d8e2b34fb9ba410af4d"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-fixed-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-fixed-1.log",
+      "sha256": "84dcac137bd66388eb9d7be05d89ef76657c0df0f0756ef550f8736a45e8fd6d"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-fixed-2.log",
+      "sha256": "e76117a46ddf390940029dbfb8bcd892666b71e83e5fe19980e6a56dec99b107"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-fixed-3.log",
+      "sha256": "57f6b3eaf04bdbe13022f9b97e1562fa7ab1913d334089a3d365576f66d0d608"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-fixed-4.log",
+      "sha256": "6d5234cea6f95ea975af604216be9ddcc31f48fe3c377becd2cf42475027ad7f"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final-fixed.run.json",
+      "sha256": "ffe1f6c30210abaff9147b161868751bd1dae09325c20a7de96834f9599faaeb"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/final.run.json",
+      "sha256": "c9780ee0aa6edded2b0454df3eda7c44cc47730feda608d738b447e36299acb6"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/green-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/green-1.log",
+      "sha256": "ce6e52bbfa703b7fd1037d583ae914437b529998c4776b232e5edd85be2e6ecd"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/green-fixed-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/green-fixed-1.log",
+      "sha256": "e2692cfda3aa51080b1eba4f4df0a7407c6a64bba505be093ea89c1f52d75c80"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/green-fixed.run.json",
+      "sha256": "dbc44d36628dc43d966cbca073d54f8b1f8dd6d8ea55b92b91da5c5d7e3617cf"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/green.run.json",
+      "sha256": "87c75a29c9ab6ea908323539727aaed00f66676416b50b4486e49f4d8c58f419"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/official-api-key.log",
+      "sha256": "104ae871f6e9e5c11051c20ec63d42f617bad8d8f0bbf06a02b9c2eb87c9fe19"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/official-oauth.log",
+      "sha256": "c6b0f3e76f8e9bfcf3c5ebff796425dbbce6649ce2a6ac8c3123a5807bf71e2f"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-1.log",
+      "sha256": "96b54d68536b6f3f644fc30c0a3db80c763fddf408439204397b1b2315a4889f"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-fixed-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-fixed-1.log",
+      "sha256": "141a89b48750722c59aa41b9a133e55adbf395dbe22712198aa55abd6e3d8c28"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-fixed-2.log",
+      "sha256": "6b1b7c1bf4ee76a58a272786aa00370a8731477fb6aa8dbd4bafea592390cd9d"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-fixed-3.log",
+      "sha256": "adb70fb2ab9db5a2d813907826b76641ac092448875d4c1c91ac52d97c200649"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-fixed-4.log",
+      "sha256": "4e5b6bf825ca72ab4276c0de5b054b0e88fb98f3b1c864da5186baed3a064036"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final-fixed.run.json",
+      "sha256": "ef606bcadecdc34f494012142251a661b3eeb847ed28c0b5b4f2ede9d263cba4"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-final.run.json",
+      "sha256": "db1cf8f53bc019f6ba482dde55beb6e7033db74376c03ab2007d7cf48d7ea3e4"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-green-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-green-1.log",
+      "sha256": "90fcffdb8b1547473cef89b667a23dd92e20733375c8ba210a096817424fd62e"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-green.run.json",
+      "sha256": "15877ec165abfa0ae986610faff957199b3a521805ac55a56338d8e498ded6d6"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-red-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-red-1.log",
+      "sha256": "3a5e40ad6218a5468cc6851c22088b242bfa06b618d2ed21008ed6ec7b7debde"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/public-red.run.json",
+      "sha256": "e14bfc2500f85d37a3ce8afa618430017a96841478655ce0451705c3713c4ebc"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/red-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/red-1.log",
+      "sha256": "9638b61d33409120e2a8fda604182ea0692d7ea67a213d9aa18d83dcd89d6735"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/red.run.json",
+      "sha256": "ca11acb75216b70578b71b3ad82bb9be34f194d4c2c93a32a95d70e51e67bd17"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_auth.rs",
+      "sha256": "127b05f20673cc4d7e1e5736ac3afcdc0c314eaa23e546237bacd1e9bd681f72"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_environment.rs",
+      "sha256": "9b5fd3d523ef698ca185ecb059f3f44c59e043c1fe2d3c39d13a059a54e7eaee"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_portable.rs",
+      "sha256": "7b9363a541c96c24c707e33fd904732d2f8ecf992e35099ee74fbbd942b88b8a"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_public_auth.rs",
+      "sha256": "b483946e845135706a84640394ba9e4f86c60efa1bbb0b7a3833f320678b522e"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mod.rs",
+      "sha256": "8743b179a9e5e576f155ddf876f4ee3b23a4da9a05114e78007480f2021080e5"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/t17_public_tests.rs",
+      "sha256": "fd4bb951da1dba9ec952e4712fae341156b4dbf798c76e32e0de54bbc25d0328"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/t17_tests.rs",
+      "sha256": "37984ea0f301ddca244695010da63f1c3024aede6c8fa6471e5f6d3081f58c40"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mod.rs",
+      "sha256": "40810d55d13128be793cf479df76c72c2cd356ec94d332884c5cebe3ea044e22"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "sha256": "4d1c86d090b7ee6199e16ab40b5c0703265b0d331d3d1a60362a63276a5ecc80"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t17/sources.json",
+      "sha256": "f5923c7a69343f175b3b0bb758d04d17bc33a7f7230b1c323bcf66a5e2411a7f"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/check-evidence.log",
+      "sha256": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t17/diff-check.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ]
+}

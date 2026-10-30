@@ -573,9 +573,19 @@ pub async fn with_server_peer_timeout<T>(
             result
         }
         McpServer::Http(server) => {
-            let client = remote_http_client(&server.headers, timeout).with_context(|| {
-                format!("failed to build HTTP MCP client for '{}'", server.name)
-            })?;
+            let scoped_headers = crate::plugins::plugin_mcp_http_headers(server)?;
+            let client = if let Some(headers) = scoped_headers {
+                reqwest_012::Client::builder()
+                    .default_headers(headers)
+                    .connect_timeout(timeout)
+                    // A redirect must not forward custom credential headers to another endpoint.
+                    .redirect(reqwest_012::redirect::Policy::none())
+                    .build()
+                    .context("failed to build source-bound plugin MCP HTTP client")
+            } else {
+                remote_http_client(&server.headers, timeout)
+            }
+            .with_context(|| format!("failed to build HTTP MCP client for '{}'", server.name))?;
             let transport = StreamableHttpClientTransport::with_client(
                 client,
                 StreamableHttpClientTransportConfig::with_uri(server.url.clone()),

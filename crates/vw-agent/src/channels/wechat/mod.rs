@@ -1,5 +1,7 @@
 //! 微信 iLink Bot HTTP/JSON 通道。
 
+use super::markdown_chunk::split_markdown;
+use super::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, bail};
 use async_trait::async_trait;
@@ -41,7 +43,11 @@ impl WeChatChannel {
         Ok(Self {
             bot_token,
             base_url,
-            client: Client::builder().build().context("创建微信 iLink HTTP 客户端失败")?,
+            client: Client::builder()
+                .retry(reqwest::retry::never())
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .context("创建微信 iLink HTTP 客户端失败")?,
             context_tokens: Arc::new(RwLock::new(HashMap::new())),
         })
     }
@@ -125,32 +131,90 @@ impl Channel for WeChatChannel {
     }
 
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
-        let context_token =
-            self.context_tokens.read().await.get(&message.recipient).cloned().with_context(
-                || format!("微信会话 {} 尚无可用的 context_token", message.recipient),
-            )?;
-        let response = self
-            .post(
-                "ilink/bot/sendmessage",
-                json!({
-                    "msg": {
-                        "from_user_id": "",
-                        "to_user_id": message.recipient,
-                        "client_id": Uuid::new_v4().to_string(),
-                        "message_type": 2,
-                        "message_state": 2,
-                        "context_token": context_token,
-                        "item_list": [{"type": 1, "text_item": {"text": message.content}}]
-                    },
-                    "base_info": {
-                        "channel_version": CHANNEL_VERSION,
-                        "bot_agent": "VibeWindow"
-                    }
-                }),
+        let chunks = split_markdown(&message.content, 3000).map_err(|_| ChannelDeliveryError {
+            confirmed_parts: 0,
+            total_parts: 0,
+            failed_part_index: 0,
+            kind: DeliveryFailureKind::NotSent,
+        })?;
+        let total_parts = chunks.len();
+        let failure = |confirmed_parts, kind| ChannelDeliveryError {
+            confirmed_parts,
+            total_parts,
+            failed_part_index: confirmed_parts,
+            kind,
+        };
+        if chunks.is_empty() {
+            return Ok(());
+        }
+        let context_token = self
+            .context_tokens
+            .read()
+            .await
+            .get(&message.recipient)
+            .filter(|token| !token.trim().is_empty())
+            .cloned()
+            .ok_or_else(|| failure(0, DeliveryFailureKind::NotSent))?;
+        if message.recipient.trim().is_empty() || self.bot_token.trim().is_empty() {
+            return Err(failure(0, DeliveryFailureKind::NotSent).into());
+        }
+        // Keep every client_id and the session context stable for this call. These IDs
+        // do not imply server-side idempotency, so a POST is never retried.
+        let mut requests = Vec::with_capacity(total_parts);
+        for chunk in chunks {
+            let body = json!({
+                "msg": {
+                    "from_user_id": "",
+                    "to_user_id": message.recipient,
+                    "client_id": Uuid::new_v4().to_string(),
+                    "message_type": 2,
+                    "message_state": 2,
+                    "context_token": context_token,
+                    "item_list": [{"type": 1, "text_item": {"text": chunk}}]
+                },
+                "base_info": {
+                    "channel_version": CHANNEL_VERSION,
+                    "bot_agent": "VibeWindow"
+                }
+            });
+            let bytes =
+                serde_json::to_vec(&body).map_err(|_| failure(0, DeliveryFailureKind::NotSent))?;
+            if bytes.len() > 16 * 1024 {
+                return Err(failure(0, DeliveryFailureKind::NotSent).into());
+            }
+            let request = with_json_headers(
+                self.client.post(self.endpoint("ilink/bot/sendmessage")),
+                Some(&self.bot_token),
             )
-            .await?;
-        if response.get("ret").and_then(Value::as_i64).unwrap_or_default() != 0 {
-            bail!("微信 iLink sendmessage 返回失败状态");
+            .timeout(std::time::Duration::from_secs(30))
+            .body(bytes)
+            .build()
+            .map_err(|_| failure(0, DeliveryFailureKind::NotSent))?;
+            requests.push(request);
+        }
+        // All payloads have been checked before the first network operation.
+        for (index, request) in requests.into_iter().enumerate() {
+            let response = self
+                .client
+                .execute(request)
+                .await
+                .map_err(|_| failure(index, DeliveryFailureKind::Unknown))?;
+            if response.status() != StatusCode::OK {
+                return Err(failure(index, DeliveryFailureKind::Unknown).into());
+            }
+            let response: Value =
+                response.json().await.map_err(|_| failure(index, DeliveryFailureKind::Unknown))?;
+            let ret = response.get("ret").and_then(Value::as_i64);
+            let errcode = response.get("errcode").and_then(Value::as_i64);
+            if ret.is_some_and(|code| code != 0) || errcode.is_some_and(|code| code != 0) {
+                return Err(failure(index, DeliveryFailureKind::Rejected).into());
+            }
+            if (ret.is_none() && errcode.is_none())
+                || (response.get("ret").is_some() && ret.is_none())
+                || (response.get("errcode").is_some() && errcode.is_none())
+            {
+                return Err(failure(index, DeliveryFailureKind::Unknown).into());
+            }
         }
         Ok(())
     }

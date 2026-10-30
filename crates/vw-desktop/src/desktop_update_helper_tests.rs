@@ -27,7 +27,9 @@ fn windows_installer_command_opens_canonical_package_in_unicode_cache() {
         Some(std::path::Component::Prefix(prefix)) if prefix.kind().is_verbatim()
     ));
 
-    let command = windows_installer_command(&verified).unwrap();
+    let installer = windows_installer_path(&verified).unwrap();
+    let log = installer.with_file_name("installer.log");
+    let command = windows_installer_command(&msiexec().unwrap(), installer, &log, false);
     assert_eq!(command.get_program(), msiexec().unwrap().as_os_str());
     let args: Vec<_> = command.get_args().collect();
     assert_eq!(args[0], OsStr::new("/i"));
@@ -39,15 +41,56 @@ fn windows_installer_command_opens_canonical_package_in_unicode_cache() {
     assert_eq!(installer.canonicalize().unwrap(), verified);
     assert_eq!(std::fs::read(installer).unwrap(), b"verified");
     assert_eq!(windows_installer_path(installer).unwrap(), installer);
-    assert_eq!(
-        &args[2..],
-        [
-            OsStr::new("/passive"),
-            OsStr::new("/norestart"),
-            OsStr::new("REBOOT=ReallySuppress"),
-            OsStr::new("MSIRESTARTMANAGERCONTROL=Disable"),
-        ]
-    );
+    assert_eq!(Path::new(args.last().unwrap()), log);
+}
+
+#[test]
+fn windows_installer_command_enables_restart_manager_and_retains_diagnostics() {
+    use std::ffi::OsStr;
+
+    let directory = tempfile::tempdir().unwrap();
+    let installer = directory.path().join("中文 cache").join("ShiJu update.msi");
+    let log = installer.with_file_name("installer.log");
+    let command = windows_installer_command(Path::new("msiexec.exe"), &installer, &log, false);
+    let args: Vec<_> = command.get_args().collect();
+
+    assert_eq!(args[0], OsStr::new("/i"));
+    assert_eq!(Path::new(args[1]), installer);
+    assert!(!args.iter().any(|arg| arg.to_string_lossy().starts_with("MSIRESTARTMANAGERCONTROL=")));
+    assert!(args.contains(&OsStr::new("MSIDISABLERMRESTART=1")));
+    assert!(args.contains(&OsStr::new("/norestart")));
+    assert!(args.contains(&OsStr::new("REBOOT=ReallySuppress")));
+    assert_eq!(args[args.len() - 2], OsStr::new("/L*V"));
+    assert_eq!(Path::new(args.last().unwrap()), log);
+}
+
+#[test]
+fn windows_installer_command_refreshes_existing_product_without_skipping_first_install() {
+    use std::ffi::OsStr;
+
+    let executable = Path::new("msiexec.exe");
+    let installer = Path::new("ShiJu update.msi");
+    let log = Path::new("installer.log");
+    for installed in [false, true] {
+        let command = windows_installer_command(executable, installer, log, installed);
+        let args: Vec<_> = command.get_args().collect();
+        assert_eq!(args.contains(&OsStr::new("REINSTALL=ALL")), installed);
+        assert_eq!(args.contains(&OsStr::new("REINSTALLMODE=vamus")), installed);
+    }
+}
+
+#[test]
+fn windows_installation_failure_reports_package_log_and_actual_exit_code() {
+    let installer = Path::new("ShiJu update.msi");
+    let log = Path::new("installer.log");
+    let error = windows_installation_result(Some(1603), installer, log).unwrap_err();
+    let message = format!("{error:#}");
+    assert!(message.contains("1603"));
+    assert!(message.contains("安装包：ShiJu update.msi"));
+    assert!(message.contains("安装日志：installer.log"));
+    assert!(message.contains("具体失败原因"));
+    assert!(windows_installation_result(Some(0), installer, log).is_ok());
+    assert!(windows_installation_result(Some(3010), installer, log).is_err());
 }
 
 #[cfg(windows)]

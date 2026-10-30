@@ -12,6 +12,10 @@ use std::time::Duration;
 #[path = "desktop_update_macos.rs"]
 mod macos;
 
+#[cfg(windows)]
+#[path = "desktop_update_windows.rs"]
+mod windows;
+
 const HELPER_ARG: &str = "--desktop-update-helper";
 
 #[derive(Serialize, Deserialize)]
@@ -194,7 +198,7 @@ fn preflight(executable: &Path, ready: &PreparedDesktopUpdate) -> Result<()> {
         if ready.kind() != vw_shared::update::InstallerKind::Msi {
             bail!("Windows 更新需要 MSI");
         }
-        windows_installer_path(ready.path())?;
+        windows::Package::inspect(windows_installer_path(ready.path())?, ready.version())?;
         if !msiexec()?.is_file() {
             bail!("Windows Installer 不可用");
         }
@@ -217,10 +221,24 @@ fn install(request: &UpdateRequest) -> Result<()> {
     return macos::install(request);
     #[cfg(target_os = "windows")]
     {
-        let status = windows_installer_command(request.ready.path())?
-            .status()
-            .context("Windows Installer 启动失败")?;
-        installation_result("windows", status.code())
+        let installer = windows_installer_path(request.ready.path())?;
+        let package = windows::Package::inspect(installer, request.ready.version())?;
+        let log = installer.with_file_name("installer.log");
+        windows::stop_installed_processes(&request.executable)?;
+        eprintln!(
+            "Windows 更新器 {}，目标版本 {}，安装日志：{}",
+            env!("CARGO_PKG_VERSION"),
+            request.ready.version(),
+            log.display()
+        );
+        let status =
+            windows_installer_command(&msiexec()?, installer, &log, package.is_installed())
+                .status()
+                .context("Windows Installer 启动失败")?;
+        windows_installation_result(status.code(), installer, &log)?;
+        package
+            .verify_installed(&request.executable)
+            .with_context(|| format!("安装日志：{}", log.display()))
     }
     #[cfg(target_os = "linux")]
     {
@@ -254,16 +272,35 @@ fn windows_installer_path(verified: &Path) -> Result<&Path> {
     Ok(path)
 }
 
-#[cfg(target_os = "windows")]
-fn windows_installer_command(verified: &Path) -> Result<Command> {
-    let mut command = Command::new(msiexec()?);
-    command.arg("/i").arg(windows_installer_path(verified)?).args([
-        "/passive",
-        "/norestart",
-        "REBOOT=ReallySuppress",
-        "MSIRESTARTMANAGERCONTROL=Disable",
-    ]);
-    Ok(command)
+#[cfg(any(test, target_os = "windows"))]
+fn windows_installer_command(
+    msiexec: &Path,
+    installer: &Path,
+    log: &Path,
+    already_installed: bool,
+) -> Command {
+    let mut command = Command::new(msiexec);
+    command
+        .arg("/i")
+        .arg(installer)
+        // Let Windows Installer release daemon/helper file locks. Restarting the
+        // updated application remains an explicit choice in our completion dialog.
+        .args(["/passive", "/norestart", "REBOOT=ReallySuppress", "MSIDISABLERMRESTART=1"])
+        .arg("/L*V")
+        .arg(log);
+    // /i on an already registered ProductCode enters maintenance mode and can
+    // retain old unversioned executables. Re-cache this verified package and
+    // replace its files, while leaving first installs/major upgrades untouched.
+    if already_installed {
+        command.args(["REINSTALL=ALL", "REINSTALLMODE=vamus"]);
+    }
+    command
+}
+
+#[cfg(any(test, target_os = "windows"))]
+fn windows_installation_result(code: Option<i32>, installer: &Path, log: &Path) -> Result<()> {
+    installation_result("windows", code)
+        .with_context(|| format!("安装包：{}\n安装日志：{}", installer.display(), log.display()))
 }
 
 #[cfg(any(test, target_os = "windows", target_os = "linux"))]
@@ -272,6 +309,9 @@ fn installation_result(os: &str, code: Option<i32>) -> Result<()> {
         (_, Some(0)) => Ok(()),
         ("windows", Some(3010 | 1641)) => {
             bail!("Windows 要求重启系统才能完成更新，请先保存工作并重启系统")
+        }
+        ("windows", Some(1603)) => {
+            bail!("Windows Installer 安装失败（1603），请查看安装日志中的具体失败原因")
         }
         (_, code) => bail!("系统安装未成功完成，退出码：{code:?}"),
     }

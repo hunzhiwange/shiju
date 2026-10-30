@@ -110,3 +110,24 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 - 执行命令：PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/python 通过runpy运行 evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/refresh-20261028T094608Z.py，退出0。8项当前标准控制4oracle首评reward1、4nop首评reward0，无recovery/重放；FROM/ref保持原字节，实际子镜像amd64及RootFS前缀匹配工具。所有main=1CPU/512MiB、sidecar=0.25CPU/64MiB。完整证据：standard-controls-refresh-20261028T094608Z.json、refresh-20261028T094608Z.log、resources-*-refresh-20261028T094608Z.json、checkpoint-refresh-20261028T094608Z.json。
 - 最终inputs身份与控制开始时一致。所有本轮自有容器（含退出容器）已清理，未持有活动构建、Docker/Cargo资源或锁；本轮无自身活动资源。按明确调度，本轮无代码的diag-only阶段不重复Cargo/Clippy；此前Cargo证据仍是历史，最终全题收尾再动态领取槽位/JOBS1执行Clippy。
 - 保留本任务“已阻塞”及资产，未提交/删除任务文件；下一步仅在主会话授予父窗口后重新执行原父题完整容量准入与校准。plan.md未改，无其他任务资产改动。
+
+
+## 2026-10-30 父题恢复检查点（进行中，仍未完整就绪）
+
+- 用户明确要求继续突破；父镜像准入与依赖旧阻塞已解除。只处理本题，未运行付费模型、未修改原题或共享实现、未触碰其他会话锁/进程/缓存。
+- 本轮证据根：`evals/promptfoo/results/qwen38-suite/diagnostics/overfull-hbox/parent-resume-20261030/`。官方 manifest=sha256:7dca952bb6736194a736b5110945f48842eafa8551e24468f1dddeed0daee799；config=sha256:492bea53bb36318ba79f670c0449d388229bed86eb82f12845ad8e1ebe93a83e；amd64；六层压缩摘要及解压 diff ID 均实测通过，C=131843285、完整 U=320532992 字节。匿名 Registry token 只在进程内存，不入日志或参数。
+- 初始 min(host,VM)=43424010240；三份 C、两份完整正 Ucap=2GiB、S10/B2/A1/5GiB 的保守准入需24017849983字节，通过。流式 OCI 导入，无磁盘整档副本，原 tag 已指向核验 digest。后续控制还为每个其他活动题保守预留13GiB；不沿用旧 task62 未来预留（该准备任务文件已完成移除且无活动容器）。
+- 真 TeX 30测全部通过、无跳过；20 fresh fixtures 通过。随后其他会话修改公共 diagnostics.py 使旧收据过期，已按新实现完整重跑20项通过（fixtures-refreshed*），不是手改哈希/复用旧收据。原checker未放宽。
+- 父题真实 APT 依赖探测180秒超时；最初cap-drop探针的权限错误另存。新增 verifier-only `environment/verifier-bootstrap.sh`，复用固定真实 uv/Python/curl/pytest/CTRF 缓存。真实离线红测暴露缺 libsqlite3；从固定工具镜像提取并哈希核验完整 Python 动态库闭包后，父镜像断网安装与 ssl/sqlite/bz2/lzma/uv/pytest/CTRF/pdflatex 闭包验证退出0（verifier-closure*、python-libs*）。该缓存只由标准 RecoveringVerifier 在 agent 结束后注入；不改评分和参考解，不伪造 apt 成功。
+- 规定标准 preflight 已执行：第一次控制脚本错误 resolve venv Python symlink，导致找不到Harbor；已保留preflight-red-interpreter*并改用venv原入口。其后三个标准CLI校准目录为 overfull-hbox、overfull-hbox-resume-20261030、overfull-hbox-resume3-20261030；分别因共享锁/CPU内存抢占在 agent_execution=None 时退出1，无参考解/评分成绩。不得把这些视为nop失败或父题通过。
+- 最终控制改用公开 harbor_trial + 生命周期 hook 等待公共锁/资源，未替换 Trial/平台/FROM/Compose；`calibrate.py` 的 v4 独立目录保留当前身份与首次评分，只有明确 pre-agent admission failure 才允许 fresh deterministic retry。先前 v1/v2 等等待控制被本会话替换，均无 agent 执行；保留其原始证据。当前仍在等待公共串行窗口，尚无 preparation acceptance。
+- Clippy：动态槽位1，CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，CARGO_BUILD_BUILD_DIR同值、JOBS=1；cargo clippy --all-targets --all-features -- -D warnings 退出0，自己的锁已清理。无Rust改动、无全量test/fmt/wasm/Makefile。`npm_config_offline=true evals/promptfoo/score.sh test` 使用缓存固定0.122.0退出0、Configuration is valid；原在线npm等待仅停止本会话进程并保留日志。
+- 恢复入口：先检查本轮 calibrate.py 进程及 current-calibration-v4.log/current-calibration-v4.json，禁止重复启动；如有当前标准控制成功，核对完整2父+8子、首次评分、资源、存储与最终 inputs 身份后再收尾。共享实现若再次变化，重新校准对应收据。未完整ready前保留本任务与资产，不删除、不提交未校准资产。plan.md保持只读。
+
+
+### 2026-10-30 本轮终态：已阻塞（共享父题窗口）
+
+- v4 等待控制始终停在 ENVIRONMENT_START hook，未进入官方参考解/评分，已只停止本会话的等待进程；无本题活动容器、后台作业或 Cargo/Docker 锁。此前父镜像和工具缓存全部保留。
+- 终态实际其他预留：vw-task47-x86-reservation=2CPU/4294967296字节，vw-task86-preparation-reservation=0.25CPU/67108864字节。本题再加原2CPU/4096MiB会超出公共4CPU/8GiB CPU上限，且已有两题占用。未停止、更新或删除这些容器，也未绕过公共入口。详细新快照见 blocked-handoff.json；旧磁盘不足原因已被本轮准入解除，不能据此继续报告旧容量缺口。
+- 父题评分仍为0项；三次标准CLI的pre-agent基础设施拒绝、先前等待控制不计oracle/nop成绩。当前共享diagnostics实现下20fresh fixtures与30真实TeX测试、离线verifier闭包、Clippy、固定Promptfoo配置均已通过，但这些不替代2父+8子当前标准控制和最终preparation acceptance。没有完成声明，不删除任务，不提交未完整校准资产。
+- 下一步：有连续2CPU/4GiB窗口后复核当前inputs/validation/镜像与全部预留，复制calibrate.py为新批次packages/trials/receipt路径后运行公开harbor_trial控制；完整评分通过且最终身份一致后生成并verify_preparation、补最终检查、串行提交资产并删除本任务。不要直接重跑已存在的materialize输出目录，也不要再次resolve虚拟环境Python软链接。

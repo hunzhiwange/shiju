@@ -219,7 +219,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.cli_install_modal_show_install_action = true;
             app.cli_install_modal_use_app_update_action = false;
             app.cli_install_modal_is_checking_update = false;
-            Task::none()
+            update(app, ViewMessage::CheckCliToolUpdate)
         }
         ViewMessage::RunInstallCliTool => {
             app.cli_install_modal_is_checking_update = false;
@@ -278,7 +278,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.active_menu = None;
             app.show_cli_install_modal = true;
             if app.cli_install_modal_use_app_update_action {
-                return Task::none();
+                #[cfg(not(target_arch = "wasm32"))]
+                if app.desktop_update.ready.is_some() {
+                    return Task::none();
+                }
+                return update(app, ViewMessage::CheckAppUpdate);
             }
             app.desktop_update.request += 1;
             app.desktop_update.checking = false;
@@ -304,8 +308,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.cli_install_modal_title = "安装包已就绪".into();
                 app.cli_install_modal_message = ready.instructions();
                 app.cli_install_modal_show_install_action = false;
+                return Task::none();
             }
-            Task::none()
+            update(app, ViewMessage::CheckAppUpdate)
         }
         ViewMessage::AppUpdateSourceSelected(source) => {
             if app.desktop_update.busy || app.desktop_update.saving {

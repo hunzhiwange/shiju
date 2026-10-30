@@ -316,7 +316,7 @@ fn app_update_modal_initializes_application_update_state() {
     app.cli_install_modal_use_app_update_action = false;
     app.cli_install_modal_is_checking_update = true;
 
-    let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    let task = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
 
     assert_eq!(app.active_menu, None);
     assert!(app.show_cli_install_modal);
@@ -325,9 +325,24 @@ fn app_update_modal_initializes_application_update_state() {
     assert!(app.cli_install_modal_show_update_action);
     assert!(!app.cli_install_modal_show_install_action);
     assert!(app.cli_install_modal_use_app_update_action);
-    assert!(!app.cli_install_modal_is_checking_update);
+    assert!(app.cli_install_modal_is_checking_update);
+    assert!(app.desktop_update.checking);
+    assert!(task.units() > 0);
     assert!(app.app_update_progress.is_none());
     assert!(app.app_update_progress_rx.is_none());
+
+    let request = app.desktop_update.request;
+    let duplicate = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    assert_eq!(duplicate.units(), 0);
+    assert_eq!(app.desktop_update.request, request);
+    let source = app.desktop_update.source.unwrap();
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckAppUpdateFinished(request, source, Err("offline".into())),
+    );
+    let retry = super::update(&mut app, ViewMessage::CheckAppUpdate);
+    assert!(retry.units() > 0);
+    assert!(app.desktop_update.checking);
 }
 
 #[test]
@@ -337,7 +352,7 @@ fn install_and_update_requests_prepare_modal_state_before_async_work_runs() {
     let mut app = crate::app::App::new().0;
     app.active_menu = Some(MenuType::Help);
 
-    let _ = super::update(&mut app, ViewMessage::InstallCliTool);
+    let task = super::update(&mut app, ViewMessage::InstallCliTool);
     assert_eq!(app.active_menu, None);
     assert!(app.show_cli_install_modal);
     assert_eq!(app.cli_install_modal_title, "CLI 更新检测");
@@ -345,12 +360,29 @@ fn install_and_update_requests_prepare_modal_state_before_async_work_runs() {
     assert!(app.cli_install_modal_show_update_action);
     assert!(app.cli_install_modal_show_install_action);
     assert!(!app.cli_install_modal_use_app_update_action);
-    assert!(!app.cli_install_modal_is_checking_update);
-
-    let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdate);
     assert!(app.cli_install_modal_is_checking_update);
-    assert!(app.cli_install_modal_message.contains("GitHub"));
+    assert!(app.desktop_update.checking);
+    assert!(task.units() > 0);
 
+    let request = app.desktop_update.request;
+    let duplicate = super::update(&mut app, ViewMessage::CheckCliToolUpdate);
+    assert_eq!(duplicate.units(), 0);
+    assert_eq!(app.desktop_update.request, request);
+    let source = app.desktop_update.source.unwrap();
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, source, Err("offline".into())),
+    );
+    let task = super::update(&mut app, ViewMessage::CheckCliToolUpdate);
+    assert!(task.units() > 0);
+    assert!(app.cli_install_modal_is_checking_update);
+    assert!(app.cli_install_modal_message.contains("最新 CLI 版本"));
+
+    let request = app.desktop_update.request;
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, source, Err("offline".into())),
+    );
     let _ = super::update(&mut app, ViewMessage::CheckAppUpdate);
     assert!(app.cli_install_modal_is_checking_update);
     assert!(!app.cli_install_modal_show_install_action);
@@ -740,6 +772,7 @@ fn app_update_download_survives_close_and_blocks_duplicate_and_source_change() {
     use vw_shared::update::{DesktopRelease, UpdateSource};
     let mut app = crate::app::App::new().0;
     let _ = super::update(&mut app, ViewMessage::OpenAppUpdateModal);
+    app.desktop_update.checking = false;
     app.desktop_update.release = Some(DesktopRelease {
         source: UpdateSource::Shiju,
         version: "99.0.0".into(),

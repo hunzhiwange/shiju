@@ -1,0 +1,2 @@
+Create /app/shared.py.c as a single unchanged C/Python polyglot. For an ASCII decimal N in 0..1000, each execution prints exactly two decimal integers separated by one space and newline: A=N*N-3*N+7 and B=(17*N+11) modulo 97. python3 shared.py.c N and the freshly gcc-compiled binary must agree and independently match these formulas, exit 0. No auxiliary sources or result replay.
+Only write /app/shared.py.c. No network or permission changes. Budget: 900 seconds, 24 turns, 32 tools; output 32000 tokens, input window 200000.

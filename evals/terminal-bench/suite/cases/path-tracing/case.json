@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "path-tracing",
+  "image": "vw-path-tracing-tools:single@sha256:731ea515c4600aed7c9e5f6169e71366d0e7cc91a26e54863f13a35fbd5c6e32",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "inspect.py": "oracle/m1/gold/inspect.py"
+      },
+      "negatives": [
+        {
+          "id": "transposed",
+          "files": {
+            "inspect.py": "oracle/m1/transposed/inspect.py"
+          }
+        },
+        {
+          "id": "rgb-reversed",
+          "files": {
+            "inspect.py": "oracle/m1/rgb-reversed/inspect.py"
+          }
+        },
+        {
+          "id": "wrong-width",
+          "files": {
+            "inspect.py": "oracle/m1/wrong-width/inspect.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "render.py": "oracle/m2/gold/render.py"
+      },
+      "negatives": [
+        {
+          "id": "exclusive-edge",
+          "files": {
+            "render.py": "oracle/m2/exclusive-edge/render.py"
+          }
+        },
+        {
+          "id": "flipped-y",
+          "files": {
+            "render.py": "oracle/m2/flipped-y/render.py"
+          }
+        },
+        {
+          "id": "wrong-background",
+          "files": {
+            "render.py": "oracle/m2/wrong-background/render.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "coordinates.py": "oracle/m3/gold/coordinates.py"
+      },
+      "negatives": [
+        {
+          "id": "truncate-cell",
+          "files": {
+            "coordinates.py": "oracle/m3/truncate-cell/coordinates.py"
+          }
+        },
+        {
+          "id": "no-clamp",
+          "files": {
+            "coordinates.py": "oracle/m3/no-clamp/coordinates.py"
+          }
+        },
+        {
+          "id": "round-color",
+          "files": {
+            "coordinates.py": "oracle/m3/round-color/coordinates.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "image.c": "oracle/m4/gold/image.c"
+      },
+      "negatives": [
+        {
+          "id": "wrong-red",
+          "files": {
+            "image.c": "oracle/m4/wrong-red/image.c"
+          }
+        },
+        {
+          "id": "flipped-y",
+          "files": {
+            "image.c": "oracle/m4/flipped-y/image.c"
+          }
+        },
+        {
+          "id": "wrong-size",
+          "files": {
+            "image.c": "oracle/m4/wrong-size/image.c"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -81,12 +81,17 @@ supply historical_root. Local preparation.json contains absolute execution and
 evidence paths and should stay out of the asset commit. The model remains
 token-plan/qwen3.8-flash, output 32000, input window 200000 and one paid attempt.
 
-The final Cargo gate remains a separate repository regression requirement.
-The first Clippy run lost a serde rmeta file and its original slot lock during
-shared-cache removal. The retry dynamically claimed slot 4 with identical
-CARGO_TARGET_DIR/CARGO_BUILD_BUILD_DIR and jobs=1, then found the unrelated
-`crates/vw-agent/src/session/processor/runner_tests.rs:2416` reference to missing
-`super::llm_runner::TestLlmMessages` (E0425). No Rust file was changed for this
-case. The task plan remains **completed, pending Clippy regression** until that
-shared Rust error is corrected and the mandated all-targets/all-features Clippy
-command passes. The 20+10 calibration receipts are valid under the identity above.
+The final repository regression gate passed on 2026-10-31:
+`cargo clippy --all-targets --all-features -- -D warnings` exited 0 in 52.98
+seconds. The run dynamically claimed shared slot 2, set both CARGO_TARGET_DIR
+and CARGO_BUILD_BUILD_DIR to the repository's absolute `target/rust-slot-2`
+path, and used CARGO_BUILD_JOBS=1. Its own lock was released after completion;
+the cache remains available. Clippy ran zero behavior tests and does not replace
+the 20+10 calibration controls. No Rust source was changed for this case.
+
+Both local preparation receipts passed verify_preparation again with unchanged
+inputs and execution identity. Raw Clippy output, the receipt with absolute
+build paths, and the preparation recheck are preserved under the ignored
+`evals/promptfoo/results/qwen38-suite/diagnostics/portfolio-optimization/clippy-regression-20261031/`.
+Earlier failed attempts remain in resume-20261030 as historical evidence. All
+task gates are complete, and task plan 71 has been removed.

@@ -1,0 +1,35 @@
+{
+  "license": "MIT",
+  "origin": "Original VibeWindow synthetic fixtures, hand-authored; no copied Codex source or user content.",
+  "reference_license": "Apache-2.0 (Codex LICENSE; read only, no redistributed implementation)",
+  "references": [
+    {
+      "path": "codex-rs/core-plugins/src/manifest/manifest_cache_tests.rs",
+      "symbol": "repeated_revision_runs_parser_once_and_changes_run_it_again",
+      "sha256": "cec8d16431f21e9e3ce15c19b8ef2203056823155c5ff6cec3a4b3fc783b4a2e"
+    },
+    {
+      "path": "codex-rs/core-plugins/src/loader_tests.rs",
+      "symbol": "installed_agent_plugin_uses_isolated_data_root_for_stdio_mcp",
+      "sha256": "b5a5898ef4940b498587d42b0aacf984e7ec10e7f9514cdca3568ccb7f7097ae"
+    }
+  ],
+  "files": {
+    "baseline.json": {
+      "sha256": "0821d65bae4b90f6bdebc09455659f178417c20fc3f6f770c6b702091d0a2db7",
+      "purpose": "Original synthetic checker input"
+    },
+    "complete.json": {
+      "sha256": "7176e3570cb081d0b15d84a5bb70eda66bb446b1c657dae377e416adb5a4ffb7",
+      "purpose": "Original synthetic checker input"
+    },
+    "expected.json": {
+      "sha256": "0c9c3fabc5f47ef0d469fd3cc941c1f715e7defe54eccef3d0a185ad276ecb45",
+      "purpose": "Independent fixed expected output"
+    },
+    "package/.vibewindow-plugin/plugin.json": {
+      "sha256": "6b064f52b016710f65dbe22ee033f71fef19eeade787652f94cb1585cd054818",
+      "purpose": "Native package seed for real loader; not a Codex compatibility claim"
+    }
+  }
+}

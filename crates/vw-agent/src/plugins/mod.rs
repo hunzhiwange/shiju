@@ -15,6 +15,9 @@ mod mcp;
 mod skills;
 mod types;
 
+#[cfg(test)]
+mod compat;
+
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;
 pub use cli::handle_command;

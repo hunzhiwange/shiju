@@ -1,0 +1,76 @@
+test_complete_evidence_passes (test_check_evidence.EvidenceTests.test_complete_evidence_passes) ... ok
+test_duplicate_item_fails (test_check_evidence.EvidenceTests.test_duplicate_item_fails) ... FAIL
+test_missing_item_fails (test_check_evidence.EvidenceTests.test_missing_item_fails) ... FAIL
+test_missing_record_fails (test_check_evidence.EvidenceTests.test_missing_record_fails) ... FAIL
+test_mock_public_service_fails (test_check_evidence.EvidenceTests.test_mock_public_service_fails) ... FAIL
+test_pending_regression_fails (test_check_evidence.EvidenceTests.test_pending_regression_fails) ... FAIL
+test_unverified_platform_fails (test_check_evidence.EvidenceTests.test_unverified_platform_fails) ... FAIL
+test_zero_tests_fails (test_check_evidence.EvidenceTests.test_zero_tests_fails) ... FAIL
+
+======================================================================
+FAIL: test_duplicate_item_fails (test_check_evidence.EvidenceTests.test_duplicate_item_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 47, in test_duplicate_item_fails
+    self.assertEqual(self.run_checker().returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_missing_item_fails (test_check_evidence.EvidenceTests.test_missing_item_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 43, in test_missing_item_fails
+    self.assertEqual(self.run_checker().returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_missing_record_fails (test_check_evidence.EvidenceTests.test_missing_record_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 38, in test_missing_record_fails
+    self.assertEqual(result.returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_mock_public_service_fails (test_check_evidence.EvidenceTests.test_mock_public_service_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 67, in test_mock_public_service_fails
+    self.assertEqual(self.run_checker().returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_pending_regression_fails (test_check_evidence.EvidenceTests.test_pending_regression_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 55, in test_pending_regression_fails
+    self.assertEqual(self.run_checker().returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_unverified_platform_fails (test_check_evidence.EvidenceTests.test_unverified_platform_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 59, in test_unverified_platform_fails
+    self.assertEqual(self.run_checker().returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+======================================================================
+FAIL: test_zero_tests_fails (test_check_evidence.EvidenceTests.test_zero_tests_fails)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/Shared/work/dir/data/codes/vibe-window/scripts/plugin_compat/test_check_evidence.py", line 51, in test_zero_tests_fails
+    self.assertEqual(self.run_checker().returncode, 1)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 0 != 1
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.322s
+
+FAILED (failures=7)

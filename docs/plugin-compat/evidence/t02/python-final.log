@@ -1,0 +1,16 @@
+test_complete_evidence_passes (test_check_evidence.EvidenceTests.test_complete_evidence_passes) ... ok
+test_duplicate_item_fails (test_check_evidence.EvidenceTests.test_duplicate_item_fails) ... ok
+test_missing_item_fails (test_check_evidence.EvidenceTests.test_missing_item_fails) ... ok
+test_missing_real_public_service_fails (test_check_evidence.EvidenceTests.test_missing_real_public_service_fails) ... ok
+test_missing_record_fails (test_check_evidence.EvidenceTests.test_missing_record_fails) ... ok
+test_mock_public_service_fails (test_check_evidence.EvidenceTests.test_mock_public_service_fails) ... ok
+test_pending_regression_fails (test_check_evidence.EvidenceTests.test_pending_regression_fails) ... ok
+test_real_public_service_record_passes (test_check_evidence.EvidenceTests.test_real_public_service_record_passes) ... ok
+test_source_hash_mismatch_fails (test_check_evidence.EvidenceTests.test_source_hash_mismatch_fails) ... ok
+test_unverified_platform_fails (test_check_evidence.EvidenceTests.test_unverified_platform_fails) ... ok
+test_zero_tests_fails (test_check_evidence.EvidenceTests.test_zero_tests_fails) ... ok
+
+----------------------------------------------------------------------
+Ran 11 tests in 0.505s
+
+OK

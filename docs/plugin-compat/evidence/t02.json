@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "task": 2,
+  "items": [
+    {
+      "id": "acceptance.t02",
+      "tasks": [
+        2
+      ],
+      "tests": [
+        "codex_plugin_compat_t02_rejects_incomplete_evidence",
+        "codex_plugin_compat_t02_rejects_invalid_input",
+        "codex_plugin_compat_t02_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t02_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 2,
+        "record": "docs/plugin-compat/evidence/t02/rust-red.log: two target assertions observed (Some(0) != Some(1)); 3 scheduled tests; panic reporting subsequently aborted with SIGABRT. No compilation error is counted as a red assertion."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t02_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 3,
+        "record": "docs/plugin-compat/evidence/t02/rust-green.log: 3 passed; 0 failed; 0 ignored."
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified"
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+    "lease_released": true
+  },
+  "validation_runs": [
+    {
+      "command": "python3 -m unittest discover -s scripts/plugin_compat -p test_check_evidence.py -v",
+      "phase": "red",
+      "exit_code": 1,
+      "effective_tests": 8,
+      "failed": 7,
+      "record": "t02/python-red.log"
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/plugin_compat -p test_check_evidence.py -v",
+      "phase": "green",
+      "exit_code": 0,
+      "effective_tests": 8,
+      "record": "t02/python-green.log"
+    },
+    {
+      "command": "python3 -m unittest discover -s scripts/plugin_compat -p test_check_evidence.py -v",
+      "phase": "expanded boundary coverage",
+      "exit_code": 0,
+      "effective_tests": 11,
+      "record": "t02/python-final.log"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "note": "Unrelated whitespace-only changes were excluded/restored; task Rust files formatted."
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "record": "t02/clippy.log"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins::manifest_tests:: -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "record": "t02/adjacent.log"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t02.json",
+      "exit_code": 1,
+      "expected": "Partial task evidence rejected: discovery.legacy-order missing evidence item."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "artifacts_sha256": {
+    "docs/plugin-compat/evidence/t02/python-red.log": "a3a6f0b1be8cda53ab88f7f50b55860c2476f365020736148ed8bf9bd37f580b",
+    "docs/plugin-compat/evidence/t02/python-green.log": "023c528c3af0293b19f5eea8b0f927af933a4663c369585c093f9084ba148611",
+    "docs/plugin-compat/evidence/t02/python-final.log": "cd9d976883137489e71aecc5ab7ef062ae67f72c849981941f26d66b1eae8b97",
+    "docs/plugin-compat/evidence/t02/rust-red.log": "21cdfd82fc0f81499d62bd96ee1a85a4d132fa294acb8d6b0ea0c611d9c2733f",
+    "docs/plugin-compat/evidence/t02/rust-green.log": "689e09148643310858d26b4dc0df58d744b3dd457eea0a4a0c49fb1828502898",
+    "docs/plugin-compat/evidence/t02/clippy.log": "203c820b4e413cff47d58c39dd3fe3bf787a528b30cddb442fd5da20411b6af3",
+    "docs/plugin-compat/evidence/t02/adjacent.log": "2a146955ce634242b5084d47843e7f283dd2741fada61cfec5d2e5a98815a14f"
+  },
+  "scope_note": "Task 2 proves the harness and evidence checker on the actual macOS host. Fixture complete.json is synthetic checker input, never real platform evidence. This partial task record cannot pass full baseline acceptance; real cross-platform/public-service proofs remain mapped to later tasks.",
+  "isolation": [
+    "Actual load_plugin_manifest parses an unchanged native fixture copy.",
+    "Two separate turn directories hold checker evidence outside the package.",
+    "Input evidence and package bytes are unchanged after the real checker process."
+  ],
+  "interrupted_attempts": [
+    {
+      "reason": "build.build-dir=target initially escaped the slot; stopped only own compiler and retried with CARGO_BUILD_BUILD_DIR in slot. Not counted as behavior evidence.",
+      "exit_code": 101
+    },
+    {
+      "reason": "An extra-slot adjacent attempt was stopped; final 5 adjacent tests passed in slot 1.",
+      "slot": 3,
+      "exit_code": -15
+    }
+  ],
+  "artifact_note": "Captured output retains command diagnostics; trailing empty lines normalized to one final newline for git diff --check."
+}

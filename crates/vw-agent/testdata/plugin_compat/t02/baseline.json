@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "sources": {
+    "task02": {
+      "sha256": "e7b086aa7b9843472a7cfaec6142d612da46be020f3924de1736882506d364ab"
+    }
+  },
+  "required_platforms": [
+    "macos",
+    "linux",
+    "windows"
+  ],
+  "items": [
+    {
+      "id": "acceptance.t02",
+      "tasks": [
+        2
+      ],
+      "basis": "planned_acceptance",
+      "sources": [
+        {
+          "source": "task02",
+          "symbol": "目的：",
+          "sha256": "e7b086aa7b9843472a7cfaec6142d612da46be020f3924de1736882506d364ab"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "neutral-fixture",
+  "version": "0.1.0",
+  "complete_exit": 0,
+  "incomplete_exit": 1,
+  "invalid_exit": 1
+}

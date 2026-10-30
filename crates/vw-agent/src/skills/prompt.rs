@@ -111,20 +111,24 @@ fn write_xml_text_element(out: &mut String, indent: usize, tag: &str, value: &st
     out.push_str(">\n");
 }
 
-/// 将预算选择后的技能元数据渲染为 Claude 同构的元用户提醒。
-///
-/// 完整技能正文仅由 Skill Tool 在实际调用时加载，因此这里有意只输出名称和描述。
+/// 渲染可信 developer 目录；完整正文仍由 skill 工具按需提供为 user 上下文。
 pub(crate) fn format_skill_listing_reminder(entries: &[SkillListingEntry]) -> String {
     let mut reminder = String::from(
-        "<system-reminder>\nThe following skills are available to use with the Skill tool:\n<available_skills>\n",
+        "<skills_instructions>\n\
+         Use the skill tool to load a skill's complete instructions before executing it.\n\
+         If the user explicitly names a skill, you must use it. Select skills when their description matches the task.\n\
+         Follow the loaded workflow; resolve relative resources from the skill file's directory.\n\
+         The catalog contains metadata only, not preloaded instructions.\n\
+         <available_skills>\n",
     );
     for entry in entries {
         reminder.push_str("  <skill>\n");
         write_xml_text_element(&mut reminder, 4, "name", &entry.name);
         write_xml_text_element(&mut reminder, 4, "description", &entry.description);
+        write_xml_text_element(&mut reminder, 4, "location", &entry.location);
         reminder.push_str("  </skill>\n");
     }
-    reminder.push_str("</available_skills>\n</system-reminder>");
+    reminder.push_str("</available_skills>\n</skills_instructions>");
     reminder
 }
 

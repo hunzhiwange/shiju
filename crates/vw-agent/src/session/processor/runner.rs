@@ -69,14 +69,26 @@ impl DesktopSessionProtocol {
                 )
             })
             .collect::<Vec<_>>();
-        let skill_listing = self
-            .skill_state
-            .prepare(&self.agent_id, &self.skills, skill_tool_enabled, self.context_window_tokens)
-            .map(|reminder| {
-                let source =
-                    llm_messages::context_message_source("skill_catalog", &reminder.skill_names);
+        if let Some(delta) = self.skill_state.prepare(
+            &self.agent_id,
+            &self.skills,
+            skill_tool_enabled,
+            self.context_window_tokens,
+        ) {
+            tracing::trace!(
+                sent_skills = delta.skill_names.len(),
+                deferred_skills = delta.deferred_skill_names.len(),
+                payload_bytes = delta.content.len(),
+                estimated_tokens = delta.estimated_tokens,
+                budget_tokens = delta.budget_tokens,
+                "prepared skill catalog increment"
+            );
+        }
+        let skill_listing =
+            self.skill_state.sent_catalog(&self.agent_id).map(|(content, skill_names)| {
+                let source = llm_messages::context_message_source("skill_catalog", &skill_names);
                 llm_messages::sourced_protocol_message(
-                    json!({ "role": "user", "content": reminder.content }),
+                    json!({ "role": "developer", "content": content }),
                     source,
                 )
             });
@@ -736,6 +748,30 @@ fn run_in_project(
         let exposed_tools =
             tool_specs_for_context.iter().map(|spec| spec.id.clone()).collect::<HashSet<_>>();
         let tools_for_step = &exposed_tools;
+        if step_index > 0 && tools_for_step.contains("skill") {
+            // 工具可能修改技能元数据；每个请求重新经过加载器和同一能力策略。
+            let skills =
+                crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config);
+            session_protocol.skills = if let Some(resolution) =
+                delegated_skill_policy_resolution(&skills, &req.options)
+            {
+                skills
+                    .into_iter()
+                    .filter(|skill| {
+                        resolution.visible_ids.contains(&skill.name.trim().to_lowercase())
+                    })
+                    .collect()
+            } else {
+                skills
+            };
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            session_protocol.skills = crate::tools::skill::accessible_skills(
+                std::mem::take(&mut session_protocol.skills),
+                Some(ctx.tool_use_context().as_ref()),
+            );
+        }
         let step_ctx = ctx.clone().with_tool_use_context(
             ctx.tool_use_context()
                 .as_ref()

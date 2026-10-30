@@ -569,7 +569,7 @@ fn build_description_text(_workspace_dir: &Path, _root_config: &config::Config) 
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn accessible_skills(
+pub(crate) fn accessible_skills(
     skills: Vec<skills::Skill>,
     context: Option<&ToolUseContext>,
 ) -> Vec<skills::Skill> {

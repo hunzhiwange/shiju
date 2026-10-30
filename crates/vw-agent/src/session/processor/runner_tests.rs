@@ -2064,3 +2064,129 @@ fn codex_discovery_processor_search_disabled_exposes_authorized_mcp_directly() {
         assert!(workspace.path().join("alpha").exists());
     });
 }
+
+#[test]
+fn codex_skills_catalog_processor_sends_developer_metadata_and_keeps_it_transient() {
+    with_discovery_processor_test(|workspace, _| {
+        let source = workspace.path().join("skills/catalog-fixture/SKILL.md");
+        std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+        std::fs::write(&source, "---\nname: catalog-fixture\ndescription: Fixture directory metadata\n---\nPRIVATE_CATALOG_BODY\n").unwrap();
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true});
+        let session = req.session.clone();
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 1);
+        let catalog = requests[0]
+            .messages
+            .iter()
+            .find(|m| {
+                m["content"].as_str().is_some_and(|s| s.contains("Fixture directory metadata"))
+            })
+            .unwrap();
+        assert_eq!(catalog["role"], "developer");
+        assert!(
+            catalog["content"]
+                .as_str()
+                .unwrap()
+                .contains(source.canonicalize().unwrap().to_str().unwrap())
+        );
+        assert!(
+            !requests[0]
+                .messages
+                .iter()
+                .any(|m| m["content"].as_str().is_some_and(|s| s.contains("PRIVATE_CATALOG_BODY")))
+        );
+    });
+}
+
+#[test]
+fn codex_skills_catalog_protocol_retains_metadata_and_user_body_without_changing_history() {
+    let root = tempfile::tempdir().unwrap();
+    let source = root.path().join("SKILL.md");
+    std::fs::write(&source, "# Review\nVERIFIED_REPLAY_BODY").unwrap();
+    let item = crate::app::agent::skills::Skill {
+        name: "review".into(),
+        description: "Review metadata".into(),
+        location: Some(source.clone()),
+        ..Default::default()
+    };
+    let mut protocol = super::DesktopSessionProtocol::new(vec![item], "main", 100_000);
+    let record =
+        crate::app::agent::skills::InvokedSkillRecord::new("review", &source, None).unwrap();
+    protocol.skill_state.register_invoked("main", record);
+    let history = vec![serde_json::json!({"role":"user","content":"keep working"})];
+    let original = history.clone();
+    for _ in 0..2 {
+        let assembled = protocol.assemble(&history, &[], true).unwrap();
+        assert!(assembled.messages.iter().any(|m| m["role"] == "developer"
+            && m["content"].as_str().is_some_and(|s| s.contains("Review metadata"))));
+        assert!(assembled.messages.iter().any(|m| m["role"] == "user"
+            && m["content"].as_str().is_some_and(|s| s.contains("VERIFIED_REPLAY_BODY"))));
+        assert!(
+            assembled
+                .message_sources
+                .iter()
+                .any(|s| s["form"] == "skill_catalog"
+                    && s["entries"] == serde_json::json!(["review"]))
+        );
+        assert_eq!(history, original);
+    }
+    protocol.skills.clear();
+    let assembled = protocol.assemble(&history, &[], true).unwrap();
+    assert!(!assembled.messages.iter().any(|m| m["role"] == "developer"));
+}
+
+#[test]
+fn codex_skills_catalog_processor_reloads_changed_and_removed_sources_between_requests() {
+    with_discovery_processor_test(|workspace, _| {
+        let source = workspace.path().join("skills/aaa-catalog/SKILL.md");
+        std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+        let initial =
+            "---\nname: aaa-catalog\ndescription: INITIAL_CATALOG_META\n---\nSECRET_CATALOG_BODY\n";
+        std::fs::write(&source, initial).unwrap();
+        let input = workspace.path().join("input.txt");
+        std::fs::write(&input, "local input").unwrap();
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill","file_read"],"full_access":true});
+        let session = req.session.clone();
+        discovery_stream(&[("first-read", "file_read", serde_json::json!({"path":input}))]);
+        discovery_stream(&[("second-read", "file_read", serde_json::json!({"path":input}))]);
+        discovery_stream(&[]);
+        let mut rounds = 0;
+        super::run(req, move |event| {
+            if matches!(event, super::StreamEvent::PostToolRound { .. }) {
+                rounds += 1;
+                if rounds == 1 {
+                    std::fs::write(
+                        &source,
+                        initial.replace("INITIAL_CATALOG_META", "UPDATED_CATALOG_META"),
+                    )
+                    .unwrap();
+                } else {
+                    std::fs::remove_file(&source).unwrap();
+                }
+            }
+            true
+        });
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 3);
+        let contents = requests
+            .iter()
+            .map(|request| {
+                request
+                    .messages
+                    .iter()
+                    .filter_map(|m| m["content"].as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })
+            .collect::<Vec<_>>();
+        assert!(contents[0].contains("INITIAL_CATALOG_META"));
+        assert!(contents[1].contains("UPDATED_CATALOG_META"));
+        assert!(!contents[1].contains("INITIAL_CATALOG_META"));
+        assert!(!contents[2].contains("UPDATED_CATALOG_META"));
+        assert!(!contents.iter().any(|s| s.contains("SECRET_CATALOG_BODY")));
+    });
+}

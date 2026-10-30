@@ -2,13 +2,15 @@
 
 use super::{InvokedSkillRecord, InvokedSkillReplay, Skill, listing};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-/// 可作为元用户消息发送的技能目录增量。
+/// 可作为 developer 消息发送的技能目录增量。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SkillListingReminder {
     pub(crate) content: String,
     pub(crate) skill_names: Vec<String>,
+    pub(crate) entries: Vec<listing::SkillListingEntry>,
+    pub(crate) deferred_skill_names: Vec<String>,
     pub(crate) estimated_tokens: usize,
     pub(crate) budget_tokens: usize,
 }
@@ -16,7 +18,8 @@ pub(crate) struct SkillListingReminder {
 /// 一个会话的技能目录发送状态；每个代理拥有独立的已发送集合。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub(crate) struct SkillListingSessionState {
-    sent_skill_names_by_agent: HashMap<String, HashSet<String>>,
+    #[serde(default)]
+    sent_skill_entries_by_agent: HashMap<String, HashMap<String, listing::SkillListingEntry>>,
     invoked_skills_by_agent: HashMap<String, Vec<InvokedSkillRecord>>,
 }
 
@@ -32,15 +35,41 @@ impl SkillListingSessionState {
         context_window_tokens: usize,
     ) -> Option<SkillListingReminder> {
         if !skill_tool_enabled {
+            self.sent_skill_entries_by_agent.remove(agent_id);
             return None;
         }
 
-        let sent_skill_names =
-            self.sent_skill_names_by_agent.entry(agent_id.to_string()).or_default();
-        let reminder =
-            listing::build_skill_listing(skills, sent_skill_names, context_window_tokens)?;
-        sent_skill_names.extend(reminder.skill_names.iter().cloned());
+        let entries = listing::skill_listing_entries(skills);
+        let current = entries.iter().map(|entry| (&entry.name, entry)).collect::<HashMap<_, _>>();
+        let sent_entries =
+            self.sent_skill_entries_by_agent.entry(agent_id.to_string()).or_default();
+        sent_entries.retain(|name, entry| {
+            let Some(verified) = current.get(name) else { return false };
+            if verified.fingerprint != entry.fingerprint {
+                return false;
+            }
+            // 恢复的状态只决定去重，developer 内容始终取自本次验证的元数据。
+            *entry = (*verified).clone();
+            true
+        });
+        let reminder = listing::build_skill_listing(&entries, sent_entries, context_window_tokens)?;
+        for entry in &reminder.entries {
+            sent_entries.insert(entry.name.clone(), entry.clone());
+        }
         Some(reminder)
+    }
+
+    /// 重新装配已发送的可信目录，避免临时消息在下一次 provider 请求消失。
+    /// 每次 prepare 先移除失效项；预算只限制新加入的增量，完整上下文由请求预算治理。
+    pub(crate) fn sent_catalog(&self, agent_id: &str) -> Option<(String, Vec<String>)> {
+        let mut entries =
+            self.sent_skill_entries_by_agent.get(agent_id)?.values().cloned().collect::<Vec<_>>();
+        if entries.is_empty() {
+            return None;
+        }
+        entries.sort_by(|left, right| left.name.cmp(&right.name));
+        let names = entries.iter().map(|entry| entry.name.clone()).collect();
+        Some((super::prompt::format_skill_listing_reminder(&entries), names))
     }
 
     /// 登记一次成功的技能调用。相同稳定来源只保留一次，以免恢复时重复注入。

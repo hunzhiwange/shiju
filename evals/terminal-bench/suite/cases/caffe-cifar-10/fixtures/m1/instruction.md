@@ -1,0 +1,3 @@
+Implement /app/answer.py, Python3 standard library only. Run: python3 answer.py DATA CLASSES. DATA is a nonempty synthetic CIFAR binary: each record has one unsigned label byte followed by 3072 unsigned pixels, planar R then G then B, each 32x32. CLASSES must be 10. Reject truncated/empty records, labels outside 0..9 or another class count with nonzero exit. Otherwise print one JSON object: shape=[N,3,32,32], histogram=ten label counts, first_rgb=the top-left R,G,B values of the first record, classifier_outputs=10. Do not change input files.
+
+A public synthetic example is provided at /app/example.bin. Invoke with class count 10.

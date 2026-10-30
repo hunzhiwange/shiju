@@ -1,0 +1,3 @@
+Implement /app/answer.py using Python3 standard library. Run python3 answer.py INPUT.json OUTPUT.bin. Input contains rectangular weights C by D, bias length C, x length D. Save weights to OUTPUT.bin, replacing any stale file: magic ASCII VWCF; little-endian unsigned32 C,D; then row-major weights and biases as little-endian float32. No padding/trailing bytes. Reload the saved bytes, compute logits_i=sum(reloaded_W_ij*x_j)+reloaded_bias_i. Print JSON logits and prediction (index of maximum, smallest index for ties). Support arbitrary positive C,D; weights may be negative. Use reloaded float32 values in inference.
+
+A public synthetic example is provided at /app/example.json.

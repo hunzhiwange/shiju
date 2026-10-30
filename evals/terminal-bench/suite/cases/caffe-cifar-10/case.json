@@ -1,0 +1,158 @@
+{
+  "schema_version": 1,
+  "parent_id": "caffe-cifar-10",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "contract.json": "fixtures/m1/contract.json",
+        "example.bin": "fixtures/m1/example.bin"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "answer.py": "oracle/m1/gold.py"
+      },
+      "negatives": [
+        {
+          "id": "interleaved",
+          "files": {
+            "answer.py": "oracle/m1/interleaved.py"
+          }
+        },
+        {
+          "id": "bad-shape",
+          "files": {
+            "answer.py": "oracle/m1/bad-shape.py"
+          }
+        },
+        {
+          "id": "unchecked-label",
+          "files": {
+            "answer.py": "oracle/m1/unchecked-label.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "contract.json": "fixtures/m2/contract.json",
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "answer.py": "oracle/m2/gold.py"
+      },
+      "negatives": [
+        {
+          "id": "unstable-softmax",
+          "files": {
+            "answer.py": "oracle/m2/unstable-softmax.py"
+          }
+        },
+        {
+          "id": "ascent",
+          "files": {
+            "answer.py": "oracle/m2/ascent.py"
+          }
+        },
+        {
+          "id": "wrong-target",
+          "files": {
+            "answer.py": "oracle/m2/wrong-target.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "contract.json": "fixtures/m3/contract.json",
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "answer.py": "oracle/m3/gold.py"
+      },
+      "negatives": [
+        {
+          "id": "extra-step",
+          "files": {
+            "answer.py": "oracle/m3/extra-step.py"
+          }
+        },
+        {
+          "id": "ignored-seed",
+          "files": {
+            "answer.py": "oracle/m3/ignored-seed.py"
+          }
+        },
+        {
+          "id": "wrong-gradient",
+          "files": {
+            "answer.py": "oracle/m3/wrong-gradient.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "contract.json": "fixtures/m4/contract.json",
+        "example.json": "fixtures/m4/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "answer.py": "oracle/m4/gold.py"
+      },
+      "negatives": [
+        {
+          "id": "big-endian",
+          "files": {
+            "answer.py": "oracle/m4/big-endian.py"
+          }
+        },
+        {
+          "id": "missing-bias",
+          "files": {
+            "answer.py": "oracle/m4/missing-bias.py"
+          }
+        },
+        {
+          "id": "last-tie",
+          "files": {
+            "answer.py": "oracle/m4/last-tie.py"
+          }
+        }
+      ]
+    }
+  ]
+}

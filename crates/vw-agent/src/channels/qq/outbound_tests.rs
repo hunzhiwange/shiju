@@ -244,7 +244,7 @@ async fn post_json_with_client_posts_json_and_auth_header() {
         path: "/messages",
         status: 200,
         content_type: "application/json",
-        body: "{}",
+        body: r#"{"id":"fixture","timestamp":1}"#,
     }])
     .await;
     let client = test_client();
@@ -285,11 +285,7 @@ async fn post_json_with_client_returns_sanitized_error_on_http_failure() {
     .await
     .unwrap_err();
 
-    assert!(
-        error
-            .to_string()
-            .contains("QQ send message failed (500 Internal Server Error): upstream failed")
-    );
+    assert!(error.to_string().contains("QQ send message failed: Unknown"));
     handle.await.expect("server join");
 }
 
@@ -382,7 +378,7 @@ async fn upload_media_file_info_with_client_returns_sanitized_error_on_http_fail
     .await
     .unwrap_err();
 
-    assert!(error.to_string().contains("QQ upload media failed (502 Bad Gateway): upload failed"));
+    assert!(error.to_string().contains("QQ upload media failed: Unknown"));
     handle.await.expect("server join");
 }
 
@@ -408,7 +404,7 @@ async fn send_message_with_client_posts_text_and_media_with_incrementing_sequenc
             path: "/messages",
             status: 200,
             content_type: "application/json",
-            body: "{}",
+            body: r#"{"id":"fixture","timestamp":1}"#,
         },
         MockResponse {
             path: "/files",
@@ -420,7 +416,7 @@ async fn send_message_with_client_posts_text_and_media_with_incrementing_sequenc
             path: "/messages",
             status: 200,
             content_type: "application/json",
-            body: "{}",
+            body: r#"{"id":"fixture","timestamp":1}"#,
         },
         MockResponse {
             path: "/files",
@@ -432,7 +428,7 @@ async fn send_message_with_client_posts_text_and_media_with_incrementing_sequenc
             path: "/messages",
             status: 200,
             content_type: "application/json",
-            body: "{}",
+            body: r#"{"id":"fixture","timestamp":1}"#,
         },
     ])
     .await;
@@ -509,7 +505,7 @@ async fn send_message_with_client_omits_passive_fields_without_thread_id() {
             path: "/messages",
             status: 200,
             content_type: "application/json",
-            body: "{}",
+            body: r#"{"id":"fixture","timestamp":1}"#,
         },
         MockResponse {
             path: "/files",
@@ -521,7 +517,7 @@ async fn send_message_with_client_omits_passive_fields_without_thread_id() {
             path: "/messages",
             status: 200,
             content_type: "application/json",
-            body: "{}",
+            body: r#"{"id":"fixture","timestamp":1}"#,
         },
     ])
     .await;
@@ -564,7 +560,7 @@ async fn send_message_with_client_falls_back_after_markdown_validation_error() {
             path: "/messages",
             status: 200,
             content_type: "application/json",
-            body: "{}",
+            body: r#"{"id":"fixture","timestamp":1}"#,
         },
     ])
     .await;
@@ -614,8 +610,11 @@ async fn markdown_delivery_qq_sends_chunks_in_order() {
             let request = tokio::time::timeout(std::time::Duration::from_secs(5), async {
                 let mut stream = acceptor.accept(stream).await.unwrap();
                 let request = read_request(&mut stream).await;
-                let body =
-                    if request.path == "/files" { r#"{"file_info":"fixture"}"# } else { "{}" };
+                let body = if request.path == "/files" {
+                    r#"{"file_info":"fixture"}"#
+                } else {
+                    r#"{"id":"fixture","timestamp":1}"#
+                };
                 let reply = format!(
                     "HTTP/1.1 200 OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
                     body.len()
@@ -677,10 +676,337 @@ async fn markdown_delivery_qq_rejects_long_code_line_before_network() {
     )
     .await
     .unwrap_err();
-    assert!(error.to_string().contains("code line exceeds"));
+    assert_eq!(
+        error.downcast_ref::<ChannelDeliveryError>().unwrap().kind,
+        DeliveryFailureKind::NotSent
+    );
     assert!(
         tokio::time::timeout(std::time::Duration::from_millis(50), listener.accept())
             .await
             .is_err()
     );
+}
+
+async fn delivery_fixture(
+    responses: Vec<(u16, &'static str)>,
+) -> (String, tokio::sync::oneshot::Sender<()>, tokio::task::JoinHandle<Vec<CapturedRequest>>) {
+    install_rustls_provider();
+    let certificate = CertificateDer::from_pem_slice(TEST_CERT_PEM.as_bytes()).unwrap();
+    let key = PrivateKeyDer::from_pem_slice(TEST_KEY_PEM.as_bytes()).unwrap();
+    let config = ServerConfig::builder()
+        .with_no_client_auth()
+        .with_single_cert(vec![certificate], key)
+        .unwrap();
+    let acceptor = TlsAcceptor::from(Arc::new(config));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("https://localhost:{}", listener.local_addr().unwrap().port());
+    let (stop, mut stopped) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        let mut requests = Vec::new();
+        loop {
+            let stream = tokio::select! {
+                _ = &mut stopped => break,
+                result = listener.accept() => result.unwrap().0,
+            };
+            let (request, finished) = tokio::time::timeout(std::time::Duration::from_secs(3), async {
+                let mut stream = acceptor.accept(stream).await.unwrap();
+                let request = read_request(&mut stream).await;
+                let (status, body) = responses.get(requests.len()).copied().unwrap_or((
+                    200,
+                    if request.path == "/files" {
+                        r#"{"file_info":"fixture"}"#
+                    } else {
+                        r#"{"id":"fixture","timestamp":1}"#
+                    },
+                ));
+                if status == 599 {
+                    // Hold the response until the client has returned and the test stops the server.
+                    let _ = (&mut stopped).await;
+                    return (request, true);
+                }
+                let reply = format!(
+                    "HTTP/1.1 {status} OK\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                if status != 0 {
+                    stream.write_all(reply.as_bytes()).await.unwrap();
+                }
+                (request, false)
+            })
+            .await
+            .unwrap();
+            requests.push(request);
+            if finished {
+                break;
+            }
+        }
+        requests
+    });
+    (base, stop, server)
+}
+
+fn delivery_message() -> SendMessage {
+    SendMessage::new(
+        format!("{}\n[IMAGE:https://cdn.qq.test/a.png]", "abc\n".repeat(1800)),
+        "user:fixture",
+    )
+    .in_thread(Some("fixture-parent".into()))
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_does_not_replay_confirmed_prefix() {
+    let (base, stop, server) = delivery_fixture(vec![
+        (200, r#"{"id":"first","timestamp":1}"#),
+        (200, r#"{"code":22009,"message":"limit"}"#),
+    ])
+    .await;
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        send_message_with_client(
+            &test_client(),
+            "fixture-token",
+            &format!("{base}/messages"),
+            &format!("{base}/files"),
+            &delivery_message(),
+        ),
+    )
+    .await
+    .unwrap();
+    let _ = stop.send(());
+    let requests = server.await.unwrap();
+    assert!(result.is_err(), "HTTP 200 business rejection must stop delivery");
+    let error = result.unwrap_err();
+    let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+    assert_eq!(
+        (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+        (1, 4, 1)
+    );
+    assert_eq!(progress.kind, DeliveryFailureKind::Rejected);
+    assert_eq!(requests.len(), 2, "confirmed prefix and failed block must not be replayed");
+    assert_eq!(parse_json(&requests[0].body)["msg_seq"], 1);
+    assert_eq!(parse_json(&requests[1].body)["msg_seq"], 2);
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_fallback_reuses_current_sequence() {
+    let (base, stop, server) = delivery_fixture(vec![
+        (200, r#"{"id":"first","timestamp":1}"#),
+        (200, r#"{"code":40034012,"message":"markdown not allowed"}"#),
+    ])
+    .await;
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        send_message_with_client(
+            &test_client(),
+            "fixture-token",
+            &format!("{base}/messages"),
+            &format!("{base}/files"),
+            &delivery_message(),
+        ),
+    )
+    .await
+    .unwrap();
+    let _ = stop.send(());
+    let requests = server.await.unwrap();
+    result.unwrap();
+    let messages = requests
+        .iter()
+        .filter(|r| r.path == "/messages")
+        .map(|r| parse_json(&r.body))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        messages.iter().map(|b| b["msg_seq"].as_u64().unwrap()).collect::<Vec<_>>(),
+        [1, 2, 2, 3, 4]
+    );
+    assert_eq!(messages[2]["msg_type"], 0);
+    assert_eq!(messages.last().unwrap()["msg_type"], 7);
+    assert!(messages.iter().all(|b| b["msg_id"] == "fixture-parent"));
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_unknown_result_stops_without_retry() {
+    for response in [
+        (500, r#"{"code":40034012,"message":"markdown not allowed"}"#),
+        (200, "{}"),
+        (200, "broken"),
+        (200, r#"{"id":"fixture","code":"invalid"}"#),
+        (0, ""),
+    ] {
+        let (base, stop, server) =
+            delivery_fixture(vec![(200, r#"{"id":"first","timestamp":1}"#), response]).await;
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            send_message_with_client(
+                &test_client(),
+                "fixture-token",
+                &format!("{base}/messages"),
+                &format!("{base}/files"),
+                &delivery_message(),
+            ),
+        )
+        .await
+        .unwrap();
+        let _ = stop.send(());
+        let requests = server.await.unwrap();
+        assert!(result.is_err(), "unknown response must not be confirmed");
+        let error = result.unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(
+            (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+            (1, 4, 1)
+        );
+        assert_eq!(progress.kind, DeliveryFailureKind::Unknown);
+        assert_eq!(requests.len(), 2, "unknown results must stop without fallback");
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_preflights_all_payloads_before_network() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("https://localhost:{}", listener.local_addr().unwrap().port());
+    let cases = [
+        SendMessage::new("\u{1}".repeat(2900), "user:fixture"),
+        SendMessage::new("hello", "user:fixture").in_thread(Some("x".repeat(17000))),
+        SendMessage::new("abc\n".repeat(4000), "user:fixture").in_thread(Some("parent".into())),
+        SendMessage::new("https://a ".repeat(299), "user:fixture"),
+        SendMessage::new("hello\n[IMAGE:http://cdn.qq.test/a.png]", "user:fixture"),
+    ];
+    for message in cases {
+        let error = send_message_with_client(
+            &test_client(),
+            "fixture-token",
+            &format!("{base}/messages"),
+            &format!("{base}/files"),
+            &message,
+        )
+        .await
+        .unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(progress.confirmed_parts, 0);
+        assert_eq!(progress.kind, DeliveryFailureKind::NotSent);
+    }
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(30), listener.accept())
+            .await
+            .is_err()
+    );
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_media_failure_preserves_text_progress() {
+    for (upload, media, expected, count) in [
+        (r#"{"code":22009}"#, (200, r#"{"id":"media"}"#), DeliveryFailureKind::NotSent, 4),
+        (
+            r#"{"file_info":"fixture"}"#,
+            (200, r#"{"code":22009,"message":"fixture-token https://secret.test"}"#),
+            DeliveryFailureKind::Rejected,
+            5,
+        ),
+        (r#"{"file_info":"fixture"}"#, (500, "broken"), DeliveryFailureKind::Unknown, 5),
+    ] {
+        let (base, stop, server) = delivery_fixture(vec![
+            (200, r#"{"id":"first"}"#),
+            (200, r#"{"id":"second"}"#),
+            (200, r#"{"id":"third"}"#),
+            (200, upload),
+            media,
+        ])
+        .await;
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            send_message_with_client(
+                &test_client(),
+                "fixture-token",
+                &format!("{base}/messages"),
+                &format!("{base}/files"),
+                &delivery_message(),
+            ),
+        )
+        .await
+        .unwrap();
+        let _ = stop.send(());
+        let requests = server.await.unwrap();
+        let error = result.unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(
+            (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+            (3, 4, 3)
+        );
+        assert_eq!(progress.kind, expected);
+        assert_eq!(requests.len(), count);
+        assert!(!format!("{error:?}").contains("fixture-token"));
+        assert!(!format!("{error:#}").contains("https://secret.test"));
+        if count == 5 {
+            assert_eq!(parse_json(&requests[4].body)["msg_seq"], 4);
+        }
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_timeout_stops_without_fallback() {
+    let (base, stop, server) = delivery_fixture(vec![(200, r#"{"id":"first"}"#), (599, "")]).await;
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_millis(150))
+        .build()
+        .unwrap();
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        send_message_with_client(
+            &client,
+            "fixture-token",
+            &format!("{base}/messages"),
+            &format!("{base}/files"),
+            &delivery_message(),
+        ),
+    )
+    .await
+    .unwrap();
+    let _ = stop.send(());
+    let requests = server.await.unwrap();
+    let error = result.unwrap_err();
+    let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+    assert_eq!(
+        (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+        (1, 4, 1)
+    );
+    assert_eq!(progress.kind, DeliveryFailureKind::Unknown);
+    assert_eq!(requests.len(), 2);
+}
+
+#[tokio::test]
+async fn markdown_delivery_qq_url_cleanup_is_limited_to_current_sequence() {
+    let (base, stop, server) = delivery_fixture(vec![
+        (200, r#"{"id":"first"}"#),
+        (400, r#"{"code":40034012}"#),
+        (200, r#"{"code":40034028}"#),
+    ])
+    .await;
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        send_message_with_client(
+            &test_client(),
+            "fixture-token",
+            &format!("{base}/messages"),
+            &format!("{base}/files"),
+            &delivery_message(),
+        ),
+    )
+    .await
+    .unwrap();
+    let _ = stop.send(());
+    let requests = server.await.unwrap();
+    result.unwrap();
+    let messages = requests
+        .iter()
+        .filter(|r| r.path == "/messages")
+        .map(|r| parse_json(&r.body))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        messages.iter().map(|b| b["msg_seq"].as_u64().unwrap()).collect::<Vec<_>>(),
+        [1, 2, 2, 2, 3, 4]
+    );
+    assert_eq!(messages[2]["msg_type"], 0);
+    assert_eq!(messages[3]["msg_type"], 0);
+    assert!(messages.iter().all(|b| b["msg_id"] == "fixture-parent"));
 }

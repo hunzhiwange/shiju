@@ -53,6 +53,7 @@ pub mod nextcloud_talk;
 /// Nostr 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod nostr;
+pub(crate) mod outbound_delivery;
 /// QQ 通道实现（非 WASM 平台）
 #[cfg(not(target_arch = "wasm32"))]
 pub mod qq;

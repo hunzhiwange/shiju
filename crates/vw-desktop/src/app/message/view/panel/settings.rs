@@ -504,6 +504,14 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     app.cli_install_modal_message = message;
                     #[cfg(not(target_arch = "wasm32"))]
                     {
+                        if app
+                            .desktop_update
+                            .ready
+                            .as_ref()
+                            .is_some_and(|ready| !ready.installs_automatically())
+                        {
+                            return app.show_success_toast("下载位置已打开，请手动升级");
+                        }
                         if let Some(window_id) = app.main_window_id {
                             return start_shutdown(app, window_id);
                         }
@@ -933,7 +941,12 @@ fn app_update_error(app: &mut App, error: String) -> Task<Message> {
     app.cli_install_modal_message = error.clone();
     #[cfg(not(target_arch = "wasm32"))]
     if let Some(ready) = &app.desktop_update.ready {
-        app.cli_install_modal_title = "自动更新启动失败".into();
+        app.cli_install_modal_title = if ready.installs_automatically() {
+            "自动更新启动失败"
+        } else {
+            "打开下载位置失败"
+        }
+        .into();
         app.cli_install_modal_show_install_action = false;
         app.cli_install_modal_message = format!("{error}\n{}", ready.instructions());
     }

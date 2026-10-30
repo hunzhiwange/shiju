@@ -170,7 +170,11 @@ fn view_inner<'a>(
     let close_message = Message::View(message::ViewMessage::CloseInstallCliModal);
     let has_version_info = current_version.is_some() && server_version.is_some();
     let helper_text = if use_app_update_action {
-        "更新前会先检测当前版本与服务端版本，确认后再执行安装流程。"
+        if cfg!(target_os = "linux") {
+            "下载校验完成后可打开下载位置，请自行退出应用并手动升级。Ubuntu/Debian 请使用 DEB 包。"
+        } else {
+            "更新前会先检测当前版本与服务端版本，确认后再执行安装流程。"
+        }
     } else {
         "通常无需手动安装，正式版应用启动时会自动安装 CLI；需要时可在此重新安装。"
     };
@@ -228,9 +232,16 @@ fn view_inner<'a>(
         ]
         .spacing(12);
         #[cfg(not(target_arch = "wasm32"))]
-        let action_row = if use_app_update_action && desktop_update.is_some_and(|state| state.ready.is_some()) {
+        let action_row = if use_app_update_action
+            && let Some(ready) = desktop_update.and_then(|state| state.ready.as_ref())
+        {
+            let label = if ready.installs_automatically() {
+                "自动更新并退出 / 重试"
+            } else {
+                "打开下载位置"
+            };
             action_row.push(
-                button("自动更新并退出 / 重试")
+                button(label)
                     .on_press_maybe(
                         (!is_checking)
                             .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),

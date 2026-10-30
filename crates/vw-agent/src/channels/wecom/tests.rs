@@ -47,6 +47,16 @@ async fn start_mock_gateway() -> (String, tokio::task::JoinHandle<Vec<Value>>) {
             socket.next().await.unwrap().unwrap().into_text().unwrap().as_ref(),
         )
         .unwrap();
+        socket
+            .send(Message::Text(
+                json!({
+                    "headers": {"req_id": reply["headers"]["req_id"]}, "errcode": 0
+                })
+                .to_string()
+                .into(),
+            ))
+            .await
+            .unwrap();
         vec![subscribe, reply]
     });
     (endpoint, server)

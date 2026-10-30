@@ -1,10 +1,14 @@
 //! 企业微信 AI 机器人 WebSocket 通道。
 
+mod outbound;
+
+use super::outbound_delivery::DeliveryFailureKind;
 use super::outbound_format::format_wecom_markdown_tables;
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, bail};
 use async_trait::async_trait;
 use futures_util::{SinkExt, StreamExt};
+use outbound::{OutboundItem, OutboundReplies, delivery_error};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -21,7 +25,7 @@ pub struct WeComChannel {
     bot_id: String,
     secret: String,
     endpoint: String,
-    outbound: Arc<RwLock<Option<mpsc::Sender<Value>>>>,
+    outbound: Arc<RwLock<Option<mpsc::Sender<OutboundItem>>>>,
     reply_requests: Arc<RwLock<HashMap<String, String>>>,
 }
 
@@ -149,12 +153,17 @@ impl Channel for WeComChannel {
             .await
             .get(&message.recipient)
             .cloned()
-            .with_context(|| format!("企微会话 {} 尚无可用的回复请求", message.recipient))?;
-        let sender = self.outbound.read().await.clone().context("企微 WebSocket 尚未连接")?;
-        sender
-            .send(Self::reply_frame(&request_id, &message.content))
+            .ok_or_else(|| delivery_error(DeliveryFailureKind::NotSent))?;
+        let sender = self
+            .outbound
+            .read()
             .await
-            .context("企微 WebSocket 发送队列已关闭")
+            .clone()
+            .ok_or_else(|| delivery_error(DeliveryFailureKind::NotSent))?;
+        let (item, completion) =
+            OutboundItem::new(request_id.clone(), Self::reply_frame(&request_id, &message.content));
+        sender.send(item).await.map_err(|_| delivery_error(DeliveryFailureKind::NotSent))?;
+        completion.await.unwrap_or(Err(DeliveryFailureKind::Unknown)).map_err(delivery_error)
     }
 
     async fn listen(&self, tx: mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
@@ -179,6 +188,7 @@ impl Channel for WeComChannel {
         Self::validate_subscription_ack(&ack, &subscribe_request_id)?;
 
         let (outbound_tx, mut outbound_rx) = mpsc::channel(32);
+        self.reply_requests.write().await.clear();
         *self.outbound.write().await = Some(outbound_tx);
         let mut heartbeat = tokio::time::interval_at(
             Instant::now() + WECOM_HEARTBEAT_INTERVAL,
@@ -187,30 +197,51 @@ impl Channel for WeComChannel {
         heartbeat.set_missed_tick_behavior(MissedTickBehavior::Skip);
         tracing::info!("企微：已连接，正在监听消息...");
 
-        loop {
-            tokio::select! {
-                _ = heartbeat.tick() => {
-                    write.send(Message::Text(Self::heartbeat_frame().to_string().into())).await?;
+        let result = async {
+            let mut replies = OutboundReplies::default();
+            let mut maintenance = tokio::time::interval(Duration::from_millis(25));
+            maintenance.set_missed_tick_behavior(MissedTickBehavior::Skip);
+            loop {
+                replies.maintain()?;
+                if let Some(item) = replies.next_ready() {
+                    let frame = item.frame.to_string();
+                    replies.begin(item);
+                    tokio::time::timeout(outbound::ACK_TIMEOUT, write.send(Message::Text(frame.into())))
+                        .await.context("企微 WebSocket 写入超时")??;
                 }
-                outbound = outbound_rx.recv() => {
-                    let Some(frame) = outbound else { bail!("企微 WebSocket 发送队列已关闭"); };
-                    write.send(Message::Text(frame.to_string().into())).await?;
-                }
-                incoming = read.next() => {
-                    let Some(incoming) = incoming else { bail!("企微 WebSocket 流已结束"); };
-                    let message = incoming.context("读取企微 WebSocket 帧失败")?;
-                    let Message::Text(text) = message else { continue; };
-                    let frame: Value = serde_json::from_str(text.as_ref()).context("解析企微 WebSocket 帧失败")?;
-                    if let Some((message, request_id)) = Self::callback_message(&frame)? {
-                        let mut requests = self.reply_requests.write().await;
-                        requests.insert(message.reply_target.clone(), request_id.clone());
-                        requests.insert(message.sender.clone(), request_id);
-                        drop(requests);
-                        tx.send(message).await.context("企微消息处理通道已关闭")?;
+                tokio::select! {
+                    _ = maintenance.tick(), if replies.has_pending() => {}
+                    _ = heartbeat.tick() => {
+                        tokio::time::timeout(outbound::ACK_TIMEOUT, write.send(Message::Text(Self::heartbeat_frame().to_string().into())))
+                            .await.context("企微 WebSocket 心跳写入超时")??;
+                    }
+                    outbound = outbound_rx.recv() => {
+                        let Some(item) = outbound else { bail!("企微 WebSocket 发送队列已关闭"); };
+                        replies.enqueue(item);
+                    }
+                    incoming = read.next() => {
+                        let Some(incoming) = incoming else { bail!("企微 WebSocket 流已结束"); };
+                        let message = incoming.context("读取企微 WebSocket 帧失败")?;
+                        let text = match message {
+                            Message::Text(text) => text,
+                            Message::Close(_) => bail!("企微 WebSocket 已关闭"),
+                            _ => continue,
+                        };
+                        let frame: Value = serde_json::from_str(text.as_ref()).context("解析企微 WebSocket 帧失败")?;
+                        replies.acknowledge(&frame);
+                        if let Some((message, request_id)) = Self::callback_message(&frame)? {
+                            let mut requests = self.reply_requests.write().await;
+                            requests.insert(message.reply_target.clone(), request_id.clone());
+                            requests.insert(message.sender.clone(), request_id);
+                            drop(requests);
+                            tx.try_send(message).context("企微消息处理通道不可用或已满")?;
+                        }
                     }
                 }
             }
-        }
+        }.await;
+        *self.outbound.write().await = None;
+        result
     }
 
     async fn health_check(&self) -> bool {
@@ -221,3 +252,7 @@ impl Channel for WeComChannel {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "outbound_tests.rs"]
+mod outbound_tests;

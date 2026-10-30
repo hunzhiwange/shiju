@@ -327,6 +327,66 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "contract_sha256",
+            "image",
+            "counts_as_original_official",
+            "files"
+          ],
+          "properties": {
+            "id": {
+              "const": "crack-7z-hash-arm64-compat"
+            },
+            "contract_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "image": {
+              "type": "string",
+              "pattern": "^vw-crack-7z-arm64-compat@sha256:[a-f0-9]{64}$"
+            },
+            "counts_as_original_official": {
+              "const": false
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "contract.json",
+                "Dockerfile",
+                "packages.lock",
+                "deb-lock.json",
+                "SHA256SUMS"
+              ],
+              "properties": {
+                "contract.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "Dockerfile": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "packages.lock": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "deb-lock.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "SHA256SUMS": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
+          }
         }
       ]
     }
@@ -480,7 +540,8 @@
           "case_id": {
             "enum": [
               "build-cython-ext",
-              "mcmc-sampling-stan"
+              "mcmc-sampling-stan",
+              "crack-7z-hash"
             ]
           }
         },
@@ -521,6 +582,26 @@
               "properties": {
                 "case_id": {
                   "const": "mcmc-sampling-stan"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "environment_variant": {
+                  "properties": {
+                    "id": {
+                      "const": "crack-7z-hash-arm64-compat"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "case_id": {
+                  "const": "crack-7z-hash"
                 }
               }
             }

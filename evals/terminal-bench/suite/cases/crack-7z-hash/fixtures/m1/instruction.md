@@ -1,0 +1,2 @@
+Implement /app/inventory.py. Run as python3 inventory.py ARCHIVE. For this synthetic unencrypted-header 7z archive, print a JSON array of regular files, each with exactly path (archive-relative string) and size (uncompressed integer bytes), sorted by path. Exclude directories and the archive itself. Inspect /app/sample.7z; the checker also uses another archive. Use the installed 7z tool or Python. Do not extract files.
+Only your implementation file is an allowed persistent write. Input archives and dictionaries must remain unchanged. No networking.

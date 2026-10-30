@@ -1,11 +1,13 @@
-"""The two explicitly authorized pre-agent compatibility variants."""
+"""The explicitly authorized pre-agent compatibility variants."""
 import hashlib
 import json
 from pathlib import Path
 import re
 import shutil
+import shlex
 
 from suite.state import digest, load, tree
+from suite import crack_variant
 
 CASES = Path(__file__).with_name('cases')
 PARENT = 'build-cython-ext'
@@ -33,6 +35,8 @@ def parent_for(descriptor):
         return PARENT
     if descriptor.get('id') == CMAKE_ID:
         return CMAKE_PARENT
+    if descriptor.get('id') == crack_variant.ID:
+        return crack_variant.PARENT
     raise ValueError('environment variant is not authorized')
 
 
@@ -68,6 +72,8 @@ def cmake_metadata(root, contract):
 
 
 def resolve(parent, descriptor):
+    if parent == crack_variant.PARENT and parent_for(descriptor) == parent:
+        return crack_variant.resolve(CASES / parent / 'variant', descriptor)
     if parent not in (PARENT, CMAKE_PARENT) or parent_for(descriptor) != parent:
         raise ValueError('environment variant is not authorized for this parent')
     root = CASES / parent / 'variant'
@@ -145,6 +151,9 @@ def check_package(path, descriptor):
 
 def expected_facts(descriptor):
     descriptor = resolve_descriptor(descriptor)
+    if parent_for(descriptor) == crack_variant.PARENT:
+        root = CASES / crack_variant.PARENT / 'variant'
+        return crack_variant.expected_facts(root, load(root / 'contract.json'))
     if parent_for(descriptor) == PARENT:
         return {'planarity': '0.6', 'numpy': '2.3.0',
                 'constraint': '/opt/vw-compat/constraints.txt',
@@ -181,3 +190,11 @@ def check_start(receipt, descriptor):
     expected = expected_facts(descriptor)
     if receipt != {'environment_variant': descriptor, 'phase': 'before_agent', 'facts': expected}:
         raise ValueError('missing or changed pre-agent variant evidence')
+
+
+def probe_command(descriptor):
+    descriptor = resolve_descriptor(descriptor)
+    if parent_for(descriptor) == crack_variant.PARENT:
+        root = CASES / crack_variant.PARENT / 'variant'
+        return crack_variant.probe_command(root, load(root / 'contract.json'))
+    return 'python3 -c ' + shlex.quote(probe_code(descriptor))

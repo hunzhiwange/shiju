@@ -1,0 +1,2 @@
+Implement /app/save.py. Run as python3 save.py ARCHIVE PASSWORD MEMBER DESTINATION. Extract only the named member, preserving every byte including trailing newline and non-ASCII UTF-8 content, into DESTINATION; exit 0 on success. Do not save the password or the similarly named decoy, and do not create any other files. Inputs: /app/sample.7z, password river-73, target "nested/secret_file.txt". The checker uses another synthetic archive as well.
+Only your implementation file is an allowed persistent write. Input archives and dictionaries must remain unchanged. No networking.

@@ -129,7 +129,7 @@ def tree(path):
 
 def execution_identity():
     names = ('run.py', 'state.py', 'scoring.py', 'docker.py', 'preparation.py', 'selection.py', 'report.py',
-             'variants.py', 'budget.py',
+             'variants.py', 'crack_variant.py', 'budget.py',
              'budget_gate.rs', 'contract.py', 'schema.json', 'runtime.py', 'runtime-v2.json')
     files = {name: digest(Path(__file__).with_name(name)) for name in names}
     return hashlib.sha256(json.dumps(files, sort_keys=True).encode()).hexdigest()

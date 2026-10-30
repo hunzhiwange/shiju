@@ -101,8 +101,7 @@ class SuiteDockerEnvironment(DockerEnvironment):
                 raise ValueError('variant image must be selected before agent execution')
         await super().start(*args, **kwargs)
         if descriptor is not None:
-            code = variants.probe_code(descriptor)
-            result = await self.exec(command='python3 -c ' + shlex.quote(code))
+            result = await self.exec(command=variants.probe_command(descriptor))
             if result.return_code != 0:
                 raise ValueError('variant dependency verification failed before agent')
             receipt = {'environment_variant': descriptor, 'phase': 'before_agent',

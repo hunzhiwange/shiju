@@ -58,8 +58,20 @@ class ReleaseTests(unittest.TestCase):
         first = prepare.build_manifest(data, '0.5.10')
         data['assets'].reverse()
         self.assertEqual(first, prepare.build_manifest(data, '0.5.10'))
-        self.assertEqual(len(first['assets']), 6)
+        self.assertEqual(len(first['assets']), 8)
         self.assertTrue(all('/agents/shiju-agent/releases/v0.5.10/' in a['url'] for a in first['assets']))
+
+    def test_linux_deb_packages_are_required_for_both_architectures(self):
+        manifest = prepare.build_manifest(fixture(), '0.5.10')
+        debs = {a['target']: a['name'] for a in manifest['assets'] if a['kind'] == 'deb'}
+        self.assertEqual(debs, {
+            'aarch64-unknown-linux-gnu': 'shiju_0.5.10_arm64.deb',
+            'x86_64-unknown-linux-gnu': 'shiju_0.5.10_amd64.deb',
+        })
+        data = fixture()
+        data['assets'] = [a for a in data['assets'] if not a['name'].endswith('.deb')]
+        with self.assertRaisesRegex(ValueError, 'deb'):
+            prepare.build_manifest(data, '0.5.10')
 
     def test_reject_invalid_metadata(self):
         for mutation in [lambda d: d['assets'].pop(), lambda d: d['assets'].append(d['assets'][0]),
@@ -155,7 +167,7 @@ class DownloadTests(unittest.TestCase):
             (directory / (fixture()['assets'][0]['name'] + '.part')).write_bytes(b'broken')
             with patch.object(prepare.urllib.request, 'urlopen', side_effect=local_download):
                 path = prepare.prepare_release('0.5.10', root)
-            self.assertEqual(len(json.loads(path.read_text())['assets']), 6)
+            self.assertEqual(len(json.loads(path.read_text())['assets']), 8)
             (directory / fixture()['assets'][-1]['name']).write_bytes(b'bad')
             with patch.object(prepare.urllib.request, 'urlopen', side_effect=local_download), self.assertRaises(ValueError):
                 prepare.prepare_release('0.5.10', root)

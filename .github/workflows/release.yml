@@ -201,6 +201,19 @@ jobs:
           for target in ${{ join(matrix.targets, ' ') }}; do
             if [[ "$target" == *unknown-linux-gnu ]]; then
               TARGET="$target" PROFILE=dist OUT_DIR=target/distrib scripts/bundle_linux.sh
+              case "$target" in
+                aarch64-unknown-linux-gnu) deb_arch=arm64; rpm_arch=aarch64 ;;
+                x86_64-unknown-linux-gnu) deb_arch=amd64; rpm_arch=x86_64 ;;
+                *) echo "Unsupported Linux package target: $target" >&2; exit 1 ;;
+              esac
+              version=$(awk -F '"' '/^version = / { print $2; exit }' crates/vw-desktop/Cargo.toml | tr '-' '~')
+              deb="target/distrib/shiju_${version}_${deb_arch}.deb"
+              rpm="target/distrib/shiju-${version}-1.${rpm_arch}.rpm"
+              test -s "$deb" && test -s "$rpm"
+              test "$(dpkg-deb -f "$deb" Package)" = shiju
+              test "$(dpkg-deb -f "$deb" Architecture)" = "$deb_arch"
+              test "$(dpkg-deb -f "$deb" Version)" = "$version"
+              test "$(rpm -qp --queryformat '%{NAME}:%{VERSION}:%{ARCH}' "$rpm")" = "shiju:$version:$rpm_arch"
             fi
           done
       - name: Configure macOS release signing

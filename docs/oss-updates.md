@@ -19,7 +19,7 @@ API 重定向直接拒绝。安装包下载不附带该令牌，不读取 OSS �
 
 预览写入 `output-dir/vX.Y.Z/manifest.preview.json`，不下载安装包。
 预览不是就绪清单，发布器必须拒绝将其用作正式发布输入。
-普通模式将六个原包写入同一目录，全部通过大小及 SHA-256 校验后才原子写入
+普通模式将八个原包写入同一目录，全部通过大小及 SHA-256 校验后才原子写入
 `manifest.json`。再次普通执行会先移除旧就绪清单，避免失败后留下错误的就绪标记。
 已有正确原包直接复用；已有不同内容拒绝覆盖，需要使用者移走冲突文件再重试。
 
@@ -29,10 +29,12 @@ API 重定向直接拒绝。安装包下载不附带该令牌，不读取 OSS �
 不会被当作完整文件，下次从头下载该包。不得并发操作同一输出目录。
 不解压、不二次压缩、不生成 ZIP。
 
-## 六平台映射
+## 六平台八包映射
 
 | target | kind | name |
 | --- | --- | --- |
+| aarch64-unknown-linux-gnu | deb | shiju_X.Y.Z_arm64.deb |
+| x86_64-unknown-linux-gnu | deb | shiju_X.Y.Z_amd64.deb |
 | aarch64-unknown-linux-gnu | rpm | shiju-X.Y.Z-1.aarch64.rpm |
 | x86_64-unknown-linux-gnu | rpm | shiju-X.Y.Z-1.x86_64.rpm |
 | aarch64-pc-windows-msvc | msi | ShiJu-aarch64-pc-windows-msvc-dist.msi |
@@ -59,12 +61,17 @@ JSON 顶层字段：`schema_version: 1`、`version: "X.Y.Z"`、
 清单不含 `binary_name`；原包是系统安装器输入，不能当作裸可执行文件覆盖当前程序。
 现有二进制替换更新路径不适用于 RPM/MSI/DMG，消费方必须明确支持安装器交接。
 
-Linux 桌面端下载并校验 RPM 后，提供“打开下载位置”操作，由用户自行退出应用、
-手动安装并重新启动；该操作只打开安装包所在目录，不启动安装器、不提权、不退出应用。
-打开目录失败时保留安装包并允许重试。Ubuntu/Debian 无法直接安装 RPM，应从
-[ShiJu GitHub Release](https://github.com/hunzhiwange/shiju/releases) 下载对应版本和
-架构的原生 DEB 包；当前六平台更新清单仍只包含 Linux RPM，不自动转换包格式。
+Linux 桌面端根据 `/etc/os-release`（缺失时读取 `/usr/lib/os-release`）的 ID/ID_LIKE
+选择 DEB 或 RPM，不以机器上碰巧安装了哪个包管理器作为判断依据。下载校验后启动
+独立更新进程，退出应用，再由 polkit 的 pkexec 请求系统授权；DEB 使用 APT 安装并
+解析依赖，RPM 使用 rpm 升级并检查依赖。仅允许更新系统包拥有的 `/usr/bin/shi-ju`，
+安装前核对包名、版本、架构，安装后确认包管理器记录的版本与状态。未知发行版、
+授权取消、包管理器锁或安装失败均明确报错，保留下载包和 installer.log 供重试。
 macOS DMG 与 Windows MSI 继续使用独立更新进程完成自动升级。
+
+新准备目录必须包含八包；独立发布器只在读取旧 latest 时允许历史六包，以便升级到
+更高版本。不能覆盖已发布同版本的六包清单；必须使用更高版本发布八包清单。
+旧客户端只理解六包协议，需要先安装支持八包的新版客户端，再使用后续应用内升级。
 
 后续发布器的不可变版本目录为 `agents/shiju-agent/releases/vX.Y.Z/`，
 唯一更新指针为 `agents/shiju-agent/latest/manifest.json`。
@@ -83,7 +90,7 @@ python3 scripts/prepare_oss_release.py --help
 
 ## OSS 发布入口与安全限制
 
-VibeWindow 只生成六平台文件及清单。发布业务唯一维护于外部仓库
+VibeWindow 只生成六平台八包文件及清单。发布业务唯一维护于外部仓库
 `data-gateway-oss-upload/skills/shiju-agent-oss-update/scripts/publish.py`；技能自包含，
 可复制到其他机器运行，不依赖生成器源码，不保留仓库发布副本或同步工具。
 以下命令在技能目录执行：
@@ -95,7 +102,7 @@ uv run scripts/publish.py --dir /absolute/output/v0.5.10 --publish
 ```
 
 Python >=3.10，PEP 723 固定 `oss2==2.19.1`。默认离线预览，不读取凭据。
-只接受正式 manifest.json 与精确六包，再验 schema、字段、映射、URL、大小和 SHA-256。
+只接受正式 manifest.json 与精确八包，再验 schema、字段、映射、URL、大小和 SHA-256。
 路径必须绝对且没有符号链接组件；macOS `/tmp` 可改用 `/private/tmp`。
 单包限制为 OSS 单 PUT 的 5 GiB。不支持 bucket/key 覆盖参数或 `--workspace`；只消费已经生成的目录。
 
@@ -113,17 +120,11 @@ names 不参与发布，不修改配置，不迁移凭据，不输出 SDK 原始
 - [CopyObject](https://www.alibabacloud.com/help/en/oss/developer-reference/copyobject)
   的条件针对源对象，不能证明目标 latest 的比较并交换。
 
-因此当前入口支持首次发布和相同字节版本恢复，**拒绝推进已有 latest 至更高版本**。
-这是安全失败，不是完整的连续升级发布能力；不能删指针或使用写前再读绕开限制。
-后续需要有官方保证的目标 CAS 或经证明的等效协议，才可开放版本推进。
-运维必须保证发布期间不启用/暂停 bucket 版本控制，也不能由其他客户端无条件覆盖对象。
-
-状态机先读取 latest（仅 NoSuchKey 的 404 算首次）并比较稳定版本；降级、同版本
-不同字节、未知状态、鉴权错误均失败。七个不可变对象一律禁止覆盖，冲突或传输结果
-不确定时从 OSS 完整回读，匹配才复用；不匹配停止。上传后匿名流式回读七对象，
-全部通过才禁止覆盖创建 latest，再匿名完整回读。版本缓存为一年 immutable，latest 为
-`no-store, no-cache, max-age=0, must-revalidate`。不自动重试写入或修改 ACL/CDN。
-公网目录权限仍未实测，离线 HTTP 测试不能替代生产匿名验证。
+当前独立发布器在共享 OSS 发布锁中重新读取 latest，支持首次发布、同字节恢复和
+向更高版本推进。锁不自动过期或抢占；此机制是遵守同一协议的发布端之间的互斥，
+不是目标 CAS。八包及版本清单共九个对象始终禁止覆盖，全部源站和匿名回读通过后
+才更新 latest，并再次匿名验证。具体锁恢复与权限要求以外部技能 SKILL.md 为准。
+新协议不能覆盖相同版本的历史六包清单；应发布更高版本。
 
 本地回执 `vX.Y.Z/oss-publish-receipt.json` 使用临时文件、fsync 和原子替换，记录版本、
 目标、摘要、阶段、待处理对象及已通过匿名回读对象。`publishing_latest` 写在 latest 操作前，表示可能已发布；失败后先读

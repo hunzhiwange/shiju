@@ -16,6 +16,10 @@ mod macos;
 #[path = "desktop_update_windows.rs"]
 mod windows;
 
+#[cfg(any(test, target_os = "linux"))]
+#[path = "desktop_update_linux.rs"]
+mod linux;
+
 const HELPER_ARG: &str = "--desktop-update-helper";
 
 #[derive(Serialize, Deserialize)]
@@ -47,7 +51,7 @@ pub(crate) fn start(ready: &PreparedDesktopUpdate) -> Result<()> {
         #[cfg(not(target_os = "macos"))]
         macos_stage: None,
     };
-    // Keep the helper an ordinary application; only Windows Installer requests elevation.
+    // Keep the helper unprivileged; system installers request authorization.
     let helper = job.path().join(if cfg!(windows) { "shi-ju-helper.exe" } else { "updater" });
     std::fs::copy(executable, &helper).context("复制独立更新进程失败")?;
     let log = std::fs::File::create(job.path().join("update.log"))?;
@@ -168,31 +172,7 @@ fn preflight(executable: &Path, ready: &PreparedDesktopUpdate) -> Result<()> {
         macos::bundle(executable)?;
     }
     #[cfg(target_os = "linux")]
-    {
-        if ready.kind() != vw_shared::update::InstallerKind::Rpm
-            || executable != Path::new("/usr/bin/shi-ju")
-            || !Path::new("/usr/bin/rpm").is_file()
-            || !Path::new("/usr/bin/pkexec").is_file()
-        {
-            bail!(
-                "自动更新需要通过 RPM 安装的 /usr/bin/shi-ju，以及 rpm、pkexec；当前安装方式不支持此 RPM"
-            );
-        }
-        let owner = command_output(
-            Command::new("/usr/bin/rpm").args(["-qf", "--queryformat", "%{NAME}"]).arg(executable),
-        )?;
-        if owner != "shiju" {
-            bail!("当前应用不属于 shiju RPM，拒绝覆盖其它安装");
-        }
-        let package = command_output(
-            Command::new("/usr/bin/rpm")
-                .args(["-qp", "--queryformat", "%{NAME}\n%{VERSION}\n%{ARCH}"])
-                .arg(ready.path()),
-        )?;
-        if package != format!("shiju\n{}\n{}", ready.version(), std::env::consts::ARCH) {
-            bail!("RPM 的名称、版本或架构与发布快照不一致");
-        }
-    }
+    linux::preflight(executable, ready)?;
     #[cfg(target_os = "windows")]
     {
         if ready.kind() != vw_shared::update::InstallerKind::Msi {
@@ -242,12 +222,7 @@ fn install(request: &UpdateRequest) -> Result<()> {
     }
     #[cfg(target_os = "linux")]
     {
-        let status = Command::new("/usr/bin/pkexec")
-            .args(["/usr/bin/rpm", "-U", "--"])
-            .arg(request.ready.path())
-            .status()
-            .context("无法请求 RPM 安装授权")?;
-        installation_result("linux", status.code())
+        linux::install(&request.executable, &request.ready)
     }
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
     bail!("当前平台不支持自动更新")
@@ -303,7 +278,7 @@ fn windows_installation_result(code: Option<i32>, installer: &Path, log: &Path) 
         .with_context(|| format!("安装包：{}\n安装日志：{}", installer.display(), log.display()))
 }
 
-#[cfg(any(test, target_os = "windows", target_os = "linux"))]
+#[cfg(any(test, target_os = "windows"))]
 fn installation_result(os: &str, code: Option<i32>) -> Result<()> {
     match (os, code) {
         (_, Some(0)) => Ok(()),
@@ -323,7 +298,7 @@ fn msiexec() -> Result<PathBuf> {
         .join("System32/msiexec.exe"))
 }
 
-#[cfg(any(target_os = "macos", target_os = "linux"))]
+#[cfg(target_os = "macos")]
 fn command_output(command: &mut Command) -> Result<String> {
     let output = command.output().context("系统更新命令启动失败")?;
     if !output.status.success() {

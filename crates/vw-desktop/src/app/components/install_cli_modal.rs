@@ -171,7 +171,7 @@ fn view_inner<'a>(
     let has_version_info = current_version.is_some() && server_version.is_some();
     let helper_text = if use_app_update_action {
         if cfg!(target_os = "linux") {
-            "下载校验完成后可打开下载位置，请自行退出应用并手动升级。Ubuntu/Debian 请使用 DEB 包。"
+            "自动选择 DEB/RPM，下载校验后通过系统授权安装；成功后提示启动新版。"
         } else {
             "更新前会先检测当前版本与服务端版本，确认后再执行安装流程。"
         }
@@ -232,26 +232,21 @@ fn view_inner<'a>(
         ]
         .spacing(12);
         #[cfg(not(target_arch = "wasm32"))]
-        let action_row = if use_app_update_action
-            && let Some(ready) = desktop_update.and_then(|state| state.ready.as_ref())
-        {
-            let label = if ready.installs_automatically() {
-                "自动更新并退出 / 重试"
+        let action_row =
+            if use_app_update_action && desktop_update.is_some_and(|state| state.ready.is_some()) {
+                let label = "自动更新并退出 / 重试";
+                action_row.push(
+                    button(label)
+                        .on_press_maybe(
+                            (!is_checking)
+                                .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),
+                        )
+                        .padding([8, 16])
+                        .style(primary_action_btn_style),
+                )
             } else {
-                "打开下载位置"
+                action_row
             };
-            action_row.push(
-                button(label)
-                    .on_press_maybe(
-                        (!is_checking)
-                            .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),
-                    )
-                    .padding([8, 16])
-                    .style(primary_action_btn_style),
-            )
-        } else {
-            action_row
-        };
         let action_row = if show_install_action {
             let install_label =
                 if use_app_update_action { "下载安装包" } else { "安装 CLI" };

@@ -12,6 +12,38 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class LinuxBundleTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("dpkg-deb"), "requires native Debian package tools")
+    def test_real_deb_contains_complete_installation_for_both_architectures(self):
+        for target, arch in [("aarch64-unknown-linux-gnu", "arm64"), ("x86_64-unknown-linux-gnu", "amd64")]:
+            with self.subTest(target=target), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                manifest = root / "crates/vw-desktop/Cargo.toml"
+                manifest.parent.mkdir(parents=True)
+                shutil.copyfile(REPO / "crates/vw-desktop/Cargo.toml", manifest)
+                binaries = ("shi-ju", "vw-webview", "shiju", "acp")
+                binary_dir = root / "target-dir" / target / "dist"
+                binary_dir.mkdir(parents=True)
+                for name in binaries:
+                    (binary_dir / name).write_bytes(b"neutral fixture " + name.encode())
+                env = dict(os.environ, TARGET=target, PROFILE="dist", CREATE_DEB="1", CREATE_RPM="0",
+                           PACKAGE_NAME="shiju", CARGO_TARGET_DIR=str(root / "target-dir"),
+                           OUT_DIR=str(root / "output"), LINUX_ICON_SOURCE=str(REPO / "assets/logo.png"),
+                           LINUX_DESKTOP_SOURCE=str(REPO / "release/linux/vibewindow.desktop"))
+                subprocess.run(["bash", str(REPO / "scripts/bundle_linux.sh")], cwd=root, env=env, check=True, capture_output=True)
+                packages = list((root / "output").glob("*.deb"))
+                self.assertEqual(len(packages), 1)
+                package = packages[0]
+                metadata = subprocess.check_output(["dpkg-deb", "-W", "--showformat=${Package}\n${Architecture}", str(package)], text=True)
+                self.assertEqual(metadata, f"shiju\n{arch}")
+                extracted = root / "extracted"
+                subprocess.run(["dpkg-deb", "-R", str(package), str(extracted)], check=True)
+                for name in binaries:
+                    self.assertEqual((extracted / "usr/bin" / name).read_bytes(), (binary_dir / name).read_bytes())
+                    self.assertTrue((extracted / "usr/bin" / name).stat().st_mode & 0o111)
+                self.assertTrue((extracted / "usr/share/applications/shiju.desktop").is_file())
+                self.assertTrue((extracted / "usr/share/icons/hicolor/256x256/apps/shiju.png").is_file())
+                self.assertTrue((extracted / "DEBIAN/postinst").stat().st_mode & 0o111)
+
     def test_packages_cargo_target_directory(self):
         for target in ("aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu"):
             for override in (None, "relative", "absolute"):

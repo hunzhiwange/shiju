@@ -42,22 +42,22 @@ fn desktop_release_missing_config_defaults_and_keys_are_stable() {
 }
 
 #[test]
-fn desktop_release_sources_map_exactly_six_platforms() {
+fn desktop_release_sources_map_eight_installers() {
     let (oss, mut github) = manifests();
     github["assets"].as_array_mut().unwrap().push(json!({"name": "cli.zip"}));
     let oss = parse_desktop_release(UpdateSource::Shiju, oss).unwrap();
     let github = parse_desktop_release(UpdateSource::Github, github).unwrap();
     assert_eq!(oss.version, github.version);
-    assert_eq!(oss.assets.len(), 6);
+    assert_eq!(oss.assets.len(), 8);
     for a in &oss.assets {
-        let b = github.installer_for_target(&a.target).unwrap();
+        let b = github.installer_for_target(&a.target, a.kind).unwrap();
         assert_eq!((&a.name, a.kind, a.size, &a.sha256), (&b.name, b.kind, b.size, &b.sha256));
     }
     assert_eq!(
-        oss.installer_for_target("aarch64-pc-windows-msvc").unwrap().kind,
+        oss.installer_for_target("aarch64-pc-windows-msvc", InstallerKind::Msi).unwrap().kind,
         InstallerKind::Msi
     );
-    assert!(oss.installer_for_target("armv7-unknown-linux-gnueabihf").is_err());
+    assert!(oss.installer_for_target("armv7-unknown-linux-gnueabihf", InstallerKind::Deb).is_err());
 }
 
 #[test]
@@ -263,9 +263,15 @@ async fn desktop_release_revalidates_snapshot_before_downloading() {
     release.assets[0].name = "../escape.rpm".into();
     let directory = tempfile::tempdir().unwrap();
     assert!(
-        download_desktop_installer(&release, "aarch64-unknown-linux-gnu", directory.path(), |_| {})
-            .await
-            .is_err()
+        download_desktop_installer(
+            &release,
+            "aarch64-unknown-linux-gnu",
+            InstallerKind::Deb,
+            directory.path(),
+            |_| {}
+        )
+        .await
+        .is_err()
     );
     assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 0);
 }
@@ -275,6 +281,8 @@ fn desktop_release_matches_documented_names_and_new_namespace() {
     assert_eq!(SHIJU_MANIFEST, "https://www.shiju.cloud/agents/shiju-agent/latest/manifest.json");
     let release = parse_desktop_release(UpdateSource::Shiju, manifests().0).unwrap();
     let expected = [
+        ("aarch64-unknown-linux-gnu", InstallerKind::Deb, "shiju_1.2.10_arm64.deb"),
+        ("x86_64-unknown-linux-gnu", InstallerKind::Deb, "shiju_1.2.10_amd64.deb"),
         ("aarch64-unknown-linux-gnu", InstallerKind::Rpm, "shiju-1.2.10-1.aarch64.rpm"),
         ("x86_64-unknown-linux-gnu", InstallerKind::Rpm, "shiju-1.2.10-1.x86_64.rpm"),
         ("aarch64-pc-windows-msvc", InstallerKind::Msi, "ShiJu-aarch64-pc-windows-msvc-dist.msi"),
@@ -283,7 +291,7 @@ fn desktop_release_matches_documented_names_and_new_namespace() {
         ("x86_64-apple-darwin", InstallerKind::Dmg, "ShiJu-macos-x86_64-apple-darwin-dist.dmg"),
     ];
     for (target, kind, name) in expected {
-        let asset = release.installer_for_target(target).unwrap();
+        let asset = release.installer_for_target(target, kind).unwrap();
         assert_eq!(asset.kind, kind);
         assert_eq!(asset.name, name);
         assert_eq!(
@@ -351,7 +359,7 @@ async fn desktop_release_publication_race_preserves_existing_file_and_cleans_tem
 }
 
 #[tokio::test]
-async fn desktop_release_consumes_generated_six_platform_manifest() {
+async fn desktop_release_consumes_generated_eight_installer_manifest() {
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let output = std::process::Command::new("python3")
         .current_dir(root)
@@ -363,9 +371,9 @@ async fn desktop_release_consumes_generated_six_platform_manifest() {
     let release = parse_desktop_release(UpdateSource::Shiju, payload["manifest"].clone()).unwrap();
     let github = parse_desktop_release(UpdateSource::Github, payload["github"].clone()).unwrap();
     let body: Vec<u8> = serde_json::from_value(payload["body"].clone()).unwrap();
-    assert_eq!(release.assets.len(), 6);
+    assert_eq!(release.assets.len(), 8);
     for asset in &release.assets {
-        let other = github.installer_for_target(&asset.target).unwrap();
+        let other = github.installer_for_target(&asset.target, asset.kind).unwrap();
         assert_eq!(
             (&asset.name, asset.kind, asset.size, &asset.sha256),
             (&other.name, other.kind, other.size, &other.sha256)

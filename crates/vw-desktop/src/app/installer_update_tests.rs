@@ -26,18 +26,14 @@ fn installer_update_six_platforms_use_expected_extensions() {
         ("macos", InstallerKind::Dmg),
         ("windows", InstallerKind::Msi),
         ("linux", InstallerKind::Rpm),
+        ("linux", InstallerKind::Deb),
     ] {
         for arch in ["x86_64", "aarch64"] {
             assert!(desktop_target(os, arch).unwrap().starts_with(arch));
             let (_root, ready) = fixture(kind);
             open_with(&ready, os, |path| {
-                if kind == InstallerKind::Rpm {
-                    assert_eq!(path, ready.path().parent().unwrap());
-                    assert!(path.is_dir());
-                } else {
-                    assert_eq!(path, ready.path());
-                    assert_eq!(path.extension().unwrap(), extension(kind));
-                }
+                assert_eq!(path, ready.path());
+                assert_eq!(path.extension().unwrap(), extension(kind));
                 assert!(path.is_absolute());
                 Ok(())
             })
@@ -97,49 +93,48 @@ fn installer_update_missing_download_and_wrong_platform_never_open() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn installer_update_linux_opens_directory_preserves_app_and_allows_retry() {
+async fn installer_update_linux_authorizes_install_and_allows_retry() {
     use crate::app::{App, Message, message::ViewMessage};
 
     let (_root, ready) = fixture(InstallerKind::Rpm);
-    assert!(!ready.installs_automatically());
     let mut app = App::new().0;
     let _ = app.update(Message::View(ViewMessage::OpenAppUpdateModal));
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdatePrepared(Ok(ready.clone()))));
     assert!(app.cli_install_modal_message.contains("Ubuntu/Debian"));
-    assert!(app.cli_install_modal_message.contains(".deb"));
+    assert!(app.cli_install_modal_message.contains("DEB"));
 
     let error = open_with(&ready, "linux", |path| {
-        assert_eq!(path, ready.path().parent().unwrap());
-        Err(anyhow::anyhow!("file manager unavailable"))
+        assert_eq!(path, ready.path());
+        Err(anyhow::anyhow!("authorization unavailable"))
     })
     .unwrap_err();
-    assert!(error.to_string().contains("file manager unavailable"));
+    assert!(error.to_string().contains("authorization unavailable"));
     app.desktop_update.busy = true;
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Err(error.to_string()))));
-    assert_eq!(app.cli_install_modal_title, "打开下载位置失败");
+    assert_eq!(app.cli_install_modal_title, "自动更新启动失败");
     assert!(app.active_toast.is_some());
     assert!(!app.desktop_update.busy);
     assert!(!app.shutdown_requested);
     assert!(app.desktop_update.ready.is_some());
 
     let message = open_with(&ready, "linux", |path| {
-        assert!(path.is_dir());
-        assert_eq!(path, ready.path().parent().unwrap());
+        assert!(path.is_file());
+        assert_eq!(path, ready.path());
         Ok(())
     })
     .unwrap();
-    assert!(message.contains("下载位置已打开"));
-    assert!(!message.contains("正在退出"));
+    assert!(message.contains("自动更新已准备就绪"));
+    assert!(message.contains("正在退出"));
     app.desktop_update.busy = true;
     app.main_window_id = Some(iced::window::Id::unique());
     let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Ok(message))));
-    assert!(!app.shutdown_requested);
+    assert!(app.shutdown_requested);
     assert!(!app.desktop_update.busy);
     assert!(app.desktop_update.ready.is_some());
     assert!(ready.path().exists());
 
-    // Recheck the RPM before revealing its directory, just as for automatic installers.
+    // Recheck the package before handing it to the independent updater.
     std::fs::write(ready.path(), b"tampered").unwrap();
     assert!(open_with(&ready, "linux", |_| panic!("must not open")).is_err());
 }
@@ -231,6 +226,8 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
         (InstallerKind::Dmg, iced::Theme::Light),
         (InstallerKind::Rpm, iced::Theme::Dark),
         (InstallerKind::Rpm, iced::Theme::Light),
+        (InstallerKind::Deb, iced::Theme::Dark),
+        (InstallerKind::Deb, iced::Theme::Light),
     ] {
         let (_root, ready) = fixture(kind);
         app.cli_install_modal_message = ready.instructions();

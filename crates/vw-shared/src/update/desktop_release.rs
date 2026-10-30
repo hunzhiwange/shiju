@@ -23,6 +23,7 @@ pub enum UpdateSource {
 #[serde(rename_all = "lowercase")]
 pub enum InstallerKind {
     Rpm,
+    Deb,
     Msi,
     Dmg,
 }
@@ -51,19 +52,27 @@ impl DesktopRelease {
         Ok(version_tuple(&self.version)? > version_tuple(installed)?)
     }
 
-    pub fn installer_for_target(&self, target: &str) -> Result<&DesktopInstaller> {
+    pub fn installer_for_target(
+        &self,
+        target: &str,
+        kind: InstallerKind,
+    ) -> Result<&DesktopInstaller> {
         self.validate()?;
-        self.assets.iter().find(|a| a.target == target).context("Unsupported desktop target")
+        self.assets
+            .iter()
+            .find(|a| a.target == target && a.kind == kind)
+            .context("Unsupported desktop target")
     }
 
     fn validate(&self) -> Result<()> {
         let version = canonical_version(&self.version)?;
         let specs = installer_specs(version);
         if self.assets.len() != specs.len() {
-            bail!("Expected exactly six desktop installers");
+            bail!("Expected exactly eight desktop installers (including Linux DEB and RPM)");
         }
         for (target, kind, name) in specs {
-            let matches: Vec<_> = self.assets.iter().filter(|a| a.target == target).collect();
+            let matches: Vec<_> =
+                self.assets.iter().filter(|a| a.target == target && a.kind == kind).collect();
             if matches.len() != 1 {
                 bail!("Missing or duplicate installer target: {target}");
             }
@@ -111,6 +120,8 @@ fn version_tuple(value: &str) -> Result<(u64, u64, u64)> {
 
 fn installer_specs(version: &str) -> Vec<(&'static str, InstallerKind, String)> {
     vec![
+        ("aarch64-unknown-linux-gnu", InstallerKind::Deb, format!("shiju_{version}_arm64.deb")),
+        ("x86_64-unknown-linux-gnu", InstallerKind::Deb, format!("shiju_{version}_amd64.deb")),
         ("aarch64-unknown-linux-gnu", InstallerKind::Rpm, format!("shiju-{version}-1.aarch64.rpm")),
         ("x86_64-unknown-linux-gnu", InstallerKind::Rpm, format!("shiju-{version}-1.x86_64.rpm")),
         (
@@ -276,13 +287,14 @@ async fn fetch_desktop_release_at(
 pub async fn download_desktop_installer<F>(
     release: &DesktopRelease,
     target: &str,
+    kind: InstallerKind,
     destination: &Path,
     on_progress: F,
 ) -> Result<PathBuf>
 where
     F: FnMut(UpdateProgress) + Send,
 {
-    let asset = release.installer_for_target(target)?;
+    let asset = release.installer_for_target(target, kind)?;
     download_installer_at(
         asset,
         &asset.url,
@@ -359,3 +371,7 @@ where
 #[cfg(test)]
 #[path = "desktop_release_tests.rs"]
 mod desktop_release_tests;
+
+#[path = "linux_installer.rs"]
+mod linux_installer;
+pub use linux_installer::linux_installer_kind;

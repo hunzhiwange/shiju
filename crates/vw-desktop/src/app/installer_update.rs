@@ -1,4 +1,4 @@
-//! Verified downloads for automatic updates or manual Linux installation.
+//! Verified downloads for automatic updates through system installers.
 use anyhow::{Context, Result, bail};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -55,10 +55,6 @@ impl PreparedDesktopUpdate {
         self.asset.kind
     }
 
-    pub fn installs_automatically(&self) -> bool {
-        matches!(self.kind(), InstallerKind::Dmg | InstallerKind::Msi)
-    }
-
     pub fn instructions(&self) -> String {
         format!("安装包已就绪：{}。{}", self.path.display(), instructions(self.kind()))
     }
@@ -71,19 +67,21 @@ pub async fn prepare_desktop_update(
     progress_tx: Sender<UpdateProgress>,
 ) -> Result<PreparedDesktopUpdate> {
     let target = desktop_target(std::env::consts::OS, std::env::consts::ARCH)?;
-    let asset = release.installer_for_target(target)?;
+    let kind = installer_kind(std::env::consts::OS)?;
+    let asset = release.installer_for_target(target, kind)?;
     // Installer downloads use the ShiJu identity independently of legacy configuration paths.
     #[cfg(debug_assertions)]
     const APP_NAME: &str = "shiju-dev";
     #[cfg(not(debug_assertions))]
     const APP_NAME: &str = "shiju";
-    let dirs = directories::ProjectDirs::from("com", "rsung", APP_NAME)
-        .context("无法确定应用缓存目录")?;
+    let dirs =
+        directories::ProjectDirs::from("com", "rsung", APP_NAME).context("无法确定应用缓存目录")?;
     fs::create_dir_all(dirs.cache_dir())?;
     let attempt = create_attempt(dirs.cache_dir(), &release.version)?;
     let path = vw_shared::update::download_desktop_installer(
         release,
         target,
+        kind,
         attempt.path(),
         |progress| {
             let _ = progress_tx.send(progress);
@@ -93,15 +91,9 @@ pub async fn prepare_desktop_update(
     finish_download(attempt, path, asset, &release.version)
 }
 
-/// Revalidate the download, then reveal Linux downloads or start the automatic updater.
+/// Revalidate the download and start the independent automatic updater.
 pub fn open_desktop_installer(ready: &PreparedDesktopUpdate) -> Result<String> {
-    open_with(ready, std::env::consts::OS, |path| {
-        if ready.installs_automatically() {
-            crate::desktop_update_helper::start(ready)
-        } else {
-            open::that(path).context("无法打开安装包下载目录")
-        }
-    })
+    open_with(ready, std::env::consts::OS, |_| crate::desktop_update_helper::start(ready))
 }
 
 fn desktop_target(os: &str, arch: &str) -> Result<&'static str> {
@@ -121,6 +113,7 @@ fn extension(kind: InstallerKind) -> &'static str {
         InstallerKind::Dmg => "dmg",
         InstallerKind::Msi => "msi",
         InstallerKind::Rpm => "rpm",
+        InstallerKind::Deb => "deb",
     }
 }
 
@@ -132,8 +125,8 @@ fn instructions(kind: InstallerKind) -> &'static str {
         InstallerKind::Msi => {
             "点击自动更新后，应用将退出并通过 Windows Installer 更新；请允许系统授权，成功后确认启动新版。"
         }
-        InstallerKind::Rpm => {
-            "点击“打开下载位置”后，请自行退出应用并手动安装，安装完成后重新启动。此 RPM 适用于 RPM 系统；Ubuntu/Debian 需要 .deb 包，不能直接安装此 RPM，请从 ShiJu GitHub Release 下载对应版本和架构的 DEB 包。"
+        InstallerKind::Rpm | InstallerKind::Deb => {
+            "点击自动更新后，应用将退出并请求系统安装授权；Ubuntu/Debian 使用 DEB，RPM 系统使用 RPM。取消授权或安装失败时保留安装包，成功后提示启动新版。"
         }
     }
 }
@@ -225,15 +218,9 @@ fn open_with(
         (os, ready.kind()),
         ("macos", InstallerKind::Dmg)
             | ("windows", InstallerKind::Msi)
-            | ("linux", InstallerKind::Rpm)
+            | ("linux", InstallerKind::Rpm | InstallerKind::Deb)
     ) {
         bail!("此安装包格式不适用于当前系统。{}", ready.instructions());
-    }
-    if !ready.installs_automatically() {
-        // Open the directory, never the RPM itself: package handlers may request installation.
-        opener(&ready.directory)
-            .map_err(|error| anyhow::anyhow!("无法打开下载位置：{error:#}"))?;
-        return Ok(format!("下载位置已打开，请手动升级。{}", ready.instructions()));
     }
     // The UI also uses Display on this error; retain the underlying launch failure there.
     opener(ready.path()).map_err(|error| anyhow::anyhow!("无法启动自动更新：{error:#}"))?;
@@ -246,3 +233,12 @@ fn open_with(
 #[cfg(test)]
 #[path = "installer_update_tests.rs"]
 mod installer_update_tests;
+
+fn installer_kind(os: &str) -> Result<InstallerKind> {
+    match os {
+        "macos" => Ok(InstallerKind::Dmg),
+        "windows" => Ok(InstallerKind::Msi),
+        "linux" => vw_shared::update::desktop_release::linux_installer_kind(),
+        _ => bail!("不支持的安装平台：{os}"),
+    }
+}

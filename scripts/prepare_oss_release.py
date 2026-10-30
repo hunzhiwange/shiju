@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare six unchanged GitHub installers for a separate, explicit OSS publish."""
+"""Prepare eight unchanged GitHub installers for a separate, explicit OSS publish."""
 
 import argparse
 import hashlib
@@ -28,6 +28,8 @@ def normalize_version(value):
 
 def asset_specs(version):
     return [
+        ('aarch64-unknown-linux-gnu', 'deb', f'shiju_{version}_arm64.deb'),
+        ('x86_64-unknown-linux-gnu', 'deb', f'shiju_{version}_amd64.deb'),
         ('aarch64-unknown-linux-gnu', 'rpm', f'shiju-{version}-1.aarch64.rpm'),
         ('x86_64-unknown-linux-gnu', 'rpm', f'shiju-{version}-1.x86_64.rpm'),
         ('aarch64-pc-windows-msvc', 'msi', 'ShiJu-aarch64-pc-windows-msvc-dist.msi'),

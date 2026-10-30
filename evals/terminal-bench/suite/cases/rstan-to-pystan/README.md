@@ -1,8 +1,10 @@
 # RStan to PyStan diagnostics
 
 These four independent tasks isolate conversion behavior using synthetic data.
-Full-parent readiness still requires a passing original oracle and failing nop
-under the original 4 CPU / 8192 MiB / 10240 MiB and 1800/1800-second limits.
+Full-parent readiness is blocked. The unchanged original image failed during
+APT HTTP downloads; the separately authorized HTTPS transport variant reached
+Launchpad PPA setup and failed on a truncated response. Each calibration retains
+the original 4 CPU / 8192 MiB / 10240 MiB and 1800/1800-second limits.
 No paid model requests are used for preparation.
 
 - m1 parses named CSV features and targets, constructs design matrices, preserves
@@ -97,10 +99,63 @@ equal absolute target/build paths and JOBS=1. Static Clippy checks count as zero
 behavior tests.
 
 The first standard controls encountered an infrastructure lock error before the
-agent. After the cancellable lock fix, all eight child controls passed. The
-new original-parent preflight reached the unchanged capacity guard and failed
-before Agent at `suite Docker capacity exceeds 4 CPU / 8 GiB` while external
-reservations remained active. Its reward and capability score are null; no
-new official verifier tests ran. The historical apt failure remains preserved.
-The remaining action is a fresh original oracle/nop and complete preflight in
-an available exclusive window. No case preparation/readiness receipt exists.
+agent. After the cancellable lock fix, all eight child controls passed at
+execution identity `94dec6f0c90690b5c0ea348c8142a22b0cec1d62fa174df762f6dc93cb7653df`.
+Original-parent startup initially lacked exclusive capacity. After capacity
+became available, the original oracle actually ran: APT HTTP downloads failed,
+`add-apt-repository` was missing, and all six official verifier tests ran
+(one passed, five missing-output failures). Raw reward=0 is preserved as
+invalid/unscored infrastructure calibration with null capability score.
+
+## Authorized HTTPS APT variant
+
+The user authorized `rstan-to-pystan-compat-https-apt` separately on 2026-10-30.
+It changes exactly the two Ubuntu archive/security URI schemes from HTTP to
+HTTPS. Signed-By, repository suites/components, pre-Agent installed packages,
+official instructions/data/oracle/verifier, task budgets and timeouts remain intact.
+It has `counts_as_original_official=false` and a separate standard variant
+identity; it does not establish original-official success.
+
+Pinned image:
+`vw-rstan-https-apt@sha256:0da5996e1c9f25c72dfe7c3091fe285130108f4339ab28fb6eaf9962ca92d0fd`.
+`variant/` binds the exact Dockerfile, original/target sources, the original
+114-package inventory and contract. All original base layers and runtime
+configuration semantics match; the added layer's only regular file is
+`etc/apt/sources.list.d/ubuntu.sources`. Empty Rosetta directory metadata is
+recorded separately. No dependency, Python interpreter, cached answer or oracle
+artifact was preinstalled. The before-Agent proof independently checks the
+actual source-file SHA and complete installed-package inventory.
+
+All three HTTPS transport probes succeeded with complete bodies: Ubuntu main
+InRelease, security InRelease and the previously failing
+software-properties-common deb. Six new protocol regressions first failed on
+the unsupported route, then all 43 new/existing protocol, variant, capacity and
+contract tests passed on the actual shared implementation. The required Clippy
+command exited 0 in dynamic slot 3 with equal absolute target/build paths and
+JOBS=1; its owned lock was released with the cache retained.
+
+The real standard variant oracle passed its before-Agent proof and successfully
+installed software-properties-common, resolving the original HTTP blocker.
+The unchanged `add-apt-repository ppa:deadsnakes/ppa` then failed inside Launchpad
+response reading with `http.client.IncompleteRead(15 bytes read)`. The official
+verifier again ran six tests (one passed, five missing-output failures).
+Raw reward=0 remains preserved; the normalized calibration is
+infrastructure/invalid/unscored with null capability score. No Stan sampling
+ran. Preflight stopped before nop and the new child controls, so no current
+variant preparation/readiness receipt exists. The prior eight child controls
+must not be presented as a complete calibration under the new execution
+identity `588690e423e955cab7b2c335d302678cae81598b2ec421946065c88f964ce16c`.
+
+A separate read-only completeness probe parsed the full 2706949-byte Launchpad
+WADL but timed out reading the team metadata. That is no evidence of network
+recovery, so no calibration retry was started. Resume after complete Launchpad
+responses are confirmed; use the approved variant runtime and a fresh preflight
+output directory, retain the two-URI boundary and rerun all ten standard controls.
+The numbered task retains exact paths and the latest failed worker state.
+
+New raw receipts live under the ignored `https-apt-approved-20261030/` evidence
+directory. A duplicate-start mistake overwrote the initial aggregate progress
+log; the duplicate aborted at the existing-directory guard. The transport,
+build, image, layer audit, protocol tests, Clippy and actual calibration logs
+remain intact, with an explicit log-integrity note and preserved duplicate
+error. The corrected resume log is separate. No original score data was lost.

@@ -2,7 +2,39 @@
 
 批次：【批次 48】；依赖批次：1、2、3、4、5。同批无文件依赖；Git 提交按任务编号串行，禁止删除其他会话的索引锁。
 
-状态：已完成，待回归
+状态：已阻塞（HTTPS变体已实现；Launchpad响应截断/超时，尚未完成校准）
+
+## 本轮验收结果与恢复入口（2026-10-30，最新）
+
+- 已落实用户批准的两URI HTTPS独立变体，镜像 `vw-rstan-https-apt@sha256:0da5996e1c9f25c72dfe7c3091fe285130108f4339ab28fb6eaf9962ca92d0fd`。原镜像全部9层和运行配置语义保持；新增层唯一普通文件为ubuntu.sources，只有两个URI增加`s`；另有3个空Rosetta目录元数据，已单列记录。原114包清单不变，没有预装Python、依赖、答案或参考产物。两个InRelease及原失败deb均完整HTTPS读取成功。
+- 新入口、schema及before-Agent证明已正式接入：仅此parent/id可用，固定基础镜像、配方、sources字节及完整原包清单；重哈希不能授权额外安装、复制、环境变量、源或包集合变更。6项先失败的新增回归通过，连同旧协议/变体/资源/契约共43项实际回归通过。Clippy在动态槽位3退出0，target/build均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-3`、JOBS1，自己的锁已释放，缓存保留；Rust未修改、未运行全量Rust测试/格式化。当前执行身份 `588690e423e955cab7b2c335d302678cae81598b2ec421946065c88f964ce16c`。
+- 通过现有SuiteDockerEnvironment的真实before-Agent证明后，标准兼容变体oracle已实际运行4CPU/8GiB/无swap，APT成功安装此前失败的software-properties-common，越过原阻塞。随后原命令add-apt-repository在Launchpad读取响应时失败：`http.client.IncompleteRead(15 bytes read)`。官方verifier确实运行6项（1通过、5缺产物失败），raw reward=0完整保留；派生 `https-apt-approved-20261030/calibration-classification.json` 为invalid/unscored、infrastructure、capability=null。未进入Stan采样；标准preflight在首个oracle失败后停止，没有新nop及8子题控制，不能宣称完整变体准备完成，也不能把旧94dec身份的8控制填充到本轮。
+- 进一步受限只读探针完整解析了Launchpad WADL（2706949B），但读取团队metadata仍超时。没有链路恢复证据，因此不盲重试，也不扩展两URI授权范围去绕过PPA、预装Python或修改原安装流程。原题HTTP失败、HTTPS变体PPA失败均分别保留，不计模型能力0。兼容成绩始终单列且counts_as_original_official=false。
+- 当前所有本题作业已结束：旧原父PID88322和HTTPS恢复PID73127均退出，存储观察器也正常结束（33次采样，无超额或停止动作）。活动指针 `active-https-variant.json` 只用于找到最新失败目录；状态 `https-apt-approved-20261030/state.json` 为failed。**不要直接重启旧脚本（目录已存在），不要删除历史目录或生成就绪收据。** 有新恢复证据后使用该目录的合法runtime.json和全新preflight输出路径，按原资源单次校准变体父题及8子题，再verify_preparation验收全部10控制；完成前保留本任务。
+- 汇总进度日志曾被我的重复启动命令误覆盖；重复作业在existing-directory检查即退出。全部分阶段transport/build/OCI/协议/Clippy和真实校准原始日志完整，错误文件 `https-apt-duplicate-start-error.log` 与 `log-integrity-note.json` 明确记录，没有丢失官方评分数据；恢复日志为 `resume-https-apt-approved.log`。3份旧/tmp归档的gzip无损保存及去重清理记录仍在。
+
+## 最新结果与授权变体（2026-10-30）
+
+- 原队列PID88322确已启动原父oracle，实测双边容量通过、main保持4CPU/8GiB/无swap。当前已结束并清理自有容器；证据 `resume-20261030-155d1125/parent-controls.json`。原始HTTP APT包下载再次连接失败（198.18.0.99:80），software-properties-common未安装，随后add-apt-repository缺失；未进入Stan采样。官方verifier确实运行6项：1通过、5缺产物失败，raw reward=0。派生 `calibration-classification.json` 明确invalid/unscored、infrastructure、capability=null；原始summary保留，未继续把失败oracle冒充合格校准或盲重试原题。
+- 用户已明确授权独立 `rstan-to-pystan-compat-https-apt` 变体：仅把Ubuntu archive/security两个源URI从http改https，保留Signed-By、包集合、原题文件、4CPU/8GiB/10GiB及1800/1800秒；不预装依赖；先验证HTTPS再构建/校准，成绩单列且不计原题官方成功。两行差异、原/目标源完整字节和授权范围在 `proposals/https-apt/`。
+- 从未启动的原镜像只读快照取出114个已安装包的固定清单；原镜像已有ca-certificates 20240203。已准备case/variant的Dockerfile、原/目标sources、base-packages；尚无可宣称完成的变体contract/image。六项协议测试先证明当前入口拒绝此变体；隔离候选协议连同既有CMake/Stan/资源/契约测试43项通过。当前共享variants.py/schema.json未改，以免改变正在运行的MCMC校准身份；候选补丁有原SHA前置检查。
+- **当前活动PID66933，exec session67884**；入口 `prepare-https-apt-approved.py`，指针 `active-https-variant.json`，状态与日志在 `https-apt-approved-20261030/state.json`、`prepare-https-apt-approved.log`。当前等待其它4CPU/8GiB校准结束才能验证HTTPS。旧PID57676已在任何探针/构建开始前被替换，保留 `https-apt-approved-20261030-wait-initial/` 说明。禁止重新启动原父队列或重复HTTPS作业。
+- 当前流水线顺序：①受限原镜像完整读取两个HTTPS InRelease及此前失败的deb，失败则不构建、不改协议；②仅两URI的受限classic构建，完整OCI/config/层哈希回读，确认只追加sources文件且包/配置语义保持；③空闲窗口中核对原SHA后接入正式variants/schema，43项实测协议回归和动态槽位Clippy；④合法私有runtime经标准preflight重新执行变体父题oracle/nop及8子题控制；⑤核验完整10控制收据和父题6项真实verifier。任何阶段失败即保留证据、停止，不自动扩边界或计模型分；通过后仍待本会话审查交接、提交及按完成条件处理任务文件。
+
+## 最新续接（2026-10-30，活动入口以此为准）
+
+- 旧PID92694已退出：排队期间遇到未设限的外部容器，严格资源检查返回 `missing or excessive suite Docker resource limits`，没有运行父题。未放宽或忽略该检查。
+- 本轮重新核验8项子题控制和完整inputs，执行身份仍为 `94dec6f0c90690b5c0ea348c8142a22b0cec1d62fa174df762f6dc93cb7653df`。任务47已释放预约，但其它校准仍在占用共享构建锁/资源。
+- 磁盘曾降至约16.5GiB，低于原父准入。本题三个完整/tmp归档已无损压缩，逐个解压流SHA与原tar一致，节省1587814374B；记录在 `archive-compression-continue.json`。两份重复public依赖目录逐文件与保留副本比对后清理，所有唯一来源、原始校准和最终OCI仍保留，记录在 `redundant-public-context-cleanup.json`。未清理其他任务缓存。归档现在使用 `probe-tmp.tar.gz`，历史原tar SHA仍可通过解压流复核。
+- 排队器的宿主门槛已对齐启动前的完整 `3C+Ucap512MiB+S10+B2+A1+安全5GiB`，避免在18GiB至完整门槛之间提前退出。PID79738已在未启动父题时终止；其 `resume-20261030-6a63d8ec/state.json` 记录原因。
+- **当前活动PID88322，exec session13139**；最新指针仍为 `active-resume.json`，目录 `resume-20261030-155d1125/`，日志 `queue-parent-resume-third.log`。当前为 `waiting_for_exclusive_parent_capacity`，没有本轮父题成绩。后续先检查此PID和state，禁止重复启动；取得窗口后仍按原资源、1800/1800秒和标准harbor_trial运行oracle/nop。仅恢复控制脚本与证据/说明变化，未修改被测实现或评测资产，未重复已通过测试，不提交仅状态更新。
+
+## 本次继续（2026-10-30）
+
+- 重新核验当前preparation inputs、20 fixture收据及8个标准子题控制：执行身份、当前物化字节、原物化包、原始评分及日志树均匹配，可严格复用。未重跑已通过的子题，未改共享实现。
+- 任务47的2CPU/4GiB预约仍由活跃的reserve-resources、真实x86虚拟机和原题oracle持有，已确认不是遗留占用，未清理或绕过。父题仍需原4CPU/8GiB独占窗口。
+- 已启动真实排队进程 PID `92694`（exec session `49605`），入口 `evals/promptfoo/results/qwen38-suite/diagnostics/rstan-to-pystan/queue-parent-resume.py`。活动指针 `active-resume.json`；本轮目录 `resume-20261030-284f352f/`，初态 `waiting_for_exclusive_parent_capacity`。最多等待2小时；仅资源完全空闲、执行身份及双边容量重新通过后，以标准harbor_trial顺序运行原父oracle/nop，各保持1800秒及原资源。不会重试失败控制、发起付费请求或自动生成就绪收据。
+- **续接前先检查此PID、活动指针和state.json，禁止重复启动队列。** 父题结束后审查本轮parent-controls原始评分与资源、正式验证完整preparation，再提交并按完成条件处理本文件；排队或失败不能算完成。本轮仅增加恢复记录，不提交仅状态更新。
 
 ## 本次授权恢复与交接（2026-10-30）
 

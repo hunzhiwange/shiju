@@ -432,6 +432,66 @@
               }
             }
           }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "contract_sha256",
+            "image",
+            "counts_as_original_official",
+            "files"
+          ],
+          "properties": {
+            "id": {
+              "const": "rstan-to-pystan-compat-https-apt"
+            },
+            "contract_sha256": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "image": {
+              "type": "string",
+              "pattern": "^vw-rstan-https-apt@sha256:[a-f0-9]{64}$"
+            },
+            "counts_as_original_official": {
+              "const": false
+            },
+            "files": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "contract.json",
+                "Dockerfile",
+                "base-packages.json",
+                "ubuntu.sources.before",
+                "ubuntu.sources.after"
+              ],
+              "properties": {
+                "contract.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "Dockerfile": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "base-packages.json": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "ubuntu.sources.before": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "ubuntu.sources.after": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              }
+            }
+          }
         }
       ]
     }
@@ -586,7 +646,8 @@
             "enum": [
               "build-cython-ext",
               "mcmc-sampling-stan",
-              "crack-7z-hash"
+              "crack-7z-hash",
+              "rstan-to-pystan"
             ]
           }
         },
@@ -650,6 +711,26 @@
               "properties": {
                 "case_id": {
                   "const": "crack-7z-hash"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "environment_variant": {
+                  "properties": {
+                    "id": {
+                      "const": "rstan-to-pystan-compat-https-apt"
+                    }
+                  }
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "case_id": {
+                  "const": "rstan-to-pystan"
                 }
               }
             }

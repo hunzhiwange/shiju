@@ -33,9 +33,20 @@ CMAKE_PACKAGES = {
 }
 
 
+APT_PARENT = 'rstan-to-pystan'
+APT_ID = 'rstan-to-pystan-compat-https-apt'
+APT_BASE = 'alexgshaw/rstan-to-pystan@sha256:b23d48839408524326095c15ada4145c772b87646cf299022ff1f58c97baba91'
+APT_BEFORE = '9a4af756e974a7a6b0a447705d1d12366cfa4d860d8722b652d69d8e1b44e34f'
+APT_AFTER = '92d2ff28918561a6c5e4ebf241769a57b13eebd1504d77d7a3a77a73e368c5ec'
+APT_INVENTORY = '35252d0e0d372c43725e7ec5f5e81dacd9ee604c3ec299f2770f16c04b43a910'
+APT_RECIPE = "FROM alexgshaw/rstan-to-pystan@sha256:b23d48839408524326095c15ada4145c772b87646cf299022ff1f58c97baba91\nRUN sed -i -e 's|^URIs: http://archive.ubuntu.com/ubuntu/$|URIs: https://archive.ubuntu.com/ubuntu/|' -e 's|^URIs: http://security.ubuntu.com/ubuntu/$|URIs: https://security.ubuntu.com/ubuntu/|' /etc/apt/sources.list.d/ubuntu.sources\n"
+APT_FILES = ('contract.json', 'Dockerfile', 'base-packages.json', 'ubuntu.sources.before', 'ubuntu.sources.after')
+
 def parent_for(descriptor):
     if not isinstance(descriptor, dict):
         raise ValueError('invalid environment variant descriptor')
+    if descriptor.get('id') == APT_ID:
+        return APT_PARENT
     if descriptor.get('id') == ID:
         return PARENT
     if descriptor.get('id') in (CMAKE_ID, STAN_ID):
@@ -77,6 +88,8 @@ def cmake_metadata(root, contract):
 
 
 def resolve(parent, descriptor):
+    if parent == APT_PARENT and parent_for(descriptor) == parent:
+        return resolve_apt(descriptor)
     if parent == CMAKE_PARENT and isinstance(descriptor, dict) and descriptor.get('id') == STAN_ID:
         return resolve_stan(descriptor)
     if parent == crack_variant.PARENT and parent_for(descriptor) == parent:
@@ -109,6 +122,38 @@ def resolve(parent, descriptor):
     minimal = {k: value[k] for k in ('id', 'contract_sha256')}
     if descriptor != minimal and descriptor != value:
         raise ValueError('environment variant descriptor drift')
+    return value
+
+
+def resolve_apt(descriptor):
+    root = CASES / APT_PARENT / 'variant'
+    if any((root / n).is_symlink() or not (root / n).is_file() for n in APT_FILES):
+        raise ValueError('missing trusted HTTPS APT variant files')
+    c = load(root / 'contract.json')
+    inventory = load(root / 'base-packages.json')
+    canonical = json.dumps(inventory, sort_keys=True, separators=(',', ':'))
+    if (set(c) != {'variant_id', 'original_parent_id', 'counts_as_original_official',
+                   'dependency_phase', 'base_image', 'image', 'dockerfile_sha256',
+                   'base_packages_sha256', 'sources_before_sha256', 'sources_after_sha256'}
+            or c['variant_id'] != APT_ID or c['original_parent_id'] != APT_PARENT
+            or c['counts_as_original_official'] is not False
+            or c['dependency_phase'] != 'image_build_before_agent' or c['base_image'] != APT_BASE
+            or not re.fullmatch(r'vw-rstan-https-apt@sha256:[a-f0-9]{64}', c['image'])
+            or (root / 'Dockerfile').read_text() != APT_RECIPE
+            or digest(root / 'Dockerfile') != c['dockerfile_sha256']
+            or digest(root / 'ubuntu.sources.before') != APT_BEFORE
+            or c['sources_before_sha256'] != APT_BEFORE
+            or digest(root / 'ubuntu.sources.after') != APT_AFTER
+            or c['sources_after_sha256'] != APT_AFTER
+            or digest(root / 'base-packages.json') != c['base_packages_sha256']
+            or (root / 'base-packages.json').read_text() != json.dumps(inventory, indent=2, sort_keys=True) + '\n'
+            or hashlib.sha256(canonical.encode()).hexdigest() != APT_INVENTORY):
+        raise ValueError('HTTPS APT variant exceeds the authorized two-URI boundary')
+    value = {'id': APT_ID, 'contract_sha256': digest(root / 'contract.json'),
+             'image': c['image'], 'counts_as_original_official': False,
+             'files': {n: digest(root / n) for n in APT_FILES}}
+    if descriptor not in (value, {k: value[k] for k in ('id', 'contract_sha256')}):
+        raise ValueError('HTTPS APT variant descriptor drift')
     return value
 
 
@@ -188,6 +233,8 @@ def check_package(path, descriptor):
 
 def expected_facts(descriptor):
     descriptor = resolve_descriptor(descriptor)
+    if descriptor['id'] == APT_ID:
+        return {'sources_sha256': APT_AFTER, 'base_inventory_sha256': APT_INVENTORY}
     if descriptor['id'] == STAN_ID:
         return {**expected_facts(stan_base_descriptor()), 'remotes_upgrade': 'never'}
     if parent_for(descriptor) == crack_variant.PARENT:
@@ -207,6 +254,14 @@ def expected_facts(descriptor):
 
 
 def probe_code(descriptor):
+    if descriptor['id'] == APT_ID:
+        return ("import subprocess,json,hashlib;from pathlib import Path;"
+                "raw=subprocess.check_output(['dpkg-query','-W','-f=${Package}\\t${Version}\\t${Architecture}\\n']).decode();"
+                "installed={};\n"
+                "for line in raw.splitlines():\n"
+                " name,version,arch=line.split('\\t');assert name not in installed;installed[name]={'version':version,'architecture':arch}\n"
+                "print(json.dumps({'sources_sha256':hashlib.sha256(Path('/etc/apt/sources.list.d/ubuntu.sources').read_bytes()).hexdigest(),"
+                "'base_inventory_sha256':hashlib.sha256(json.dumps(installed,sort_keys=True,separators=(',',':')).encode()).hexdigest()}))")
     if parent_for(descriptor) == PARENT:
         return ('import importlib.metadata as m,os,json,hashlib;from pathlib import Path;'
                 'p=Path("/opt/vw-compat/constraints.txt");'

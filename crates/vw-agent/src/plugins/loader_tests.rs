@@ -108,8 +108,8 @@ fn plugin_loader_accepts_absolute_configured_source_and_deduplicates_canonical_s
 }
 
 #[test]
-// 同名插件遵循来源顺序覆盖，测试锁定最终被选择的根目录。
-fn plugin_loader_prefers_later_source_for_duplicate_name() {
+// 工作区显式选择优先于全局副本，测试锁定最终被选择的根目录。
+fn plugin_loader_prefers_workspace_source_for_duplicate_name() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
@@ -123,7 +123,7 @@ fn plugin_loader_prefers_later_source_for_duplicate_name() {
 
     assert_eq!(discovery.installed.len(), 1);
     assert_eq!(discovery.installed[0].manifest.name, "duplicate-plugin");
-    assert_eq!(discovery.installed[0].source_dir, global_plugins);
+    assert_eq!(discovery.installed[0].source_dir, project_plugins);
 }
 
 #[test]
@@ -193,10 +193,17 @@ fn plugin_loader_reports_disabled_marker_inspection_errors() {
         .expect("lock marker parent");
 
     let options = PluginDiscoveryOptions::new(workspace_dir, config_dir, PluginsConfig::default());
-    let err = discover_plugins(&options).expect_err("disabled marker inspection fails");
+    let discovery = discover_plugins(&options).expect("other packages remain discoverable");
     fs::set_permissions(&hidden_dir, fs::Permissions::from_mode(0o755))
         .expect("restore marker parent");
-    let err = err.to_string();
+    assert!(discovery.installed.is_empty());
+    assert!(discovery.enabled.is_empty());
+    let err = &discovery
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.message.contains("failed to inspect plugin disabled marker"))
+        .expect("the rejected package retains its marker error")
+        .message;
 
     assert!(err.contains("failed to inspect plugin disabled marker"), "{err}");
     assert!(err.contains("hidden/plugin.disabled"), "{err}");
@@ -235,7 +242,11 @@ fn plugin_loader_reports_plugin_root_when_manifest_load_fails() {
     fs::write(manifest_dir.join("plugin.json"), "{").expect("invalid manifest");
     let options = PluginDiscoveryOptions::new(workspace_dir, config_dir, PluginsConfig::default());
 
-    let err = discover_plugins(&options).expect_err("invalid manifest rejected").to_string();
+    let discovery = discover_plugins(&options).expect("invalid package is isolated");
+    assert!(discovery.installed.is_empty());
+    assert!(discovery.enabled.is_empty());
+    assert_eq!(discovery.diagnostics[0].plugin_root, plugin_root);
+    let err = &discovery.diagnostics[0].message;
 
     assert!(err.contains("failed to load plugin"), "{err}");
     assert!(err.contains("broken-plugin"), "{err}");

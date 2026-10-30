@@ -1,0 +1,10 @@
+{
+  "phase": "green-compile-fix",
+  "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+  "exit_code": 101,
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+  "elapsed_seconds": 50.54,
+  "record": "t07/green-compile-fix.log"
+}

@@ -1,0 +1,10 @@
+{
+  "phase": "fmt-compile-fix",
+  "command": "cargo fmt --all",
+  "exit_code": 0,
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+  "elapsed_seconds": 9.06,
+  "record": "t07/fmt-compile-fix.log"
+}

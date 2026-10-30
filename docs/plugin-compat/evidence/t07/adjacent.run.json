@@ -1,0 +1,10 @@
+{
+  "phase": "adjacent",
+  "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+  "exit_code": 0,
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+  "elapsed_seconds": 78.55,
+  "record": "t07/adjacent.log"
+}

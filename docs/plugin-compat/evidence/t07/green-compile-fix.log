@@ -1,0 +1,15 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+error[E0603]: function `is_plugin_candidate` is private
+  --> crates/vw-agent/src/plugins/loader.rs:9:31
+   |
+ 9 | use super::compat::discovery::is_plugin_candidate;
+   |                               ^^^^^^^^^^^^^^^^^^^ private function
+   |
+note: the function `is_plugin_candidate` is defined here
+  --> crates/vw-agent/src/plugins/compat/discovery.rs:12:1
+   |
+12 | pub(super) fn is_plugin_candidate(root: &Path) -> Result<bool> {
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For more information about this error, try `rustc --explain E0603`.
+error: could not compile `vw-agent` (lib test) due to 1 previous error

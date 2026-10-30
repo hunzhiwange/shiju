@@ -6,6 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use vw_config_types::plugins::PluginsConfig;
 
+use super::compat::discovery::is_plugin_candidate;
 use super::compat::identity::read_install_metadata;
 use super::{PluginIdentity, PluginInstallMetadata, PluginManifest, load_plugin_manifest};
 
@@ -50,6 +51,14 @@ pub struct DiscoveredPlugin {
 pub struct PluginDiscovery {
     pub installed: Vec<DiscoveredPlugin>,
     pub enabled: Vec<DiscoveredPlugin>,
+    pub diagnostics: Vec<PluginDiscoveryDiagnostic>,
+}
+
+/// A rejected package and its source-specific failure, without discarding healthy packages.
+#[derive(Debug, Clone, PartialEq)]
+pub struct PluginDiscoveryDiagnostic {
+    pub plugin_root: PathBuf,
+    pub message: String,
 }
 
 /// Discover installed plugin packages and filter enabled plugins.
@@ -59,37 +68,21 @@ pub struct PluginDiscovery {
 pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscovery> {
     let source_dirs = plugin_source_dirs(options)?;
     let mut installed = Vec::new();
+    let mut diagnostics = Vec::new();
 
     for source_dir in source_dirs {
         for plugin_root in plugin_roots(&source_dir)? {
-            let manifest = load_plugin_manifest(&plugin_root)
-                .with_context(|| format!("failed to load plugin: {}", plugin_root.display()))?;
-            let install_metadata = read_install_metadata(&plugin_root, &manifest)?;
-            let identity = install_metadata
-                .as_ref()
-                .map(|metadata| metadata.identity.clone())
-                .unwrap_or_else(|| PluginIdentity::local(&manifest.name));
-            let disabled_marker = disabled_marker_path(&source_dir, &identity.as_key());
-            let disabled_marker = disabled_marker
-                .try_exists()
-                .with_context(|| {
-                    format!(
-                        "failed to inspect plugin disabled marker: {}",
-                        disabled_marker.display()
-                    )
-                })?
-                .then_some(disabled_marker);
-
-            upsert_plugin(
-                &mut installed,
-                DiscoveredPlugin {
-                    source_dir: source_dir.clone(),
-                    manifest,
-                    disabled_marker,
-                    identity,
-                    install_metadata,
-                },
-            )?;
+            let plugin = match load_discovered_plugin(&source_dir, &plugin_root) {
+                Ok(Some(plugin)) => plugin,
+                Ok(None) => continue,
+                Err(error) => {
+                    let message = format!("{error:#}");
+                    tracing::warn!(root = %plugin_root.display(), error = %message, "rejecting plugin package");
+                    diagnostics.push(PluginDiscoveryDiagnostic { plugin_root, message });
+                    continue;
+                }
+            };
+            upsert_plugin(&mut installed, plugin)?;
         }
     }
 
@@ -105,7 +98,48 @@ pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscov
         .cloned()
         .collect();
 
-    Ok(PluginDiscovery { installed, enabled })
+    Ok(PluginDiscovery { installed, enabled, diagnostics })
+}
+
+fn load_discovered_plugin(
+    source_dir: &Path,
+    plugin_root: &Path,
+) -> Result<Option<DiscoveredPlugin>> {
+    if !is_plugin_candidate(plugin_root)? {
+        return Ok(None);
+    }
+    let manifest = load_plugin_manifest(plugin_root)
+        .with_context(|| format!("failed to load plugin: {}", plugin_root.display()))?;
+    let install_metadata = read_install_metadata(plugin_root, &manifest)?;
+    let identity = install_metadata
+        .as_ref()
+        .map(|metadata| metadata.identity.clone())
+        .unwrap_or_else(|| PluginIdentity::local(&manifest.name));
+    let marker = disabled_marker_path(source_dir, &identity.as_key());
+    let disabled_marker = match fs::symlink_metadata(&marker) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                bail!(
+                    "plugin disabled marker must be a regular file, not a symlink: {}",
+                    marker.display()
+                );
+            }
+            Some(marker)
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            return Err(error).with_context(|| {
+                format!("failed to inspect plugin disabled marker: {}", marker.display())
+            });
+        }
+    };
+    Ok(Some(DiscoveredPlugin {
+        source_dir: source_dir.to_path_buf(),
+        manifest,
+        disabled_marker,
+        identity,
+        install_metadata,
+    }))
 }
 
 fn plugin_source_dirs(options: &PluginDiscoveryOptions) -> Result<Vec<PathBuf>> {
@@ -125,11 +159,10 @@ fn plugin_source_dirs(options: &PluginDiscoveryOptions) -> Result<Vec<PathBuf>> 
         if source.is_empty() {
             continue;
         }
-        push_source_dir(
-            &mut dirs,
-            &mut seen,
-            resolve_configured_source(&options.workspace_dir, source),
-        )?;
+        let path = resolve_configured_source(&options.workspace_dir, source);
+        if !push_source_dir(&mut dirs, &mut seen, path.clone())? {
+            bail!("configured plugin source does not exist: {}", path.display());
+        }
     }
 
     Ok(dirs)
@@ -139,10 +172,10 @@ fn push_source_dir(
     dirs: &mut Vec<PathBuf>,
     seen: &mut HashSet<PathBuf>,
     path: PathBuf,
-) -> Result<()> {
+) -> Result<bool> {
     let metadata = match fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(error) => {
             return Err(error)
                 .with_context(|| format!("failed to inspect plugin source: {}", path.display()));
@@ -163,7 +196,7 @@ fn push_source_dir(
         dirs.push(path);
     }
 
-    Ok(())
+    Ok(true)
 }
 
 fn resolve_configured_source(workspace_dir: &Path, source: &str) -> PathBuf {
@@ -179,14 +212,10 @@ fn plugin_roots(source_dir: &Path) -> Result<Vec<PathBuf>> {
         let entry = entry.with_context(|| {
             format!("failed to read plugin source entry: {}", source_dir.display())
         })?;
-        if entry
-            .file_type()
-            .with_context(|| {
-                format!("failed to inspect plugin source entry: {}", entry.path().display())
-            })?
-            .is_dir()
-            && entry.path().join(".vibewindow-plugin/plugin.json").is_file()
-        {
+        let file_type = entry.file_type().with_context(|| {
+            format!("failed to inspect plugin source entry: {}", entry.path().display())
+        })?;
+        if file_type.is_dir() || file_type.is_symlink() {
             roots.push(entry.path());
         }
     }
@@ -205,8 +234,9 @@ fn upsert_plugin(plugins: &mut Vec<DiscoveredPlugin>, plugin: DiscoveredPlugin) 
     }) {
         bail!("ambiguous local and marketplace plugin identity: {}", plugin.identity.as_key());
     }
-    if let Some(index) = plugins.iter().position(|existing| existing.identity == plugin.identity) {
-        plugins.remove(index);
+    // Source order is priority order; a later duplicate cannot revive a disabled workspace copy.
+    if plugins.iter().any(|existing| existing.identity == plugin.identity) {
+        return Ok(());
     }
     plugins.push(plugin);
     Ok(())

@@ -29,7 +29,10 @@ pub use install::{
     PluginInstallResult, install_plugin_from_marketplace, install_plugin_from_source,
 };
 pub(crate) use install::{install_dir_from_config, remove_installed_plugin, set_plugin_enabled};
-pub use loader::{DiscoveredPlugin, PluginDiscovery, PluginDiscoveryOptions, discover_plugins};
+pub use loader::{
+    DiscoveredPlugin, PluginDiscovery, PluginDiscoveryDiagnostic, PluginDiscoveryOptions,
+    discover_plugins,
+};
 pub use manifest::load_plugin_manifest;
 pub(crate) use mcp::{merge_enabled_plugin_mcp_servers, plugin_mcp_discovery_options};
 pub(crate) use skills::load_plugin_skills;

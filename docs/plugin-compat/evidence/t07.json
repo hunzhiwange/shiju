@@ -1,0 +1,344 @@
+{
+  "schema_version": 1,
+  "task": 7,
+  "items": [
+    {
+      "id": "discovery.legacy-order",
+      "tasks": [
+        7
+      ],
+      "tests": [
+        "codex_plugin_compat_t07_discovers_all_manifest_formats",
+        "codex_plugin_compat_t07_rejects_invalid_input",
+        "codex_plugin_compat_t07_preserves_isolation",
+        "codex_plugin_compat_t07_selects_portable_then_native_then_legacy",
+        "codex_plugin_compat_t07_ignores_unrelated_roots_and_keeps_legacy_fallback",
+        "codex_plugin_compat_t07_preserves_disabled_priority_and_stable_order",
+        "codex_plugin_compat_t07_reports_invalid_explicit_sources",
+        "codex_plugin_compat_t07_isolates_rejected_installation_metadata",
+        "codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers",
+        "codex_plugin_compat_t07_rejects_symlinks_without_following_them"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 325.57,
+        "record": "t07/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 137.71,
+        "record": "t07/green.log",
+        "effective_tests": 10
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 7 discovery, source priority and rejected-package isolation only; no execution or cross-platform compatibility claim."
+    },
+    {
+      "id": "discovery.portable-precedence",
+      "tasks": [
+        7
+      ],
+      "tests": [
+        "codex_plugin_compat_t07_discovers_all_manifest_formats",
+        "codex_plugin_compat_t07_rejects_invalid_input",
+        "codex_plugin_compat_t07_preserves_isolation",
+        "codex_plugin_compat_t07_selects_portable_then_native_then_legacy",
+        "codex_plugin_compat_t07_ignores_unrelated_roots_and_keeps_legacy_fallback",
+        "codex_plugin_compat_t07_preserves_disabled_priority_and_stable_order",
+        "codex_plugin_compat_t07_reports_invalid_explicit_sources",
+        "codex_plugin_compat_t07_isolates_rejected_installation_metadata",
+        "codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers",
+        "codex_plugin_compat_t07_rejects_symlinks_without_following_them"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 325.57,
+        "record": "t07/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 137.71,
+        "record": "t07/green.log",
+        "effective_tests": 10
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 7 discovery, source priority and rejected-package isolation only; no execution or cross-platform compatibility claim."
+    },
+    {
+      "id": "acceptance.t07",
+      "tasks": [
+        7
+      ],
+      "tests": [
+        "codex_plugin_compat_t07_discovers_all_manifest_formats",
+        "codex_plugin_compat_t07_rejects_invalid_input",
+        "codex_plugin_compat_t07_preserves_isolation",
+        "codex_plugin_compat_t07_selects_portable_then_native_then_legacy",
+        "codex_plugin_compat_t07_ignores_unrelated_roots_and_keeps_legacy_fallback",
+        "codex_plugin_compat_t07_preserves_disabled_priority_and_stable_order",
+        "codex_plugin_compat_t07_reports_invalid_explicit_sources",
+        "codex_plugin_compat_t07_isolates_rejected_installation_metadata",
+        "codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers",
+        "codex_plugin_compat_t07_rejects_symlinks_without_following_them"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 325.57,
+        "record": "t07/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 137.71,
+        "record": "t07/green.log",
+        "effective_tests": 10
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 7 discovery, source priority and rejected-package isolation only; no execution or cross-platform compatibility claim."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+    "lease_released": true,
+    "lease_note": "Runner released each owned lease after all Cargo and test children ended; other plans may immediately reuse the slot."
+  },
+  "validation_runs": [
+    {
+      "phase": "fmt-red",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 10.26,
+      "record": "t07/fmt-red.log"
+    },
+    {
+      "phase": "red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 325.57,
+      "record": "t07/red.log"
+    },
+    {
+      "phase": "fmt-compile-fix",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.06,
+      "record": "t07/fmt-compile-fix.log"
+    },
+    {
+      "phase": "green-compile-fix",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 50.54,
+      "record": "t07/green-compile-fix.log"
+    },
+    {
+      "phase": "fmt",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.97,
+      "record": "t07/fmt.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t07_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 137.71,
+      "record": "t07/green.log",
+      "effective_tests": 10
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 78.55,
+      "record": "t07/adjacent.log",
+      "effective_tests": 160
+    },
+    {
+      "phase": "clippy",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 104.64,
+      "record": "t07/clippy.log"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t07.json",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t07.json",
+      "exit_code": 1,
+      "expected": "The unmodified complete frozen baseline rejects partial Task 7 evidence",
+      "diagnostic": "Evidence rejected: discovery.legacy-order: missing mapped task evidence"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reference_snapshot": {
+    "kind": "Local source frozen by SHA-256; no Git revision asserted",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugins/src/loader.rs": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "codex-rs/utils/plugins/src/plugin_namespace.rs": "1515279deb99c997b407b987abae681ee6b3b3b8a7c7cdd1b33dd5a2ec240bad",
+      "codex-rs/exec-server-protocol/src/protocol.rs": "9fcea3d88e4d2e07cfb6611723e5242571cec3c0071c769dc712b74d9f2881fe"
+    },
+    "symbols": [
+      "DISCOVERABLE_PLUGIN_MANIFEST_PATHS",
+      "find_plugin_manifest_path",
+      "agent_plugin_schema_status",
+      "load_plugins_from_layer_stack_with_scope",
+      "load_plugin"
+    ]
+  },
+  "package_isolation": [
+    "Five supported manifest entry points are discovered through the public entry point; original bytes remain unchanged.",
+    "Root portable selection, unsupported-version rejection and native/legacy precedence are checked without fallback after selecting an invalid manifest.",
+    "One malformed package or installation record is rejected with its root and error; unrelated healthy packages remain installed and enabled.",
+    "Real skill and MCP configuration consumers retain a healthy declared skill and server beside a malformed package. No MCP process was executed by this test.",
+    "Same-name marketplaces remain distinct, disabled exact identities stay disabled and repeated discovery has stable order.",
+    "Plugin-root, selected-manifest and dangling disabled-marker symlinks are rejected without following or changing the external target. Explicit missing or non-directory sources are errors."
+  ],
+  "source_precedence": {
+    "order": [
+      "workspace/.vibewindow/plugins",
+      "workspace/plugins",
+      "config/plugins",
+      "configured sources in declaration order"
+    ],
+    "duplicate_identity": "First valid occurrence wins; source children are sorted by path. A disabled selected occurrence is retained and cannot be revived by a later valid duplicate.",
+    "canonical_source_duplicates": "Only the first occurrence of a canonical source directory is scanned.",
+    "behavior_change": "The task explicitly requires workspace priority. This replaces the former last-source-wins behavior which let global or appended sources overwrite workspace packages; the adjacent precedence test is updated accordingly."
+  },
+  "security_differences": [
+    "Native packages retain .vibewindow-plugin before legacy alternatives when no recognized portable root is selected.",
+    "Single-package parse or state errors become visible root-specific diagnostics and do not admit that package. Adjacent safety tests still assert no installed/enabled rejected package, no lifecycle action and no writes outside its scope.",
+    "Invalid source roots and local/marketplace identities sharing one public key remain fatal errors rather than selecting an ambiguous identity.",
+    "A dangling or nonregular disabled marker is an error; it never implicitly enables its package.",
+    "Unrelated root JSON is ignored without a legacy/native entry; recognized unknown portable schemas and unsafe selected entries never downgrade.",
+    "Only existing workspace/config roots and explicit sources are scanned; no automatic scan or modification of the Codex home is introduced."
+  ],
+  "diagnostics": [
+    "The original three tests all reached their target runtime failures. The host then aborted while initiating panic (SIGABRT); no completed failed-test summary is invented.",
+    "green-compile-fix preserves a first implementation compile error caused by helper visibility. It was fixed before final green, adjacent and clippy validation; compile errors are not counted as behavior-red evidence."
+  ],
+  "deferred_scope": {
+    "8": "Transactional original-package installation",
+    "9": "Multiple-skill directory inventory and discovery-mode execution",
+    "14": "Legacy MCP declaration execution",
+    "15": "Portable MCP declaration execution",
+    "55": "Desktop compatibility-status presentation",
+    "64": "Actual Linux and Windows acceptance"
+  },
+  "artifacts_sha256": {
+    "crates/vw-agent/testdata/plugin_compat/t07/README.md": "ee2ce62143849adf41fbdd7a01ca5d6b98ceaffcbde0b95ebdb768f8e0c19468",
+    "crates/vw-agent/testdata/plugin_compat/t07/legacy.json": "c46b15f7af61d4cfc2a32efa2f8433a375f3edc93d3f791b201bbb2eb3597753",
+    "crates/vw-agent/testdata/plugin_compat/t07/native.json": "4d4deea30642d8cbd6af20f0371bf23192b468527c8934005877e46e1bf50dad",
+    "crates/vw-agent/testdata/plugin_compat/t07/portable.json": "6c5ac25baeed253acc0674496cef976725c13ff9c92b497bf0fef35036b1752b",
+    "docs/plugin-compat/evidence/t07/adjacent.log": "5002c0a7b16a69c0ac26ba164701e3652bac901b0080fbdc0761521dbc37689e",
+    "docs/plugin-compat/evidence/t07/adjacent.run.json": "3dc131230fae3c8128f1c09dd3baccd09977cc44b8002aca67b68d62a04ba9cd",
+    "docs/plugin-compat/evidence/t07/clippy.log": "c085a6dfc9752b427671dafcbc991a8cef550f99a43883b833693d0c56b21ed7",
+    "docs/plugin-compat/evidence/t07/clippy.run.json": "f4d50b317debb57e5f1519be6e53b1a8a083c9c4b14e05bed5ce42fb981c6b77",
+    "docs/plugin-compat/evidence/t07/fmt-compile-fix.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t07/fmt-compile-fix.run.json": "39876bffa3ea678b0fe49754683956dcbf22329beef1df9f9d36595f21c0ae06",
+    "docs/plugin-compat/evidence/t07/fmt-red.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t07/fmt-red.run.json": "4c5b0f116a6cf00899273b200851a0c95cc1661dbc8caa9b05d4fee9b6c9045f",
+    "docs/plugin-compat/evidence/t07/fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t07/fmt.run.json": "661f2223db3e5b008679652ed1f595814d2224ad21c1be0ea45e195943e7808f",
+    "docs/plugin-compat/evidence/t07/green-compile-fix.log": "b4fc61cae33fbba3a338b2edbe30f2ce369a7ed424b727d2f11519e1b3c70a07",
+    "docs/plugin-compat/evidence/t07/green-compile-fix.run.json": "c895c5f642391bef90b59d975a59239bea669ae4f1e2769df332c95752e94ee2",
+    "docs/plugin-compat/evidence/t07/green.log": "5d5906936a2c11e77efc3b1bc5051dbf399f5ea02e6c368bc9601653d39f5cdd",
+    "docs/plugin-compat/evidence/t07/green.run.json": "10fef838eeba12677d3167e1568dd419f8cfb8c4776a434ba338300dc86a40d3",
+    "docs/plugin-compat/evidence/t07/red.log": "d423785d9362ddc97d04f4c7e048522df8226679cdc343767f1e92bd30b3e934",
+    "docs/plugin-compat/evidence/t07/red.run.json": "222a64a66314bc523a584a3d823b7319c84d8aae6a7a0a32b49c6c93a9867798"
+  },
+  "artifact_note": "Captured log trailing whitespace and empty final lines are normalized; empty formatter output remains an empty log.",
+  "scope_note": "Partial Task 7 macOS evidence. The unchanged full-baseline checker must reject this partial record; it does not claim complete plugin compatibility."
+}

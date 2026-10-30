@@ -175,19 +175,23 @@ fn codex_plugin_compat_t06_rejects_mismatched_or_missing_metadata() {
         let mut record: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         record[field] = value.into();
         fs::write(&sidecar, serde_json::to_vec(&record).unwrap()).unwrap();
-        assert!(discover_plugins(&options).is_err(), "{field}");
+        let rejected = discover_plugins(&options).expect("bad package state is isolated");
+        assert!(rejected.installed.is_empty(), "{field}");
+        assert!(rejected.enabled.is_empty(), "{field}");
+        assert!(
+            rejected.diagnostics.iter().any(|d| d.plugin_root == installed.installed_dir),
+            "{field}"
+        );
         assert!(set_plugin_enabled(&plugins, "sample.plugin@alpha", false).is_err());
         assert!(remove_installed_plugin(&plugins, "sample.plugin@alpha").is_err());
         assert!(installed.installed_dir.is_dir());
         assert!(!plugins.join("sample.plugin@alpha.disabled").exists());
     }
     fs::remove_file(&sidecar).unwrap();
-    assert!(
-        discover_plugins(&options)
-            .unwrap_err()
-            .to_string()
-            .contains("missing installation metadata")
-    );
+    assert!(discover_plugins(&options).unwrap().diagnostics.iter().any(|d| {
+        d.plugin_root == installed.installed_dir
+            && d.message.contains("missing installation metadata")
+    }));
     assert!(remove_installed_plugin(&plugins, "sample.plugin@alpha").is_err());
     fs::write(&sidecar, bytes).unwrap();
     assert_eq!(discover_plugins(&options).unwrap().enabled.len(), 1);
@@ -251,7 +255,10 @@ fn codex_plugin_compat_t06_rejects_symlink_state_without_touching_other_packages
         &config,
         PluginsConfig::default(),
     );
-    assert!(discover_plugins(&options).is_err());
+    let rejected = discover_plugins(&options).unwrap();
+    assert!(rejected.installed.is_empty());
+    assert!(rejected.enabled.is_empty());
+    assert!(rejected.diagnostics.iter().any(|d| d.plugin_root == installed.installed_dir));
     assert!(remove_installed_plugin(&plugins, "sample.plugin@alpha").is_err());
     assert!(installed.installed_dir.is_dir());
     assert_eq!(fs::read_to_string(&outside).unwrap(), "unchanged");

@@ -11,7 +11,7 @@ use super::super::types::{PluginInterface, PluginManifest, PluginMcpServers, Plu
 use super::legacy_manifest::parse_legacy_manifest;
 
 const SCHEMA: &str = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
-const SCHEMA_PREFIX: &str = "https://agent-plugins.org/schemas/";
+pub(super) const SCHEMA_PREFIX: &str = "https://agent-plugins.org/schemas/";
 const FIELDS: &[&str] = &[
     "$schema",
     "name",

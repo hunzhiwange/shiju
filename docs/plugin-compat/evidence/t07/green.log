@@ -1,0 +1,17 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 17s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 10 tests
+test plugins::compat::t07_tests::codex_plugin_compat_t07_rejects_invalid_input ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_ignores_unrelated_roots_and_keeps_legacy_fallback ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_reports_invalid_explicit_sources ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_discovers_all_manifest_formats ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_rejects_symlinks_without_following_them ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_preserves_healthy_skill_and_mcp_consumers ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_preserves_disabled_priority_and_stable_order ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_selects_portable_then_native_then_legacy ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_isolates_rejected_installation_metadata ... ok
+test plugins::compat::t07_tests::codex_plugin_compat_t07_preserves_isolation ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10478 filtered out; finished in 0.06s

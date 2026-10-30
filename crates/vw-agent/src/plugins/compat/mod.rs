@@ -1,5 +1,6 @@
 //! 插件清单兼容适配与通过真实入口运行的独立验收测试。
 
+pub(super) mod discovery;
 pub(super) mod identity;
 pub(super) mod legacy_manifest;
 pub(super) mod path_audit;
@@ -24,3 +25,7 @@ mod t05_tests;
 #[cfg(test)]
 #[path = "t06_tests.rs"]
 mod t06_tests;
+
+#[cfg(test)]
+#[path = "t07_tests.rs"]
+mod t07_tests;

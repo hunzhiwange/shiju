@@ -1,0 +1,1 @@
+Synthetic diagnostic m4; no real accounts, secrets, or upstream data. All paths are supplied by each request.

@@ -1,0 +1,35 @@
+{
+  "allowed": [
+    "d",
+    "a",
+    "b"
+  ],
+  "proteins": [
+    {
+      "id": "d",
+      "sequence": "MAVK",
+      "ligand": null,
+      "excitation_nm": 481,
+      "emission_nm": 510
+    },
+    {
+      "id": "a",
+      "sequence": "MAVK",
+      "ligand": null,
+      "excitation_nm": 590,
+      "emission_nm": 623
+    },
+    {
+      "id": "b",
+      "sequence": "MAVK",
+      "ligand": "synthetic-L",
+      "excitation_nm": null,
+      "emission_nm": null
+    }
+  ],
+  "target": {
+    "excitation_nm": 481,
+    "emission_nm": 623,
+    "ligand": "synthetic-L"
+  }
+}

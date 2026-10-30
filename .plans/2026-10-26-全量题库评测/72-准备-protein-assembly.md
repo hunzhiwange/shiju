@@ -83,3 +83,22 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 补充：`evals/promptfoo/score.sh test` 退出0（Configuration is valid）；日志promptfoo-validation.log。仅既有配置静态验证，没有模型调用。
 
 阻塞原因：等待主会话分配新的Docker窗口，69父阶段优先。主机20组控制与Clippy已通过，但原父题及容器校准证据尚未齐备；收到新窗口后续接。
+
+
+## 2026-10-31 突破调度阻塞与真实容器复核
+
+状态：**已阻塞（阻塞已更新为上游参考解失败，已解除旧 Docker 窗口等待）**。诊断资产已完成本轮确定性校准；完整父题未通过，不标 ready，不删除任务文件、不修改 plan.md。
+
+- 修复本题 checker 的真实容器导入冲突：从 `/app` 启动时，候选 `select.py` 遮蔽 stdlib `select`，导致 checker 基础设施 exit 2。仅在本题 checker 导入依赖前移除候选工作目录搜索路径；候选程序仍以 `-I` 执行。新增 fresh-process `json.py` 遮蔽回归（macOS 的 select 是内建模块），先红 1 项失败，再修复转绿。没有修改公共 Suite/Harbor、被测 Agent 或原题。
+- 指定 unittest 命令退出 0：4 个测试，含 20 组 gold/nop/语义负例及格式、同义密码子、连接肽边界、导入隔离覆盖。指定 diagnostics CLI `validate --run-fixtures` 退出 0：20 个 fresh、离线、受限容器，4 gold 通过、4 nop 与 12 负例拒绝。`evals/promptfoo/score.sh test` 退出 0，仅静态配置校验，无模型请求。
+- 最终独立窗口 `preflight/protein-assembly-children-windowed-20261031/children-calibration.json`：4 子题各一次 fresh 标准 Harbor oracle/nop，共 8 Trials，全部 oracle=1、nop=0；含每次磁盘准入、公共 backend 资源收据、镜像构建日志及实际容器 HostConfig 采样。最终窗口显式检查其他父题数量并串行执行；早先共享资源竞争与磁盘不足的中断证据原样保留，不作为最终窗口替代物。
+- 原镜像 `alexgshaw/protein-assembly:20260403` digest 为 `sha256:602c467ae6b661a73441b960d9fa7130f068f4c6041d37ef8632611733d83f4a`，config digest `sha256:2a47b0bd852b71effd01caaded10f3897b25712c8b87b0921a5f67079338ac5f`。压缩层总计 44,235,754 字节，解压 tar 总计 125,246,464 字节；下载内容 SHA、diff-ID、导入配置/层链全部核验。镜像内三份输入与上游源逐一 SHA 一致；全部 11 个官方文件保持 catalog 哈希。宿主/VM 空间按较小值准入，初次导入保留三份 C、512MiB 解压硬上限、原 S/B/A 和 5GiB 余量；缓存复用与实际下载 44,235,754 字节分开记录。中途空间收紧曾拒绝启动，恢复后重新准入。
+- 原题真实标准 Harbor oracle 已执行至未改动的官方 verifier，reward=0（预期应为 1）；另补跑独立原题 nop，reward=0。原题实测 1 CPU、4GiB 内存且 MemorySwap=Memory，保留 storage=10240MiB 与 agent/verifier 各 1800 秒。参考解的 `gblock.py` 在 DNAChisel `EnforceTranslation` 失败，未生成 `/app/gblock.txt`。容器内网络已成功完成抗体靶标、PubChem、PDB、FPBase 与 verifier 依赖获取。
+- 已确定真实根因：5WJ2 canonical 序列第 86 个零基位置与 2H5Q 第 70 个零基位置各为 `X`；当前 PDB REST 两份响应均无参考解依赖的 modified_monomer features。按官方参考解去初始 M、拼接域与连接肽后，两处 X 恰好映射至核苷酸 `[324,327)`、`[1611,1614)`，与 DNAChisel 错误逐一一致。这是原题 Agent/参考解阶段失败，不能用 verifier-only 依赖修复解决。没有重跑/替换原题参考解、伪造 API、硬编码官方序列、放宽评分或用诊断成功冒充父题通过。
+- 新鲜 Clippy `cargo clippy --all-targets --all-features -- -D warnings` 退出 0；动态槽位 **3**，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-3`，`CARGO_BUILD_JOBS=1`。有效行为验证为前述 4 个 unittest、20 容器控制、8 子题 Trials 与 2 父题 Trials；Clippy 本身有效测试数为 0。自有槽位 3 锁已释放，缓存保留。先前槽位 2 的运行退出 101（临时 rmeta 目录不存在，随后自有 owner.json 也消失），仅保留原始日志；没有删除当时已重建的他人槽位锁或缓存。未修改 Rust，未执行全量 cargo test、fmt check、wasm 或 Makefile。
+
+主要证据均在忽略目录 `evals/promptfoo/results/qwen38-suite/diagnostics/protein-assembly/resume-20261030/`：`import-shadow-red.log`、`import-shadow-green.log`、`validate-final.log`、`runtime-probe-final.log`、`parent-image-inputs-verified.json`、`parent-oracle-failure.json`、`current-pdb-api-diagnosis.json`、`parent-nop.log`、`children-windowed.log`、`children-windowed-actual-inspects.json`、`clippy-final.log` 与 `clippy-final-metadata.json`。父题失败预检完整收据在 `preflight/protein-assembly-20261031-cached/`；最终子题证据在 `preflight/protein-assembly-children-windowed-20261031/`。原始调度/容量失败记录保留，成功的 diagnostics validation.json 不等于 preparation/ready receipt；本题根目录没有伪造 preparation.json。
+
+恢复入口：由上游恢复与冻结参考解相容的 PDB 数据契约，或先明确更新上游冻结源与 catalog，再修复参考解的修饰残基解析；不能在本任务内改只读原包或悄悄接受哈希漂移。恢复后使用忽略目录 `resume-20261030/runtime.json` 与新输出目录重跑标准完整 preflight，要求原题 oracle=1/nop=0 后才能解除阻塞。模型仍固定 token-plan/qwen3.8-flash、32000 输出、200000 输入窗口；本轮没有付费调用。
+
+提交检查清理了 9 个错误 fixture 的多余末尾空行，随后重新运行 4 个 unittest 与 20 个容器控制并刷新 validation.json。`child-materialization-reverified.json` 证明最终字节重新物化的四任务与已通过的 8 次 Harbor 任务逐字相同；`final-checkpoint.json` 绑定最终收据及依赖哈希。

@@ -1,0 +1,154 @@
+{
+  "schema_version": 1,
+  "parent_id": "protein-assembly",
+  "image": "vw-log-summary-diagnostics:task52-single@sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf",
+  "policy": {
+    "model": "token-plan/qwen3.8-flash",
+    "max_output_tokens": 32000,
+    "input_window_tokens": 200000,
+    "agent_timeout_sec": 900,
+    "verifier_timeout_sec": 120,
+    "max_turns": 24,
+    "max_tools": 32,
+    "attempts": 1,
+    "fresh_container": true
+  },
+  "children": [
+    {
+      "id": "m1",
+      "instruction": "fixtures/m1/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m1/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m1/task.json"
+      },
+      "gold": {
+        "parse.py": "oracle/m1/gold/parse.py"
+      },
+      "negatives": [
+        {
+          "id": "keep-initial-m",
+          "files": {
+            "parse.py": "oracle/m1/keep-initial-m/parse.py"
+          }
+        },
+        {
+          "id": "remove-all-m",
+          "files": {
+            "parse.py": "oracle/m1/remove-all-m/parse.py"
+          }
+        },
+        {
+          "id": "swap-peaks",
+          "files": {
+            "parse.py": "oracle/m1/swap-peaks/parse.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "instruction": "fixtures/m2/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m2/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m2/task.json"
+      },
+      "gold": {
+        "select.py": "oracle/m2/gold/select.py"
+      },
+      "negatives": [
+        {
+          "id": "ignore-allowlist",
+          "files": {
+            "select.py": "oracle/m2/ignore-allowlist/select.py"
+          }
+        },
+        {
+          "id": "wrong-axis",
+          "files": {
+            "select.py": "oracle/m2/wrong-axis/select.py"
+          }
+        },
+        {
+          "id": "wrong-ligand",
+          "files": {
+            "select.py": "oracle/m2/wrong-ligand/select.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m3",
+      "instruction": "fixtures/m3/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "example.json": "fixtures/m3/example.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m3/task.json"
+      },
+      "gold": {
+        "validate.py": "oracle/m3/gold/validate.py"
+      },
+      "negatives": [
+        {
+          "id": "first-window-only",
+          "files": {
+            "validate.py": "oracle/m3/first-window-only/validate.py"
+          }
+        },
+        {
+          "id": "ignore-linkers",
+          "files": {
+            "validate.py": "oracle/m3/ignore-linkers/validate.py"
+          }
+        },
+        {
+          "id": "strict-boundaries",
+          "files": {
+            "validate.py": "oracle/m3/strict-boundaries/validate.py"
+          }
+        }
+      ]
+    },
+    {
+      "id": "m4",
+      "instruction": "fixtures/m4/instruction.md",
+      "checker": "check.py",
+      "fixtures": {
+        "design.json": "fixtures/m4/design.json"
+      },
+      "oracle": {
+        "task.json": "oracle/m4/task.json"
+      },
+      "gold": {
+        "gblock.txt": "oracle/m4/gold/gblock.txt"
+      },
+      "negatives": [
+        {
+          "id": "terminal-start",
+          "files": {
+            "gblock.txt": "oracle/m4/terminal-start/gblock.txt"
+          }
+        },
+        {
+          "id": "stop-codon",
+          "files": {
+            "gblock.txt": "oracle/m4/stop-codon/gblock.txt"
+          }
+        },
+        {
+          "id": "wrong-order",
+          "files": {
+            "gblock.txt": "oracle/m4/wrong-order/gblock.txt"
+          }
+        }
+      ]
+    }
+  ]
+}

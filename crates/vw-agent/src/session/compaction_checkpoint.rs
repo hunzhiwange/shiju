@@ -12,21 +12,21 @@ struct Checkpoint {
     retained_user: Option<Value>,
 }
 
-fn validate_session(session: &str) -> Result<(), String> {
+pub(super) fn validate_session(session: &str) -> Result<(), String> {
     if session.is_empty() || matches!(session, "." | "..") || session.contains(['/', '\\']) {
         return Err("invalid session ID for context checkpoint".into());
     }
     Ok(())
 }
 
-fn scope_for_directory(directory: &str) -> String {
+pub(super) fn scope_for_directory(directory: &str) -> String {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let identity =
         json!([tenant.platform_id().as_ref(), tenant.company_id().as_ref(), directory]).to_string();
     hex::encode(Sha256::digest(identity.as_bytes()))
 }
 
-fn message_hash(message: &Value) -> String {
+pub(super) fn message_hash(message: &Value) -> String {
     // Exclude transient timing, model selection and input-source annotations.
     let value = json!({"role": message["role"], "content": message["content"],
         "tool_calls": message["tool_calls"], "tool_call_id": message["tool_call_id"], "name": message["name"]});
@@ -85,6 +85,7 @@ pub(crate) async fn restore(session: &str, history: &[Value]) -> Result<Vec<Valu
 }
 
 pub(crate) async fn copy(source: &str, target: &str) -> Result<(), String> {
+    super::skill_checkpoint::copy(source, target).await?;
     validate_session(source)?;
     validate_session(target)?;
     let scope = scope_for_directory(&crate::project::instance::directory());
@@ -102,6 +103,7 @@ pub(crate) async fn copy(source: &str, target: &str) -> Result<(), String> {
 }
 
 pub(crate) async fn remove(session: &str, directory: &str) -> Result<(), String> {
+    super::skill_checkpoint::remove(session, directory).await?;
     validate_session(session)?;
     let scope = scope_for_directory(directory);
     for key in

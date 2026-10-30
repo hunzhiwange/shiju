@@ -22,7 +22,7 @@ use super::utils::{
     compact_tool_output, compact_tool_output_for_ui, maybe_inject_file_link, now_ms,
     sanitize_tool_input, sanitize_tool_input_for_ui, tool_fingerprint,
 };
-use crate::app::agent::tools::traits::{ToolContextUpdate, ToolExtraMessage};
+use crate::app::agent::tools::traits::ToolExtraMessage;
 use crate::app::agent::tools::{self, ToolCallError, ToolRuntimeContext};
 use crate::app::agent::tools::{is_todo_read_tool_id, is_todo_write_tool_id};
 use crate::session::child_agent::coordinator::{
@@ -39,7 +39,6 @@ const FULL_SESSION_OUTPUT_TOOLS: &[&str] = &["apply_patch", "write", "file_write
 pub(crate) struct ToolProtocolOutput {
     pub(crate) content_for_model: String,
     pub(crate) extra_messages: Vec<ToolExtraMessage>,
-    pub(crate) context_updates: Vec<ToolContextUpdate>,
 }
 
 fn string_value(value: &str) -> serde_json::Value {
@@ -1148,91 +1147,86 @@ pub(crate) fn run_tool_and_record_with_protocol(
     if let Some(created) = agent_child_created.as_ref() {
         track_background_agent_child(tool_state, &input_effective, created);
     }
-    let (ui_payload, session_message, content_for_model, extra_messages, context_updates) =
-        match execution.result {
-            // 工具执行成功的情况
-            Ok(v) => {
-                let extra_messages = v.extra_messages.clone();
-                let context_updates = v.context_updates.clone();
-                // 可能注入文件链接（例如在输出中添加可点击的文件路径）
-                let output_full = maybe_inject_file_link(name, input, ctx, &v.model_text());
-                // 为 UI 显示压缩输出（更简洁）
-                let output_ui = compact_tool_output_for_ui(name, &output_full);
-                // 为会话存储压缩输出（保留更多信息）
-                let output_for_model = compact_tool_output(name, &output_full);
-                let output_session = if preserve_full_output_in_session(name) {
-                    output_full.clone()
-                } else {
-                    output_for_model.clone()
-                };
-                if is_agent_tool(name) {
-                    let lifecycle_status = agent_tool_lifecycle_status(&output_full);
-                    let mut ui_payload =
-                        completed_tool_payload_for_ui(name, &input_ui, &v, &output_ui);
-                    if let Some(payload) = ui_payload.as_object_mut() {
-                        payload.insert("status".to_string(), string_value(lifecycle_status));
-                        insert_agent_tool_metadata(payload, agent_child_created.as_ref());
-                    }
-                    (
-                        ui_payload,
-                        format!(
-                            "tool {name}\n{}\n",
-                            agent_tool_session_payload(
-                                lifecycle_status,
-                                &output_session,
-                                agent_child_created.as_ref(),
-                                v.render_metadata(),
-                            )
-                        ),
-                        output_for_model,
-                        extra_messages,
-                        context_updates,
-                    )
-                } else {
-                    (
-                        // UI 消息：包含完整信息（输入、标题、元数据和输出）
-                        completed_tool_payload_for_ui(name, &input_ui, &v, &output_ui),
-                        // 会话消息保留经过脱敏的输入，供恢复后的 TUI 识别具体调用。
-                        format!(
-                            "tool {}\n{}\n",
-                            name,
-                            completed_session_payload(&input_ui, &output_session)
-                        ),
-                        output_for_model,
-                        extra_messages,
-                        context_updates,
-                    )
+    let (ui_payload, session_message, content_for_model, extra_messages_for_model) = match execution
+        .result
+    {
+        // 工具执行成功的情况
+        Ok(v) => {
+            let extra_messages = v.extra_messages.clone();
+            // 可能注入文件链接（例如在输出中添加可点击的文件路径）
+            let output_full = maybe_inject_file_link(name, input, ctx, &v.model_text());
+            // 为 UI 显示压缩输出（更简洁）
+            let output_ui = compact_tool_output_for_ui(name, &output_full);
+            // 为会话存储压缩输出（保留更多信息）
+            let output_for_model = compact_tool_output(name, &output_full);
+            let output_session = if preserve_full_output_in_session(name) {
+                output_full.clone()
+            } else {
+                output_for_model.clone()
+            };
+            if is_agent_tool(name) {
+                let lifecycle_status = agent_tool_lifecycle_status(&output_full);
+                let mut ui_payload = completed_tool_payload_for_ui(name, &input_ui, &v, &output_ui);
+                if let Some(payload) = ui_payload.as_object_mut() {
+                    payload.insert("status".to_string(), string_value(lifecycle_status));
+                    insert_agent_tool_metadata(payload, agent_child_created.as_ref());
                 }
-            }
-            // 工具调用被拒绝的情况
-            Err(denied) => match denied {
-                ToolCallError::Denied { .. } => {
-                    let content = denied.message().to_string();
-                    (
-                        denied_tool_payload_with_input(&input_ui, &denied),
-                        format!("tool {}\n{}\n", name, denied_tool_payload(&denied)),
-                        content,
-                        Vec::new(),
-                        Vec::new(),
-                    )
-                }
-                ToolCallError::Failed(content) => (
-                    error_tool_payload_with_agent(
-                        Some(&input_sanitized),
-                        &content,
-                        agent_child_created.as_ref(),
+                (
+                    ui_payload,
+                    format!(
+                        "tool {name}\n{}\n",
+                        agent_tool_session_payload(
+                            lifecycle_status,
+                            &output_session,
+                            agent_child_created.as_ref(),
+                            v.render_metadata(),
+                        )
                     ),
+                    output_for_model,
+                    extra_messages,
+                )
+            } else {
+                (
+                    // UI 消息：包含完整信息（输入、标题、元数据和输出）
+                    completed_tool_payload_for_ui(name, &input_ui, &v, &output_ui),
+                    // 会话消息保留经过脱敏的输入，供恢复后的 TUI 识别具体调用。
                     format!(
                         "tool {}\n{}\n",
                         name,
-                        error_tool_payload_with_agent(None, &content, agent_child_created.as_ref(),)
+                        completed_session_payload(&input_ui, &output_session)
                     ),
+                    output_for_model,
+                    extra_messages,
+                )
+            }
+        }
+        // 工具调用被拒绝的情况
+        Err(denied) => match denied {
+            ToolCallError::Denied { .. } => {
+                let content = denied.message().to_string();
+                (
+                    denied_tool_payload_with_input(&input_ui, &denied),
+                    format!("tool {}\n{}\n", name, denied_tool_payload(&denied)),
                     content,
                     Vec::new(),
-                    Vec::new(),
+                )
+            }
+            ToolCallError::Failed(content) => (
+                error_tool_payload_with_agent(
+                    Some(&input_sanitized),
+                    &content,
+                    agent_child_created.as_ref(),
                 ),
-            },
-        };
+                format!(
+                    "tool {}\n{}\n",
+                    name,
+                    error_tool_payload_with_agent(None, &content, agent_child_created.as_ref(),)
+                ),
+                content,
+                Vec::new(),
+            ),
+        },
+    };
 
     // 向 UI 发送事件通知
     if emit_ui {
@@ -1250,7 +1244,7 @@ pub(crate) fn run_tool_and_record_with_protocol(
         tool_state.non_todo_tool_runs = tool_state.non_todo_tool_runs.saturating_add(1);
     }
 
-    Some(ToolProtocolOutput { content_for_model, extra_messages, context_updates })
+    Some(ToolProtocolOutput { content_for_model, extra_messages: extra_messages_for_model })
 }
 
 /// 执行批量工具调用并记录到会话

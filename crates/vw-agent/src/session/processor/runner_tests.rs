@@ -2149,8 +2149,9 @@ fn codex_skills_catalog_protocol_retains_metadata_and_user_body_without_changing
         assert_eq!(history, original);
     }
     protocol.skills.clear();
-    let assembled = protocol.assemble(&history, &[], true).unwrap();
-    assert!(!assembled.messages.iter().any(|m| m["role"] == "developer"));
+    let error =
+        protocol.assemble(&history, &[], true).expect_err("revoked sources must stop replay");
+    assert!(error.contains("review"));
 }
 
 #[test]
@@ -2386,5 +2387,233 @@ fn codex_skills_defaults_invalid_policy_fails_before_model_request() {
         });
         assert!(super::llm_runner::take_test_llm_messages(&session).is_empty());
         assert!(errors.lock().unwrap().iter().any(|error| error.contains("技能能力策略")));
+    });
+}
+
+#[test]
+fn codex_skills_replay_explicit_discovered_path_activates_body_before_model() {
+    with_discovery_processor_test(|workspace, _| {
+        let source = defaults_skill_source(workspace.path(), "explicit-fixture", "");
+        let mut req = discovery_request(workspace.path());
+        req.query = format!("请使用 [{}]({})", "技能", source.display());
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true});
+        let session = req.session.clone();
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 1);
+        assert_eq!(
+            requests[0]
+                .messages
+                .iter()
+                .filter(|m| m["role"] == "user"
+                    && m["content"].as_str().is_some_and(|s| s.contains("BODY_explicit-fixture")))
+                .count(),
+            1
+        );
+    });
+}
+
+fn replay_body_count(messages: &[serde_json::Value], marker: &str) -> usize {
+    messages
+        .iter()
+        .filter(|message| {
+            message["role"] == "user"
+                && message["content"].as_str().is_some_and(|body| body.contains(marker))
+        })
+        .count()
+}
+
+#[test]
+fn codex_skills_replay_successful_tool_survives_new_request_once_and_rejects_rewind() {
+    with_discovery_processor_test(|workspace, _| {
+        defaults_skill_source(workspace.path(), "replay-fixture", "");
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true});
+        let session = req.session.clone();
+        let query = req.query.clone();
+        discovery_stream(&[(
+            "activate",
+            "skill",
+            serde_json::json!({"skill":"replay-fixture","args":"value"}),
+        )]);
+        discovery_stream(&[]);
+        let completed = std::sync::Arc::new(std::sync::Mutex::new(None));
+        let captured = completed.clone();
+        super::run(req.clone(), move |event| {
+            if let super::StreamEvent::Tool(tool) = event
+                && tool.name == "skill"
+                && matches!(tool.status, super::super::ToolCallStatus::Completed)
+            {
+                *captured.lock().unwrap() = Some(tool.payload);
+            }
+            true
+        });
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 2);
+        assert_eq!(replay_body_count(&requests[0].messages, "BODY_replay-fixture"), 0);
+        assert_eq!(replay_body_count(&requests[1].messages, "BODY_replay-fixture"), 1);
+        let payload = completed.lock().unwrap().clone().expect("real completed skill call");
+        let history = vec![
+            models::ChatMessage {
+                role: models::ChatRole::User,
+                content: query,
+                model: None,
+                think_timing: vec![],
+                processing_timing: None,
+            },
+            models::ChatMessage {
+                role: models::ChatRole::Tool,
+                content: format!(
+                    "tool skill\n{}\n",
+                    serde_json::json!({"status":"completed","input":payload["input"],"output":payload["output"]})
+                ),
+                model: None,
+                think_timing: vec![],
+                processing_timing: None,
+            },
+        ];
+        req.query = "continue without selecting any new workflow".into();
+        req.history = history.clone();
+        discovery_stream(&[]);
+        super::run(req.clone(), |_| true);
+        let restored = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(restored.len(), 1);
+        assert_eq!(replay_body_count(&restored[0].messages, "BODY_replay-fixture"), 1);
+        assert!(!req.history.iter().any(|m| m.content.contains("BODY_replay-fixture")));
+        req.history = history[..1].to_vec();
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let rewound = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(rewound.len(), 1);
+        assert_eq!(replay_body_count(&rewound[0].messages, "BODY_replay-fixture"), 0);
+    });
+}
+
+#[test]
+fn codex_skills_replay_disabled_and_out_of_policy_sources_fail_before_next_model() {
+    with_discovery_processor_test(|workspace, _| {
+        let source = defaults_skill_source(workspace.path(), "selected-fixture", "");
+        defaults_skill_source(workspace.path(), "other-fixture", "");
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true});
+        req.query = "请使用 selected-fixture".into();
+        let query = req.query.clone();
+        let session = req.session.clone();
+        discovery_stream(&[]);
+        super::run(req.clone(), |_| true);
+        assert_eq!(
+            replay_body_count(
+                &super::llm_runner::take_test_llm_messages(&session)[0].messages,
+                "BODY_selected-fixture"
+            ),
+            1
+        );
+        req.query = "continue".into();
+        req.history = vec![models::ChatMessage {
+            role: models::ChatRole::User,
+            content: query,
+            model: None,
+            think_timing: vec![],
+            processing_timing: None,
+        }];
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true,"delegate_skill_policy":"strict","delegate_default_allowed_skills":["other-fixture"]});
+        let errors = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let captured = errors.clone();
+        super::run(req.clone(), move |event| {
+            if let super::StreamEvent::Error(e) = event {
+                captured.lock().unwrap().push(e);
+            }
+            true
+        });
+        assert!(super::llm_runner::take_test_llm_messages(&session).is_empty());
+        assert!(errors.lock().unwrap().iter().any(|e| e.contains("selected-fixture")));
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true});
+        std::fs::write(source.parent().unwrap().join("SKILL.disabled"), "disabled").unwrap();
+        super::run(req, |_| true);
+        assert!(super::llm_runner::take_test_llm_messages(&session).is_empty());
+    });
+}
+
+#[test]
+fn codex_skills_replay_user_selection_allows_user_only_skill_and_shell_read_does_not_activate() {
+    with_discovery_processor_test(|workspace, _| {
+        let source = defaults_skill_source(
+            workspace.path(),
+            "user-only-fixture",
+            "disable-model-invocation: true\n",
+        );
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill","file_read"],"full_access":true});
+        req.query = "perform the requested action".into();
+        let session = req.session.clone();
+        discovery_stream(&[("read-file", "file_read", serde_json::json!({"path":source}))]);
+        discovery_stream(&[]);
+        super::run(req.clone(), |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 2);
+        assert!(
+            requests.iter().all(|r| replay_body_count(&r.messages, "BODY_user-only-fixture") == 0)
+        );
+        req.query = "请使用 user-only-fixture".into();
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 1);
+        assert_eq!(replay_body_count(&requests[0].messages, "BODY_user-only-fixture"), 1);
+    });
+}
+
+#[test]
+fn codex_skills_replay_duplicate_calls_replace_arguments_and_compaction_rebuilds_catalog() {
+    with_discovery_processor_test(|workspace, _| {
+        let source = defaults_skill_source(workspace.path(), "args-fixture", "");
+        std::fs::write(
+            &source,
+            "---\nname: args-fixture\ndescription: args metadata\n---\nARG_BODY $ARGUMENTS",
+        )
+        .unwrap();
+        let mut req = discovery_request(workspace.path());
+        req.options = serde_json::json!({"allowed_tools":["skill"],"full_access":true});
+        let session = req.session.clone();
+        discovery_stream(&[(
+            "first",
+            "skill",
+            serde_json::json!({"skill":"args-fixture","args":"FIRST"}),
+        )]);
+        discovery_stream(&[(
+            "second",
+            "skill",
+            serde_json::json!({"skill":"args-fixture","args":"SECOND"}),
+        )]);
+        discovery_stream(&[]);
+        super::run(req, |_| true);
+        let requests = super::llm_runner::take_test_llm_messages(&session);
+        assert_eq!(requests.len(), 3);
+        assert_eq!(replay_body_count(&requests[1].messages, "ARG_BODY FIRST"), 1);
+        assert_eq!(replay_body_count(&requests[2].messages, "ARG_BODY SECOND"), 1);
+        assert_eq!(replay_body_count(&requests[2].messages, "ARG_BODY FIRST"), 0);
+        let skills = vec![crate::skills::Skill {
+            name: "args-fixture".into(),
+            description: "args metadata".into(),
+            location: Some(source.clone()),
+            ..Default::default()
+        }];
+        let mut protocol = super::DesktopSessionProtocol::new(skills, "main", 100_000);
+        protocol.skill_state.register_invoked(
+            "main",
+            crate::skills::InvokedSkillRecord::new("args-fixture", &source, Some("SECOND".into()))
+                .unwrap(),
+        );
+        let history = vec![
+            serde_json::json!({"role":"assistant","content":"[Compaction summary]\nprior decisions"}),
+        ];
+        for _ in 0..2 {
+            protocol.skill_state.reset_catalog("main");
+            let assembled = protocol.assemble(&history, &[], true).unwrap();
+            assert_eq!(replay_body_count(&assembled.messages, "ARG_BODY SECOND"), 1);
+            assert_eq!(assembled.messages.iter().filter(|m| m["role"] == "developer").count(), 1);
+            assert_eq!(history.len(), 1);
+        }
     });
 }

@@ -198,7 +198,14 @@ pub(crate) fn restore_invoked_skill_context(
     messages: &mut Vec<Value>,
     replays: &[InvokedSkillReplay],
 ) -> Vec<InvokedSkillContextUpdate> {
-    messages.retain(|message| message.get(INVOKED_SKILL_SOURCE_FIELD).is_none());
+    messages.retain(|message| {
+        message.get(INVOKED_SKILL_SOURCE_FIELD).is_none()
+            && message
+                .get("_vw_source")
+                .and_then(|source| source.get("form"))
+                .and_then(Value::as_str)
+                != Some("invoked_skill")
+    });
 
     let mut restored_messages = replays
         .iter()

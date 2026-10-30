@@ -131,6 +131,7 @@ pub struct ToolUseContext {
     pending_image_reloads: Arc<Mutex<PendingImageReloadQueue>>,
     tool_discovery: Option<Arc<super::tool_search::ToolDiscoverySession>>,
     tool_exposure_snapshot: Option<Arc<BTreeSet<String>>>,
+    invoked_skills: Arc<Mutex<Vec<crate::skills::InvokedSkillRecord>>>,
 }
 
 impl Default for ToolUseContext {
@@ -169,6 +170,15 @@ impl fmt::Debug for ToolUseContext {
 }
 
 impl ToolUseContext {
+    /// Only the real skill tool writes this typed, request-local provenance.
+    pub(crate) fn record_invoked_skill(&self, record: crate::skills::InvokedSkillRecord) {
+        self.invoked_skills.lock().unwrap_or_else(|error| error.into_inner()).push(record);
+    }
+
+    pub(crate) fn take_invoked_skills(&self) -> Vec<crate::skills::InvokedSkillRecord> {
+        std::mem::take(&mut *self.invoked_skills.lock().unwrap_or_else(|error| error.into_inner()))
+    }
+
     /// 创建新的工具运行时上下文。
     pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
         Self {
@@ -202,6 +212,7 @@ impl ToolUseContext {
             pending_image_reloads: Arc::new(Mutex::new(PendingImageReloadQueue::default())),
             tool_discovery: None,
             tool_exposure_snapshot: None,
+            invoked_skills: Arc::new(Mutex::new(Vec::new())),
         }
     }
 

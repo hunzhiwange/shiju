@@ -911,3 +911,81 @@ async fn manual_compaction_checkpoint_matches_expanded_tool_history() {
     assert!(snapshot_checkpoint_source(&snapshot, "missing").is_none());
     assert!(snapshot_checkpoint_source(&snapshot, "assistant").is_none());
 }
+
+#[tokio::test]
+async fn codex_skills_replay_real_session_fork_preserves_sources_and_respects_cutoff() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let source = workspace.path().join("SKILL.md");
+    std::fs::write(&source, "FORK_BODY $ARGUMENTS").unwrap();
+    let record =
+        crate::skills::InvokedSkillRecord::new("fork-fixture", &source, Some("preserved".into()))
+            .unwrap();
+    crate::project::instance::provide(workspace.path(), None, move || {
+        Box::pin(async move {
+            let original =
+                crate::session::session::create_next(crate::session::session::CreateInput {
+                    directory: crate::project::instance::directory(),
+                    title: Some("skill replay fixture".into()),
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+            let first = user_message(&original.id, "msg_01", "start");
+            let second = assistant_message(&original.id, "msg_02", "msg_01", "skill loaded", None);
+            for message in [&first, &second] {
+                write_message_with_parts(message).await;
+            }
+            let history = model_history(&[first.clone(), second]);
+            crate::session::skill_checkpoint::save(
+                &original.id,
+                "main",
+                &history,
+                &[record.clone()],
+            )
+            .await
+            .unwrap();
+            let full = crate::session::session::fork(&original.id, None).await.unwrap();
+            let cut = crate::session::session::fork(&original.id, Some("msg_01")).await.unwrap();
+            assert_eq!(
+                crate::session::skill_checkpoint::restore(&full.id, "main", &history)
+                    .await
+                    .unwrap(),
+                vec![record]
+            );
+            assert!(
+                crate::session::skill_checkpoint::restore(
+                    &cut.id,
+                    "main",
+                    &model_history(&[first])
+                )
+                .await
+                .unwrap()
+                .is_empty()
+            );
+            crate::session::session::remove(&full.id).await.unwrap();
+            assert!(
+                crate::session::skill_checkpoint::restore(&full.id, "main", &history)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert_eq!(
+                crate::session::skill_checkpoint::restore(&original.id, "main", &history)
+                    .await
+                    .unwrap()
+                    .len(),
+                1
+            );
+            crate::session::session::remove(&cut.id).await.unwrap();
+            crate::session::session::remove(&original.id).await.unwrap();
+        })
+    })
+    .await
+    .unwrap();
+}

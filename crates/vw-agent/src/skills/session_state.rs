@@ -75,11 +75,63 @@ impl SkillListingSessionState {
     /// 登记一次成功的技能调用。相同稳定来源只保留一次，以免恢复时重复注入。
     pub(crate) fn register_invoked(&mut self, agent_id: &str, record: InvokedSkillRecord) -> bool {
         let records = self.invoked_skills_by_agent.entry(agent_id.to_string()).or_default();
-        if records.iter().any(|existing| existing.stable_id() == record.stable_id()) {
-            return false;
+        if let Some(existing) =
+            records.iter_mut().find(|existing| existing.stable_id() == record.stable_id())
+        {
+            if *existing == record {
+                return false;
+            }
+            *existing = record;
+            return true;
         }
         records.push(record);
         true
+    }
+
+    pub(crate) fn invoked_records(&self, agent_id: &str) -> &[InvokedSkillRecord] {
+        self.invoked_skills_by_agent.get(agent_id).map(Vec::as_slice).unwrap_or_default()
+    }
+
+    /// The persisted source is an identity, not a permission grant.
+    pub(crate) fn validate_invoked_sources(
+        &self,
+        agent_id: &str,
+        skills: &[Skill],
+    ) -> Result<(), String> {
+        for record in self.invoked_records(agent_id) {
+            if !skills.iter().any(|skill| record.is_authorized_by(skill)) {
+                return Err(format!(
+                    "已调用技能不存在、已禁用或不在当前权限范围内：{}",
+                    record.skill_name
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn reset_catalog(&mut self, agent_id: &str) {
+        self.sent_skill_entries_by_agent.remove(agent_id);
+    }
+
+    pub(crate) fn preload_explicit(
+        &mut self,
+        agent_id: &str,
+        skills: &[Skill],
+        names: &std::collections::BTreeSet<String>,
+    ) -> Result<(), String> {
+        for skill in skills.iter().filter(|skill| names.contains(&skill.name.trim().to_lowercase()))
+        {
+            if !skill.user_invocable {
+                return Err(format!("技能已禁止用户调用：{}", skill.name));
+            }
+            let source =
+                skill.location.as_deref().ok_or_else(|| format!("技能缺少来源：{}", skill.name))?;
+            let record =
+                InvokedSkillRecord::new(&skill.name, source, None)?.with_explicit_request(true);
+            record.replay()?;
+            self.register_invoked(agent_id, record);
+        }
+        Ok(())
     }
 
     /// 在首个模型请求前登记配置的默认技能。

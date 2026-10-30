@@ -41,6 +41,7 @@ pub mod revert;
 pub mod runtime;
 /// 声明 session 子模块，保持当前领域的职责拆分清晰。
 pub mod session;
+pub(crate) mod skill_checkpoint;
 /// 声明 status 子模块，保持当前领域的职责拆分清晰。
 pub mod status;
 /// 声明 store 子模块，提供原生全局数据库会话持久化。

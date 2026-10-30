@@ -381,7 +381,18 @@ impl SkillTool {
                 args.args.as_deref(),
                 explicitly_requested,
             ) {
-                Ok(result) => result,
+                Ok(result) => {
+                    let source = skill_location(&skill, &self.workspace_dir);
+                    let record =
+                        match skills::InvokedSkillRecord::new(&skill.name, &source, args.args) {
+                            Ok(record) => record.with_explicit_request(explicitly_requested),
+                            Err(error) => return failure_result(error),
+                        };
+                    if let Some(context) = current_tool_use_context() {
+                        context.record_invoked_skill(record);
+                    }
+                    result
+                }
                 Err(error) => failure_result(error),
             }
         }

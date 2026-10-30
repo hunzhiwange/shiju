@@ -40,6 +40,7 @@ struct DesktopSessionProtocol {
     skill_state: crate::app::agent::skills::SkillListingSessionState,
     agent_id: String,
     context_window_tokens: usize,
+    hidden_prefetch: std::ops::Range<usize>,
 }
 
 impl DesktopSessionProtocol {
@@ -57,6 +58,7 @@ impl DesktopSessionProtocol {
         instructions: &[crate::session::instruction::Resolved],
         skill_tool_enabled: bool,
     ) -> Result<llm_messages::AssembledProtocolMessages, String> {
+        self.skill_state.validate_invoked_sources(&self.agent_id, &self.skills)?;
         let invoked_skill_messages = self
             .skill_state
             .restore_invoked(&self.agent_id)?
@@ -110,12 +112,12 @@ impl DesktopSessionProtocol {
     fn consume_tool_output(
         &mut self,
         tool_name: &str,
-        input: &str,
         output: &tools_exec::ToolProtocolOutput,
         llm_messages: &mut Vec<Value>,
     ) {
-        let invoked_skill_registered = self.register_invoked_skill(tool_name, input, output);
-        if invoked_skill_registered {
+        // Skill bodies are rebuilt from the typed runtime provenance below,
+        // rather than copied from model-shaped context_updates or result JSON.
+        if tool_name == "skill" {
             return;
         }
         llm_messages.extend(
@@ -126,41 +128,53 @@ impl DesktopSessionProtocol {
         );
     }
 
-    fn register_invoked_skill(
+    fn restore_checkpoint(&mut self, session: &str, history: &[Value]) -> Result<(), String> {
+        for record in prompt::block_on(crate::session::skill_checkpoint::restore(
+            session,
+            &self.agent_id,
+            history,
+        ))? {
+            self.skill_state.register_invoked(&self.agent_id, record);
+        }
+        self.skill_state.validate_invoked_sources(&self.agent_id, &self.skills)
+    }
+
+    fn persist_checkpoint(&self, session: &str, history: &[Value]) -> Result<(), String> {
+        if history.is_empty() {
+            return Ok(());
+        }
+        prompt::block_on(crate::session::skill_checkpoint::save(
+            session,
+            &self.agent_id,
+            history,
+            self.skill_state.invoked_records(&self.agent_id),
+        ))
+    }
+
+    fn checkpoint_history(&self, session: &Session) -> Vec<Value> {
+        session
+            .messages
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| !self.hidden_prefetch.contains(index))
+            .filter_map(|(_, message)| llm_messages::session_message_to_llm_message(message))
+            .collect()
+    }
+
+    fn consume_invoked_skills(
         &mut self,
-        tool_name: &str,
-        input: &str,
-        output: &tools_exec::ToolProtocolOutput,
-    ) -> bool {
-        if !tool_name.eq_ignore_ascii_case("skill") || output.extra_messages.is_empty() {
-            return false;
+        context: &ToolUseContext,
+        session: &Session,
+    ) -> Result<(), String> {
+        let records = context.take_invoked_skills();
+        if records.is_empty() {
+            return Ok(());
         }
-        let Some(skill_name) = output.context_updates.iter().find_map(|update| {
-            (update.key == "skill.name").then(|| update.value.as_str()).flatten()
-        }) else {
-            return false;
-        };
-        let Some(skill) = self.skills.iter().find(|skill| skill.name == skill_name) else {
-            tracing::warn!(
-                skill_name,
-                "skill tool result could not be registered for protocol replay"
-            );
-            return false;
-        };
-        let source = skill
-            .location
-            .clone()
-            .unwrap_or_else(|| PathBuf::from("skills").join(&skill.name).join("SKILL.md"));
-        let args = serde_json::from_str::<Value>(input)
-            .ok()
-            .and_then(|value| value.get("args").and_then(Value::as_str).map(ToOwned::to_owned));
-        match crate::app::agent::skills::InvokedSkillRecord::new(skill_name, &source, args) {
-            Ok(record) => self.skill_state.register_invoked(&self.agent_id, record),
-            Err(error) => {
-                tracing::warn!(skill_name, error, "skill tool result could not be registered");
-                false
-            }
+        for record in records {
+            self.skill_state.register_invoked(&self.agent_id, record);
         }
+        self.skill_state.validate_invoked_sources(&self.agent_id, &self.skills)?;
+        self.persist_checkpoint(&session.id, &self.checkpoint_history(session))
     }
 }
 
@@ -634,13 +648,12 @@ fn run_in_project(
                 .iter()
                 .map(|instruction| instruction.content.as_str()),
         );
-    let mut explicitly_requested_skills = agents_referenced_skills.clone();
-    explicitly_requested_skills.extend(
-        crate::app::agent::tools::skill::explicitly_referenced_skill_names(
-            &session_protocol.skills,
-            std::iter::once(req.query.as_str()),
-        ),
+    let user_referenced_skills = crate::app::agent::tools::skill::explicitly_referenced_skill_names(
+        &session_protocol.skills,
+        std::iter::once(req.query.as_str()),
     );
+    let mut explicitly_requested_skills = agents_referenced_skills.clone();
+    explicitly_requested_skills.extend(user_referenced_skills.iter().cloned());
     if crate::app::agent::tools::skill::user_explicitly_requests_skill_use(&req.query) {
         explicitly_requested_skills.extend(
             crate::app::agent::tools::skill::user_invocable_skill_names(&session_protocol.skills),
@@ -658,6 +671,10 @@ fn run_in_project(
             std::mem::take(&mut session_protocol.skills),
             Some(ctx.tool_use_context().as_ref()),
         );
+    }
+    if let Err(error) = session_protocol.restore_checkpoint(&req.session, &checkpoint_source) {
+        on_event(StreamEvent::Error(error));
+        return;
     }
     // 验证原始默认 ID，不能先与已发现项求交而把丢失/禁用项静默丢弃。
     let default_skills = option_string_values(&req.options, "delegate_default_allowed_skills")
@@ -679,6 +696,13 @@ fn run_in_project(
     if let Err(message) = session_protocol
         .preload_skills(default_skills)
         .and_then(|()| session_protocol.preload_skills(&agents_referenced_skills))
+        .and_then(|()| {
+            session_protocol.skill_state.preload_explicit(
+                &session_protocol.agent_id,
+                &session_protocol.skills,
+                &user_referenced_skills,
+            )
+        })
     {
         on_event(StreamEvent::Error(message));
         return;
@@ -714,6 +738,7 @@ fn run_in_project(
         return;
     }
 
+    let prefetch_start = session.messages.len();
     prefetch::prefetch_seed_context(
         &mut session,
         &req.query,
@@ -721,6 +746,7 @@ fn run_in_project(
         &allowed_tools,
         &mut tool_state,
     );
+    session_protocol.hidden_prefetch = prefetch_start..session.messages.len();
     utils::ingest_user_query(
         &mut session,
         &req.query,
@@ -740,6 +766,12 @@ fn run_in_project(
     let mut llm_messages = restored_context;
     let current_messages = llm_messages::session_messages_to_llm_messages(&session);
     llm_messages.extend_from_slice(&current_messages[checkpoint_source.len()..]);
+    if let Err(error) = session_protocol
+        .persist_checkpoint(&req.session, &session_protocol.checkpoint_history(&session))
+    {
+        on_event(StreamEvent::Error(error));
+        return;
+    }
     let checkpoint_source = current_messages;
     if let Some(source) = llm_messages::input_source_from_options(&req.options) {
         llm_messages::annotate_current_user_source(&mut llm_messages, source);
@@ -790,7 +822,13 @@ fn run_in_project(
         let exposed_tools =
             tool_specs_for_context.iter().map(|spec| spec.id.clone()).collect::<HashSet<_>>();
         let tools_for_step = &exposed_tools;
-        if step_index > 0 && tools_for_step.contains("skill") {
+        if step_index > 0
+            && (tools_for_step.contains("skill")
+                || !session_protocol
+                    .skill_state
+                    .invoked_records(&session_protocol.agent_id)
+                    .is_empty())
+        {
             // 工具可能修改技能元数据；每个请求重新经过加载器和同一能力策略。
             let skills =
                 crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config);
@@ -902,6 +940,7 @@ fn run_in_project(
                 Ok(true) => {
                     internal_compaction_attempted = true;
                     observed_input_tokens = None;
+                    session_protocol.skill_state.reset_catalog(&session_protocol.agent_id);
                     continue;
                 }
                 Ok(false) => {
@@ -991,6 +1030,7 @@ fn run_in_project(
                         Ok(true) => {
                             internal_compaction_attempted = true;
                             observed_input_tokens = None;
+                            session_protocol.skill_state.reset_catalog(&session_protocol.agent_id);
                             continue;
                         }
                         Ok(false) => {
@@ -1125,6 +1165,12 @@ fn run_in_project(
                     is_last_step,
                     step_index,
                 );
+                if let Err(error) = session_protocol
+                    .consume_invoked_skills(ctx.tool_use_context().as_ref(), &session)
+                {
+                    on_event(StreamEvent::Error(error));
+                    return;
+                }
                 if !on_event(StreamEvent::PostToolRound { step_index }) {
                     return;
                 }
@@ -1144,7 +1190,7 @@ fn run_in_project(
             );
         }
 
-        if handle_assistant_text_branch(
+        let should_continue = handle_assistant_text_branch(
             &req,
             &mut session,
             &step_ctx,
@@ -1161,7 +1207,14 @@ fn run_in_project(
             is_last_step,
             step_index,
             app_session_scope.as_deref(),
-        ) {
+        );
+        if let Err(error) =
+            session_protocol.consume_invoked_skills(ctx.tool_use_context().as_ref(), &session)
+        {
+            on_event(StreamEvent::Error(error));
+            return;
+        }
+        if should_continue {
             continue;
         }
         return;
@@ -1356,12 +1409,7 @@ fn handle_structured_tool_calls(
                 tool_state,
             );
             if let Some(output) = output {
-                session_protocol.consume_tool_output(
-                    &call.name,
-                    &call.arguments,
-                    &output,
-                    llm_messages,
-                );
+                session_protocol.consume_tool_output(&call.name, &output, llm_messages);
                 output.content_for_model
             } else {
                 String::new()

@@ -186,7 +186,7 @@ fn catalog_entry(plugin: &DiscoveredPlugin, _install_dir: &Path) -> DesktopPlugi
     DesktopPluginCatalogEntryDto {
         id: manifest.name.clone(),
         display_name: plugin_display_name(manifest),
-        version: manifest.version.clone(),
+        version: manifest.version.clone().unwrap_or_default(),
         description: plugin_description(manifest),
         enabled: plugin.disabled_marker.is_none(),
         component_count: component_count(manifest),
@@ -200,7 +200,7 @@ fn detail_entry(plugin: &DiscoveredPlugin, install_dir: &Path) -> DesktopPluginD
     DesktopPluginDetailDto {
         id: manifest.name.clone(),
         display_name: plugin_display_name(manifest),
-        version: manifest.version.clone(),
+        version: manifest.version.clone().unwrap_or_default(),
         description: plugin_description(manifest),
         enabled: plugin.disabled_marker.is_none(),
         source_path: Some(path_string(&manifest.root)),
@@ -224,7 +224,7 @@ fn plugin_description(manifest: &PluginManifest) -> String {
         .interface
         .as_ref()
         .and_then(|interface| non_empty_string(interface.short_description.as_deref()))
-        .unwrap_or_else(|| manifest.description.clone())
+        .unwrap_or_else(|| manifest.description.clone().unwrap_or_default())
 }
 
 fn non_empty_string(value: Option<&str>) -> Option<String> {
@@ -233,7 +233,7 @@ fn non_empty_string(value: Option<&str>) -> Option<String> {
 
 fn plugin_capabilities(manifest: &PluginManifest) -> DesktopPluginCapabilitiesDto {
     DesktopPluginCapabilitiesDto {
-        skills: usize::from(manifest.skills.is_some()),
+        skills: manifest.skills.len(),
         mcp_servers: usize::from(manifest.mcp_servers.is_some()),
         hooks: manifest.hooks.len(),
         interface: manifest.interface.is_some(),

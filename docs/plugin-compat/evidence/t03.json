@@ -1,0 +1,1169 @@
+{
+  "schema_version": 1,
+  "task": 3,
+  "items": [
+    {
+      "id": "discovery.legacy-order",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        7
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_selects_legacy_entries_in_frozen_order"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.name",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.version",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.description",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.keywords",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.skills",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_retains_path_and_inline_component_shapes"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.mcpServers",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_retains_path_and_inline_component_shapes"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.apps",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_retains_path_and_inline_component_shapes"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.hooks",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_retains_path_and_inline_component_shapes"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.legacy.extensions",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_retains_path_and_inline_component_shapes"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.displayName",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.shortDescription",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.longDescription",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.developerName",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.category",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.capabilities",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json",
+        "codex_plugin_compat_t03_rejects_null_interface_lists"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 1,
+        "record": "t03/red-null.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.websiteUrl",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.privacyPolicyUrl",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.termsOfServiceUrl",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.brandColor",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.composerIcon",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        5,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.logo",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        5,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.logoDark",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        5,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.screenshots",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        5,
+        55
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json",
+        "codex_plugin_compat_t03_rejects_null_interface_lists"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 1,
+        "record": "t03/red-null.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "manifest.interface.defaultPrompt",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+        "plugin_manifest_accepts_vibewindow_plugin_json"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "onboarding.path",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [
+        4,
+        13
+      ],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation",
+        "codex_plugin_compat_t03_retains_path_and_inline_component_shapes"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    },
+    {
+      "id": "acceptance.t03",
+      "tasks": [
+        3
+      ],
+      "remaining_mapped_tasks": [],
+      "tests": [
+        "codex_plugin_compat_t03_loads_legacy_manifest",
+        "codex_plugin_compat_t03_rejects_invalid_input",
+        "codex_plugin_compat_t03_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 101,
+        "effective_tests": 3,
+        "record": "t03/red.log"
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 9,
+        "record": "t03/green-final.log"
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 3 declaration parsing; later mapped execution/display/path acceptance is not asserted."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "slot": 2,
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+    "actual_slots": [
+      1,
+      2
+    ],
+    "lease_released": true
+  },
+  "validation_runs": [
+    {
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+      "exit_code": 101,
+      "phase": "red",
+      "record": "t03/red.log",
+      "effective_tests": 3
+    },
+    {
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+      "exit_code": 101,
+      "phase": "red-null",
+      "record": "t03/red-null.log",
+      "effective_tests": 1
+    },
+    {
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+      "exit_code": 0,
+      "phase": "green-initial",
+      "record": "t03/green-initial.log",
+      "effective_tests": 3
+    },
+    {
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+      "exit_code": 0,
+      "phase": "green",
+      "record": "t03/green.log",
+      "effective_tests": 8
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "phase": "fmt-final",
+      "record": "cargo fmt completed without output; exit code recorded in this validation_runs entry."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+      "exit_code": 0,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "phase": "green-final",
+      "record": "t03/green-final.log",
+      "effective_tests": 9
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "phase": "adjacent",
+      "record": "t03/adjacent.log",
+      "effective_tests": 122
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features gateway::api::handlers::plugins:: -- --nocapture",
+      "exit_code": 0,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "phase": "gateway-plugins",
+      "record": "t03/gateway-plugins.log",
+      "effective_tests": 4
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features gateway::api::handlers::hooks:: -- --nocapture",
+      "exit_code": 0,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "phase": "gateway-hooks",
+      "record": "t03/gateway-hooks.log",
+      "effective_tests": 3
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "phase": "clippy",
+      "record": "t03/clippy.log"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t03.json",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t03.json",
+      "exit_code": 1,
+      "expected": "Partial task evidence must be rejected until all mapped tasks and platforms are complete.",
+      "diagnostic": "Evidence rejected: discovery.legacy-order: missing mapped task evidence"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "additional_tests": [
+    "codex_plugin_compat_t03_loads_legacy_manifest",
+    "codex_plugin_compat_t03_rejects_invalid_input",
+    "codex_plugin_compat_t03_preserves_isolation",
+    "codex_plugin_compat_t03_selects_legacy_entries_in_frozen_order",
+    "codex_plugin_compat_t03_retains_path_and_inline_component_shapes",
+    "codex_plugin_compat_t03_normalizes_optional_metadata_and_prompts",
+    "codex_plugin_compat_t03_rejects_null_interface_lists",
+    "codex_plugin_compat_t03_rejects_unsafe_component_paths",
+    "codex_plugin_compat_t03_rejects_symlink_entries_and_components"
+  ],
+  "red_note": "The initial red run observed all three target loader assertions; the null-list red run observed its rejection assertion. Both test processes subsequently hit the host panic-initiation SIGABRT. These are runtime target assertions, not compilation failures; no failed-process summary is invented.",
+  "reference_snapshot": {
+    "kind": "local source files frozen by SHA-256",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugins/src/manifest.rs": "cb6cc5e8e2004d1533141a3f11f3460a1aa8c2e0295c9583ae9726c6a75b2802",
+      "codex-rs/plugin/src/manifest.rs": "c65095113414f8f2a261ebf57faada52c8cdfe24a07baa46877afc914a81873e",
+      "codex-rs/exec-server-protocol/src/protocol.rs": "9fcea3d88e4d2e07cfb6611723e5242571cec3c0071c769dc712b74d9f2881fe",
+      "codex-rs/config/src/hook_config.rs": "4770495c0005de296cb86ebbaa6ab8c9486c4fa336d3d748ed7389901dab7e5d",
+      "codex-rs/protocol/src/hooks.rs": "adb3a5c02a215f2bf66d7c8f8c79facbd4fe3d4478ac4db0816fb466ca864ce7"
+    }
+  },
+  "artifacts_sha256": {
+    "docs/plugin-compat/evidence/t03/red.log": "3b9e2c8f1380e3f39ad99e568cffa4dc0a2667fbb88c396e9123ee97d8ca5772",
+    "docs/plugin-compat/evidence/t03/red-null.log": "4c81679a6d3aab287829a18f0cb6964900966c598615f624a6811d7e176f5b67",
+    "docs/plugin-compat/evidence/t03/green-initial.log": "dd93a97a1d2b5a2e5b8ababc267e931880aa8a2512eb0eac8069472a03db8256",
+    "docs/plugin-compat/evidence/t03/green.log": "48565225f3e6202eeeff22ec19f41ea8ff4a44df39765a5739189644f9754c9e",
+    "docs/plugin-compat/evidence/t03/green-final.log": "4b9300774298c7738e901cdb1bc7b391cf40dae9c5f8582899afc38e7631b05f",
+    "docs/plugin-compat/evidence/t03/adjacent.log": "b1de2adf533a2429ea78f62118bcc91b4d1200a747dcedf63bc5ddb335fa6b11",
+    "docs/plugin-compat/evidence/t03/gateway-plugins.log": "d74fd59bc0599cff7261646dc171aec79a37a4252cb809053d661ed2af3e0571",
+    "docs/plugin-compat/evidence/t03/gateway-hooks.log": "bd983c55aac4333c697e1e1bde4c6f9db95207054249518652247b2d84687277",
+    "docs/plugin-compat/evidence/t03/clippy.log": "ce4670f57bcf09287f1085f4774cf3a5db0fc95dfd92ac13ca8b795bc41b15cf",
+    "docs/plugin-compat/evidence/t03/green-interrupted.log": "a31e22045359e290c324f2eba20e627b7e8e9b181495b116f0f8f9bfbd574dd9",
+    "docs/plugin-compat/evidence/t03/green-orphaned-lock.log": "256920d31a6e3c8c7b7c6e25b6976dd361363b398cfdd33869c4affe88178eb2",
+    "crates/vw-agent/testdata/plugin_compat/t03/legacy.json": "fac8423c5f835c5c13a9db760482d7c22923ca3f43c52a6d215869bded4b3f63"
+  },
+  "package_isolation": [
+    "Copied legacy manifest bytes remain identical after the real loader reads them.",
+    "Separate package roots and names do not leak between loads.",
+    "No native manifest, config, credential, evidence or cache is written into loaded packages."
+  ],
+  "security_differences": [
+    "Existing host static auditing rejects symlink roots, manifest entries and components; selected malformed higher-priority entries are not silently bypassed.",
+    "Unsafe, missing and traversal paths fail explicitly rather than adopting the reference parser warning-and-ignore behavior. Referenced resources must exist. Task 5 and final acceptance must retain/review this host-policy difference."
+  ],
+  "deferred_scope": {
+    "7": "Legacy package discovery/order beyond the direct public manifest loader and CLI source audit/install callers.",
+    "9": "Multiple skill directories are retained but current skill execution reports them unsupported.",
+    "13": "Onboarding skill invocation.",
+    "14": "Inline MCP objects are retained; current MCP execution returns an explicit unsupported error.",
+    "32": "Inline Hooks objects are retained without executing them; event/handler schema execution adaptation remains separate.",
+    "55": "Desktop display and compatibility state.",
+    "64": "Actual Linux and Windows evidence."
+  },
+  "interrupted_attempts": [
+    {
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "codex_plugin_compat_t03_",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": 101,
+      "phase": "green-interrupted",
+      "record": "t03/green-interrupted.log",
+      "counts_as_behavior_evidence": false,
+      "reason": "External deletion removed the active slot/cache and lease"
+    },
+    {
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "vw-agent",
+        "--lib",
+        "--all-features",
+        "codex_plugin_compat_t03_",
+        "--",
+        "--nocapture"
+      ],
+      "exit_code": -2,
+      "phase": "green-orphaned-lock",
+      "record": "t03/green-orphaned-lock.log",
+      "counts_as_behavior_evidence": false,
+      "reason": "Own waiting Cargo interrupted after detecting an active Cargo lock whose lease had been externally removed; skipped that cache"
+    }
+  ],
+  "scope_note": "This is a partial Task 3 macOS declaration record. Joint task mappings, later runtime components, stricter host audit differences and other platforms remain separate acceptance work. The complete frozen baseline must reject this partial evidence; this file does not establish full plugin compatibility.",
+  "artifact_note": "Captured diagnostics retain their content; trailing empty lines were normalized to one final newline for git diff checks."
+}

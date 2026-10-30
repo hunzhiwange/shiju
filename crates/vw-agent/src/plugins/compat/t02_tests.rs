@@ -67,7 +67,7 @@ fn codex_plugin_compat_t02_preserves_isolation() {
     let manifest = load_plugin_manifest(&package).expect("real plugin loader");
     let expected = fixture("expected.json");
     assert_eq!(manifest.name, expected["name"].as_str().expect("expected name"));
-    assert_eq!(manifest.version, expected["version"].as_str().expect("expected version"));
+    assert_eq!(manifest.version.as_deref(), expected["version"].as_str());
     for turn in ["first", "second"] {
         let turn_dir = state.path().join(turn);
         fs::create_dir(&turn_dir).expect("separate evidence state");

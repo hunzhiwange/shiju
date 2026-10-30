@@ -55,8 +55,17 @@ pub(crate) fn merge_enabled_plugin_mcp_servers(
     let mut merged_names = user_server_names.clone();
 
     for plugin in discovery.enabled {
-        let Some(mcp_path) = plugin.manifest.mcp_servers else {
+        let Some(mcp_source) = plugin.manifest.mcp_servers else {
             continue;
+        };
+        let mcp_path = match mcp_source {
+            super::PluginMcpServers::Path(path) => path,
+            super::PluginMcpServers::Inline(_) => {
+                bail!(
+                    "inline MCP server execution is not supported for plugin '{}'",
+                    plugin.manifest.name
+                );
+            }
         };
         let plugin_servers = load_plugin_mcp_servers_from_path(&mcp_path.canonical_path)
             .with_context(|| {

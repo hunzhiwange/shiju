@@ -15,7 +15,6 @@ mod mcp;
 mod skills;
 mod types;
 
-#[cfg(test)]
 mod compat;
 
 /// 插件管理命令与命令行执行入口。
@@ -32,7 +31,10 @@ pub use manifest::load_plugin_manifest;
 pub(crate) use mcp::{merge_enabled_plugin_mcp_servers, plugin_mcp_discovery_options};
 pub(crate) use skills::load_plugin_skills;
 /// 已完成路径审计和字段规范化的插件清单类型。
-pub use types::{PluginAuthor, PluginAuthorDetails, PluginInterface, PluginManifest, PluginPath};
+pub use types::{
+    PluginAuthor, PluginAuthorDetails, PluginHookSource, PluginInterface, PluginManifest,
+    PluginMcpServers, PluginPath,
+};
 
 #[cfg(test)]
 #[path = "manifest_tests.rs"]

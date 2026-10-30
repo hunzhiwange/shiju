@@ -30,7 +30,16 @@ pub(crate) fn load_plugin_skills(
     discovery
         .enabled
         .into_iter()
-        .filter_map(|plugin| plugin.manifest.skills)
+        .filter_map(|plugin| {
+            if plugin.manifest.skills.len() > 1 {
+                tracing::warn!(
+                    plugin = plugin.manifest.name,
+                    "multiple plugin skill directories are not supported by the current loader"
+                );
+                return None;
+            }
+            plugin.manifest.skills.into_iter().next()
+        })
         .flat_map(|skills_path| {
             load_skills_from_directory(
                 &skills_path.canonical_path,

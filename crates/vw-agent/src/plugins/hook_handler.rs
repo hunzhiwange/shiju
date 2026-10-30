@@ -144,7 +144,16 @@ pub(crate) fn trusted_plugin_hook_handlers(config: &Config) -> Result<Vec<Box<dy
     let mut handlers: Vec<Box<dyn HookHandler>> = Vec::new();
 
     for plugin in discovery.enabled {
-        for hooks_path in &plugin.manifest.hooks {
+        for source in &plugin.manifest.hooks {
+            let hooks_path = match source {
+                super::PluginHookSource::Path(path) => path,
+                super::PluginHookSource::Inline(_) => {
+                    anyhow::bail!(
+                        "inline hook execution is not supported for plugin '{}'",
+                        plugin.manifest.name
+                    );
+                }
+            };
             let hooks = load_plugin_hooks_manifest(
                 &hooks_path.canonical_path,
                 &plugin.manifest.root,

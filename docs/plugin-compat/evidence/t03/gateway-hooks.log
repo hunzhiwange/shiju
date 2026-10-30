@@ -1,0 +1,10 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 02s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 3 tests
+test gateway::api::handlers::hooks::hooks_tests::hook_audit_response_omits_sensitive_payloads ... ok
+test gateway::api::handlers::hooks::hooks_tests::hook_trust_rejects_stale_or_unknown_hash ... ok
+test gateway::api::handlers::hooks::hooks_tests::hook_trust_mutation_reloads_runtime ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10405 filtered out; finished in 0.03s

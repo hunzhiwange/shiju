@@ -1,6 +1,13 @@
 //! 验证插件清单必填字段、组件路径、钩子顺序与解析错误上下文。
 
-use super::load_plugin_manifest;
+use super::{PluginHookSource, PluginMcpServers, PluginPath, load_plugin_manifest};
+
+fn hook_path(source: &PluginHookSource) -> &PluginPath {
+    match source {
+        PluginHookSource::Path(path) => path,
+        PluginHookSource::Inline(_) => panic!("expected native hook path"),
+    }
+}
 use serde_json::json;
 use std::fs;
 use std::path::Path;
@@ -72,20 +79,26 @@ fn plugin_manifest_accepts_vibewindow_plugin_json() {
     let manifest = load_plugin_manifest(&plugin_root).expect("manifest parses");
 
     assert_eq!(manifest.name, "my-plugin");
-    assert_eq!(manifest.version, "0.1.0");
-    assert_eq!(manifest.description, "Bundle reusable skills and app integrations.");
+    assert_eq!(manifest.version.as_deref(), Some("0.1.0"));
+    assert_eq!(
+        manifest.description.as_deref(),
+        Some("Bundle reusable skills and app integrations.")
+    );
     assert_eq!(manifest.keywords, vec!["research".to_string(), "crm".to_string()]);
     assert_eq!(
-        manifest.skills.as_ref().expect("skills").canonical_path,
+        manifest.skills.first().expect("skills").canonical_path,
         plugin_root.join("skills").canonicalize().expect("canonical skills")
     );
     assert_eq!(
-        manifest.mcp_servers.as_ref().expect("mcp").canonical_path,
+        match manifest.mcp_servers.as_ref().expect("mcp") {
+            PluginMcpServers::Path(path) => path.canonical_path.clone(),
+            PluginMcpServers::Inline(_) => panic!("expected native MCP path"),
+        },
         plugin_root.join(".mcp.json").canonicalize().expect("canonical mcp")
     );
     assert_eq!(manifest.hooks.len(), 1);
     assert_eq!(
-        manifest.hooks[0].canonical_path,
+        hook_path(&manifest.hooks[0]).canonical_path,
         plugin_root.join("hooks/hooks.json").canonicalize().expect("canonical hooks")
     );
     let interface = manifest.interface.expect("interface");
@@ -163,14 +176,14 @@ fn plugin_manifest_accepts_hook_array_in_order() {
     let manifest = load_plugin_manifest(&plugin_root).expect("manifest parses");
 
     assert_eq!(manifest.hooks.len(), 2);
-    assert_eq!(manifest.hooks[0].raw, "./hooks/first.json");
-    assert_eq!(manifest.hooks[1].raw, "./hooks/second.json");
+    assert_eq!(hook_path(&manifest.hooks[0]).raw, "./hooks/first.json");
+    assert_eq!(hook_path(&manifest.hooks[1]).raw, "./hooks/second.json");
     assert_eq!(
-        manifest.hooks[0].canonical_path,
+        hook_path(&manifest.hooks[0]).canonical_path,
         plugin_root.join("hooks/first.json").canonicalize().expect("canonical first hook")
     );
     assert_eq!(
-        manifest.hooks[1].canonical_path,
+        hook_path(&manifest.hooks[1]).canonical_path,
         plugin_root.join("hooks/second.json").canonicalize().expect("canonical second hook")
     );
 }

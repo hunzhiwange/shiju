@@ -189,7 +189,16 @@ fn load_hooks(
     workspace_dir: &Path,
 ) -> Result<Vec<PluginHook>> {
     let mut hooks = Vec::new();
-    for path in &plugin.manifest.hooks {
+    for source in &plugin.manifest.hooks {
+        let path = match source {
+            crate::plugins::PluginHookSource::Path(path) => path,
+            crate::plugins::PluginHookSource::Inline(_) => {
+                bail!(
+                    "inline hook execution is not supported for plugin '{}'",
+                    plugin.manifest.name
+                );
+            }
+        };
         hooks.extend(
             load_plugin_hooks_manifest(&path.canonical_path, &plugin.manifest.root, workspace_dir)
                 .with_context(|| {

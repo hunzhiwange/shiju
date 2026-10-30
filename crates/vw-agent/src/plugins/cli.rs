@@ -23,7 +23,7 @@ pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -
             println!(
                 "Plugin installed: {} {} at {}",
                 result.manifest.name,
-                result.manifest.version,
+                result.manifest.version.as_deref().unwrap_or(""),
                 result.installed_dir.display()
             );
             Ok(())
@@ -75,7 +75,11 @@ fn list_plugins(config: &crate::config::Config, plugins_dir: &Path) -> Result<()
         };
         println!(
             "  {} {} [{}] - {} ({})",
-            plugin.manifest.name, plugin.manifest.version, status, components, location
+            plugin.manifest.name,
+            plugin.manifest.version.as_deref().unwrap_or(""),
+            status,
+            components,
+            location
         );
     }
 
@@ -95,7 +99,7 @@ fn audit_plugin_source(source: &str, plugins_dir: &Path) -> Result<()> {
     println!(
         "Plugin audit passed: {} {} (components: {})",
         manifest.name,
-        manifest.version,
+        manifest.version.as_deref().unwrap_or(""),
         component_summary(&manifest)
     );
 
@@ -104,7 +108,7 @@ fn audit_plugin_source(source: &str, plugins_dir: &Path) -> Result<()> {
 
 fn component_summary(manifest: &PluginManifest) -> String {
     let mut components = Vec::new();
-    if manifest.skills.is_some() {
+    if !manifest.skills.is_empty() {
         components.push("skills");
     }
     if manifest.mcp_servers.is_some() {

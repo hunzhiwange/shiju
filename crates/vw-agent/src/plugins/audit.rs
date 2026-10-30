@@ -27,19 +27,32 @@ pub(super) fn canonical_plugin_root(plugin_root: &Path) -> Result<PathBuf> {
 
 /// 返回通过逐级符号链接检查的插件清单路径。
 pub(super) fn plugin_manifest_path(canonical_root: &Path) -> Result<PathBuf> {
-    let relative = Path::new(".vibewindow-plugin").join("plugin.json");
-    ensure_no_symlink_components(canonical_root, &relative, "plugin.json")?;
-    let path = canonical_root.join(&relative);
-    let canonical_path = path
-        .canonicalize()
-        .with_context(|| format!("plugin manifest not found: {}", path.display()))?;
-    if !canonical_path.starts_with(canonical_root) {
-        bail!("Plugin manifest path escapes plugin root: {}", path.display());
+    // Native packages retain their existing entry point. Legacy alternatives follow Codex order.
+    for directory in [".vibewindow-plugin", ".codex-plugin", ".claude-plugin", ".cursor-plugin"] {
+        let relative = Path::new(directory).join("plugin.json");
+        ensure_no_symlink_components(canonical_root, &relative, "plugin.json")?;
+        let path = canonical_root.join(&relative);
+        match fs::symlink_metadata(&path) {
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+            Err(error) => {
+                return Err(error).with_context(|| {
+                    format!("failed to inspect plugin manifest: {}", path.display())
+                });
+            }
+        }
+        let canonical_path = path.canonicalize().with_context(|| {
+            format!("failed to canonicalize plugin manifest: {}", path.display())
+        })?;
+        if !canonical_path.starts_with(canonical_root) {
+            bail!("Plugin manifest path escapes plugin root: {}", path.display());
+        }
+        if !canonical_path.is_file() {
+            bail!("Plugin manifest must be a file: {}", path.display());
+        }
+        return Ok(canonical_path);
     }
-    if !canonical_path.is_file() {
-        bail!("Plugin manifest must be a file: {}", path.display());
-    }
-    Ok(canonical_path)
+    bail!("plugin manifest not found under {}: plugin.json", canonical_root.display())
 }
 
 /// 将清单中的相对组件路径解析到插件根目录内。

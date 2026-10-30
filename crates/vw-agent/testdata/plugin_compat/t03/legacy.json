@@ -1,0 +1,8 @@
+{
+  "name": "legacy-example",
+  "interface": {
+    "displayName": "Legacy example",
+    "websiteUrl": "https://example.com",
+    "defaultPrompt": " Use\n this  plugin "
+  }
+}

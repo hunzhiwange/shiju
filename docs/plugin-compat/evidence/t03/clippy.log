@@ -1,0 +1,4 @@
+    Checking vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+   Compiling vw-desktop v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-desktop)
+    Checking vw-cli v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 17.78s

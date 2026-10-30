@@ -1,4 +1,4 @@
-//! `.vibewindow-plugin/plugin.json` 的解析与字段校验。
+//! 原生与旧版生态插件清单的解析与字段校验。
 
 use anyhow::{Context, Result, bail};
 use serde::Deserialize;
@@ -6,9 +6,11 @@ use std::fs;
 use std::path::Path;
 
 use super::audit::{canonical_plugin_root, plugin_manifest_path, resolve_component_path};
-use super::types::{PluginAuthor, PluginInterface, PluginManifest, PluginPath};
+use super::types::{
+    PluginAuthor, PluginHookSource, PluginInterface, PluginManifest, PluginMcpServers, PluginPath,
+};
 
-/// Load and statically audit a local VibeWindow plugin manifest.
+/// Load and statically audit a native or legacy local plugin manifest.
 /// 从插件根目录读取、解析并规范化插件清单。
 ///
 /// 所有组件路径在返回前均完成静态审计，调用方无需再次解析原始相对路径。
@@ -17,6 +19,13 @@ pub fn load_plugin_manifest(plugin_root: &Path) -> Result<PluginManifest> {
     let manifest_path = plugin_manifest_path(&canonical_root)?;
     let manifest_bytes = fs::read(&manifest_path)
         .with_context(|| format!("failed to read plugin manifest: {}", manifest_path.display()))?;
+    if manifest_path.parent() != Some(canonical_root.join(".vibewindow-plugin").as_path()) {
+        return super::compat::legacy_manifest::parse_legacy_manifest(
+            &canonical_root,
+            &manifest_path,
+            &manifest_bytes,
+        );
+    }
     let raw: RawPluginManifest = serde_json::from_slice(&manifest_bytes)
         .with_context(|| format!("failed to parse plugin manifest: {}", manifest_path.display()))?;
 
@@ -46,8 +55,8 @@ fn normalize_manifest(
         root: canonical_root.to_path_buf(),
         manifest_path: manifest_path.to_path_buf(),
         name: name.expect("required field checked"),
-        version: version.expect("required field checked"),
-        description: description.expect("required field checked"),
+        version,
+        description,
         author: raw.author,
         homepage: raw.homepage,
         repository: raw.repository,
@@ -56,12 +65,20 @@ fn normalize_manifest(
         skills: raw
             .skills
             .map(|path| resolve_component_path(canonical_root, "skills", &path))
-            .transpose()?,
+            .transpose()?
+            .into_iter()
+            .collect(),
         mcp_servers: raw
             .mcp_servers
             .map(|path| resolve_component_path(canonical_root, "mcpServers", &path))
-            .transpose()?,
-        hooks: normalize_paths(canonical_root, "hooks", raw.hooks)?,
+            .transpose()?
+            .map(PluginMcpServers::Path),
+        hooks: normalize_paths(canonical_root, "hooks", raw.hooks)?
+            .into_iter()
+            .map(PluginHookSource::Path)
+            .collect(),
+        apps: None,
+        onboarding_skill: None,
         interface,
     })
 }
@@ -95,7 +112,10 @@ fn normalize_paths(
     }
 }
 
-fn normalize_interface(canonical_root: &Path, raw: RawPluginInterface) -> Result<PluginInterface> {
+pub(super) fn normalize_interface(
+    canonical_root: &Path,
+    raw: RawPluginInterface,
+) -> Result<PluginInterface> {
     Ok(PluginInterface {
         display_name: raw.display_name,
         short_description: raw.short_description,
@@ -115,6 +135,10 @@ fn normalize_interface(canonical_root: &Path, raw: RawPluginInterface) -> Result
         logo: raw
             .logo
             .map(|path| resolve_component_path(canonical_root, "interface.logo", &path))
+            .transpose()?,
+        logo_dark: raw
+            .logo_dark
+            .map(|path| resolve_component_path(canonical_root, "interface.logoDark", &path))
             .transpose()?,
         screenshots: raw
             .screenshots
@@ -158,7 +182,7 @@ enum RawPathList {
 }
 
 #[derive(Debug, Deserialize)]
-struct RawPluginInterface {
+pub(super) struct RawPluginInterface {
     #[serde(default, rename = "displayName")]
     display_name: Option<String>,
     #[serde(default, rename = "shortDescription")]
@@ -171,11 +195,11 @@ struct RawPluginInterface {
     category: Option<String>,
     #[serde(default)]
     capabilities: Option<Vec<String>>,
-    #[serde(default, rename = "websiteURL")]
+    #[serde(default, rename = "websiteUrl", alias = "websiteURL")]
     website_url: Option<String>,
-    #[serde(default, rename = "privacyPolicyURL")]
+    #[serde(default, rename = "privacyPolicyUrl", alias = "privacyPolicyURL")]
     privacy_policy_url: Option<String>,
-    #[serde(default, rename = "termsOfServiceURL")]
+    #[serde(default, rename = "termsOfServiceUrl", alias = "termsOfServiceURL")]
     terms_of_service_url: Option<String>,
     #[serde(default, rename = "defaultPrompt")]
     default_prompt: Option<Vec<String>>,
@@ -185,6 +209,8 @@ struct RawPluginInterface {
     composer_icon: Option<String>,
     #[serde(default)]
     logo: Option<String>,
+    #[serde(default, rename = "logoDark")]
+    logo_dark: Option<String>,
     #[serde(default)]
     screenshots: Option<Vec<String>>,
 }

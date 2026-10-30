@@ -1,6 +1,11 @@
-//! Compatibility fixtures exercise the real plugin loader and evidence checker.
-//!
-//! Kept test-only: compatibility acceptance must not change runtime policy.
+//! 插件清单兼容适配与通过真实入口运行的独立验收测试。
 
+pub(super) mod legacy_manifest;
+
+#[cfg(test)]
 #[path = "t02_tests.rs"]
 mod t02_tests;
+
+#[cfg(test)]
+#[path = "t03_tests.rs"]
+mod t03_tests;

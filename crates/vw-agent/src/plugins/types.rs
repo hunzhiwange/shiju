@@ -16,17 +16,33 @@ pub struct PluginManifest {
     pub root: PathBuf,
     pub manifest_path: PathBuf,
     pub name: String,
-    pub version: String,
-    pub description: String,
+    pub version: Option<String>,
+    pub description: Option<String>,
     pub author: Option<PluginAuthor>,
     pub homepage: Option<String>,
     pub repository: Option<String>,
     pub license: Option<String>,
     pub keywords: Vec<String>,
-    pub skills: Option<PluginPath>,
-    pub mcp_servers: Option<PluginPath>,
-    pub hooks: Vec<PluginPath>,
+    pub skills: Vec<PluginPath>,
+    pub mcp_servers: Option<PluginMcpServers>,
+    pub hooks: Vec<PluginHookSource>,
+    pub apps: Option<PluginPath>,
+    pub onboarding_skill: Option<PluginPath>,
     pub interface: Option<PluginInterface>,
+}
+
+/// MCP 声明保留原始内联对象，执行适配器负责协议校验。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PluginMcpServers {
+    Path(PluginPath),
+    Inline(serde_json::Map<String, serde_json::Value>),
+}
+
+/// Hooks 文件与内联声明的来源不会混为一个文件路径。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum PluginHookSource {
+    Path(PluginPath),
+    Inline(serde_json::Map<String, serde_json::Value>),
 }
 
 /// 兼容简写名称与结构化形式的插件作者信息。
@@ -48,7 +64,7 @@ pub struct PluginAuthorDetails {
 }
 
 /// 插件清单中面向安装与展示界面的元数据。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PluginInterface {
     pub display_name: Option<String>,
     pub short_description: Option<String>,
@@ -63,5 +79,6 @@ pub struct PluginInterface {
     pub brand_color: Option<String>,
     pub composer_icon: Option<PluginPath>,
     pub logo: Option<PluginPath>,
+    pub logo_dark: Option<PluginPath>,
     pub screenshots: Vec<PluginPath>,
 }

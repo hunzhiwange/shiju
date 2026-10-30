@@ -1,0 +1,322 @@
+{
+  "schema_version": 1,
+  "task": 6,
+  "items": [
+    {
+      "id": "identity.key",
+      "tasks": [
+        6
+      ],
+      "tests": [
+        "codex_plugin_compat_t06_separates_same_name_marketplaces",
+        "codex_plugin_compat_t06_rejects_invalid_input",
+        "codex_plugin_compat_t06_preserves_isolation",
+        "codex_plugin_compat_t06_validates_both_identity_segments",
+        "codex_plugin_compat_t06_filters_exact_identities_without_local_aliases",
+        "codex_plugin_compat_t06_rejects_mismatched_or_missing_metadata",
+        "codex_plugin_compat_t06_preserves_existing_local_identity_spelling",
+        "codex_plugin_compat_t06_rejects_symlink_state_without_touching_other_packages",
+        "codex_plugin_compat_t06_rejects_local_marketplace_key_collisions_across_sources",
+        "codex_plugin_compat_t06_gateway_retains_exact_marketplace_ids"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 5,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+        "elapsed_seconds": 424.08,
+        "record": "t06/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 5,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+        "elapsed_seconds": 297.84,
+        "record": "t06/green.log",
+        "effective_tests": 10
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 6 materialized market identity, package-external provenance and exact lifecycle targeting only; real Linux/Windows acceptance remains task 64."
+    },
+    {
+      "id": "acceptance.t06",
+      "tasks": [
+        6
+      ],
+      "tests": [
+        "codex_plugin_compat_t06_separates_same_name_marketplaces",
+        "codex_plugin_compat_t06_rejects_invalid_input",
+        "codex_plugin_compat_t06_preserves_isolation",
+        "codex_plugin_compat_t06_validates_both_identity_segments",
+        "codex_plugin_compat_t06_filters_exact_identities_without_local_aliases",
+        "codex_plugin_compat_t06_rejects_mismatched_or_missing_metadata",
+        "codex_plugin_compat_t06_preserves_existing_local_identity_spelling",
+        "codex_plugin_compat_t06_rejects_symlink_state_without_touching_other_packages",
+        "codex_plugin_compat_t06_rejects_local_marketplace_key_collisions_across_sources",
+        "codex_plugin_compat_t06_gateway_retains_exact_marketplace_ids"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 5,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+        "elapsed_seconds": 424.08,
+        "record": "t06/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 5,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+        "elapsed_seconds": 297.84,
+        "record": "t06/green.log",
+        "effective_tests": 10
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 6 materialized market identity, package-external provenance and exact lifecycle targeting only; real Linux/Windows acceptance remains task 64."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      1,
+      5
+    ],
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+    "lease_released": true,
+    "lease_note": "The runner releases each owned lease only after its Cargo child finishes; other plans may immediately reuse the slot."
+  },
+  "validation_runs": [
+    {
+      "phase": "fmt-red",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 5,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+      "elapsed_seconds": 12.67,
+      "record": "t06/fmt-red.log"
+    },
+    {
+      "phase": "red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 5,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+      "elapsed_seconds": 424.08,
+      "record": "t06/red.log"
+    },
+    {
+      "phase": "fmt",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 10.6,
+      "record": "t06/fmt-fixture-fix.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 297.95,
+      "record": "t06/green-fixture-fix.log"
+    },
+    {
+      "phase": "fmt",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 10.16,
+      "record": "t06/fmt-root-regression.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 62.49,
+      "record": "t06/green-root-regression.log",
+      "effective_tests": 10
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.26,
+      "record": "t06/adjacent-root-regression.log"
+    },
+    {
+      "phase": "fmt",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 5,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+      "elapsed_seconds": 9.96,
+      "record": "t06/fmt.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 5,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+      "elapsed_seconds": 297.84,
+      "record": "t06/green.log",
+      "effective_tests": 10
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 5,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+      "elapsed_seconds": 151.43,
+      "record": "t06/adjacent.log",
+      "effective_tests": 150
+    },
+    {
+      "phase": "clippy",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 5,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+      "elapsed_seconds": 129.34,
+      "record": "t06/clippy.log"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t06.json",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t06.json",
+      "exit_code": 1,
+      "expected": "Unmodified full frozen baseline rejects partial Task 6 evidence",
+      "diagnostic": "Evidence rejected: discovery.legacy-order: missing evidence item"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reference_snapshot": {
+    "kind": "Local source frozen by SHA-256; no Git revision asserted",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugin-common/src/plugin_id.rs": "f044856953a080930ef6ce932c3d83e70c118cce192bae6739cc0e7c34614501",
+      "codex-rs/core-plugins/src/store.rs": "ee77430b5dfcf3aa4dea129c423e29a5685b975cad8eea6f54abcddd5ef4e609"
+    },
+    "symbols": [
+      "PluginId::new",
+      "PluginId::parse",
+      "PluginId::as_key",
+      "validate_plugin_segment",
+      "PluginStore::plugin_base_root",
+      "PluginStore::install_with_version_and_manifest",
+      "PluginStore::uninstall"
+    ]
+  },
+  "package_isolation": [
+    "Same-name alpha and beta packages are independently installed and discovered, while original and installed manifest bytes are unchanged.",
+    "Source/version records are host sidecars next to package directories; package manifests are never rewritten.",
+    "Toggle and remove use exact identities, preserve another marketplace/local package, and remove only the selected package state.",
+    "Invalid segments, missing/mismatched provenance, colliding public keys and symbolic-link state fail visibly without writing outside the package installation scope."
+  ],
+  "security_differences": [
+    "Existing flat local package directory names remain unchanged; market packages use <plugin>@<marketplace> directory names rather than the upstream market/name/version cache layout.",
+    "Marketplace segments follow the frozen validator; native local identity spelling is preserved without introducing a bare-name alias for market packages.",
+    "A local spelling colliding with a marketplace key across discovered sources is an explicit error, never a precedence-based identity replacement.",
+    "Market-looking directories without host installation records fail closed; malformed, oversized, nonregular, mismatched or symlink metadata is rejected.",
+    "Task 6 does not claim atomic package/metadata publication or upgrades; task 8 and task 52 retain those transaction requirements."
+  ],
+  "diagnostics": [
+    "All three original registered tests reached and failed their target runtime assertions. The host then aborted while initiating panic (SIGABRT); no completed failed-test summary is invented.",
+    "green-fixture-fix preserves a failed first green run caused by newly added synthetic local fixtures omitting native description. Fixtures were corrected without weakening assertions.",
+    "adjacent-root-regression preserves an adjacent rejection-message regression introduced by destination inspection order; validating the install root first restored the existing behavior. The final runs include this fix."
+  ],
+  "deferred_scope": {
+    "7": "Expanded manifest discovery order and source priority.",
+    "8": "Transactional publication/rollback of package copies and host metadata.",
+    "19": "Namespaced runtime MCP tool identity.",
+    "46": "Hook content trust source binding.",
+    "47": "Marketplace catalog parsing.",
+    "48": "Git source materialization.",
+    "49": "Npm package acquisition.",
+    "51": "Marketplace catalog persistence and remote source provenance.",
+    "52": "Version upgrade transactions.",
+    "64": "Actual Linux and Windows acceptance."
+  },
+  "artifacts_sha256": {
+    "crates/vw-agent/testdata/plugin_compat/t06/README.md": "5c3dfbbcc5fa7db0fa73489855e221e3a046fd1d669a330bb3a0cbb668df23b3",
+    "crates/vw-agent/testdata/plugin_compat/t06/plugin.json": "4126604d5345cd0467e18004f20c7288ee3662b557e157fa1150ca4be3e088c9",
+    "docs/plugin-compat/evidence/t06/adjacent-root-regression.log": "8e476f2e76566c68a38ec7a62d8a06d70a90e7e0a1459e0d0d0a6669c5904ab6",
+    "docs/plugin-compat/evidence/t06/adjacent-root-regression.run.json": "3df2760ec4fda7510654fcb260dcb8aff1c4ac1efee5fb7402736e7ece7db33f",
+    "docs/plugin-compat/evidence/t06/adjacent.log": "d1c5492def44608bf9544b1db8e838e426d0a57f30d9eb5ca42afa3d23bbc465",
+    "docs/plugin-compat/evidence/t06/adjacent.run.json": "f655984cc024e5f2c69c41c868792fd89eeecf372a6e575171df6b8b0809dede",
+    "docs/plugin-compat/evidence/t06/clippy.log": "03e94da18263d9ef694f5f68826b93980a99ef98885bdea5e6dd04c44958cc6c",
+    "docs/plugin-compat/evidence/t06/clippy.run.json": "096999d96274fcfa98ba74ddd2983b8182fd9e8142bf8270d430d06d4e96fd7e",
+    "docs/plugin-compat/evidence/t06/fmt-fixture-fix.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t06/fmt-fixture-fix.run.json": "8cb0cff5f3c312af8ac54c57e83408d58dcf04824018ade793ef5abff8b034a1",
+    "docs/plugin-compat/evidence/t06/fmt-red.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t06/fmt-red.run.json": "c07e789caa277e4a7d8e9e074a064dc295e04605fe6e55452817f3bf05c198c1",
+    "docs/plugin-compat/evidence/t06/fmt-root-regression.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t06/fmt-root-regression.run.json": "144a3064c4b7a6f12ae22ea8d524a4a089d3b30019c2ecb2e41183e40467178b",
+    "docs/plugin-compat/evidence/t06/fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t06/fmt.run.json": "a056a39c0c35d78ac9a46ad97d47fe8505f8b3fbc0c6a62524258c91e814e7dd",
+    "docs/plugin-compat/evidence/t06/green-fixture-fix.log": "6d75159a881d955444a1f352d5558411c366e2ae45998ec86ae8aa63998ab474",
+    "docs/plugin-compat/evidence/t06/green-fixture-fix.run.json": "20bc1fc547b2b832d98c04ba1467df5a731095967cce1076c9e11ded6c5945b7",
+    "docs/plugin-compat/evidence/t06/green-root-regression.log": "9a1591f056ff1ec66e0f73b0c7e999b1780f9d5642772ad89aa0648093ea9941",
+    "docs/plugin-compat/evidence/t06/green-root-regression.run.json": "4a4bf442133deb72ef87547fce683a56792e22a9ca7cd579779a4dcbf2e19626",
+    "docs/plugin-compat/evidence/t06/green.log": "e8fb2bb5506e41dcfba4df1916947282e5854835b53b9a88659f49a0746246d1",
+    "docs/plugin-compat/evidence/t06/green.run.json": "0c09ac9b5f0955d5d8a67e2059f143ccf99c8e40002865c6150d0ea8c163adea",
+    "docs/plugin-compat/evidence/t06/red.log": "6636db14e2f46506d4f489d10ac774fa00c554dfcee3eb44e57a8f9d1bf020df",
+    "docs/plugin-compat/evidence/t06/red.run.json": "fb64b1c917a09c01475c7c2918ba306ea7e44fd3b9e29152c4a51f2b52696d34"
+  },
+  "artifact_note": "Captured log trailing whitespace and empty final lines are normalized; empty formatter output is stored as an empty log.",
+  "scope_note": "Partial Task 6 macOS evidence. This is not a claim of complete plugin compatibility; the unmodified full-baseline checker must reject this partial record."
+}

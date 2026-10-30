@@ -25,6 +25,9 @@ pub use hook_trust::{
     PluginHookTrustStatus, PluginHookTrustStore, plugin_hook_trust_file, plugin_hook_trust_hash,
 };
 pub use hooks::{PluginHook, PluginHookEvent, PluginHookMode, load_plugin_hooks_manifest};
+pub use install::{
+    PluginInstallResult, install_plugin_from_marketplace, install_plugin_from_source,
+};
 pub(crate) use install::{install_dir_from_config, remove_installed_plugin, set_plugin_enabled};
 pub use loader::{DiscoveredPlugin, PluginDiscovery, PluginDiscoveryOptions, discover_plugins};
 pub use manifest::load_plugin_manifest;
@@ -32,8 +35,8 @@ pub(crate) use mcp::{merge_enabled_plugin_mcp_servers, plugin_mcp_discovery_opti
 pub(crate) use skills::load_plugin_skills;
 /// 已完成路径审计和字段规范化的插件清单类型。
 pub use types::{
-    PluginAuthor, PluginAuthorDetails, PluginHookSource, PluginInterface, PluginManifest,
-    PluginMcpServers, PluginPath,
+    PluginAuthor, PluginAuthorDetails, PluginHookSource, PluginIdentity, PluginInstallMetadata,
+    PluginInterface, PluginManifest, PluginMcpServers, PluginPath,
 };
 
 #[cfg(test)]

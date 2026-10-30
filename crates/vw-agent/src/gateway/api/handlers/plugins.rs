@@ -160,7 +160,7 @@ pub(crate) fn resolve_plugin_detail(
     let plugin = discovery
         .installed
         .into_iter()
-        .find(|plugin| plugin.manifest.name == plugin_id)
+        .find(|plugin| plugin.identity.as_key() == plugin_id)
         .ok_or_else(|| anyhow::anyhow!("Plugin not found: {plugin_id}"))?;
     Ok(detail_entry(&plugin, &install_dir))
 }
@@ -184,7 +184,7 @@ fn normalize_plugin_id(plugin_id: &str) -> Result<String> {
 fn catalog_entry(plugin: &DiscoveredPlugin, _install_dir: &Path) -> DesktopPluginCatalogEntryDto {
     let manifest = &plugin.manifest;
     DesktopPluginCatalogEntryDto {
-        id: manifest.name.clone(),
+        id: plugin.identity.as_key(),
         display_name: plugin_display_name(manifest),
         version: manifest.version.clone().unwrap_or_default(),
         description: plugin_description(manifest),
@@ -198,7 +198,7 @@ fn detail_entry(plugin: &DiscoveredPlugin, install_dir: &Path) -> DesktopPluginD
     let manifest = &plugin.manifest;
     let manageable = plugin.source_dir == install_dir;
     DesktopPluginDetailDto {
-        id: manifest.name.clone(),
+        id: plugin.identity.as_key(),
         display_name: plugin_display_name(manifest),
         version: manifest.version.clone().unwrap_or_default(),
         description: plugin_description(manifest),

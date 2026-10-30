@@ -22,7 +22,7 @@ pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -
             let result = install_plugin_from_source(&source, &plugins_dir)?;
             println!(
                 "Plugin installed: {} {} at {}",
-                result.manifest.name,
+                result.identity.as_key(),
                 result.manifest.version.as_deref().unwrap_or(""),
                 result.installed_dir.display()
             );
@@ -75,7 +75,7 @@ fn list_plugins(config: &crate::config::Config, plugins_dir: &Path) -> Result<()
         };
         println!(
             "  {} {} [{}] - {} ({})",
-            plugin.manifest.name,
+            plugin.identity.as_key(),
             plugin.manifest.version.as_deref().unwrap_or(""),
             status,
             components,

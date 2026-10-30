@@ -3,6 +3,21 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+/// 本地插件保持原名称；市场插件以名称与市场共同确定身份。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct PluginIdentity {
+    pub(super) name: String,
+    pub(super) marketplace: Option<String>,
+}
+
+/// 保存在原包之外的安装来源与版本记录。
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PluginInstallMetadata {
+    pub identity: PluginIdentity,
+    pub source: String,
+    pub version: Option<String>,
+}
+
 /// 经过静态审计后的清单路径，同时保留原始声明供展示。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PluginPath {

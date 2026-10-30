@@ -6,7 +6,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use vw_config_types::plugins::PluginsConfig;
 
-use super::{PluginManifest, load_plugin_manifest};
+use super::compat::identity::read_install_metadata;
+use super::{PluginIdentity, PluginInstallMetadata, PluginManifest, load_plugin_manifest};
 
 const WORKSPACE_VIBEWINDOW_PLUGINS: &str = ".vibewindow/plugins";
 const WORKSPACE_PLUGINS: &str = "plugins";
@@ -39,6 +40,8 @@ pub struct DiscoveredPlugin {
     pub source_dir: PathBuf,
     pub manifest: PluginManifest,
     pub disabled_marker: Option<PathBuf>,
+    pub identity: PluginIdentity,
+    pub install_metadata: Option<PluginInstallMetadata>,
 }
 
 /// Installed plugins and the subset enabled for runtime use.
@@ -61,7 +64,12 @@ pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscov
         for plugin_root in plugin_roots(&source_dir)? {
             let manifest = load_plugin_manifest(&plugin_root)
                 .with_context(|| format!("failed to load plugin: {}", plugin_root.display()))?;
-            let disabled_marker = disabled_marker_path(&source_dir, &manifest.name);
+            let install_metadata = read_install_metadata(&plugin_root, &manifest)?;
+            let identity = install_metadata
+                .as_ref()
+                .map(|metadata| metadata.identity.clone())
+                .unwrap_or_else(|| PluginIdentity::local(&manifest.name));
+            let disabled_marker = disabled_marker_path(&source_dir, &identity.as_key());
             let disabled_marker = disabled_marker
                 .try_exists()
                 .with_context(|| {
@@ -74,8 +82,14 @@ pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscov
 
             upsert_plugin(
                 &mut installed,
-                DiscoveredPlugin { source_dir: source_dir.clone(), manifest, disabled_marker },
-            );
+                DiscoveredPlugin {
+                    source_dir: source_dir.clone(),
+                    manifest,
+                    disabled_marker,
+                    identity,
+                    install_metadata,
+                },
+            )?;
         }
     }
 
@@ -84,7 +98,9 @@ pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscov
         .iter()
         .filter(|plugin| plugin.disabled_marker.is_none())
         .filter(|plugin| {
-            enabled_names.as_ref().is_none_or(|names| names.contains(plugin.manifest.name.as_str()))
+            enabled_names
+                .as_ref()
+                .is_none_or(|names| names.contains(plugin.identity.as_key().as_str()))
         })
         .cloned()
         .collect();
@@ -182,13 +198,18 @@ fn disabled_marker_path(source_dir: &Path, plugin_name: &str) -> PathBuf {
     source_dir.join(format!("{plugin_name}.disabled"))
 }
 
-fn upsert_plugin(plugins: &mut Vec<DiscoveredPlugin>, plugin: DiscoveredPlugin) {
-    if let Some(index) =
-        plugins.iter().position(|existing| existing.manifest.name == plugin.manifest.name)
-    {
+fn upsert_plugin(plugins: &mut Vec<DiscoveredPlugin>, plugin: DiscoveredPlugin) -> Result<()> {
+    if plugins.iter().any(|existing| {
+        existing.identity != plugin.identity
+            && existing.identity.as_key() == plugin.identity.as_key()
+    }) {
+        bail!("ambiguous local and marketplace plugin identity: {}", plugin.identity.as_key());
+    }
+    if let Some(index) = plugins.iter().position(|existing| existing.identity == plugin.identity) {
         plugins.remove(index);
     }
     plugins.push(plugin);
+    Ok(())
 }
 
 fn enabled_name_filter(config: &PluginsConfig) -> Option<HashSet<&str>> {

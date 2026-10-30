@@ -118,3 +118,48 @@ fn plugin_text_helpers_trim_values_and_fall_back_for_empty_text() {
     assert_eq!(super::non_empty_string(Some(" \t ")), None);
     assert_eq!(super::non_empty_string(None), None);
 }
+
+#[test]
+fn codex_plugin_compat_t06_gateway_retains_exact_marketplace_ids() {
+    let temp = tempfile::tempdir().unwrap();
+    let package = temp.path().join("package");
+    let config = temp.path().join("config");
+    write_plugin(&package, "demo-plugin");
+    let plugins = config.join("plugins");
+    for market in ["alpha", "beta"] {
+        crate::plugins::install_plugin_from_marketplace(
+            package.to_str().unwrap(),
+            &plugins,
+            market,
+        )
+        .unwrap();
+    }
+    let items = super::collect_plugin_catalog(
+        temp.path().join("workspace"),
+        &config,
+        PluginsConfig::default(),
+    )
+    .unwrap();
+    assert_eq!(
+        items.iter().map(|item| item.id.as_str()).collect::<Vec<_>>(),
+        ["demo-plugin@alpha", "demo-plugin@beta"]
+    );
+    let detail = super::resolve_plugin_detail(
+        temp.path().join("workspace"),
+        &config,
+        PluginsConfig::default(),
+        "demo-plugin@beta",
+    )
+    .unwrap();
+    assert_eq!(detail.id, "demo-plugin@beta");
+    assert!(detail.can_toggle && detail.can_delete);
+    assert!(
+        super::resolve_plugin_detail(
+            temp.path().join("workspace"),
+            config,
+            PluginsConfig::default(),
+            "demo-plugin"
+        )
+        .is_err()
+    );
+}

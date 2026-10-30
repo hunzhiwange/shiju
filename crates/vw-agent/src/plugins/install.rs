@@ -6,7 +6,8 @@ use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{PluginManifest, load_plugin_manifest};
+use super::compat::identity::{metadata_path, read_install_metadata, write_install_metadata};
+use super::{PluginIdentity, PluginInstallMetadata, PluginManifest, load_plugin_manifest};
 
 const DISABLED_MARKER_SUFFIX: &str = ".disabled";
 
@@ -22,6 +23,7 @@ thread_local! {
 pub struct PluginInstallResult {
     pub installed_dir: PathBuf,
     pub manifest: PluginManifest,
+    pub identity: PluginIdentity,
 }
 
 /// Return the plugin installation directory for a loaded runtime config.
@@ -38,8 +40,25 @@ pub(crate) fn install_dir_from_config(config: &crate::config::Config) -> PathBuf
 /// Install a plugin package from a local directory source.
 /// 从本地目录安全复制并安装插件。
 ///
-/// 安装先进入临时目录并再次审计清单，全部通过后才原子移动到最终位置。
+/// 复制后再次审计清单，来源记录写入包外元数据；失败时清理新建目录。
 pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<PluginInstallResult> {
+    install_plugin(source, plugins_dir, None)
+}
+
+/// 从已物化的市场包安装，市场归属与原包清单分开保存。
+pub fn install_plugin_from_marketplace(
+    source: &str,
+    plugins_dir: &Path,
+    marketplace: &str,
+) -> Result<PluginInstallResult> {
+    install_plugin(source, plugins_dir, Some(marketplace))
+}
+
+fn install_plugin(
+    source: &str,
+    plugins_dir: &Path,
+    marketplace: Option<&str>,
+) -> Result<PluginInstallResult> {
     let source = source.trim();
     if source.is_empty() {
         bail!("Plugin source cannot be empty");
@@ -55,12 +74,18 @@ pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<Pl
 
     let source_manifest = load_plugin_manifest(&source_path)?;
     validate_plugin_name(&source_manifest.name)?;
-    let dest = plugins_dir.join(&source_manifest.name);
-    if dest.exists() {
-        bail!("Destination plugin already exists: {}", dest.display());
+    let identity = match marketplace {
+        Some(marketplace) => PluginIdentity::marketplace(&source_manifest.name, marketplace)?,
+        None => PluginIdentity::local(&source_manifest.name),
+    };
+    ensure_install_root(plugins_dir)?;
+    let dest = plugins_dir.join(identity.as_key());
+    match fs::symlink_metadata(&dest) {
+        Ok(_) => bail!("Destination plugin already exists: {}", dest.display()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("failed to inspect destination plugin"),
     }
 
-    ensure_install_root(plugins_dir)?;
     if let Err(error) = copy_dir_recursive_secure(&source_path, &dest) {
         let _ = fs::remove_dir_all(&dest);
         return Err(error);
@@ -76,7 +101,20 @@ pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<Pl
                     manifest.name
                 );
             }
-            Ok(PluginInstallResult { installed_dir: dest, manifest })
+            if manifest.version != source_manifest.version {
+                let _ = fs::remove_dir_all(&dest);
+                bail!("Installed plugin manifest version changed during installation");
+            }
+            let metadata = PluginInstallMetadata {
+                identity: identity.clone(),
+                source: source_manifest.root.to_string_lossy().into_owned(),
+                version: source_manifest.version.clone(),
+            };
+            if let Err(error) = write_install_metadata(&dest, &metadata) {
+                let _ = fs::remove_dir_all(&dest);
+                return Err(error);
+            }
+            Ok(PluginInstallResult { installed_dir: dest, manifest, identity })
         }
         Err(error) => {
             let _ = fs::remove_dir_all(&dest);
@@ -120,7 +158,19 @@ pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Resu
             }
         }
     } else {
-        fs::write(&marker, "").with_context(|| format!("failed to write {}", marker.display()))?;
+        match fs::OpenOptions::new().write(true).create_new(true).open(&marker) {
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                let metadata = fs::symlink_metadata(&marker)
+                    .with_context(|| format!("failed to inspect {}", marker.display()))?;
+                if !metadata.is_file() || metadata.file_type().is_symlink() {
+                    bail!("plugin disabled marker must be a regular file: {}", marker.display());
+                }
+            }
+            Err(error) => {
+                return Err(error).with_context(|| format!("failed to write {}", marker.display()));
+            }
+        }
     }
 
     Ok(())
@@ -133,6 +183,13 @@ pub fn remove_installed_plugin(plugins_dir: &Path, name: &str) -> Result<()> {
     ensure_installed_plugin_dir(&plugin_dir, name)?;
     fs::remove_dir_all(&plugin_dir)
         .with_context(|| format!("failed to remove plugin: {}", plugin_dir.display()))?;
+
+    let metadata = metadata_path(&plugin_dir)?;
+    match fs::remove_file(&metadata) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error).context("failed to remove plugin installation metadata"),
+    }
 
     let marker = disabled_marker_path(plugins_dir, name);
     match fs::remove_file(&marker) {
@@ -216,7 +273,11 @@ fn ensure_installed_plugin_dir(plugin_dir: &Path, name: &str) -> Result<()> {
     }
 
     let manifest = load_plugin_manifest(plugin_dir)?;
-    if manifest.name != name {
+    let metadata = read_install_metadata(plugin_dir, &manifest)?;
+    let identity = metadata
+        .map(|metadata| metadata.identity)
+        .unwrap_or_else(|| PluginIdentity::local(&manifest.name));
+    if identity.as_key() != name {
         bail!("Installed plugin name mismatch: requested '{}', found '{}'", name, manifest.name);
     }
 

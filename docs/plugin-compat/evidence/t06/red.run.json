@@ -1,0 +1,9 @@
+{
+  "phase": "red",
+  "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+  "exit_code": 101,
+  "slot": 5,
+  "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5",
+  "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-5/build",
+  "elapsed_seconds": 424.08
+}

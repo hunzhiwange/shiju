@@ -3,7 +3,6 @@
 mod outbound;
 
 use super::outbound_delivery::DeliveryFailureKind;
-use super::outbound_format::format_wecom_markdown_tables;
 use super::traits::{Channel, ChannelMessage, SendMessage};
 use anyhow::{Context, bail};
 use async_trait::async_trait;
@@ -128,7 +127,6 @@ impl WeComChannel {
     }
 
     fn reply_frame(request_id: &str, content: &str) -> Value {
-        let content = format_wecom_markdown_tables(content);
         json!({
             "cmd": "aibot_respond_msg",
             "headers": {"req_id": request_id},
@@ -160,10 +158,7 @@ impl Channel for WeComChannel {
             .await
             .clone()
             .ok_or_else(|| delivery_error(DeliveryFailureKind::NotSent))?;
-        let (item, completion) =
-            OutboundItem::new(request_id.clone(), Self::reply_frame(&request_id, &message.content));
-        sender.send(item).await.map_err(|_| delivery_error(DeliveryFailureKind::NotSent))?;
-        completion.await.unwrap_or(Err(DeliveryFailureKind::Unknown)).map_err(delivery_error)
+        outbound::send_reply(&sender, &request_id, &message.content).await
     }
 
     async fn listen(&self, tx: mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {

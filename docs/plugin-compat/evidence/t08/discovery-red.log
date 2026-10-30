@@ -1,0 +1,25 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 29s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 12 tests
+test plugins::compat::t08_tests::codex_plugin_compat_t08_preserves_existing_metadata_and_packages ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_rejects_recursive_install_roots ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_cleans_real_copy_failures_without_following_symlinks ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_rejects_changed_manifest_bytes ...
+thread 'plugins::compat::t08_tests::codex_plugin_compat_t08_keeps_staging_out_of_plugin_discovery' (47635039) panicked at crates/vw-agent/src/plugins/compat/t08_tests.rs:328:9:
+staging cannot masquerade as an installed plugin
+ok
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test plugins::compat::t08_tests::codex_plugin_compat_t08_rejects_invalid_input ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_rejects_changed_manifest_selection ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_preserves_isolation ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_does_not_execute_package_commands ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_publishes_only_complete_package ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_keeps_concurrent_installations_separate ... ok
+test plugins::compat::t08_tests::codex_plugin_compat_t08_rebases_audited_paths_and_preserves_provenance ... ok
+fatal runtime error: failed to initiate panic, error 5, aborting
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build/debug/deps/vw_agent-37bd5ad0c5868c4a codex_plugin_compat_t08_ --nocapture` (signal: 6, SIGABRT: process abort signal)

@@ -1,0 +1,362 @@
+{
+  "schema_version": 1,
+  "task": 8,
+  "items": [
+    {
+      "id": "store.layout",
+      "tasks": [
+        8
+      ],
+      "tests": [
+        "codex_plugin_compat_t08_publishes_only_complete_package",
+        "codex_plugin_compat_t08_rejects_invalid_input",
+        "codex_plugin_compat_t08_preserves_isolation",
+        "codex_plugin_compat_t08_preserves_existing_metadata_and_packages",
+        "codex_plugin_compat_t08_rejects_changed_manifest_bytes",
+        "codex_plugin_compat_t08_rejects_changed_manifest_selection",
+        "codex_plugin_compat_t08_rebases_audited_paths_and_preserves_provenance",
+        "codex_plugin_compat_t08_keeps_concurrent_installations_separate",
+        "codex_plugin_compat_t08_rejects_recursive_install_roots",
+        "codex_plugin_compat_t08_cleans_real_copy_failures_without_following_symlinks",
+        "codex_plugin_compat_t08_does_not_execute_package_commands",
+        "codex_plugin_compat_t08_keeps_staging_out_of_plugin_discovery"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 133.24,
+        "record": "t08/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 72.83,
+        "record": "t08/green.log",
+        "effective_tests": 12,
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 8 original-package installation, no-overwrite publication and rollback only; task 51 persistent state and non-macOS acceptance remain separate."
+    },
+    {
+      "id": "acceptance.t08",
+      "tasks": [
+        8
+      ],
+      "tests": [
+        "codex_plugin_compat_t08_publishes_only_complete_package",
+        "codex_plugin_compat_t08_rejects_invalid_input",
+        "codex_plugin_compat_t08_preserves_isolation",
+        "codex_plugin_compat_t08_preserves_existing_metadata_and_packages",
+        "codex_plugin_compat_t08_rejects_changed_manifest_bytes",
+        "codex_plugin_compat_t08_rejects_changed_manifest_selection",
+        "codex_plugin_compat_t08_rebases_audited_paths_and_preserves_provenance",
+        "codex_plugin_compat_t08_keeps_concurrent_installations_separate",
+        "codex_plugin_compat_t08_rejects_recursive_install_roots",
+        "codex_plugin_compat_t08_cleans_real_copy_failures_without_following_symlinks",
+        "codex_plugin_compat_t08_does_not_execute_package_commands",
+        "codex_plugin_compat_t08_keeps_staging_out_of_plugin_discovery"
+      ],
+      "red": {
+        "phase": "red",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 2,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+        "elapsed_seconds": 133.24,
+        "record": "t08/red.log",
+        "effective_tests": 3,
+        "observed_target_assertions": 3
+      },
+      "green": {
+        "phase": "green",
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 72.83,
+        "record": "t08/green.log",
+        "effective_tests": 12,
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 8 original-package installation, no-overwrite publication and rollback only; task 51 persistent state and non-macOS acceptance remain separate."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+    "lease_released": true,
+    "lease_note": "Runner releases only its owned lease after Cargo and all child processes end; another plan may reuse it immediately."
+  },
+  "validation_runs": [
+    {
+      "phase": "fmt-red",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 9.22,
+      "record": "t08/fmt-red.log"
+    },
+    {
+      "phase": "red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 133.24,
+      "record": "t08/red.log"
+    },
+    {
+      "phase": "green-interrupted",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 130,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "record": "t08/green-interrupted.log",
+      "diagnostic": "Agent interrupted its own runner before test execution to fix nested-root source mutation; Cargo children ended and owned lease released. No behavior result asserted."
+    },
+    {
+      "phase": "fmt-green-before-discovery-fix",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.36,
+      "record": "t08/fmt-green-before-discovery-fix.log"
+    },
+    {
+      "phase": "green-before-discovery-fix",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 111.89,
+      "record": "t08/green-before-discovery-fix.log",
+      "effective_tests": 11,
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "adjacent-before-discovery-fix",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 77.75,
+      "record": "t08/adjacent-before-discovery-fix.log",
+      "effective_tests": 171,
+      "passed": 171,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "clippy-before-discovery-fix",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 41.57,
+      "record": "t08/clippy-before-discovery-fix.log"
+    },
+    {
+      "phase": "fmt-discovery-red",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.37,
+      "record": "t08/fmt-discovery-red.log"
+    },
+    {
+      "phase": "discovery-red",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 89.89,
+      "record": "t08/discovery-red.log"
+    },
+    {
+      "phase": "fmt-green",
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.32,
+      "record": "t08/fmt-green.log"
+    },
+    {
+      "phase": "green",
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 72.83,
+      "record": "t08/green.log",
+      "effective_tests": 12,
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "adjacent",
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 2.05,
+      "record": "t08/adjacent.log",
+      "effective_tests": 172,
+      "passed": 172,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "phase": "clippy",
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 21.78,
+      "record": "t08/clippy.log"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t08.json",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t08.json",
+      "exit_code": 1,
+      "expected": "The unchanged complete frozen baseline rejects partial Task 8 evidence",
+      "diagnostic": "Evidence rejected: discovery.legacy-order: missing evidence item"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "reference_snapshot": {
+    "kind": "Local source frozen by SHA-256; no Git revision asserted",
+    "git_revision": null,
+    "files": {
+      "codex-rs/core-plugins/src/store.rs": "ee77430b5dfcf3aa4dea129c423e29a5685b975cad8eea6f54abcddd5ef4e609",
+      "codex-rs/core-plugins/src/artifact_operation.rs": "c73c13e22eb773b7cebb2121f27462d94b4d3ec4c7fcdbc418e51a4d0ce09bcd"
+    },
+    "symbols": [
+      "PluginStore",
+      "replace_plugin_root_atomically"
+    ],
+    "review_note": "artifact_operation.rs was reviewed and concerns excluded hosted artifact attribution, not package installation."
+  },
+  "package_isolation": [
+    "The original three tests each reached a real public-installation checkpoint and failed because the unaudited final directory was visible before publication. The host then aborted while initiating panic; no failed-test summary is invented.",
+    "Real temporary directories, secure recursive copy, manifest parsing and identity validation are used. The test checkpoint observes or mutates actual files; it does not replace those operations.",
+    "Only a fully audited package is moved into its final path by a same-filesystem no-replace directory publication. A competing empty directory survives unchanged.",
+    "A complete metadata sidecar is published through an exclusive hard link before the package becomes discoverable. Existing records are never overwritten; a failed package publication removes its own sidecar.",
+    "Concurrent real installers for the same identity produce exactly one success and one rejection, without mixed bytes or leftover transaction state.",
+    "Rejected invalid, changed or reselected staged manifests leave no package, metadata or temporary transaction contents. Source package bytes remain unchanged.",
+    "Every audited skills, MCP, Hooks, Apps, onboarding and interface resource path is rebased to the final root and matches a fresh real manifest load; marketplace provenance is visible through discovery.",
+    "Nested installation roots are rejected before creating directories in the source. Source symlinks are not followed, external file bytes are untouched and package shell commands are not executed."
+  ],
+  "security_differences": [
+    "Unlike upstream update replacement, this entry point refuses every existing final directory or metadata entry, including empty directories and symlinks.",
+    "No upstream command migration or generated manifest injection is performed; source and installed package bytes are not rewritten.",
+    "On macOS publication uses renamex_np(RENAME_EXCL); Linux uses renameat2(RENAME_NOREPLACE) through the existing libc dependency; Windows uses directory rename which refuses an existing directory. A kernel or filesystem rejecting the required operation fails closed without overwrite fallback.",
+    "Package and provenance entries have separate filesystem names. Provenance is complete before package publication, so discovery cannot see a half-copied package; this does not claim a multi-entry filesystem transaction or SIGKILL recovery.",
+    "A pre-existing install-root container may remain empty after a rejected copy as before; owned package, provenance and staging entries are removed. Persistent installation-state recovery belongs to task 51."
+  ],
+  "diagnostics": [
+    "An additional real discovery checkpoint proved staging could masquerade as a plugin for a pre-existing permitted local name. A fixed intermediate payload directory now prevents staging from entering discovery; the final 12-test run includes that regression.",
+    "The first green compilation was deliberately interrupted by this agent before tests to fix source mutation for a nested install root. Only its own Cargo group was stopped, its lease was released, and no behavior evidence was claimed."
+  ],
+  "deferred_scope": {
+    "51": "Persistent marketplace installation state and recovery",
+    "52": "Transactional plugin version update",
+    "64": "Actual Linux and Windows runtime acceptance"
+  },
+  "artifacts_sha256": {
+    "crates/vw-agent/testdata/plugin_compat/t08/README.md": "7825b56a8de8d28c52eecdebf8abbec7d44737f01a1fc6c793aaf907e0484847",
+    "crates/vw-agent/testdata/plugin_compat/t08/payload.txt": "80683dca1fccb2401df13f8189b3801664f721777f2e7601e6c525bbbc1bef83",
+    "crates/vw-agent/testdata/plugin_compat/t08/plugin.json": "d0cc487ab18a4ed324d7f67baf8e90688ecec332d42c4fadbe49797637d73065",
+    "docs/plugin-compat/evidence/t08/adjacent-before-discovery-fix.log": "653f4a002b74e0efaf91ec90de1917935cf4473498a0897bd09cf707b010178b",
+    "docs/plugin-compat/evidence/t08/adjacent-before-discovery-fix.run.json": "4675b9028eaf9fd3cec6cb74723749b4fb2c3262247e206032d39c8ab1696627",
+    "docs/plugin-compat/evidence/t08/adjacent.log": "ec5f5e9038b5cc73daad86d4b95e6ae2419b293895b9b87efe715dab007dabb5",
+    "docs/plugin-compat/evidence/t08/adjacent.run.json": "e9bae1ac519c7a551f425d6c6b247a0d4eb94fd2e8e4f62eca6e7c89dbe9262c",
+    "docs/plugin-compat/evidence/t08/clippy-before-discovery-fix.log": "d13f4d5a620b1a0a606925e1fcf72d46bd9a8f5c59818abd23c083a86cd73e33",
+    "docs/plugin-compat/evidence/t08/clippy-before-discovery-fix.run.json": "706209bcd2317fce6d2e4fce816ae703198a23a00016b855a3e521a209316282",
+    "docs/plugin-compat/evidence/t08/clippy.log": "052e9fa2ba29d23f665bcaf7fc1f14eff2c46851ed842759d67244444d7eaeb3",
+    "docs/plugin-compat/evidence/t08/clippy.run.json": "984419c3d273d45b96dfa48cddf417cf7b2c8b7f3b4f340beaf11e5acb820509",
+    "docs/plugin-compat/evidence/t08/discovery-red.log": "5857d8744e758a52213d0aa4a67e071284ca6a34a22d31ddb0b82de8866322cc",
+    "docs/plugin-compat/evidence/t08/discovery-red.run.json": "fe21ca18f6d280a37df5b3287e093d875b2c55fc83a77ca774971302baf5624d",
+    "docs/plugin-compat/evidence/t08/fmt-discovery-red.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t08/fmt-discovery-red.run.json": "7250a293812e70d656417116f8cbc69339cfd4bec946103f11763056bdbee079",
+    "docs/plugin-compat/evidence/t08/fmt-green-before-discovery-fix.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t08/fmt-green-before-discovery-fix.run.json": "2ebe04e078267beedbed8c9e2312ddaf04af8c406614721d27e32960f287b62f",
+    "docs/plugin-compat/evidence/t08/fmt-green.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t08/fmt-green.run.json": "da0abd31685655314221bc7fc4272abe461e1c453b850482c1cc40ececf6a7c5",
+    "docs/plugin-compat/evidence/t08/fmt-red.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t08/fmt-red.run.json": "9fc7f8ca8b03891e9d77b666085af8c972c1db3827e1395327bc020d72a56606",
+    "docs/plugin-compat/evidence/t08/green-before-discovery-fix.log": "80a4826000ade3643e9492de2d6a2fdb3ea33825a34dc0a3a0b37c950ad56848",
+    "docs/plugin-compat/evidence/t08/green-before-discovery-fix.run.json": "0558d658ff97e095bcb8f9674bf02216d2b8e5921b58bca76ec3096dab825b24",
+    "docs/plugin-compat/evidence/t08/green-interrupted.log": "b3cb0ada89f830e74f7ba3e780bdc141fcd0023152068324009057423bdc8d24",
+    "docs/plugin-compat/evidence/t08/green-interrupted.run.json": "40b6b459311e86b4eda1736d2dd5af1bc1fb967207c3a80293608e8030bf759e",
+    "docs/plugin-compat/evidence/t08/green.log": "f6f9652121a1f8c9a89ac5698b452f345cd10b49c4eb3a615f7cfe39b0a7a5d1",
+    "docs/plugin-compat/evidence/t08/green.run.json": "c0ba84317c28fc8821403270fb6e58359719f549787ba0bddb2e70c54afa6b9c",
+    "docs/plugin-compat/evidence/t08/red.log": "e961dd8c95c2fe3f1e3a4a654de6b5f1af95a0743786cd3d39d6b2e13be2f2b2",
+    "docs/plugin-compat/evidence/t08/red.run.json": "24cca7cddeb3f22d918244f2d95ce70ee18d27ca79e8dbf512787f0214bad56a"
+  },
+  "artifact_note": "Captured log trailing whitespace and empty final lines are normalized; empty formatter output remains an empty log.",
+  "scope_note": "Partial Task 8 macOS evidence. The unmodified full-baseline checker must reject this partial record; this does not claim complete plugin compatibility."
+}

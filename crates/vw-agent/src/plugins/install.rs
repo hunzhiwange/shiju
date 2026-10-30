@@ -6,8 +6,8 @@ use std::cell::RefCell;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::compat::identity::{metadata_path, read_install_metadata, write_install_metadata};
-use super::{PluginIdentity, PluginInstallMetadata, PluginManifest, load_plugin_manifest};
+use super::compat::identity::{metadata_path, read_install_metadata};
+use super::{PluginIdentity, PluginManifest, load_plugin_manifest};
 
 const DISABLED_MARKER_SUFFIX: &str = ".disabled";
 
@@ -15,7 +15,12 @@ const DISABLED_MARKER_SUFFIX: &str = ".disabled";
 thread_local! {
     static NEXT_POST_COPY_AUDIT_RESULT: RefCell<Option<Result<PluginManifest, String>>> =
         const { RefCell::new(None) };
+    static NEXT_POST_COPY_OBSERVER: RefCell<Option<PostCopyObserver>> =
+        const { RefCell::new(None) };
 }
+
+#[cfg(test)]
+type PostCopyObserver = Box<dyn FnOnce(&Path)>;
 
 /// Result of a local plugin installation.
 #[derive(Debug, Clone, PartialEq)]
@@ -40,7 +45,7 @@ pub(crate) fn install_dir_from_config(config: &crate::config::Config) -> PathBuf
 /// Install a plugin package from a local directory source.
 /// 从本地目录安全复制并安装插件。
 ///
-/// 复制后再次审计清单，来源记录写入包外元数据；失败时清理新建目录。
+/// 在同文件系统暂存并审计原包与包外来源记录，完成后禁止覆盖地发布。
 pub fn install_plugin_from_source(source: &str, plugins_dir: &Path) -> Result<PluginInstallResult> {
     install_plugin(source, plugins_dir, None)
 }
@@ -78,54 +83,25 @@ fn install_plugin(
         Some(marketplace) => PluginIdentity::marketplace(&source_manifest.name, marketplace)?,
         None => PluginIdentity::local(&source_manifest.name),
     };
-    ensure_install_root(plugins_dir)?;
-    let dest = plugins_dir.join(identity.as_key());
-    match fs::symlink_metadata(&dest) {
-        Ok(_) => bail!("Destination plugin already exists: {}", dest.display()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => return Err(error).context("failed to inspect destination plugin"),
-    }
-
-    if let Err(error) = copy_dir_recursive_secure(&source_path, &dest) {
-        let _ = fs::remove_dir_all(&dest);
-        return Err(error);
-    }
-
-    match load_plugin_manifest_for_post_copy_audit(&dest) {
-        Ok(manifest) => {
-            if manifest.name != source_manifest.name {
-                let _ = fs::remove_dir_all(&dest);
-                bail!(
-                    "Installed plugin manifest name changed from '{}' to '{}'",
-                    source_manifest.name,
-                    manifest.name
-                );
-            }
-            if manifest.version != source_manifest.version {
-                let _ = fs::remove_dir_all(&dest);
-                bail!("Installed plugin manifest version changed during installation");
-            }
-            let metadata = PluginInstallMetadata {
-                identity: identity.clone(),
-                source: source_manifest.root.to_string_lossy().into_owned(),
-                version: source_manifest.version.clone(),
-            };
-            if let Err(error) = write_install_metadata(&dest, &metadata) {
-                let _ = fs::remove_dir_all(&dest);
-                return Err(error);
-            }
-            Ok(PluginInstallResult { installed_dir: dest, manifest, identity })
-        }
-        Err(error) => {
-            let _ = fs::remove_dir_all(&dest);
-            Err(error).with_context(|| {
-                format!("installed plugin failed post-copy audit: {}", dest.display())
-            })
-        }
-    }
+    super::compat::transaction_install::install_package(&source_manifest, identity, plugins_dir)
 }
 
-fn load_plugin_manifest_for_post_copy_audit(plugin_dir: &Path) -> Result<PluginManifest> {
+pub(super) fn observe_post_copy(plugin_dir: &Path) {
+    #[cfg(test)]
+    if let Some(observer) = NEXT_POST_COPY_OBSERVER.with(|slot| slot.borrow_mut().take()) {
+        observer(plugin_dir);
+    }
+    let _ = plugin_dir;
+}
+
+#[cfg(test)]
+pub(super) fn set_next_post_copy_observer_for_test(observer: impl FnOnce(&Path) + 'static) {
+    NEXT_POST_COPY_OBSERVER.with(|slot| *slot.borrow_mut() = Some(Box::new(observer)));
+}
+
+pub(super) fn load_plugin_manifest_for_post_copy_audit(
+    plugin_dir: &Path,
+) -> Result<PluginManifest> {
     #[cfg(test)]
     if let Some(result) = NEXT_POST_COPY_AUDIT_RESULT.with(|slot| slot.borrow_mut().take()) {
         return result.map_err(anyhow::Error::msg);
@@ -220,7 +196,7 @@ fn is_unsupported_remote_source(source: &str) -> bool {
         || lower.starts_with("marketplace:")
 }
 
-fn ensure_install_root(plugins_dir: &Path) -> Result<()> {
+pub(super) fn ensure_install_root(plugins_dir: &Path) -> Result<()> {
     match fs::symlink_metadata(plugins_dir) {
         Ok(metadata) => {
             if metadata.file_type().is_symlink() {
@@ -284,7 +260,7 @@ fn ensure_installed_plugin_dir(plugin_dir: &Path, name: &str) -> Result<()> {
     Ok(())
 }
 
-fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
+pub(super) fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
     let metadata = fs::symlink_metadata(src)
         .with_context(|| format!("failed to read metadata for {}", src.display()))?;
     if metadata.file_type().is_symlink() {

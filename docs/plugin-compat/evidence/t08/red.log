@@ -1,0 +1,20 @@
+   Compiling vw-agent v0.5.15 (/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 13s
+     Running unittests src/lib.rs (target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a)
+
+running 3 tests
+
+thread 'plugins::compat::t08_tests::codex_plugin_compat_t08_preserves_isolation' (47430119) panicked at crates/vw-agent/src/plugins/compat/t08_tests.rs:75:9:
+copying must not occupy another installer's destination
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'plugins::compat::t08_tests::codex_plugin_compat_t08_rejects_invalid_input' (47430121) panicked at crates/vw-agent/src/plugins/compat/t08_tests.rs:56:9:
+a rejected copy must never enter the installed namespace
+
+thread 'plugins::compat::t08_tests::codex_plugin_compat_t08_publishes_only_complete_package' (47430120) panicked at crates/vw-agent/src/plugins/compat/t08_tests.rs:37:9:
+unaudited package must not be published at its final path
+fatal runtime error: failed to initiate panic, error 5, aborting
+fatal runtime error: failed to initiate panic, error fatal runtime error: failed to initiate panic, error error: test failed, to rerun pass `-p vw-agent --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build/debug/deps/vw_agent-37bd5ad0c5868c4a codex_plugin_compat_t08_ --nocapture` (signal: 6, SIGABRT: process abort signal)

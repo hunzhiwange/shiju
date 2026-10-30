@@ -99,3 +99,20 @@ PYTHONPATH=evals/terminal-bench evals/promptfoo/results/task25/harbor-venv/bin/p
 - 本题 diagnostic-admission.json 与 children-calibration.json 的base均为单manifest sha256:32c8a19cdeab820f8ea710fcdacaef0893848898158f0d3ccc890a75ab365adf，RootFS序列与63分层证据完全相同。本轮复用已经缓存的base，无新增该base compressedcopy或新layer import，因此该缓存base复用的extra C/U=0；并非完整archive U=0，也非本轮合成COPY/context/运行可写层零占用，后者仍按原S/B/A/context预算计。
 - 新增忽略收据：evals/promptfoo/results/qwen38-suite/diagnostics/password-recovery/container-resume/base-size-metadata-correction.json，引用63分层证据及本题旧准入/控制/父拒绝收据并记录各原始文件SHA256。仅更正metadata说明，不改case源、既有raw JSON/hash或历史评分；20容器fixture与8标准控制不因本次文字更正失效。
 - 本次未重跑测试、容器校准、Clippy或磁盘准入。父容量阻塞及状态“已阻塞”保留，未父下载；待容量恢复后重新做完整父准入和preflight。
+
+## 2026-10-30 恢复检查点（父题容量已突破，子题等待共享窗口）
+
+- 父题容量准入成功：host=44783386624、VM=74008616960 bytes；C=62185367 bytes，3份压缩副本、正硬Ucap=1GiB、S10/B2/A1/余量5GiB，所需20587650757 bytes。实际受限流式解压总U=195910144，各压缩摘要、diff_id与RootFS链逐项匹配；原镜像manifest为sha256:15fcd84bf3b06270ee148211cc6da6599b13ec2f41ac1d0894cf75c2225872ee，amd64。OCI导入后受限实际启动x86_64、/app只有原varsea，无/tests、/oracle、/solution；没有更改上游任务。
+- 本轮证据根：evals/promptfoo/results/qwen38-suite/diagnostics/password-recovery/resume-20261030/。指定host unittest 21项通过、validate --run-fixtures 20项均符合预期；score.sh test最终Configuration is valid（缓存缺cookie的中途失败保留）。Clippy动态槽位1，绝对target/builddir均为/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，JOBS=1，退出0，锁已释放。
+- 指定preflight旧runtime.json缺historical_root，启动前失败，保留requested-preflight.log；改用上次本题container-resume/runtime.json绑定runtime-v2，未改模型/超时/预算。初查公共scheduler=7faf6e3471f51146cfdcf0d6ce62a6d63df5deaec17fb3866e6e723de9afd6c5，因此必须重新绑定子题标准校准。
+- preflight/password-recovery-20261030-ready已有父题fresh oracle reward=1、nop reward=0，均首次官方评分、无recovery，原2项pytest分别通过/失败，实际main=1CPU/2048MiB，镜像为同一manifest。完整父题已突破旧容量阻塞。
+- 本轮第一次外部监控误遇其他任务容器消失而中断（已将监控收窄为本题），第二次启动及第三次子题m1启动均被公共非阻塞资源锁拒绝；所有失败目录保留，不冒充成绩。没有改公共锁或覆盖现有评分。
+- 收据复核发现公共variants.py/schema.json被其他任务并发修改，父题preflight收据实际绑定scheduler=f5218f676a7c708cb2d1cb91b7fd0c29e9d8694e6822b732be4204c45c8aa4be，而当前为7ad9affa98d787ab12315fd30889d1c650700a33e16857dc5f3d602d57ea7318；因此不能复用父题历史控制生成当前preparation。resume-children.py已在身份检查处拒绝，没有伪造绑定。
+- 新恢复入口：resume-20261030/calibrate-all.py。静默期及每次启动前检查身份，经公共harbor_trial/SuiteDockerEnvironment重新做全部10个fresh控制；只重试启动前BlockingIOError，不重试成绩失败。watch-all.py持续检查实际host/VM余量、自己容器SizeRw与证据归档预算，不触碰他人容器/锁。当前共享锁由其他题builder与排队会话占用，第一轮stable父启动在执行前被拒绝，正在等待后续窗口。
+- 成功后calibrate-all.py先verify_preparation验证10个控制与起止身份，再落case/preparation.json；verify-final.py检查资源/镜像/摘要/测试与容量收据。尚未形成完整preparation.json，不删除本计划，不标完成，无付费调用。
+
+### 本轮收尾
+
+- 新身份下stable父题启动两次均在执行前因BlockingIOError被拒绝；随后等待时仍有其他题准备进程、builder及task47的2CPU/4GiB预留占用窗口。没有将拒绝计作评分，也没有修改公共锁策略。
+- 已停止本题calibrate-all等待进程，并通过stop-watch结束本题容量监控；本题无运行中容器、自有Cargo锁均已释放。没有停止其他会话或容器，没有删除共享锁/缓存。blocked-final.json保留明确终态。
+- 状态保持已阻塞。建议为本题分配独占准备窗口，先确认公共身份稳定，再运行忽略目录的calibrate-all.py（会按时间戳创建新trial目录）与watch-all.py；重启监控前删除本题stop-watch标记。它会重跑全部10个控制，不复用旧身份父评分。完成后运行verify-final.py，再更新README及提交本题独立资产；当前没有preparation.json，资产保留未提交。

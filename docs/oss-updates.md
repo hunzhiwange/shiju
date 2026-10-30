@@ -217,3 +217,35 @@ GUI 证据缺口已解除，结合已通过的本地契约和桌面自动化回�
 CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，
 RUST_TEST_THREADS=1；已释放锁并保留缓存，撤回 fmt 对无关文件的空行改动。
 Clippy 仅提示既有 block 0.1.6 future-incompatibility。
+
+## 2026-10-30 Linux 自动更新与 DEB 验证
+
+本次将生成器、Rust 消费端、独立发布器及本机已安装发布技能统一为六平台八包。
+GitHub `v0.5.14` 元数据实查包含 `shiju_0.5.14_arm64.deb`（97,553,574 bytes）与
+`shiju_0.5.14_amd64.deb`（96,919,456 bytes）；原六包生成器会漏掉它们。
+本次未修改该 Release，也未执行 OSS 发布或本机升级。
+
+- `cargo test -p vw-shared --all-features desktop_release -- --nocapture`：17 项通过。
+- `cargo test -p vw-desktop --all-features installer_update -- --nocapture`：7 项通过，
+  包含 DEB/RPM 手续交接、失败重试及明暗主题实际绘制。
+- `cargo test -p vw-desktop --all-features desktop_update_helper -- --nocapture`：12 项通过；
+  最终 Linux 模块定向重跑 4 项通过，包含授权取消和安装归属/版本/架构拒绝。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出 0。
+- 生成器 Python 测试 14 项通过；独立发布技能测试 33 项通过；
+  `check_generator_contract.py --generator-root <本仓库>` 接受真实生成器的八包产物，
+  拒绝缺包、preview、大小或摘要错误。
+- Ubuntu 24.04 容器运行 `test_linux_bundle.py` 两项测试通过，使用真实 dpkg-deb
+  为 ARM64/AMD64 创建并解包检查，确认四个程序、执行权限、桌面入口、图标及安装脚本。
+  输入是中性 fixture，不代表真实产品二进制已运行或升级。
+- GitHub 真实八包元数据预览：`<预览输出目录>/v0.5.14/manifest.preview.json`。
+  仅预览，不可交给发布器当作已下载产物。
+
+Cargo 使用共享槽位 1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR 均为
+`<仓库根目录>/target/rust-slot-1`，RUST_TEST_THREADS=1；
+阶段完成释放锁、保留缓存。外部发布器维护位置为
+`<发布器仓库>/skills/shiju-agent-oss-update/`，
+已同步本机 `<Codex 技能目录>/shiju-agent-oss-update/` 的对应文件。
+
+下一步在 Ubuntu/Debian 和 RPM 桌面分别验证系统授权弹窗、取消、成功升级、依赖/锁失败、
+安装后实际版本及重启。当前 macOS 宿主的单元测试和 Ubuntu 打包容器不替代这些实机证据。
+生产发布应使用更高版本，不能覆盖同版本历史六包清单；旧六包协议客户端需先安装新版。

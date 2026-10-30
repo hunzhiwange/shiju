@@ -5,7 +5,7 @@
 
 ## 1. 先判断本次能否发布
 
-完整路径：**GitHub 正式 Release → 本地下载六个平台原包 → 离线预览 → OSS 发布 → 公网验收 → 客户端升级验收**。
+完整路径：**GitHub 正式 Release → 本地下载六个平台八个原包 → 离线预览 → OSS 发布 → 公网验收 → 客户端升级验收**。
 
 当前发布器存在明确限制：
 
@@ -13,24 +13,25 @@
 | --- | --- |
 | 不存在，且 OSS API 明确返回 NoSuchKey | 首次发布 |
 | 已是本次版本，清单字节完全一致 | 同版本恢复、重新校验 |
-| 已存在较低版本 | **停止：当前实现不支持推进 latest 到更高版本** |
+| 已存在较低版本 | 在共享发布锁内重新核对后推进 latest；可读取历史六包清单 |
 | 已存在较高版本 | 停止：拒绝降级 |
 | 同版本但清单字节不同 | 停止：拒绝覆盖 |
 | 状态不明、权限错误或读取失败 | 停止并排查 |
 
-已有 latest 的连续升版，需要先补齐受支持的目标条件更新协议（CAS，即仅在目标仍符合预期时更新）。
-不要删除 latest、手工覆盖指针或改写版本对象来绕过。匿名 URL 的 404 不能单独证明允许首次发布，最终由发布器读取 OSS 判定。
+所有发布端须使用已支持八包协议的独立发布技能及共享锁。不要删除 latest 或改写
+不可变版本对象；相同版本的六包清单不能改成八包，需发布更高版本。
+旧客户端只理解六包协议，需要先安装支持八包协议的新版，再使用后续自动更新。
 
 ## 2. 发布前准备
 
 - GitHub 仓库固定为 `hunzhiwange/shiju`；目标 `vX.Y.Z` 已是正式 Release，非草稿、非预发布。
-- 六个平台资产上传完毕，GitHub API 为每个资产返回 SHA-256 digest。缺包或缺 digest 时先修复 Release。
+- 六个平台八个资产上传完毕，GitHub API 为每个资产返回 SHA-256 digest。缺包或缺 digest 时先修复 Release。
 - 本机具备 Python 3.10+、`uv`，可访问 GitHub、OSS 和 `https://www.shiju.cloud`。
 - 产物使用无符号链接组件的绝对路径，所在文件系统支持硬链接；macOS 临时路径使用 `/private/tmp` 而非 `/tmp`。
 - 同一产物目录只由一个进程操作；发布期间不改清单和安装包。
 - OSS bucket 固定为 `shiju-cloud`，发布前缀固定为 `agents/shiju-agent/`。
-- bucket 必须从未启用版本控制；已开启、已暂停或无法读取状态时发布器都会拒绝。
-- 发布账号能够读取 bucket 版本控制状态，并读取、创建上述前缀对象；公开域名能匿名读取该前缀。
+- bucket 必须从未启用版本控制；维护者须确保发布期间状态不变。发布器不查询或修改此状态。
+- 发布账号能够读取、创建上述前缀对象，并仅对 latest/publish.lock 拥有删除权限；公开域名能匿名读取该前缀。
 - 发布期间保持 bucket 版本控制状态不变，避免其他客户端覆盖该前缀对象。
 
 发布器读取本机 `~/.config/shiju-oss-upload/config.json` 的 `region`、`access_key_id`、`access_key_secret`。
@@ -44,7 +45,7 @@
 本流程从已经准备好的 GitHub Release 开始，不会创建 tag 或触发打包。
 
 ```bash
-RELEASE_VERSION='0.5.10'
+RELEASE_VERSION='0.5.14'
 SOURCE_REPO='/Users/Shared/work/dir/data/codes/vibe-window'
 PUBLISH_SKILL='/Users/Shared/work/dir/data/codes/data-gateway-oss-upload/skills/shiju-agent-oss-update'
 OUTPUT_ROOT='/private/tmp/shiju-oss-release'
@@ -55,29 +56,34 @@ RELEASE_DIR="$OUTPUT_ROOT/v$RELEASE_VERSION"
 
 ## 4. 预览 GitHub 元数据并下载
 
-先预览（访问 GitHub，但不下载六个安装包，也不访问 OSS）：
+先预览（访问 GitHub，但不下载八个安装包，也不访问 OSS）：
 
 ```bash
 python3 "$SOURCE_REPO/scripts/prepare_oss_release.py" \
-  --version "$RELEASE_VERSION" --output-dir "$OUTPUT_ROOT" --metadata-only
+  --version "$RELEASE_VERSION" --output-dir "$OUTPUT_ROOT" --metadata-only &&
 python3 -m json.tool "$RELEASE_DIR/manifest.preview.json"
 ```
 
-确认版本、Release 地址、六个平台、文件名、大小和摘要符合本次发布目标，然后正式准备：
+确认版本、Release 地址、六个平台八个包、文件名、大小和摘要符合本次发布目标，然后正式准备：
 
 ```bash
 python3 "$SOURCE_REPO/scripts/prepare_oss_release.py" \
-  --version "$RELEASE_VERSION" --output-dir "$OUTPUT_ROOT"
+  --version "$RELEASE_VERSION" --output-dir "$OUTPUT_ROOT" &&
 python3 -m json.tool "$RELEASE_DIR/manifest.json"
 ```
 
-每条命令成功后才进入下一步。正式 `manifest.json` 仅在六包全部通过大小和 SHA-256 校验后生成。
-`manifest.preview.json` 不能替代它。下载可使用 `GITHUB_TOKEN`，该令牌不用于 OSS。
+每条命令成功后才进入下一步。正式 `manifest.json` 仅在八包全部通过大小和 SHA-256 校验后生成。
+`manifest.preview.json` 不能替代它。GitHub 元数据请求依次使用 `GITHUB_TOKEN`、`GH_TOKEN`、
+本机 `gh auth login --hostname github.com` 的凭据；均未配置时匿名访问，可能遇到 API 限流。
+令牌仅发送到 GitHub API，不随安装包下载请求发送，也不用于 OSS。遇到 HTTP 403 限流时，
+先配置凭据或等待配额恢复，再重跑；准备失败不会生成正式清单，无需继续执行 JSON 检查。
 
-应有以下六包及正式清单；不解压、不改名、不重新压缩：
+应有以下八包及正式清单；不解压、不改名、不重新压缩：
 
 | 平台 | 文件名（将 X.Y.Z 换为本次版本） |
 | --- | --- |
+| Ubuntu/Debian ARM64 | `shiju_X.Y.Z_arm64.deb` |
+| Ubuntu/Debian x64 | `shiju_X.Y.Z_amd64.deb` |
 | Linux ARM64 | `shiju-X.Y.Z-1.aarch64.rpm` |
 | Linux x64 | `shiju-X.Y.Z-1.x86_64.rpm` |
 | Windows ARM64 | `ShiJu-aarch64-pc-windows-msvc-dist.msi` |
@@ -119,9 +125,9 @@ cd "$PUBLISH_SKILL"
 uv run scripts/publish.py --dir "$RELEASE_DIR"
 ```
 
-预览会重新校验清单、六包、URL、大小和摘要，不读取 OSS 凭据、不上传对象。
+预览会重新校验清单、八包、URL、大小和摘要，不读取 OSS 凭据、不上传对象。
 首次 `uv run` 可能联网安装脚本依赖；“离线”指发布逻辑不访问 OSS。
-检查输出的六条地址均位于 `https://www.shiju.cloud/agents/shiju-agent/releases/vX.Y.Z/`。
+检查输出的八条地址均位于 `https://www.shiju.cloud/agents/shiju-agent/releases/vX.Y.Z/`。
 单包不得超过 5 GiB。预览成功不代表生产权限或已有 latest 状态已通过验证。
 
 ## 6. 执行生产发布
@@ -135,10 +141,10 @@ uv run scripts/publish.py --dir "$RELEASE_DIR" --publish
 
 发布器依次执行：
 
-1. 重验本地输入，检查 bucket 版本控制并读取 latest。
-2. 创建六包和版本清单，共七个不可变对象；逐个从 OSS 完整回读校验。
-3. 从公开域名匿名完整读取七个对象，核对大小与 SHA-256。
-4. 最后以禁止覆盖方式创建 `agents/shiju-agent/latest/manifest.json`。
+1. 重验本地输入并读取 latest；维护者确保 bucket 版本控制未启用。
+2. 创建八包和版本清单，共九个不可变对象；逐个从 OSS 完整回读校验。
+3. 从公开域名匿名完整读取九个对象，核对大小与 SHA-256。
+4. 获取共享发布锁并重新读取 latest；首次禁止覆盖创建，升版仅更新 `agents/shiju-agent/latest/manifest.json`。
 5. 匿名回读 latest，写入成功回执。
 
 成功应满足：命令退出码为 0，`$RELEASE_DIR/oss-publish-receipt.json` 中 `stage` 为 `complete`。
@@ -147,7 +153,7 @@ uv run scripts/publish.py --dir "$RELEASE_DIR" --publish
 python3 -m json.tool "$RELEASE_DIR/oss-publish-receipt.json"
 ```
 
-保存本次版本、GitHub Release 地址、正式清单、六包和回执。回执用于记录，不能替代远端实际状态。
+保存本次版本、GitHub Release 地址、正式清单、八包和回执。回执用于记录，不能替代远端实际状态。
 
 ## 7. 公网及客户端验收
 
@@ -170,7 +176,7 @@ cmp "$RELEASE_DIR/manifest.json" "$RELEASE_DIR/latest.remote.json"
 - 下载校验完成后打开系统安装器，按系统流程安装，重新启动并核对实际版本。
 - 切换为 `GitHub` 来源并保存，验证该来源可检查和下载；重启后确认来源偏好保留。
 - 来源失败时应展示错误，不自动切换另一来源。
-- 按实际覆盖平台分别记录 DMG、MSI、RPM 安装结果；未覆盖的平台标注未验收。
+- 按实际覆盖平台分别记录 DMG、MSI、DEB、RPM 安装结果；未覆盖的平台标注未验收。
 
 首次上线应先确认 OSS 公开可用，再面向用户推广默认使用 shiju 源的客户端。
 更早且不包含双源功能的客户端能否迁移，需要另行实测；不能仅凭发布成功认定可自动升级。
@@ -184,9 +190,9 @@ cmp "$RELEASE_DIR/manifest.json" "$RELEASE_DIR/latest.remote.json"
 | 本地同名文件内容冲突 | 查明原因，将冲突文件移出产物目录后重新准备 |
 | OSS 403、版本控制状态不符 | 修复访问配置；已启用/暂停版本控制的 bucket 不满足当前协议，不强行发布 |
 | 匿名回读失败 | 检查公开域名、目录权限、CDN；修复后使用原产物恢复 |
-| 七对象部分上传成功 | 保持原产物不变，排除故障后重跑同一条 `--publish` 命令 |
+| 九对象部分上传成功 | 保持原产物不变，排除故障后重跑同一条 `--publish` 命令 |
 | 回执停在 `publishing_latest` 或写入结果不明 | latest 可能已创建；先核对远端状态，再以原产物重跑，发布器会重新验证 |
-| 已有较低版本 latest，提示 CAS 限制 | 停止；先实现连续升版协议，当前命令无法完成本次升版 |
+| 提示 CAS 限制或只接受六包 | 当前运行的是旧发布器；使用已更新的八包协议发布技能，不能绕过校验 |
 | 同版本内容不同或请求降级 | 停止并核对版本与产物，不覆盖已发布对象 |
 
 恢复时不重排、格式化或重新生成已进入发布阶段的清单；同版本要求清单字节一致。
@@ -199,7 +205,7 @@ cmp "$RELEASE_DIR/manifest.json" "$RELEASE_DIR/latest.remote.json"
 发布时间 / 操作人：
 版本 / GitHub Release：
 本地产物目录：
-发布类型：首次 / 同版本恢复
+发布类型：首次 / 升版 / 同版本恢复
 离线预览：通过 / 失败
 发布退出码 / 回执 stage：
 公网 latest 字节比较 / 缓存：

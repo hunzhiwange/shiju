@@ -27,3 +27,22 @@ fn wecom_formatter_aligns_tables_but_preserves_fenced_code() {
         "| 名称 | 状态  |\n| --- | --- |\n| A  | 已完成 |\n\n```\na | b\n```"
     );
 }
+
+#[test]
+fn markdown_delivery_normalization_preserves_fenced_and_escaped_content() {
+    for fence in ["````rust", "~~~rust"] {
+        let closing = if fence.starts_with('`') { "````" } else { "~~~" };
+        let code = format!(
+            "{fence}\nlet s = \"```\";\n| a | b |\n| --- | --- |\n| x | y |\n1. keep\n{closing}"
+        );
+        assert_eq!(normalize_feishu_markdown(&code), code);
+        assert_eq!(format_wecom_markdown_tables(&code), code);
+        assert_eq!(normalize_chat_markdown(&code), code);
+    }
+    let input = "| a | b |\n| :--- | ---: |\n| x\\|y | `m|n` |";
+    let output = format_wecom_markdown_tables(input);
+    assert!(output.contains("x\\|y"));
+    assert!(output.contains("`m|n`"));
+    assert!(output.lines().nth(1).unwrap().contains(':'));
+    assert_eq!(normalize_feishu_markdown("inline `a```b` stays"), "inline `a```b` stays");
+}

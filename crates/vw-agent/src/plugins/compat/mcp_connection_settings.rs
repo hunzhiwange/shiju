@@ -14,6 +14,12 @@ pub(crate) struct ConnectionSettings {
     pub startup_timeout_ms: Option<u64>,
     pub tool_timeout_ms: Option<u64>,
     pub required: bool,
+    #[serde(default)]
+    pub enabled_tools: Option<Vec<String>>,
+    #[serde(default)]
+    pub disabled_tools: Vec<String>,
+    #[serde(default)]
+    pub supports_parallel_tool_calls: Option<bool>,
     pub catalog_readiness: bool,
     pub source_root: Option<PathBuf>,
 }
@@ -46,6 +52,15 @@ pub(crate) fn prepare(
                     source_root: Some(root.canonicalize()?),
                     ..Default::default()
                 };
+                entry.enabled_tools = string_list(config.remove("enabled_tools"), "enabled_tools")?;
+                entry.disabled_tools =
+                    string_list(config.remove("disabled_tools"), "disabled_tools")?
+                        .unwrap_or_default();
+                entry.supports_parallel_tool_calls = config
+                    .remove("supports_parallel_tool_calls")
+                    .filter(|v| !v.is_null())
+                    .map(|v| v.as_bool().context("supports_parallel_tool_calls must be boolean"))
+                    .transpose()?;
                 let seconds = config.remove("startup_timeout_sec").filter(|v| !v.is_null());
                 let millis = config.remove("startup_timeout_ms").filter(|v| !v.is_null());
                 entry.startup_timeout_ms = match (seconds, millis) {
@@ -121,4 +136,26 @@ pub(crate) fn settings(server: &McpServer) -> Result<ConnectionSettings> {
         bail!("plugin MCP lifecycle timeouts must be positive");
     }
     Ok(settings)
+}
+
+fn string_list(value: Option<Value>, field: &str) -> Result<Option<Vec<String>>> {
+    value
+        .filter(|v| !v.is_null())
+        .map(|v| {
+            v.as_array()
+                .with_context(|| format!("{field} must be a string array"))?
+                .iter()
+                .map(|v| {
+                    v.as_str()
+                        .map(str::to_owned)
+                        .with_context(|| format!("{field} must be a string array"))
+                })
+                .collect()
+        })
+        .transpose()
+}
+pub(crate) fn tool_allowed(server: &McpServer, name: &str) -> Result<bool> {
+    let settings = settings(server)?;
+    Ok(!settings.disabled_tools.iter().any(|v| v == name)
+        && settings.enabled_tools.as_ref().is_none_or(|v| v.iter().any(|n| n == name)))
 }

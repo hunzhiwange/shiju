@@ -1039,7 +1039,9 @@ async fn discover_dynamic_mcp_tools(
             let configured_server = configured_server.clone();
             let management = management.clone();
             Box::pin(async move {
-                let tools = peer.list_all_tools().await.context("failed to list MCP tools")?;
+                let tools = crate::plugins::list_mcp_catalog_tools(peer)
+                    .await
+                    .context("failed to list MCP tools")?;
                 let server_instructions =
                     peer.peer_info().and_then(|info| info.instructions.as_deref());
                 let mut allowed_tools = Vec::new();
@@ -1049,19 +1051,30 @@ async fn discover_dynamic_mcp_tools(
                         &management,
                         tool.name.as_ref(),
                         &tool_id,
-                    ) {
+                    ) && crate::plugins::plugin_mcp_tool_allowed(
+                        &configured_server,
+                        tool.name.as_ref(),
+                    )? {
                         allowed_tools.push(tool);
                     }
                 }
                 let existing_refs =
                     existing_tool_ids.iter().map(String::as_str).collect::<Vec<_>>();
-                let specs = super::mcp_tool::mcp_tools_to_specs(
+                let mut specs = super::mcp_tool::mcp_tools_to_specs(
                     &server_label,
                     server_instructions,
                     &allowed_tools,
                     &existing_refs,
                 )?;
 
+                if crate::plugins::plugin_mcp_connection_settings(&configured_server)?
+                    .supports_parallel_tool_calls
+                    == Some(false)
+                {
+                    for spec in &mut specs {
+                        spec.concurrency_safe = false;
+                    }
+                }
                 Ok(allowed_tools
                     .into_iter()
                     .zip(specs.into_iter())

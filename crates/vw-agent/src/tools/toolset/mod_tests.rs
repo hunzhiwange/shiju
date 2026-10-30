@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const MCP_FIXTURE_TOOL_ID: &str = "mcp__fixture_server__echo_tool";
+const MCP_FIXTURE_TOOL_ID: &str = "mcp__fixture_server__echo_tool_2fb49d0879816c90";
 
 struct EchoTool;
 

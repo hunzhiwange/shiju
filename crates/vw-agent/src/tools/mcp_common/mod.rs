@@ -196,8 +196,9 @@ pub async fn load_resolved_acp_config() -> anyhow::Result<vw_acp::ResolvedAcpxCo
 pub async fn load_resolved_acp_config_from(
     cwd: impl AsRef<Path>,
 ) -> anyhow::Result<vw_acp::ResolvedAcpxConfig> {
+    let cwd = cwd.as_ref();
     let mut config = vw_acp::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
-    merge_runtime_mcp_servers(&mut config).await?;
+    merge_runtime_mcp_servers(&mut config, cwd).await?;
     Ok(config)
 }
 
@@ -212,8 +213,11 @@ pub(crate) async fn load_resolved_acp_config_from_with_plugin_options(
     Ok(config)
 }
 
-async fn merge_runtime_mcp_servers(config: &mut vw_acp::ResolvedAcpxConfig) -> anyhow::Result<()> {
-    let agent_config = match Config::load_or_init().await {
+async fn merge_runtime_mcp_servers(
+    config: &mut vw_acp::ResolvedAcpxConfig,
+    workspace: &Path,
+) -> anyhow::Result<()> {
+    let mut agent_config = match Config::load_or_init().await {
         Ok(config) => config,
         Err(error) => {
             tracing::warn!("skipping runtime MCP servers: failed to load agent config: {error}");
@@ -221,6 +225,7 @@ async fn merge_runtime_mcp_servers(config: &mut vw_acp::ResolvedAcpxConfig) -> a
         }
     };
     merge_global_mcp_servers_from_agent_config(config, &agent_config)?;
+    agent_config.workspace_dir = workspace.to_path_buf();
     let plugin_options = plugin_mcp_discovery_options(&agent_config);
     merge_enabled_plugin_mcp_servers(&mut config.mcp_servers, &plugin_options)?;
     apply_global_mcp_server_overrides_from_agent_config(config, &agent_config)

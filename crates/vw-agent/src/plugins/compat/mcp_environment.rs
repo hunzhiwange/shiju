@@ -28,8 +28,9 @@ pub(crate) fn resolve_servers(
     plugin: &DiscoveredPlugin,
     options: &PluginDiscoveryOptions,
     source: &str,
+    original_names: &HashMap<String, String>,
 ) -> Result<Vec<McpServer>> {
-    let mut http_contexts = super::mcp_auth::prepare(&mut outcome, plugin)?;
+    let mut http_contexts = super::mcp_auth::prepare(&mut outcome, plugin, original_names)?;
     let mut connection_settings =
         super::mcp_connection_settings::prepare(&mut outcome, &plugin.manifest.root)?;
     let mut contexts = HashMap::new();

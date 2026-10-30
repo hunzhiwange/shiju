@@ -133,7 +133,7 @@ async fn inspect_server(
 ) -> anyhow::Result<usize> {
     with_server_peer_timeout(server, management_timeout(management), |peer| {
         Box::pin(async move {
-            let tools = peer.list_all_tools().await?;
+            let tools = crate::plugins::list_mcp_catalog_tools(peer).await?;
             Ok(tools.len())
         })
     })

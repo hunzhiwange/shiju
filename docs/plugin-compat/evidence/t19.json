@@ -1,0 +1,727 @@
+{
+  "schema_version": 1,
+  "task": 19,
+  "status": "已完成",
+  "scope": "Task19 bounded tool pagination, precise original-name routing, duplicate plugin server retention, host/plugin filters, required errors, and conservative parallel declarations. Not complete baseline compatibility.",
+  "items": [
+    {
+      "id": "mcp.tool-identity",
+      "tasks": [
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    },
+    {
+      "id": "mcp.tool-filter",
+      "tasks": [
+        19,
+        23
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    },
+    {
+      "id": "mcp.pagination",
+      "tasks": [
+        19,
+        20,
+        22
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    },
+    {
+      "id": "acceptance.t19",
+      "tasks": [
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    },
+    {
+      "id": "mcp.legacy.config.supports_parallel_tool_calls",
+      "tasks": [
+        14,
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    },
+    {
+      "id": "mcp.legacy.config.tool_input_schema_max_bytes",
+      "tasks": [
+        14,
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "partial",
+      "notes": "Model schema compilation/visible-surface policy is not implemented; declarations remain explicitly rejected at runtime. User was asked by coordinator about independent coverage tasks."
+    },
+    {
+      "id": "mcp.legacy.config.omit_tools_from",
+      "tasks": [
+        14,
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "partial",
+      "notes": "Model schema compilation/visible-surface policy is not implemented; declarations remain explicitly rejected at runtime. User was asked by coordinator about independent coverage tasks."
+    },
+    {
+      "id": "mcp.legacy.config.enabled_tools",
+      "tasks": [
+        14,
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    },
+    {
+      "id": "mcp.legacy.config.disabled_tools",
+      "tasks": [
+        14,
+        19
+      ],
+      "tests": [
+        "codex_plugin_compat_t19_calls_exact_namespaced_tool",
+        "codex_plugin_compat_t19_rejects_invalid_input",
+        "codex_plugin_compat_t19_preserves_isolation",
+        "codex_plugin_compat_t19_paged_names_route_to_original_wire_names",
+        "codex_plugin_compat_t19_rejects_loop_and_oversized_cursor",
+        "codex_plugin_compat_t19_keeps_empty_allowlist_and_deny_precedence",
+        "codex_plugin_compat_t19_retains_same_named_servers_from_different_packages",
+        "codex_plugin_compat_t19_denied_tool_cannot_bypass_catalog_filter",
+        "codex_plugin_compat_t19_same_named_plugin_tools_call_their_own_process",
+        "codex_plugin_compat_t19_runtime_registry_applies_plugin_filters_and_parallel_limit"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 50.75,
+        "record": "t19/red.log",
+        "summary": [],
+        "observed_target_assertions": 3,
+        "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 57.27,
+        "record": "t19/workspace-acceptance.log",
+        "summary": [
+          "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+        ],
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 10
+      },
+      "evidence_status": "passed",
+      "notes": "Existing host validation and channel/security policy remain authoritative; no managed connector capability claimed."
+    }
+  ],
+  "commands": {
+    "red": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 50.75,
+      "record": "t19/red.log",
+      "summary": [],
+      "observed_target_assertions": 3,
+      "result_note": "Three public ID assertions observed before host SIGABRT; no completed failed-test summary claimed."
+    },
+    "green": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 68.19,
+      "record": "t19/green.log",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.00s"
+      ],
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 3
+    },
+    "workspace-acceptance": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 57.27,
+      "record": "t19/workspace-acceptance.log",
+      "summary": [
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10639 filtered out; finished in 0.21s"
+      ],
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 10
+    },
+    "verified-plugins": {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 40.13,
+      "record": "t19/verified-plugins.log",
+      "summary": [
+        "test result: ok. 300 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 7.15s"
+      ],
+      "passed": 300,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 300
+    },
+    "verified-tools": {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_tool_tests -- --nocapture",
+      "exit_code": 0,
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "elapsed_seconds": 0.4,
+      "record": "t19/verified-tools.log",
+      "summary": [
+        "test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 10629 filtered out; finished in 0.04s"
+      ],
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 19
+    },
+    "workspace-common": {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.76,
+      "record": "t19/workspace-common.log",
+      "summary": [
+        "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10613 filtered out; finished in 0.16s"
+      ],
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 36
+    },
+    "workspace-dynamic": {
+      "command": "cargo test -p vw-agent --lib --all-features dynamic_mcp -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.5,
+      "record": "t19/workspace-dynamic.log",
+      "summary": [
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 10645 filtered out; finished in 0.13s"
+      ],
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 4
+    },
+    "status": {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_status:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 62.65,
+      "record": "t19/status.log",
+      "summary": [
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 10642 filtered out; finished in 0.31s"
+      ],
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 7
+    },
+    "core-mcp": {
+      "command": "cargo test -p vw-agent --lib --all-features mcp_toolset -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.79,
+      "record": "t19/core-mcp.log",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10646 filtered out; finished in 0.14s"
+      ],
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 3
+    },
+    "workspace-clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 16.46,
+      "record": "t19/workspace-clippy.log",
+      "summary": []
+    },
+    "format7": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.88,
+      "record": "t19/format7.log",
+      "summary": []
+    }
+  },
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "sources": {
+    "codex-rs/codex-mcp/src/tools.rs": {
+      "sha256": "28d44b33ae3189a08521b0b9a4208f36952a844698db16dee69070df39719f38",
+      "symbols": [
+        "ToolFilter"
+      ]
+    },
+    "codex-rs/codex-mcp/src/pagination.rs": {
+      "sha256": "21d3ff86f9d5775a73cddf8e4cbba13681b531c1db232ea28c62aa44da2fb3fb",
+      "symbols": [
+        "collect_paginated_with_limit"
+      ]
+    },
+    "codex-rs/config/src/mcp_types.rs": {
+      "sha256": "af5fb824c092cd74e3a42297979a4d250c332008f5409e14890253728747e71a",
+      "symbols": [
+        "McpServerConfig"
+      ]
+    }
+  },
+  "artifacts": [
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_catalog.rs",
+      "sha256": "1d7bcdd62a0cb7babc89a9958aae7db2e0cdf7090b96f30b4dad1c3c89dc75f1"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/t19_tests.rs",
+      "sha256": "7b42b39546bd9c370442038e4da34f975db89035825c250b71dde6dbe65bd781"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mod.rs",
+      "sha256": "3f249819ecc3e7413f6dbd20ced3721a26ccef13f8487921e08a1e4ca80a2bff"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_auth.rs",
+      "sha256": "873c431022eb0d9ec96e81eef338bb6a36e7ec3bf8ad3bd0caf6ffdd6d710493"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_connection_settings.rs",
+      "sha256": "fe9c37a7a44a1d7d085f0e4b0f7edd2b649f27203cc6485174e0224b6515b00f"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_connections.rs",
+      "sha256": "138832efff0a89a0c9e3d70f40b96cbbe2900d4802adac70ca0f731a78fed72d"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/compat/mcp_environment.rs",
+      "sha256": "0027f10dc16452dfe29a3a903ba76026127975091accb82edde04bf7e5799238"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mcp.rs",
+      "sha256": "9eea42ffb22aa81bc08342821a0d241f39c3dd79995f67b7373b141bbd2dd01b"
+    },
+    {
+      "path": "crates/vw-agent/src/plugins/mod.rs",
+      "sha256": "ddb64aefc24c79650d37009a856537a28988951ea1b03add2aa50d6abe853882"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_common/mod.rs",
+      "sha256": "c83541edef41903e9b78ba0e66aa3c01e4afecb131f342fa738e188a8083f28f"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_inspect.rs",
+      "sha256": "3044ebcf1137f588a89197641deaa2a18455fa299547b379203fffae88214fc2"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_status/mod.rs",
+      "sha256": "518331bc2fb772db5b24c61400bc725176d0532e9819a1d2d55920e1d4721777"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_status/tests.rs",
+      "sha256": "a732ea9b0f81e9e04ec20d3ffe234b1c31ff26e6a51fc6f0785d9e4d0a4f3d18"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_tool.rs",
+      "sha256": "a88e19788c30c68416ca3053ad0d82291ea0d750ba92db70305b89ef3fed5a70"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/mcp_tool_tests.rs",
+      "sha256": "584824bbb0b64c77cce7f9972876256dd161643029b98ff0ad4e2eadd2d3d927"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/toolset/mod.rs",
+      "sha256": "c09f7a72e14c5c419c110156195e3552a4c8952940cfbd6568049789bd48cfe9"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/toolset/mod_tests.rs",
+      "sha256": "5f738efcca3cdf97793c23cd7ff5cbbd60f4b0ae2c83bc15c16a2bd5c0794c19"
+    },
+    {
+      "path": "crates/vw-agent/src/tools/tests/mod_tests.rs",
+      "sha256": "235bdd1bf212e6a0ceeab74deb9aa4162a3cec9db219306fb145975b0b417a0e"
+    },
+    {
+      "path": "crates/vw-agent/src/agent/loop_/core/tool_loop/tool_execution_tests.rs",
+      "sha256": "a8a0d1504facad076146f2d775256d205f4dad307973cb19e005b821e4f4cdc3"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t19/server.py",
+      "sha256": "626d523215a894cc559849a91518c06ad69688909bda1cfb38377bb8b03d3778"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t19/source.json",
+      "sha256": "57556f2c08dce04cb38b91328854ea489186f9778b0567aaabb2b0947a6e20a3"
+    }
+  ],
+  "limitations": [
+    "Model callable IDs retain existing mcp prefix and conservative ASCII validation; changed/lossy names receive a deterministic digest and IDs fit the host 64-byte bound, stricter than Codex 128 bytes. Canonical existing IDs stay stable.",
+    "Host same-name ACP server precedence and within-package first declaration precedence remain; distinct enabled plugins retain source-qualified collision routes.",
+    "tool_input_schema_max_bytes requires Codex core/src/mcp_tool_exposure.rs model schema compilation/compression; omit_tools_from requires core/src/tools/spec_plan.rs model surface semantics (and differs from call permission). Both remain unsupported explicitly, with coverage decision requested.",
+    "Original logs and run records remain local. Host default demo-server missing-file diagnostics occurred during existing runtime/status tests; all selected assertions passed."
+  ],
+  "additional_red": {
+    "initial_catalog_bounds": "final-focused.log observed real startup catalog timeout before bounded initial-catalog fix",
+    "workspace_registry": "acceptance.log observed actual workspace plugin missing from registry before mcp_common workspace binding fix"
+  }
+}

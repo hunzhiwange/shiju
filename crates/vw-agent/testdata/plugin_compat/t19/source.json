@@ -1,0 +1,10 @@
+{
+  "origin": "VibeWindow-authored protocol fixture",
+  "license": "MIT",
+  "references": [
+    "codex-rs/codex-mcp/src/pagination.rs::collect_paginated_with_limit",
+    "codex-rs/codex-mcp/src/tools.rs::normalize_tools_for_model_with_prefix",
+    "codex-rs/codex-mcp/src/tools.rs::ToolFilter"
+  ],
+  "expected": "Paged raw names route unchanged to the bound process; repeated/oversized cursors and page/item limits fail closed; no network, credentials or user content."
+}

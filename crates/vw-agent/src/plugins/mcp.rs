@@ -53,7 +53,7 @@ fn read_mcp_document(path: &Path) -> Result<Value> {
 /// Append MCP servers from enabled plugins after the user's ACP servers.
 /// 将已启用插件的 MCP 服务器追加到用户配置。
 ///
-/// 用户已声明的同名服务器保持优先，插件之间的重名项按发现顺序只接受一次。
+/// 用户声明的同名服务器保持优先；不同插件重名时保留来源限定路由，同包重复声明仍按原有顺序准入。
 pub(crate) fn merge_enabled_plugin_mcp_servers(
     servers: &mut Vec<McpServer>,
     options: &PluginDiscoveryOptions,
@@ -64,12 +64,33 @@ pub(crate) fn merge_enabled_plugin_mcp_servers(
     let mut merged_names = user_server_names.clone();
 
     for plugin in discovery.enabled {
-        let (outcome, source_path) = load_plugin_mcp_declarations(&plugin.manifest)?;
+        let (mut outcome, source_path) = load_plugin_mcp_declarations(&plugin.manifest)?;
+        let mut original_names = std::collections::HashMap::new();
+        for declaration in &mut outcome.servers {
+            use super::compat::mcp_legacy::PluginMcpDeclaration;
+            let name = match declaration {
+                PluginMcpDeclaration::Legacy { name, .. }
+                | PluginMcpDeclaration::Portable { name, .. } => name,
+                PluginMcpDeclaration::Acp(McpServer::Stdio(s)) => &mut s.name,
+                PluginMcpDeclaration::Acp(McpServer::Http(s)) => &mut s.name,
+                PluginMcpDeclaration::Acp(McpServer::Sse(s)) => &mut s.name,
+                _ => anyhow::bail!("unsupported plugin MCP transport"),
+            };
+            if merged_names.contains(name) && !user_server_names.contains(name) {
+                let original = name.clone();
+                *name = format!("plugin__{}__{}", plugin.identity.as_key(), name);
+                if merged_names.contains(name) {
+                    anyhow::bail!("ambiguous plugin MCP server namespace");
+                }
+                original_names.insert(name.clone(), original);
+            }
+        }
         let plugin_servers = super::compat::mcp_environment::resolve_servers(
             outcome,
             &plugin,
             options,
             &source_path.to_string_lossy(),
+            &original_names,
         )
         .with_context(|| {
             format!(

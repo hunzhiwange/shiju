@@ -34,6 +34,8 @@ pub(crate) struct HttpContext {
     manifest: PathBuf,
     scope: String,
     name: String,
+    #[serde(default)]
+    routing_name: Option<String>,
     url: String,
     digest: String,
 }
@@ -41,6 +43,7 @@ pub(crate) struct HttpContext {
 pub(crate) fn prepare(
     outcome: &mut PluginMcpParseOutcome,
     plugin: &DiscoveredPlugin,
+    original_names: &HashMap<String, String>,
 ) -> Result<HashMap<String, HttpContext>> {
     let mut contexts = HashMap::new();
     for declaration in &mut outcome.servers {
@@ -67,7 +70,8 @@ pub(crate) fn prepare(
                 root,
                 manifest: plugin.manifest.manifest_path.clone(),
                 scope,
-                name: name.clone(),
+                name: original_names.get(&name).unwrap_or(&name).clone(),
+                routing_name: Some(name.clone()),
                 url: required_string(&config, "url")?.to_owned(),
                 digest: String::new(),
             };
@@ -113,7 +117,10 @@ pub(crate) fn runtime_headers(server: &McpServerHttp) -> Result<Option<HeaderMap
     };
     let context: HttpContext = serde_json::from_value(value.clone())
         .map_err(|_| anyhow::anyhow!("invalid plugin MCP HTTP source context"))?;
-    if context.name != server.name || context.url != server.url || !server.headers.is_empty() {
+    if context.routing_name.as_deref().unwrap_or(&context.name) != server.name
+        || context.url != server.url
+        || !server.headers.is_empty()
+    {
         bail!("plugin MCP HTTP credential endpoint or identity changed");
     }
     if fs::canonicalize(&context.root)? != context.root {
@@ -171,6 +178,7 @@ fn fingerprint(context: &HttpContext, config: &Map<String, Value>) -> Result<Str
         &context.manifest,
         &context.scope,
         &context.name,
+        &context.routing_name,
         &context.url,
         config,
     ))?)))

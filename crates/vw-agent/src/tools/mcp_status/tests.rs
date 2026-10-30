@@ -8,7 +8,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-const MCP_STATUS_TOOL_ID: &str = "mcp__fixture_server__echo_tool";
+const MCP_STATUS_TOOL_ID: &str = "mcp__fixture_server__echo_tool_2fb49d0879816c90";
 
 fn write_json(path: &Path, value: Value) {
     if let Some(parent) = path.parent() {

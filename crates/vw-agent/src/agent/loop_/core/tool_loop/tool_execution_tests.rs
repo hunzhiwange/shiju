@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tempfile::TempDir;
 
-const MCP_TOOLSET_TOOL_ID: &str = "mcp__fixture_server__echo_tool";
+const MCP_TOOLSET_TOOL_ID: &str = "mcp__fixture_server__echo_tool_2fb49d0879816c90";
 
 struct Testcov0090Tool {
     name: &'static str,
@@ -341,7 +341,7 @@ async fn mcp_toolset_excluded_tool_is_blocked_by_channel_policy() {
     assert!(
         history[2]
             .content
-            .contains("Tool 'mcp__fixture_server__echo_tool' is not available in this channel."),
+            .contains("Tool 'mcp__fixture_server__echo_tool_2fb49d0879816c90' is not available in this channel."),
         "{}",
         history[2].content,
     );

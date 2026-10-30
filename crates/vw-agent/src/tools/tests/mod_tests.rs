@@ -10,7 +10,7 @@ use serde_json::json;
 use std::path::{Path, PathBuf};
 use tempfile::TempDir;
 
-const MCP_TOOLSET_TOOL_ID: &str = "mcp__fixture_server__echo_tool";
+const MCP_TOOLSET_TOOL_ID: &str = "mcp__fixture_server__echo_tool_2fb49d0879816c90";
 
 fn test_config(tmp: &TempDir) -> Config {
     Config {

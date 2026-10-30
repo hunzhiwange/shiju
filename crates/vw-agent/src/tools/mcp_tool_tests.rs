@@ -45,7 +45,7 @@ fn mcp_tool_spec_ids_are_stable_and_prefixed() {
     .expect("tool spec mapping should succeed");
 
     assert_eq!(specs.len(), 1);
-    assert_eq!(specs[0].id, "mcp__github_server__search_issues");
+    assert_eq!(specs[0].id, "mcp__github_server__search_issues_7c7d4f69a793c4d1");
     assert_eq!(specs[0].name, specs[0].id);
     assert_eq!(specs[0].display_name, "GitHub Server: Search Issues");
     assert_eq!(mcp_tool_id("GitHub Server", "Search Issues").unwrap(), specs[0].id);
@@ -60,7 +60,7 @@ fn mcp_tool_new_builds_dynamic_tool_from_definition() {
     )
     .expect("definition should build dynamic MCP tool");
 
-    assert_eq!(tool.name(), "mcp__docs_server__search_docs");
+    assert_eq!(tool.name(), "mcp__docs_server__search_docs_7c6e618c831cfc91");
     assert_eq!(
         tool.description(),
         "Search documentation.\n\nServer instructions: Use concise answers."
@@ -82,7 +82,7 @@ fn mcp_tool_spec_maps_schema_and_annotations() {
     let spec = mcp_tools_to_specs(
         "docs",
         Some("Use for public documentation lookups only.\nBearer abc.def must stay private."),
-        &[tool("fetch-page", "Fetch a documentation page.", input_schema.clone())
+        &[tool("fetch_page", "Fetch a documentation page.", input_schema.clone())
             .annotate(annotations)],
         &[],
     )
@@ -140,8 +140,8 @@ fn mcp_tool_spec_rejects_colliding_ids() {
         "docs",
         None,
         &[
-            tool("fetch-page", "Fetch a documentation page.", json!({ "type": "object" })),
-            tool("fetch page", "Fetch a page by alias.", json!({ "type": "object" })),
+            tool("fetch_page", "Fetch a documentation page.", json!({ "type": "object" })),
+            tool("fetch_page", "Fetch a page by alias.", json!({ "type": "object" })),
         ],
         &["mcp__other__tool"],
     )
@@ -152,7 +152,7 @@ fn mcp_tool_spec_rejects_colliding_ids() {
     let builtin_error = mcp_tools_to_specs(
         "docs",
         None,
-        &[tool("Fetch", "Fetch a page.", json!({ "type": "object" }))],
+        &[tool("fetch", "Fetch a page.", json!({ "type": "object" }))],
         &["mcp__docs__fetch"],
     )
     .expect_err("colliding reserved ids should be rejected");
@@ -287,7 +287,7 @@ async fn discover_and_call_configured_mcp_tool_through_stdio_fixture() {
     .await
     .expect("fixture should list tools");
     assert_eq!(specs.len(), 1);
-    assert_eq!(specs[0].id, "mcp__fixture_server__echo_tool");
+    assert_eq!(specs[0].id, "mcp__fixture_server__echo_tool_2fb49d0879816c90");
 
     let tool = McpTool::from_configured_server(server, "Echo Tool", specs[0].clone());
     let result =

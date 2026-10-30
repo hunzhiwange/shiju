@@ -93,3 +93,8 @@ mod t17_public_tests;
 #[cfg(test)]
 #[path = "t18_tests.rs"]
 mod t18_tests;
+
+#[cfg(test)]
+mod t19_tests;
+
+pub(crate) mod mcp_catalog;

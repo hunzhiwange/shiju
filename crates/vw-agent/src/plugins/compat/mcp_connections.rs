@@ -238,8 +238,7 @@ impl McpSessionConnections {
                     let client =
                         crate::tools::mcp_common::open_server_peer(server, startup).await?;
                     if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {
-                        client
-                            .list_all_tools()
+                        super::mcp_catalog::list_tools(client.peer())
                             .await
                             .context("failed to obtain initial MCP tool catalog")?;
                     }

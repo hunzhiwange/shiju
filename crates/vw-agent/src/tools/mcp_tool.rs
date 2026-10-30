@@ -210,7 +210,18 @@ pub fn mcp_tool_id(server_name: &str, tool_name: &str) -> anyhow::Result<String>
         .with_context(|| format!("invalid MCP server name '{server_name}'"))?;
     let tool = normalize_mcp_name_segment(tool_name)
         .with_context(|| format!("invalid MCP tool name '{tool_name}'"))?;
-    Ok(format!("{MCP_TOOL_ID_PREFIX}__{server}__{tool}"))
+    let mut id = format!("{MCP_TOOL_ID_PREFIX}__{server}__{tool}");
+    if server_name != server || tool_name != tool || id.len() > 64 {
+        use sha2::{Digest, Sha256};
+        let mut hash = Sha256::new();
+        hash.update(server_name.as_bytes());
+        hash.update([0]);
+        hash.update(tool_name.as_bytes());
+        id.truncate(47);
+        id.push('_');
+        id.push_str(&hex::encode(hash.finalize())[..16]);
+    }
+    Ok(id)
 }
 
 /// 发现指定 peer 的远端工具并转换为本地工具规格。
@@ -224,7 +235,8 @@ pub async fn discover_mcp_tool_specs(
     server_instructions: Option<&str>,
     existing_tool_ids: &[&str],
 ) -> anyhow::Result<Vec<ToolSpec>> {
-    let tools = peer.list_all_tools().await.context("failed to list MCP tools")?;
+    let tools =
+        crate::plugins::list_mcp_catalog_tools(peer).await.context("failed to list MCP tools")?;
     mcp_tools_to_specs(server_name, server_instructions, &tools, existing_tool_ids)
 }
 
@@ -234,7 +246,7 @@ pub async fn discover_mcp_tool_specs(
 ///
 /// # 错误
 ///
-/// 当 server/tool 名称无法规范化，多个 MCP 工具规范化后重名，或与已有工具 ID 冲突时
+/// 当 server/tool 名称无法规范化，原始工具重复或哈希后的 ID 冲突，或与已有工具 ID 冲突时
 /// 返回错误。
 pub fn mcp_tools_to_specs(
     server_name: &str,
@@ -336,6 +348,9 @@ async fn call_configured_remote_mcp_tool(
     connections: &crate::plugins::McpSessionConnections,
     timeout: Option<std::time::Duration>,
 ) -> anyhow::Result<CallToolResult> {
+    if !crate::plugins::plugin_mcp_tool_allowed(server, tool_name)? {
+        anyhow::bail!("plugin MCP tool is disabled by its declaration");
+    }
     connections
         .with_peer(server, timeout, |peer: &Peer<RoleClient>| {
             let tool_name = tool_name.to_string();

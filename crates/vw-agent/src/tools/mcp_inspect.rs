@@ -36,7 +36,9 @@ pub async fn inspect_mcp_servers(config: &vw_acp::ResolvedAcpxConfig) -> McpInsp
             name: name.clone(),
             transport: server_transport(server).to_string(),
             enabled: management.enabled,
-            required: management.required,
+            required: management.required
+                || crate::plugins::plugin_mcp_connection_settings(server)
+                    .is_ok_and(|settings| settings.required),
             connection_status: McpConnectionStatusDto::Disabled,
             timeout_ms: management.timeout_ms,
             allowed_tools: management.allowed_tools.clone(),
@@ -98,21 +100,31 @@ async fn inspect_server(
     server: &agent_client_protocol::McpServer,
     management: &vw_acp::McpServerManagement,
 ) -> anyhow::Result<ServerInspectPayload> {
+    let configured_server = server.clone();
     let server_label = server_name(server).to_string();
     let management = management.clone();
 
     with_server_peer_timeout(server, management_timeout(&management), move |peer| {
         let server_label = server_label.clone();
+        let configured_server = configured_server.clone();
         let management = management.clone();
         Box::pin(async move {
             let mut payload = ServerInspectPayload::default();
-            match peer.list_all_tools().await.context("failed to list MCP tools") {
+            match crate::plugins::list_mcp_catalog_tools(peer)
+                .await
+                .context("failed to list MCP tools")
+            {
                 Ok(tools) => {
                     let mut allowed_tools = Vec::new();
                     for tool in tools {
                         let tool_id =
                             super::mcp_tool::mcp_tool_id(&server_label, tool.name.as_ref())?;
-                        if mcp_tool_allowed(&management, tool.name.as_ref(), &tool_id) {
+                        if mcp_tool_allowed(&management, tool.name.as_ref(), &tool_id)
+                            && crate::plugins::plugin_mcp_tool_allowed(
+                                &configured_server,
+                                tool.name.as_ref(),
+                            )?
+                        {
                             allowed_tools.push(tool);
                         }
                     }

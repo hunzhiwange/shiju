@@ -1,0 +1,33 @@
+{
+  "task": 14,
+  "license": "MIT: neutral fixtures authored in this repository. Codex Apache-2.0 source is consulted for behavior; no source implementation or credentials copied.",
+  "fixture": "wrapped.json",
+  "sources": {
+    "codex-rs/codex-mcp/src/plugin_config.rs": {
+      "sha256": "53c68f3bb8d97da30aa9681223e1f353d1429c3e69c62e5565b0745db8926d41",
+      "symbols": [
+        "PluginMcpFile",
+        "normalize_plugin_mcp_server_value"
+      ]
+    },
+    "codex-rs/core-plugins/src/loader.rs": {
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "DEFAULT_MCP_CONFIG_FILE"
+      ]
+    },
+    "codex-rs/config/src/mcp_types.rs": {
+      "sha256": "af5fb824c092cd74e3a42297979a4d250c332008f5409e14890253728747e71a",
+      "symbols": [
+        "McpServerConfig",
+        "McpServerTransportConfig",
+        "RawMcpServerConfig"
+      ]
+    }
+  },
+  "expectations": {
+    "wrapper": "mcpServers object maps external names to stdio/HTTP declarations",
+    "default": ".mcp.json applies only to legacy manifests when no explicit declaration is present",
+    "runtime": "No command or network execution in declaration parsing; unsupported runtime settings fail explicitly until their owning tasks implement them"
+  }
+}

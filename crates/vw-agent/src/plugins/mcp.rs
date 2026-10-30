@@ -4,12 +4,13 @@
 
 use crate::app::agent::config::Config;
 use agent_client_protocol::McpServer;
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use serde_json::Value;
 use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::compat::mcp_legacy::{PluginMcpParseOutcome, parse_legacy_mcp};
 use super::{PluginDiscoveryOptions, discover_plugins};
 
 /// Build plugin discovery inputs from the loaded agent runtime config.
@@ -25,20 +26,16 @@ pub(crate) fn plugin_mcp_discovery_options(config: &Config) -> PluginDiscoveryOp
 /// Read a plugin `.mcp.json` file and parse its MCP server declarations.
 /// 读取并严格解析单个插件声明的 MCP 服务器列表。
 pub(crate) fn load_plugin_mcp_servers_from_path(path: &Path) -> Result<Vec<McpServer>> {
+    load_plugin_mcp_declarations_from_path(path)?.into_runtime_servers(&path.to_string_lossy())
+}
+
+/// 单项诊断保留合法兄弟声明；实际运行准入仍拒绝含错误的整份配置。
+pub(crate) fn load_plugin_mcp_declarations_from_path(path: &Path) -> Result<PluginMcpParseOutcome> {
     let bytes = fs::read(path)
         .with_context(|| format!("failed to read plugin MCP config: {}", path.display()))?;
     let value: Value = serde_json::from_slice(&bytes)
         .with_context(|| format!("failed to parse plugin MCP config: {}", path.display()))?;
-    let source_path = path.to_string_lossy();
-    let servers = match &value {
-        Value::Array(_) => &value,
-        Value::Object(object) => object
-            .get("mcpServers")
-            .with_context(|| format!("plugin MCP config missing mcpServers: {}", path.display()))?,
-        _ => bail!("Invalid plugin MCP config in {}: expected array or object", path.display()),
-    };
-
-    vw_acp::parse_mcp_servers(servers, &source_path).map_err(anyhow::Error::from)
+    parse_legacy_mcp(value, &path.to_string_lossy())
 }
 
 /// Append MCP servers from enabled plugins after the user's ACP servers.
@@ -55,26 +52,56 @@ pub(crate) fn merge_enabled_plugin_mcp_servers(
     let mut merged_names = user_server_names.clone();
 
     for plugin in discovery.enabled {
-        let Some(mcp_source) = plugin.manifest.mcp_servers else {
-            continue;
-        };
-        let mcp_path = match mcp_source {
-            super::PluginMcpServers::Path(path) => path,
-            super::PluginMcpServers::Inline(_) => {
-                bail!(
-                    "inline MCP server execution is not supported for plugin '{}'",
-                    plugin.manifest.name
-                );
+        let source = match plugin.manifest.mcp_servers {
+            Some(source) => source,
+            None => {
+                let legacy = plugin
+                    .manifest
+                    .manifest_path
+                    .parent()
+                    .and_then(Path::file_name)
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|name| {
+                        matches!(name, ".codex-plugin" | ".claude-plugin" | ".cursor-plugin")
+                    });
+                if !legacy {
+                    continue;
+                }
+                match fs::symlink_metadata(plugin.manifest.root.join(".mcp.json")) {
+                    Ok(_) => {}
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(error) => {
+                        return Err(error).context("failed to inspect default plugin MCP config");
+                    }
+                }
+                super::PluginMcpServers::Path(super::audit::resolve_component_path(
+                    &plugin.manifest.root,
+                    "mcpServers",
+                    "./.mcp.json",
+                )?)
             }
         };
-        let plugin_servers = load_plugin_mcp_servers_from_path(&mcp_path.canonical_path)
-            .with_context(|| {
-                format!(
-                    "failed to load MCP servers for plugin '{}': {}",
-                    plugin.manifest.name,
-                    mcp_path.canonical_path.display()
+        let (result, source_path) = match source {
+            super::PluginMcpServers::Path(path) => {
+                (load_plugin_mcp_servers_from_path(&path.canonical_path), path.canonical_path)
+            }
+            super::PluginMcpServers::Inline(servers) => {
+                let path = plugin.manifest.manifest_path;
+                let source = path.to_string_lossy();
+                (
+                    parse_legacy_mcp(Value::Object(servers), &source)
+                        .and_then(|outcome| outcome.into_runtime_servers(&source)),
+                    path,
                 )
-            })?;
+            }
+        };
+        let plugin_servers = result.with_context(|| {
+            format!(
+                "failed to load MCP servers for plugin '{}': {}",
+                plugin.manifest.name,
+                source_path.display()
+            )
+        })?;
 
         for server in plugin_servers {
             let name = mcp_server_name(&server);

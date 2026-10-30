@@ -1,0 +1,747 @@
+{
+  "schema_version": 1,
+  "task": 14,
+  "status": "verified",
+  "items": [
+    {
+      "id": "mcp.legacy.shape",
+      "tasks": [
+        14
+      ],
+      "tests": [
+        "codex_plugin_compat_t14_loads_wrapped_and_inline_servers",
+        "codex_plugin_compat_t14_rejects_invalid_input",
+        "codex_plugin_compat_t14_preserves_isolation",
+        "codex_plugin_compat_t14_retains_valid_siblings_and_normalized_aliases",
+        "codex_plugin_compat_t14_preserves_acp_array_shapes_and_per_entry_diagnostics",
+        "codex_plugin_compat_t14_infers_transport_without_treating_labels_as_capabilities",
+        "codex_plugin_compat_t14_rejects_malformed_documents_and_unsupported_runtime_settings",
+        "codex_plugin_compat_t14_uses_explicit_declarations_before_legacy_defaults",
+        "codex_plugin_compat_t14_keeps_rejected_inline_configs_out_of_runtime",
+        "codex_plugin_compat_t14_skips_absent_defaults_and_disabled_named_servers",
+        "codex_plugin_compat_t14_reaudits_implicit_default_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 54.06,
+        "record": "t14/red-1.log",
+        "phase": "red",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "termination": "All three target runtime assertions observed before host SIGABRT while initiating panic. No failed-test totals invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.25,
+        "record": "t14/final-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 14 declaration shape/default/alias normalization and existing strict host runtime admission on macOS. No OAuth, working-directory, lifecycle, public-service or cross-platform execution claim; shared task 17 alias/runtime responsibilities remain pending."
+    },
+    {
+      "id": "mcp.legacy.default",
+      "tasks": [
+        14
+      ],
+      "tests": [
+        "codex_plugin_compat_t14_loads_wrapped_and_inline_servers",
+        "codex_plugin_compat_t14_rejects_invalid_input",
+        "codex_plugin_compat_t14_preserves_isolation",
+        "codex_plugin_compat_t14_retains_valid_siblings_and_normalized_aliases",
+        "codex_plugin_compat_t14_preserves_acp_array_shapes_and_per_entry_diagnostics",
+        "codex_plugin_compat_t14_infers_transport_without_treating_labels_as_capabilities",
+        "codex_plugin_compat_t14_rejects_malformed_documents_and_unsupported_runtime_settings",
+        "codex_plugin_compat_t14_uses_explicit_declarations_before_legacy_defaults",
+        "codex_plugin_compat_t14_keeps_rejected_inline_configs_out_of_runtime",
+        "codex_plugin_compat_t14_skips_absent_defaults_and_disabled_named_servers",
+        "codex_plugin_compat_t14_reaudits_implicit_default_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 54.06,
+        "record": "t14/red-1.log",
+        "phase": "red",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "termination": "All three target runtime assertions observed before host SIGABRT while initiating panic. No failed-test totals invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.25,
+        "record": "t14/final-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 14 declaration shape/default/alias normalization and existing strict host runtime admission on macOS. No OAuth, working-directory, lifecycle, public-service or cross-platform execution claim; shared task 17 alias/runtime responsibilities remain pending."
+    },
+    {
+      "id": "mcp.legacy.aliases",
+      "tasks": [
+        14
+      ],
+      "tests": [
+        "codex_plugin_compat_t14_loads_wrapped_and_inline_servers",
+        "codex_plugin_compat_t14_rejects_invalid_input",
+        "codex_plugin_compat_t14_preserves_isolation",
+        "codex_plugin_compat_t14_retains_valid_siblings_and_normalized_aliases",
+        "codex_plugin_compat_t14_preserves_acp_array_shapes_and_per_entry_diagnostics",
+        "codex_plugin_compat_t14_infers_transport_without_treating_labels_as_capabilities",
+        "codex_plugin_compat_t14_rejects_malformed_documents_and_unsupported_runtime_settings",
+        "codex_plugin_compat_t14_uses_explicit_declarations_before_legacy_defaults",
+        "codex_plugin_compat_t14_keeps_rejected_inline_configs_out_of_runtime",
+        "codex_plugin_compat_t14_skips_absent_defaults_and_disabled_named_servers",
+        "codex_plugin_compat_t14_reaudits_implicit_default_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 54.06,
+        "record": "t14/red-1.log",
+        "phase": "red",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "termination": "All three target runtime assertions observed before host SIGABRT while initiating panic. No failed-test totals invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.25,
+        "record": "t14/final-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 14 declaration shape/default/alias normalization and existing strict host runtime admission on macOS. No OAuth, working-directory, lifecycle, public-service or cross-platform execution claim; shared task 17 alias/runtime responsibilities remain pending."
+    },
+    {
+      "id": "acceptance.t14",
+      "tasks": [
+        14
+      ],
+      "tests": [
+        "codex_plugin_compat_t14_loads_wrapped_and_inline_servers",
+        "codex_plugin_compat_t14_rejects_invalid_input",
+        "codex_plugin_compat_t14_preserves_isolation",
+        "codex_plugin_compat_t14_retains_valid_siblings_and_normalized_aliases",
+        "codex_plugin_compat_t14_preserves_acp_array_shapes_and_per_entry_diagnostics",
+        "codex_plugin_compat_t14_infers_transport_without_treating_labels_as_capabilities",
+        "codex_plugin_compat_t14_rejects_malformed_documents_and_unsupported_runtime_settings",
+        "codex_plugin_compat_t14_uses_explicit_declarations_before_legacy_defaults",
+        "codex_plugin_compat_t14_keeps_rejected_inline_configs_out_of_runtime",
+        "codex_plugin_compat_t14_skips_absent_defaults_and_disabled_named_servers",
+        "codex_plugin_compat_t14_reaudits_implicit_default_links"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 54.06,
+        "record": "t14/red-1.log",
+        "phase": "red",
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "termination": "All three target runtime assertions observed before host SIGABRT while initiating panic. No failed-test totals invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 51.25,
+        "record": "t14/final-1.log",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 11
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 14 declaration shape/default/alias normalization and existing strict host runtime admission on macOS. No OAuth, working-directory, lifecycle, public-service or cross-platform execution claim; shared task 17 alias/runtime responsibilities remain pending."
+    }
+  ],
+  "commands": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 9.07,
+      "record": "t14/final-0.log"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 51.25,
+      "record": "t14/final-1.log",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 11
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 2.37,
+      "record": "t14/final-2.log",
+      "passed": 241,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 241
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.54,
+      "record": "t14/final-3.log",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 36
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 28.3,
+      "record": "t14/final-4.log"
+    }
+  ],
+  "diagnostic_runs": {
+    "red": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.66,
+        "record": "t14/red-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 54.06,
+        "record": "t14/red-1.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_rejects_invalid_input -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.74,
+        "record": "t14/red-2.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_preserves_isolation -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.42,
+        "record": "t14/red-3.log"
+      }
+    ],
+    "original_green": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 8.6,
+        "record": "t14/green-0.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t14_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 69.58,
+        "record": "t14/green-1.log",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 3
+      }
+    ]
+  },
+  "sources": {
+    "codex-rs/codex-mcp/src/plugin_config.rs": {
+      "sha256": "53c68f3bb8d97da30aa9681223e1f353d1429c3e69c62e5565b0745db8926d41",
+      "symbols": [
+        "PluginMcpFile",
+        "normalize_plugin_mcp_server_value"
+      ]
+    },
+    "codex-rs/core-plugins/src/loader.rs": {
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "DEFAULT_MCP_CONFIG_FILE"
+      ]
+    },
+    "codex-rs/config/src/mcp_types.rs": {
+      "sha256": "af5fb824c092cd74e3a42297979a4d250c332008f5409e14890253728747e71a",
+      "symbols": [
+        "McpServerConfig",
+        "McpServerTransportConfig",
+        "RawMcpServerConfig"
+      ]
+    }
+  },
+  "package_integrity": {
+    "test": "codex_plugin_compat_t14_preserves_isolation / codex_plugin_compat_t14_retains_valid_siblings_and_normalized_aliases",
+    "basis": "Real MCP file bytes are compared before/after discovery, merging and declaration normalization; commands and network services are not started. No installation or package rewriting occurs in declaration loading."
+  },
+  "observed_side_effects": [
+    "Actual discovery/merge accepts wrapped maps, direct maps, existing arrays and inline objects. Legacy absent declarations use audited .mcp.json; explicit file/inline declarations override it across Codex/Claude/Cursor manifests.",
+    "Named declaration keys remain routing identity; legacy display name is discarded. Transport follows command/url, not type, and OAuth camelCase aliases normalize with snake_case taking precedence. Empty environment values and argument bytes are preserved.",
+    "File declaration outcomes retain valid siblings and per-server diagnostics. Runtime retains the existing strict failure contract: any invalid or unsupported server rejects the whole configuration before returning or mutating the caller with that configuration.",
+    "Disabled packages and named disabled servers do not contribute runtime entries. User-defined names retain priority. Implicit default symlinks, including dangling links, fail existing path audit without reading the outside payload."
+  ],
+  "intentional_safety_differences": [
+    "Reference parsing retains valid siblings and its runtime logs/skips invalid siblings. The host retains its existing stricter whole-config runtime rejection while exposing the normalized valid siblings and named diagnostics to the declaration loader.",
+    "The host rejects non-string transport labels and malformed transport fields explicitly. No arbitrary unsupported runtime setting is silently dropped.",
+    "Working directory/env references, OAuth/HTTP header policy, tool policy and lifecycle settings remain explicit runtime errors until owning tasks 16-23/26-28 implement them. Their normalized declarations are retained without a false execution claim."
+  ],
+  "deferred_capabilities": [
+    {
+      "id": "mcp.legacy.transport.command",
+      "tasks": [
+        14,
+        16
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.args",
+      "tasks": [
+        14,
+        16
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.env",
+      "tasks": [
+        14,
+        16
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.env_vars",
+      "tasks": [
+        14,
+        16,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.cwd",
+      "tasks": [
+        14,
+        16
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.url",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.bearer_token_env_var",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.http_headers",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.env_http_headers",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.transport.http_headers_helper",
+      "tasks": [
+        14,
+        17,
+        58
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.enabled",
+      "tasks": [
+        14,
+        51
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.required",
+      "tasks": [
+        14,
+        18
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.startup_readiness",
+      "tasks": [
+        14,
+        18
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.supports_parallel_tool_calls",
+      "tasks": [
+        14,
+        19
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.tool_input_schema_max_bytes",
+      "tasks": [
+        14,
+        19
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.omit_tools_from",
+      "tasks": [
+        14,
+        19
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.startup_timeout_sec",
+      "tasks": [
+        14,
+        18
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.tool_timeout_sec",
+      "tasks": [
+        14,
+        21
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.default_tools_approval_mode",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.enabled_tools",
+      "tasks": [
+        14,
+        19
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.disabled_tools",
+      "tasks": [
+        14,
+        19
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.scopes",
+      "tasks": [
+        14,
+        17,
+        26
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.oauth",
+      "tasks": [
+        14,
+        17,
+        26,
+        27
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.oauth_resource",
+      "tasks": [
+        14,
+        17,
+        26
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.tools",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.auth",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.config.environment_id",
+      "tasks": [
+        14,
+        18
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.startup_timeout_ms",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.name",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.bearer_token",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.client_id",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.client_secret",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.callback_url",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.callback_port",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.token_endpoint_auth_method",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.authorization_server_issuer",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.oauth.ema_registration",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.tools.<name>.approval_mode",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    },
+    {
+      "id": "mcp.legacy.extra.tools.<name>.output_token_limit",
+      "tasks": [
+        14,
+        17
+      ],
+      "status": "pending_owning_runtime_task"
+    }
+  ],
+  "diagnostics": [
+    "Original three assertions were observed before host SIGABRT; separate exact filtered runs also show invalid-input and isolation target assertions.",
+    "Existing missing-wrapper regression now checks invalid direct-map entry diagnosis, since direct server maps are intentionally valid input. Other existing safety assertions remain intact."
+  ],
+  "artifacts": {
+    "crates/vw-agent/testdata/plugin_compat/t14/sources.json": "9bd56a904ce591e96534b06308da0d2ae05b4e98cef44d06da141ba55644d451",
+    "crates/vw-agent/testdata/plugin_compat/t14/wrapped.json": "de113e7ff3944e8a08c85d6c5fa1a43963672f577d4766ca91e95c39138cdd26",
+    "docs/plugin-compat/evidence/t14/final-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t14/final-1.log": "e9176235c1319be4fed15f7dd3a484f1377064c355ed6f9602f15b6e5c524fe0",
+    "docs/plugin-compat/evidence/t14/final-2.log": "3298a75ca59ee1dc64ca41e77e681b75fd6878b0eebf551ec0208ce6d57a6fb9",
+    "docs/plugin-compat/evidence/t14/final-3.log": "3b5d6fada56f05cfe91ec002d47b8f2eda8716edf583de57ced3d953bf4e8874",
+    "docs/plugin-compat/evidence/t14/final-4.log": "0d10a6af2f90e59749e7017b220404769fef36abf4e2e6724cfefa8b49f3fd9c",
+    "docs/plugin-compat/evidence/t14/final.run.json": "860c99cf354be414e83be0e8d4fa75ac2414dd194408ddf2114dc818561815e4",
+    "docs/plugin-compat/evidence/t14/green-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t14/green-1.log": "df2f25191eee40059e2221e30d45e51240c0487771dea5ce265ae0e47542e6a8",
+    "docs/plugin-compat/evidence/t14/green.run.json": "255cf5b0283302e75bfd55862c257a3772c26cc6e22e6348a8e2d6f2ed26f5ae",
+    "docs/plugin-compat/evidence/t14/red-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t14/red-1.log": "896cfac5b4d6a104c25689b3e9ea87e765d679c56d7fa1afb09a79e9f2a46928",
+    "docs/plugin-compat/evidence/t14/red-2.log": "bcd2f8e6b988bcdcfc6c3f27b968aeb0f2a4ab616bf92205e02e97baf5d4bded",
+    "docs/plugin-compat/evidence/t14/red-3.log": "e05496c214b05808877dc26b58e77c6dd8d5b607d30f36871f99353830aac8fc",
+    "docs/plugin-compat/evidence/t14/red.run.json": "50e2b42aa69dbecb467dee525bea2139b5382eb520c0b62f4f9067812e520be7",
+    "crates/vw-agent/src/plugins/mcp.rs": "3f9b361ae5541bc5e30ab31851fe70a0799dd2092094b6baccfe57868fa56d9b",
+    "crates/vw-agent/src/plugins/mcp_tests.rs": "aa428ad875920176a3909a3e41c8908ff4cf11b58f01b73e8e0de5091e1bc01e",
+    "crates/vw-agent/src/plugins/compat/mod.rs": "02e209c2dce00aa1b0ba9880d3c240a3354d7140441ded3462cf12c7775de65b",
+    "crates/vw-agent/src/plugins/compat/mcp_legacy.rs": "c894cee11cfb3352460cb5c595fc3f80c6412c1c82b388be4ea3445b24e91b49",
+    "crates/vw-agent/src/plugins/compat/t14_tests.rs": "45234ffe44a5cf389ddd17de67722951995f79dda4dabad525ffb916d7cad32f"
+  },
+  "artifact_note": "Raw *.log and *.run.json remain local/CI artifacts under scope.md/.gitignore. Only this structured summary, source/fixture declarations and code are submitted.",
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "verification": [
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t14.json",
+      "exit_code": 0,
+      "record": "t14/verification-0.log"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t14.json",
+      "exit_code": 1,
+      "record": "t14/verification-1.log",
+      "expected_result": "Full frozen baseline rejects task-only partial evidence; no complete compatibility or platform claim."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "record": "t14/verification-2.log"
+    }
+  ]
+}

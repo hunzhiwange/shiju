@@ -138,7 +138,7 @@ fn plugin_mcp_config_rejects_missing_servers_and_scalar_roots() {
     let scalar_error = load_plugin_mcp_servers_from_path(&scalar_path)
         .expect_err("scalar plugin MCP config must fail");
 
-    assert!(missing_error.to_string().contains("missing mcpServers"));
+    assert!(missing_error.to_string().contains("server 'servers': expected server object"));
     assert!(scalar_error.to_string().contains("expected array or object"));
 }
 

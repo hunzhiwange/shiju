@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "file": {
+      "command": "fixture-server",
+      "args": ["serve"]
+    }
+  }
+}

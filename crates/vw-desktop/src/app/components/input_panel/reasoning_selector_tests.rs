@@ -257,13 +257,19 @@ fn bundled_shiju_definition_controls_visible_effort_choices() {
     }];
     for id in raw.models.keys() {
         let options = model_reasoning_effort_options(&app, &format!("shiju/{id}"));
-        use ReasoningEffortDto::{High, Low, Max, Medium, None as Disabled, Xhigh};
+        use ReasoningEffortDto::{High, Low, Max, Medium, Minimal, None as Disabled, Xhigh};
         let levels = match id.as_str() {
-            "deepseek-v4-pro-0813" => vec![High, Max],
-            "deepseek-v4.1-flash" | "deepseek-v4.1-flash-1017" | "glm-5.3" | "kimi-k3" => {
+            "deepseek-v4-flash" | "deepseek-v4-pro-0813" => vec![High, Max],
+            "deepseek-v4.1-flash"
+            | "deepseek-v4.1-flash-1017"
+            | "glm-5.3"
+            | "kimi-k3"
+            | "kimi/kimi-k2.8-preview" => {
                 vec![Low, High, Max]
             }
-            "qwen3.8-27b" | "qwen3.8-2.4t-a95b" | "qwen3.8-max" | "qwen3.8-flash" => {
+            "qwen3.8-27b" => vec![Disabled, Minimal, Low, Medium, High],
+            "qwen3.8-2.4t-a95b" => vec![Minimal, Low, Medium, High],
+            "qwen3.8-max" | "qwen3.8-flash" => {
                 vec![Low, Medium, Xhigh]
             }
             "qwen3.8-omni-flash" => vec![Disabled, Low, Medium, Xhigh],

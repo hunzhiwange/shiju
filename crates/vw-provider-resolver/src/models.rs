@@ -31,6 +31,28 @@ const BUNDLED_MODELS_TEXT: &str = include_str!("../assets/model/api.json");
 /// 仓库自有的识矩 provider 与离线模型目录。
 const BUNDLED_SHIJU_MODELS_TEXT: &str = include_str!("../assets/model/shiju.json");
 
+/// Exact IDs only: prefer Shiju's curated entry, then upstream catalogs before relays.
+/// Do not infer capabilities from a family name or strip provider prefixes.
+pub(crate) fn shiju_model_metadata<'a>(
+    catalog: &'a HashMap<String, Provider>,
+    model_id: &str,
+) -> Option<&'a Model> {
+    [
+        "shiju",
+        "alibaba-cn",
+        "alibaba-token-plan-cn",
+        "moonshotai-cn",
+        "deepseek",
+        "zhipuai",
+        "alibaba",
+        "alibaba-token-plan",
+        "moonshotai",
+        "hyper",
+    ]
+    .into_iter()
+    .find_map(|provider| catalog.get(provider)?.models.get(model_id))
+}
+
 #[allow(dead_code)]
 /// 返回 models.dev 的基础地址。
 fn url() -> String {

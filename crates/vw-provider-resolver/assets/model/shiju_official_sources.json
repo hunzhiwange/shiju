@@ -1,0 +1,319 @@
+{
+  "checked_on": "2026-10-30",
+  "scope": "Official model capabilities; does not certify router endpoint support. Non-token constraints are documentation, not runtime validation.",
+  "models": {
+    "cosyvoice-v2": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/cosyvoice-v2"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": [
+          "audio"
+        ]
+      },
+      "notes": "语音合成；官方未公布 token 窗口，零值表示未知或不适用，不是零容量。"
+    },
+    "fun-asr": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/fun-asr"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "audio"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "notes": "语音识别；官方 token 限制为未公布，不沿用聊天模型窗口。"
+    },
+    "paraformer-v2": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/paraformer-v2"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "audio"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "notes": "语音识别；官方 token 限制为未公布，不沿用聊天模型窗口。"
+    },
+    "gte-rerank-v2": {
+      "sources": [
+        "https://docs.modelstudio.console.alibabacloud.com/en/model-studio/text-rerank-api"
+      ],
+      "limit": {
+        "context": 4000,
+        "output": 0,
+        "input": 4000
+      },
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": []
+      },
+      "notes": "4000 tokens 是单条 query/document 上限；整请求最多30000 tokens、500篇文档。输出排序分数，不是生成文本。"
+    },
+    "qwen3-rerank": {
+      "sources": [
+        "https://docs.modelstudio.console.alibabacloud.com/en/model-studio/text-rerank-api"
+      ],
+      "limit": {
+        "context": 4000,
+        "output": 0,
+        "input": 4000
+      },
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": []
+      },
+      "notes": "4000 tokens 是单条 query/document 上限；整请求最多120000 tokens、500篇文档。输出排序分数，不是生成文本。"
+    },
+    "text-embedding-v3": {
+      "sources": [
+        "https://www.alibabacloud.com/help/en/model-studio/text-embedding-synchronous-api"
+      ],
+      "limit": {
+        "context": 8192,
+        "output": 0,
+        "input": 8192
+      },
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": []
+      },
+      "notes": "8192 tokens 为每条输入上限，每批最多10条；输出向量，不是生成文本。"
+    },
+    "text-embedding-v4": {
+      "sources": [
+        "https://www.alibabacloud.com/help/en/model-studio/text-embedding-synchronous-api"
+      ],
+      "limit": {
+        "context": 8192,
+        "output": 0,
+        "input": 8192
+      },
+      "modalities": {
+        "input": [
+          "text"
+        ],
+        "output": []
+      },
+      "notes": "8192 tokens 为每条输入上限，每批最多10条；输出向量，不是生成文本。"
+    },
+    "qwen-audio-3.1-asr-flash-streaming": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/qwen-audio-3-1-asr-flash-streaming"
+      ],
+      "limit": {
+        "context": 8192,
+        "output": 1024,
+        "input": 8192
+      },
+      "modalities": {
+        "input": [
+          "audio"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "notes": "官方上下文8192、最大输入8192、最大输出1024 tokens。"
+    },
+    "qwen-audio-3.1-tts-next": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/qwen-audio-3-1-tts-next"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "text",
+          "audio"
+        ],
+        "output": [
+          "audio"
+        ]
+      },
+      "notes": "最大文本输入3000字符，不是tokens；参考音频最多3段、每段30秒且10MB以内；播客输出最多240秒，其他120秒。"
+    },
+    "qwen-image-3.0": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/qwen-image-3-0"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0,
+        "input": 4500
+      },
+      "modalities": {
+        "input": [
+          "text",
+          "image"
+        ],
+        "output": [
+          "image"
+        ]
+      },
+      "notes": "官方描述最大输入4.5K tokens；上下文/输出token窗口未公布。支持文生图及编辑。"
+    },
+    "voice-enrollment": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/voice-cloning-user-guide"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "audio"
+        ],
+        "output": []
+      },
+      "notes": "音色注册接口返回voice_id，不直接生成语音；token窗口不适用。"
+    },
+    "wan2.2-animate-mix": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/wan2-2-animate-mix"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "image",
+          "video"
+        ],
+        "output": [
+          "video"
+        ]
+      },
+      "notes": "人物替换，输入图片和视频；官方未公布token窗口。"
+    },
+    "wan2.2-s2v": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/wan2-2-s2v"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "image",
+          "audio"
+        ],
+        "output": [
+          "video"
+        ]
+      },
+      "notes": "图片与语音驱动视频；官方未公布token窗口。"
+    },
+    "wan2.2-s2v-detect": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/wan2-2-s2v-detect"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "image"
+        ],
+        "output": []
+      },
+      "notes": "人物图片检测辅助接口，返回检测结果，不生成视频；token窗口不适用。"
+    },
+    "wan3.0-video": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/wan3-0-video"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        "output": [
+          "video"
+        ]
+      },
+      "notes": "多模态视频生成；最大30秒，支持480p/720p/1080p；官方未公布token窗口。"
+    },
+    "wan3.0-video-prime": {
+      "sources": [
+        "https://help.aliyun.com/zh/model-studio/wan3-0-video-prime"
+      ],
+      "limit": {
+        "context": 0,
+        "output": 0
+      },
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "video",
+          "audio"
+        ],
+        "output": [
+          "video"
+        ]
+      },
+      "notes": "多模态视频生成；最大30秒，支持480p/720p/1080p；官方未公布token窗口。"
+    },
+    "kimi/kimi-k2.8-preview": {
+      "sources": [
+        "https://www.kimi.com/en/help/kimi-code/models"
+      ],
+      "limit": {
+        "context": 1048576,
+        "output": 0,
+        "input": 1048576
+      },
+      "modalities": {
+        "input": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output": [
+          "text"
+        ]
+      },
+      "notes": "按路由模型名称对应官方K2.8 Preview（官方ID kimi-for-coding）；路由实际后端未验证。官方上下文1048576，未公布最大输出；output=0表示未知，文本运行时使用保守4096预算，不宣称为官方上限。 输入以总上下文窗口为上界，压缩预算另行扣除实际输出预留。"
+    }
+  }
+}

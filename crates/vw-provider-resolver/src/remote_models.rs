@@ -164,6 +164,7 @@ pub fn merge_remote_models(
     api_base: &str,
     explicit_model_ids: &HashSet<String>,
     remote_ids: Vec<String>,
+    catalog: &HashMap<String, crate::models::Provider>,
 ) -> usize {
     let mut changed = 0;
     for remote_id in remote_ids {
@@ -191,9 +192,28 @@ pub fn merge_remote_models(
             continue;
         }
 
-        provider
-            .models
-            .insert(remote_id.clone(), safe_remote_model(&provider.id, api_base, remote_id));
+        let mut model = safe_remote_model(&provider.id, api_base, remote_id.clone());
+        if provider.id == "shiju"
+            && let Some(metadata) = crate::models::shiju_model_metadata(catalog, &remote_id)
+        {
+            // Only model metadata crosses providers. Routing, credentials, prices,
+            // headers and provider-specific request options stay on Shiju.
+            let raw_provider = crate::models::Provider {
+                id: provider.id.clone(),
+                api: Some(api_base.to_string()),
+                adapter: Some(default_adapter()),
+                name: provider.name.clone(),
+                env: Vec::new(),
+                models: HashMap::new(),
+            };
+            let matched = crate::provider::from_models_dev_model(&raw_provider, metadata);
+            model.name = matched.name;
+            model.family = matched.family;
+            model.capabilities = matched.capabilities;
+            model.limit = matched.limit;
+            model.release_date = matched.release_date;
+        }
+        provider.models.insert(remote_id, model);
         changed += 1;
     }
     changed
@@ -213,7 +233,8 @@ pub async fn discover_and_merge_provider(
         return Ok(0);
     };
     let remote_ids = discover_openai_compatible_models(&api_base, bearer).await?;
-    Ok(merge_remote_models(provider, &api_base, explicit_model_ids, remote_ids))
+    let catalog = if provider.id == "shiju" { crate::models::get().await } else { HashMap::new() };
+    Ok(merge_remote_models(provider, &api_base, explicit_model_ids, remote_ids, &catalog))
 }
 
 fn safe_remote_model(provider_id: &str, api_base: &str, model_id: String) -> Model {

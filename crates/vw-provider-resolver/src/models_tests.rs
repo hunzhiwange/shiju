@@ -289,12 +289,14 @@ fn bundled_models_include_shiju_static_catalog() {
     let shiju = bundled.get("shiju").expect("bundled models should include shiju");
     let expected = HashSet::from([
         "cosyvoice-v2",
+        "deepseek-v4-flash",
         "deepseek-v4-pro-0813",
         "deepseek-v4.1-flash",
         "deepseek-v4.1-flash-1017",
         "fun-asr",
         "glm-5.3",
         "gte-rerank-v2",
+        "happyhorse-1.1-t2v",
         "kimi-k3",
         "kimi/kimi-k2.8-preview",
         "paraformer-v2",
@@ -303,10 +305,13 @@ fn bundled_models_include_shiju_static_catalog() {
         "qwen-image-2.0",
         "qwen-image-2.0-pro",
         "qwen-image-3.0",
+        "qwen-image-3.0-pro",
         "qwen-mt-plus",
         "qwen-vl-ocr",
+        "qwen3-asr-flash",
         "qwen3-rerank",
         "qwen3-vl-plus",
+        "qwen3.7-max",
         "qwen3.7-plus",
         "qwen3.8-2.4t-a95b",
         "qwen3.8-27b",
@@ -332,7 +337,7 @@ fn bundled_models_include_shiju_static_catalog() {
     assert_eq!(shiju.api.as_deref(), Some("https://router.shiju.cloud/v1"));
     assert_eq!(shiju.adapter.as_deref(), Some("openai-compatible"));
     assert_eq!(actual, expected);
-    assert_eq!(shiju.models.len(), 35);
+    assert_eq!(shiju.models.len(), 40);
     assert!(shiju.models.contains_key("qwen3.8-max"));
     assert!(shiju.models.contains_key("deepseek-v4.1-flash"));
 
@@ -371,21 +376,75 @@ fn bundled_shiju_models_have_usable_limits_and_modalities() {
         .expect("bundled models should include shiju");
 
     for (model_id, model) in shiju.models {
-        assert!(model.limit.context > 0, "{model_id} should have a context limit");
         let output_is_text = model
             .modalities
             .as_ref()
             .is_none_or(|modalities| modalities.output.iter().any(|item| item == "text"));
         if output_is_text {
-            assert!(model.limit.output > 0, "{model_id} should have a text output limit");
+            assert!(
+                model.limit.context > 0
+                    || documented_shiju_unknown_limit("shiju", &model_id, "context"),
+                "{model_id} should have a text context limit"
+            );
+            assert!(
+                model.limit.output > 0
+                    || documented_shiju_unknown_limit("shiju", &model_id, "output"),
+                "{model_id} should have a text output limit"
+            );
         }
     }
+}
+
+#[test]
+fn shiju_matched_models_keep_api_catalog_capabilities_and_limits() {
+    let api: HashMap<String, Provider> = serde_json::from_str(BUNDLED_MODELS_TEXT).unwrap();
+    let overlay: HashMap<String, Provider> =
+        serde_json::from_str(BUNDLED_SHIJU_MODELS_TEXT).unwrap();
+    let mut matched = 0;
+    for (id, model) in &overlay["shiju"].models {
+        let Some(source) = shiju_model_metadata(&api, id) else { continue };
+        matched += 1;
+        let actual = serde_json::to_value(model).unwrap();
+        let expected = serde_json::to_value(source).unwrap();
+        for field in [
+            "name",
+            "family",
+            "attachment",
+            "reasoning",
+            "reasoning_options",
+            "tool_call",
+            "temperature",
+            "modalities",
+            "interleaved",
+            "limit",
+            "release_date",
+        ] {
+            assert_eq!(actual[field], expected[field], "shiju/{id}: {field}");
+        }
+        assert!(model.provider.is_none(), "{id}: do not inherit an upstream adapter");
+        assert!(model.headers.is_none(), "{id}: do not inherit upstream authentication");
+    }
+    assert_eq!(matched, 22);
+    assert!(shiju_model_metadata(&api, "kimi/kimi-k2.8-preview").is_none());
+    assert!(shiju_model_metadata(&api, "qwen-image-3.0-pro").is_none());
+    assert_eq!(overlay["shiju"].models["qwen3.8-27b"].limit.context, 1_000_000);
 }
 
 fn audit_provider_models(label: &str, providers: &HashMap<String, Provider>) -> Result<(), String> {
     for (provider_id, provider) in providers {
         for (model_id, model) in &provider.models {
-            if model.limit.context == 0 {
+            // Image/video generation APIs need not publish a text-token window.
+            let media_generation = model.modalities.as_ref().is_some_and(|modalities| {
+                !modalities.output.is_empty()
+                    && modalities
+                        .output
+                        .iter()
+                        .all(|modality| matches!(modality.as_str(), "image" | "video"))
+            });
+            if model.limit.context == 0
+                && !media_generation
+                && !documented_shiju_unknown_limit(provider_id, model_id, "context")
+            {
                 return Err(format!("{label}/{provider_id}/{model_id}: missing context limit"));
             }
             let Some(modalities) = model.modalities.as_ref() else {
@@ -505,9 +564,18 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
         }
 
         for (model_id, model) in &provider.models {
+            let media_generation = model.modalities.as_ref().is_some_and(|modalities| {
+                !modalities.output.is_empty()
+                    && modalities
+                        .output
+                        .iter()
+                        .all(|modality| matches!(modality.as_str(), "image" | "video"))
+            });
             assert!(
-                model.limit.context > 0,
-                "{provider_id}/{model_id} should have a context limit"
+                model.limit.context > 0
+                    || media_generation
+                    || documented_shiju_unknown_limit(&provider_id, model_id, "context"),
+                "{provider_id}/{model_id} should have a token context limit unless it generates images/video"
             );
             let output_is_text = model
                 .modalities
@@ -515,7 +583,8 @@ fn bundled_api_models_have_typed_limits_and_non_text_outputs_are_not_text_models
                 .is_none_or(|modalities| modalities.output.iter().any(|item| item == "text"));
             if output_is_text {
                 assert!(
-                    model.limit.output > 0,
+                    model.limit.output > 0
+                        || documented_shiju_unknown_limit(&provider_id, model_id, "output"),
                     "{provider_id}/{model_id} should have a text output limit"
                 );
             }
@@ -652,4 +721,40 @@ async fn load_falls_back_to_bundled_models_for_empty_or_invalid_cache() {
 fn init_is_idempotent() {
     init();
     init();
+}
+
+// Only documented model-specific exceptions may omit a token limit.
+fn documented_shiju_unknown_limit(provider: &str, model: &str, field: &str) -> bool {
+    if provider != "shiju" {
+        return false;
+    }
+    let evidence: Value =
+        serde_json::from_str(include_str!("../assets/model/shiju_official_sources.json")).unwrap();
+    evidence["models"][model]["limit"][field].as_u64() == Some(0)
+}
+
+#[test]
+fn shiju_official_models_preserve_documented_limits_and_modalities() {
+    let evidence: Value =
+        serde_json::from_str(include_str!("../assets/model/shiju_official_sources.json")).unwrap();
+    let catalog = bundled_models("official_sources");
+    let provider = &catalog["shiju"];
+    assert_eq!(evidence["models"].as_object().unwrap().len(), 17);
+    for (id, source) in evidence["models"].as_object().unwrap() {
+        let model = &provider.models[id];
+        assert_eq!(model.limit.context, source["limit"]["context"].as_u64().unwrap(), "{id}");
+        assert_eq!(model.limit.output, source["limit"]["output"].as_u64().unwrap(), "{id}");
+        assert_eq!(model.limit.input, source["limit"]["input"].as_u64(), "{id}");
+        assert_eq!(serde_json::to_value(&model.modalities).unwrap(), source["modalities"], "{id}");
+        assert!(!source["sources"].as_array().unwrap().is_empty());
+        let runtime = from_models_dev_model(provider, model);
+        assert_eq!(runtime.limit.context, model.limit.context, "{id}");
+        if id == "kimi/kimi-k2.8-preview" {
+            assert_eq!(runtime.limit.output, 4096);
+        } else {
+            assert_eq!(runtime.limit.output, model.limit.output, "{id}");
+            assert_eq!(runtime.limit.input, model.limit.input, "{id}");
+            assert!(!runtime.capabilities.toolcall);
+        }
+    }
 }

@@ -392,3 +392,30 @@ fn reasoning_options_survive_catalog_conversion_and_explicit_overrides() {
     );
     assert_eq!(disabled.reasoning_options, Some(vec![]));
 }
+
+#[test]
+fn non_chat_models_do_not_inherit_chat_token_defaults() {
+    for (input, output) in [("text", "audio"), ("audio", "text"), ("text", ""), ("image", "text")] {
+        let mut raw = raw_model("non-chat");
+        raw.limit = models::ModelLimit { context: 0, input: None, output: 0 };
+        raw.modalities = Some(models::ModelModalities {
+            input: vec![input.into()],
+            output: if output.is_empty() { vec![] } else { vec![output.into()] },
+        });
+        let model = from_models_dev_model(&raw_provider(), &raw);
+        assert_eq!(model.limit.context, 0);
+        assert_eq!(model.limit.input, None);
+        assert_eq!(model.limit.output, 0);
+    }
+}
+
+#[test]
+fn unknown_chat_model_still_receives_conservative_defaults() {
+    let mut raw = raw_model("unknown-chat");
+    raw.limit = models::ModelLimit { context: 0, input: None, output: 0 };
+    raw.modalities =
+        Some(models::ModelModalities { input: vec!["text".into()], output: vec!["text".into()] });
+    let model = from_models_dev_model(&raw_provider(), &raw);
+    assert_eq!(model.limit.context, DEFAULT_MODEL_CONTEXT_LIMIT);
+    assert_eq!(model.limit.output, DEFAULT_MODEL_OUTPUT_LIMIT);
+}

@@ -23,15 +23,57 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
+      "deepseek-v4-flash": {
+        "id": "deepseek-v4-flash",
+        "name": "DeepSeek V4 Flash",
+        "description": "Fast DeepSeek V4 lane for economical reasoning, coding, and long-context work",
+        "family": "deepseek-flash",
+        "attachment": false,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "toggle"
+          },
+          {
+            "type": "effort",
+            "values": [
+              "high",
+              "max"
+            ]
+          }
+        ],
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "interleaved": {
+          "field": "reasoning_content"
+        },
+        "limit": {
+          "context": 1000000,
+          "output": 384000
+        },
+        "knowledge": "2025-05",
+        "release_date": "2026-04-24",
+        "last_updated": "2026-04-24",
+        "open_weights": true
+      },
       "deepseek-v4-pro-0813": {
         "id": "deepseek-v4-pro-0813",
-        "name": "deepseek-v4-pro-0813",
+        "name": "DeepSeek V4 Pro 0813",
         "family": "deepseek-thinking",
         "modalities": {
           "input": [
@@ -63,11 +105,16 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "DeepSeek V4 Pro snapshot with million-token context and support for thinking and non-thinking modes",
+        "structured_output": true,
+        "release_date": "2026-08-13",
+        "last_updated": "2026-08-22",
+        "open_weights": true
       },
       "deepseek-v4.1-flash": {
         "id": "deepseek-v4.1-flash",
-        "name": "deepseek-v4.1-flash",
+        "name": "DeepSeek V4.1 Flash",
         "family": "deepseek-flash",
         "modalities": {
           "input": [
@@ -101,11 +148,17 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "DeepSeek V4.1 Flash model for reasoning and agentic coding",
+        "structured_output": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-09-10",
+        "last_updated": "2026-09-10",
+        "open_weights": true
       },
       "deepseek-v4.1-flash-1017": {
         "id": "deepseek-v4.1-flash-1017",
-        "name": "deepseek-v4.1-flash-1017",
+        "name": "DeepSeek V4.1 Flash 1017",
         "family": "deepseek-flash",
         "modalities": {
           "input": [
@@ -139,7 +192,13 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "October 17 update of DeepSeek V4.1 Flash with improved reasoning, coding, agentic tasks, and visual understanding",
+        "structured_output": true,
+        "knowledge": "2025-05",
+        "release_date": "2026-10-17",
+        "last_updated": "2026-10-17",
+        "open_weights": true
       },
       "fun-asr": {
         "id": "fun-asr",
@@ -159,13 +218,13 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 53248,
-          "output": 4096
+          "context": 0,
+          "output": 0
         }
       },
       "glm-5.3": {
         "id": "glm-5.3",
-        "name": "glm-5.3",
+        "name": "GLM-5.3",
         "family": "glm",
         "modalities": {
           "input": [
@@ -195,7 +254,12 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "Flagship GLM model for long-horizon coding, agents, and complex project delivery",
+        "structured_output": true,
+        "release_date": "2026-08-14",
+        "last_updated": "2026-08-14",
+        "open_weights": true
       },
       "gte-rerank-v2": {
         "id": "gte-rerank-v2",
@@ -211,15 +275,39 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 32768,
-          "input": 28672,
-          "output": 0
+          "context": 4000,
+          "output": 0,
+          "input": 4000
         },
         "reasoning_options": []
       },
+      "happyhorse-1.1-t2v": {
+        "id": "happyhorse-1.1-t2v",
+        "name": "HappyHorse 1.1 Text-to-Video",
+        "description": "Video model for prompt-driven text-to-video generation",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "video"
+          ]
+        },
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": true,
+        "limit": {
+          "context": 0,
+          "output": 0
+        },
+        "release_date": "2026-07-17",
+        "last_updated": "2026-07-17",
+        "open_weights": false
+      },
       "kimi-k3": {
         "id": "kimi-k3",
-        "name": "kimi-k3",
+        "name": "Kimi K3",
         "family": "kimi-k3",
         "modalities": {
           "input": [
@@ -253,7 +341,12 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "Multimodal Kimi model with 1M context and toggleable max-effort thinking for long-horizon agent work",
+        "structured_output": true,
+        "release_date": "2026-07-16",
+        "last_updated": "2026-07-16",
+        "open_weights": true
       },
       "kimi/kimi-k2.8-preview": {
         "id": "kimi/kimi-k2.8-preview",
@@ -271,12 +364,25 @@
         },
         "attachment": true,
         "reasoning": true,
-        "reasoning_options": [],
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "low",
+              "high",
+              "max"
+            ]
+          },
+          {
+            "type": "toggle"
+          }
+        ],
         "tool_call": true,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 262144,
-          "output": 16384
+          "context": 1048576,
+          "output": 0,
+          "input": 1048576
         },
         "interleaved": {
           "field": "reasoning_content"
@@ -300,8 +406,8 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 53248,
-          "output": 4096
+          "context": 0,
+          "output": 0
         }
       },
       "qwen-audio-3.1-asr-flash-streaming": {
@@ -322,8 +428,9 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 53248,
-          "output": 4096
+          "context": 8192,
+          "output": 1024,
+          "input": 8192
         }
       },
       "qwen-audio-3.1-tts-next": {
@@ -331,25 +438,26 @@
         "name": "qwen-audio-3.1-tts-next",
         "modalities": {
           "input": [
-            "text"
+            "text",
+            "audio"
           ],
           "output": [
             "audio"
           ]
         },
-        "attachment": false,
+        "attachment": true,
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
       "qwen-image-2.0": {
         "id": "qwen-image-2.0",
-        "name": "qwen-image-2.0",
+        "name": "Qwen Image 2.0",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -367,11 +475,14 @@
           "context": 8192,
           "output": 0
         },
-        "reasoning_options": []
+        "description": "Image model for prompt-driven generation, editing, and visual design workflows",
+        "release_date": "2026-03-03",
+        "last_updated": "2026-03-03",
+        "open_weights": false
       },
       "qwen-image-2.0-pro": {
         "id": "qwen-image-2.0-pro",
-        "name": "qwen-image-2.0-pro",
+        "name": "Qwen Image 2.0 Pro",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -389,7 +500,10 @@
           "context": 8192,
           "output": 0
         },
-        "reasoning_options": []
+        "description": "Image model for prompt-driven generation, editing, and visual design workflows",
+        "release_date": "2026-03-03",
+        "last_updated": "2026-03-03",
+        "open_weights": false
       },
       "qwen-image-3.0": {
         "id": "qwen-image-3.0",
@@ -407,15 +521,38 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
+          "output": 0,
+          "input": 4500
+        }
+      },
+      "qwen-image-3.0-pro": {
+        "id": "qwen-image-3.0-pro",
+        "name": "qwen-image-3.0-pro",
+        "description": "Image generation model listed by router.shiju.cloud; token limits are not published in its catalog.",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "image"
+          ]
+        },
+        "attachment": false,
+        "reasoning": false,
+        "reasoning_options": [],
+        "tool_call": false,
+        "temperature": false,
+        "limit": {
+          "context": 0,
           "output": 0
         }
       },
       "qwen-mt-plus": {
         "id": "qwen-mt-plus",
-        "name": "qwen-mt-plus",
+        "name": "Qwen-MT Plus",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -433,11 +570,15 @@
           "context": 16384,
           "output": 8192
         },
-        "reasoning_options": []
+        "description": "Translation model for multilingual conversion, localization, and cross-language workflows",
+        "knowledge": "2024-04",
+        "release_date": "2025-01",
+        "last_updated": "2025-01",
+        "open_weights": false
       },
       "qwen-vl-ocr": {
         "id": "qwen-vl-ocr",
-        "name": "qwen-vl-ocr",
+        "name": "Qwen-VL OCR",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -456,7 +597,37 @@
           "context": 34096,
           "output": 4096
         },
-        "reasoning_options": []
+        "description": "OCR model for extracting structured text from documents and screenshots",
+        "knowledge": "2024-04",
+        "release_date": "2024-10-28",
+        "last_updated": "2026-09-11",
+        "open_weights": false
+      },
+      "qwen3-asr-flash": {
+        "id": "qwen3-asr-flash",
+        "name": "Qwen3-ASR Flash",
+        "description": "Speech transcription model for accurate audio-to-text and captioning workflows",
+        "family": "qwen",
+        "modalities": {
+          "input": [
+            "audio"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "attachment": true,
+        "reasoning": false,
+        "tool_call": false,
+        "temperature": false,
+        "limit": {
+          "context": 53248,
+          "output": 4096
+        },
+        "knowledge": "2024-04",
+        "release_date": "2025-09-08",
+        "last_updated": "2025-09-08",
+        "open_weights": false
       },
       "qwen3-rerank": {
         "id": "qwen3-rerank",
@@ -472,15 +643,15 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 32768,
-          "input": 28672,
-          "output": 0
+          "context": 4000,
+          "output": 0,
+          "input": 4000
         },
         "reasoning_options": []
       },
       "qwen3-vl-plus": {
         "id": "qwen3-vl-plus",
-        "name": "qwen3-vl-plus",
+        "name": "Qwen3-VL Plus",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -507,11 +678,52 @@
         "limit": {
           "context": 262144,
           "output": 32768
-        }
+        },
+        "description": "Qwen vision-language model for visual reasoning, documents, and agent tasks",
+        "structured_output": true,
+        "knowledge": "2025-04",
+        "release_date": "2025-09-23",
+        "last_updated": "2025-09-23",
+        "open_weights": false
+      },
+      "qwen3.7-max": {
+        "id": "qwen3.7-max",
+        "name": "Qwen3.7 Max",
+        "description": "Qwen frontier model tuned for agent frameworks, coding assistants, and long tasks",
+        "family": "qwen",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "attachment": false,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "toggle"
+          },
+          {
+            "type": "budget_tokens",
+            "max": 262144
+          }
+        ],
+        "tool_call": true,
+        "temperature": true,
+        "limit": {
+          "context": 1000000,
+          "output": 131072
+        },
+        "structured_output": true,
+        "release_date": "2026-05-21",
+        "last_updated": "2026-05-21",
+        "open_weights": false
       },
       "qwen3.7-plus": {
         "id": "qwen3.7-plus",
-        "name": "qwen3.7-plus",
+        "name": "Qwen3.7 Plus",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -539,11 +751,17 @@
         "limit": {
           "context": 1000000,
           "output": 64000
-        }
+        },
+        "description": "Multimodal Qwen workhorse for long-context agents, visual inputs, and coding",
+        "structured_output": true,
+        "knowledge": "2025-04",
+        "release_date": "2026-06-02",
+        "last_updated": "2026-06-02",
+        "open_weights": false
       },
       "qwen3.8-2.4t-a95b": {
         "id": "qwen3.8-2.4t-a95b",
-        "name": "qwen3.8-2.4t-a95b",
+        "name": "Qwen3.8 2.4T A95B",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -559,28 +777,33 @@
           {
             "type": "effort",
             "values": [
+              "minimal",
               "low",
               "medium",
-              "xhigh"
+              "high"
             ]
           }
         ],
         "tool_call": true,
         "temperature": true,
         "limit": {
-          "context": 262144,
-          "output": 131072
-        }
+          "context": 1000000,
+          "output": 128000
+        },
+        "description": "Open-weight sparse MoE (2.4T total, 95B active), the open-weight twin of Qwen3.8 Max for coding, research, complex reasoning, and agentic workflows",
+        "structured_output": true,
+        "release_date": "2026-08-12",
+        "last_updated": "2026-08-12",
+        "open_weights": true
       },
       "qwen3.8-27b": {
         "id": "qwen3.8-27b",
-        "name": "qwen3.8-27b",
+        "name": "Qwen3.8 27B",
         "family": "qwen",
         "modalities": {
           "input": [
             "text",
-            "image",
-            "video"
+            "image"
           ],
           "output": [
             "text"
@@ -590,27 +813,31 @@
         "reasoning": true,
         "reasoning_options": [
           {
-            "type": "toggle"
-          },
-          {
             "type": "effort",
             "values": [
+              "none",
+              "minimal",
               "low",
               "medium",
-              "xhigh"
+              "high"
             ]
           }
         ],
         "tool_call": true,
         "temperature": true,
         "limit": {
-          "context": 262144,
-          "output": 32768
-        }
+          "context": 1000000,
+          "output": 128000
+        },
+        "description": "Dense 27B vision-language model for coding, agent tasks, and image and video understanding",
+        "structured_output": true,
+        "release_date": "2026-08-14",
+        "last_updated": "2026-08-14",
+        "open_weights": true
       },
       "qwen3.8-flash": {
         "id": "qwen3.8-flash",
-        "name": "qwen3.8-flash",
+        "name": "Qwen3.8 Flash",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -649,11 +876,16 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "Qwen vision-language model for visual reasoning, documents, and agent tasks",
+        "structured_output": true,
+        "release_date": "2026-08-26",
+        "last_updated": "2026-08-26",
+        "open_weights": false
       },
       "qwen3.8-max": {
         "id": "qwen3.8-max",
-        "name": "qwen3.8-max",
+        "name": "Qwen3.8 Max",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -694,11 +926,16 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "2.4-trillion-parameter MoE flagship for coding, professional work, multimodal understanding, and long-horizon agentic workflows",
+        "structured_output": true,
+        "release_date": "2026-08-03",
+        "last_updated": "2026-08-03",
+        "open_weights": false
       },
       "qwen3.8-omni-flash": {
         "id": "qwen3.8-omni-flash",
-        "name": "qwen3.8-omni-flash",
+        "name": "Qwen3.8 Omni Flash",
         "family": "qwen",
         "modalities": {
           "input": [
@@ -732,7 +969,12 @@
         },
         "interleaved": {
           "field": "reasoning_content"
-        }
+        },
+        "description": "Qwen omni model for text, vision, audio, and multimodal agent tasks",
+        "structured_output": true,
+        "release_date": "2026-09-17",
+        "last_updated": "2026-09-17",
+        "open_weights": false
       },
       "text-embedding-v3": {
         "id": "text-embedding-v3",
@@ -748,9 +990,9 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 32768,
-          "input": 28672,
-          "output": 0
+          "context": 8192,
+          "output": 0,
+          "input": 8192
         },
         "reasoning_options": []
       },
@@ -768,9 +1010,9 @@
         "tool_call": false,
         "temperature": false,
         "limit": {
-          "context": 32768,
-          "input": 28672,
-          "output": 0
+          "context": 8192,
+          "output": 0,
+          "input": 8192
         },
         "reasoning_options": []
       },
@@ -787,9 +1029,9 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
@@ -809,9 +1051,9 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
@@ -831,9 +1073,9 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
@@ -850,15 +1092,15 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
       "wan2.7-image": {
         "id": "wan2.7-image",
-        "name": "wan2.7-image",
+        "name": "Wan2.7 Image",
         "modalities": {
           "input": [
             "text"
@@ -875,11 +1117,14 @@
           "context": 8192,
           "output": 0
         },
-        "reasoning_options": []
+        "description": "Image model for prompt-driven generation, editing, and visual design workflows",
+        "release_date": "2026-05-29",
+        "last_updated": "2026-05-29",
+        "open_weights": false
       },
       "wan2.7-image-pro": {
         "id": "wan2.7-image-pro",
-        "name": "wan2.7-image-pro",
+        "name": "Wan2.7 Image Pro",
         "modalities": {
           "input": [
             "text"
@@ -896,7 +1141,10 @@
           "context": 8192,
           "output": 0
         },
-        "reasoning_options": []
+        "description": "Image model for prompt-driven generation, editing, and visual design workflows",
+        "release_date": "2026-05-29",
+        "last_updated": "2026-05-29",
+        "open_weights": false
       },
       "wan3.0-video": {
         "id": "wan3.0-video",
@@ -904,7 +1152,9 @@
         "modalities": {
           "input": [
             "text",
-            "image"
+            "image",
+            "video",
+            "audio"
           ],
           "output": [
             "video"
@@ -914,9 +1164,9 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       },
@@ -926,7 +1176,9 @@
         "modalities": {
           "input": [
             "text",
-            "image"
+            "image",
+            "video",
+            "audio"
           ],
           "output": [
             "video"
@@ -936,9 +1188,9 @@
         "reasoning": false,
         "reasoning_options": [],
         "tool_call": false,
-        "temperature": true,
+        "temperature": false,
         "limit": {
-          "context": 8192,
+          "context": 0,
           "output": 0
         }
       }

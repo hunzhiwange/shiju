@@ -884,7 +884,7 @@ async fn custom_provider_reasoning_inherits_catalog_for_shiju_and_token_plan() {
         ("glm-5.3", vec!["low", "high", "max"]),
         ("qwen3.8-max", vec!["low", "medium", "xhigh"]),
         ("qwen3.7-plus", vec![]),
-        ("kimi/kimi-k2.8-preview", vec![]),
+        ("kimi/kimi-k2.8-preview", vec!["low", "high", "max"]),
     ] {
         let model = &state.providers["shiju"].models[id];
         assert_eq!(

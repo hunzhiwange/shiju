@@ -246,16 +246,21 @@ pub fn from_models_dev_model(provider: &RawProvider, model: &RawModel) -> Model 
             models::ModelInterleaved::Field { field } => InterleavedCapability::Field { field },
         };
 
-    let output_limit = if model.limit.output > 0 {
-        Some(model.limit.output)
-    } else if model.modalities.as_ref().is_some_and(|modalities| {
-        !modalities.output.is_empty() && !modalities.output.iter().any(|item| item == "text")
-    }) {
-        Some(0)
+    // Speech, embedding and media APIs do not inherit chat-token defaults.
+    // Their zero limits mean unpublished/not applicable, not a 200K window.
+    let limit = if modalities.is_some() && !(input.text && output.text) {
+        ModelLimit {
+            context: model.limit.context,
+            input: model.limit.input,
+            output: model.limit.output,
+        }
     } else {
-        None
+        resolve_model_limit(
+            Some(model.limit.context),
+            model.limit.input,
+            (model.limit.output > 0).then_some(model.limit.output),
+        )
     };
-    let limit = resolve_model_limit(Some(model.limit.context), model.limit.input, output_limit);
 
     Model {
         id: model.id.clone(),

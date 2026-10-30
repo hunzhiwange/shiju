@@ -1,0 +1,1 @@
+forall n : nat, n + 1 = S n

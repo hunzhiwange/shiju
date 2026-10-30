@@ -1,0 +1,1 @@
+forall n m : nat, n + S m = S (n + m)

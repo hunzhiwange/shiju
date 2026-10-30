@@ -1,0 +1,173 @@
+{
+  "total_bytes": 253946744,
+  "packages": [
+    {
+      "package": "libpython3.11-minimal",
+      "version": "3.11.2-6+deb12u9",
+      "file": "libpython3.11-minimal_3.11.2-6+deb12u9_amd64.deb",
+      "size": 820928,
+      "sha256": "69f41cfa3f4ba17284e538f843069d7529c53c207d2ae17a5b02785944870e33",
+      "url": "https://deb.debian.org/debian-security/pool/updates/main/p/python3.11/libpython3.11-minimal_3.11.2-6%2bdeb12u9_amd64.deb"
+    },
+    {
+      "package": "python3.11-minimal",
+      "version": "3.11.2-6+deb12u9",
+      "file": "python3.11-minimal_3.11.2-6+deb12u9_amd64.deb",
+      "size": 2054684,
+      "sha256": "b5f855ab922dfcd5d1a3223b2118c3dae13ffc7751b0cd5dc24740386323a33a",
+      "url": "https://deb.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11-minimal_3.11.2-6%2bdeb12u9_amd64.deb"
+    },
+    {
+      "package": "python3-minimal",
+      "version": "3.11.2-1+b1",
+      "file": "python3-minimal_3.11.2-1+b1_amd64.deb",
+      "size": 26312,
+      "sha256": "30f9618670e686d781afbfc713eb0830c29d2819e9cb2a0488800dad6bb99faa",
+      "url": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3-minimal_3.11.2-1%2bb1_amd64.deb"
+    },
+    {
+      "package": "media-types",
+      "version": "10.0.0",
+      "file": "media-types_10.0.0_all.deb",
+      "size": 26136,
+      "sha256": "aaa46dcb3b39948ae2e0fdb72cfcb2f48c0b59f19785a3da8045c05eb19955dd",
+      "url": "https://deb.debian.org/debian/pool/main/m/media-types/media-types_10.0.0_all.deb"
+    },
+    {
+      "package": "libpython3.11-stdlib",
+      "version": "3.11.2-6+deb12u9",
+      "file": "libpython3.11-stdlib_3.11.2-6+deb12u9_amd64.deb",
+      "size": 1798408,
+      "sha256": "10f13e000ee757f5f2d2d3569f9e30546214a0c850acd78695feae373bfa3e53",
+      "url": "https://deb.debian.org/debian-security/pool/updates/main/p/python3.11/libpython3.11-stdlib_3.11.2-6%2bdeb12u9_amd64.deb"
+    },
+    {
+      "package": "python3.11",
+      "version": "3.11.2-6+deb12u9",
+      "file": "python3.11_3.11.2-6+deb12u9_amd64.deb",
+      "size": 575032,
+      "sha256": "4facf334e0e0830a87013852f8c3a1cfee11ad702f72f240adf9ad5b9a334e7c",
+      "url": "https://deb.debian.org/debian-security/pool/updates/main/p/python3.11/python3.11_3.11.2-6%2bdeb12u9_amd64.deb"
+    },
+    {
+      "package": "libpython3-stdlib",
+      "version": "3.11.2-1+b1",
+      "file": "libpython3-stdlib_3.11.2-1+b1_amd64.deb",
+      "size": 9312,
+      "sha256": "4e58891d5c951a1e360ed9eaa814413cb5e84deadce3f08e801ac680434c786e",
+      "url": "https://deb.debian.org/debian/pool/main/p/python3-defaults/libpython3-stdlib_3.11.2-1%2bb1_amd64.deb"
+    },
+    {
+      "package": "python3",
+      "version": "3.11.2-1+b1",
+      "file": "python3_3.11.2-1+b1_amd64.deb",
+      "size": 26300,
+      "sha256": "33f6dafbd1a6902d9063172ec7dbd4b2225e12009e0d7ec5c933a72c2f5f3b74",
+      "url": "https://deb.debian.org/debian/pool/main/p/python3-defaults/python3_3.11.2-1%2bb1_amd64.deb"
+    },
+    {
+      "package": "libcoq-stdlib",
+      "version": "8.16.1+dfsg-1+b2",
+      "file": "libcoq-stdlib_8.16.1+dfsg-1+b2_amd64.deb",
+      "size": 21526056,
+      "sha256": "8041ed20fb162a30553e273d9d3e8a3e67d97e08020b604af2402cc4be2e6431",
+      "url": "https://deb.debian.org/debian/pool/main/c/coq/libcoq-stdlib_8.16.1%2bdfsg-1%2bb2_amd64.deb"
+    },
+    {
+      "package": "ocaml-base",
+      "version": "4.13.1-4",
+      "file": "ocaml-base_4.13.1-4_amd64.deb",
+      "size": 667508,
+      "sha256": "c0b44b8aa8045dba80d8328241b439aa8ef47429a87867f1ef2de65f27cb59f5",
+      "url": "https://deb.debian.org/debian/pool/main/o/ocaml/ocaml-base_4.13.1-4_amd64.deb"
+    },
+    {
+      "package": "libfindlib-ocaml",
+      "version": "1.9.6-1+b1",
+      "file": "libfindlib-ocaml_1.9.6-1+b1_amd64.deb",
+      "size": 168976,
+      "sha256": "722e171e23532cf689ffa408286f2d72aa90385d30bb2b58b87749626ac03e91",
+      "url": "https://deb.debian.org/debian/pool/main/f/findlib/libfindlib-ocaml_1.9.6-1%2bb1_amd64.deb"
+    },
+    {
+      "package": "libzarith-ocaml",
+      "version": "1.12-1+b1",
+      "file": "libzarith-ocaml_1.12-1+b1_amd64.deb",
+      "size": 56500,
+      "sha256": "8bf04a496c5a7b4e436c8ac9819705b67dc71328be0d88b1643397de182e17a8",
+      "url": "https://deb.debian.org/debian/pool/main/o/ocaml-zarith/libzarith-ocaml_1.12-1%2bb1_amd64.deb"
+    },
+    {
+      "package": "libcoq-core-ocaml",
+      "version": "8.16.1+dfsg-1+b2",
+      "file": "libcoq-core-ocaml_8.16.1+dfsg-1+b2_amd64.deb",
+      "size": 22556068,
+      "sha256": "c796433dbebc58bab6c26d33deba19e8efdfc32fcc4d69332ca90774966210e3",
+      "url": "https://deb.debian.org/debian/pool/main/c/coq/libcoq-core-ocaml_8.16.1%2bdfsg-1%2bb2_amd64.deb"
+    },
+    {
+      "package": "ocaml-compiler-libs",
+      "version": "4.13.1-4",
+      "file": "ocaml-compiler-libs_4.13.1-4_amd64.deb",
+      "size": 31024000,
+      "sha256": "ae3883883dfd5c53d842082093bd3276c5e20628d086e5bd5d1e4f9aabf8c444",
+      "url": "https://deb.debian.org/debian/pool/main/o/ocaml/ocaml-compiler-libs_4.13.1-4_amd64.deb"
+    },
+    {
+      "package": "ocaml-interp",
+      "version": "4.13.1-4",
+      "file": "ocaml-interp_4.13.1-4_amd64.deb",
+      "size": 6158032,
+      "sha256": "4805d62f3dd15a4ebe0202ef7d2727f4d100ebc5514bfa07585066a804568aa0",
+      "url": "https://deb.debian.org/debian/pool/main/o/ocaml/ocaml-interp_4.13.1-4_amd64.deb"
+    },
+    {
+      "package": "libncurses6",
+      "version": "6.4-4",
+      "file": "libncurses6_6.4-4_amd64.deb",
+      "size": 103136,
+      "sha256": "72300f09f02669c06c99b641ea795d52300ec7eb65eaccddf7bc3b72934f0ef5",
+      "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libncurses6_6.4-4_amd64.deb"
+    },
+    {
+      "package": "libncurses-dev",
+      "version": "6.4-4",
+      "file": "libncurses-dev_6.4-4_amd64.deb",
+      "size": 349068,
+      "sha256": "2ad228835756feb118bb131b32834bd23a09047e4de408cc5204cbb5dce0e4bb",
+      "url": "https://deb.debian.org/debian/pool/main/n/ncurses/libncurses-dev_6.4-4_amd64.deb"
+    },
+    {
+      "package": "ocaml",
+      "version": "4.13.1-4",
+      "file": "ocaml_4.13.1-4_amd64.deb",
+      "size": 72145688,
+      "sha256": "98ca43adc3edb8994bb89830e51b3bdb7d25449db41a5702cf8ff39696c404ea",
+      "url": "https://deb.debian.org/debian/pool/main/o/ocaml/ocaml_4.13.1-4_amd64.deb"
+    },
+    {
+      "package": "ocaml-nox",
+      "version": "4.13.1-4",
+      "file": "ocaml-nox_4.13.1-4_all.deb",
+      "size": 161120,
+      "sha256": "f54caa519c341e6d946f993b48759fa9dfcb9b52499d0845185f1990fc9956fc",
+      "url": "https://deb.debian.org/debian/pool/main/o/ocaml/ocaml-nox_4.13.1-4_all.deb"
+    },
+    {
+      "package": "ocaml-findlib",
+      "version": "1.9.6-1+b1",
+      "file": "ocaml-findlib_1.9.6-1+b1_amd64.deb",
+      "size": 480908,
+      "sha256": "24f22973c379327209f3339eb9dbc2c8780ca6fec933746cca5747b6dade3487",
+      "url": "https://deb.debian.org/debian/pool/main/f/findlib/ocaml-findlib_1.9.6-1%2bb1_amd64.deb"
+    },
+    {
+      "package": "coq",
+      "version": "8.16.1+dfsg-1+b2",
+      "file": "coq_8.16.1+dfsg-1+b2_amd64.deb",
+      "size": 93212572,
+      "sha256": "6496db435f9585e1f1527d9418070f15977b049c01c37c9bd33f7cc4152f8677",
+      "url": "https://deb.debian.org/debian/pool/main/c/coq/coq_8.16.1%2bdfsg-1%2bb2_amd64.deb"
+    }
+  ]
+}

@@ -15,15 +15,22 @@ use serde_json::Value;
 use std::sync::Arc;
 
 #[derive(Clone)]
-pub(super) struct HttpClient(pub(super) reqwest_012::Client);
+pub(super) struct HttpClient(
+    pub(super) reqwest_012::Client,
+    pub(super) Arc<crate::plugins::RawMcpResponse>,
+);
 
-fn events(stream: BoxedSseResponse) -> BoxedSseResponse {
+fn events(
+    stream: BoxedSseResponse,
+    responses: Arc<crate::plugins::RawMcpResponse>,
+) -> BoxedSseResponse {
     stream
-        .map(|event| {
+        .map(move |event| {
             event.map(|mut event| {
                 if matches!(event.event.as_deref(), None | Some("") | Some("message")) {
                     if let Some(data) = &event.data {
                         if let Ok(mut value) = serde_json::from_str::<Value>(data) {
+                            responses.capture(&value);
                             crate::plugins::preserve_mcp_wire_result(&mut value);
                             event.data = Some(value.to_string());
                         }
@@ -83,13 +90,13 @@ impl StreamableHttpClient for HttpClient {
             .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
         match kind.as_deref() {
             Some(kind) if kind.starts_with("application/json") => {
-                let message = super::wire_stdio::decode(response.json::<Value>().await?)?;
+                let message = super::wire_stdio::decode(response.json::<Value>().await?, &self.1)?;
                 Ok(StreamableHttpPostResponse::Json(message, session))
             }
             Some(kind) if kind.starts_with("text/event-stream") => {
                 let stream =
                     sse_stream::SseStream::from_byte_stream(response.bytes_stream()).boxed();
-                Ok(StreamableHttpPostResponse::Sse(events(stream), session))
+                Ok(StreamableHttpPostResponse::Sse(events(stream, self.1.clone()), session))
             }
             _ => Err(StreamableHttpError::UnexpectedContentType(kind)),
         }
@@ -111,7 +118,9 @@ impl StreamableHttpClient for HttpClient {
         last: Option<String>,
         auth: Option<String>,
     ) -> Result<BoxedSseResponse, StreamableHttpError<Self::Error>> {
-        StreamableHttpClient::get_stream(&self.0, uri, session, last, auth).await.map(events)
+        StreamableHttpClient::get_stream(&self.0, uri, session, last, auth)
+            .await
+            .map(|stream| events(stream, self.1.clone()))
     }
 }
 
@@ -133,6 +142,8 @@ impl SseClient for HttpClient {
         last: Option<String>,
         auth: Option<String>,
     ) -> Result<BoxedSseResponse, SseTransportError<Self::Error>> {
-        SseClient::get_stream(&self.0, uri, last, auth).await.map(events)
+        SseClient::get_stream(&self.0, uri, last, auth)
+            .await
+            .map(|stream| events(stream, self.1.clone()))
     }
 }

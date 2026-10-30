@@ -2,7 +2,7 @@
 use anyhow::{Result, bail};
 use rmcp::{
     Peer, RoleClient,
-    model::{PaginatedRequestParam, Prompt, Resource, ResourceTemplate, Tool},
+    model::{PaginatedRequestParam, Tool},
 };
 use std::{collections::HashSet, time::Duration};
 
@@ -13,28 +13,7 @@ pub(crate) async fn list_tools(peer: &Peer<RoleClient>) -> Result<Vec<Tool>> {
     })
     .await
 }
-pub(crate) async fn list_resources(peer: &Peer<RoleClient>) -> Result<Vec<Resource>> {
-    collect("resources/list", |cursor| async move {
-        let page = peer.list_resources(Some(PaginatedRequestParam { cursor })).await?;
-        Ok((page.resources, page.next_cursor))
-    })
-    .await
-}
-pub(crate) async fn list_templates(peer: &Peer<RoleClient>) -> Result<Vec<ResourceTemplate>> {
-    collect("resources/templates/list", |cursor| async move {
-        let page = peer.list_resource_templates(Some(PaginatedRequestParam { cursor })).await?;
-        Ok((page.resource_templates, page.next_cursor))
-    })
-    .await
-}
-pub(crate) async fn list_prompts(peer: &Peer<RoleClient>) -> Result<Vec<Prompt>> {
-    collect("prompts/list", |cursor| async move {
-        let page = peer.list_prompts(Some(PaginatedRequestParam { cursor })).await?;
-        Ok((page.prompts, page.next_cursor))
-    })
-    .await
-}
-async fn collect<T, F, Fut>(method: &str, mut fetch: F) -> Result<Vec<T>>
+pub(super) async fn collect<T, F, Fut>(method: &str, mut fetch: F) -> Result<Vec<T>>
 where
     F: FnMut(Option<String>) -> Fut,
     Fut: std::future::Future<Output = Result<(Vec<T>, Option<String>)>>,

@@ -446,16 +446,15 @@ async fn codex_plugin_compat_t20_rejects_resource_template_and_prompt_cursor_cyc
             .with_client(&fixture.server, None, move |client| {
                 Box::pin(async move {
                     let catalog = &client.service().catalogs;
-                    let peer = client.peer();
                     match mode {
                         2 => {
-                            catalog.resources(peer).await?;
+                            catalog.resources(client).await?;
                         }
                         3 => {
-                            catalog.templates(peer).await?;
+                            catalog.templates(client).await?;
                         }
                         4 => {
-                            catalog.prompts(peer).await?;
+                            catalog.prompts(client).await?;
                         }
                         _ => unreachable!(),
                     }
@@ -480,7 +479,7 @@ async fn codex_plugin_compat_t20_shutdown_cancels_inflight_resource_refresh() {
     let refresh = tokio::spawn(async move {
         active
             .with_client(&server, None, |client| {
-                Box::pin(async move { client.service().catalogs.resources(client.peer()).await })
+                Box::pin(async move { client.service().catalogs.resources(client).await })
             })
             .await
     });

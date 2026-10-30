@@ -63,6 +63,7 @@ const UNSUPPORTED_MCP_CAPABILITIES: &[UnsupportedMcpCapability] = &[
 pub(crate) struct NoopClient {
     info: ClientInfo,
     pub(crate) catalogs: std::sync::Arc<crate::plugins::McpCatalogs>,
+    pub(crate) raw_responses: std::sync::Arc<crate::plugins::RawMcpResponse>,
 }
 
 impl Default for NoopClient {
@@ -73,6 +74,7 @@ impl Default for NoopClient {
 impl NoopClient {
     fn with_cancellation(closed: tokio_util::sync::CancellationToken) -> Self {
         Self {
+            raw_responses: Default::default(),
             catalogs: std::sync::Arc::new(crate::plugins::McpCatalogs::new(closed)),
             info: ClientInfo {
                 protocol_version: rmcp::model::ProtocolVersion::LATEST,
@@ -581,6 +583,8 @@ pub(crate) async fn open_server_peer(
     timeout: Duration,
     closed: tokio_util::sync::CancellationToken,
 ) -> anyhow::Result<RunningMcpPeer> {
+    let peer_client = NoopClient::with_cancellation(closed);
+    let responses = peer_client.raw_responses.clone();
     let server = &server;
     match server {
         McpServer::Stdio(server) => {
@@ -598,12 +602,9 @@ pub(crate) async fn open_server_peer(
             for (key, value) in &env {
                 command.env(key, value);
             }
-            let transport = wire_stdio::StdioTransport::new(command)?;
+            let transport = wire_stdio::StdioTransport::new(command, responses)?;
             let running = with_connect_timeout(&server.name, timeout, async move {
-                NoopClient::with_cancellation(closed)
-                    .serve(transport)
-                    .await
-                    .map_err(anyhow::Error::from)
+                peer_client.serve(transport).await.map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
@@ -615,17 +616,17 @@ pub(crate) async fn open_server_peer(
             let config =
                 SseClientConfig { sse_endpoint: server.url.clone().into(), ..Default::default() };
             let transport = with_connect_timeout(&server.name, timeout, async move {
-                SseClientTransport::start_with_client(wire_http::HttpClient(client), config)
-                    .await
-                    .map_err(anyhow::Error::from)
+                SseClientTransport::start_with_client(
+                    wire_http::HttpClient(client, responses),
+                    config,
+                )
+                .await
+                .map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to start SSE MCP transport for '{}'", server.name))?;
             let running = with_connect_timeout(&server.name, timeout, async move {
-                NoopClient::with_cancellation(closed)
-                    .serve(transport)
-                    .await
-                    .map_err(anyhow::Error::from)
+                peer_client.serve(transport).await.map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;
@@ -646,14 +647,11 @@ pub(crate) async fn open_server_peer(
             }
             .with_context(|| format!("failed to build HTTP MCP client for '{}'", server.name))?;
             let transport = StreamableHttpClientTransport::with_client(
-                wire_http::HttpClient(client),
+                wire_http::HttpClient(client, responses),
                 StreamableHttpClientTransportConfig::with_uri(server.url.clone()),
             );
             let running = with_connect_timeout(&server.name, timeout, async move {
-                NoopClient::with_cancellation(closed)
-                    .serve(transport)
-                    .await
-                    .map_err(anyhow::Error::from)
+                peer_client.serve(transport).await.map_err(anyhow::Error::from)
             })
             .await
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?;

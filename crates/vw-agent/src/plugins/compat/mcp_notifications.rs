@@ -1,9 +1,6 @@
 //! Connection-local catalog invalidation. Notifications never grant subscriptions or permissions.
 use anyhow::{Result, bail};
-use rmcp::{
-    Peer, RoleClient,
-    model::{Prompt, Resource, ResourceTemplate, Tool},
-};
+use rmcp::{Peer, RoleClient, model::Tool};
 use std::{
     future::Future,
     sync::{
@@ -90,9 +87,9 @@ impl<T> Catalog<T> {
 pub(crate) struct McpCatalogs {
     closed: CancellationToken,
     tools: Catalog<Tool>,
-    resources: Catalog<Resource>,
-    templates: Catalog<ResourceTemplate>,
-    prompts: Catalog<Prompt>,
+    resources: Catalog<serde_json::Value>,
+    templates: Catalog<serde_json::Value>,
+    prompts: Catalog<serde_json::Value>,
 }
 impl McpCatalogs {
     pub(crate) fn close(&self) {
@@ -131,36 +128,57 @@ impl McpCatalogs {
             == Some(true);
         self.tools.list(cacheable, &self.closed, || super::mcp_catalog::list_tools(peer)).await
     }
-    pub(crate) async fn resources(&self, peer: &Peer<RoleClient>) -> Result<Arc<Vec<Resource>>> {
-        let cacheable = peer
+    pub(crate) async fn resources(
+        &self,
+        client: &crate::tools::mcp_common::RunningMcpPeer,
+    ) -> Result<Arc<Vec<serde_json::Value>>> {
+        let cacheable = client
+            .peer()
             .peer_info()
             .and_then(|i| i.capabilities.resources.as_ref())
             .and_then(|c| c.list_changed)
             == Some(true);
         self.resources
-            .list(cacheable, &self.closed, || super::mcp_catalog::list_resources(peer))
+            .list(cacheable, &self.closed, || {
+                super::mcp_resources::list_entries(client, "resources/list", "resources")
+            })
             .await
     }
     pub(crate) async fn templates(
         &self,
-        peer: &Peer<RoleClient>,
-    ) -> Result<Arc<Vec<ResourceTemplate>>> {
-        let cacheable = peer
+        client: &crate::tools::mcp_common::RunningMcpPeer,
+    ) -> Result<Arc<Vec<serde_json::Value>>> {
+        let cacheable = client
+            .peer()
             .peer_info()
             .and_then(|i| i.capabilities.resources.as_ref())
             .and_then(|c| c.list_changed)
             == Some(true);
         self.templates
-            .list(cacheable, &self.closed, || super::mcp_catalog::list_templates(peer))
+            .list(cacheable, &self.closed, || {
+                super::mcp_resources::list_entries(
+                    client,
+                    "resources/templates/list",
+                    "resourceTemplates",
+                )
+            })
             .await
     }
-    pub(crate) async fn prompts(&self, peer: &Peer<RoleClient>) -> Result<Arc<Vec<Prompt>>> {
-        let cacheable = peer
+    pub(crate) async fn prompts(
+        &self,
+        client: &crate::tools::mcp_common::RunningMcpPeer,
+    ) -> Result<Arc<Vec<serde_json::Value>>> {
+        let cacheable = client
+            .peer()
             .peer_info()
             .and_then(|i| i.capabilities.prompts.as_ref())
             .and_then(|c| c.list_changed)
             == Some(true);
-        self.prompts.list(cacheable, &self.closed, || super::mcp_catalog::list_prompts(peer)).await
+        self.prompts
+            .list(cacheable, &self.closed, || {
+                super::mcp_resources::list_entries(client, "prompts/list", "prompts")
+            })
+            .await
     }
     pub(crate) fn binding(self: &Arc<Self>) -> Option<ToolCatalogBinding> {
         Some(ToolCatalogBinding { catalog: self.clone(), tools: self.tools.snapshot()? })

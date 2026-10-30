@@ -140,7 +140,7 @@ fn string_fields(
     Ok(())
 }
 
-fn validate_content(block: &Value) -> Result<()> {
+pub(super) fn validate_content(block: &Value) -> Result<()> {
     let object = block.as_object().context("MCP content block must be an object")?;
     validate_meta(object)?;
     match object.get("type").and_then(Value::as_str) {

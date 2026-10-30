@@ -1,0 +1,572 @@
+{
+  "schema_version": 1,
+  "task": 22,
+  "status": "已完成",
+  "scope": "Session-owned native resources/list/templates/read and prompts/list/get with bounded raw catalogs, protocol roles/arguments/URI preservation and host provenance. Metadata retained in host data; no subscription, hosted event, automatic prompt injection or full-baseline compatibility claimed.",
+  "items": [
+    {
+      "id": "mcp.pagination",
+      "tasks": [
+        22
+      ],
+      "tests": [
+        "codex_plugin_compat_t22_preserves_resource_origin_and_prompt_roles",
+        "codex_plugin_compat_t22_rejects_invalid_input",
+        "codex_plugin_compat_t22_preserves_isolation",
+        "codex_plugin_compat_t22_lists_all_pages_and_preserves_metadata",
+        "codex_plugin_compat_t22_rejects_invalid_actions_uris_and_parameter_shapes",
+        "codex_plugin_compat_t22_rejects_pagination_cycles_and_limits",
+        "codex_plugin_compat_t22_rejects_remote_malformed_content_and_roles",
+        "codex_plugin_compat_t22_keeps_package_and_host_files_unchanged",
+        "codex_plugin_compat_t22_disabled_and_cancelled_sessions_reject_before_connecting",
+        "codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse",
+        "codex_plugin_compat_t22_registers_resource_tool_in_actual_runtime",
+        "codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata",
+        "codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remote_errors"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 60.07,
+        "record": "t22/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions observed before host SIGABRT. No completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 73.02,
+        "record": "t22/final5-focused.log",
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10671 filtered out; finished in 0.42s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task22 scope only. Shared pagination evidence for other tasks, public services, platform acceptance, subscriptions and hosted events are not claimed."
+    },
+    {
+      "id": "mcp.resources",
+      "tasks": [
+        22
+      ],
+      "tests": [
+        "codex_plugin_compat_t22_preserves_resource_origin_and_prompt_roles",
+        "codex_plugin_compat_t22_rejects_invalid_input",
+        "codex_plugin_compat_t22_preserves_isolation",
+        "codex_plugin_compat_t22_lists_all_pages_and_preserves_metadata",
+        "codex_plugin_compat_t22_rejects_invalid_actions_uris_and_parameter_shapes",
+        "codex_plugin_compat_t22_rejects_pagination_cycles_and_limits",
+        "codex_plugin_compat_t22_rejects_remote_malformed_content_and_roles",
+        "codex_plugin_compat_t22_keeps_package_and_host_files_unchanged",
+        "codex_plugin_compat_t22_disabled_and_cancelled_sessions_reject_before_connecting",
+        "codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse",
+        "codex_plugin_compat_t22_registers_resource_tool_in_actual_runtime",
+        "codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata",
+        "codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remote_errors"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 60.07,
+        "record": "t22/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions observed before host SIGABRT. No completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 73.02,
+        "record": "t22/final5-focused.log",
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10671 filtered out; finished in 0.42s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task22 scope only. Shared pagination evidence for other tasks, public services, platform acceptance, subscriptions and hosted events are not claimed."
+    },
+    {
+      "id": "acceptance.t22",
+      "tasks": [
+        22
+      ],
+      "tests": [
+        "codex_plugin_compat_t22_preserves_resource_origin_and_prompt_roles",
+        "codex_plugin_compat_t22_rejects_invalid_input",
+        "codex_plugin_compat_t22_preserves_isolation",
+        "codex_plugin_compat_t22_lists_all_pages_and_preserves_metadata",
+        "codex_plugin_compat_t22_rejects_invalid_actions_uris_and_parameter_shapes",
+        "codex_plugin_compat_t22_rejects_pagination_cycles_and_limits",
+        "codex_plugin_compat_t22_rejects_remote_malformed_content_and_roles",
+        "codex_plugin_compat_t22_keeps_package_and_host_files_unchanged",
+        "codex_plugin_compat_t22_disabled_and_cancelled_sessions_reject_before_connecting",
+        "codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse",
+        "codex_plugin_compat_t22_registers_resource_tool_in_actual_runtime",
+        "codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata",
+        "codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remote_errors"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 60.07,
+        "record": "t22/red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions observed before host SIGABRT. No completed failed-test summary is claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 73.02,
+        "record": "t22/final5-focused.log",
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10671 filtered out; finished in 0.42s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task22 scope only. Shared pagination evidence for other tasks, public services, platform acceptance, subscriptions and hosted events are not claimed."
+    }
+  ],
+  "source_files": [
+    {
+      "source": "codex:codex-rs/codex-mcp/src/pagination.rs",
+      "path": "codex-rs/codex-mcp/src/pagination.rs",
+      "symbol": "collect_paginated_with_limit",
+      "line": 24,
+      "sha256": "21d3ff86f9d5775a73cddf8e4cbba13681b531c1db232ea28c62aa44da2fb3fb"
+    },
+    {
+      "source": "codex:codex-rs/codex-mcp/src/resource_client.rs",
+      "path": "codex-rs/codex-mcp/src/resource_client.rs",
+      "symbol": "McpResourceReadResult",
+      "line": 54,
+      "sha256": "e656d163cc12c970266c0346bfa2ba9099b02c3ca1f35adf78df1b8aeece3058"
+    }
+  ],
+  "plan_frozen_source_hashes": {
+    "codex-rs/core-plugins/src/manifest.rs": "cb6cc5e8e2004d1533141a3f11f3460a1aa8c2e0295c9583ae9726c6a75b2802",
+    "codex-rs/core-plugins/src/agent_plugin_manifest.rs": "31f9efd68ad2a94e45d1596123d49066886c4592aa7588935170913ced1cc660",
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs": "08a59340a5264849033ffaf0945152cadf09fb8ca98ca7ee44727e7e7918954a",
+    "codex-rs/core-plugins/src/app_mcp_routing.rs": "1a4b2517031f60faba87d35877b385c1406e5fcf9745c0cd87ab16415a8d2859"
+  },
+  "sdk_model": {
+    "version": "rmcp 0.8.5",
+    "files_sha256": {
+      "src/model.rs": "3229292703db268d4a0df22aa54ab5a8e4074fcd7196ea3533a3b43f5096a450",
+      "src/model/resource.rs": "aba70ec7c743c7469866b0dac09597e5cef635afc0afc1b915b47052b4443592",
+      "src/model/annotated.rs": "55b421db202f76f997477bbbc0ba450f8df605a70fd0d4a02083bf65bfc2280b",
+      "src/service.rs": "b28b6979638c9e5675ff16129c9e1819d8e0937bb799d720cc46890de6b1d8cb"
+    },
+    "observation": "Typed resource catalogs discard _meta and restrict size to u32; prompt/read result envelopes have no metadata field. Existing raw transports now capture one id-matched response per serialized peer operation, and the existing notification cache uses validated raw entries."
+  },
+  "implementation_notes": [
+    "McpResource is registered only after an enabled connected peer advertises resources or prompts. Required resource-only peers are no longer failed by an unsupported tools/list request. Configured server ids and source_root remain host-owned; remote metadata cannot overwrite them.",
+    "Resources, templates and prompts share the existing per-connection notification invalidation and bounded pagination (100 pages, 2048 entries, 65536-byte cursor, 30-second aggregate timeout). List entries preserve unknown metadata and large valid resource sizes. Read/get results preserve their protocol shape and metadata.",
+    "Prompt argument values are protocol strings; request URI bytes are forwarded without converting them to filesystem paths. User/assistant roles and supported content are validated. Returned prompt messages remain JSON tool output and are not inserted as conversation roles.",
+    "Model-visible results exclude protocol _meta recursively. Resource payloads and prompt messages remain host data under data.mcp_result, with independent server/source_root provenance. Protocol failures retain method/error code without echoing remote message/data payloads.",
+    "Cancellation, management disablement, capability advertisement and configured timeouts use the existing session pool. Resource subscriptions remain explicitly unsupported even when a server advertises them.",
+    "No MCP prompt integration caller was found in the frozen Codex MCP client source; upstream resource support is not taken as proof of upstream prompts support. The explicit task22 host contract is implemented using rmcp prompt models, with model/source hashes recorded.",
+    "No native media playback, hosted events, external-service acceptance, cross-platform execution or future protocol sharing is asserted."
+  ],
+  "fixture": {
+    "kind": "real_local_python_stdio_and_http_servers",
+    "transports": [
+      "stdio",
+      "HTTP JSON",
+      "Streamable HTTP response SSE"
+    ],
+    "license": "MIT",
+    "original_package_unchanged": "source script and manifest bytes asserted before/after actual reads; request journals are outside packages",
+    "host_file_unchanged": "actual file URI passed to remote fixture; content is not read by host and host file remains unchanged",
+    "baseline_sha256_unchanged": "118a4328714a33812e8f1300ea1a0f18bd3a4b1c2492b52a6f4f5bd238cdd9c9"
+  },
+  "additional_red_green": [
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 54.33,
+        "record": "t22/final1-focused.log",
+        "summary": [],
+        "observed_target_assertions": 1,
+        "result_note": "Observed target runtime assertion before host SIGABRT; no completed failure summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 73.02,
+        "record": "t22/final5-focused.log",
+        "summary": [
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10671 filtered out; finished in 0.42s"
+        ],
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 13
+      },
+      "note": "Required resource-only server was incorrectly treated as a failed tool server; original actual runtime assertion preserved."
+    },
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 56.53,
+        "record": "t22/red-inspect.log",
+        "summary": [],
+        "observed_target_assertions": 1,
+        "result_note": "Observed target runtime assertion before host SIGABRT; no completed failure summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.43,
+        "record": "t22/green-inspect.log",
+        "summary": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10683 filtered out; finished in 0.03s"
+        ],
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "note": "Existing inspection lost resource metadata and rejected valid large resource size; original exact assertion passes through the shared raw catalog boundary."
+    },
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.52,
+        "record": "t22/final-disabled-registry.log",
+        "summary": [],
+        "observed_target_assertions": 1,
+        "result_note": "Observed target runtime assertion before host SIGABRT; no completed failure summary claimed."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.41,
+        "record": "t22/green-disabled-registry.log",
+        "summary": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10683 filtered out; finished in 0.04s"
+        ],
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "note": "Original disabled/failed-server registry contract preserved; resource tool now appears only after a connected server advertises resource or prompt support."
+    }
+  ],
+  "final_verification": {
+    "final5-fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.89,
+      "record": "t22/final5-fmt.log",
+      "summary": []
+    },
+    "final5-focused": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 73.02,
+      "record": "t22/final5-focused.log",
+      "summary": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10671 filtered out; finished in 0.42s"
+      ],
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 13
+    },
+    "final5-plugins": {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.16,
+      "record": "t22/final5-plugins.log",
+      "summary": [
+        "test result: ok. 336 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 7.41s"
+      ],
+      "passed": 336,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 336
+    },
+    "final5-mcp": {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.58,
+      "record": "t22/final5-mcp.log",
+      "summary": [
+        "test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 10618 filtered out; finished in 0.16s"
+      ],
+      "passed": 66,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 66
+    },
+    "final5-runtime": {
+      "command": "cargo test -p vw-agent --lib --all-features execute_tool_call_runs_dynamic_mcp_tool_through_context_registry -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.5,
+      "record": "t22/final5-runtime.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10683 filtered out; finished in 0.13s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    "final5-specs": {
+      "command": "cargo test -p vw-agent --lib --all-features tool_specs_for_context_registers_dynamic_mcp_tools_from_workspace_config -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.49,
+      "record": "t22/final5-specs.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10683 filtered out; finished in 0.13s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    "green-disabled-registry": {
+      "command": "cargo test -p vw-agent --lib --all-features register_dynamic_mcp_tools_skips_disabled_servers_and_keeps_existing_tools -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.41,
+      "record": "t22/green-disabled-registry.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10683 filtered out; finished in 0.04s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    "final5-clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 18.32,
+      "record": "t22/final5-clippy.log",
+      "summary": []
+    },
+    "green-inspect": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.43,
+      "record": "t22/green-inspect.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10683 filtered out; finished in 0.03s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    }
+  },
+  "diagnostics": [
+    {
+      "record": "t22/green.log",
+      "reason": "Initial fixture used a non-baseline legacy placeholder; corrected to its absolute package script path, with business assertions unchanged."
+    },
+    {
+      "record": "t22/final2-focused.log",
+      "reason": "Raw catalog client signature required four adjacent test caller adaptations; no behavioral assertions weakened."
+    },
+    {
+      "record": "t22/final3-clippy.log",
+      "reason": "Removed an unused local peer binding left by that signature adaptation; final clippy passes."
+    },
+    {
+      "reason": "Existing optional global demo server points to a script missing relative to the crate test cwd; it remains only a diagnostic and all required local fixture/registry assertions pass."
+    }
+  ],
+  "logs_policy": "Raw *.log and *.run.json remain local and ignored; only this structured summary, code and authored fixtures are committed.",
+  "artifacts_sha256": {
+    "crates/vw-agent/src/plugins/compat/mcp_catalog.rs": "1391bc7ad0f5928cdece337fb36cdcdbfcd943ba6d2e298f720dc2eb0c5eed2d",
+    "crates/vw-agent/src/plugins/compat/mcp_content.rs": "6125d16a30b88a1994292a2f6039ca74a38494214f734477272c316d7c96262a",
+    "crates/vw-agent/src/plugins/compat/mcp_notifications.rs": "e3cab93fccc790ec8b3d9cbabb7c68ad51b1f2a9906163fb14d8f6d5ab81489d",
+    "crates/vw-agent/src/plugins/compat/mcp_resources.rs": "f5d16e0a4909d7047a480e1546d1ef3d88cb44915bfe1db6f43a05447c1fffbc",
+    "crates/vw-agent/src/plugins/compat/mod.rs": "50df9e516b5100a3f500ccc7e7dea57690c92d69204c42697f6ea9ca903162f9",
+    "crates/vw-agent/src/plugins/compat/t20_tests.rs": "670d1e3ee5452900a6b0138b051f658bd63a36da103f9f486c38f4c05e981964",
+    "crates/vw-agent/src/plugins/compat/t22_tests.rs": "2165eeda037cfe632a391be4b1ec3fb185559ae5e97b99eb62ad4e1114e35361",
+    "crates/vw-agent/src/plugins/mod.rs": "aef0e29564fd7927bb7fbbf34af14c637ba505782fbed83a6cfedcf87ae65bb6",
+    "crates/vw-agent/src/tools/mcp_common/mod.rs": "530738d1cddfdeb02f80688b3cd74bc47721689a509e8e14f9e637f9178c7e37",
+    "crates/vw-agent/src/tools/mcp_common/wire_http.rs": "3f2f0d43190c16a154ed70414bd0a4b7f451a16af254f645f4499ef42c63c755",
+    "crates/vw-agent/src/tools/mcp_common/wire_stdio.rs": "1f0787b03eb82171af49f1ccf601f01ca1c4bb2f082afc5e9d0758bd6d0d61ff",
+    "crates/vw-agent/src/tools/mcp_inspect.rs": "b9f3dcbd4b8fcbc3ca46299b6d5107120830f311cdfe0106131e0685ba1e77d2",
+    "crates/vw-agent/src/tools/mcp_resource.rs": "b8d6521fe9bb6633ee8e6bee506b41a400cde6eb1035476f2555ac6d208d4a2d",
+    "crates/vw-agent/src/tools/mod.rs": "fbdea7d5b09ef29a277b4e0c97e9a88e384687c203ffdf8b859f4447cd5ee133",
+    "crates/vw-agent/src/tools/toolset/mod.rs": "cbcf03bd7a1a5c04909f3134f3fb1b348c1b7d21165f149f746695e965a20446",
+    "crates/vw-agent/testdata/plugin_compat/t22/README.md": "d2450d20b821dd959083ab18692612bc5eed9c44ccb3df2efc648ae06f76b07d",
+    "crates/vw-agent/testdata/plugin_compat/t22/server.py": "0352d108b6b0d06de2c08e503d8394decd348982e4dd6bc69d078798576a324f",
+    "crates/vw-agent/testdata/plugin_compat/t22/http_server.py": "13b2c227bf4ac21dbcb5f6ab2bc0f51f851b9311a67a60b5fe12d2e354c0cbfb",
+    "docs/plugin-compat/evidence/t22/final3-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final4-focused.log": "84e2828d9bc859606e61bde1c4e22421defac649c1cdb8d1a36a71ae28f140fd",
+    "docs/plugin-compat/evidence/t22/red-inspect-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final3-clippy.log": "86fd94d872caee073bc38cfb87c118fcdf59879bedb0da866585b2f4d756f3ec",
+    "docs/plugin-compat/evidence/t22/red-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final1-focused.log": "90156f0a289c1c6f1330177a0a706ca9a7869f2776097bad823a4358f791f32c",
+    "docs/plugin-compat/evidence/t22/final2-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final4-runtime.log": "e50b042d6c49da2663486c873309d0eacf14028461cfb870b9e6e2673e0366e6",
+    "docs/plugin-compat/evidence/t22/red.log": "dde4cac9310a204b3d2bdd8e78a086924d39ec8ccdc865c5b7cbc831e7e83a93",
+    "docs/plugin-compat/evidence/t22/final-disabled-registry.log": "a601c7a967bb4e3c87d3e0ced733eb2cb1c896a1f24d46b7fb91b50eb3626cc1",
+    "docs/plugin-compat/evidence/t22/green2-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final2-focused.log": "dc7957b8a1f8d37f335d9f3d4d294c700459f440af9a12e7e2ff04790b474a6b",
+    "docs/plugin-compat/evidence/t22/final4-plugins.log": "03128490f724d925b5cba5bfff5bba63462285f15f0f994dcaf7d21ff6f400bb",
+    "docs/plugin-compat/evidence/t22/green.log": "54c226ac832f97b661b3f98c2d5c93f5ec93350984d8f966ff942cc79b4935d2",
+    "docs/plugin-compat/evidence/t22/final1-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final4-clippy.log": "5221e3874a9d23bdbd00ec07000c8798470e32680be7fe133621ca15bda496dc",
+    "docs/plugin-compat/evidence/t22/final3-mcp.log": "384a9552316006942b8dfc190e29644ce1f0dcdb3fd5848a41760e73ce1b8416",
+    "docs/plugin-compat/evidence/t22/green-disabled-registry.log": "689a835cc435c453e8068cd3c7368336ce18ebad7d2ab1d1466ae414737fa076",
+    "docs/plugin-compat/evidence/t22/final5-runtime.log": "939bed6427342aff70c1a17984bfeaf25f1a07e47ad11e4a5cfae0b0570b0cb5",
+    "docs/plugin-compat/evidence/t22/red-inspect.log": "28e048115b9edff799edae0121b1e3e32c3aa585d8e561864e995d84670a4a69",
+    "docs/plugin-compat/evidence/t22/green-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final4-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final-specs.log": "53d5bcc2a0e50641c06c9ed105eb58eecf23d77bec0e7032ffb081276a255461",
+    "docs/plugin-compat/evidence/t22/final3-plugins.log": "520798db45a334f563668d4eb93df1be767c9387138dd0b66fb4fe07858bc862",
+    "docs/plugin-compat/evidence/t22/final5-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t22/final5-focused.log": "a26a7cfec7a7a50bc5c0a423d61222e43afc238c5c835cd9e8cdcc244eedb5b8",
+    "docs/plugin-compat/evidence/t22/green2.log": "6f955da91c2c8e1eecdfcf8d1aab8b0c5bdeaae8e507e79886085a190913bf33",
+    "docs/plugin-compat/evidence/t22/final3-runtime.log": "eb3109b961f5d6f5c075abfa71e120c17f614e0decff4c44c42959dc076a8b59",
+    "docs/plugin-compat/evidence/t22/final5-mcp.log": "a874ed5e1bac83692b823326db4fef9d4bf656b69589615392caeb7bee39db06",
+    "docs/plugin-compat/evidence/t22/final5-clippy.log": "eec0cabce240bf60797658d61e021140ac23f5fed0c3e2cbce40ac601db70e7d",
+    "docs/plugin-compat/evidence/t22/final5-plugins.log": "752f2e5d0cc8a1aea247166d1185e324ee84d671088fa095656e585101aa6438",
+    "docs/plugin-compat/evidence/t22/final5-specs.log": "0de6d52af9cd7241da7e0c6233214508c41e106fb56d8da8475ae09274243a79",
+    "docs/plugin-compat/evidence/t22/final4-mcp.log": "5b461e1b907574fa89e8e5f36cd1d9b9d91f2c67d5e536454f9dad6d504e62cf",
+    "docs/plugin-compat/evidence/t22/final3-focused.log": "fc730feb9fe81341eabee1a72e8ce84e3305e7b71d1aa09f3b7f2beb9cda2f60",
+    "docs/plugin-compat/evidence/t22/green-inspect.log": "6ac5d18818429087b795b519c7a04aee23d1e321f952b7a952ece0e48c39c04d",
+    "docs/plugin-compat/evidence/t22/full-baseline-check.log": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479"
+  },
+  "full_baseline_gate": {
+    "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t22.json",
+    "exit_code": 1,
+    "expectation": "reject_partial_task_evidence",
+    "record": "t22/full-baseline-check.log"
+  },
+  "document_checks": {
+    "json_parse": {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t22.json",
+      "exit_code": 0
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    "artifact_hashes_verified": 54,
+    "mapped_source_hashes_verified": 2,
+    "plan_source_hashes_verified": 4
+  }
+}

@@ -100,9 +100,13 @@ mod t19_tests;
 
 pub(crate) mod mcp_catalog;
 pub(crate) mod mcp_notifications;
+pub(crate) mod mcp_resources;
 
 #[cfg(test)]
 mod t20_tests;
 
 #[cfg(test)]
 mod t21_tests;
+
+#[cfg(test)]
+mod t22_tests;

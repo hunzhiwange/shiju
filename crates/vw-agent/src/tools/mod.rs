@@ -78,6 +78,7 @@ pub mod image_asset_read;
 pub mod ls;
 pub mod mcp_common;
 pub mod mcp_inspect;
+pub(crate) mod mcp_resource;
 pub mod mcp_status;
 pub mod mcp_tool;
 pub mod memory_forget;

@@ -14,7 +14,11 @@ use tokio::{
 };
 use tokio_util::codec::{FramedRead, LinesCodec};
 
-pub(super) fn decode(mut value: Value) -> Result<ServerJsonRpcMessage, serde_json::Error> {
+pub(super) fn decode(
+    mut value: Value,
+    responses: &crate::plugins::RawMcpResponse,
+) -> Result<ServerJsonRpcMessage, serde_json::Error> {
+    responses.capture(&value);
     crate::plugins::preserve_mcp_wire_result(&mut value);
     serde_json::from_value(value)
 }
@@ -59,10 +63,14 @@ pub(super) struct StdioTransport {
     child: Child,
     input: Arc<Mutex<Option<ChildStdin>>>,
     output: FramedRead<ChildStdout, LinesCodec>,
+    responses: Arc<crate::plugins::RawMcpResponse>,
 }
 
 impl StdioTransport {
-    pub(super) fn new(mut command: Command) -> io::Result<Self> {
+    pub(super) fn new(
+        mut command: Command,
+        responses: Arc<crate::plugins::RawMcpResponse>,
+    ) -> io::Result<Self> {
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -73,6 +81,7 @@ impl StdioTransport {
         let output =
             child.stdout.take().ok_or_else(|| io::Error::other("MCP stdout unavailable"))?;
         Ok(Self {
+            responses,
             child,
             input: Arc::new(Mutex::new(Some(input))),
             // Parse JSON here rather than using rmcp's codec, which logs malformed raw frames.
@@ -109,7 +118,7 @@ impl Transport<RoleClient> for StdioTransport {
                     if nonstandard_notification(&value) {
                         return Ok(None);
                     }
-                    decode(value).map(Some)
+                    decode(value, &self.responses).map(Some)
                 }) {
                     Ok(None) => continue,
                     Ok(Some(message)) => return Some(message),

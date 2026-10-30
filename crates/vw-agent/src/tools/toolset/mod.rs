@@ -968,6 +968,7 @@ fn register_dynamic_mcp_tools(
         return;
     }
 
+    let mut has_resources_or_prompts = false;
     for server in &config.mcp_servers {
         let server_label = super::mcp_common::server_name(server).to_string();
         let management = super::mcp_common::management_for_server(&config, server);
@@ -987,8 +988,9 @@ fn register_dynamic_mcp_tools(
             &existing_refs,
             connections.clone(),
         )) {
-            Ok(tools) => {
-                for tool in tools {
+            Ok(discovered) => {
+                has_resources_or_prompts |= discovered.has_resources_or_prompts;
+                for tool in discovered.tools {
                     tracing::debug!(
                         server = server_label.as_str(),
                         tool_id = tool.name(),
@@ -1016,6 +1018,14 @@ fn register_dynamic_mcp_tools(
             }
         }
     }
+    if has_resources_or_prompts {
+        tool_arcs.push(Arc::new(super::mcp_resource::McpResourceTool::new(config, connections)));
+    }
+}
+
+struct DiscoveredMcpTools {
+    tools: Vec<super::mcp_tool::McpTool>,
+    has_resources_or_prompts: bool,
 }
 
 async fn discover_dynamic_mcp_tools(
@@ -1023,7 +1033,7 @@ async fn discover_dynamic_mcp_tools(
     management: vw_acp::McpServerManagement,
     existing_tool_ids: &[&str],
     connections: Arc<crate::plugins::McpSessionConnections>,
-) -> anyhow::Result<Vec<super::mcp_tool::McpTool>> {
+) -> anyhow::Result<DiscoveredMcpTools> {
     let server_label = super::mcp_common::server_name(&server).to_string();
     let existing_tool_ids =
         existing_tool_ids.iter().map(|id| (*id).to_string()).collect::<Vec<_>>();
@@ -1040,6 +1050,12 @@ async fn discover_dynamic_mcp_tools(
             let management = management.clone();
             Box::pin(async move {
                 let peer = client.peer();
+                let has_resources_or_prompts = peer.peer_info().is_some_and(|info| {
+                    info.capabilities.resources.is_some() || info.capabilities.prompts.is_some()
+                });
+                if peer.peer_info().is_some_and(|info| info.capabilities.tools.is_none()) {
+                    return Ok(DiscoveredMcpTools { tools: Vec::new(), has_resources_or_prompts });
+                }
                 let tools = client
                     .service()
                     .catalogs
@@ -1079,7 +1095,7 @@ async fn discover_dynamic_mcp_tools(
                         spec.concurrency_safe = false;
                     }
                 }
-                Ok(allowed_tools
+                let tools = allowed_tools
                     .into_iter()
                     .zip(specs.into_iter())
                     .map(|(tool, spec)| {
@@ -1091,7 +1107,8 @@ async fn discover_dynamic_mcp_tools(
                             super::mcp_common::management_timeout(&management),
                         )
                     })
-                    .collect())
+                    .collect();
+                Ok(DiscoveredMcpTools { tools, has_resources_or_prompts })
             })
         })
         .await

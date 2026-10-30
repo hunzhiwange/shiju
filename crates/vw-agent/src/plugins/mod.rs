@@ -24,6 +24,7 @@ pub(crate) use compat::mcp_connection_settings::settings as plugin_mcp_connectio
 pub(crate) use compat::mcp_connections::McpSessionConnections;
 pub(crate) use compat::mcp_content::{normalize_mcp_tool_result, preserve_mcp_wire_result};
 pub(crate) use compat::mcp_notifications::{McpCatalogs, ToolCatalogBinding};
+pub(crate) use compat::mcp_resources::{RawResponse as RawMcpResponse, call as call_mcp_resource};
 
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;

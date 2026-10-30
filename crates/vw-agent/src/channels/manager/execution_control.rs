@@ -1,6 +1,27 @@
 //! 当前聊天执行的取消与代次；直到处理器和反馈退出才释放忙碌状态。
 use super::*;
 
+// 清理必须随任务栈退出执行，否则 panic 会留下永久繁忙的 active 记录。
+struct ChannelTaskGuard {
+    ctx: Arc<ChannelRuntimeContext>,
+    scope: ChannelChatScope,
+    task_id: u64,
+    completion: Arc<InFlightTaskCompletion>,
+    gate: Option<tokio::sync::OwnedRwLockWriteGuard<()>>,
+}
+
+impl Drop for ChannelTaskGuard {
+    fn drop(&mut self) {
+        let mut state = self.ctx.project_state.lock().unwrap_or_else(|e| e.into_inner());
+        if state.active.get(&self.scope).is_some_and(|task| task.task_id == self.task_id) {
+            state.active.remove(&self.scope);
+        }
+        // 在通知 /stop 前释放写锁；持有 state 锁以防新任务插入与释放锁交错。
+        drop(self.gate.take());
+        self.completion.mark_done();
+    }
+}
+
 pub(crate) fn active_channel_task(
     ctx: &ChannelRuntimeContext,
     msg: &traits::ChannelMessage,
@@ -109,14 +130,11 @@ pub(crate) async fn process_channel_message(
     );
     // 调用者被重载/HTTP 超时释放时只请求取消，清理任务继续持有锁直到真实退出。
     let cancel_on_drop = cancellation.clone().drop_guard();
+    let task_guard =
+        ChannelTaskGuard { ctx: ctx.clone(), scope, task_id: id, completion, gate: Some(guard) };
     let operation = async move {
+        let _task_guard = task_guard;
         super::message::process_channel_message_inner(ctx.clone(), msg, cancellation).await;
-        drop(guard);
-        let mut state = ctx.project_state.lock().unwrap_or_else(|e| e.into_inner());
-        if state.active.get(&scope).is_some_and(|task| task.task_id == id) {
-            state.active.remove(&scope);
-        }
-        completion.mark_done();
     };
     #[cfg(not(target_arch = "wasm32"))]
     let worker = tokio::spawn(operation);
@@ -125,3 +143,7 @@ pub(crate) async fn process_channel_message(
     log_worker_join_result(worker.await);
     drop(cancel_on_drop);
 }
+
+#[cfg(test)]
+#[path = "execution_control_tests.rs"]
+mod tests;

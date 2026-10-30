@@ -112,7 +112,7 @@ fn load_plugin(
             if !visited.insert(directory.to_path_buf()) {
                 continue;
             }
-            match load_candidate(plugin, directory, format, config, mode) {
+            match load_candidate(plugin, directory, format, config, mode, inventory) {
                 Ok(Some(skill)) => {
                     if let Some(winner) = names.get(&skill.name) {
                         diagnostic(
@@ -184,6 +184,7 @@ fn load_candidate(
     format: SkillPackageFormat,
     config: &Config,
     mode: SkillLoadMode,
+    inventory: &mut PluginSkillInventory,
 ) -> anyhow::Result<Option<Skill>> {
     // Reuse the manifest boundary for the actual entry, including every parent component.
     let entry = if format == SkillPackageFormat::Native && directory.join("SKILL.toml").exists() {
@@ -214,6 +215,25 @@ fn load_candidate(
         skill.name = metadata.name;
         skill.description = metadata.description;
         skill.short_description = metadata.short_description;
+        let loaded = super::compat::agents::load_metadata(&plugin.manifest.root, directory);
+        for message in loaded.diagnostics {
+            diagnostic(inventory, plugin, &directory.join("agents/openai.yaml"), message);
+        }
+        if let Some(policy) = loaded.metadata.as_ref().and_then(|metadata| metadata.policy.as_ref())
+        {
+            // There is no Codex/ChatGPT/Atlas product identity for this host.
+            if !policy.products.is_empty() {
+                diagnostic(
+                    inventory,
+                    plugin,
+                    &directory.join("agents/openai.yaml"),
+                    "skill is restricted to a named external product".into(),
+                );
+                return Ok(None);
+            }
+            skill.disable_model_invocation |= policy.allow_implicit_invocation == Some(false);
+        }
+        skill.agent_metadata = loaded.metadata;
     }
     skill.location = Some(entry.clone());
     skill.plugin_source = Some(PluginSkillSource {

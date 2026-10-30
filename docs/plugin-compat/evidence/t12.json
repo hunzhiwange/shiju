@@ -1,0 +1,1514 @@
+{
+  "schema_version": 1,
+  "task": 12,
+  "status": "已完成",
+  "items": [
+    {
+      "id": "agents.no-invented-executor",
+      "tasks": [
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_preserves_isolation -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.43,
+        "record": "t12/red-4.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_preserves_isolation -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.37,
+        "record": "t12/pairs-2.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "unchanged_baseline_behavior": "Top-level agents/ already had no executor. The composite declaration/isolation test obtains its behavior-red from missing product policy admission; no artificial executor or fake failure was introduced."
+    },
+    {
+      "id": "skill-agent-metadata.interface",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-agent-metadata.dependencies",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-agent-metadata.policy",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.type",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.value",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.description",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.transport",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.command",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.url",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.oauth.callbackPort",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-dependency.oauth.callback_port",
+      "tasks": [
+        9,
+        12,
+        58
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-policy.allow_implicit_invocation",
+      "tasks": [
+        10,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-policy.products",
+      "tasks": [
+        10,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-interface.display_name",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-interface.short_description",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-interface.icon_small",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-interface.icon_large",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-interface.brand_color",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "skill-interface.default_prompt",
+      "tasks": [
+        9,
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim.",
+      "ownership_note": "Frozen ownership mapping retained; this task verifies only the declaration/metadata behavior here. It does not complete another task, its delayed regression, or installation/execution of dependencies."
+    },
+    {
+      "id": "acceptance.t12",
+      "tasks": [
+        12
+      ],
+      "tests": [
+        "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+        "codex_plugin_compat_t12_rejects_invalid_input",
+        "codex_plugin_compat_t12_preserves_isolation",
+        "codex_plugin_compat_t12_malformed_optional_metadata_keeps_audited_base_skill",
+        "codex_plugin_compat_t12_resolves_local_and_shared_assets_without_escaping",
+        "codex_plugin_compat_t12_normalizes_fields_by_character_limits_and_dependency_entries",
+        "codex_plugin_compat_t12_metadata_is_runtime_projection_not_a_skill_file_grant",
+        "codex_plugin_compat_t12_reads_portable_metadata_in_both_load_modes_and_honors_disabling",
+        "codex_plugin_compat_t12_enforces_policy_in_real_invocation_and_replay_admission",
+        "codex_plugin_compat_t12_refuses_metadata_and_asset_symlinks_without_reading_outside"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Only task 12 skill-local agent metadata, policy admission and original-package isolation on macOS. No delegated-agent executor, MCP installation or complete compatibility claim."
+    }
+  ],
+  "validation": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.58,
+      "record": "t12/final-0.log",
+      "phase": "final"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 50.91,
+      "record": "t12/final-1.log",
+      "phase": "final",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 10
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 24.22,
+      "record": "t12/final-2.log",
+      "phase": "final",
+      "passed": 220,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 220
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::skill:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.49,
+      "record": "t12/final-3.log",
+      "phase": "final",
+      "passed": 38,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 38
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::toolset:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.81,
+      "record": "t12/final-4.log",
+      "phase": "final",
+      "passed": 38,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 38
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 44.58,
+      "record": "t12/final-5.log",
+      "phase": "final"
+    }
+  ],
+  "exact_red_green_pairs": [
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 89.63,
+        "record": "t12/red-2.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_matches_baseline_agent_declaration -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t12/pairs-0.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    },
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_rejects_invalid_input -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.73,
+        "record": "t12/red-3.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_rejects_invalid_input -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.38,
+        "record": "t12/pairs-1.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    },
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_preserves_isolation -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.43,
+        "record": "t12/red-4.log",
+        "phase": "red",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); target assertion is present; no failed-test totals were invented."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t12_preserves_isolation -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.37,
+        "record": "t12/pairs-2.log",
+        "phase": "pairs",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    }
+  ],
+  "reference_sources": {
+    "codex-rs/core-plugins/src/loader.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core-plugins/src/loader.rs",
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "load_plugin_skill_inventory",
+        "plugin_skill_roots"
+      ]
+    },
+    "codex-rs/core/src/plugins/mod.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core/src/plugins/mod.rs",
+      "sha256": "2668151196200d9215db6065f69666ca4f25a5d5c060d86cac5f79154d995fb7",
+      "symbols": [
+        "plugins_manager_for_config"
+      ]
+    },
+    "codex-rs/skills/src/metadata.rs": {
+      "tree": "codex",
+      "path": "codex-rs/skills/src/metadata.rs",
+      "sha256": "094357ff0dde43e58f6899d7644a7d46896d198564cb2ac06be421c04a8e7203",
+      "symbols": [
+        "parse_skill_metadata",
+        "resolve_dependency_tool",
+        "resolve_policy"
+      ]
+    },
+    "codex-rs/skills/src/interface.rs": {
+      "tree": "codex",
+      "path": "codex-rs/skills/src/interface.rs",
+      "sha256": "78dc273c51397dbd5c0184923693036a6aef500aac27e230761f7932674bacb6",
+      "symbols": [
+        "resolve_skill_interface",
+        "resolve_asset_path",
+        "resolve_plugin_shared_asset_path"
+      ]
+    },
+    "codex-rs/skills/src/model.rs": {
+      "tree": "codex",
+      "path": "codex-rs/skills/src/model.rs",
+      "sha256": "6c0336c8af3f9ec7e3fa95eaccab9f17cf64b59544842dfe3f980f8cf4468382",
+      "symbols": [
+        "SkillMetadata",
+        "matches_product_restriction"
+      ]
+    },
+    "codex-rs/ext/skills/src/loader/metadata.rs": {
+      "tree": "codex",
+      "path": "codex-rs/ext/skills/src/loader/metadata.rs",
+      "sha256": "80af90fd1d12f592f4029c28b78c66b5e281caa86e25e08042fbd6fe3b7275a0",
+      "symbols": [
+        "load_host_skill_metadata"
+      ]
+    },
+    "codex-rs/ext/skills/src/loader/host_merge.rs": {
+      "tree": "codex",
+      "path": "codex-rs/ext/skills/src/loader/host_merge.rs",
+      "sha256": "808858528c84f5551683717841b87def11790885fe3e515e4bb4709ac0c055e4",
+      "symbols": [
+        "matches_product_restriction_for_product"
+      ]
+    },
+    "codex-rs/protocol/src/protocol.rs": {
+      "tree": "codex",
+      "path": "codex-rs/protocol/src/protocol.rs",
+      "sha256": "47d9a56fba8246275206fac87f5bb7e884304e1e31fde2671c21b169c32fecbf",
+      "symbols": [
+        "Product"
+      ]
+    },
+    "codex-rs/core/src/mcp_skill_dependencies.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core/src/mcp_skill_dependencies.rs",
+      "sha256": "ccd4333643586a416969067811cce05df49e8ad201e17482cab2cf9783ba01f9",
+      "symbols": [
+        "maybe_prompt_and_install_mcp_dependencies",
+        "collect_missing_mcp_dependencies"
+      ]
+    },
+    "codex-rs/core/src/session/turn.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core/src/session/turn.rs",
+      "sha256": "7bb8ec60d4217df48e787fe2570f8b6c7b8ce3addd6cdae485e614a90373bb80",
+      "symbols": [
+        "required_servers"
+      ]
+    }
+  },
+  "package_integrity": {
+    "test": "codex_plugin_compat_t12_matches_baseline_agent_declaration",
+    "before_file_sha256": {
+      ".codex-plugin/plugin.json": "425509aaa8b89d4ba691be4376357683326142613036b9eb6c665a045886aac7",
+      "skills/review/SKILL.md": "c29eacee11d1de15c787b2c25e62b7ee0f33b8cb9ed8f78ca41890126d00d59c",
+      "skills/review/agents/openai.yaml": "e2c43f00bc946c1a786f3cf89fbb19e2a9abe5e76bcf65d6483953f5f673ce35",
+      "skills/review/assets/icon.svg": "cd1fafe3cc7f06f55ead3f0dce39300aca7a8911793e76fcdd327799c0709ac2"
+    },
+    "after_file_sha256": {
+      ".codex-plugin/plugin.json": "425509aaa8b89d4ba691be4376357683326142613036b9eb6c665a045886aac7",
+      "skills/review/SKILL.md": "c29eacee11d1de15c787b2c25e62b7ee0f33b8cb9ed8f78ca41890126d00d59c",
+      "skills/review/agents/openai.yaml": "e2c43f00bc946c1a786f3cf89fbb19e2a9abe5e76bcf65d6483953f5f673ce35",
+      "skills/review/assets/icon.svg": "cd1fafe3cc7f06f55ead3f0dce39300aca7a8911793e76fcdd327799c0709ac2"
+    },
+    "basis": "Actual loader test hashes all package files before/after and asserts exact equality; real invocation test restores the intentionally modified policy and asserts the full package snapshot unchanged."
+  },
+  "observed_side_effects": [
+    "Legacy and portable plugin skills expose normalized interface, dependency and policy metadata in both full and metadata-only loading. Serialized projection cannot be forged by skill file deserialization.",
+    "allow_implicit_invocation=false narrows existing skill admission, including real SkillTool execution even in a full-access request; explicit user selection remains allowed by the existing permission boundary.",
+    "Named product restrictions filter skills when this host has no such product identity; changed restrictions invalidate current replay admission.",
+    "Unknown top-level agents declarations remain inert. Dependency commands, URLs, requested tools and interface default prompts are never executed or converted into DelegateAgentConfig.",
+    "Malformed optional YAML preserves the audited base skill with a sanitized diagnostic; invalid individual dependencies/optional interface fields are dropped without raw content in diagnostics.",
+    "Icons resolve only in skill assets or plugin shared assets; missing assets retain a safe lexical path, symlinks and root escape are refused, and all original package bytes are preserved."
+  ],
+  "intentional_safety_differences": [
+    "The reference lexically resolves interface assets. This host additionally refuses symlinks and traversal that leaves the plugin root, matching its existing package boundary.",
+    "VibeWindow does not impersonate Codex, ChatGPT or Atlas: a nonempty products restriction is not satisfied without a corresponding trusted host identity. No identity/configuration bypass was introduced."
+  ],
+  "downstream_consumer_observations": [
+    {
+      "source": "codex-rs/core/src/session/turn.rs",
+      "behavior": "Explicitly mentioned skill dependencies contribute MCP server names to required-server selection. This task retains declarations but does not implement that downstream MCP consumer; tasks 58/66 must review coverage."
+    },
+    {
+      "source": "codex-rs/core/src/mcp_skill_dependencies.rs",
+      "behavior": "Reference MCP dependency installation is additionally gated by is_first_party_originator and SkillMcpDependencyInstall and then policy/user approval. No private first-party identity or automatic installation is copied.",
+      "if_uncovered_user_decision": "If a public in-scope dependency selection/approval workflow remains uncovered after tasks 58/66, decide whether to add a separate sourced task; do not report missing execution as implemented."
+    }
+  ],
+  "diagnostics": [
+    "Initial helper visibility compile failure is retained separately and never counted as behavior-red.",
+    "All original red cases reached target runtime assertions before the host aborted while initiating panic; no fabricated failed-test summary.",
+    "Adjacent toolset regression printed pre-existing missing demo MCP script diagnostics but finished with 38 passed, 0 failed; no unrelated demo path changes made."
+  ],
+  "artifacts": {
+    "docs/plugin-compat/evidence/t12/final-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t12/final-1.log": "799db234c9fa255082485fa9b3359b734e8c3349f36a00089dc81cd453bfad61",
+    "docs/plugin-compat/evidence/t12/final-2.log": "655aef74dbe9929451c5ced4f3ebc9c19068e77096699137f0f7d2d9396c6a17",
+    "docs/plugin-compat/evidence/t12/final-3.log": "65fe1db210aa4d1a0469900f11945f3aa7c5caf9382cb40f94cd728f11dd51b1",
+    "docs/plugin-compat/evidence/t12/final-4.log": "f7cc6abe010704e069b8f85782d668e467d6fd70ef212c538ce2acca314d2e07",
+    "docs/plugin-compat/evidence/t12/final-5.log": "54d924e4b28f03f2ae66583a78438fc6ffcf6c24c7742c915f53abf59aac83f9",
+    "docs/plugin-compat/evidence/t12/final.run.json": "3ae53bae9c68cbd858223f80b8c743be55387ad0cd3e5e47b5e19e6e7f583618",
+    "docs/plugin-compat/evidence/t12/green-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t12/green-1.log": "ea8af1d72754aa6850b353e59808038d4c740f88787af8979d7a54e0e4b197b1",
+    "docs/plugin-compat/evidence/t12/green.run.json": "2de460979f2e6ea7b0dd8907968e24933bff9e7b344134242ac07043de720112",
+    "docs/plugin-compat/evidence/t12/pairs-0.log": "9098e36e90b563642c7b3c867a40537c64ccfa4a4c0665158ad74068aebab09d",
+    "docs/plugin-compat/evidence/t12/pairs-1.log": "39d9174856180b0f4f5d01b24656abde3f639b8f896bf3ab3b49e66e58bf040b",
+    "docs/plugin-compat/evidence/t12/pairs-2.log": "7a79e83c30c9765695c09c1cc22f3614546ec93ea265c3b5b7b819b1d5634e94",
+    "docs/plugin-compat/evidence/t12/pairs.run.json": "a2080c5dfac17e5d09dfc078ddc5072709af64510cf4c37ba6e15ea6c269b0b1",
+    "docs/plugin-compat/evidence/t12/red-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t12/red-1.log": "001501bc8e56691166b3e46e333c96b7e936af94a24b4532ff8758980f51cdf7",
+    "docs/plugin-compat/evidence/t12/red-2.log": "920dfa3d0f580fed80382043b2267fa472f3d5e686ddb1b1d4ec106a1eda8681",
+    "docs/plugin-compat/evidence/t12/red-3.log": "ef59eddd512845dedb190534ef0353f40e81aa1667970db0477e3e0ea6ca0c2c",
+    "docs/plugin-compat/evidence/t12/red-4.log": "b1b34c76f559fd46acff8c2c489c80bbcf9824378bc680fd75985357b4e9cdaf",
+    "docs/plugin-compat/evidence/t12/red.run.json": "b06e68eb4af30e8d917e7c2ceda48cd0d26764908f6e97faf72d1fb4502b021d",
+    "crates/vw-agent/testdata/plugin_compat/t12/SKILL.md": "c29eacee11d1de15c787b2c25e62b7ee0f33b8cb9ed8f78ca41890126d00d59c",
+    "crates/vw-agent/testdata/plugin_compat/t12/openai.yaml": "e2c43f00bc946c1a786f3cf89fbb19e2a9abe5e76bcf65d6483953f5f673ce35",
+    "crates/vw-agent/testdata/plugin_compat/t12/sources.json": "b277d5030b542f085351d554aeef1b886cfa0bde58a2ae440e74beca8da2b777",
+    "docs/plugin-compat/evidence/t12/verification-0.log": "b734d3530932962ce7f689c14cd1afd776ea0d0c9d9babb77a9635617ff250be",
+    "docs/plugin-compat/evidence/t12/verification-1.log": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479",
+    "docs/plugin-compat/evidence/t12/verification-2.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "artifact_note": "Raw *.log and *.run.json are ignored and stay local/CI artifacts under the current scope policy. Only this structured summary is committed.",
+  "verification": [
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t12.json",
+      "exit_code": 0,
+      "record": "t12/verification-0.log"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t12.json",
+      "exit_code": 1,
+      "record": "t12/verification-1.log",
+      "expected_result": "The full frozen baseline rejects this partial task-only summary; no complete or cross-platform compatibility claim."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "record": "t12/verification-2.log"
+    }
+  ]
+}

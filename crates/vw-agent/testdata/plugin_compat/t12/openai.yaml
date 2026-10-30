@@ -1,0 +1,17 @@
+interface:
+  display_name: '  Review   assistant '
+  short_description: ' A compact review label '
+  icon_small: ./assets/icon.svg
+  brand_color: ' #123ABC '
+  default_prompt: ' Review the current document '
+dependencies:
+  tools:
+    - type: mcp
+      value: public-review
+      description: ' Public review service '
+      transport: streamable-http
+      url: https://example.com/mcp
+      oauth:
+        callback_port: 4321
+policy:
+  allow_implicit_invocation: false

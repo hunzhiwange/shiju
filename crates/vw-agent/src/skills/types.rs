@@ -159,6 +159,10 @@ pub struct Skill {
     #[serde(skip)]
     pub plugin_source: Option<PluginSkillSource>,
 
+    /// Audited agents/openai.yaml metadata; files cannot forge this runtime projection.
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub agent_metadata: Option<super::SkillAgentMetadata>,
+
     /// 技能版本号
     pub version: String,
 
@@ -249,6 +253,7 @@ impl Default for Skill {
             description: String::new(),
             short_description: None,
             plugin_source: None,
+            agent_metadata: None,
             version: default_version(),
             author: None,
             tags: Vec::new(),

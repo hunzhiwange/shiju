@@ -331,6 +331,7 @@ fn load_skill_md(path: &Path, dir: &Path, load_mode: SkillLoadMode) -> Result<Sk
         description,
         short_description: None,
         plugin_source: None,
+        agent_metadata: None,
         version: "0.1.0".to_string(),
         author: None,
         tags: Vec::new(),

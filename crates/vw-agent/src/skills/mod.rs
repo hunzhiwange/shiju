@@ -32,6 +32,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use vw_config_types::skills::SkillsDirectoryProvider;
 
+mod agent_metadata;
 mod audit;
 mod cli;
 mod discovery;
@@ -48,6 +49,9 @@ pub(crate) mod shiju;
 mod source;
 mod types;
 
+pub use agent_metadata::{
+    SkillAgentDependency, SkillAgentInterface, SkillAgentMetadata, SkillAgentPolicy,
+};
 pub(crate) use audit::audit_open_skill_markdown_with_security;
 pub(crate) use invoked::{InvokedSkillRecord, InvokedSkillReplay};
 pub(crate) use loader::{load_skill_directory, read_markdown_skill_metadata};

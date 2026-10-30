@@ -1,0 +1,100 @@
+{
+  "fixture_license": "Repository-authored synthetic fixture; same license as VibeWindow. No copied agent prompt, credentials or user data.",
+  "sources": {
+    "codex-rs/core-plugins/src/loader.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core-plugins/src/loader.rs",
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "load_plugin_skill_inventory",
+        "plugin_skill_roots"
+      ]
+    },
+    "codex-rs/core/src/plugins/mod.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core/src/plugins/mod.rs",
+      "sha256": "2668151196200d9215db6065f69666ca4f25a5d5c060d86cac5f79154d995fb7",
+      "symbols": [
+        "plugins_manager_for_config"
+      ]
+    },
+    "codex-rs/skills/src/metadata.rs": {
+      "tree": "codex",
+      "path": "codex-rs/skills/src/metadata.rs",
+      "sha256": "094357ff0dde43e58f6899d7644a7d46896d198564cb2ac06be421c04a8e7203",
+      "symbols": [
+        "parse_skill_metadata",
+        "resolve_dependency_tool",
+        "resolve_policy"
+      ]
+    },
+    "codex-rs/skills/src/interface.rs": {
+      "tree": "codex",
+      "path": "codex-rs/skills/src/interface.rs",
+      "sha256": "78dc273c51397dbd5c0184923693036a6aef500aac27e230761f7932674bacb6",
+      "symbols": [
+        "resolve_skill_interface",
+        "resolve_asset_path",
+        "resolve_plugin_shared_asset_path"
+      ]
+    },
+    "codex-rs/skills/src/model.rs": {
+      "tree": "codex",
+      "path": "codex-rs/skills/src/model.rs",
+      "sha256": "6c0336c8af3f9ec7e3fa95eaccab9f17cf64b59544842dfe3f980f8cf4468382",
+      "symbols": [
+        "SkillMetadata",
+        "matches_product_restriction"
+      ]
+    },
+    "codex-rs/ext/skills/src/loader/metadata.rs": {
+      "tree": "codex",
+      "path": "codex-rs/ext/skills/src/loader/metadata.rs",
+      "sha256": "80af90fd1d12f592f4029c28b78c66b5e281caa86e25e08042fbd6fe3b7275a0",
+      "symbols": [
+        "load_host_skill_metadata"
+      ]
+    },
+    "codex-rs/ext/skills/src/loader/host_merge.rs": {
+      "tree": "codex",
+      "path": "codex-rs/ext/skills/src/loader/host_merge.rs",
+      "sha256": "808858528c84f5551683717841b87def11790885fe3e515e4bb4709ac0c055e4",
+      "symbols": [
+        "matches_product_restriction_for_product"
+      ]
+    },
+    "codex-rs/protocol/src/protocol.rs": {
+      "tree": "codex",
+      "path": "codex-rs/protocol/src/protocol.rs",
+      "sha256": "47d9a56fba8246275206fac87f5bb7e884304e1e31fde2671c21b169c32fecbf",
+      "symbols": [
+        "Product"
+      ]
+    },
+    "codex-rs/core/src/mcp_skill_dependencies.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core/src/mcp_skill_dependencies.rs",
+      "sha256": "ccd4333643586a416969067811cce05df49e8ad201e17482cab2cf9783ba01f9",
+      "symbols": [
+        "maybe_prompt_and_install_mcp_dependencies",
+        "collect_missing_mcp_dependencies"
+      ]
+    },
+    "codex-rs/core/src/session/turn.rs": {
+      "tree": "codex",
+      "path": "codex-rs/core/src/session/turn.rs",
+      "sha256": "7bb8ec60d4217df48e787fe2570f8b6c7b8ce3addd6cdae485e614a90373bb80",
+      "symbols": [
+        "required_servers"
+      ]
+    }
+  },
+  "expectations": {
+    "top_level_agents": "No automatic executor is present in the plugin loading path. Preserve package files without synthesizing DelegateAgentConfig or granting tools.",
+    "skill_local_metadata": "Parse agents/openai.yaml interface, dependencies and policy; malformed optional metadata is ignored with a sanitized diagnostic, while the audited base skill remains available.",
+    "policy": "allow_implicit_invocation=false restricts existing implicit invocation; products restricts availability and the VibeWindow host does not impersonate a named Codex product.",
+    "dependencies": "Retain normalized declarations without executing commands, installing servers or granting permissions. Actual MCP dependency selection/admission/install is a separate downstream consumer in the reference; it is not claimed implemented by this task.",
+    "assets": "Only skill-local assets or lexically resolved plugin-shared assets; this host additionally refuses symlink traversal.",
+    "integrity": "Loading and invocation do not rewrite any original package bytes."
+  }
+}

@@ -1,5 +1,6 @@
 //! 插件清单兼容适配与通过真实入口运行的独立验收测试。
 
+pub(super) mod agents;
 pub(super) mod commands;
 pub(super) mod discovery;
 pub(super) mod identity;
@@ -50,3 +51,7 @@ mod t10_tests;
 #[cfg(test)]
 #[path = "t11_tests.rs"]
 mod t11_tests;
+
+#[cfg(test)]
+#[path = "t12_tests.rs"]
+mod t12_tests;

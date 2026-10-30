@@ -95,6 +95,9 @@ fn fill_confirmed_credentials(
                 .get_or_insert_with(super::helpers::default_dingtalk_config);
             cfg.client_id = credential(credentials, "client_id")?;
             cfg.client_secret = credential(credentials, "client_secret")?;
+            if cfg.allowed_users.is_empty() {
+                cfg.allowed_users.push("*".to_string());
+            }
         }
         "feishu" => {
             let cfg = app
@@ -103,6 +106,9 @@ fn fill_confirmed_credentials(
                 .get_or_insert_with(super::helpers::default_feishu_config);
             cfg.app_id = credential(credentials, "app_id")?;
             cfg.app_secret = credential(credentials, "app_secret")?;
+            if cfg.allowed_users.is_empty() {
+                cfg.allowed_users.push("*".to_string());
+            }
         }
         "qq" => {
             let app_id = credential(credentials, "app_id")?;
@@ -115,6 +121,9 @@ fn fill_confirmed_credentials(
             });
             cfg.app_id = app_id;
             cfg.app_secret = app_secret;
+            if cfg.allowed_users.is_empty() {
+                cfg.allowed_users.push("*".to_string());
+            }
         }
         "wecom" => {
             app.channels_settings.wecom = Some(WeComConfig {

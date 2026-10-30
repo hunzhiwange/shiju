@@ -275,7 +275,70 @@ fn channel_qr_flow_stops_on_close_and_fills_confirmed_credentials() {
     let qq = app.channels_settings.qq.as_ref().expect("confirmed credentials should fill form");
     assert_eq!(qq.app_id, "confirmed-id");
     assert_eq!(qq.app_secret, "confirmed-secret");
+    assert_eq!(qq.allowed_users, ["*"]);
+    assert_eq!(app.channels_settings.text_inputs["qq.allowed_users"], "*");
     assert!(!app.channels_settings.qr_flow.poll_in_flight);
+}
+
+#[test]
+fn channel_qr_authorization_defaults_empty_allowed_users_and_preserves_restrictions() {
+    for channel in ["dingtalk", "feishu", "qq"] {
+        for existing_users in [None, Some(Vec::new()), Some(vec!["specific-user".to_string()])] {
+            let mut app = app();
+            let credentials = serde_json::Map::from_iter(
+                ["client_id", "client_secret", "app_id", "app_secret"]
+                    .map(|key| (key.to_string(), serde_json::Value::String(format!("qr-{key}")))),
+            );
+            if let Some(users) = existing_users.as_ref() {
+                fill_confirmed_credentials(&mut app, channel, &credentials).unwrap();
+                match channel {
+                    "dingtalk" => {
+                        app.channels_settings.dingtalk.as_mut().unwrap().allowed_users =
+                            users.clone()
+                    }
+                    "feishu" => {
+                        app.channels_settings.feishu.as_mut().unwrap().allowed_users = users.clone()
+                    }
+                    "qq" => {
+                        app.channels_settings.qq.as_mut().unwrap().allowed_users = users.clone()
+                    }
+                    _ => unreachable!(),
+                }
+            }
+            app.channels_settings.qr_flow.channel = Some(channel.to_string());
+            let generation = app.channels_settings.qr_flow.generation;
+            let _ = update(
+                &mut app,
+                SettingsMessage::Channels(ChannelsMessage::QrPolled {
+                    channel: channel.to_string(),
+                    generation,
+                    result: Ok(ChannelQrStatusResponseDto {
+                        status: ChannelQrStatusDto::Authorized,
+                        credentials: Some(credentials),
+                    }),
+                }),
+            );
+
+            let config =
+                super::super::persist::build_channels_config_from_settings(&app.channels_settings)
+                    .expect("authorized settings should be saveable");
+            let allowed_users = match channel {
+                "dingtalk" => config.dingtalk.unwrap().allowed_users,
+                "feishu" => config.feishu.unwrap().allowed_users,
+                "qq" => config.qq.unwrap().allowed_users,
+                _ => unreachable!(),
+            };
+            let expected = existing_users
+                .filter(|users| !users.is_empty())
+                .unwrap_or_else(|| vec!["*".to_string()]);
+            assert_eq!(allowed_users, expected, "{channel}");
+            assert_eq!(
+                app.channels_settings.text_inputs[&format!("{channel}.allowed_users")],
+                expected.join(", ")
+            );
+            assert!(app.channels_settings.qr_flow.credentials_ready);
+        }
+    }
 }
 
 #[test]

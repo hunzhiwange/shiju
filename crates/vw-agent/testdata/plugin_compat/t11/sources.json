@@ -1,0 +1,47 @@
+{
+  "fixture_license": "Repository-authored synthetic fixture; same license as VibeWindow. No copied third-party command or user data.",
+  "sources": {
+    "codex:codex-rs/core-plugins/src/command_migration/plugin.rs": {
+      "kind": "source",
+      "path": "codex-rs/core-plugins/src/command_migration/plugin.rs",
+      "tree": "codex",
+      "sha256": "71fc3da6a8049064ffd2921e3c4eb89e8c41e448ff6b24a384162de52806e879"
+    },
+    "codex:codex-rs/core-plugins/src/command_migration.rs": {
+      "kind": "source",
+      "path": "codex-rs/core-plugins/src/command_migration.rs",
+      "tree": "codex",
+      "sha256": "7edfdfbbdaabf72ad5e5e8174516a115e4bb472134ba34773b6f50c49138dd6f"
+    }
+  },
+  "expectations": {
+    "review.md": "description required; only body migrates, no arbitrary metadata propagation; prefix and plugin identity retained",
+    "missing.md": "not callable without a nonempty description",
+    "expected-skill.md": "render_command_skill with plugin rewrite profile AGENTS.md and empty brand replacement list",
+    "dynamic_templates": "$ARGUMENTS/$digits, {{...}}, !` / ! ` and whitespace-prefixed @ references are unsupported; no expansion or execution",
+    "cache": "Derived document outside original package; package tree hash remains identical.",
+    "collision_order": "Resolve distinct-file slug collisions before the 4000-byte output size filter, matching supported_command_sources -> unique_command_sources -> import_command_sources.",
+    "root_precedence": "Use the logical .codex-plugin/migrated-command-skills root in sorted skill-root order even though physical cache lives outside the original package."
+  },
+  "additional_reference_sources": {
+    "codex-rs/core-plugins/src/loader.rs": {
+      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+      "symbols": [
+        "plugin_skill_roots"
+      ]
+    },
+    "codex-rs/utils/plugins/src/lib.rs": {
+      "sha256": "80ce4c777b8a836384aa7dff8d3508795d5626a66e8163cbc93613cf07dc74d7",
+      "symbols": [
+        "migrated_command_skills_root"
+      ]
+    },
+    "codex-rs/core-plugins/src/command_migration/render.rs": {
+      "sha256": "30c4376d43c6d4dc55818dda50fc2b50f6d2887430c23a76fee676bf4f994be8",
+      "symbols": [
+        "slugify_name",
+        "rewrite_terms"
+      ]
+    }
+  }
+}

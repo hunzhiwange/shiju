@@ -1,0 +1,981 @@
+{
+  "schema_version": 1,
+  "task": 11,
+  "status": "已完成",
+  "items": [
+    {
+      "id": "commands.sources",
+      "tasks": [
+        11
+      ],
+      "tests": [
+        "codex_plugin_compat_t11_invokes_migrated_command",
+        "codex_plugin_compat_t11_rejects_invalid_input",
+        "codex_plugin_compat_t11_preserves_isolation",
+        "codex_plugin_compat_t11_uses_explicit_files_and_roots_without_default_fallback",
+        "codex_plugin_compat_t11_drops_every_slug_collision_and_keeps_healthy_templates",
+        "codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering",
+        "codex_plugin_compat_t11_rejects_explicit_bad_paths_without_default_fallback",
+        "codex_plugin_compat_t11_only_normalizes_the_profile_document_filename",
+        "codex_plugin_compat_t11_preserves_multiline_description_rendering",
+        "codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache",
+        "codex_plugin_compat_t11_limits_rendered_bytes_and_name_length",
+        "codex_plugin_compat_t11_invalidates_derived_cache_and_rejects_tampering",
+        "codex_plugin_compat_t11_metadata_and_security_use_the_existing_skill_boundary",
+        "codex_plugin_compat_t11_does_not_migrate_portable_or_native_commands",
+        "codex_plugin_compat_t11_refuses_cache_inside_original_package_before_creating_it",
+        "codex_plugin_compat_t11_rejects_symlink_entries_and_cache_redirection"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.53,
+        "record": "t11/red-invocation-0.log",
+        "phase": "red-invocation",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 63.28,
+        "record": "t11/final-2.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 11 legacy command discovery, rendering and invocation through the real skill tool only. This is not complete plugin compatibility or cross-platform acceptance."
+    },
+    {
+      "id": "commands.render",
+      "tasks": [
+        11
+      ],
+      "tests": [
+        "codex_plugin_compat_t11_invokes_migrated_command",
+        "codex_plugin_compat_t11_rejects_invalid_input",
+        "codex_plugin_compat_t11_preserves_isolation",
+        "codex_plugin_compat_t11_uses_explicit_files_and_roots_without_default_fallback",
+        "codex_plugin_compat_t11_drops_every_slug_collision_and_keeps_healthy_templates",
+        "codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering",
+        "codex_plugin_compat_t11_rejects_explicit_bad_paths_without_default_fallback",
+        "codex_plugin_compat_t11_only_normalizes_the_profile_document_filename",
+        "codex_plugin_compat_t11_preserves_multiline_description_rendering",
+        "codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache",
+        "codex_plugin_compat_t11_limits_rendered_bytes_and_name_length",
+        "codex_plugin_compat_t11_invalidates_derived_cache_and_rejects_tampering",
+        "codex_plugin_compat_t11_metadata_and_security_use_the_existing_skill_boundary",
+        "codex_plugin_compat_t11_does_not_migrate_portable_or_native_commands",
+        "codex_plugin_compat_t11_refuses_cache_inside_original_package_before_creating_it",
+        "codex_plugin_compat_t11_rejects_symlink_entries_and_cache_redirection"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.53,
+        "record": "t11/red-invocation-0.log",
+        "phase": "red-invocation",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 63.28,
+        "record": "t11/final-2.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 11 legacy command discovery, rendering and invocation through the real skill tool only. This is not complete plugin compatibility or cross-platform acceptance."
+    },
+    {
+      "id": "commands.size",
+      "tasks": [
+        11
+      ],
+      "tests": [
+        "codex_plugin_compat_t11_invokes_migrated_command",
+        "codex_plugin_compat_t11_rejects_invalid_input",
+        "codex_plugin_compat_t11_preserves_isolation",
+        "codex_plugin_compat_t11_uses_explicit_files_and_roots_without_default_fallback",
+        "codex_plugin_compat_t11_drops_every_slug_collision_and_keeps_healthy_templates",
+        "codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering",
+        "codex_plugin_compat_t11_rejects_explicit_bad_paths_without_default_fallback",
+        "codex_plugin_compat_t11_only_normalizes_the_profile_document_filename",
+        "codex_plugin_compat_t11_preserves_multiline_description_rendering",
+        "codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache",
+        "codex_plugin_compat_t11_limits_rendered_bytes_and_name_length",
+        "codex_plugin_compat_t11_invalidates_derived_cache_and_rejects_tampering",
+        "codex_plugin_compat_t11_metadata_and_security_use_the_existing_skill_boundary",
+        "codex_plugin_compat_t11_does_not_migrate_portable_or_native_commands",
+        "codex_plugin_compat_t11_refuses_cache_inside_original_package_before_creating_it",
+        "codex_plugin_compat_t11_rejects_symlink_entries_and_cache_redirection"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 91.69,
+        "record": "t11/red-collision-1.log",
+        "phase": "red-collision",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.46,
+        "record": "t11/final-5.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 11 legacy command discovery, rendering and invocation through the real skill tool only. This is not complete plugin compatibility or cross-platform acceptance."
+    },
+    {
+      "id": "acceptance.t11",
+      "tasks": [
+        11
+      ],
+      "tests": [
+        "codex_plugin_compat_t11_invokes_migrated_command",
+        "codex_plugin_compat_t11_rejects_invalid_input",
+        "codex_plugin_compat_t11_preserves_isolation",
+        "codex_plugin_compat_t11_uses_explicit_files_and_roots_without_default_fallback",
+        "codex_plugin_compat_t11_drops_every_slug_collision_and_keeps_healthy_templates",
+        "codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering",
+        "codex_plugin_compat_t11_rejects_explicit_bad_paths_without_default_fallback",
+        "codex_plugin_compat_t11_only_normalizes_the_profile_document_filename",
+        "codex_plugin_compat_t11_preserves_multiline_description_rendering",
+        "codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache",
+        "codex_plugin_compat_t11_limits_rendered_bytes_and_name_length",
+        "codex_plugin_compat_t11_invalidates_derived_cache_and_rejects_tampering",
+        "codex_plugin_compat_t11_metadata_and_security_use_the_existing_skill_boundary",
+        "codex_plugin_compat_t11_does_not_migrate_portable_or_native_commands",
+        "codex_plugin_compat_t11_refuses_cache_inside_original_package_before_creating_it",
+        "codex_plugin_compat_t11_rejects_symlink_entries_and_cache_redirection"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.53,
+        "record": "t11/red-invocation-0.log",
+        "phase": "red-invocation",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 63.28,
+        "record": "t11/final-2.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      },
+      "platforms": {
+        "verified": [
+          "macos"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified",
+      "scope": "Task 11 legacy command discovery, rendering and invocation through the real skill tool only. This is not complete plugin compatibility or cross-platform acceptance."
+    }
+  ],
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  },
+  "cargo": {
+    "actual_slots": [
+      1
+    ],
+    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+    "lease_released": true
+  },
+  "baseline_sha256": "118a4328714a33812e8f1300ea1a0f18bd3a4b1c2492b52a6f4f5bd238cdd9c9",
+  "sources": {
+    "fixture_license": "Repository-authored synthetic fixture; same license as VibeWindow. No copied third-party command or user data.",
+    "sources": {
+      "codex:codex-rs/core-plugins/src/command_migration/plugin.rs": {
+        "kind": "source",
+        "path": "codex-rs/core-plugins/src/command_migration/plugin.rs",
+        "tree": "codex",
+        "sha256": "71fc3da6a8049064ffd2921e3c4eb89e8c41e448ff6b24a384162de52806e879"
+      },
+      "codex:codex-rs/core-plugins/src/command_migration.rs": {
+        "kind": "source",
+        "path": "codex-rs/core-plugins/src/command_migration.rs",
+        "tree": "codex",
+        "sha256": "7edfdfbbdaabf72ad5e5e8174516a115e4bb472134ba34773b6f50c49138dd6f"
+      }
+    },
+    "expectations": {
+      "review.md": "description required; only body migrates, no arbitrary metadata propagation; prefix and plugin identity retained",
+      "missing.md": "not callable without a nonempty description",
+      "expected-skill.md": "render_command_skill with plugin rewrite profile AGENTS.md and empty brand replacement list",
+      "dynamic_templates": "$ARGUMENTS/$digits, {{...}}, !` / ! ` and whitespace-prefixed @ references are unsupported; no expansion or execution",
+      "cache": "Derived document outside original package; package tree hash remains identical.",
+      "collision_order": "Resolve distinct-file slug collisions before the 4000-byte output size filter, matching supported_command_sources -> unique_command_sources -> import_command_sources.",
+      "root_precedence": "Use the logical .codex-plugin/migrated-command-skills root in sorted skill-root order even though physical cache lives outside the original package."
+    },
+    "additional_reference_sources": {
+      "codex-rs/core-plugins/src/loader.rs": {
+        "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+        "symbols": [
+          "plugin_skill_roots"
+        ]
+      },
+      "codex-rs/utils/plugins/src/lib.rs": {
+        "sha256": "80ce4c777b8a836384aa7dff8d3508795d5626a66e8163cbc93613cf07dc74d7",
+        "symbols": [
+          "migrated_command_skills_root"
+        ]
+      },
+      "codex-rs/core-plugins/src/command_migration/render.rs": {
+        "sha256": "30c4376d43c6d4dc55818dda50fc2b50f6d2887430c23a76fee676bf4f994be8",
+        "symbols": [
+          "slugify_name",
+          "rewrite_terms"
+        ]
+      }
+    }
+  },
+  "validation": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.9,
+      "record": "t11/red-0.log",
+      "phase": "red"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 68.22,
+      "record": "t11/red-1.log",
+      "phase": "red",
+      "effective_tests": 2,
+      "observed_target_assertions": 2,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_rejects_invalid_input -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.18,
+      "record": "t11/red-2.log",
+      "phase": "red",
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_isolation -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.48,
+      "record": "t11/red-3.log",
+      "phase": "red",
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.53,
+      "record": "t11/red-invocation-0.log",
+      "phase": "red-invocation",
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.5,
+      "record": "t11/green-0.log",
+      "phase": "green"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 63.25,
+      "record": "t11/green-1.log",
+      "phase": "green"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.56,
+      "record": "t11/green-final-0.log",
+      "phase": "green-final"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 86.24,
+      "record": "t11/green-final-1.log",
+      "phase": "green-final",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 11
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.73,
+      "record": "t11/green-final-2.log",
+      "phase": "green-final"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.59,
+      "record": "t11/red-collision-0.log",
+      "phase": "red-collision"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 91.69,
+      "record": "t11/red-collision-1.log",
+      "phase": "red-collision",
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.73,
+      "record": "t11/red-precedence-0.log",
+      "phase": "red-precedence"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 56.6,
+      "record": "t11/red-precedence-1.log",
+      "phase": "red-precedence",
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.54,
+      "record": "t11/complete-0.log",
+      "phase": "complete"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 49.81,
+      "record": "t11/complete-1.log",
+      "phase": "complete",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 15
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.82,
+      "record": "t11/complete-2.log",
+      "phase": "complete",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_rejects_invalid_input -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.41,
+      "record": "t11/complete-3.log",
+      "phase": "complete",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_isolation -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.44,
+      "record": "t11/complete-4.log",
+      "phase": "complete",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.43,
+      "record": "t11/complete-5.log",
+      "phase": "complete",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.41,
+      "record": "t11/complete-6.log",
+      "phase": "complete",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.84,
+      "record": "t11/complete-7.log",
+      "phase": "complete",
+      "passed": 209,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 209
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::skill:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.5,
+      "record": "t11/complete-8.log",
+      "phase": "complete",
+      "passed": 38,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 38
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 31.6,
+      "record": "t11/complete-9.log",
+      "phase": "complete"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.61,
+      "record": "t11/red-scalar-0.log",
+      "phase": "red-scalar"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_multiline_description_rendering -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 55.47,
+      "record": "t11/red-scalar-1.log",
+      "phase": "red-scalar",
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.57,
+      "record": "t11/final-0.log",
+      "phase": "final"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 77.75,
+      "record": "t11/final-1.log",
+      "phase": "final",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 16
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_invokes_migrated_command -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 63.28,
+      "record": "t11/final-2.log",
+      "phase": "final",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_rejects_invalid_input -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 64.96,
+      "record": "t11/final-3.log",
+      "phase": "final",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_isolation -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.92,
+      "record": "t11/final-4.log",
+      "phase": "final",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.46,
+      "record": "t11/final-5.log",
+      "phase": "final",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.4,
+      "record": "t11/final-6.log",
+      "phase": "final",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_multiline_description_rendering -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.38,
+      "record": "t11/final-7.log",
+      "phase": "final",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.82,
+      "record": "t11/final-8.log",
+      "phase": "final",
+      "passed": 210,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 210
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::skill:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.47,
+      "record": "t11/final-9.log",
+      "phase": "final",
+      "passed": 38,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 38
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 20.38,
+      "record": "t11/final-10.log",
+      "phase": "final"
+    }
+  ],
+  "supplemental_red_green": [
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 91.69,
+        "record": "t11/red-collision-1.log",
+        "phase": "red-collision",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_detects_collisions_before_rendered_size_filtering -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.46,
+        "record": "t11/final-5.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    },
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 56.6,
+        "record": "t11/red-precedence-1.log",
+        "phase": "red-precedence",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_logical_root_precedence_despite_external_cache -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.4,
+        "record": "t11/final-6.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    },
+    {
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_multiline_description_rendering -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 55.47,
+        "record": "t11/red-scalar-1.log",
+        "phase": "red-scalar",
+        "effective_tests": 1,
+        "observed_target_assertions": 1,
+        "termination": "Host aborted while initiating panic (SIGABRT); no invented test summary."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t11_preserves_multiline_description_rendering -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 0.38,
+        "record": "t11/final-7.log",
+        "phase": "final",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 1
+      }
+    }
+  ],
+  "package_integrity": {
+    "test": "codex_plugin_compat_t11_invokes_migrated_command",
+    "original_fixture_file_sha256": {
+      ".codex-plugin/plugin.json": "3f4fbbd68b4d045e548e364ee8332a756962d7b30a9027e7fca01562917bf4f4",
+      "commands/review.md": "33eacaa732295b190f6413849dbd4109977e611daf7eedd0c78f9ff99a94430d"
+    },
+    "installed_before_file_sha256": {
+      ".codex-plugin/plugin.json": "3f4fbbd68b4d045e548e364ee8332a756962d7b30a9027e7fca01562917bf4f4",
+      "commands/review.md": "33eacaa732295b190f6413849dbd4109977e611daf7eedd0c78f9ff99a94430d"
+    },
+    "installed_after_file_sha256": {
+      ".codex-plugin/plugin.json": "3f4fbbd68b4d045e548e364ee8332a756962d7b30a9027e7fca01562917bf4f4",
+      "commands/review.md": "33eacaa732295b190f6413849dbd4109977e611daf7eedd0c78f9ff99a94430d"
+    },
+    "basis": "The real installation/call test hashes all files, asserts installed and source snapshots match before/after, then reads the derived SKILL.md and compares it byte-for-byte to expected-skill.md.",
+    "derived_skill_sha256": "54507fa081d7713d8d0bbe6b6d408be1e3ff6585b28ed292009220cdbf776764"
+  },
+  "observed_side_effects": [
+    "Real SkillTool invocation loads the qualified command skill and records literal invocation arguments; unsupported template syntax is never evaluated.",
+    "The generated file is persisted under the host config parent/cache/plugin-commands/<content-and-identity-hash>/<name>/SKILL.md. Cache identity includes original root, source path, plugin identity and exact rendered bytes.",
+    "Same command in two marketplaces has different physical cache paths and verified original provenance; disabling one package removes only its contribution.",
+    "All distinct sources in a slug collision are rejected, including an oversize candidate. Logical .codex-plugin/migrated-command-skills root ordering determines clashes with ordinary package skills.",
+    "The existing configured Markdown security audit is applied to source templates and the normal directory audit is applied to generated skills. No command frontmatter can add tool permissions.",
+    "Redirected or tampered cache paths produce explicit diagnostics. Existing cache entries are verified, not overwritten. Changes in source content yield a different immutable cache key."
+  ],
+  "intentional_layout_and_safety_differences": [
+    "The reference writes migrated skills into the package at install time. This host lazily derives them into its own cache to preserve original package bytes, retaining reference logical root precedence. Relative template text is not rewritten or given an implicit resource mirror.",
+    "Shared plugin path auditing refuses parent components, root aliases and symlinks; an unsafe or missing explicit command root rejects that command inventory while unrelated healthy package skills remain independently available.",
+    "Rejected sources produce path-scoped diagnostics rather than silently disappearing. Configured host safety restrictions remain authoritative.",
+    "No brand replacement is performed. Only the plugin migration profile document filename normalization is retained."
+  ],
+  "diagnostics": [
+    "Initial implementation visibility errors and a transient unrelated shared vw-acp on_prompt_active field mismatch are retained as compilation diagnostics, never behavior-red evidence.",
+    "Original and supplemental red cases observed target runtime assertions before this host aborted while initiating panic; no failed-test totals were fabricated."
+  ],
+  "deferred_to_other_tasks": [
+    {
+      "task": 12,
+      "scope": "Agent declarations, not interpreted as arbitrary command templates."
+    },
+    {
+      "task": 64,
+      "scope": "Actual Linux and Windows platform acceptance remains outside this macOS-only task evidence."
+    },
+    {
+      "task": 66,
+      "scope": "All remaining frozen baseline rows and final compatibility acceptance remain unverified by this partial task summary."
+    }
+  ],
+  "artifact_note": "Raw *.log and *.run.json stay local or CI artifacts per scope.md/.gitignore; do not force-add. Their paths and hashes are retained in this structured summary.",
+  "artifacts": {
+    "docs/plugin-compat/evidence/t11/complete-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/complete-1.log": "5134a6c1c3a50aa9932a45d85f80fc7b4545fb7694f731e09bffd8f038c7fb15",
+    "docs/plugin-compat/evidence/t11/complete-2.log": "61dc0baed64571035723ad50da28de42290b120d71176eb0141f86db5e4b3d1b",
+    "docs/plugin-compat/evidence/t11/complete-3.log": "b8de3a043e4be38832565e3fdc32e7e71729d739d2bfbcabd251294d22f3eca1",
+    "docs/plugin-compat/evidence/t11/complete-4.log": "8b0ebb6d80372d95b8f50f96cdcfb71a03f6ad0e72e72884f85b483bde6272f0",
+    "docs/plugin-compat/evidence/t11/complete-5.log": "88166fe927f92360c15d2dc368fd7d9c869efd1284400a6256e3ddfac8f1e080",
+    "docs/plugin-compat/evidence/t11/complete-6.log": "d81602c4a00e1525343bcb9069481f8589f47a56d37aa7753d71c678c30f06c1",
+    "docs/plugin-compat/evidence/t11/complete-7.log": "e1c010ffc0f9c06f3f93784f4e3a63d397a5669cb36ace18303fb7cb3e7d244a",
+    "docs/plugin-compat/evidence/t11/complete-8.log": "06c6558d23239658e2df0be3cbdfa4ee59fe9eb52b6716907b6e67e423f32320",
+    "docs/plugin-compat/evidence/t11/complete-9.log": "a78f08a81a6d50877a07de2d8971e0c435360fc40654d43affd3b72e04210c4a",
+    "docs/plugin-compat/evidence/t11/complete.run.json": "16485bfec6bb0ed36db0fca33d1f6948dad7723cfc7b0b1d43396d2bfcfe986e",
+    "docs/plugin-compat/evidence/t11/final-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/final-1.log": "88c6cc699d5161e63d7dd524e89ca1aec63efc00c8c269adc21cf77e4eb96f56",
+    "docs/plugin-compat/evidence/t11/final-10.log": "74bf04affa19f300d8c0afc20ceb77723f34d3fa8dcafe67cb6cc74e7ed0bd72",
+    "docs/plugin-compat/evidence/t11/final-2.log": "1cb977a142e44fda8f9ed44646d162683af77b2e7ed8a9a86331fb31ec6400b1",
+    "docs/plugin-compat/evidence/t11/final-3.log": "4c1ade496d5d15bb358bfea877452eb24a55f15ccb564b7287e49bf3ecf828c5",
+    "docs/plugin-compat/evidence/t11/final-4.log": "93849f41da65ebd569cc7f81c49681e637670414f76cfcc7f79b703fa216f9a9",
+    "docs/plugin-compat/evidence/t11/final-5.log": "1c654a57c94e8be6e120f131555f574722c44d666536df705be2c53512b86fc2",
+    "docs/plugin-compat/evidence/t11/final-6.log": "3695f99674f0762db50b11997534c75077042a7e38452c74f05e9e6186f01073",
+    "docs/plugin-compat/evidence/t11/final-7.log": "c8cae43c46fc531953921b4fa0eb692326f0a53ed4847ac80f5ddb84ad9d2ca6",
+    "docs/plugin-compat/evidence/t11/final-8.log": "b9d1e379f4c11c7bf3d3c3651b7c123710a7bae1ef4484351163d516b5b989b2",
+    "docs/plugin-compat/evidence/t11/final-9.log": "849d4456932488fac44fe9a6ab96754f50134e0c4b91db8480b7e650c7665635",
+    "docs/plugin-compat/evidence/t11/final.run.json": "a2d173683711357c33ec357deab6fe5ff5ce73e0d4a50309b619ea65d64f536a",
+    "docs/plugin-compat/evidence/t11/green-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/green-1.log": "0c1e0cc206ca3ec67fefc6e86eca8b23c38d1b3c7dfa711c24e958e0caea7e38",
+    "docs/plugin-compat/evidence/t11/green-final-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/green-final-1.log": "eea2944c213dc082e86b3a8cb4eaaec0951b43f91bab62b1b78634fbba211cb7",
+    "docs/plugin-compat/evidence/t11/green-final-2.log": "ad2ba8cc2ef5e239fcd72dfadfc17588b618b78fc767eeb7236ce1364d82bb04",
+    "docs/plugin-compat/evidence/t11/green-final.run.json": "6a6c4b8be57a106dd270dc1a81bf65992c401ac64e197c3efb2014278be35b74",
+    "docs/plugin-compat/evidence/t11/green.run.json": "2b1d0f1e912f156930c7d50dd97d4fee51e094a22d4f95d773660f35bc687f12",
+    "docs/plugin-compat/evidence/t11/red-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/red-1.log": "e29c02ff5bba310ca279431739a3b6101eb7ab1d536155a1084e7518d266ad21",
+    "docs/plugin-compat/evidence/t11/red-2.log": "c8d9b9a14a087780bf1732b6a642ba21eea8a738e3dfb9a4869705dcc368eecb",
+    "docs/plugin-compat/evidence/t11/red-3.log": "885f743de7dd17a1e0d80afd201b2f0f06a489121f5b7ce428bfa9e39f80699c",
+    "docs/plugin-compat/evidence/t11/red-collision-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/red-collision-1.log": "7b783d05a5232fcc5d599cfdadb8c56e76c41debdf668aa2b9e0553a1346da46",
+    "docs/plugin-compat/evidence/t11/red-collision.run.json": "ad4b87632b49eb96426655dadde9be27188575df314d2033cd03960ae565b2e1",
+    "docs/plugin-compat/evidence/t11/red-invocation-0.log": "49e349d3fbd74bc52451a085de7777d54bf45f22658ff8153b2e4135274713af",
+    "docs/plugin-compat/evidence/t11/red-invocation.run.json": "a2577c5df3e4beb8a64de81c7e329d6ad25c36cab1cd32c6754c1a447ae1cbe4",
+    "docs/plugin-compat/evidence/t11/red-precedence-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/red-precedence-1.log": "e39f900cbc4390251086959b6694c2650b0103304542f6d7959e8659b845dc8f",
+    "docs/plugin-compat/evidence/t11/red-precedence.run.json": "c6d737384b4896f82ef211183d007dedd94b7ab2bdf49c7736f7db80f092d5ee",
+    "docs/plugin-compat/evidence/t11/red-scalar-0.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/red-scalar-1.log": "4c932ad18171cbf71ac89be488ff0ba8d174ed8fc3585b03ff23e93175cf15e7",
+    "docs/plugin-compat/evidence/t11/red-scalar.run.json": "c4930aa0c92e5b062d2e865cdd6daa26344b53e2a8b2f67a17dec0c8edb0ef13",
+    "docs/plugin-compat/evidence/t11/red.run.json": "ab160654b74226cc6761075e8dda8cbed088be1f085205b54160b06af3ccccf2",
+    "crates/vw-agent/testdata/plugin_compat/t11/expected-skill.md": "54507fa081d7713d8d0bbe6b6d408be1e3ff6585b28ed292009220cdbf776764",
+    "crates/vw-agent/testdata/plugin_compat/t11/missing.md": "c1837cef49241113356085d297979a2269be64cd5795eda37bcc2277fe0c3da0",
+    "crates/vw-agent/testdata/plugin_compat/t11/plugin.json": "3f4fbbd68b4d045e548e364ee8332a756962d7b30a9027e7fca01562917bf4f4",
+    "crates/vw-agent/testdata/plugin_compat/t11/review.md": "33eacaa732295b190f6413849dbd4109977e611daf7eedd0c78f9ff99a94430d",
+    "crates/vw-agent/testdata/plugin_compat/t11/sources.json": "d6ec86b700c85d0bfda83ceed32dc1834045950b17e3a7aac03c11d64a0b50d8",
+    "docs/plugin-compat/evidence/t11/verification-2.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "docs/plugin-compat/evidence/t11/verification-1.log": "395126f8a7588a5c4d282db8eb72e33a0881dca4f4b4d2ba71505acffc4c6479",
+    "docs/plugin-compat/evidence/t11/verification-0.log": "c1a2d6162b1b510e55fb0eac65ec8c664603c30484dfb6781668120d89858976"
+  },
+  "verification": [
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence/t11.json",
+      "exit_code": 0,
+      "record": "t11/verification-0.log"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence/t11.json",
+      "exit_code": 1,
+      "record": "t11/verification-1.log",
+      "expected_result": "Full frozen baseline rejects a task-only summary; no complete compatibility claim."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "record": "t11/verification-2.log"
+    }
+  ]
+}

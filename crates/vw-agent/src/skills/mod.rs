@@ -48,6 +48,7 @@ pub(crate) mod shiju;
 mod source;
 mod types;
 
+pub(crate) use audit::audit_open_skill_markdown_with_security;
 pub(crate) use invoked::{InvokedSkillRecord, InvokedSkillReplay};
 pub(crate) use loader::{load_skill_directory, read_markdown_skill_metadata};
 pub use prompt::{skills_to_prompt, skills_to_prompt_with_mode};

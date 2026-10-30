@@ -85,16 +85,24 @@ fn load_plugin(
     inventory: &mut PluginSkillInventory,
 ) {
     let format = package_format(&plugin.manifest);
+    let mut names = HashMap::<String, PathBuf>::new();
     let roots = match skill_roots(&plugin.manifest) {
         Ok(roots) => roots,
         Err(error) => {
             diagnostic(inventory, plugin, &plugin.manifest.root, format!("{error:#}"));
+            load_commands(plugin, config, mode, inventory, &mut names);
             return;
         }
     };
     let mut visited = HashSet::new();
-    let mut names = HashMap::<String, PathBuf>::new();
+    // Use Codex's logical migration root for precedence, never the physical host cache path.
+    let command_root = plugin.manifest.root.join(".codex-plugin/migrated-command-skills");
+    let mut commands_loaded = false;
     for root in roots {
+        if !commands_loaded && root >= command_root {
+            load_commands(plugin, config, mode, inventory, &mut names);
+            commands_loaded = true;
+        }
         let (files, errors) = skill_files(&root, format);
         for (path, message) in errors {
             diagnostic(inventory, plugin, &path, message);
@@ -131,6 +139,41 @@ fn load_plugin(
                 Ok(None) => {}
                 Err(error) => diagnostic(inventory, plugin, &file, format!("{error:#}")),
             }
+        }
+    }
+    if !commands_loaded {
+        load_commands(plugin, config, mode, inventory, &mut names);
+    }
+}
+
+fn load_commands(
+    plugin: &DiscoveredPlugin,
+    config: &Config,
+    mode: SkillLoadMode,
+    inventory: &mut PluginSkillInventory,
+    names: &mut HashMap<String, PathBuf>,
+) {
+    let commands = super::compat::commands::load_commands(plugin, config, mode);
+    for (path, message) in commands.diagnostics {
+        diagnostic(inventory, plugin, &path, message);
+    }
+    for skill in commands.skills {
+        if names.contains_key(&skill.name) {
+            diagnostic(
+                inventory,
+                plugin,
+                skill.location.as_ref().expect("cached command location"),
+                format!(
+                    "duplicate skill name {:?}; keeping earlier logical skill root",
+                    skill.name
+                ),
+            );
+        } else {
+            names.insert(
+                skill.name.clone(),
+                skill.location.clone().expect("cached command location"),
+            );
+            inventory.skills.push(skill);
         }
     }
 }

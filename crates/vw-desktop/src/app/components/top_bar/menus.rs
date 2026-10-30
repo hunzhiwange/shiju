@@ -366,6 +366,27 @@ pub(super) fn view_menu(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn help_menu(app: &App) -> Element<'_, Message> {
     let help_btn = menu_btn("帮助", MenuType::Help, app.active_menu);
+    let help_btn = if let Some(release) = app.desktop_update.notification_release() {
+        use iced::widget::{Space, container, row, text, tooltip};
+        let dot = container(Space::new().width(6).height(6)).style(|theme: &iced::Theme| {
+            container::Style {
+                background: Some(theme.extended_palette().danger.strong.color.into()),
+                border: iced::Border { radius: 3.0.into(), ..Default::default() },
+                ..Default::default()
+            }
+        });
+        let hint = format!("当前版本 {}，可升级至 {}", env!("CARGO_PKG_VERSION"), release.version);
+        tooltip(
+            row![help_btn, dot].spacing(2).align_y(iced::Alignment::Center),
+            container(text(hint).size(12))
+                .padding([6, 10])
+                .style(super::widgets::icon_tooltip_style),
+            tooltip::Position::Bottom,
+        )
+        .into()
+    } else {
+        help_btn
+    };
     let help_content = menu_container(menu_entries(help_menu_entries()));
 
     BelowOverlay::new(help_btn, help_content)

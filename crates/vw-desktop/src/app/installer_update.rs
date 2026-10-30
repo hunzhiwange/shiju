@@ -1,4 +1,4 @@
-//! Verified downloads and handoff to an independent automatic updater.
+//! Verified downloads for automatic updates or manual Linux installation.
 use anyhow::{Context, Result, bail};
 use sha2::{Digest, Sha256};
 use std::fs;
@@ -55,6 +55,10 @@ impl PreparedDesktopUpdate {
         self.asset.kind
     }
 
+    pub fn installs_automatically(&self) -> bool {
+        matches!(self.kind(), InstallerKind::Dmg | InstallerKind::Msi)
+    }
+
     pub fn instructions(&self) -> String {
         format!("安装包已就绪：{}。{}", self.path.display(), instructions(self.kind()))
     }
@@ -89,9 +93,15 @@ pub async fn prepare_desktop_update(
     finish_download(attempt, path, asset, &release.version)
 }
 
-/// Revalidate the download, then hand it to an independent updater before shutdown.
+/// Revalidate the download, then reveal Linux downloads or start the automatic updater.
 pub fn open_desktop_installer(ready: &PreparedDesktopUpdate) -> Result<String> {
-    open_with(ready, std::env::consts::OS, |_| crate::desktop_update_helper::start(ready))
+    open_with(ready, std::env::consts::OS, |path| {
+        if ready.installs_automatically() {
+            crate::desktop_update_helper::start(ready)
+        } else {
+            open::that(path).context("无法打开安装包下载目录")
+        }
+    })
 }
 
 fn desktop_target(os: &str, arch: &str) -> Result<&'static str> {
@@ -123,7 +133,7 @@ fn instructions(kind: InstallerKind) -> &'static str {
             "点击自动更新后，应用将退出并通过 Windows Installer 更新；请允许系统授权，成功后确认启动新版。"
         }
         InstallerKind::Rpm => {
-            "此 RPM 仅适用于已通过 RPM 安装的 Linux 系统。点击自动更新后应用将退出并请求系统授权安装，成功后确认启动新版；RPM 不提供整包原子回滚。"
+            "点击“打开下载位置”后，请自行退出应用并手动安装，安装完成后重新启动。此 RPM 适用于 RPM 系统；Ubuntu/Debian 需要 .deb 包，不能直接安装此 RPM，请从 ShiJu GitHub Release 下载对应版本和架构的 DEB 包。"
         }
     }
 }
@@ -218,6 +228,12 @@ fn open_with(
             | ("linux", InstallerKind::Rpm)
     ) {
         bail!("此安装包格式不适用于当前系统。{}", ready.instructions());
+    }
+    if !ready.installs_automatically() {
+        // Open the directory, never the RPM itself: package handlers may request installation.
+        opener(&ready.directory)
+            .map_err(|error| anyhow::anyhow!("无法打开下载位置：{error:#}"))?;
+        return Ok(format!("下载位置已打开，请手动升级。{}", ready.instructions()));
     }
     // The UI also uses Display on this error; retain the underlying launch failure there.
     opener(ready.path()).map_err(|error| anyhow::anyhow!("无法启动自动更新：{error:#}"))?;

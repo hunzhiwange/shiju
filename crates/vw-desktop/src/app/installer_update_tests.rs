@@ -31,7 +31,13 @@ fn installer_update_six_platforms_use_expected_extensions() {
             assert!(desktop_target(os, arch).unwrap().starts_with(arch));
             let (_root, ready) = fixture(kind);
             open_with(&ready, os, |path| {
-                assert_eq!(path.extension().unwrap(), extension(kind));
+                if kind == InstallerKind::Rpm {
+                    assert_eq!(path, ready.path().parent().unwrap());
+                    assert!(path.is_dir());
+                } else {
+                    assert_eq!(path, ready.path());
+                    assert_eq!(path.extension().unwrap(), extension(kind));
+                }
                 assert!(path.is_absolute());
                 Ok(())
             })
@@ -88,6 +94,54 @@ fn installer_update_missing_download_and_wrong_platform_never_open() {
     let message = open_with(&ready, "linux", |_| Ok(())).unwrap();
     assert!(message.contains("RPM"));
     assert!(!message.contains("升级完成"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn installer_update_linux_opens_directory_preserves_app_and_allows_retry() {
+    use crate::app::{App, Message, message::ViewMessage};
+
+    let (_root, ready) = fixture(InstallerKind::Rpm);
+    assert!(!ready.installs_automatically());
+    let mut app = App::new().0;
+    let _ = app.update(Message::View(ViewMessage::OpenAppUpdateModal));
+    app.desktop_update.busy = true;
+    let _ = app.update(Message::View(ViewMessage::AppUpdatePrepared(Ok(ready.clone()))));
+    assert!(app.cli_install_modal_message.contains("Ubuntu/Debian"));
+    assert!(app.cli_install_modal_message.contains(".deb"));
+
+    let error = open_with(&ready, "linux", |path| {
+        assert_eq!(path, ready.path().parent().unwrap());
+        Err(anyhow::anyhow!("file manager unavailable"))
+    })
+    .unwrap_err();
+    assert!(error.to_string().contains("file manager unavailable"));
+    app.desktop_update.busy = true;
+    let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Err(error.to_string()))));
+    assert_eq!(app.cli_install_modal_title, "打开下载位置失败");
+    assert!(app.active_toast.is_some());
+    assert!(!app.desktop_update.busy);
+    assert!(!app.shutdown_requested);
+    assert!(app.desktop_update.ready.is_some());
+
+    let message = open_with(&ready, "linux", |path| {
+        assert!(path.is_dir());
+        assert_eq!(path, ready.path().parent().unwrap());
+        Ok(())
+    })
+    .unwrap();
+    assert!(message.contains("下载位置已打开"));
+    assert!(!message.contains("正在退出"));
+    app.desktop_update.busy = true;
+    app.main_window_id = Some(iced::window::Id::unique());
+    let _ = app.update(Message::View(ViewMessage::AppUpdateFinished(Ok(message))));
+    assert!(!app.shutdown_requested);
+    assert!(!app.desktop_update.busy);
+    assert!(app.desktop_update.ready.is_some());
+    assert!(ready.path().exists());
+
+    // Recheck the RPM before revealing its directory, just as for automatic installers.
+    std::fs::write(ready.path(), b"tampered").unwrap();
+    assert!(open_with(&ready, "linux", |_| panic!("must not open")).is_err());
 }
 #[cfg(unix)]
 #[test]
@@ -172,7 +226,15 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     )
     .await
     .unwrap();
-    for theme in [iced::Theme::Dark, iced::Theme::Light] {
+    for (kind, theme) in [
+        (InstallerKind::Dmg, iced::Theme::Dark),
+        (InstallerKind::Dmg, iced::Theme::Light),
+        (InstallerKind::Rpm, iced::Theme::Dark),
+        (InstallerKind::Rpm, iced::Theme::Light),
+    ] {
+        let (_root, ready) = fixture(kind);
+        app.cli_install_modal_message = ready.instructions();
+        app.desktop_update.ready = Some(ready);
         let mut element = crate::app::components::install_cli_modal::view_app_update(&app);
         let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 900.0));
         let mut tree = Tree::new(element.as_widget());

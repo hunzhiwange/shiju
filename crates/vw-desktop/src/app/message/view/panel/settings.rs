@@ -941,14 +941,14 @@ fn app_update_error(app: &mut App, error: String) -> Task<Message> {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-async fn fetch_latest_app_release(
+pub(super) async fn fetch_latest_app_release(
     source: update::UpdateSource,
 ) -> Result<update::DesktopRelease, String> {
     update::fetch_desktop_release(source).await.map_err(|e| format!("请求应用版本失败: {e}"))
 }
 
 #[cfg(target_arch = "wasm32")]
-async fn fetch_latest_app_release(
+pub(super) async fn fetch_latest_app_release(
     _source: vw_shared::update::UpdateSource,
 ) -> Result<vw_shared::update::DesktopRelease, String> {
     Err("当前平台不支持检测应用更新".into())

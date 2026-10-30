@@ -173,6 +173,14 @@ pub enum ViewMessage {
     CheckCliToolUpdateFinished(u64, vw_shared::update::UpdateSource, Result<String, String>),
     OpenAppUpdateModal,
     CheckAppUpdate,
+    AutoCheckAppUpdate,
+    AutoCheckAppUpdateFinished(
+        u64,
+        vw_shared::update::UpdateSource,
+        Result<vw_shared::update::DesktopRelease, String>,
+    ),
+    SkipAppUpdate,
+    SkipAppUpdateSaved(crate::app::desktop_update::SkippedRelease, Result<(), String>),
     CheckAppUpdateFinished(
         u64,
         vw_shared::update::UpdateSource,
@@ -798,6 +806,10 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::CheckCliToolUpdateFinished(..)
         | ViewMessage::OpenAppUpdateModal
         | ViewMessage::CheckAppUpdate
+        | ViewMessage::AutoCheckAppUpdate
+        | ViewMessage::AutoCheckAppUpdateFinished(..)
+        | ViewMessage::SkipAppUpdate
+        | ViewMessage::SkipAppUpdateSaved(..)
         | ViewMessage::CheckAppUpdateFinished(..)
         | ViewMessage::AppUpdateSourceSelected(_)
         | ViewMessage::AppUpdateSourceSaved(_)

@@ -59,6 +59,13 @@ JSON 顶层字段：`schema_version: 1`、`version: "X.Y.Z"`、
 清单不含 `binary_name`；原包是系统安装器输入，不能当作裸可执行文件覆盖当前程序。
 现有二进制替换更新路径不适用于 RPM/MSI/DMG，消费方必须明确支持安装器交接。
 
+Linux 桌面端下载并校验 RPM 后，提供“打开下载位置”操作，由用户自行退出应用、
+手动安装并重新启动；该操作只打开安装包所在目录，不启动安装器、不提权、不退出应用。
+打开目录失败时保留安装包并允许重试。Ubuntu/Debian 无法直接安装 RPM，应从
+[ShiJu GitHub Release](https://github.com/hunzhiwange/shiju/releases) 下载对应版本和
+架构的原生 DEB 包；当前六平台更新清单仍只包含 Linux RPM，不自动转换包格式。
+macOS DMG 与 Windows MSI 继续使用独立更新进程完成自动升级。
+
 后续发布器的不可变版本目录为 `agents/shiju-agent/releases/vX.Y.Z/`，
 唯一更新指针为 `agents/shiju-agent/latest/manifest.json`。
 必须先上传并回读校验全部版本对象，最后推进 latest；发布同版本不同内容必须失败。

@@ -248,10 +248,14 @@ impl App {
     fn apply_bootstrap_app_config(&mut self, cfg: serde_json::Value) {
         if !self.desktop_update.selected_by_user
             && !self.desktop_update.checking
+            && self.desktop_update.background_request.is_none()
+            && !self.desktop_update.saving_skip
             && !self.desktop_update.busy
             && self.desktop_update.release.is_none()
         {
+            let initial_check_started = self.desktop_update.initial_check_started;
             self.desktop_update = crate::app::desktop_update::DesktopUpdate::from_config(&cfg);
+            self.desktop_update.initial_check_started = initial_check_started;
         }
         self.auto_model =
             cfg.get("auto_model").and_then(|v| v.as_bool()).unwrap_or(self.auto_model);
@@ -564,6 +568,11 @@ impl App {
             Message::StartupAppConfigLoaded(result) | Message::BootstrapAppConfig(result) => {
                 if let Ok(cfg) = result {
                     self.apply_bootstrap_app_config(cfg);
+                }
+                #[cfg(not(target_arch = "wasm32"))]
+                if !self.desktop_update.initial_check_started {
+                    self.desktop_update.initial_check_started = true;
+                    return Task::done(Message::View(message::ViewMessage::AutoCheckAppUpdate));
                 }
                 Task::none()
             }

@@ -8,6 +8,7 @@ mod external;
 mod popovers;
 mod settings;
 mod tabs;
+mod update_notifications;
 mod usage;
 mod web;
 pub(crate) mod work_browser;
@@ -25,6 +26,10 @@ use iced::Task;
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
     match message {
+        ViewMessage::AutoCheckAppUpdate
+        | ViewMessage::AutoCheckAppUpdateFinished(..)
+        | ViewMessage::SkipAppUpdate
+        | ViewMessage::SkipAppUpdateSaved(..) => update_notifications::update(app, message),
         #[cfg(not(target_arch = "wasm32"))]
         msg @ ViewMessage::AppUpdatePrepared(_) => settings::update(app, msg),
         ViewMessage::ToggleWorkspaceModePopover

@@ -258,6 +258,21 @@ fn view_inner<'a>(
         } else {
             action_row
         };
+        let action_row = if use_app_update_action
+            && show_install_action
+            && let Some(state) = desktop_update
+            && state.notification_release().is_some()
+        {
+            action_row.push(
+                button("跳过此版本")
+                    .on_press_maybe((!is_checking && !state.saving_skip)
+                        .then_some(Message::View(message::ViewMessage::SkipAppUpdate)))
+                    .padding([8, 16])
+                    .style(rounded_action_btn_style),
+            )
+        } else {
+            action_row
+        };
         container(
             action_row.push(
                 button("关闭")

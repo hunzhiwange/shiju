@@ -259,6 +259,9 @@ impl App {
 
         Subscription::batch(vec![
             agent,
+            #[cfg(not(target_arch = "wasm32"))]
+            iced::time::every(crate::app::desktop_update::UPDATE_CHECK_INTERVAL)
+                .map(|_| Message::View(message::ViewMessage::AutoCheckAppUpdate)),
             #[cfg(target_arch = "wasm32")]
             crate::app::wasm_ime::subscription(),
             #[cfg(target_os = "macos")]

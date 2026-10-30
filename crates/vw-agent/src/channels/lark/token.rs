@@ -176,7 +176,8 @@ pub(crate) fn ensure_lark_send_success(
     }
 
     // 检查飞书业务错误码（0 表示成功）
-    let code = extract_lark_response_code(body).unwrap_or(0);
+    let code = extract_lark_response_code(body)
+        .ok_or_else(|| anyhow::anyhow!("Lark send unconfirmed {context}: missing response code"))?;
     if code != 0 {
         let sanitized = sanitize_lark_body(body);
         anyhow::bail!("Lark send failed {context}: code={code}, body={sanitized}");
@@ -644,11 +645,12 @@ impl LarkChannel {
             .header("Authorization", format!("Bearer {token}"))
             .header("Content-Type", "application/json; charset=utf-8")
             .json(body)
+            .timeout(Duration::from_secs(30))
             .send()
             .await?;
         let status = resp.status();
         // 获取原始文本响应
-        let raw = resp.text().await.unwrap_or_default();
+        let raw = resp.text().await?;
         // 尝试解析为 JSON，失败则包装为 raw 字段
         let parsed = serde_json::from_str::<serde_json::Value>(&raw)
             .unwrap_or_else(|_| serde_json::json!({ "raw": raw }));

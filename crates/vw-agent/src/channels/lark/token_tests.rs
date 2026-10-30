@@ -87,10 +87,10 @@ fn ensure_lark_send_success_rejects_status_and_business_errors() {
 }
 
 #[test]
-fn ensure_lark_send_success_defaults_missing_code_to_success() {
+fn markdown_delivery_lark_requires_explicit_success_code() {
     assert!(
         ensure_lark_send_success(reqwest::StatusCode::CREATED, &serde_json::json!({}), "ctx")
-            .is_ok()
+            .is_err()
     );
 }
 

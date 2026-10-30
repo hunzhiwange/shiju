@@ -301,3 +301,279 @@ async fn try_add_ack_reaction_keeps_failure_paths_best_effort() {
     cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
     ch.try_add_ack_reaction("om_1", "OK").await;
 }
+
+fn delivery_markdown() -> String {
+    ["A", "B", "C"]
+        .iter()
+        .map(|label| format!("```rust\n{label}{}\n```\n\n", "x".repeat(1800)))
+        .collect()
+}
+
+fn delivery_text(request: &str) -> String {
+    let body = request_json_body(request);
+    let content: serde_json::Value =
+        serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+    if body["msg_type"] == "interactive" {
+        content["body"]["elements"][0]["content"].as_str().unwrap().to_string()
+    } else {
+        content["zh_cn"]["content"][0][0]["text"].as_str().unwrap().to_string()
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_chunks_preserve_rendering_and_order() {
+    let mut server =
+        TestServer::spawn((0..3).map(|_| MockResponse::json(200, r#"{"code":0}"#)).collect()).await;
+    let ch = test_channel(&server.base_url);
+    cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+    ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await.unwrap();
+    for label in ["A", "B", "C"] {
+        let request = server.next_request().await;
+        let text = delivery_text(&request);
+        assert!(text.len() <= 3000, "each rendered chunk must respect its byte budget");
+        assert!(text.starts_with(&format!("```rust\n{label}")));
+        assert!(text.trim_end().ends_with("```"));
+        assert_eq!(request_json_body(&request)["msg_type"], "interactive");
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_refresh_retries_only_current_chunk() {
+    let mut server = TestServer::spawn(vec![
+        MockResponse::json(200, r#"{"code":0}"#),
+        MockResponse::json(200, r#"{"code":99991663}"#),
+        MockResponse::json(200, r#"{"code":0,"tenant_access_token":"fresh-token","expire":180}"#),
+        MockResponse::json(200, r#"{"code":0}"#),
+        MockResponse::json(200, r#"{"code":0}"#),
+    ])
+    .await;
+    let ch = test_channel(&server.base_url);
+    cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+    ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await.unwrap();
+    let a = server.next_request().await;
+    let b = server.next_request().await;
+    assert_eq!(request_path(&server.next_request().await), "/auth/v3/tenant_access_token/internal");
+    let retry_b = server.next_request().await;
+    let c = server.next_request().await;
+    assert!(delivery_text(&a).starts_with("```rust\nA"));
+    assert!(delivery_text(&b).starts_with("```rust\nB"));
+    assert_eq!(request_json_body(&b), request_json_body(&retry_b));
+    assert!(delivery_text(&c).starts_with("```rust\nC"));
+    assert_eq!(header_value(&retry_b, "authorization").as_deref(), Some("Bearer fresh-token"));
+    assert_eq!(header_value(&c, "authorization").as_deref(), Some("Bearer fresh-token"));
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_unknown_result_does_not_replay() {
+    let mut server = TestServer::spawn(vec![
+        MockResponse::json(200, r#"{"code":0}"#),
+        MockResponse::text(200, "not-json"),
+    ])
+    .await;
+    let ch = test_channel(&server.base_url);
+    cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+    let error = ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await.unwrap_err();
+    let progress = error
+        .downcast_ref::<crate::app::agent::channels::outbound_delivery::ChannelDeliveryError>()
+        .expect("structured progress");
+    assert_eq!(progress.confirmed_parts, 1);
+    assert_eq!(progress.total_parts, 3);
+    assert_eq!(progress.failed_part_index, 1);
+    assert_eq!(
+        progress.kind,
+        crate::app::agent::channels::outbound_delivery::DeliveryFailureKind::Unknown
+    );
+    assert!(delivery_text(&server.next_request().await).starts_with("```rust\nA"));
+    assert!(delivery_text(&server.next_request().await).starts_with("```rust\nB"));
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_second_part_failure_stops_remaining() {
+    use crate::app::agent::channels::outbound_delivery::{
+        ChannelDeliveryError, DeliveryFailureKind,
+    };
+    for (status, body, kind) in [
+        (429, r#"{"code":99991400}"#, DeliveryFailureKind::Rejected),
+        (500, r#"{"code":99991663}"#, DeliveryFailureKind::Unknown),
+        (200, r#"{"code":12345}"#, DeliveryFailureKind::Rejected),
+        (200, r#"{}"#, DeliveryFailureKind::Unknown),
+        (200, r#"{"code":"0"}"#, DeliveryFailureKind::Unknown),
+    ] {
+        let mut server = TestServer::spawn(vec![
+            MockResponse::json(200, r#"{"code":0}"#),
+            MockResponse::json(status, body),
+            MockResponse::json(200, r#"{"code":0}"#),
+        ])
+        .await;
+        let ch = test_channel(&server.base_url);
+        cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+        let error = ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await.unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(
+            (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+            (1, 3, 1)
+        );
+        assert_eq!(progress.kind, kind);
+        assert!(delivery_text(&server.next_request().await).starts_with("```rust\nA"));
+        assert!(delivery_text(&server.next_request().await).starts_with("```rust\nB"));
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), server.next_request()).await.is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_preflight_checks_every_final_payload() {
+    use crate::app::agent::channels::outbound_delivery::{
+        ChannelDeliveryError, DeliveryFailureKind,
+    };
+    for message in [
+        SendMessage::new(format!("intro\n\n```rust\n{}\n```", "x".repeat(4000)), "oc_chat"),
+        SendMessage::new(delivery_markdown(), "o".repeat(17000)),
+    ] {
+        let mut server = TestServer::spawn(vec![MockResponse::json(200, r#"{"code":0}"#)]).await;
+        let ch = test_channel(&server.base_url);
+        cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+        let error = ch.send(&message).await.unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(progress.confirmed_parts, 0);
+        assert_eq!(progress.failed_part_index, 0);
+        assert_eq!(progress.kind, DeliveryFailureKind::NotSent);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), server.next_request()).await.is_err()
+        );
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_transport_failure_and_timeout_stop_current_part() {
+    use crate::app::agent::channels::outbound_delivery::{
+        ChannelDeliveryError, DeliveryFailureKind,
+    };
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    for mode in ["disconnect", "truncated", "timeout"] {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let ch = test_channel(&format!("http://{}", listener.local_addr().unwrap()));
+        cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+        let (captured_tx, mut captured_rx) = tokio::sync::mpsc::channel(2);
+        let (release_tx, release_rx) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            for index in 0..2 {
+                let (mut socket, _) =
+                    tokio::time::timeout(Duration::from_secs(2), listener.accept())
+                        .await
+                        .unwrap()
+                        .unwrap();
+                let request = tokio::time::timeout(Duration::from_secs(2), async {
+                    let mut bytes = Vec::new();
+                    loop {
+                        let mut buffer = [0u8; 4096];
+                        let count = socket.read(&mut buffer).await.unwrap();
+                        assert_ne!(count, 0);
+                        bytes.extend_from_slice(&buffer[..count]);
+                        if let Some(end) = bytes.windows(4).position(|b| b == b"\r\n\r\n") {
+                            let headers = String::from_utf8_lossy(&bytes[..end]);
+                            let length: usize =
+                                header_value(&headers, "content-length").unwrap().parse().unwrap();
+                            if bytes.len() >= end + 4 + length {
+                                break;
+                            }
+                        }
+                    }
+                    String::from_utf8(bytes).unwrap()
+                })
+                .await
+                .unwrap();
+                captured_tx.send(request).await.unwrap();
+                if index == 0 {
+                    socket.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 10\r\nconnection: close\r\n\r\n{\"code\":0}").await.unwrap();
+                } else {
+                    if mode == "truncated" {
+                        socket.write_all(b"HTTP/1.1 200 OK\r\ncontent-length: 100\r\nconnection: close\r\n\r\n{\"code\":0}").await.unwrap();
+                    }
+                    if mode == "timeout" {
+                        let _ = release_rx.await;
+                    }
+                    drop(socket);
+                    break;
+                }
+            }
+            assert!(
+                tokio::time::timeout(Duration::from_millis(50), listener.accept()).await.is_err()
+            );
+        });
+        let send = tokio::spawn(async move {
+            ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await
+        });
+        for label in ["A", "B"] {
+            let request = tokio::time::timeout(Duration::from_secs(2), captured_rx.recv())
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(delivery_text(&request).starts_with(&format!("```rust\n{label}")));
+        }
+        if mode == "timeout" {
+            // Advance the real request timer only after the server has received B.
+            tokio::time::pause();
+            tokio::time::advance(Duration::from_secs(31)).await;
+            tokio::time::resume();
+        }
+        let error =
+            tokio::time::timeout(Duration::from_secs(2), send).await.unwrap().unwrap().unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(
+            (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+            (1, 3, 1)
+        );
+        assert_eq!(progress.kind, DeliveryFailureKind::Unknown);
+        let _ = release_tx.send(());
+        tokio::time::timeout(Duration::from_secs(2), server).await.unwrap().unwrap();
+    }
+}
+
+#[tokio::test]
+async fn markdown_delivery_lark_refresh_failure_preserves_confirmed_prefix() {
+    use crate::app::agent::channels::outbound_delivery::{
+        ChannelDeliveryError, DeliveryFailureKind,
+    };
+    for refresh_fails in [false, true] {
+        let mut responses = vec![
+            MockResponse::json(200, r#"{"code":0}"#),
+            MockResponse::json(200, r#"{"code":99991663}"#),
+        ];
+        if refresh_fails {
+            responses.push(MockResponse::json(400, r#"{"code":12345,"msg":"fixture-secret"}"#));
+        } else {
+            responses.push(MockResponse::json(
+                200,
+                r#"{"code":0,"tenant_access_token":"fresh-token","expire":180}"#,
+            ));
+            responses.push(MockResponse::json(200, r#"{"code":99991663,"msg":"fixture-secret"}"#));
+        }
+        responses.push(MockResponse::json(200, r#"{"code":0}"#));
+        let mut server = TestServer::spawn(responses).await;
+        let ch = test_channel(&server.base_url);
+        cache_token(&ch, "cached-token", Instant::now() + Duration::from_secs(60)).await;
+        let error = ch.send(&SendMessage::new(delivery_markdown(), "oc_chat")).await.unwrap_err();
+        let progress = error.downcast_ref::<ChannelDeliveryError>().unwrap();
+        assert_eq!(
+            (progress.confirmed_parts, progress.total_parts, progress.failed_part_index),
+            (1, 3, 1)
+        );
+        assert_eq!(progress.kind, DeliveryFailureKind::Rejected);
+        assert!(!format!("{error:?}").contains("fixture-secret"));
+        assert!(delivery_text(&server.next_request().await).starts_with("```rust\nA"));
+        let b = server.next_request().await;
+        assert!(delivery_text(&b).starts_with("```rust\nB"));
+        assert_eq!(
+            request_path(&server.next_request().await),
+            "/auth/v3/tenant_access_token/internal"
+        );
+        if !refresh_fails {
+            assert_eq!(request_json_body(&b), request_json_body(&server.next_request().await));
+        }
+        assert!(
+            tokio::time::timeout(Duration::from_millis(50), server.next_request()).await.is_err()
+        );
+    }
+}

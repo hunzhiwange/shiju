@@ -486,43 +486,64 @@ impl Channel for LarkChannel {
     /// - 如果发送请求失败
     /// - 如果令牌刷新后仍然发送失败
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
-        // 获取租户访问令牌
-        let token = self.get_tenant_access_token().await?;
-        let url = self.send_message_url();
-
-        let formatted = formatting::format_lark_message(&message.content);
-        let body = serde_json::json!({
-            "receive_id": message.recipient,
-            "msg_type": formatted.msg_type,
-            "content": formatted.content,
-        });
-
-        // 首次发送尝试
-        let (status, response) = self.send_text_once(&url, &token, &body).await?;
-
-        // 检查是否需要刷新令牌
-        if should_refresh_lark_tenant_token(status, &response) {
-            // 令牌已过期或无效，使缓存失效并重试
-            self.invalidate_token().await;
-            let new_token = self.get_tenant_access_token().await?;
-            let (retry_status, retry_response) =
-                self.send_text_once(&url, &new_token, &body).await?;
-
-            // 检查重试后是否仍需要刷新令牌（异常情况）
-            if should_refresh_lark_tenant_token(retry_status, &retry_response) {
-                let sanitized = token::sanitize_lark_body(&retry_response);
-                anyhow::bail!(
-                    "Lark send failed after token refresh: status={retry_status}, body={sanitized}"
-                );
-            }
-
-            // 确保重试成功
-            ensure_lark_send_success(retry_status, &retry_response, "after token refresh")?;
+        use super::outbound_delivery::{ChannelDeliveryError, DeliveryFailureKind};
+        let bodies = formatting::prepare_lark_message_bodies(&message.content, &message.recipient)
+            .map_err(|_| ChannelDeliveryError {
+                confirmed_parts: 0,
+                total_parts: 0,
+                failed_part_index: 0,
+                kind: DeliveryFailureKind::NotSent,
+            })?;
+        if bodies.is_empty() {
             return Ok(());
         }
-
-        // 首次发送成功
-        ensure_lark_send_success(status, &response, "without token refresh")?;
+        let error = |index, kind| ChannelDeliveryError {
+            confirmed_parts: index,
+            total_parts: bodies.len(),
+            failed_part_index: index,
+            kind,
+        };
+        let token_timeout = std::time::Duration::from_secs(30);
+        let mut token = tokio::time::timeout(token_timeout, self.get_tenant_access_token())
+            .await
+            .map_err(|_| error(0, DeliveryFailureKind::NotSent))?
+            .map_err(|_| error(0, DeliveryFailureKind::NotSent))?;
+        let url = self.send_message_url();
+        for (index, body) in bodies.iter().enumerate() {
+            let mut retried = false;
+            loop {
+                let (status, response) = self
+                    .send_text_once(&url, &token, body)
+                    .await
+                    .map_err(|_| error(index, DeliveryFailureKind::Unknown))?;
+                // Server errors are ambiguous even if their body mentions a token.
+                if !status.is_server_error()
+                    && !retried
+                    && should_refresh_lark_tenant_token(status, &response)
+                {
+                    self.invalidate_token().await;
+                    token = tokio::time::timeout(token_timeout, self.get_tenant_access_token())
+                        .await
+                        .map_err(|_| error(index, DeliveryFailureKind::Rejected))?
+                        .map_err(|_| error(index, DeliveryFailureKind::Rejected))?;
+                    retried = true;
+                    continue;
+                }
+                if ensure_lark_send_success(status, &response, "message delivery").is_err() {
+                    let kind = if status.is_client_error()
+                        || (status.is_success()
+                            && token::extract_lark_response_code(&response)
+                                .is_some_and(|code| code != 0))
+                    {
+                        DeliveryFailureKind::Rejected
+                    } else {
+                        DeliveryFailureKind::Unknown
+                    };
+                    return Err(error(index, kind).into());
+                }
+                break;
+            }
+        }
         Ok(())
     }
 

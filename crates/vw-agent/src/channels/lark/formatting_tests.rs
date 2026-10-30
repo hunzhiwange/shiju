@@ -55,3 +55,56 @@ fn lark_formatter_serializes_special_characters() {
         assert_eq!(text, markdown);
     }
 }
+
+#[test]
+fn markdown_delivery_lark_preflight_accounts_for_soft_breaks_and_double_json() {
+    use super::formatting::prepare_lark_message_bodies;
+    for source in ["a\nb\n".repeat(1000), "\0".repeat(6000), "中😀\\\"".repeat(1000)] {
+        let bodies = prepare_lark_message_bodies(&source, "oc_chat").unwrap();
+        assert!(bodies.len() > 1);
+        let mut rebuilt = String::new();
+        for body in bodies {
+            assert!(serde_json::to_vec(&body).unwrap().len() <= 16 * 1024);
+            let content: Value = serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+            let text = content["zh_cn"]["content"][0][0]["text"].as_str().unwrap();
+            assert!(text.len() <= 3000);
+            rebuilt.push_str(text);
+        }
+        let expected = payload(&source, "post");
+        assert_eq!(rebuilt, expected["zh_cn"]["content"][0][0]["text"]);
+    }
+}
+
+#[test]
+fn markdown_delivery_lark_cards_preserve_table_rows_and_fenced_code() {
+    use super::formatting::prepare_lark_message_bodies;
+    use pulldown_cmark::{Event, Options, Parser, Tag};
+    let table = format!(
+        "| key | value |\n| --- | --- |\n{}",
+        (0..80).map(|i| format!("| {i} | {} |\n", "中".repeat(20))).collect::<String>()
+    );
+    let bodies = prepare_lark_message_bodies(&table, "oc_chat").unwrap();
+    assert!(bodies.len() > 1);
+    let mut rows = Vec::new();
+    for body in bodies {
+        assert_eq!(body["msg_type"], "interactive");
+        let content: Value = serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+        let text = content["body"]["elements"][0]["content"].as_str().unwrap();
+        assert!(text.len() <= 3000);
+        assert_eq!(
+            Parser::new_ext(text, Options::ENABLE_TABLES)
+                .filter(|e| matches!(e, Event::Start(Tag::Table(_))))
+                .count(),
+            1
+        );
+        rows.extend(text.lines().skip(2).map(str::to_string));
+    }
+    assert_eq!(rows, table.lines().skip(2).collect::<Vec<_>>());
+    let short = "第一行\n第二行\n\n```rust\nready()\n```";
+    let body = prepare_lark_message_bodies(short, "oc_chat").unwrap().remove(0);
+    let content: Value = serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+    assert_eq!(content["body"]["elements"][0]["content"], short);
+    let body = prepare_lark_message_bodies("```rust\nready()", "oc_chat").unwrap().remove(0);
+    let content: Value = serde_json::from_str(body["content"].as_str().unwrap()).unwrap();
+    assert_eq!(content["body"]["elements"][0]["content"], "```rust\nready()\n```");
+}

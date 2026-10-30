@@ -216,7 +216,7 @@ impl SkillTool {
     ///
     /// # 权限处理流程
     ///
-    /// 1. 获取当前代理的权限规则集
+    /// 1. 完全访问请求直接允许；否则获取当前代理的权限规则集
     /// 2. 评估 "skill" 类型的权限规则
     /// 3. 如果启用了 force_prompt_on_allow 且规则为通配符允许，则强制转为 Ask 模式
     /// 4. 根据评估结果执行：
@@ -233,6 +233,10 @@ impl SkillTool {
     /// - 用户选择拒绝
     /// - 配置更新失败
     async fn ask_skill_permission(&self, name: &str) -> Result<(), String> {
+        // 完全访问由请求上下文授权，不能再被全局代理的交互审批规则覆盖。
+        if current_tool_use_context().is_some_and(|context| context.full_access_enabled()) {
+            return Ok(());
+        }
         let agent_name = agent::default_agent().await.unwrap_or_else(|_| "main".to_string());
         let ruleset = match agent::permission_rules(&agent_name).await {
             Some(ruleset) => ruleset,
@@ -569,6 +573,9 @@ fn accessible_skills(
     skills: Vec<skills::Skill>,
     context: Option<&ToolUseContext>,
 ) -> Vec<skills::Skill> {
+    if context.is_some_and(ToolUseContext::full_access_enabled) {
+        return skills;
+    }
     let agent_name = block_on(agent::default_agent()).unwrap_or_else(|_| "main".to_string());
     let ruleset = block_on(agent::permission_rules(&agent_name))
         .or_else(|| block_on(agent::permission_rules("main")))

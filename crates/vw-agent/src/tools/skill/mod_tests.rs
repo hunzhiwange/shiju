@@ -32,6 +32,110 @@ fn expert_package_fixture() -> (tempfile::TempDir, Arc<crate::config::Config>) {
 }
 
 #[tokio::test]
+async fn full_access_loads_model_selected_skill_without_permission_prompt() {
+    let (workspace, config) = expert_package_fixture();
+    let context = Arc::new(
+        ToolUseContext::new("full-access-skill-test", None).with_full_access_enabled(true),
+    );
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::app::agent::security::SecurityPolicy::default()),
+        "full-access-skill-test".to_string(),
+        true,
+        workspace.path().to_path_buf(),
+        config,
+    )
+    .with_skill_directory_context(&context);
+    assert!(tool.description().contains("expert-main"));
+    let result = tokio::time::timeout(
+        std::time::Duration::from_secs(5),
+        scope_tool_use_context(context, tool.invoke(json!({"skill": "expert-main"}))),
+    )
+    .await
+    .expect("full access must not wait for skill approval");
+    assert_eq!(result.data["success"], true, "{:?}", result.data);
+    assert!(result.extra_messages[0].content.as_str().unwrap().contains("MAIN_WORKFLOW_ONLY"));
+}
+
+#[tokio::test]
+async fn full_access_continuation_loads_skills_after_missing_skill_without_reselection() {
+    use crate::app::agent::providers::ChatMessage;
+
+    let (workspace, config) = expert_package_fixture();
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::app::agent::security::SecurityPolicy::default()),
+        "continuation-skill-test".to_string(),
+        true,
+        workspace.path().to_path_buf(),
+        config,
+    );
+    // 复现历史中选过技能、当前仅发送“继续”的路径；完全访问不依赖再次点名。
+    let context = Arc::new(
+        ToolUseContext::new("continuation-skill-test", None)
+            .with_full_access_enabled(true)
+            .with_messages_view(vec![
+                ChatMessage::user("使用 expert-main 技能"),
+                ChatMessage::assistant("技能加载失败"),
+                ChatMessage::user("继续"),
+            ]),
+    );
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        scope_tool_use_context(context.clone(), async {
+            assert!(!skill_request_is_explicit("expert-main"));
+            let missing = tool.invoke(json!({"skill": "missing-skill"})).await;
+            assert_eq!(missing.data["success"], false);
+            assert!(missing.data["error"].as_str().unwrap().contains("未找到技能"));
+        })
+        .await;
+        for name in ["expert-main", "expert-child", "expert-main"] {
+            let result = scope_tool_use_context(
+                context.clone(),
+                tool.invoke(json!({"skill": name})),
+            )
+            .await;
+            assert_eq!(result.data["success"], true, "{:?}", result.data);
+        }
+    })
+    .await
+    .expect("continuation must not wait for repeated skill approval");
+}
+
+#[tokio::test]
+async fn full_access_preserves_delegate_and_model_invocation_restrictions() {
+    let (workspace, config) = expert_package_fixture();
+    std::fs::write(
+        workspace.path().join("skills/expert-main/SKILL.md"),
+        "---\nname: expert-main\ndescription: Restricted fixture\ndisable-model-invocation: true\n---\n# Restricted\n",
+    )
+    .expect("restricted skill");
+    let context = Arc::new(
+        ToolUseContext::new("full-access-restricted-skill-test", None)
+            .with_full_access_enabled(true)
+            .with_delegate_skill_policy(
+                vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                ["expert-main"],
+            ),
+    );
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::app::agent::security::SecurityPolicy::default()),
+        "full-access-restricted-skill-test".to_string(),
+        false,
+        workspace.path().to_path_buf(),
+        config,
+    )
+    .with_skill_directory_context(&context);
+    assert!(!tool.description().contains("expert-child"));
+    scope_tool_use_context(context, async {
+        let main = tool.invoke(json!({"skill": "expert-main"})).await;
+        assert_eq!(main.data["success"], false);
+        assert!(main.data["error"].as_str().unwrap().contains("禁止模型调用"));
+        let child = tool.invoke(json!({"skill": "expert-child"})).await;
+        assert_eq!(child.data["success"], false);
+        assert!(child.data["error"].as_str().unwrap().contains("未找到技能"));
+    })
+    .await;
+}
+
+#[tokio::test]
 async fn expert_package_main_skill_is_explicitly_invocable() {
     let (workspace, config) = expert_package_fixture();
     let loaded = crate::app::agent::skills::load_skills_full_with_config(workspace.path(), &config);

@@ -23,11 +23,6 @@ pub(crate) fn tool_fingerprint(name: &str, input_sanitized: &str, session_messag
     h.finish()
 }
 
-/// 执行 is_streaming_tool 操作，并返回调用方需要的结果。
-pub(crate) fn is_streaming_tool(name: &str) -> bool {
-    matches!(name, "bash" | "shell" | "grep" | "read" | "file_read" | "pdf_read" | "glob" | "ls")
-}
-
 /// 执行 sanitize_tool_input 操作，并返回调用方需要的结果。
 pub(crate) fn sanitize_tool_input(name: &str, input: &str) -> String {
     sanitize_tool_input_with_mode(name, input, ToolInputSanitizeMode::Log)

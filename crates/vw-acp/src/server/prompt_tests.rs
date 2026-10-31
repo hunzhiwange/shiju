@@ -123,6 +123,7 @@ impl SessionBackend for PromptBackend {
                     request_id: "permission-1".into(),
                     call_id: "call-1".into(),
                     title: "fixture".into(),
+                    kind: agent_client_protocol::ToolKind::Other,
                     raw_input: serde_json::Value::Null,
                     options: Vec::new(),
                     response,
@@ -174,6 +175,7 @@ async fn prompt_maps_text_resource_links_and_backend_events() {
             BackendEvent::ToolStart {
                 call_id: "call-1".to_string(),
                 title: "shell".to_string(),
+                kind: agent_client_protocol::ToolKind::Execute,
                 raw_input: serde_json::json!({"command": "pwd"}),
             },
             BackendEvent::ToolUpdate {

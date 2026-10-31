@@ -3,7 +3,7 @@
 use agent_client_protocol::{
     ContentBlock, ContentChunk, Error, Plan, PlanEntry, PlanEntryPriority, PlanEntryStatus,
     RequestPermissionRequest, RequestPermissionResponse, SessionNotification, SessionUpdate,
-    TextContent, ToolCall, ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields,
+    TextContent, ToolCall, ToolCallStatus, ToolCallUpdate, ToolCallUpdateFields, ToolKind,
 };
 use async_trait::async_trait;
 
@@ -68,6 +68,8 @@ pub enum BackendEvent {
         call_id: String,
         /// 展示标题。
         title: String,
+        /// 来自宿主工具身份的明确分类，不依赖客户端猜测标题。
+        kind: ToolKind,
         /// 已脱敏输入。
         raw_input: serde_json::Value,
     },
@@ -163,9 +165,14 @@ pub(crate) fn session_update(event: BackendEvent) -> Result<Option<SessionUpdate
         BackendEvent::Text(text) => Ok(Some(SessionUpdate::AgentMessageChunk(ContentChunk::new(
             ContentBlock::Text(TextContent::new(text)),
         )))),
-        BackendEvent::ToolStart { call_id, title, raw_input } => Ok(Some(SessionUpdate::ToolCall(
-            ToolCall::new(call_id, title).status(ToolCallStatus::InProgress).raw_input(raw_input),
-        ))),
+        BackendEvent::ToolStart { call_id, title, kind, raw_input } => {
+            Ok(Some(SessionUpdate::ToolCall(
+                ToolCall::new(call_id, title)
+                    .kind(kind)
+                    .status(ToolCallStatus::InProgress)
+                    .raw_input(raw_input),
+            )))
+        }
         BackendEvent::ToolUpdate { call_id, status, content, raw_output }
         | BackendEvent::ToolComplete { call_id, status, content, raw_output } => {
             Ok(Some(tool_update(call_id, status, content, raw_output)))

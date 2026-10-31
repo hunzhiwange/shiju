@@ -54,12 +54,34 @@ class ProviderHandler(BaseHTTPRequestHandler):
             )
         users = [item for item in body.get("messages", []) if item.get("role") == "user"]
         slow = "SLOW_CANCEL" in json.dumps(users[-1:])
+        marker = next((name for name in ("TOOL_ALLOW", "TOOL_REJECT", "TOOL_INVALID",
+                       "TOOL_CANCELLED", "TOOL_RPC_ERROR", "TOOL_DISCONNECT", "TOOL_CANCEL",
+                       "TOOL_READ", "TOOL_FAIL") if name in json.dumps(users[-1:])), None)
+        last_user = max((i for i, item in enumerate(body.get("messages", []))
+                         if item.get("role") == "user"), default=-1)
+        results = [item for item in body.get("messages", [])[last_user + 1:]
+                   if item.get("role") == "tool"]
         text = f"ACK_{body['model']};USERS={len(users)};SLOW={slow}"
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         try:
+            if marker and not results:
+                read = marker in ("TOOL_READ", "TOOL_FAIL")
+                arguments = ({"path": "fixture.txt" if marker == "TOOL_READ" else "missing.txt"}
+                             if read else {"path": f"{marker}.txt", "content": marker})
+                tool = "file_read" if read else "file_write"
+                self.chunk(body["model"], {"tool_calls": [{"index": 0, "id": f"call_{marker}",
+                           "type": "function", "function": {
+                               "name": tool,
+                               "arguments": json.dumps(arguments)}}]}, None)
+                self.chunk(body["model"], {}, "tool_calls")
+                self.wfile.write(b"data: [DONE]\n\n")
+                self.wfile.flush()
+                return
+            if results:
+                text = "TOOL_RESULT=" + json.dumps(results, ensure_ascii=False)
             for content in ([text] + [" slow"] * 200 if slow else [text]):
                 self.chunk(body["model"], {"content": content}, None)
                 if slow:
@@ -82,6 +104,7 @@ class ProviderHandler(BaseHTTPRequestHandler):
 
 class Process:
     def __init__(self, command, cwd, env, log):
+        self.transcript = log.with_suffix(".frames.json")
         self.log = log.open("w")
         self.child = subprocess.Popen(command, cwd=cwd, env=env, stdin=subprocess.PIPE,
                                       stdout=subprocess.PIPE, stderr=self.log, text=True, bufsize=1)
@@ -117,7 +140,7 @@ class Process:
         while True:
             frame = self.frames.get(timeout=max(0.01, deadline - time.monotonic()))
             require("eof" not in frame and "invalid_stdout" not in frame, str(frame))
-            if frame.get("id") == request_id:
+            if "method" not in frame and frame.get("id") == request_id:
                 require("error" not in frame, str(frame))
                 return frame["result"], events
             events.append(frame)
@@ -133,6 +156,7 @@ class Process:
             self.child.kill()
             self.child.wait()
         self.reader.join(timeout=2)
+        self.transcript.write_text(json.dumps(self.received, ensure_ascii=False, indent=2))
         self.log.close()
 
 
@@ -150,7 +174,8 @@ def prepare(output, port):
            if key in ("PATH", "TMPDIR", "LANG", "LC_ALL", "SHELL", "USER", "LOGNAME", "SYSTEMROOT")}
     env.update(HOME=str(home), VIBEWINDOW_CONFIG_DIR=str(home / ".shiju-agent-dev"),
                ACP_FIXTURE_KEY="fixture-key", RUST_LOG="warn")
-    config = {"workspace_dir": str(cwd), "reliability": {"provider_retries": 0}, "providers": {
+    config = {"reliability": {"provider_retries": 0},
+              "autonomy": {"level": "supervised", "always_ask": ["file_write"]}, "providers": {
         "fixture": {"name": "Fixture", "api": f"http://127.0.0.1:{port}/v1", "adapter": "openai",
                     "env": ["ACP_FIXTURE_KEY"], "models": {
                         model: {"status": "active", "tool_call": True,
@@ -164,6 +189,116 @@ def prepare(output, port):
         connection.execute("INSERT INTO system_configs VALUES (?,?,?,?)",
                            ("10000", "100000000", json.dumps(config), 1))
     return env, cwd
+
+
+def tool_scenarios(shiju, output, env, cwd):
+    clients = []
+    (cwd / "fixture.txt").write_text("ACP_TOOL_FIXTURE")
+
+    def connect():
+        client = Process([str(shiju), "acp"], cwd, env, output / f"tools-{len(clients)}.log")
+        clients.append(client)
+        client.call("initialize", {"protocolVersion": 1, "clientCapabilities": {}})
+        return client
+
+    def prompt(client, sid, marker, on_frame=None):
+        return client.call("session/prompt", {"sessionId": sid, "prompt": [
+            {"type": "text", "text": marker}]}, on_frame=on_frame)
+
+    try:
+        for marker in ("TOOL_ALLOW", "TOOL_REJECT", "TOOL_INVALID", "TOOL_CANCELLED",
+                       "TOOL_RPC_ERROR", "TOOL_READ", "TOOL_FAIL", "TOOL_CANCEL",
+                       "TOOL_DISCONNECT"):
+            client = connect()
+            created, _ = client.call("session/new", {"cwd": str(cwd), "mcpServers": []})
+            sid = created["sessionId"]
+            client.call("session/set_model", {"sessionId": sid, "modelId": "fixture/alpha"})
+            approvals = []
+
+            def decide(frame):
+                if frame.get("method") != "session/request_permission":
+                    return
+                approvals.append(frame)
+                require(frame["params"]["sessionId"] == sid, "permission session identity")
+                require(frame["params"]["toolCall"]["toolCallId"] == f"call_{marker}",
+                        "permission tool identity")
+                preceding = client.received[:client.received.index(frame)]
+                require(any(item.get("params", {}).get("update", {}).get("sessionUpdate") == "tool_call"
+                            and item["params"]["update"].get("toolCallId") == f"call_{marker}"
+                            for item in preceding), "tool start precedes permission request")
+                require(not (cwd / f"{marker}.txt").exists(), "no write before approval")
+                if marker == "TOOL_DISCONNECT":
+                    client.child.stdin.close()
+                    return
+                if marker == "TOOL_CANCEL":
+                    client.send("session/cancel", {"sessionId": sid}, notification=True)
+                    return
+                response = {"jsonrpc": "2.0", "id": frame["id"]}
+                if marker == "TOOL_RPC_ERROR":
+                    response["error"] = {"code": -32603, "message": "fixture unavailable"}
+                else:
+                    outcome = ({"outcome": "cancelled"} if marker == "TOOL_CANCELLED" else {
+                        "outcome": "selected", "optionId": {
+                            "TOOL_ALLOW": "allow_once", "TOOL_REJECT": "reject_once",
+                            "TOOL_INVALID": "unoffered"}[marker]})
+                    response["result"] = {"outcome": outcome}
+                client.child.stdin.write(json.dumps(response) + "\n")
+                client.child.stdin.flush()
+
+            if marker == "TOOL_DISCONNECT":
+                client.send("session/prompt", {"sessionId": sid, "prompt": [
+                    {"type": "text", "text": marker}]})
+                deadline = time.monotonic() + 15
+                while not approvals:
+                    frame = client.frames.get(timeout=max(.01, deadline - time.monotonic()))
+                    require("eof" not in frame, "permission before disconnect")
+                    decide(frame)
+                require(client.child.wait(timeout=5) == 0, "EOF exits while awaiting permission")
+                client.close()
+                client = connect()
+                _, history = client.call("session/load", {"sessionId": sid, "cwd": str(cwd), "mcpServers": []})
+                require(any(marker in json.dumps(item) for item in history), "disconnected prompt persists")
+            else:
+                result, events = prompt(client, sid, marker, decide)
+                require(result["stopReason"] == ("cancelled" if marker == "TOOL_CANCEL" else "end_turn"),
+                        f"{marker} terminates")
+                updates = [frame["params"]["update"] for frame in events
+                           if frame.get("method") == "session/update"]
+                require(any(item.get("sessionUpdate") == "tool_call" and
+                            item.get("toolCallId") == f"call_{marker}" for item in updates),
+                        f"{marker} tool start")
+                if marker != "TOOL_CANCEL":
+                    status = "completed" if marker in ("TOOL_ALLOW", "TOOL_READ") else "failed"
+                    require(any(item.get("sessionUpdate") == "tool_call_update" and
+                                item.get("toolCallId") == f"call_{marker}" and
+                                item.get("status") == status for item in updates),
+                            f"{marker} terminal tool status: {updates}")
+                    require(any("TOOL_RESULT=" in item for item in text_updates(events)), "tool result returns to model")
+                if marker == "TOOL_READ":
+                    require("ACP_TOOL_FIXTURE" in json.dumps(events), "actual file read output")
+            require(len(approvals) == (0 if marker in ("TOOL_READ", "TOOL_FAIL") else 1),
+                    f"{marker} permission request count")
+            target = cwd / f"{marker}.txt"
+            require(target.exists() == (marker == "TOOL_ALLOW"), f"{marker} write side effect")
+            if target.exists():
+                require(target.read_text() == marker, "approved write content")
+            if marker == "TOOL_CANCEL":
+                # A delayed UI decision must not revive a cancelled native request.
+                client.child.stdin.write(json.dumps({"jsonrpc": "2.0", "id": approvals[0]["id"],
+                    "result": {"outcome": {"outcome": "selected", "optionId": "allow_once"}}}) + "\n")
+                client.child.stdin.flush()
+            result, events = prompt(client, sid, "Continue after tool scenario")
+            require(result["stopReason"] == "end_turn" and
+                    any("USERS=2" in item for item in text_updates(events)), f"{marker} recovery")
+            require(target.exists() == (marker == "TOOL_ALLOW"), f"{marker} remains settled")
+            client.close()
+        return {"tool_read": True, "tool_failure": True, "allow_once": True, "reject_once": True,
+                "invalid_option_denied": True, "cancelled_permission_denied": True,
+                "permission_rpc_error_denied": True, "cancel_pending_permission": True,
+                "disconnect_pending_permission_restore": True}
+    finally:
+        for client in clients:
+            client.close()
 
 
 def protocol_scenarios(shiju, output, env, cwd):
@@ -209,8 +344,28 @@ def protocol_scenarios(shiju, output, env, cwd):
         _, history = client.call("session/load", {"sessionId": sid, "cwd": str(cwd), "mcpServers": []})
         require(any("SLOW_CANCEL" in json.dumps(item) for item in history), "cancelled user prompt persists")
         require(any("SLOW=True" in item for item in text_updates(history)), "cancelled partial response persists")
+        client.send("session/prompt", {"sessionId": sid, "prompt": [
+            {"type": "text", "text": "SLOW_CANCEL DISCONNECT_STREAM"}]})
+        deadline = time.monotonic() + 15
+        while True:
+            frame = client.frames.get(timeout=max(.01, deadline - time.monotonic()))
+            require("eof" not in frame, "stream before disconnect")
+            if any("SLOW=True" in item for item in text_updates([frame])):
+                break
+        client.child.stdin.close()
+        require(client.child.wait(timeout=5) == 0, "EOF cancels streaming prompt")
+        client.close()
+        client = connect()
+        _, history = client.call("session/load", {"sessionId": sid, "cwd": str(cwd), "mcpServers": []})
+        require(any("DISCONNECT_STREAM" in json.dumps(item) for item in history), "disconnected streaming prompt persists")
+        require(len([frame for frame in history if frame.get("params", {}).get("update", {}).get(
+            "sessionUpdate") == "user_message_chunk"]) == 4, "disconnected turn saved exactly once")
+        result, events = client.call("session/prompt", {"sessionId": sid, "prompt": [
+            {"type": "text", "text": "Continue after streaming disconnect"}]})
+        require(result["stopReason"] == "end_turn" and
+                "ACK_beta;USERS=5;SLOW=False" in text_updates(events), "stream disconnect recovery")
         return {"model_switch": True, "multi_turn": True, "cancel": True, "restart_restore": True,
-                "cancelled_history": True}
+                "cancelled_history": True, "stream_disconnect_restore": True}
     finally:
         for client in with_client:
             client.close()
@@ -260,9 +415,33 @@ def cli_scenarios(acp, shiju, output, env, cwd):
         slow.close()
     follow_up = run(["-s", "integration", "prompt", "Resume after cancellation"])
     require("ACK_alpha;USERS=4;SLOW=False" in text_updates(follow_up), "cancelled conversation resumes")
+    owners = [json.loads(path.read_text()) for path in
+              (output / "home/.shiju-agent-dev/acp/queues").glob("*.lock")]
+    owners = [owner for owner in owners if owner.get("sessionId") == sid]
+    require(len(owners) == 1, "isolated queue owner exists")
+    owner = owners[0]
+    command = subprocess.run(["ps", "-p", str(owner["pid"]), "-o", "command="],
+                             capture_output=True, text=True, check=True).stdout.strip()
+    require(command.startswith(str(acp)), "fault injection targets fixture owner")
+    os.kill(owner["pid"], signal.SIGKILL)
+    recovered = run(["-s", "integration", "prompt", "Continue after owner crash"])
+    require("ACK_alpha;USERS=5;SLOW=False" in text_updates(recovered), "crashed queue owner reconnects")
     run(["sessions", "close", "integration"])
+    (cwd / "TOOL_ALLOW.txt").unlink()
+    for policy, marker, expected in (("--approve-all", "TOOL_ALLOW", "completed"),
+                                     ("--deny-all", "TOOL_REJECT", "failed")):
+        name = marker.lower()
+        run([policy, "--model", "fixture/alpha", "sessions", "new", "--name", name])
+        frames = run([policy, "-s", name, "prompt", marker])
+        require(any(frame.get("params", {}).get("update", {}).get("status") == expected
+                    for frame in frames), f"client {policy} tool status")
+        require((cwd / f"{marker}.txt").exists() == (expected == "completed"),
+                f"client {policy} side effect")
+        run(["sessions", "close", name])
     return {"named_controls": True, "model_flag": True, "idle_queue_model_switch": True,
-            "active_turn_model_switch": True, "queue_cancel": True, "cancel_recovery": True, "close_by_name": True}
+            "active_turn_model_switch": True, "queue_cancel": True, "cancel_recovery": True,
+            "owner_crash_recovery": True, "close_by_name": True,
+            "approve_all_tool": True, "deny_all_tool": True}
 
 
 def cleanup_owners(output, acp):
@@ -295,6 +474,7 @@ def main():
     print(f"Evidence: {output}", flush=True)
     try:
         results = {"protocol": protocol_scenarios(shiju, output, env, cwd)}
+        results["tools"] = tool_scenarios(shiju, output, env, cwd)
         results["client"] = cli_scenarios(acp, shiju, output, env, cwd)
         (output / "results.json").write_text(json.dumps(results, indent=2))
         print(json.dumps(results), flush=True)

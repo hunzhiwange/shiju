@@ -42,6 +42,47 @@ fn codex_discovery_processor_batch_inner_call_respects_request_snapshot() {
 }
 
 #[test]
+fn file_tool_emits_start_before_execution_and_completion() {
+    let root = tempfile::tempdir().unwrap();
+    let path = root.path().join("fixture.txt");
+    let id = unique_session("file-lifecycle");
+    let mut config = crate::config::Config::default();
+    config.autonomy.level = crate::security::AutonomyLevel::Full;
+    let ctx = ctx_with_root(&id, root.path()).with_test_config(config).with_tool_use_context(
+        ToolUseContext::new(&id, Some(root.path().to_string_lossy().into_owned()))
+            .with_tool_call_id("call-file".to_string()),
+    );
+    let mut session = Session::new(id);
+    let mut events = Vec::new();
+    let output = super::run_tool_and_record_with_protocol(
+        &mut session,
+        "file_write",
+        &json!({"path": path, "content": "fixture content"}).to_string(),
+        &ctx,
+        true,
+        &mut |event| {
+            if let StreamEvent::Tool(event) = event {
+                if event.kind == ToolEventKind::Start {
+                    assert!(!path.exists(), "start must precede write");
+                }
+                events.push(event);
+            }
+            true
+        },
+        &mut Default::default(),
+    )
+    .unwrap();
+    assert!(!output.content_for_model.is_empty());
+    assert_eq!(std::fs::read_to_string(path).unwrap(), "fixture content");
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0].kind, ToolEventKind::Start);
+    assert_eq!(events[0].status, ToolCallStatus::Running);
+    assert_eq!(events[1].kind, ToolEventKind::Complete);
+    assert_eq!(events[1].status, ToolCallStatus::Completed);
+    assert!(events.iter().all(|event| event.call_id == "call-file"));
+}
+
+#[test]
 fn typed_tool_event_keeps_call_id_status_and_sanitized_payload() {
     let event = super::tool_stream_event(
         "call-1".to_string(),
@@ -639,7 +680,9 @@ fn tool_classification_helpers_cover_todo_streaming_and_regular_tools() {
 
     assert!(super::should_emit_running_tool(true, "file_read"));
     assert!(!super::should_emit_running_tool(false, "file_read"));
-    assert!(!super::should_emit_running_tool(true, "todoread"));
+    assert!(super::should_emit_running_tool(true, "file_write"));
+    assert!(super::should_emit_running_tool(true, "todoread"));
+    assert!(!super::should_emit_running_tool(true, "AgentTool"));
 }
 
 #[test]
@@ -1064,8 +1107,22 @@ fn run_tool_and_record_records_successful_todoread_and_deduplicates_repeated_cal
     assert_eq!(session.messages.len(), 1);
     assert!(session.messages[0].content.contains("\"status\":\"completed\""));
     assert_eq!(state.non_todo_tool_runs, 0);
-    assert_eq!(delta_texts(&events).len(), 2);
-    assert!(delta_texts(&events).iter().all(|text| text.contains("\"status\":\"completed\"")));
+    let lifecycle = events
+        .iter()
+        .filter_map(|event| match event {
+            StreamEvent::Tool(event) => Some(event.kind),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        lifecycle,
+        [
+            ToolEventKind::Start,
+            ToolEventKind::Complete,
+            ToolEventKind::Start,
+            ToolEventKind::Complete
+        ]
+    );
 }
 
 #[test]

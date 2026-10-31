@@ -61,6 +61,7 @@ impl ApprovalBridge {
             request_id: prompt.request_id.clone(),
             call_id: prompt.call_id.clone().unwrap_or_else(|| prompt.request_id.clone()),
             title: prompt.tool_name.clone(),
+            kind: super::tool_kind(&prompt.tool_name),
             raw_input: prompt.arguments.clone(),
             options: vec![
                 BackendPermissionOption {

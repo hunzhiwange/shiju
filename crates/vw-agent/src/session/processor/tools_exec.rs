@@ -505,7 +505,7 @@ fn should_emit_running_tool(emit_ui: bool, tool: &str) -> bool {
     if !emit_ui {
         return false;
     }
-    super::utils::is_streaming_tool(tool) && !is_agent_tool(tool)
+    !is_agent_tool(tool)
 }
 
 pub(crate) fn is_agent_tool(tool: &str) -> bool {
@@ -1129,7 +1129,7 @@ pub(crate) fn run_tool_and_record_with_protocol(
         "session processor executing tool"
     );
 
-    // 对于流式工具，在执行前发送 "running" 状态的 UI 事件
+    // 每个普通工具在执行或等待审批前都必须先建立调用记录。
     if should_emit_running_tool(emit_ui, name) {
         on_event(tool_stream_event(call_id.clone(), name, running_tool_payload(&input_ui, name)));
     }
@@ -1513,7 +1513,7 @@ pub(crate) fn run_batch_tool_and_record(
             stable_tool_call_id(ctx, "batch", &sanitize_tool_input("batch", input))
         );
 
-        // 对于流式工具，发送 "running" 状态事件
+        // 与单工具路径一致，在执行或等待审批前建立调用记录。
         if should_emit_running_tool(emit_ui, tool) {
             on_event(tool_stream_event(
                 call_id.clone(),

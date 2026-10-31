@@ -43,12 +43,18 @@ struct BoundSession {
 pub struct VibeWindowBackend {
     tenant: TenantScope,
     sessions: Mutex<HashMap<String, BoundSession>>,
+    prompts: Mutex<Vec<PromptTask>>,
+}
+
+struct PromptTask {
+    cancel: Arc<dyn BackendCancelHandle>,
+    worker: tokio::task::JoinHandle<()>,
 }
 
 impl VibeWindowBackend {
     /// 创建绑定固定租户作用域的 ACP 后端。
     pub fn new(tenant: TenantScope) -> Self {
-        Self { tenant, sessions: Mutex::new(HashMap::new()) }
+        Self { tenant, sessions: Mutex::new(HashMap::new()), prompts: Mutex::new(Vec::new()) }
     }
 
     fn scope(&self, cwd: PathBuf) -> Result<SessionScope, BackendError> {
@@ -251,6 +257,7 @@ fn map_tool_event(event: ToolEvent) -> BackendEvent {
     match event.kind {
         ToolEventKind::Start => BackendEvent::ToolStart {
             call_id: event.call_id,
+            kind: super::tool_kind(&event.name),
             title: event
                 .payload
                 .get("title")
@@ -449,7 +456,7 @@ fn bridge_prompt(
     approval_prompts: tokio::sync::mpsc::UnboundedReceiver<
         crate::agent::loop_::approval::NonCliApprovalPrompt,
     >,
-) -> BackendPrompt {
+) -> (BackendPrompt, tokio::task::JoinHandle<()>) {
     let (events_tx, events_rx) = tokio::sync::mpsc::unbounded_channel();
     let (permissions_tx, permissions_rx) = tokio::sync::mpsc::unbounded_channel();
     let cancel = runtime.cancel.clone();
@@ -462,7 +469,7 @@ fn bridge_prompt(
         )
         .run(),
     );
-    std::thread::spawn(move || {
+    let worker = runtime_handle.clone().spawn_blocking(move || {
         let mut assistant_text = String::new();
         while let Ok(event) = runtime.events.recv() {
             if let PromptEvent::Text(text) = &event {
@@ -520,14 +527,21 @@ fn bridge_prompt(
             }
             if let Some(event) = map_runtime_event(event) {
                 let terminal = matches!(event, BackendEvent::Terminal(_) | BackendEvent::Error(_));
-                if events_tx.send(event).is_err() || terminal {
+                // 传输接收端丢弃后仍需消费取消终态，保证本轮历史落库。
+                if events_tx.send(event).is_err() {
+                    runtime.cancel.cancel();
+                }
+                if terminal {
                     break;
                 }
             }
         }
     });
-    BackendPrompt::new(events_rx, std::sync::Arc::new(RuntimeCancel(cancel)))
-        .with_permissions(permissions_rx)
+    (
+        BackendPrompt::new(events_rx, std::sync::Arc::new(RuntimeCancel(cancel)))
+            .with_permissions(permissions_rx),
+        worker,
+    )
 }
 
 async fn start_prompt_core(
@@ -565,7 +579,7 @@ async fn start_prompt_core(
         starter(request)
     })
     .await;
-    Ok(bridge_prompt(
+    let (prompt, worker) = bridge_prompt(
         runtime,
         tokio::runtime::Handle::current(),
         scope,
@@ -573,7 +587,11 @@ async fn start_prompt_core(
         query,
         approval,
         approval_rx,
-    ))
+    );
+    let mut prompts = backend.prompts.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    prompts.retain(|prompt| !prompt.worker.is_finished());
+    prompts.push(PromptTask { cancel: Arc::clone(&prompt.cancel), worker });
+    Ok(prompt)
 }
 
 pub(crate) async fn start_prompt_with_runtime_runner<R>(
@@ -593,6 +611,19 @@ where
 
 #[async_trait]
 impl SessionBackend for VibeWindowBackend {
+    async fn shutdown(&self) -> Result<(), BackendError> {
+        let prompts = std::mem::take(
+            &mut *self.prompts.lock().unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        for prompt in &prompts {
+            prompt.cancel.cancel();
+        }
+        for prompt in prompts {
+            prompt.worker.await.map_err(|error| BackendError::Internal(error.to_string()))?;
+        }
+        Ok(())
+    }
+
     async fn session_models(
         &self,
         session_id: &str,

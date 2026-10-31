@@ -13,15 +13,6 @@ fn tool_fingerprint_depends_on_name_input_length_and_head() {
     assert_ne!(base, super::tool_fingerprint("read", "{}", "different message"));
 }
 
-#[test]
-fn streaming_tool_detection_matches_known_streaming_tools() {
-    for name in ["bash", "shell", "grep", "read", "file_read", "pdf_read", "glob", "ls"] {
-        assert!(super::is_streaming_tool(name), "{name} should stream");
-    }
-    assert!(!super::is_streaming_tool("todowrite"));
-    assert!(!super::is_streaming_tool("batch"));
-}
-
 // 输入脱敏组同时约束日志视图和界面视图，二者允许保留的字段集合不同。
 #[test]
 fn sanitize_tool_input_handles_empty_raw_invalid_and_truncated_inputs() {

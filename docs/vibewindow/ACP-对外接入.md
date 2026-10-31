@@ -114,6 +114,9 @@ DashScope 的 Chat 接口不接受 `developer` 消息；适配层将可信指令
 - 空闲会话可以在同一连接重复加载；活动提示期间加载会返回忙碌错误。
 - 历史按时间和原生消息 ID 正序回放，保证同毫秒写入的用户消息先于回复。
 - `session/cancel`、stdin EOF 或活动提示 future 被丢弃都会请求取消底层执行。
+- 连接结束时等待活动提示的取消历史落库；重新启动并加载会话后，可以继续生成中或等待权限时断开的对话。
+- 普通工具在执行或等待权限前发送 `tool_call`，再以相同调用 ID 发送进度与终态更新。
+- 工具开始事件与权限请求都携带明确的 `kind`，便于客户端选择展示方式、抑制读取输出和应用审批策略；分类来自已知原生工具身份，未知工具保持 `other`。
 - MCP 服务按会话连接；重复名称、不支持的传输或启动失败会让会话准备整体失败，不留下部分注册。
 - 加载会话先校验归属，再启动请求的 MCP 服务。
 - MCP 启动错误只暴露安全的服务名摘要，不回显环境变量值。
@@ -152,7 +155,19 @@ cargo build -p vw-cli --bin shiju -p vw-acp --bin acp
 python3 scripts/verify_acp_integration.py
 ```
 
-脚本覆盖两种模型选择协议、命名会话控制、`--model`、多轮历史、空闲及生成中切模、取消延迟、部分回复持久化、进程重启恢复与按名称关闭。`--shiju`、`--acp` 可指定其他目录内的 debug 二进制，`--output` 指定新的证据目录。
+脚本覆盖两种模型选择协议、命名会话控制、`--model`、多轮历史、空闲及生成中切模、取消延迟、部分回复持久化、进程重启恢复与按名称关闭。
+
+工具场景验证真实文件读写、失败状态、单次允许/拒绝、非法权限选项、取消和 RPC 错误默认拒绝，以及生成中或等待权限时断连后的历史恢复与继续对话；同时验证自带客户端的 `--approve-all`、`--deny-all` 和队列进程被强制结束后的接管恢复。每个协议进程保留 `.frames.json` 记录。`--shiju`、`--acp` 可指定其他目录内的 debug 二进制，`--output` 指定新的证据目录。
+
+macOS/Linux 上可使用独立安装的上游 [acpx](https://github.com/openclaw/acpx) 验证真实终端交互。已验证版本为 `0.21.1`，无需修改仓库依赖或全局客户端配置：
+
+```bash
+client_dir="$(mktemp -d /tmp/vw-acpx-client.XXXXXX)"
+npm install --prefix "$client_dir" --ignore-scripts --no-audit --no-fund acpx@0.21.1
+python3 scripts/verify_acp_external_client.py --acpx "$client_dir/node_modules/.bin/acpx"
+```
+
+脚本隔离 HOME、会话和文件，使用真实客户端与 `shiju acp` 通信，仅模型流由本地确定性端点提供。覆盖读取输出抑制、读取类型自动审批、PTY 中逐次允许/拒绝、无终端时拒绝执行、空闲和生成中队列进程崩溃后的恢复，以及等待权限时客户端进程退出后的会话恢复。输出目录保留客户端版本、协议帧、带终端控制码的原始记录、可读文本及结果摘要。此脚本验证 acpx 终端展示，不代表 Zed 等图形客户端的界面已验收。
 
 macOS 上，现有链接参数下的完整 `vw-acp` 库测试会在预期捕获 panic 的用例中异常中止。可临时覆盖 `RUSTFLAGS` 并使用独立构建目录验证，不修改仓库配置：
 

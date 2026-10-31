@@ -18,8 +18,9 @@ impl SessionUpdateSink for PermissionSink {
 
     async fn request_permission(
         &self,
-        _request: RequestPermissionRequest,
+        request: RequestPermissionRequest,
     ) -> Result<agent_client_protocol::RequestPermissionResponse> {
+        assert_eq!(request.tool_call.fields.kind, Some(agent_client_protocol::ToolKind::Execute));
         self.started.set(true);
         match &self.selected {
             Some(id) => Ok(agent_client_protocol::RequestPermissionResponse::new(
@@ -37,6 +38,7 @@ fn permission(response: tokio::sync::oneshot::Sender<Option<String>>) -> Backend
         request_id: "permission-1".into(),
         call_id: "call-1".into(),
         title: "fixture".into(),
+        kind: agent_client_protocol::ToolKind::Execute,
         raw_input: serde_json::Value::Null,
         options: vec![super::super::BackendPermissionOption {
             id: "allow_once".into(),

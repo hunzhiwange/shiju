@@ -119,7 +119,10 @@ where
         let allowed_ids: Vec<_> = request.options.iter().map(|option| option.id.clone()).collect();
         let tool_call = ToolCallUpdate::new(
             request.call_id,
-            ToolCallUpdateFields::new().title(request.title).raw_input(request.raw_input),
+            ToolCallUpdateFields::new()
+                .title(request.title)
+                .kind(request.kind)
+                .raw_input(request.raw_input),
         );
         let options = request
             .options
@@ -469,18 +472,24 @@ where
     tokio::task::LocalSet::new()
         .run_until(async move {
             let connection = Rc::new(OnceCell::new());
-            let agent = VibeWindowAgent::with_update_sink(
+            let agent = Rc::new(VibeWindowAgent::with_update_sink(
                 backend,
                 ConnectionUpdateSink { connection: Rc::clone(&connection) },
-            );
-            let (client, io_task) =
-                AgentSideConnection::new(agent, writer.compat_write(), reader.compat(), |future| {
+            ));
+            let (client, io_task) = AgentSideConnection::new(
+                Rc::clone(&agent),
+                writer.compat_write(),
+                reader.compat(),
+                |future| {
                     tokio::task::spawn_local(future);
-                });
+                },
+            );
             connection.set(client).map_err(|_| {
                 protocol_error(Error::internal_error(), "ACP connection was initialized twice")
             })?;
-            io_task.await
+            let result = io_task.await;
+            agent.backend.shutdown().await.map_err(map_backend_error)?;
+            result
         })
         .await
 }

@@ -62,6 +62,7 @@ impl SessionBackend for AcceptanceBackend {
             .send(BackendEvent::ToolStart {
                 call_id: "call-1".into(),
                 title: "fixture".into(),
+                kind: agent_client_protocol::ToolKind::Other,
                 raw_input: serde_json::json!({"safe": true}),
             })
             .expect("tool event");
@@ -72,6 +73,7 @@ impl SessionBackend for AcceptanceBackend {
                 request_id: "approval-1".into(),
                 call_id: "call-1".into(),
                 title: "fixture".into(),
+                kind: agent_client_protocol::ToolKind::Other,
                 raw_input: serde_json::json!({"safe": true}),
                 options: vec![
                     BackendPermissionOption {

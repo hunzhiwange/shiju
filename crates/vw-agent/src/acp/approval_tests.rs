@@ -61,6 +61,7 @@ async fn approval_prompt_maps_to_single_acp_permission_request() {
     let request = permission_rx.recv().await.expect("permission request");
     assert_eq!(request.request_id, request_id);
     assert_eq!(request.call_id, "call-1");
+    assert_eq!(request.kind, agent_client_protocol::ToolKind::Execute);
     assert_eq!(request.options.len(), 2);
     assert!(permission_rx.try_recv().is_err());
 

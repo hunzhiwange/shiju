@@ -19,9 +19,8 @@ pub(crate) use message_format::{
 };
 #[allow(unused_imports)]
 pub(crate) use output_compaction::{
-    compact_tool_output, compact_tool_output_for_ui, is_streaming_tool,
-    rewrite_todowrite_completed_when_no_work, sanitize_tool_input, sanitize_tool_input_for_ui,
-    tool_fingerprint, truncate_string,
+    compact_tool_output, compact_tool_output_for_ui, rewrite_todowrite_completed_when_no_work,
+    sanitize_tool_input, sanitize_tool_input_for_ui, tool_fingerprint, truncate_string,
 };
 #[allow(unused_imports)]
 pub(crate) use session_ingest::{ingest_assistant_answer, ingest_user_query, push_user_dedup};

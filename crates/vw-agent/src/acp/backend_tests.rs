@@ -136,6 +136,32 @@ async fn backend_prompt_uses_native_model_and_local_tools() {
 }
 
 #[test]
+fn backend_tool_kind_uses_exact_tool_identity_instead_of_display_title() {
+    use agent_client_protocol::ToolKind;
+    for (name, expected) in [
+        ("file_read", ToolKind::Read),
+        ("read", ToolKind::Read),
+        ("grep", ToolKind::Search),
+        ("file_write", ToolKind::Edit),
+        ("apply_patch", ToolKind::Edit),
+        ("bash", ToolKind::Execute),
+        ("plugin_read_delete", ToolKind::Other),
+    ] {
+        let mapped = map_runtime_event(PromptEvent::Tool(ToolEvent {
+            call_id: "call-kind".into(),
+            name: name.into(),
+            kind: ToolEventKind::Start,
+            status: ToolCallStatus::Running,
+            occurred_ms: 1,
+            payload: json!({"title": "read", "input": {}}),
+        }))
+        .unwrap();
+        let BackendEvent::ToolStart { kind, .. } = mapped else { panic!("tool start") };
+        assert_eq!(kind, expected, "{name}");
+    }
+}
+
+#[test]
 fn backend_maps_runtime_events_without_parsing_display_text() {
     let payload = json!({
         "status": "completed",
@@ -161,6 +187,39 @@ fn backend_maps_runtime_events_without_parsing_display_text() {
             ..
         } if call_id == "call-1" && output == json!({"ok": true})
     ));
+}
+
+#[tokio::test]
+async fn backend_shutdown_persists_disconnected_prompt_and_allows_reload() {
+    let root = TempDir::new().unwrap();
+    let backend = VibeWindowBackend::new(tenant("disconnect"));
+    let created = backend.create_session(root.path().into()).await.unwrap();
+    let mut prompt = start_prompt_with_runtime_runner(
+        &backend,
+        &created.id,
+        vec![PromptContent::Text("interrupted question".into())],
+        |request, mut emit| {
+            emit(StreamEvent::Delta("partial answer".into()));
+            let abort = request.abort_token.unwrap();
+            while !abort.is_cancelled() {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(prompt.events.recv().await, Some(BackendEvent::Text("partial answer".into())));
+    drop(prompt);
+    tokio::time::timeout(Duration::from_secs(2), backend.shutdown()).await.unwrap().unwrap();
+    let loaded = backend.load_session(&created.id, root.path().into()).await.unwrap();
+    assert_eq!(
+        loaded.history.iter().map(|entry| entry.text.as_str()).collect::<Vec<_>>(),
+        ["interrupted question", "partial answer"]
+    );
+    backend.shutdown().await.unwrap();
+    let restarted = VibeWindowBackend::new(tenant("disconnect"));
+    let loaded = restarted.load_session(&created.id, root.path().into()).await.unwrap();
+    assert_eq!(loaded.history.len(), 2);
 }
 
 #[tokio::test]

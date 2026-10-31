@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use agent_client_protocol::{McpServer, SessionModelState};
+use agent_client_protocol::{McpServer, SessionModelState, ToolKind};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -38,6 +38,8 @@ pub struct BackendPermissionRequest {
     pub call_id: String,
     /// 用户可读工具标题。
     pub title: String,
+    /// 宿主已确认的工具分类，供客户端展示与审批策略使用。
+    pub kind: ToolKind,
     /// 已由原生工具边界脱敏的输入。
     pub raw_input: serde_json::Value,
     /// 本次请求允许返回的选项。
@@ -132,6 +134,11 @@ impl BackendPrompt {
 /// `vw-acp` Agent 侧依赖的最小宿主接口。
 #[async_trait]
 pub trait SessionBackend: Send + Sync + 'static {
+    /// 连接结束后取消活动提示，并等待后台持久化完成。
+    async fn shutdown(&self) -> Result<(), BackendError> {
+        Ok(())
+    }
+
     /// 返回会话实际使用的模型及可选目录；不支持选择时返回 `None`。
     async fn session_models(
         &self,

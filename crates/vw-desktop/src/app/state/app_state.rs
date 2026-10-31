@@ -390,6 +390,8 @@ pub struct App {
     /// 应用自更新下载进度接收器
     pub(crate) app_update_progress_rx:
         Option<std::sync::mpsc::Receiver<vw_shared::update::UpdateProgress>>,
+    /// 当前会话的临时 MCP 表单及用户草稿。
+    pub(crate) mcp_forms: crate::app::message::mcp_form::McpFormState,
     /// 问题对话框关联的请求 ID
     pub(crate) question_modal_request_id: Option<String>,
     /// 当前问题对话框承载的请求数据

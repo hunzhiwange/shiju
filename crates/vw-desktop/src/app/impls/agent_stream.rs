@@ -2100,6 +2100,33 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                     return;
                 }
             };
+            #[cfg(not(target_arch = "wasm32"))]
+            let _mcp_form_host = match vw_gateway_client::GatewayClient::new(endpoint.clone()) {
+                Ok(client) => match super::mcp_form_stream::watch(
+                    std::sync::Arc::new(client),
+                    req.id,
+                    req.session.clone(),
+                    req.root.clone(),
+                    output.clone(),
+                )
+                .await
+                {
+                    Ok(host) => Some(host),
+                    Err(_) => {
+                        let _ = output
+                            .send(Message::McpForm(
+                                message::mcp_form::McpFormMessage::Unavailable {
+                                    run_id: req.id,
+                                    session: req.session.clone(),
+                                },
+                            ))
+                            .await;
+                        None
+                    }
+                },
+                Err(_) => None,
+            };
+
             let chat_body = vw_gateway_client::GatewayChatStreamRequest {
                 session_id: Some(req.session.clone().into()),
                 messages: body

@@ -266,6 +266,7 @@ impl App {
         // 确认对话框（问题模态框）
         let root_content = app_view_modals::with_question_modal(self, root_content);
         let root_content = app_view_modals::with_permission_modal(self, root_content);
+        let root_content = components::mcp_form::with_modal(self, root_content);
         let root_content: Element<'_, Message> = if self.show_search_overlay {
             iced::widget::stack![root_content, components::search_panel::overlay(self)].into()
         } else {

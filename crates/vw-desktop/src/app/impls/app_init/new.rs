@@ -501,6 +501,7 @@ impl App {
             desktop_update: crate::app::desktop_update::DesktopUpdate::from_config(&cfg),
             app_update_progress: None,
             app_update_progress_rx: None,
+            mcp_forms: Default::default(),
             question_modal_request_id: None,
             question_modal_request: None,
             question_modal_answers: vec![],

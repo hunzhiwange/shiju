@@ -108,6 +108,7 @@ pub mod memory;
 
 /// MCP 检查处理器模块
 pub mod mcp;
+pub(crate) mod mcp_forms;
 
 /// 杂项元数据路由处理器模块
 pub mod misc;

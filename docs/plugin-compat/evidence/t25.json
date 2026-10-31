@@ -1,0 +1,814 @@
+{
+  "schema_version": 1,
+  "task": 25,
+  "status": "已完成，待回归",
+  "scope": "Desktop native MCP primitive forms bound to the current run/session/server and original Gateway host capability. Task25 UI behavior verified; two unrelated existing settings view regressions remain pending.",
+  "items": [
+    {
+      "id": "mcp.elicitation",
+      "tasks": [
+        25
+      ],
+      "tests": [
+        "codex_plugin_compat_t25_renders_and_cancels_server_form",
+        "codex_plugin_compat_t25_rejects_invalid_input",
+        "codex_plugin_compat_t25_preserves_isolation",
+        "codex_plugin_compat_t25_requires_explicit_values_and_preserves_raw_enum_values",
+        "codex_plugin_compat_t25_stale_run_and_closed_host_cannot_mutate_current_form",
+        "codex_plugin_compat_t25_invalid_submit_keeps_input_and_reports_toast",
+        "codex_plugin_compat_t25_server_failure_keeps_input_without_echoing_remote_payload",
+        "codex_plugin_compat_t25_run_end_discards_all_answers_and_late_events",
+        "codex_plugin_compat_t25_debug_does_not_include_user_values_or_host_capability"
+      ],
+      "red": {
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t25_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "CARGO_INCREMENTAL": "0",
+        "elapsed_seconds": 38.72,
+        "record": "t25/red-ready-1.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target assertions failed before host SIGABRT. No completed failed-test summary claimed. Compilation errors and initial zero-test diagnostics are excluded."
+      },
+      "green": {
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t25_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "CARGO_INCREMENTAL": "0",
+        "elapsed_seconds": 80.32,
+        "record": "t25/final2-1.log",
+        "summary": [
+          "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 8208 filtered out; finished in 0.85s"
+        ],
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 9
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Native light/dark × accept/decline/Escape cancel all executed against real loopback Gateway and stdio MCP; no model filled forms. This task-local record is not full baseline or public remote/platform acceptance."
+    }
+  ],
+  "validation": {
+    "original_three_green": {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t25_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 65.8,
+      "record": "t25/green2-1.log",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 8208 filtered out; finished in 0.32s"
+      ],
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 3
+    },
+    "question_modal_regression": {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features question_modal_tests -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 162.1,
+      "record": "t25/final-2.log",
+      "summary": [
+        "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 8206 filtered out; finished in 0.62s"
+      ],
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 11
+    },
+    "agent_stream_regression": {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features app::impls::agent_stream::agent_stream_tests -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 0.58,
+      "record": "t25/final2-2.log",
+      "summary": [
+        "test result: ok. 71 passed; 0 failed; 0 ignored; 0 measured; 8146 filtered out; finished in 0.03s"
+      ],
+      "passed": 71,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 71
+    },
+    "existing_view_regression": {
+      "command": "cargo test -p vw-desktop --lib --all-features app::message::view::tests -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 49.25,
+      "record": "t25/final2-3.log",
+      "summary": [
+        "test result: FAILED. 11 passed; 2 failed; 0 ignored; 0 measured; 8196 filtered out; finished in 0.61s"
+      ],
+      "passed": 11,
+      "failed": 2,
+      "ignored": 0,
+      "effective_tests": 13,
+      "result_note": "Both failures also reproduce in the original --lib target. Existing settings routing tests fail at view/tests.rs:193 (show_settings) and :328 (browser controller show). MCP-only change is Escape handling; those test functions do not call that branch. Tests and settings semantics were not modified."
+    },
+    "backend_task24_regression": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 158.52,
+      "record": "t25/final2-4.log",
+      "summary": [
+        "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 10698 filtered out; finished in 0.39s"
+      ],
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 15
+    },
+    "gateway_host_isolation_expiry": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t25_gateway_host_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 0.77,
+      "record": "t25/final2-5.log",
+      "summary": [
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10711 filtered out; finished in 0.01s"
+      ],
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 2
+    },
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 40.57,
+      "record": "t25/clippy-final-0.log",
+      "summary": []
+    },
+    "fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 15.43,
+      "record": "t25/final2-0.log",
+      "summary": []
+    },
+    "native_window": {
+      "command": "python3 crates/vw-agent/testdata/plugin_compat/t25/run_window.py window-pass2",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_INCREMENTAL": "0",
+      "elapsed_seconds": 25.19,
+      "record": "t25/window2-2.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10708 filtered out; finished in 25.12s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1,
+      "native_scenarios": 6,
+      "images_generated": 24,
+      "selected_images": 6,
+      "native_dimensions": [
+        2000,
+        1600
+      ],
+      "results": "t25/rendered/window-results.json",
+      "inspection": "Native screenshots inspected in light/dark themes: Chinese/long content, styled controls, fixed title/actions and scroll gutter. Actual Iced glyph shaping completed without panic. User actions are explicit boundary messages; real Gateway HTTP and stdio MCP server receive responses."
+    }
+  },
+  "sources": [
+    {
+      "tree": "codex",
+      "path": "codex-rs/codex-mcp/src/elicitation.rs",
+      "sha256": "e0ecb78e1d92fda60288912205c7ea9efa0c350bbdec40f7afe03e6ae733e13a",
+      "symbol": "ElicitationRequestRouter"
+    },
+    {
+      "tree": "codex",
+      "path": "codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__mcp_server_elicitation__tests__mcp_server_elicitation_boolean_form.snap",
+      "sha256": "a8cebf1c6c8390f1de3f7bfafae1ef112d12ca69cc225be4f17580305eca37fc",
+      "symbol": "MCP elicitation form snapshot"
+    },
+    {
+      "tree": "codex",
+      "path": "codex-rs/tui/src/bottom_pane/snapshots/codex_tui__bottom_pane__mcp_server_elicitation__tests__mcp_server_elicitation_text_configured_key_chords.snap",
+      "sha256": "5d0fecf5882f1e7b74bd88a8a8d6bc114f3a00d833add348898f34b39f2a1427",
+      "symbol": "MCP elicitation form snapshot"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/plugin-compat/evidence/t25/clippy-final-0.log",
+      "sha256": "7c0da2b8096b65c9141466394651f164a3a3a5dede7c148f3f42c7a7b1e79dbc",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/clippy-final-0.run.json",
+      "sha256": "22cc673a735219e8ac6dfb95275b5fc0b246f62b1f757bafbf6c15143e4f43b2",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/expiry-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/expiry-fmt.run.json",
+      "sha256": "388f2bbc9f36c1243f9a712c2dac8ed98b1b6ea4b46eb44cad06b34ae88e6040",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-0.run.json",
+      "sha256": "7af88dd35652cfe9180d45ecb3cabc79aed077e3a5f56bb649ce571ec1d6bfda",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-1.log",
+      "sha256": "f858271bcc40853a47d07e7b4efe6daed7a56c6cfcf78e0a91fe121dfe40b1b1",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-1.run.json",
+      "sha256": "0c625fc21e1a02bd9fcc3c84bd1484f9208a1fc5689dfd3559a604f5e738a36e",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-2.log",
+      "sha256": "1bb8e0b1814eb5cd1725bf757945d232ef83dc5d1216c994b8cf0603aae6b30b",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-2.run.json",
+      "sha256": "4ce412b635164f02399a4f767318ebb702cb4110a1119c327922ae32930791d1",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-3.log",
+      "sha256": "24e00ee8a179c64aac48b10b6fe9fbbc1281880ac59ebd35afa807491f694ace",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-3.run.json",
+      "sha256": "4c0df6b2ebfbb46dd0617dacaeef35fe2624ee124efb1e0419a01f70ec9f0ced",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-4.log",
+      "sha256": "ff981cf56e7a1fc0d375620b103817a78b2c7c73afe37cc49974dbbe2f6ff9be",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-4.run.json",
+      "sha256": "aec17ae701e14ebf53b3800e914c7cce169353992b335d589d612bc9f3387568",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-5.log",
+      "sha256": "5f60e634226ae5bfd034cb51a1b441954cb4c3e0d8ca2ed2ccfa405633613402",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-5.run.json",
+      "sha256": "1248dc055ed71113c00f91bd8398a41b47218b0cfbdf248a65d25a8a535a271f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-6.log",
+      "sha256": "8644f74132467d902d5eb1f6496e9fa86e3641ccf5792f97c5aeaa83cb8532ef",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-6.run.json",
+      "sha256": "8076bc2bdce04ed9c0f02ff0e161f2f1b6251dd8c244261176bb1c67b1d9f3bd",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-7.log",
+      "sha256": "e908de03a5e1a58be335848a2902a3a17dcce5e78517c02851d3e60b555463ae",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final-7.run.json",
+      "sha256": "9a4f8f215c58bb57c57b39bd562bd171a6a40aa514572c590823ab9eced80da1",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-0.run.json",
+      "sha256": "fdb7f4cef44115db55fc9c403a7e3fdae176eef5852a58e3cc7bccffa6cb81f5",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-1.log",
+      "sha256": "ae128ae8b9397a8c140f5fa7be94e388021832a7227ff3a868a44c8b3b73a1a2",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-1.run.json",
+      "sha256": "6b35625d5e71442d09312f9bc826f2f6f7e110f4ff9f06f2afbea9d1fbf78268",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-2.log",
+      "sha256": "7a45d0d256c274ec4b07a183eb5e2feee5aacfc60f81035a7032e7d27f80b442",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-2.run.json",
+      "sha256": "93cfa19485048db60900719832ad69097d4bb9d1289e505e6618b01e9aa3597c",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-3.log",
+      "sha256": "73859a80c5ca49972695d8b68460a00585911e0a08f4f0b978a9eace31af81c7",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-3.run.json",
+      "sha256": "63fb0be6b1a472e7d1f6404e784408a1a4e4878e1d79fc126157400094ff8464",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-4.log",
+      "sha256": "0b97bf5218536da594dbb1ad8c281939c0ffdb3a400ad990f4be58314edd3dca",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-4.run.json",
+      "sha256": "6d6ad4349d7ef3fa1116db0a6446db7f2932d0bfafbc9e6c65c4e616098dbc2f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-5.log",
+      "sha256": "90b837ddb60ab346b19fdc074c4b0927daf77e61f3d3c9867dc028076512c4e9",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-5.run.json",
+      "sha256": "030f5ad3a29c7431a61dbffe7f65359ab3197b25f36016f6fdde67475e50afca",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-6.log",
+      "sha256": "c8fd062a832c56c77741ab08d3778d2f996c31e473366693879094777e105015",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/final2-6.run.json",
+      "sha256": "b7b1855e16b38728e12665512e5e0cd030e3e9b39ab450b059bf152f9f143d09",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused-0.run.json",
+      "sha256": "c3960e20d47b29a0955b9bc1f6d74395cae4a98027fa36697b0400875f20cb3c",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused-1.log",
+      "sha256": "a6e021a89913428271f1e564657f49aa040503d66979949e46aafbee69a4c43b",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused-1.run.json",
+      "sha256": "70021e93549fd03294f4675be3d10d4301c911c96593b7775b1f29ecc76183c8",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused-2.log",
+      "sha256": "f01fbdfab31aa1250469612f18ff4d86f6f6f602c434ac7aa9d3f75918171220",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused-2.run.json",
+      "sha256": "44ce4b40ebfa53c56e87d8f2451746295ca2679a9ebc5cf932bf742c323aa2e7",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-0.run.json",
+      "sha256": "702142b118014b2d7847a409ff99b080a60361307156b208d8fc6fd53e8f637d",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-1.log",
+      "sha256": "39b1a5c8d884a11de693a09145f6a2b6844972ec1fac9e8e1e7d38aa4ef6e8eb",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-1.run.json",
+      "sha256": "20d7b09b168157ee31f28a29c11c486326d3d7fae542799d5d3b3b303d685797",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-2.log",
+      "sha256": "7b4362dd6afacab432c53dea6a416457cf31d7610853696f4937c113f6a5d306",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-2.run.json",
+      "sha256": "3a5d191567b0b26e7e0dafabcea33f11b97006d03d8dc5b3e140a1eddc0d04ad",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-3.log",
+      "sha256": "0f392a1c262905d6d0b445bc5958e7a5281ad6e9bea83e1b945d8b7c3df57c75",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/focused2-3.run.json",
+      "sha256": "8f084dd26a129019d4fc5e7d56361b37d46e9910d7aa582c149130fcfe33de6a",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green-0.run.json",
+      "sha256": "e4f86c81f10af3d47da80d4b6fc7326cc5f9ffedc28dea046116c576f87b1646",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green-1.log",
+      "sha256": "cd0ea70a13cfbabeb29801a5b2cfb47ca5df934a720e0b2c3641c2a0228bfd28",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green-1.run.json",
+      "sha256": "ac909abef779a24b4a71493bd3bf7e973be532c3962fb1b74410d953bb09b1ad",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green2-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green2-0.run.json",
+      "sha256": "b56b2919e64d85c7fe3e514dba5a7803f69d79c362492a418505ebddae02439a",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green2-1.log",
+      "sha256": "7e5d67eec3e96984672ad7c656929516b7631796cbc1ce0029620c36286d4618",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/green2-1.run.json",
+      "sha256": "e9a573dceb1bc290ea0a16bc8c2d1574931c797b4ea1836c311fa98bcac48a42",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-0.run.json",
+      "sha256": "b5fd0a054f81ec1cdc695900d40bb534d29a450c8dbfc753f8897dacfaa223b2",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-1.log",
+      "sha256": "eea0c188e85bed5aada24b70ec2043cd96639aafe45b20f924118430b4366ee2",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-1.run.json",
+      "sha256": "bc1ea986435c2134c8688a7ce5d26aac16e9a2b4e4d7dfce22107e1e6ed44d5d",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-2.log",
+      "sha256": "10f93282a5752ec244a0a5208d69ad85ddb7e852160ef025f39efcb596f09f01",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-2.run.json",
+      "sha256": "9b98ca5db00f7433477db52e912160315eee8f83b50dbf2ec7f3bdbbc9cfa971",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-3.log",
+      "sha256": "1c0bdb978c67e04051394ac2ae30dcf2e1815a0ad5f3add21c3ade0724c64b47",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-3.run.json",
+      "sha256": "e372e24dd49b2fcc021abbca0a1dde3c88d956d129a79efa1821320de588c178",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-0.run.json",
+      "sha256": "d9e70162b4be33dbdfcec0c25096cb88170969faac512bd0872d33e44766b165",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-1.log",
+      "sha256": "4a6895f2238c58f20129c3a1cdb3d3b533d79e8e66d96abfe3bc3b7f36764096",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-1.run.json",
+      "sha256": "4d7e650d4ea1cacef1f6eabd41d9456caefa415394f1196067f0191edce0ef62",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-2.log",
+      "sha256": "bb278a31f3be9f8ba609d8bf626ef69256843bd2a02cd98a61f78035d47d309f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-2.run.json",
+      "sha256": "a0b4075b9588e073fd3d373dfa5df1dc5d75f6a82d2d51af5c98eb6d50e20c0a",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-3.log",
+      "sha256": "e51d59f0792dc527eca2d577b2b57280ed0bbeab5dc92072330d5c12f7f150c9",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-ready-3.run.json",
+      "sha256": "8f20815ca04fb137c5658ac0bd3d831da765cfbdd0e6e7a3d63d24e73b868b8d",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-registered-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-registered-0.run.json",
+      "sha256": "cc920918e17354b9e14fecd57e820ce2ba0790c834c5556db0172bee16be4abe",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-registered-1.log",
+      "sha256": "63e272d86285d4251d757f4b100bd2805eb28fa20cc0aa41786305b6ec7edadf",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-0.run.json",
+      "sha256": "398d5392e58a3db1200efc8e7a8960d08dabccfd20044124849efe0020e41c43",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-1.log",
+      "sha256": "ca498506167b5c6536bfd744e7fea516b99cf5db33ef06fdc6da6ff53d76ef81",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-1.run.json",
+      "sha256": "f813f649c4832582036e4d2cd018d11680412bcae8b8cf137503c22734ad1c28",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-2.log",
+      "sha256": "ca498506167b5c6536bfd744e7fea516b99cf5db33ef06fdc6da6ff53d76ef81",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-2.run.json",
+      "sha256": "c3e4d7cc6bc7c438eddbe953e6682e972fc7465a0efb57e34930debc29922a6d",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-3.log",
+      "sha256": "ca498506167b5c6536bfd744e7fea516b99cf5db33ef06fdc6da6ff53d76ef81",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/red-wired-3.run.json",
+      "sha256": "ace55e2a431abfa237000b795eca166bc5d06888c60295e7ae5cd9fc76e66e68",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-0.run.json",
+      "sha256": "3fa42c4ef2e53203e7a208adee6f1a40a14016a2da32629f4826244d056c260f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-1.log",
+      "sha256": "d2a07e78e1f68e5511569aad0cd387933f79fa7daec4607aedd376561fa61dc0",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-1.run.json",
+      "sha256": "9326ad1de70eb7f571fd60b08953674d3b196860da5e870dc94dfc4a15f8dc52",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-2.log",
+      "sha256": "aaad9ffd8e9e279bf84b0caef95020bc6930addf37da717007b7f45591e80841",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-2.run.json",
+      "sha256": "a270408ea9cf5b0ad69243f0bc2048f1302541ee933c211b54f0dfaba6380f98",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-3.log",
+      "sha256": "2d536a890d233796acf05b1779d6ea7c87b2692bac9578a571043fd03a640525",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window-check-3.run.json",
+      "sha256": "ed2b5f80d4c2b8857f780608367ad75f05c542213f89e134f23280a299bdd6ef",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window2-0.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window2-0.run.json",
+      "sha256": "de77a9b9aabbb4918b391565f28065305747844ecc7e3006496be25f2d757dd6",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window2-1.log",
+      "sha256": "fbeacd19d3bf9a87bc37bf9896ec26ce73a396d30c8f6f04d04bdea34ca4efd1",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window2-1.run.json",
+      "sha256": "602cc504ca065c555065ff1db66eb3d3186f8bf3773aa2a879fce0c42c97f02e",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window2-2.log",
+      "sha256": "27f89fd8baff4b2ce6c12ebfed91c0a0a1a85b88a86ad3222abb3b90ee7797ba",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/window2-2.run.json",
+      "sha256": "181597d1a36519f18e906874f2efa6f09ab93d14fdc5958d91872f97406a0aca",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/dark-accept-fields.png",
+      "sha256": "7e2f278732148d6917cd2b275337f6f7d9feb32b76df008beaef71d9ec193cf7",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/dark-accept-top.png",
+      "sha256": "0f9d5f0d3d468ab0175b05b25755af147d7d8587a7bf84bbb02f05cf930683ad",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/dark-cancel-finished.png",
+      "sha256": "78c958bcec223ad5d8948d5298f147d207aaeea76342c4b4a93fc6e583ebe497",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/light-accept-fields.png",
+      "sha256": "02610280a1ac13ff0b3a5ea0d43fbccd89fd011b449a18ce767a7bd5806f3499",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/light-accept-top.png",
+      "sha256": "c984d9e34548cbabfce31c1e0cdb7c96c677244a4d13fd5134550a9774fbf26c",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/light-cancel-finished.png",
+      "sha256": "2f3ada6c050f33915655f9891a1bfafb6ead35af06fd2aa3c647348cd84e6c6d",
+      "storage": "repository"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t25/rendered/window-results.json",
+      "sha256": "04a5f4c88f459e096c7787073f061371fb981a4a782752273e482bacc70f4616",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t25/README.md",
+      "sha256": "4ab26adb85f3b53ce71fc5b21b225340fe790b7a9f265555f21e495cd350a255",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t25/form.json",
+      "sha256": "b66c1c0ffdd568080ac022c8d268b2a5535d04bffeda68e39180c2bdac998bc2",
+      "storage": "repository"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t25/run_window.py",
+      "sha256": "c074249582cf14d298eefbf1df87ef811988863eb9f3af0921a9db9d65d12fcf",
+      "storage": "repository"
+    }
+  ],
+  "source_review": {
+    "routing": "Gateway forms router registered in both production factories. Authenticated tenant, canonical workspace and session bind a random UI-only host capability, with idle expiry and cleanup. Replies remain independent from the busy MCP peer mutex.",
+    "ui": "Production chat stream opens host only after request validation. Production App update/view/escape use the same ephemeral draft and source-bound reply path. Shared settings styles/modal/toast, 4px scrollbar and 7px gutters. No non-ASCII monospace.",
+    "privacy": "Drafts remain in memory and clear on completion/run termination. No answer values or host capabilities in desktop Message/host reply Debug. Default values are hints; acceptance requires user-supplied values.",
+    "boundary": "DTOs moved from agent to api-types to avoid forbidden desktop→agent dependency; existing agent import paths retained. Unsupported schemas remain rejected by task24 broker."
+  },
+  "pending_regression": {
+    "command": "cargo test -p vw-desktop --lib --all-features app::message::view::tests -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 13,
+    "record": "t25/final2-3.log",
+    "failures": [
+      "app::message::view::tests::update_routes_panel_layout_theme_and_activity_messages",
+      "app::message::view::tests::system_settings_messages_hide_and_restore_running_work_browser"
+    ],
+    "reason": "Both failures also reproduce in the original --lib target. Existing settings routing tests fail at view/tests.rs:193 (show_settings) and :328 (browser controller show). MCP-only change is Escape handling; those test functions do not call that branch. Tests and settings semantics were not modified."
+  },
+  "limitations": [
+    "Only macOS native drawing verified. No public remote service or Linux/Windows acceptance claimed.",
+    "Form-only frozen primitive schema; hosted identity, URL/auth and nested schemas are outside task25.",
+    "Task18 cross-chat reuse and task19 schema compression/model exposure gaps remain recorded, without implementing independent new behavior.",
+    "Raw logs and *.run.json stay local/ignored. Only structured evidence, synthetic fixtures and selected sanitized native screenshots are committed.",
+    "Initial native harness screenshot scheduling race was fixed; window-check partial run is diagnostic only. Full successful native evidence is window2-2."
+  ],
+  "summary_checks": {
+    "artifact_hashes": 107,
+    "json": true,
+    "full_baseline_checker": {
+      "exit_code": 1,
+      "expected_rejection": true,
+      "message": "Evidence rejected: discovery.legacy-order: missing evidence item",
+      "note": "Task-local evidence deliberately does not claim all mapped tasks, all platforms or public service acceptance."
+    },
+    "git_diff_check_exit_code": 0
+  }
+}

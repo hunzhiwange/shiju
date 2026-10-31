@@ -173,3 +173,11 @@ pub use vw_shared::time;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod plugin_compat_t25_tests;
+
+#[cfg(test)]
+#[allow(dead_code)] // Invoked only by the explicit native window validation target.
+#[path = "impls/mcp_form_window.rs"]
+pub(crate) mod mcp_form_window;

@@ -518,8 +518,10 @@ impl App {
     /// ]));
     /// ```
     pub fn update(&mut self, message: Message) -> Task<Message> {
+        crate::app::message::mcp_form::prune(self);
         let refresh_pins = self.prepare_session_ui_projection(&message);
         let task = match message {
+            Message::McpForm(message) => crate::app::message::mcp_form::update(self, message),
             Message::SessionPinsLoaded(generation, result) => {
                 self.apply_session_pins(generation, result);
                 Task::none()

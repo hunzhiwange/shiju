@@ -792,6 +792,7 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::provider::router())
         .merge(api::handlers::pty::router())
         .merge(api::handlers::question::router())
+        .merge(api::handlers::mcp_forms::router())
         .merge(api::handlers::task_pool::router())
         .merge(api::handlers::agent_scheduler::router())
         .merge(api::handlers::task_lifecycle::router())

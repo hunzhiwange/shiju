@@ -1,0 +1,62 @@
+[
+  {
+    "case": 0,
+    "native_rendered": true,
+    "theme": "light",
+    "wire_result": {
+      "action": "accept",
+      "content": {
+        "age": 24,
+        "approved": false,
+        "choice": "raw-b",
+        "name": "用户甲"
+      }
+    }
+  },
+  {
+    "case": 1,
+    "native_rendered": true,
+    "theme": "light",
+    "wire_result": {
+      "action": "decline"
+    }
+  },
+  {
+    "case": 2,
+    "native_rendered": true,
+    "theme": "light",
+    "wire_result": {
+      "action": "cancel"
+    }
+  },
+  {
+    "case": 3,
+    "native_rendered": true,
+    "theme": "dark",
+    "wire_result": {
+      "action": "accept",
+      "content": {
+        "age": 24,
+        "approved": false,
+        "choice": "raw-b",
+        "name": "用户甲"
+      }
+    }
+  },
+  {
+    "case": 4,
+    "native_rendered": true,
+    "theme": "dark",
+    "wire_result": {
+      "action": "decline"
+    }
+  },
+  {
+    "case": 5,
+    "native_rendered": true,
+    "theme": "dark",
+    "wire_result": {
+      "action": "cancel"
+    }
+  }
+]

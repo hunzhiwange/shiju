@@ -966,6 +966,18 @@ fn handle_global_key(
     key: iced::keyboard::Key,
     modifiers: iced::keyboard::Modifiers,
 ) -> Task<Message> {
+    if matches!(key, iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape))
+        && let Some((request, _)) = crate::app::message::mcp_form::current(app)
+    {
+        return crate::app::message::mcp_form::update(
+            app,
+            crate::app::message::mcp_form::McpFormMessage::Submit {
+                id: request.id.clone(),
+                action: vw_gateway_client::vw_api_types::mcp_form::McpFormAction::Cancel,
+            },
+        );
+    }
+
     if app.screen == crate::app::Screen::WorkflowTool {
         if let Some(workflow_message) =
             workflow_key_message(&key, modifiers, app.workflow_state.selected_node_id.is_some())

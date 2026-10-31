@@ -104,6 +104,8 @@ pub enum Message {
     Terminal(message::TerminalMessage),
     Git(message::GitMessage),
     Chat(message::ChatMessage),
+    #[allow(private_interfaces)]
+    McpForm(message::mcp_form::McpFormMessage),
     Preview(message::PreviewMessage),
     Editor(message::EditorMessage),
     Knowledge(message::KnowledgeToolMessage),

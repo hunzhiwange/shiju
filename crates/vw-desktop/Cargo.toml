@@ -126,3 +126,10 @@ name = "recovery-window"
 path = "src/recovery_window_main.rs"
 harness = false
 test = false
+
+# Explicit real-window form acceptance, never launched by the default tests.
+[[test]]
+name = "mcp-form-window"
+path = "src/mcp_form_window_main.rs"
+harness = false
+test = false

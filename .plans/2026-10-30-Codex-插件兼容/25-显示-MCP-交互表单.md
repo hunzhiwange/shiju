@@ -4,7 +4,7 @@
 
 线性执行顺序：任务 25；本批次只执行本任务，与其他批次不并行。全部前序任务必须完成；前序若为“已完成，待回归”，只有其已提交接口可用且本任务验证不依赖未完成证据时才能继续，最终验收必须补齐。
 
-状态：未开始
+状态：已完成，待回归
 
 目的：桌面能填写或取消 MCP 表单。
 
@@ -83,3 +83,22 @@
 - 有实际代码、测试、配置或文档变更时使用 `$git-commit` 技能检查并提交本任务变更，排除其他工作；只有任务文件状态变动/删除时不调用提交技能、不单独提交。
 - 完成报告说明具体文件、符号、行为和验证证据；正常完成后删除本编号文件，删除不另建提交。阻塞或待回归时保留本编号文件。
 - 阻塞原因只记录在本任务文件；先排查必要依赖，不能越过权限或忽略不安全输入。禁止修改 plan.md，也不要把 prompt.md 当进度来源。
+
+
+## 执行记录（2026-10-31）
+
+- 前置任务24已提交 `28337aade`，其宿主租约/表单验证接口可用。任务9的安装消息断言待回归不影响本任务。
+- 实现：真实聊天流注册临时 MCP 表单宿主；Gateway 认证租户/规范工作区/会话租约桥接；桌面原生弹窗填写/拒绝/取消、默认值仅提示、原始枚举值、失效/跨来源拒绝、答复后清理。桌面不依赖 agent crate。
+- 红灯：原定桌面命令 `cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t25_ -- --nocapture`，退出101，三个指定目标断言全部观测到；宿主随后SIGABRT，不声称有完整失败摘要。证据 `t25/red-ready-1.log`。
+- 同命令最终9通过、0失败、0忽略；相邻 question_modal 11/11、agent_stream 71/71；任务24后端15/15、Gateway租约/租户隔离与过期2/2。
+- 真实原生窗口：明亮/暗黑各执行接受、拒绝、Escape取消，共6场景，24张真实 Iced 截图；通过生产 App::update/view、生产 watcher、Gateway HTTP 和真实 stdio MCP 校验线缆返回值。中文/长表单实际字形整形无 panic。选择6张去个人信息截图及合成返回值已归档。
+- `cargo fmt --all`、`cargo clippy --all-targets --all-features -- -D warnings` 均退出0；完整结构化记录见 `docs/plugin-compat/evidence/t25.json`。原日志与 run.json 留本地。
+- 最终验证实际动态领取槽位1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，`CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build`，`CARGO_INCREMENTAL=0`；阶段结束释放自己的锁并保留缓存。早期一次被安全中断的重复诊断短暂领取槽位2，不计通过证据。
+
+### 待补回归（无关既有测试）
+
+- 命令：`cargo test -p vw-desktop --lib --all-features app::message::view::tests -- --nocapture`。
+- 结果：退出101，11通过、2失败、0忽略，记录 `docs/plugin-compat/evidence/t25/final2-3.log`；二者也在二进制目标同样复现。
+- `update_routes_panel_layout_theme_and_activity_messages` 在 `view/tests.rs:193` 期待 `app.show_settings`；`system_settings_messages_hide_and_restore_running_work_browser` 在 `view/tests.rs:328` 期待控制器以 `show\n` 结束。两个测试直接调用设置面板路由，不经过本任务新增 Escape 分支，未改测试断言或设置行为。按 AGENTS 不处理其他 AI/既有无关失败。
+- 因上述相邻回归未通过，保留本文件并标记“已完成，待回归”；不声称完整基线兼容。仅 macOS 实际渲染验证，不声称公开远端或 Linux/Windows 验收。
+- 用户指定第25批后结束；不启动任务26及后续批次。

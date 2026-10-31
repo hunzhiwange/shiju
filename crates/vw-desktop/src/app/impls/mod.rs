@@ -28,3 +28,6 @@ mod app_view_status;
 pub(crate) use app_view_status::STATUS_BAR_HEIGHT;
 #[cfg(test)]
 mod tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod mcp_form_stream;

@@ -5,7 +5,21 @@
 #[cfg(windows)]
 mod native_crash;
 
+#[cfg(not(test))]
 use vw_desktop::{app, fonts};
+// Compile the same desktop modules in the explicit binary test target.
+#[cfg(test)]
+#[allow(dead_code, unused_imports, clippy::all, clippy::pedantic)]
+mod app;
+#[cfg(test)]
+#[allow(dead_code, unused_imports, clippy::all, clippy::pedantic)]
+mod apps;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+#[allow(dead_code, clippy::all, clippy::pedantic)]
+mod desktop_update_helper;
+#[cfg(test)]
+#[allow(dead_code, unused_imports, clippy::all, clippy::pedantic)]
+mod fonts;
 
 #[cfg(target_os = "macos")]
 use std::io::{BufRead, BufReader, Write};

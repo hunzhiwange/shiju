@@ -419,3 +419,5 @@ pub mod widgets;
 #[cfg(test)]
 #[path = "widgets_tests.rs"]
 mod widgets_tests;
+
+pub(crate) mod mcp_form;

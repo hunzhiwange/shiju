@@ -154,6 +154,7 @@ fn handler_router() -> Router {
         .merge(handlers::permission::router())
         // 问答路由：问答交互接口
         .merge(handlers::question::router())
+        .merge(handlers::mcp_forms::router())
         // PTY 路由：伪终端会话
         .merge(handlers::pty::router())
         // 任务池 worktree 池路由

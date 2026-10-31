@@ -118,3 +118,5 @@ pub use chat::ReasoningEffortDto;
 pub use common::*;
 pub use error::*;
 pub use id::*;
+
+pub mod mcp_form;

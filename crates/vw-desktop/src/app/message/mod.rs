@@ -28,6 +28,7 @@ pub mod editor;
 pub mod gateway_health;
 pub mod git;
 pub mod knowledge_tool;
+pub(crate) mod mcp_form;
 pub mod notification;
 pub mod preview;
 pub mod project;

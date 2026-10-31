@@ -145,7 +145,9 @@ fn embed_windows_icon(manifest_dir: &Path, out_dir: &Path) {
         }
     }
 
-    panic!("Windows icon compilation requires rc.exe or llvm-rc; install LLVM and add its bin directory to PATH (see scripts/BUILDING.md)");
+    panic!(
+        "Windows icon compilation requires rc.exe or llvm-rc; install LLVM and add its bin directory to PATH (see scripts/BUILDING.md)"
+    );
 }
 
 fn sanitize_icon_token(value: &str) -> Option<String> {

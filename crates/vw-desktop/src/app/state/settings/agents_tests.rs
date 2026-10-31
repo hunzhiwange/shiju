@@ -338,11 +338,7 @@ fn main_agent_fields_preserve_saved_binding_over_global_default() {
         ..Default::default()
     };
     assert_eq!(
-        super::main_agent_model_fields(
-            &config,
-            Some("shiju"),
-            Some("shiju/deepseek-v4.1-flash"),
-        ),
+        super::main_agent_model_fields(&config, Some("shiju"), Some("shiju/deepseek-v4.1-flash"),),
         ("custom".into(), "saved-model".into()),
     );
 }

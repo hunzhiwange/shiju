@@ -1620,10 +1620,9 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
             let mut saved_config = vw_config_types::config::Config::default();
             for (key, value) in patch["agents"].as_object().unwrap() {
                 if !value.is_null() {
-                    saved_config.agents.insert(
-                        key.clone(),
-                        serde_json::from_value(value.clone()).unwrap(),
-                    );
+                    saved_config
+                        .agents
+                        .insert(key.clone(), serde_json::from_value(value.clone()).unwrap());
                 }
             }
             let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::Save));
@@ -1659,7 +1658,11 @@ fn saved_config_stays_clean_after_discard_refresh_in_either_response_order() {
             );
             let _ = update(
                 &mut app,
-                SettingsMessage::Agents(AgentsMessage::Loaded(Ok((vec![], vec![], vec!["read".into()])))),
+                SettingsMessage::Agents(AgentsMessage::Loaded(Ok((
+                    vec![],
+                    vec![],
+                    vec!["read".into()],
+                )))),
             );
             assert!(app.agents_settings.dirty, "catalog refresh must preserve actual edits");
         }

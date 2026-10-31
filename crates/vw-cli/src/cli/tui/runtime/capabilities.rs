@@ -53,12 +53,11 @@ pub(crate) async fn load_session_capabilities(
             models.dedup();
             matrix.models = models;
             default_model = provider_defaults.into_iter().find_map(|(provider, model)| {
-                let qualified =
-                    if model.starts_with(&format!("{provider}/")) {
-                        model
-                    } else {
-                        format!("{provider}/{model}")
-                    };
+                let qualified = if model.starts_with(&format!("{provider}/")) {
+                    model
+                } else {
+                    format!("{provider}/{model}")
+                };
                 matrix.models.iter().any(|candidate| candidate == &qualified).then_some(qualified)
             });
             matrix.supports_thinking = supports_reasoning;

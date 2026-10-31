@@ -194,10 +194,8 @@ fn windows_graphics_backend_forces_dx12_over_inherited_settings() {
             }
         }
     }
-    let _restore = RestoreBackends(
-        std::env::var_os("WGPU_BACKEND"),
-        std::env::var_os("ICED_BACKEND"),
-    );
+    let _restore =
+        RestoreBackends(std::env::var_os("WGPU_BACKEND"), std::env::var_os("ICED_BACKEND"));
     for inherited in [None, Some(""), Some("gl"), Some("vulkan"), Some("all")] {
         unsafe {
             match inherited {

@@ -120,9 +120,7 @@ exit 0
     restart_windows_with_schtasks(&schtasks).expect("restart through fake schtasks");
     status_windows_with_schtasks(&schtasks).expect("status through fake schtasks");
 
-    assert!(
-        config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd").is_file()
-    );
+    assert!(config.config_path.parent().unwrap().join("logs").join("shiju-daemon.cmd").is_file());
 }
 
 #[cfg(not(target_os = "windows"))]

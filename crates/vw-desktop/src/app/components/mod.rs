@@ -118,11 +118,11 @@ mod input_mention_highlighter_tests;
 /// 用户输入界面，支持文本输入、多行编辑、快捷键等功能。
 pub mod input_panel;
 
+pub(crate) mod cli_command_help;
 /// 安装 CLI 对话框组件
 ///
 /// 引导用户安装和配置命令行工具的模态对话框。
 pub mod install_cli_modal;
-pub(crate) mod cli_command_help;
 #[cfg(test)]
 #[path = "install_cli_modal_tests.rs"]
 mod install_cli_modal_tests;

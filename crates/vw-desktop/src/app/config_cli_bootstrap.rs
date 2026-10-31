@@ -88,8 +88,8 @@ pub async fn bootstrap_cli_service_async() -> Result<(), String> {
         }
         result
     })
-        .await
-        .map_err(|err| format!("CLI 服务引导任务失败: {err}"))?
+    .await
+    .map_err(|err| format!("CLI 服务引导任务失败: {err}"))?
 }
 
 #[cfg(not(target_arch = "wasm32"))]

@@ -440,7 +440,10 @@ fn cli_update_result_distinguishes_matching_new_and_failed_versions() {
     app.desktop_update.checking = true;
     let request = app.desktop_update.request;
     let source = app.desktop_update.source.unwrap();
-    let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdateFinished(request, source, Ok("v1.2.3".into())));
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, source, Ok("v1.2.3".into())),
+    );
     assert!(!app.cli_install_modal_is_checking_update);
     assert_eq!(app.cli_install_modal_server_version, "v1.2.3");
     assert!(app.cli_install_modal_message.contains("已是最新版本"));
@@ -448,13 +451,19 @@ fn cli_update_result_distinguishes_matching_new_and_failed_versions() {
     app.desktop_update.checking = true;
     let request = app.desktop_update.request;
     let source = app.desktop_update.source.unwrap();
-    let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdateFinished(request, source, Ok("v2.0.0".into())));
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, source, Ok("v2.0.0".into())),
+    );
     assert!(app.cli_install_modal_message.contains("发现新的 CLI 版本"));
 
     app.desktop_update.checking = true;
     let request = app.desktop_update.request;
     let source = app.desktop_update.source.unwrap();
-    let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdateFinished(request, source, Err("offline".into())));
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, source, Err("offline".into())),
+    );
     assert_eq!(app.cli_install_modal_server_version, "检测失败");
     assert_eq!(app.cli_install_modal_message, "offline");
 }
@@ -865,9 +874,10 @@ fn cli_update_ignores_result_after_source_switch() {
     let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdate);
     let request = app.desktop_update.request;
     let _ = super::update(&mut app, ViewMessage::AppUpdateSourceSelected(UpdateSource::Github));
-    let _ = super::update(&mut app, ViewMessage::CheckCliToolUpdateFinished(
-        request, UpdateSource::Shiju, Ok("99.0.0".into()),
-    ));
+    let _ = super::update(
+        &mut app,
+        ViewMessage::CheckCliToolUpdateFinished(request, UpdateSource::Shiju, Ok("99.0.0".into())),
+    );
     assert_eq!(app.cli_install_modal_server_version, "未检测");
     assert!(!app.desktop_update.checking);
     assert_eq!(app.desktop_update.source, Some(UpdateSource::Github));

@@ -528,12 +528,11 @@ pub(crate) fn adapt_gateway_stream_event(event: GatewayChatStreamEvent) -> UiRun
             };
             UiRuntimeEvent::Message(UiMessage::Progress(UiProgressMessage {
                 base: UiMessageBase::new(UiMessageId::local(format!(
-                    "model-recovery-{}", event.session_id
+                    "model-recovery-{}",
+                    event.session_id
                 )))
                 .with_session_id(event.session_id)
-                .with_origin(UiMessageOrigin::Gateway {
-                    event_type: "chat.model_recovery".into(),
-                }),
+                .with_origin(UiMessageOrigin::Gateway { event_type: "chat.model_recovery".into() }),
                 label: format!("{label}：{}；{}", event.reason, event.next_action),
                 current: Some(event.attempt),
                 total: Some(event.max_attempts),

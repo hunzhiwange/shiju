@@ -511,9 +511,7 @@ impl QueryEngine {
                     &self.model_limit,
                 )
             {
-                anyhow::bail!(
-                    "当前请求超过模型输入窗口，且没有可压缩的历史；请缩短输入或减少附件"
-                );
+                anyhow::bail!("当前请求超过模型输入窗口，且没有可压缩的历史；请缩短输入或减少附件");
             }
             return Ok(context);
         }

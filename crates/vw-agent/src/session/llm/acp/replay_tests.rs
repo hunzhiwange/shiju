@@ -39,7 +39,8 @@ fn build_request_prompt_extracts_latest_user_message_when_not_forcing_replay() {
         3,
     );
 
-    assert_eq!(prompt, "latest request");
+    // 当前请求沿用 content_to_text 的文本块分隔，和带历史的重放保持一致。
+    assert_eq!(prompt, "latest\nrequest");
 }
 
 #[test]

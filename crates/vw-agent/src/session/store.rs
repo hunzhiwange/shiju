@@ -1799,9 +1799,7 @@ fn apply_session_message_delta_sqlite(
     if stored_updated_ms != delta.expected_updated_ms {
         return Err(SessionMessageDeltaError::Conflict(format!(
             "stale session message delta for {}: expected updated_ms {}, stored updated_ms {}",
-            delta.session_id,
-            delta.expected_updated_ms,
-            stored_updated_ms
+            delta.session_id, delta.expected_updated_ms, stored_updated_ms
         ))
         .into());
     }

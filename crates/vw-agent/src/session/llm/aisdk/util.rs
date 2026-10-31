@@ -199,15 +199,11 @@ pub(crate) fn openai_messages_to_aisdk_messages(
         || model.provider_id.to_ascii_lowercase().contains("deepseek");
     let uses_anthropic_instructions = model.api.adapter.trim() == "anthropic"
         || model.api.url.trim().trim_end_matches('/').ends_with("/messages");
-    // DashScope Chat 只接受 system/user/assistant/tool；Responses 保留 developer。
-    let uses_dashscope_chat_instructions =
-        reqwest::Url::parse(&model.api.url).ok().is_some_and(|url| {
-            let host = url.host_str().unwrap_or_default();
-            model.api.adapter.trim() != "openai-responses"
-                && !url.path().trim_end_matches('/').ends_with("/responses")
-                && (host == "dashscope.aliyuncs.com"
-                    || host.ends_with(".dashscope.aliyuncs.com")
-                    || host.ends_with(".maas.aliyuncs.com"))
+    // Responses 保留 developer；第三方 Chat 接口默认使用通用的 system 指令通道。
+    let preserves_developer = model.api.adapter.trim() == "openai-responses"
+        || reqwest::Url::parse(model.api.url.trim()).ok().is_some_and(|url| {
+            url.path().trim_end_matches('/').ends_with("/responses")
+                || url.host_str() == Some("api.openai.com")
         });
 
     let tool_result_message = |obj: &Map<String, Value>, tool_names: &HashMap<String, String>| {
@@ -318,7 +314,7 @@ pub(crate) fn openai_messages_to_aisdk_messages(
 
         match role {
             "system" | "developer"
-                if uses_anthropic_instructions || uses_dashscope_chat_instructions =>
+                if uses_anthropic_instructions || !preserves_developer =>
             {
                 let text = openai_message_content_to_text(obj.get("content"));
                 if !text.trim().is_empty() {

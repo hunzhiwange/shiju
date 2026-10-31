@@ -208,11 +208,11 @@ fn assert_skills_message_roles(messages: &[Value], roles: &[&str]) {
 }
 
 #[tokio::test]
-async fn codex_skills_transport_chat_http_preserves_developer_directory_and_user_body() {
+async fn codex_skills_transport_chat_http_merges_instructions_and_preserves_user_body() {
     let request = capture_skills_transport_request("openai-compatible", "/chat/completions").await;
     assert_skills_message_roles(
         request["messages"].as_array().unwrap(),
-        &["system", "developer", "user", "assistant", "user"],
+        &["system", "user", "assistant", "user"],
     );
 }
 

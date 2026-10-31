@@ -51,15 +51,8 @@ pub fn chat_text_line_height() -> iced::widget::text::LineHeight {
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub fn chat_text_font_name() -> &'static str {
-    #[cfg(target_os = "macos")]
-    {
-        "PingFang SC"
-    }
-
-    #[cfg(not(target_os = "macos"))]
-    {
-        "Noto Sans CJK SC"
-    }
+    // 与内置字体保持一致，避免依赖 macOS 私有系统字体的发现与解析。
+    "Noto Sans CJK SC"
 }
 
 /// 执行 chat_text_font 对应的模块功能。

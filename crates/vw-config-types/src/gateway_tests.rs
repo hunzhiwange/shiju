@@ -5,6 +5,7 @@
 #[test]
 fn gateway_defaults_cover_auth_and_rate_limits() {
     let config = super::GatewayConfig::default();
+    assert_eq!(super::DEFAULT_GATEWAY_PORT, if cfg!(debug_assertions) { 42_617 } else { 14_682 });
     assert_eq!(config.port, super::DEFAULT_GATEWAY_PORT);
     assert_eq!(config.host, "127.0.0.1");
     assert!(!config.auth_enabled);

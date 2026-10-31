@@ -166,7 +166,8 @@ fn install_macos_native_stderr_filter() {
 fn default_font() -> iced::Font {
     #[cfg(target_os = "macos")]
     {
-        iced::Font::with_name("PingFang SC")
+        // 系统苹方可能仅由 CoreText 提供，目录扫描无法发现；使用已注册的内置字体。
+        iced::Font::with_name("Noto Sans CJK SC")
     }
 
     #[cfg(not(target_os = "macos"))]

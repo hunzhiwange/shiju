@@ -131,7 +131,7 @@ fn native_stderr_filter_keeps_unrelated_stderr_lines() {
 
 #[test]
 fn default_font_uses_platform_family_name() {
-    let expected = if cfg!(target_os = "macos") { "PingFang SC" } else { "JetBrains Mono" };
+    let expected = if cfg!(target_os = "macos") { "Noto Sans CJK SC" } else { "JetBrains Mono" };
 
     assert_eq!(default_font().family, Family::Name(expected));
 }

@@ -199,6 +199,16 @@ pub(crate) fn openai_messages_to_aisdk_messages(
         || model.provider_id.to_ascii_lowercase().contains("deepseek");
     let uses_anthropic_instructions = model.api.adapter.trim() == "anthropic"
         || model.api.url.trim().trim_end_matches('/').ends_with("/messages");
+    // DashScope Chat 只接受 system/user/assistant/tool；Responses 保留 developer。
+    let uses_dashscope_chat_instructions =
+        reqwest::Url::parse(&model.api.url).ok().is_some_and(|url| {
+            let host = url.host_str().unwrap_or_default();
+            model.api.adapter.trim() != "openai-responses"
+                && !url.path().trim_end_matches('/').ends_with("/responses")
+                && (host == "dashscope.aliyuncs.com"
+                    || host.ends_with(".dashscope.aliyuncs.com")
+                    || host.ends_with(".maas.aliyuncs.com"))
+        });
 
     let tool_result_message = |obj: &Map<String, Value>, tool_names: &HashMap<String, String>| {
         let id = obj.get("tool_call_id").and_then(Value::as_str).unwrap_or_default();
@@ -307,11 +317,12 @@ pub(crate) fn openai_messages_to_aisdk_messages(
         }
 
         match role {
-            "system" | "developer" if uses_anthropic_instructions => {
+            "system" | "developer"
+                if uses_anthropic_instructions || uses_dashscope_chat_instructions =>
+            {
                 let text = openai_message_content_to_text(obj.get("content"));
                 if !text.trim().is_empty() {
-                    // The SDK maps Developer to user and keeps only the last System.
-                    // Merge explicit instruction roles into Anthropic's one system channel.
+                    // 仅在不支持 developer 的协议边界合并指令，用户消息仍保持用户角色。
                     if let Some(aisdk::core::Message::System(system)) = out
                         .iter_mut()
                         .find(|message| matches!(message, aisdk::core::Message::System(_)))

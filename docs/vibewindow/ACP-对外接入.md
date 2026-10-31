@@ -104,6 +104,8 @@ acp --agent 'shiju acp' --cwd /absolute/project sessions close integration
 
 `--model` 在会话新建、一次性执行与持久化提示时生效；未知模型会直接报错。生成中切换模型不会中断当前输出，后续提示使用新模型。取消会保存已提交的用户提示与收到的部分回复，恢复后可继续对话。
 
+DashScope 的 Chat 接口不接受 `developer` 消息；适配层将可信指令合并到 `system` 通道，保留用户内容的原角色。Responses 接口继续保留 `developer`。接口角色范围见[阿里云 Chat 文档](https://docs.bailian.console.aliyun.com/en/model-studio/qwen-api-via-openai-chat-completions)。
+
 ## 会话和安全边界
 
 - `cwd` 必须是存在的绝对目录，并在会话新建和加载时规范化。

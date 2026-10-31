@@ -26,6 +26,11 @@ pub(crate) use compat::mcp_connection_sessions::{
 pub(crate) use compat::mcp_connection_settings::settings as plugin_mcp_connection_settings;
 pub(crate) use compat::mcp_connections::McpSessionConnections;
 pub(crate) use compat::mcp_content::{normalize_mcp_tool_result, preserve_mcp_wire_result};
+pub(crate) use compat::mcp_elicitation::FormBinding as McpFormBinding;
+pub use compat::mcp_elicitation::McpFormSession;
+pub(crate) fn has_mcp_form_handler() -> bool {
+    compat::mcp_elicitation::current_host().is_some()
+}
 pub(crate) use compat::mcp_notifications::{McpCatalogs, ToolCatalogBinding};
 pub(crate) use compat::mcp_resources::{RawResponse as RawMcpResponse, call as call_mcp_resource};
 

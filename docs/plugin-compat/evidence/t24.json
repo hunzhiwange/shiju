@@ -1,0 +1,432 @@
+{
+  "schema_version": 1,
+  "task": 24,
+  "status": "已完成",
+  "scope": "Native MCP 2025-06-18 form broker and trusted host integration API; real stdio and loopback Streamable HTTP transport. Desktop controls/rendering remain task25.",
+  "items": [
+    {
+      "id": "mcp.elicitation",
+      "tasks": [
+        24
+      ],
+      "tests": [
+        "codex_plugin_compat_t24_rejects_unsupported_raw_schemas_without_weakening_them",
+        "codex_plugin_compat_t24_validates_enums_formats_numbers_and_user_supplied_defaults",
+        "codex_plugin_compat_t24_requires_explicit_accept_even_for_empty_forms",
+        "codex_plugin_compat_t24_binds_tenant_workspace_and_remote_metadata_authority",
+        "codex_plugin_compat_t24_rejects_null_constraints_instead_of_ignoring_them",
+        "codex_plugin_compat_t24_cancels_and_withdraws_handler_without_model_answers",
+        "codex_plugin_compat_t24_releases_requests_on_remote_cancel_disconnect_and_call_timeout",
+        "codex_plugin_compat_t24_dropping_ui_lease_cancels_waiting_server",
+        "codex_plugin_compat_t24_routes_equal_wire_ids_from_concurrent_servers",
+        "codex_plugin_compat_t24_form_deadline_expires_without_consuming_late_input",
+        "codex_plugin_compat_t24_roundtrips_user_form_over_streamable_http",
+        "codex_plugin_compat_t24_keeps_user_answers_out_of_sdk_debug_traces",
+        "codex_plugin_compat_t24_returns_validated_user_response",
+        "codex_plugin_compat_t24_rejects_invalid_input",
+        "codex_plugin_compat_t24_preserves_isolation"
+      ],
+      "red": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+        "exit_code": 101,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 228.38,
+        "record": "t24/resumed-red-red.log",
+        "summary": [],
+        "effective_tests": 3,
+        "observed_target_assertions": 3,
+        "result_note": "All three named target runtime assertions observed -32600 unsupported elicitation before host SIGABRT. No completed failed-test summary is claimed; earlier ENOSPC/compile diagnostics are not behavior red evidence."
+      },
+      "green": {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+        "exit_code": 0,
+        "slot": 1,
+        "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+        "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+        "elapsed_seconds": 134.69,
+        "record": "t24/final3-focused.log",
+        "summary": [
+          "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 10692 filtered out; finished in 0.39s"
+        ],
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0,
+        "effective_tests": 15
+      },
+      "evidence_status": "passed",
+      "conclusion": "task_scope_verified",
+      "platforms": {
+        "verified": [
+          "macos"
+        ],
+        "pending": [
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "notes": "Task24 backend portion only. User-response boundary is substituted by trusted host calls, not model tools. Server processes/HTTP transport, negotiation, routing, schema validation and lifecycle are real. Full baseline item also maps task25; GUI and public-service/platform acceptance are not claimed."
+    }
+  ],
+  "validation": {
+    "original_three_green": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 142.55,
+      "record": "t24/green-focused.log",
+      "summary": [
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10692 filtered out; finished in 0.05s"
+      ],
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 3
+    },
+    "additional_runtime_red": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 130.31,
+      "record": "t24/final1-focused.log",
+      "summary": [],
+      "effective_tests": 14,
+      "result_note": "Runtime target assertions exposed null constraints discarded by serde Option, noncanonical date accepted, and HTTP SSE form not captured before SDK. No completed summary before host SIGABRT."
+    },
+    "privacy_red": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_keeps_user_answers_out_of_sdk_debug_traces -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 129.68,
+      "record": "t24/red-private2-red.log",
+      "summary": [],
+      "effective_tests": 1,
+      "observed_target_assertions": 1,
+      "result_note": "Isolated child installs SDK debug/trace capture and observes synthetic user answer in typed result before fix; child and harness terminate after target assertion. No completed failed summary claimed."
+    },
+    "privacy_green": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_keeps_user_answers_out_of_sdk_debug_traces -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.84,
+      "record": "t24/regression-privacy.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10706 filtered out; finished in 0.03s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    "intermediate_authority_regression": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 130.61,
+      "record": "t24/final2-focused.log",
+      "summary": [],
+      "result_note": "SDK cancels its request token on ordinary completion; restored actual peer-cancel token handling before final3 passed."
+    },
+    "fmt": {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 8.8,
+      "record": "t24/final3-fmt.log",
+      "summary": []
+    },
+    "plugin_first_attempt": {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 101,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 1.67,
+      "record": "t24/regression-plugins.log",
+      "summary": [],
+      "result_note": "Existing hook DEBUG capture returned levels=[]; no hook code changed. Focused retry and identical full plugin command subsequently passed."
+    },
+    "hook_retry": {
+      "command": "cargo test -p vw-agent --lib --all-features untrusted_plugin_hook_skip_does_not_warn -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.42,
+      "record": "t24/regression2-hook.log",
+      "summary": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10706 filtered out; finished in 0.00s"
+      ],
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 1
+    },
+    "plugins": {
+      "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 7.49,
+      "record": "t24/regression2-plugins.log",
+      "summary": [
+        "test result: ok. 357 passed; 0 failed; 0 ignored; 0 measured; 10350 filtered out; finished in 7.12s"
+      ],
+      "passed": 357,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 357
+    },
+    "mcp": {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_ -- --nocapture",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 0.54,
+      "record": "t24/regression2-mcp.log",
+      "summary": [
+        "test result: ok. 66 passed; 0 failed; 0 ignored; 0 measured; 10641 filtered out; finished in 0.16s"
+      ],
+      "passed": 66,
+      "failed": 0,
+      "ignored": 0,
+      "effective_tests": 66
+    },
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1,
+      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "elapsed_seconds": 97.67,
+      "record": "t24/regression2-clippy.log",
+      "summary": []
+    },
+    "environment": {
+      "CARGO_INCREMENTAL": "0",
+      "lease_policy": "Each stage atomically claimed first free shared slot. All used slot1; own leases removed after child processes ended. Caches retained. No repository Cargo configuration modified."
+    }
+  },
+  "sources": [
+    {
+      "source": "codex:codex-rs/codex-mcp/src/elicitation.rs",
+      "path": "codex-rs/codex-mcp/src/elicitation.rs",
+      "symbol": "ElicitationRequestRouter",
+      "line": 102,
+      "sha256": "e0ecb78e1d92fda60288912205c7ea9efa0c350bbdec40f7afe03e6ae733e13a",
+      "actual_sha256": "e0ecb78e1d92fda60288912205c7ea9efa0c350bbdec40f7afe03e6ae733e13a"
+    }
+  ],
+  "supplementary_sources": [
+    {
+      "crate": "rmcp",
+      "version": "0.8.5",
+      "path": "src/service.rs",
+      "sha256": "b28b6979638c9e5675ff16129c9e1819d8e0937bb799d720cc46890de6b1d8cb",
+      "observation": "SDK logs typed handler results and cancels RequestContext.ct on ordinary response completion; actual remote cancellation therefore tracked separately until send acknowledgement."
+    },
+    {
+      "crate": "rmcp",
+      "version": "0.8.5",
+      "path": "src/model/elicitation_schema.rs",
+      "sha256": "575c1b86c820eaf612b7e457276d46462529fd99e90e0363180e12be2b251f24",
+      "observation": "Permissive typed primitive schema deserialization can discard enum/unknown constraints; bounded raw params are validated before SDK deserialization."
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/plugin-compat/evidence/t24/resumed-red-red.log",
+      "sha256": "0755bed11b586cda462f18e93c9442a7311d872c9dc763ced07c171d050746ef",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/resumed-red-red.run.json",
+      "sha256": "3b33d2b06806c2cd9e0ac92d0a880323b48a5c50c1f43df87e447a4985a03ab5",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/green-focused.log",
+      "sha256": "8f1e3bc78789a19d76ba01bd58b97f0a1ff2d6000f9095066fa0fd9296df6a44",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/green-focused.run.json",
+      "sha256": "7f23a722e3d163178f5c94c95e89b6292049f320ba7ae3542d284f8840485954",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final1-focused.log",
+      "sha256": "ae5821ab434942d14165c24ff69eb9dd9d43c1e9be906cec272eb1fa539fe144",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final1-focused.run.json",
+      "sha256": "cde7b7ca3afba124cd396cf3c7e74a9a319b196a8b8a8b9f360e1545cb934268",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/red-private2-red.log",
+      "sha256": "4420ddaf407a07b69d5a1c3a3d02680841b08edde1686bea5afb8b00d462fe69",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/red-private2-red.run.json",
+      "sha256": "c5dd2b115a49c8261fd8af308d2328431fc3b4b9562d49787492f5d14deae9be",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final2-focused.log",
+      "sha256": "97c2d83b58b49c3e834986738e32b22f42d0a2be1aa35e5d968f947709d0f294",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final2-focused.run.json",
+      "sha256": "6a18f2227bfee4540f4df38280d76ea725c74873b60090edd9f27980a8913351",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final3-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final3-fmt.run.json",
+      "sha256": "f8a8d94f02d5380841088e59c7e87a70cff93669e95fa7683d31e04073d085de",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final3-focused.log",
+      "sha256": "f7de0edf197dff16959fab5e815540afbcfbee945bce75fe1931ac7c742b1ed6",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/final3-focused.run.json",
+      "sha256": "2e2c335f06739efa279e7eadc8cbbdde2e1811a77b1c3f987c9ed42a160666cd",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression-privacy.log",
+      "sha256": "5bb8fa615ffd7097370b814297c159dc01edc9cf9730cce6e8b5e801eeb8e023",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression-privacy.run.json",
+      "sha256": "69537e442d77ffea9960626d1d8b4c9e4b8b8d18f967904b744e113653f2f3ae",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression-plugins.log",
+      "sha256": "29b9cb73d06ccc715ae4566c82cd223ade3cc243f2d72f60342774be83afde6d",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression-plugins.run.json",
+      "sha256": "2c20168d6880716ca2fa65291aab5f3c832ab3f0f429981cc814c4c8e3009a8b",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-hook.log",
+      "sha256": "3c7b979bf8d12e38a93c3690dbef427036778d1c82232b5711279c59387a0614",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-hook.run.json",
+      "sha256": "00de3271d16ad17ab7b21cca7428b574248c5c5801c76b35f74d0a3e6ab6f0fb",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-plugins.log",
+      "sha256": "6d6bfe1752d0dd8e15d12bc71d7a95ce5e18ef75c097ae9b8cf12de36a943af9",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-plugins.run.json",
+      "sha256": "afb335ae792d0bd960db5931252a6560b0c9d168fb53e6711c14b09e2b7b3ff3",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-mcp.log",
+      "sha256": "09223e776b979ecb8f28d3bb525cf598b7242a7d3b51c17df6e7b3f037c39103",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-mcp.run.json",
+      "sha256": "91d8a53229cefd56334d311d3aec8bcf01b2ab931aeae9ccfb977ab36fb1cd0f",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-clippy.log",
+      "sha256": "3492d8b97adc5495a4360a5bfd367a9dae1920c7997b5057afb4b4c448e65dfa",
+      "storage": "local_only"
+    },
+    {
+      "path": "docs/plugin-compat/evidence/t24/regression2-clippy.run.json",
+      "sha256": "be85380af1a31a50ce31db603a24c6f62a589c1dffad5a3755b4caf2134b46bb",
+      "storage": "local_only"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t24/README.md",
+      "sha256": "9bce72d697f69bb5132585b31ea62a645a93a299c2d7436d6d208ee62b404fae",
+      "storage": "committed_fixture"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t24/http_server.py",
+      "sha256": "0451c8a80eb2953a55de6ebcb97de96ed77db507bfc832f8ce58ba578575a79f",
+      "storage": "committed_fixture"
+    },
+    {
+      "path": "crates/vw-agent/testdata/plugin_compat/t24/server.py",
+      "sha256": "8dc90ad8dc410b174439905be434ed7b3dc0c2552e65c55027e15468cb2d598a",
+      "storage": "committed_fixture"
+    }
+  ],
+  "platform": "Darwin",
+  "source_review": {
+    "authority": "Host lease binds tenant/workspace/chat; configured server and connection UUID bind wire request ID and opaque public request ID. Exact request equality and current tenant required for replies. Remote _meta cannot grant authority. Cross-session/tenant/workspace/tampered/late replies tested.",
+    "schema": "Frozen object/primitive dialect: declared fields, required, string enum/labels, lengths, number bounds, boolean, format, explicit user input and defaults as hints. Unknown/null/nested/ref schemas fail explicitly. Raw constraints preserved before SDK enum parsing.",
+    "lifecycle": "Accept/decline/cancel, no-model-answer, equal wire IDs on separate servers, duplicate unanswered IDs, UI lease removal, call timeout, remote cancellation/disconnect and late reply tested. Form deadline branch uses paused Tokio clock; it is not claimed as a real 120-second wall-clock delay.",
+    "privacy": "SDK receives neutral typed params/results. Bounded raw constraints/user answer side channels owned by transport. Final answer authority rechecked before restoring bytes. Trace test child suppresses remote echo to isolate client-generated form answer logs.",
+    "reference": "Reviewed ElicitationRequestRouter request routing/pending responder cleanup and auth_elicitation.rs. Hosted account-connector flows are excluded. No authentication bypass or invented URL/auth form support."
+  },
+  "environment_history": [
+    "Initial target compilation/link failed ENOSPC; neither diagnostic is behavior red. Cleared only the confirmed own failed incremental working directory (3.3GiB), retained shared cache.",
+    "After explicit user authorization for slot2 incremental cleanup, path/slot2 were already externally absent and Data had 97GiB free. This agent deleted no additional caches. Draft restored and all original runtime red assertions obtained before implementation.",
+    "One initial tracing test compile diagnostic is retained locally but excluded from runtime red evidence.",
+    "Unrelated existing hook DEBUG capture first failed under plugin regression; focused retry and entire same suite passed, without changing hook code."
+  ],
+  "limitations": [
+    "Desktop controls, rendering and end-to-end user UI are task25; this backend API does not itself install a GUI handler.",
+    "Only a live trusted host handler advertises standard elicitation. Fallback protocol versions and absent handlers retain explicit refusal. No openai extension/UI grants are added.",
+    "Form-only frozen primitive schema support; URL/auth, nested/remote schemas and unknown constraints rejected.",
+    "Duplicate unacknowledged wire IDs are conservatively rejected; reservations end on successful transport send acknowledgement.",
+    "No claimed cross-chat connection sharing (task18 gap), schema compression/model exposure parity (task19 gap), hosted identity, arbitrary remote tool-result log redaction, real public-service or Linux/Windows acceptance.",
+    "Raw logs and *.run.json are ignored/local-only; only structured summary, fixtures, implementation and tests are committed."
+  ],
+  "summary_checks": {
+    "artifact_hashes": 29,
+    "json": true,
+    "git_diff_check_exit_code": 0,
+    "full_baseline_checker": {
+      "exit_code": 1,
+      "expected_rejection": true,
+      "message": "Evidence rejected: discovery.legacy-order: missing evidence item",
+      "note": "Task-local backend evidence lacks other mapped tasks, task25 GUI and cross-platform acceptance. Full coverage is deliberately not marked verified."
+    }
+  }
+}

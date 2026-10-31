@@ -24,6 +24,7 @@ struct Entry {
     closed: CancellationToken,
     client: Arc<AsyncMutex<Option<RunningPeer>>>,
     catalogs: Mutex<std::sync::Weak<super::mcp_notifications::McpCatalogs>>,
+    forms: Option<super::mcp_elicitation::FormBinding>,
 }
 impl Drop for Entry {
     fn drop(&mut self) {
@@ -77,9 +78,16 @@ impl Drop for ActiveConnection {
 pub(crate) fn configuration_key(server: &McpServer) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(server)?)))
 }
-fn connection_key(server: &McpServer, configuration: &str) -> Result<String> {
+fn connection_key(
+    server: &McpServer,
+    configuration: &str,
+    forms: Option<&super::mcp_elicitation::FormHost>,
+) -> Result<String> {
     let mut hash = Sha256::new();
     hash.update(configuration);
+    if let Some(forms) = forms {
+        hash.update(forms.generation());
+    }
     match server {
         McpServer::Stdio(server) => {
             if let Some(cwd) = crate::plugins::plugin_mcp_runtime_cwd(server)? {
@@ -212,7 +220,8 @@ impl McpSessionConnections {
         }
         let configuration = configuration_key(server)?;
         let name = crate::tools::mcp_common::server_name(server);
-        let connection = match connection_key(server, &configuration) {
+        let form_host = super::mcp_elicitation::current_host();
+        let connection = match connection_key(server, &configuration, form_host.as_ref()) {
             Ok(key) => key,
             Err(error) => {
                 if let Some(entry) = self
@@ -245,11 +254,13 @@ impl McpSessionConnections {
                 .entries
                 .entry(name.to_owned())
                 .or_insert_with(|| {
+                    let closed = CancellationToken::new();
                     Arc::new(Entry {
                         configuration,
                         connection,
                         source_root: settings.source_root.clone(),
-                        closed: CancellationToken::new(),
+                        forms: form_host.map(|host| host.bind(name, closed.clone())),
+                        closed,
                         client: Arc::new(AsyncMutex::new(None)),
                         catalogs: Mutex::new(std::sync::Weak::new()),
                     })
@@ -263,16 +274,21 @@ impl McpSessionConnections {
             client = entry.client.clone().lock_owned() => client,
         };
         let mut active = ActiveConnection { client, keep: false };
+        // Replies use the independent host responder, never the peer mutex held by this call.
+        // An operation's end revokes pending form authority before the next call can start.
+        let _form_operation = entry.forms.as_ref().map(|forms| forms.activate());
         if active.client.as_ref().is_some_and(|c| c.peer().is_transport_closed()) {
             active.client.take();
         }
         if active.client.is_none() {
             let server = server.clone();
             let closed = entry.closed.child_token();
+            let forms = entry.forms.clone();
             let task = runtime().spawn(async move {
                 let operation = async {
                     let client =
-                        crate::tools::mcp_common::open_server_peer(server, startup, closed).await?;
+                        crate::tools::mcp_common::open_server_peer(server, startup, closed, forms)
+                            .await?;
                     if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {
                         client
                             .service()

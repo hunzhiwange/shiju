@@ -569,7 +569,7 @@ fn mcp_unsupported_capabilities_report_stable_policy_details() {
             {
                 "scope": "client",
                 "capability": "elicitation",
-                "reason": "vw-agent MCP client does not collect interactive user input for servers."
+                "reason": "MCP form input requires an active session UI handler."
             },
             {
                 "scope": "client",

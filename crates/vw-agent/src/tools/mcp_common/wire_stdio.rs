@@ -19,6 +19,7 @@ pub(super) fn decode(
     responses: &crate::plugins::RawMcpResponse,
 ) -> Result<ServerJsonRpcMessage, serde_json::Error> {
     responses.capture(&value);
+    responses.prepare_form_request(&mut value);
     crate::plugins::preserve_mcp_wire_result(&mut value);
     serde_json::from_value(value)
 }
@@ -98,7 +99,10 @@ impl Transport<RoleClient> for StdioTransport {
         message: ClientJsonRpcMessage,
     ) -> impl Future<Output = io::Result<()>> + Send + 'static {
         let input = self.input.clone();
+        let responses = self.responses.clone();
         async move {
+            let mut message = serde_json::to_value(message).map_err(io::Error::other)?;
+            let answer = responses.prepare_form_response(&mut message);
             let mut bytes = serde_json::to_vec(&message).map_err(io::Error::other)?;
             bytes.push(b'\n');
             let mut input = input.lock().await;
@@ -106,7 +110,9 @@ impl Transport<RoleClient> for StdioTransport {
                 io::Error::new(io::ErrorKind::NotConnected, "MCP transport is closed")
             })?;
             input.write_all(&bytes).await?;
-            input.flush().await
+            input.flush().await?;
+            responses.complete_form_response(answer);
+            Ok(())
         }
     }
 

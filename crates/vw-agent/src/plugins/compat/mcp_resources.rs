@@ -17,8 +17,33 @@ use std::sync::Mutex;
 /// A single response slot is sufficient: McpSessionConnections serializes each peer operation.
 /// The response id must match; unsolicited/overlapping responses fail closed, never cross-route.
 #[derive(Default)]
-pub(crate) struct RawResponse(Mutex<Option<(Value, Value)>>);
+pub(crate) struct RawResponse(
+    Mutex<Option<(Value, Value)>>,
+    super::mcp_form_wire::FormWireRequests,
+);
 impl RawResponse {
+    pub(crate) fn prepare_form_request(&self, message: &mut Value) {
+        self.1.prepare(message);
+    }
+    pub(crate) fn take_form_request(
+        &self,
+        id: &RequestId,
+    ) -> Option<(Value, tokio_util::sync::CancellationToken)> {
+        self.1.take(id)
+    }
+    pub(super) fn store_form_answer(
+        &self,
+        id: &RequestId,
+        answer: super::mcp_form_wire::FormWireAnswer,
+    ) -> Result<()> {
+        self.1.store_answer(id, answer)
+    }
+    pub(crate) fn prepare_form_response(&self, message: &mut Value) -> Option<String> {
+        self.1.prepare_answer(message)
+    }
+    pub(crate) fn complete_form_response(&self, id: Option<String>) {
+        self.1.complete_answer(id);
+    }
     pub(crate) fn capture(&self, message: &Value) {
         if message.get("method").is_some() {
             return;

@@ -11,7 +11,7 @@ fn sessions() -> &'static Mutex<HashMap<String, Arc<McpSessionConnections>>> {
     static SESSIONS: OnceLock<Mutex<HashMap<String, Arc<McpSessionConnections>>>> = OnceLock::new();
     SESSIONS.get_or_init(Default::default)
 }
-fn key(session: &str, root: &Path) -> String {
+pub(super) fn key(session: &str, root: &Path) -> String {
     let tenant = crate::session::ui_store::current_tenant_scope();
     let root = root.canonicalize().unwrap_or_else(|_| root.to_owned());
     hex::encode(Sha256::digest(

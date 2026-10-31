@@ -75,6 +75,7 @@ fn events(
                                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                                 .capture(&value);
                             responses.capture(&value);
+                            responses.prepare_form_request(&mut value);
                             crate::plugins::preserve_mcp_wire_result(&mut value);
                             event.data = Some(value.to_string());
                         }
@@ -113,6 +114,8 @@ impl StreamableHttpClient for HttpClient {
         if let Some(auth) = auth {
             request = request.bearer_auth(auth);
         }
+        let mut message = serde_json::to_value(message)?;
+        let answer = self.responses.prepare_form_response(&mut message);
         let response = request.json(&message).send().await?;
         if response.status() == reqwest_012::StatusCode::UNAUTHORIZED {
             if let Some(header) = response.headers().get("www-authenticate") {
@@ -128,6 +131,7 @@ impl StreamableHttpClient for HttpClient {
         }
         let status = response.status();
         let response = response.error_for_status()?;
+        self.responses.complete_form_response(answer);
         if matches!(status, reqwest_012::StatusCode::ACCEPTED | reqwest_012::StatusCode::NO_CONTENT)
         {
             return Ok(StreamableHttpPostResponse::Accepted);
@@ -226,7 +230,16 @@ impl SseClient for HttpClient {
         message: ClientJsonRpcMessage,
         auth: Option<String>,
     ) -> Result<(), SseTransportError<Self::Error>> {
-        SseClient::post_message(&self.client, uri, message, auth).await
+        let mut message = serde_json::to_value(message)
+            .map_err(|_| std::io::Error::other("MCP message encoding failed"))?;
+        let answer = self.responses.prepare_form_response(&mut message);
+        let mut request = self.client.post(uri.to_string()).json(&message);
+        if let Some(auth) = auth {
+            request = request.bearer_auth(auth);
+        }
+        request.send().await?.error_for_status()?;
+        self.responses.complete_form_response(answer);
+        Ok(())
     }
 
     async fn get_stream(

@@ -46,7 +46,7 @@ const UNSUPPORTED_MCP_CAPABILITIES: &[UnsupportedMcpCapability] = &[
     UnsupportedMcpCapability {
         scope: "client",
         capability: "elicitation",
-        reason: "vw-agent MCP client does not collect interactive user input for servers.",
+        reason: "MCP form input requires an active session UI handler.",
     },
     UnsupportedMcpCapability {
         scope: "client",
@@ -64,6 +64,7 @@ pub(crate) struct NoopClient {
     info: ClientInfo,
     pub(crate) catalogs: std::sync::Arc<crate::plugins::McpCatalogs>,
     pub(crate) raw_responses: std::sync::Arc<crate::plugins::RawMcpResponse>,
+    forms: Option<crate::plugins::McpFormBinding>,
 }
 
 impl Default for NoopClient {
@@ -77,6 +78,7 @@ impl NoopClient {
             raw_responses: Default::default(),
             catalogs: std::sync::Arc::new(crate::plugins::McpCatalogs::new(closed)),
             info: crate::plugins::mcp_client_info(),
+            forms: None,
         }
     }
 }
@@ -85,6 +87,9 @@ pub(crate) fn unsupported_mcp_capabilities_json() -> Value {
     Value::Array(
         UNSUPPORTED_MCP_CAPABILITIES
             .iter()
+            .filter(|capability| {
+                capability.capability != "elicitation" || !crate::plugins::has_mcp_form_handler()
+            })
             .map(|capability| {
                 json!({
                     "scope": capability.scope,
@@ -126,9 +131,25 @@ impl rmcp::ClientHandler for NoopClient {
     fn create_elicitation(
         &self,
         _request: CreateElicitationRequestParam,
-        _context: RequestContext<RoleClient>,
+        context: RequestContext<RoleClient>,
     ) -> impl Future<Output = Result<CreateElicitationResult, ErrorData>> + Send + '_ {
-        std::future::ready(Err(unsupported_client_capability_error("elicitation")))
+        async move {
+            let raw = self.raw_responses.take_form_request(&context.id);
+            let Some(forms) = &self.forms else {
+                return Err(unsupported_client_capability_error("elicitation"));
+            };
+            if !forms.available()
+                || context.peer.peer_info().is_none_or(|info| {
+                    info.protocol_version != rmcp::model::ProtocolVersion::V_2025_06_18
+                })
+            {
+                return Err(unsupported_client_capability_error("elicitation"));
+            }
+            let (raw, peer_cancelled) = raw.ok_or_else(|| {
+                ErrorData::invalid_params("MCP form request could not be validated", None)
+            })?;
+            forms.request(raw, context.id, context.ct, peer_cancelled, &self.raw_responses).await
+        }
     }
 
     fn on_resource_list_changed(
@@ -574,8 +595,13 @@ pub(crate) async fn open_server_peer(
     server: McpServer,
     timeout: Duration,
     closed: tokio_util::sync::CancellationToken,
+    forms: Option<crate::plugins::McpFormBinding>,
 ) -> anyhow::Result<RunningMcpPeer> {
-    let peer_client = NoopClient::with_cancellation(closed);
+    let mut peer_client = NoopClient::with_cancellation(closed);
+    if forms.as_ref().is_some_and(crate::plugins::McpFormBinding::available) {
+        peer_client.info.capabilities.elicitation = Some(Default::default());
+        peer_client.forms = forms;
+    }
     let responses = peer_client.raw_responses.clone();
     let server = &server;
     let running = match server {

@@ -190,6 +190,50 @@ fn backend_maps_runtime_events_without_parsing_display_text() {
 }
 
 #[tokio::test]
+async fn backend_worker_panic_persists_partial_turn_and_allows_follow_up() {
+    let root = TempDir::new().unwrap();
+    let backend = VibeWindowBackend::new(tenant("worker-panic"));
+    let created = backend.create_session(root.path().into()).await.unwrap();
+    let mut prompt = start_prompt_with_runtime_runner(
+        &backend,
+        &created.id,
+        vec![PromptContent::Text("question before panic".into())],
+        |_request, mut emit| {
+            emit(StreamEvent::Delta("partial answer".into()));
+            panic!("fixture panic detail");
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(prompt.events.recv().await, Some(BackendEvent::Text("partial answer".into())));
+    assert_eq!(
+        tokio::time::timeout(Duration::from_secs(2), prompt.events.recv()).await.unwrap(),
+        Some(BackendEvent::Error("session processor panicked".into()))
+    );
+    let mut follow_up = start_prompt_with_runtime_runner(
+        &backend,
+        &created.id,
+        vec![PromptContent::Text("follow up".into())],
+        |request, mut emit| {
+            assert_eq!(request.history[0].content, "question before panic");
+            assert_eq!(request.history[1].content, "partial answer");
+            emit(StreamEvent::Delta("recovered answer".into()));
+            emit(StreamEvent::Done(TokenUsage::default()));
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(follow_up.events.recv().await, Some(BackendEvent::Text("recovered answer".into())));
+    assert_eq!(
+        follow_up.events.recv().await,
+        Some(BackendEvent::Terminal(BackendTermination::EndTurn))
+    );
+    backend.shutdown().await.unwrap();
+    let loaded = backend.load_session(&created.id, root.path().into()).await.unwrap();
+    assert_eq!(loaded.history.len(), 4);
+}
+
+#[tokio::test]
 async fn backend_shutdown_persists_disconnected_prompt_and_allows_reload() {
     let root = TempDir::new().unwrap();
     let backend = VibeWindowBackend::new(tenant("disconnect"));

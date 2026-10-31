@@ -115,6 +115,7 @@ DashScope 的 Chat 接口不接受 `developer` 消息；适配层将可信指令
 - 历史按时间和原生消息 ID 正序回放，保证同毫秒写入的用户消息先于回复。
 - `session/cancel`、stdin EOF 或活动提示 future 被丢弃都会请求取消底层执行。
 - 连接结束时等待活动提示的取消历史落库；重新启动并加载会话后，可以继续生成中或等待权限时断开的对话。
+- 提示执行线程 panic 时返回当前轮次错误，保存已收到的文本并释放会话；后续提示可以继续执行，不会把异常轮次报告为成功。
 - 普通工具在执行或等待权限前发送 `tool_call`，再以相同调用 ID 发送进度与终态更新。
 - 工具开始事件与权限请求都携带明确的 `kind`，便于客户端选择展示方式、抑制读取输出和应用审批策略；分类来自已知原生工具身份，未知工具保持 `other`。
 - MCP 服务按会话连接；重复名称、不支持的传输或启动失败会让会话准备整体失败，不留下部分注册。
@@ -169,13 +170,15 @@ python3 scripts/verify_acp_external_client.py --acpx "$client_dir/node_modules/.
 
 脚本隔离 HOME、会话和文件，使用真实客户端与 `shiju acp` 通信，仅模型流由本地确定性端点提供。覆盖读取输出抑制、读取类型自动审批、PTY 中逐次允许/拒绝、无终端时拒绝执行、空闲和生成中队列进程崩溃后的恢复，以及等待权限时客户端进程退出后的会话恢复。输出目录保留客户端版本、协议帧、带终端控制码的原始记录、可读文本及结果摘要。此脚本验证 acpx 终端展示，不代表 Zed 等图形客户端的界面已验收。
 
-macOS 上，现有链接参数下的完整 `vw-acp` 库测试会在预期捕获 panic 的用例中异常中止。可临时覆盖 `RUSTFLAGS` 并使用独立构建目录验证，不修改仓库配置：
+macOS 构建保留平台默认的展开信息。不要添加 `-Wl,-no_compact_unwind`，该选项会使本应可捕获的 panic 变为 `failed to initiate panic, error 5` 和进程中止，参见 [Rust 问题记录](https://github.com/rust-lang/rust/issues/156812)。无需临时覆盖 `RUSTFLAGS`；相关崩溃回归可直接运行：
 
 ```bash
-CARGO_TARGET_DIR=/tmp/vw-acp-unwind-target \
-RUSTFLAGS='-C target-cpu=apple-m1 -C force-unwind-tables=yes' \
-cargo --config 'build.build-dir="/tmp/vw-acp-unwind-build"' \
-  test -p vw-acp --lib -- --test-threads=1
+cargo test -p vw-acp --lib lock_recovers_poisoned_mutex_guard
+cargo test -p vw-agent --lib grep_content_truncates_multibyte_lines_at_valid_utf8_boundaries
+cargo test -p vw-agent --lib prompt_runtime_panic_returns_failure_and_leaves_later_turns_usable
+cargo test -p vw-agent --lib backend_worker_panic_persists_partial_turn_and_allows_follow_up
 ```
 
-上述临时参数用于 Apple Silicon；其他架构应省略或调整 `target-cpu`。
+真实进程联调同时覆盖 grep 搜索中文长行后的工具完成通知及继续对话，避免 UTF-8 截断问题只在单元测试中被验证。
+
+大型 debug 二进制可能收到 Apple 链接器的 `__eh_frame section too large` 性能提示，参见 [Rust 链接器诊断记录](https://github.com/rust-lang/rust/issues/159105)。保留该诊断和展开信息，不通过禁用展开或放宽检查来消除提示。

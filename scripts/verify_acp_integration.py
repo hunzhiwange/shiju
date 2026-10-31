@@ -56,7 +56,7 @@ class ProviderHandler(BaseHTTPRequestHandler):
         slow = "SLOW_CANCEL" in json.dumps(users[-1:])
         marker = next((name for name in ("TOOL_ALLOW", "TOOL_REJECT", "TOOL_INVALID",
                        "TOOL_CANCELLED", "TOOL_RPC_ERROR", "TOOL_DISCONNECT", "TOOL_CANCEL",
-                       "TOOL_READ", "TOOL_FAIL") if name in json.dumps(users[-1:])), None)
+                       "TOOL_READ", "TOOL_FAIL", "TOOL_GREP_UNICODE") if name in json.dumps(users[-1:])), None)
         last_user = max((i for i, item in enumerate(body.get("messages", []))
                          if item.get("role") == "user"), default=-1)
         results = [item for item in body.get("messages", [])[last_user + 1:]
@@ -72,6 +72,10 @@ class ProviderHandler(BaseHTTPRequestHandler):
                 arguments = ({"path": "fixture.txt" if marker == "TOOL_READ" else "missing.txt"}
                              if read else {"path": f"{marker}.txt", "content": marker})
                 tool = "file_read" if read else "file_write"
+                if marker == "TOOL_GREP_UNICODE":
+                    tool = "grep"
+                    arguments = {"pattern": "中文", "path": ".", "include": "long-unicode.txt",
+                                 "output_mode": "content"}
                 self.chunk(body["model"], {"tool_calls": [{"index": 0, "id": f"call_{marker}",
                            "type": "function", "function": {
                                "name": tool,
@@ -194,6 +198,7 @@ def prepare(output, port):
 def tool_scenarios(shiju, output, env, cwd):
     clients = []
     (cwd / "fixture.txt").write_text("ACP_TOOL_FIXTURE")
+    (cwd / "long-unicode.txt").write_text("a" * 1999 + "中文尾部")
 
     def connect():
         client = Process([str(shiju), "acp"], cwd, env, output / f"tools-{len(clients)}.log")
@@ -208,7 +213,7 @@ def tool_scenarios(shiju, output, env, cwd):
     try:
         for marker in ("TOOL_ALLOW", "TOOL_REJECT", "TOOL_INVALID", "TOOL_CANCELLED",
                        "TOOL_RPC_ERROR", "TOOL_READ", "TOOL_FAIL", "TOOL_CANCEL",
-                       "TOOL_DISCONNECT"):
+                       "TOOL_DISCONNECT", "TOOL_GREP_UNICODE"):
             client = connect()
             created, _ = client.call("session/new", {"cwd": str(cwd), "mcpServers": []})
             sid = created["sessionId"]
@@ -240,7 +245,7 @@ def tool_scenarios(shiju, output, env, cwd):
                     outcome = ({"outcome": "cancelled"} if marker == "TOOL_CANCELLED" else {
                         "outcome": "selected", "optionId": {
                             "TOOL_ALLOW": "allow_once", "TOOL_REJECT": "reject_once",
-                            "TOOL_INVALID": "unoffered"}[marker]})
+                            "TOOL_INVALID": "unoffered", "TOOL_GREP_UNICODE": "allow_once"}[marker]})
                     response["result"] = {"outcome": outcome}
                 client.child.stdin.write(json.dumps(response) + "\n")
                 client.child.stdin.flush()
@@ -268,7 +273,7 @@ def tool_scenarios(shiju, output, env, cwd):
                             item.get("toolCallId") == f"call_{marker}" for item in updates),
                         f"{marker} tool start")
                 if marker != "TOOL_CANCEL":
-                    status = "completed" if marker in ("TOOL_ALLOW", "TOOL_READ") else "failed"
+                    status = "completed" if marker in ("TOOL_ALLOW", "TOOL_READ", "TOOL_GREP_UNICODE") else "failed"
                     require(any(item.get("sessionUpdate") == "tool_call_update" and
                                 item.get("toolCallId") == f"call_{marker}" and
                                 item.get("status") == status for item in updates),
@@ -295,7 +300,7 @@ def tool_scenarios(shiju, output, env, cwd):
         return {"tool_read": True, "tool_failure": True, "allow_once": True, "reject_once": True,
                 "invalid_option_denied": True, "cancelled_permission_denied": True,
                 "permission_rpc_error_denied": True, "cancel_pending_permission": True,
-                "disconnect_pending_permission_restore": True}
+                "disconnect_pending_permission_restore": True, "unicode_grep_no_crash": True}
     finally:
         for client in clients:
             client.close()

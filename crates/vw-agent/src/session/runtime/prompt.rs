@@ -99,39 +99,53 @@ where
         let callback_terminal = Arc::clone(&terminal);
         let callback_token = token.clone();
         let callback_cleanup = cleanup.clone();
-        crate::session::ui_store::with_tenant_scope_sync(tenant, move || {
-            runner(
-                request,
-                Box::new(move |event| {
-                    if callback_token.is_cancelled() {
-                        return false;
-                    }
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::session::ui_store::with_tenant_scope_sync(tenant, move || {
+                runner(
+                    request,
+                    Box::new(move |event| {
+                        if callback_token.is_cancelled() {
+                            return false;
+                        }
 
-                    match event {
-                        StreamEvent::Done(usage) => {
-                            callback_cleanup.finish_shell_range();
-                            send_terminal(
-                                &callback_events,
-                                callback_terminal.as_ref(),
-                                PromptTermination::Completed(usage),
-                            );
-                            false
+                        match event {
+                            StreamEvent::Done(usage) => {
+                                callback_cleanup.finish_shell_range();
+                                send_terminal(
+                                    &callback_events,
+                                    callback_terminal.as_ref(),
+                                    PromptTermination::Completed(usage),
+                                );
+                                false
+                            }
+                            StreamEvent::Error(error) => {
+                                callback_cleanup.finish_shell_range();
+                                send_terminal(
+                                    &callback_events,
+                                    callback_terminal.as_ref(),
+                                    PromptTermination::Failed(error),
+                                );
+                                false
+                            }
+                            event => map_non_terminal(event)
+                                .is_some_and(|event| callback_events.send(event).is_ok()),
                         }
-                        StreamEvent::Error(error) => {
-                            callback_cleanup.finish_shell_range();
-                            send_terminal(
-                                &callback_events,
-                                callback_terminal.as_ref(),
-                                PromptTermination::Failed(error),
-                            );
-                            false
-                        }
-                        event => map_non_terminal(event)
-                            .is_some_and(|event| callback_events.send(event).is_ok()),
-                    }
-                }),
-            );
-        });
+                    }),
+                );
+            });
+        }));
+        if outcome.is_err() {
+            token.cancel();
+            cleanup.finish_shell_range();
+            let error = match cleanup.reap_shell_processes() {
+                Ok(()) => "session processor panicked".to_string(),
+                Err(error) => {
+                    format!("session processor panicked; process cleanup failed: {error}")
+                }
+            };
+            send_terminal(&events_tx, terminal.as_ref(), PromptTermination::Failed(error));
+            return;
+        }
         // A tool may have crossed spawn just as explicit stop arrived.
         if cleanup.explicit.load(Ordering::Acquire)
             && let Err(error) = cleanup.reap_shell_processes()

@@ -451,7 +451,11 @@ impl GrepTool {
                     }
 
                     let truncated_line_text = if m.line_text.len() > MAX_LINE_LENGTH {
-                        format!("{}...", &m.line_text[..MAX_LINE_LENGTH])
+                        let mut end = MAX_LINE_LENGTH;
+                        while !m.line_text.is_char_boundary(end) {
+                            end -= 1;
+                        }
+                        format!("{}...", &m.line_text[..end])
                     } else {
                         m.line_text.clone()
                     };

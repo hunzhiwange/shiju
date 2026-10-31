@@ -32,6 +32,29 @@ fn request() -> Request {
 }
 
 #[test]
+fn prompt_runtime_panic_returns_failure_and_leaves_later_turns_usable() {
+    let turn = start_prompt_with_runner(request(), |_request, mut emit| {
+        emit(StreamEvent::Delta("partial".into()));
+        panic!("fixture panic detail");
+    });
+    assert!(
+        matches!(turn.events.recv_timeout(Duration::from_secs(1)).unwrap(), PromptEvent::Text(text) if text == "partial")
+    );
+    assert!(matches!(
+        turn.events.recv_timeout(Duration::from_secs(1)).unwrap(),
+        PromptEvent::Terminated(PromptTermination::Failed(error)) if error == "session processor panicked"
+    ));
+    assert!(turn.events.recv_timeout(Duration::from_millis(50)).is_err());
+    let follow_up = start_prompt_with_runner(request(), |_request, mut emit| {
+        emit(StreamEvent::Done(TokenUsage::default()));
+    });
+    assert!(matches!(
+        follow_up.events.recv_timeout(Duration::from_secs(1)).unwrap(),
+        PromptEvent::Terminated(PromptTermination::Completed(_))
+    ));
+}
+
+#[test]
 fn prompt_runtime_emits_typed_tool_lifecycle() {
     let call_id = "call-1";
     let turn = start_prompt_with_runner(request(), move |_request, mut emit| {

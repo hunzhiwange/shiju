@@ -171,6 +171,10 @@ def scenarios(client):
     require("[tool] file_read (completed)" in stdout, "real read tool completes")
     require("[read output suppressed]" in tool_blocks and "ACP_TOOL_FIXTURE" not in tool_blocks,
             "real client suppresses read output by explicit tool kind")
+    (client.cwd / "long-unicode.txt").write_text("a" * 1999 + "中文尾部")
+    grep = client.run("unicode-grep", ["--format", "text", "exec", "TOOL_GREP_UNICODE"])
+    require("[tool] grep (completed)" in grep and "[done] end_turn" in grep,
+            "real ACP server survives grep at a multibyte truncation boundary")
     database = Path(client.env["VIBEWINDOW_CONFIG_DIR"]) / "database/vibe-window.sqlite3"
     with sqlite3.connect(database) as connection:
         config = json.loads(connection.execute("SELECT payload_json FROM system_configs").fetchone()[0])
@@ -217,7 +221,7 @@ def scenarios(client):
             "real active disconnect retains interrupted user prompt")
     client.run("close", ["--format", "json", "sessions", "close", "reconnect"])
     client.disconnect_permission()
-    return {"read_display_suppression": True,
+    return {"read_display_suppression": True, "unicode_grep_no_crash": True,
             "read_permission_kind": True, "interactive_allow": True,
             "interactive_reject": True, "noninteractive_reject": True,
             "owner_crash_reconnect": True, "active_disconnect_reconnect": True,

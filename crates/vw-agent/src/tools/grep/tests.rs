@@ -412,6 +412,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn grep_content_truncates_multibyte_lines_at_valid_utf8_boundaries() {
+        let dir = TempDir::new().unwrap();
+        for (prefix_len, suffix) in [(1999, "品tail"), (1998, "🙂tail"), (2000, "品tail")] {
+            let prefix = "A".repeat(prefix_len);
+            let line = format!("{prefix}{suffix}");
+            std::fs::write(dir.path().join("long.txt"), &line).unwrap();
+            let tool = GrepTool::new(test_security(dir.path().to_path_buf()));
+            let result =
+                tool.call(json!({"pattern": "品|🙂", "output_mode": "content"})).await.unwrap();
+            assert_eq!(result.data["matches"][0]["line_text"], json!(line));
+            assert!(result.model_result.as_str().unwrap().contains(&format!("  {prefix}...")));
+            assert!(!result.model_result.as_str().unwrap().contains("tail"));
+        }
+    }
+
+    #[tokio::test]
     async fn grep_content_mode_supports_case_insensitive_lines_and_truncates_display_only() {
         let dir = TempDir::new().unwrap();
         let long_line = "A".repeat(MAX_LINE_LENGTH + 1);

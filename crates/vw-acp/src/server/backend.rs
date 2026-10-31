@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use agent_client_protocol::McpServer;
+use agent_client_protocol::{McpServer, SessionModelState};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -132,6 +132,23 @@ impl BackendPrompt {
 /// `vw-acp` Agent 侧依赖的最小宿主接口。
 #[async_trait]
 pub trait SessionBackend: Send + Sync + 'static {
+    /// 返回会话实际使用的模型及可选目录；不支持选择时返回 `None`。
+    async fn session_models(
+        &self,
+        _session_id: &str,
+    ) -> Result<Option<SessionModelState>, BackendError> {
+        Ok(None)
+    }
+
+    /// 更改后续提示使用的模型，并返回完整模型状态。
+    async fn set_session_model(
+        &self,
+        _session_id: &str,
+        _model_id: &str,
+    ) -> Result<SessionModelState, BackendError> {
+        Err(BackendError::InvalidRequest("model selection is not supported by this backend".into()))
+    }
+
     /// 在规范化工作目录中创建原生会话。
     async fn create_session(&self, cwd: PathBuf) -> Result<BackendSession, BackendError>;
 

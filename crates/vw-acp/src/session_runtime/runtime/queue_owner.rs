@@ -26,15 +26,15 @@ use crate::queue_lease_store::{
     wait_ms,
 };
 use crate::queue_messages::QueueOwnerMessage;
-use crate::queue_owner_turn_controller::{
-    QueueControlFuture, QueueOwnerTurnController, QueueOwnerTurnControllerOptions,
-};
+use crate::queue_owner_turn_controller::QueueOwnerTurnController;
+#[cfg(test)]
+use crate::queue_owner_turn_controller::{QueueControlFuture, QueueOwnerTurnControllerOptions};
 use crate::session_runtime::prompt_runner::{ClientAvailableCallback, ClientClosedCallback};
 use crate::session_runtime::queue_owner_process::{
     QueueOwnerRuntimeOptions, QueueOwnerRuntimeSendOptions, queue_owner_runtime_options_from_send,
     spawn_queue_owner_process,
 };
-use crate::session_runtime_helpers::{TimeoutError, with_timeout};
+use crate::session_runtime_helpers::TimeoutError;
 use crate::types::{OutputErrorOrigin, OutputFormatter, SessionSendOutcome, SessionSendResult};
 
 use super::prompt::{OnPromptActiveCallback, RunSessionPromptOptions, run_session_prompt};
@@ -93,7 +93,7 @@ impl QueueOwnerControlHandlers for QueueOwnerControlBridge {
     }
 }
 
-fn timeout_queue_connection_error(error: TimeoutError) -> QueueConnectionError {
+pub(super) fn timeout_queue_connection_error(error: TimeoutError) -> QueueConnectionError {
     QueueConnectionError::new(
         error.to_string(),
         AcpxErrorOptions {
@@ -269,32 +269,7 @@ pub async fn run_session_queue_owner(
     };
 
     let turn_controller = Arc::new(tokio::sync::Mutex::new(QueueOwnerTurnController::new(
-        QueueOwnerTurnControllerOptions {
-            with_timeout: Arc::new(|future, timeout_ms| {
-                Box::pin(async move {
-                    with_timeout(future, timeout_ms)
-                        .await
-                        .map_err(timeout_queue_connection_error)??;
-                    Ok(())
-                })
-            }),
-            with_timeout_config_option: Arc::new(|future, timeout_ms| {
-                Box::pin(async move {
-                    with_timeout(future, timeout_ms)
-                        .await
-                        .map_err(timeout_queue_connection_error)?
-                })
-            }),
-            set_session_mode_fallback: Arc::new(|_mode_id, _timeout_ms| {
-                unsupported_queue_control_future()
-            }),
-            set_session_model_fallback: Arc::new(|_model_id, _timeout_ms| {
-                unsupported_queue_control_future()
-            }),
-            set_session_config_option_fallback: Arc::new(|_config_id, _value, _timeout_ms| {
-                unsupported_queue_config_option_future()
-            }),
-        },
+        super::queue_owner_controls::turn_controller_options(&options),
     )));
 
     let control_handlers: Arc<dyn QueueOwnerControlHandlers> =
@@ -418,17 +393,32 @@ async fn run_queued_task(
         if task.wait_for_completion { &mut formatter } else { &mut discard };
 
     let verbose = options.verbose.unwrap_or(false);
-    let on_client_available: ClientAvailableCallback = Arc::new(move |_controller| {});
-    let on_client_closed: ClientClosedCallback = Arc::new(move || {});
+    let on_client_available: ClientAvailableCallback = Arc::new({
+        let turn_controller = turn_controller.clone();
+        move |active| {
+            let turn_controller = turn_controller.clone();
+            tokio::spawn(async move {
+                turn_controller.lock().await.set_active_controller(active);
+            });
+        }
+    });
+    let on_client_closed: ClientClosedCallback = Arc::new({
+        let turn_controller = turn_controller.clone();
+        move || {
+            let turn_controller = turn_controller.clone();
+            tokio::spawn(async move {
+                turn_controller.lock().await.clear_active_controller();
+            });
+        }
+    });
     let on_prompt_active: OnPromptActiveCallback = Arc::new({
         let turn_controller = turn_controller.clone();
         move || {
             let turn_controller = turn_controller.clone();
             tokio::spawn(async move {
-                if let Ok(mut guard) = turn_controller.try_lock() {
-                    guard.mark_prompt_active();
-                    let _ = guard.apply_pending_cancel().await;
-                }
+                let mut guard = turn_controller.lock().await;
+                guard.mark_prompt_active();
+                let _ = guard.apply_pending_cancel().await;
             });
         }
     });
@@ -504,6 +494,7 @@ async fn run_queued_task(
     }
 }
 
+#[cfg(test)]
 fn unsupported_queue_control_error() -> QueueConnectionError {
     QueueConnectionError::new(
         "Queue owner control fallback is unavailable",
@@ -515,10 +506,12 @@ fn unsupported_queue_control_error() -> QueueConnectionError {
     )
 }
 
+#[cfg(test)]
 fn unsupported_queue_control_future() -> QueueControlFuture<()> {
     Box::pin(async { Err(unsupported_queue_control_error()) })
 }
 
+#[cfg(test)]
 fn unsupported_queue_config_option_future()
 -> QueueControlFuture<agent_client_protocol::SetSessionConfigOptionResponse> {
     Box::pin(async { Err(unsupported_queue_control_error()) })

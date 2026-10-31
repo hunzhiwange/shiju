@@ -3,7 +3,6 @@
 //! 最小会话记录、控制器和异步通道 fixture 用于驱动运行时状态与竞态分支。
 
 use super::*;
-use crate::queue_owner_turn_controller::QueueOwnerActiveSessionController;
 use crate::types::{
     AcpAgentConfig, AcpJsonRpcMessage, AcpMessageDirection, AcpSessionOptions, OutputErrorParams,
     OutputFormatterContext, PermissionStats, PromptResult, SessionEventLog, SessionMessage,
@@ -443,19 +442,6 @@ fn prompt_result_finish_reason_maps_to_runtime_stop_reason() {
 }
 
 #[tokio::test]
-async fn noop_active_session_controller_denies_active_cancel() {
-    let controller = NoopActiveSessionController;
-
-    assert!(!controller.has_active_prompt());
-    assert!(!controller.request_cancel_active_prompt().await.unwrap());
-    assert!(controller.set_session_mode("default".to_string()).await.is_ok());
-    assert!(controller.set_session_model("model".to_string()).await.is_ok());
-    assert!(
-        controller.set_session_config_option("id".to_string(), "value".to_string()).await.is_err()
-    );
-}
-
-#[tokio::test]
 async fn apply_requested_model_ignores_empty_model_without_client_call() {
     let client = AcpClient::new(
         "agent",
@@ -719,8 +705,10 @@ async fn run_session_prompt_updates_result_record_and_notifies_lifecycle_callbac
     assert_eq!(prompt_active_count.load(AtomicOrdering::SeqCst), 1);
 
     let methods = agent.methods();
-    assert!(methods.contains(&"session/resume".to_string()));
+    assert!(methods.contains(&"session/load".to_string()));
     assert!(methods.contains(&"session/prompt".to_string()));
+    let prompt = agent.calls().into_iter().find(|call| call["method"] == "session/prompt").unwrap();
+    assert_eq!(prompt["params"]["sessionId"], "acp-1");
 }
 
 #[cfg(unix)]
@@ -811,5 +799,6 @@ async fn run_session_prompt_closes_client_callback_on_prompt_error() {
 
     assert!(error.output_already_emitted());
     assert_eq!(client_closed_count.load(AtomicOrdering::SeqCst), 1);
-    assert_eq!(prompt_active_count.load(AtomicOrdering::SeqCst), 1);
+    // 代理直接返回错误、未产生任何提示事件时，不宣布流式轮次已活动。
+    assert_eq!(prompt_active_count.load(AtomicOrdering::SeqCst), 0);
 }

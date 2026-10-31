@@ -23,6 +23,7 @@ use crate::types::{
 mod error;
 mod prompt;
 mod queue_owner;
+mod queue_owner_controls;
 mod session_records;
 mod state;
 

@@ -16,7 +16,7 @@ use tokio_util::compat::TokioAsyncReadCompatExt;
 
 use crate::types::{AcpAgentConfig, PromptEvent, PromptRequest, PromptUsage};
 
-use super::{AcpClient, AcpError, ActorRuntime, InternalEvent};
+use super::{AcpClient, AcpError, ActorCommand, ActorRuntime, InternalEvent};
 
 #[derive(Clone, Default)]
 struct TestClient;
@@ -393,6 +393,47 @@ async fn run_actor_prompt_sends_cancel_and_waits_for_cancelled_response() {
         assert_eq!(result.finish_reason.as_deref(), Some("cancelled"));
         assert!(!client.has_active_prompt());
         assert!(client.cancelling_session_ids.lock().is_empty());
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn active_prompt_services_model_control_without_blocking_cancellation() {
+    let (agent, response) = TestAgent::new("active-session", false);
+    with_runtime(agent, async |client, mut runtime, _events, agent| {
+        let (commands, mut command_rx) = mpsc::unbounded_channel();
+        let (events, _event_rx) = mpsc::unbounded_channel();
+        let mut deferred = std::collections::VecDeque::new();
+        let prompt = client.run_actor_prompt_with_controls(
+            &mut runtime,
+            PromptRequest::new(PathBuf::from("."), "hello"),
+            events,
+            Some(&mut command_rx),
+            &mut deferred,
+        );
+        let control = async {
+            agent.wait_for_prompt().await;
+            let (reply, result) = oneshot::channel();
+            commands
+                .send(ActorCommand::SetSessionModel {
+                    session_id: "active-session".into(),
+                    cwd: PathBuf::from("."),
+                    model: "model-b".into(),
+                    response_tx: reply,
+                })
+                .unwrap();
+            // 此 Agent 不支持切模，必须立即返回协议错误，不能排在活动提示后。
+            let result =
+                tokio::time::timeout(Duration::from_secs(1), result).await.unwrap().unwrap();
+            assert!(result.is_err());
+            assert!(client.has_active_prompt());
+            assert!(client.cancel("active-session").await.unwrap());
+            agent.wait_for_cancel().await;
+            response.send(Ok(acp::PromptResponse::new(acp::StopReason::Cancelled))).unwrap();
+        };
+        let (result, ()) = tokio::join!(prompt, control);
+        assert_eq!(result.unwrap().finish_reason.as_deref(), Some("cancelled"));
+        assert!(deferred.is_empty());
     })
     .await;
 }

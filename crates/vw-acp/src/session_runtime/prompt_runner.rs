@@ -88,14 +88,18 @@ pub enum PromptRunnerError {
     SignalHandler(#[source] std::io::Error),
 }
 
-struct PromptRunnerActiveSessionController {
+pub(super) struct PromptRunnerActiveSessionController {
     client: Arc<crate::AcpClient>,
     cwd: PathBuf,
     session_id: Arc<Mutex<String>>,
 }
 
 impl PromptRunnerActiveSessionController {
-    fn new(client: Arc<crate::AcpClient>, cwd: PathBuf, session_id: Arc<Mutex<String>>) -> Self {
+    pub(super) fn new(
+        client: Arc<crate::AcpClient>,
+        cwd: PathBuf,
+        session_id: Arc<Mutex<String>>,
+    ) -> Self {
         Self { client, cwd, session_id }
     }
 }
@@ -666,7 +670,7 @@ fn queue_connection_error(error: AcpError) -> QueueConnectionError {
 }
 
 #[allow(clippy::result_large_err)]
-fn queue_control_task<T, F, Fut>(run: F) -> QueueControlFuture<T>
+pub(super) fn queue_control_task<T, F, Fut>(run: F) -> QueueControlFuture<T>
 where
     T: Send + 'static,
     F: FnOnce() -> Fut + Send + 'static,

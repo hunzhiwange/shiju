@@ -19,8 +19,11 @@ use crate::session_events::{
     SessionEventAppendOptions, SessionEventWriter, SessionEventWriterOptions,
 };
 use crate::session_persistence::{absolute_path, iso_now, resolve_session_record};
-use crate::session_runtime::connect_load::{ConnectAndLoadClient, ConnectAndLoadSessionResult};
+use crate::session_runtime::connect_load::{
+    ConnectAndLoadClient, ConnectAndLoadSessionOptions, connect_and_load_session,
+};
 use crate::session_runtime::lifecycle::apply_lifecycle_snapshot_to_record;
+use crate::session_runtime::prompt_runner::PromptRunnerActiveSessionController;
 use crate::session_runtime::prompt_runner::{
     ClientAvailableCallback, ClientClosedCallback, parse_agent_command,
 };
@@ -196,55 +199,6 @@ fn prompt_request_for_session(
     }
 }
 
-struct NoopActiveSessionController;
-
-impl crate::queue_owner_turn_controller::QueueOwnerActiveSessionController
-    for NoopActiveSessionController
-{
-    fn has_active_prompt(&self) -> bool {
-        false
-    }
-
-    fn request_cancel_active_prompt(
-        &self,
-    ) -> crate::queue_owner_turn_controller::QueueControlFuture<bool> {
-        Box::pin(async { Ok(false) })
-    }
-
-    fn set_session_mode(
-        &self,
-        _mode_id: String,
-    ) -> crate::queue_owner_turn_controller::QueueControlFuture<()> {
-        Box::pin(async { Ok(()) })
-    }
-
-    fn set_session_model(
-        &self,
-        _model_id: String,
-    ) -> crate::queue_owner_turn_controller::QueueControlFuture<()> {
-        Box::pin(async { Ok(()) })
-    }
-
-    fn set_session_config_option(
-        &self,
-        _config_id: String,
-        _value: String,
-    ) -> crate::queue_owner_turn_controller::QueueControlFuture<
-        agent_client_protocol::SetSessionConfigOptionResponse,
-    > {
-        Box::pin(async {
-            Err(crate::errors::QueueConnectionError::new(
-                "Active session config updates are unavailable",
-                crate::errors::AcpxErrorOptions {
-                    origin: Some(crate::types::OutputErrorOrigin::Queue),
-                    retryable: Some(true),
-                    ..crate::errors::AcpxErrorOptions::default()
-                },
-            ))
-        })
-    }
-}
-
 fn should_retry_prompt(error: &SessionRuntimeError) -> bool {
     if error.output_params().code != crate::OutputErrorCode::Runtime {
         return false;
@@ -337,22 +291,40 @@ pub(super) async fn run_session_prompt(
         on_session_update,
         on_client_operation,
     ));
-    let mut client_notified = false;
-    let noop_controller = Arc::new(NoopActiveSessionController);
+    let active_session_id = Arc::new(Mutex::new(record.acp_session_id.clone()));
+    let controller = Arc::new(PromptRunnerActiveSessionController::new(
+        client.clone(),
+        absolute_path(&record.cwd),
+        active_session_id.clone(),
+    ));
+    let client_notified = options.on_client_available.is_some();
     let connect_started_at = Instant::now();
-
-    if let Some(callback) = options.on_client_available.as_ref() {
-        let noop_controller = noop_controller.clone();
-        callback(noop_controller);
-        client_notified = true;
-    }
-
-    let connect_result = ConnectAndLoadSessionResult {
-        session_id: record.vwacp_record_id.clone(),
-        agent_session_id: record.agent_session_id.clone(),
-        resumed: true,
-        load_error: None,
+    let connect_result = connect_and_load_session(ConnectAndLoadSessionOptions {
+        client: client.clone(),
+        record: &mut record,
+        resume_policy: options.resume_policy,
+        timeout_ms: options.timeout_ms,
+        verbose: options.verbose,
+        active_controller: controller,
+        on_client_available: options.on_client_available.clone(),
+        on_connected_record: None,
+        on_session_id_resolved: Some(Arc::new(move |id| {
+            *active_session_id.lock() = id.to_string()
+        })),
+    })
+    .await;
+    let connect_result = match connect_result {
+        Ok(result) => result,
+        Err(error) => {
+            if let Some(callback) = options.on_client_closed.as_ref() {
+                callback();
+            }
+            client.close().await.ok();
+            event_writer.close(SessionEventAppendOptions { checkpoint: true }).await.ok();
+            return Err(SessionRuntimeError::from_source(error));
+        }
     };
+    state.sync_session_state(&record);
 
     record.last_prompt_at = Some(iso_now());
     state.set_buffering_connect_output(false);
@@ -374,19 +346,20 @@ pub(super) async fn run_session_prompt(
     let mut prompt_result = None;
     state.mark_prompt_turn_active(true);
     for attempt in 0..=options.prompt_retries.unwrap_or(0) {
-        if attempt == 0
-            && let Some(callback) = options.on_prompt_active.as_ref()
-        {
-            callback();
-        }
-
         let prompt_request = prompt_request_for_session(
             connect_result.session_id.clone(),
             &record.cwd,
             &options.prompt,
             options.resume_policy,
         );
+        let mut active_notified = false;
         let mut on_event = |_event| {
+            if !active_notified {
+                if let Some(callback) = options.on_prompt_active.as_ref() {
+                    callback();
+                }
+                active_notified = true;
+            }
             replay_output_buffer(options.output_formatter, state.prompt_output_messages());
         };
 

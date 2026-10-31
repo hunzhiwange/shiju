@@ -35,6 +35,7 @@ use vw_acp::{
             print_set_config_option_result_by_format, print_set_mode_result_by_format,
             print_set_model_result_by_format,
         },
+        session_target::resolve_session_target,
         status_command::{handle_sessions_history, handle_sessions_show, handle_status},
     },
     close_session, configure_public_cli, create_output_formatter, default_global_config_path,
@@ -380,6 +381,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         };
 
+        if let Some(model_id) = global_flags.model.as_ref() {
+            vw_acp::set_session_model(vw_acp::SessionSetModelOptions {
+                session_id: record.vwacp_record_id.clone(),
+                model_id: model_id.clone(),
+                mcp_servers: None,
+                non_interactive_permissions: Some(global_flags.non_interactive_permissions),
+                auth_credentials: None,
+                auth_policy: global_flags.auth_policy,
+                timeout_ms: global_flags.timeout,
+                verbose: global_flags.verbose,
+            })
+            .await?;
+        }
         print_prompt_session_banner(
             &record,
             &agent.cwd,
@@ -437,7 +451,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             on_client_operation: None,
             suppress_sdk_console_errors: output_policy.suppress_sdk_console_errors,
             verbose: global_flags.verbose,
-            session_options: None,
+            session_options: Some(vw_acp::AcpSessionOptions {
+                model: global_flags.model.clone(),
+                allowed_tools: global_flags.allowed_tools.clone(),
+                max_turns: global_flags.max_turns,
+            }),
             prompt_retries: global_flags.prompt_retries,
             timeout_ms: global_flags.timeout,
         })
@@ -445,8 +463,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         println!("Outcome: {:?}", outcome);
     } else if command_to_run == "status" {
-        handle_status(agent_name.as_deref(), &StatusFlags::default(), &global_flags, &config)
-            .await?;
+        handle_status(
+            agent_name.as_deref(),
+            &StatusFlags { session: session_name.clone() },
+            &global_flags,
+            &config,
+        )
+        .await?;
     } else if command_to_run == "cancel" {
         let session_id = session_name.clone().unwrap_or_default();
         if session_id.is_empty() {
@@ -454,7 +477,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         }
         let outcome = vw_acp::cancel_session_prompt(vw_acp::SessionCancelOptions {
-            session_id,
+            session_id: resolve_session_target(&agent.agent_command, &agent.cwd, &session_id)
+                .await?
+                .vwacp_record_id,
             verbose: global_flags.verbose,
         })
         .await?;
@@ -468,7 +493,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1);
         }
         let _outcome = vw_acp::set_session_mode(vw_acp::SessionSetModeOptions {
-            session_id,
+            session_id: resolve_session_target(&agent.agent_command, &agent.cwd, &session_id)
+                .await?
+                .vwacp_record_id,
             mode_id: mode_id.clone(),
             mcp_servers: None,
             non_interactive_permissions: Some(global_flags.non_interactive_permissions),
@@ -488,6 +515,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("⚠ Error: Session ID or name is required for set.");
             std::process::exit(1);
         }
+        let session_id = resolve_session_target(&agent.agent_command, &agent.cwd, &session_id)
+            .await?
+            .vwacp_record_id;
         if key == "model" {
             let _outcome = vw_acp::set_session_model(vw_acp::SessionSetModelOptions {
                 session_id,
@@ -553,7 +583,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     auth_policy: global_flags.auth_policy,
                     timeout_ms: global_flags.timeout,
                     verbose: global_flags.verbose,
-                    session_options: None,
+                    session_options: Some(vw_acp::AcpSessionOptions {
+                        model: global_flags.model.clone(),
+                        allowed_tools: global_flags.allowed_tools.clone(),
+                        max_turns: global_flags.max_turns,
+                    }),
                 })
                 .await?;
                 print_created_session_banner(
@@ -580,7 +614,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     timeout_ms: global_flags.timeout,
                     verbose: global_flags.verbose,
                     walk_boundary: None,
-                    session_options: None,
+                    session_options: Some(vw_acp::AcpSessionOptions {
+                        model: global_flags.model.clone(),
+                        allowed_tools: global_flags.allowed_tools.clone(),
+                        max_turns: global_flags.max_turns,
+                    }),
                 })
                 .await?;
                 if result.created {
@@ -600,7 +638,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .ok();
             } else if subcmd == "close" {
                 let name = sub_matches.get_one::<String>("name").unwrap().to_string();
-                let result = vw_acp::close_session(&name).await?;
+                let record =
+                    resolve_session_target(&agent.agent_command, &agent.cwd, &name).await?;
+                let result = vw_acp::close_session(&record.vwacp_record_id).await?;
                 print_closed_session_by_format(&result, output_policy.format).ok();
             } else if subcmd == "list" {
                 let sessions = if let Some(ag) = agent_name.as_deref() {

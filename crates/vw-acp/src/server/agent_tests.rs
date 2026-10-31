@@ -132,3 +132,14 @@ async fn unsupported_methods_are_not_advertised() {
         .expect_err("authentication is not advertised");
     assert_eq!(unsupported.message, "Method not found");
 }
+
+#[tokio::test]
+async fn load_session_can_reload_a_bound_session() {
+    let root = tempfile::tempdir().expect("temporary cwd");
+    let agent = VibeWindowAgent::new(FakeBackend::default());
+    initialize(&agent).await;
+    let created = Agent::new_session(&agent, NewSessionRequest::new(root.path())).await.unwrap();
+    Agent::load_session(&agent, LoadSessionRequest::new(created.session_id, root.path()))
+        .await
+        .expect("reload an idle session on the same connection");
+}

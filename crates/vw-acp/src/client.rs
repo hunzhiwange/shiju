@@ -70,6 +70,8 @@ mod message_io;
 mod process;
 #[path = "client/process_signals.rs"]
 mod process_signals;
+#[path = "client/prompt_controls.rs"]
+mod prompt_controls;
 #[path = "client/prompt_loop.rs"]
 mod prompt_loop;
 #[path = "client/prompt_mapping.rs"]

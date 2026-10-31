@@ -37,8 +37,11 @@ impl AcpClient {
 
     async fn actor_loop(&self, mut command_rx: mpsc::UnboundedReceiver<ActorCommand>) {
         let mut runtime = None::<ActorRuntime>;
+        let mut deferred_commands = std::collections::VecDeque::new();
         loop {
-            let command = if runtime.is_some() {
+            let command = if let Some(command) = deferred_commands.pop_front() {
+                Some(command)
+            } else if runtime.is_some() {
                 tokio::select! {
                     maybe_command = command_rx.recv() => maybe_command,
                     _ = tokio::time::sleep(self.actor_idle_timeout) => {
@@ -118,8 +121,16 @@ impl AcpClient {
                     );
                 }
                 ActorCommand::RunPrompt { request, event_tx, response_tx } => {
-                    let _ = response_tx
-                        .send(self.actor_run_prompt(&mut runtime, request, event_tx).await);
+                    let _ = response_tx.send(
+                        self.actor_run_prompt(
+                            &mut runtime,
+                            request,
+                            event_tx,
+                            &mut command_rx,
+                            &mut deferred_commands,
+                        )
+                        .await,
+                    );
                 }
                 ActorCommand::Close { response_tx } => {
                     if let Some(active_runtime) = runtime.take() {
@@ -146,6 +157,8 @@ impl AcpClient {
         runtime: &mut Option<ActorRuntime>,
         request: PromptRequest,
         event_tx: mpsc::UnboundedSender<PromptEvent>,
+        command_rx: &mut mpsc::UnboundedReceiver<ActorCommand>,
+        deferred: &mut std::collections::VecDeque<ActorCommand>,
     ) -> Result<PromptResult, AcpError> {
         *self.permission_stats.lock() = PermissionStats::default();
         self.prepare_actor_runtime(runtime, request.cwd.clone()).await?;
@@ -153,7 +166,8 @@ impl AcpClient {
             .as_mut()
             .ok_or_else(|| AcpError::Initialize("ACP actor runtime is missing".to_string()))?;
 
-        self.run_actor_prompt(runtime, request, event_tx).await
+        self.run_actor_prompt_with_controls(runtime, request, event_tx, Some(command_rx), deferred)
+            .await
     }
 }
 

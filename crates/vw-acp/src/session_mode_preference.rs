@@ -85,7 +85,17 @@ pub fn set_current_model_id(record: &mut SessionRecord, model_id: Option<&str>) 
     let normalized = normalize_model_id(model_id);
     let vwacp = ensure_vwacp_state(record);
 
-    vwacp.current_model_id = normalized;
+    vwacp.current_model_id = normalized.clone();
+    if let Some(model_id) = normalized {
+        for option in vwacp.config_options.iter_mut().flatten() {
+            if (option.category == Some(SessionConfigOptionCategory::Model)
+                || option.id.0.as_ref() == "model")
+                && let SessionConfigKind::Select(select) = &mut option.kind
+            {
+                select.current_value = model_id.clone().into();
+            }
+        }
+    }
 }
 
 pub fn sync_advertised_model_state(record: &mut SessionRecord, models: Option<&SessionModelState>) {

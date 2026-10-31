@@ -80,6 +80,10 @@ impl ConnectionState {
         self.sessions.get(session_id).cloned()
     }
 
+    pub(crate) fn replace_binding(&mut self, session_id: String, binding: SessionBinding) {
+        self.sessions.insert(session_id, binding);
+    }
+
     pub(crate) fn reserve_prompt(&mut self, session_id: &str) -> bool {
         if self.active_prompts.contains_key(session_id) {
             return false;

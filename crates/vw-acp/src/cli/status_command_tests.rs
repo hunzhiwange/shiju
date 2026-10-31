@@ -146,6 +146,47 @@ async fn active_session_fixture(
     (home_env, home, global_flags, record)
 }
 
+#[tokio::test]
+async fn control_session_target_resolves_scoped_name_and_explicit_id() {
+    let (_env, home, _flags, mut record) = active_session_fixture(OutputFormat::Json, None).await;
+    record.vwacp_record_id = "owned-record".into();
+    record.acp_session_id = "native-owned".into();
+    record.name = Some("shared-name".into());
+    write_session_record(&record).await.unwrap();
+    let mut foreign = record.clone();
+    foreign.vwacp_record_id = "foreign-record".into();
+    foreign.acp_session_id = "native-foreign".into();
+    foreign.agent_command = "other-agent".into();
+    write_session_record(&foreign).await.unwrap();
+    let resolved = crate::cli::session_target::resolve_session_target(
+        &record.agent_command,
+        &record.cwd,
+        "shared-name",
+    )
+    .await
+    .unwrap();
+    assert_eq!(resolved.vwacp_record_id, "owned-record");
+    let explicit = crate::cli::session_target::resolve_session_target(
+        &record.agent_command,
+        &record.cwd,
+        "native-owned",
+    )
+    .await
+    .unwrap();
+    assert_eq!(explicit.vwacp_record_id, "owned-record");
+    let other_cwd = home.join("unrelated");
+    fs::create_dir_all(&other_cwd).unwrap();
+    assert!(
+        crate::cli::session_target::resolve_session_target(
+            &record.agent_command,
+            &other_cwd.to_string_lossy(),
+            "shared-name"
+        )
+        .await
+        .is_err()
+    );
+}
+
 fn record() -> SessionRecord {
     SessionRecord {
         schema: SESSION_RECORD_SCHEMA.to_string(),

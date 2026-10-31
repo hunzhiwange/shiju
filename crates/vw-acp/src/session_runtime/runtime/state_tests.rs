@@ -409,6 +409,7 @@ fn runtime_state_callbacks_forward_events_and_track_side_effects() {
         acp_message(json!({"jsonrpc":"2.0","id":7,"result":null})),
     );
     assert!(!state.prompt_turn_had_side_effects());
+    state.set_buffering_connect_output(false);
     state.mark_prompt_turn_active(true);
     on_update.expect("session update callback")(notification);
     on_operation.expect("client operation callback")(operation);
@@ -455,6 +456,23 @@ fn runtime_state_callbacks_ignore_side_effects_outside_prompt_turn() {
     on_operation.expect("client operation callback")(operation);
 
     assert!(!state.prompt_turn_had_side_effects());
+}
+
+#[test]
+fn connection_history_replay_does_not_append_duplicate_messages() {
+    let mut record = test_record();
+    let state = Arc::new(RuntimeState::new(&record, &text_prompt("current request")));
+    let (_, _, on_update, _) = build_runtime_state_callbacks(state.clone(), None, None, None);
+    on_update.unwrap()(SessionNotification::new(
+        "session-1",
+        SessionUpdate::AgentMessageChunk(ContentChunk::new(ContentBlock::Text(TextContent::new(
+            "replayed answer",
+        )))),
+    ));
+    state.apply_to_record(&mut record);
+    assert_eq!(record.messages.len(), 2);
+    assert!(matches!(record.messages.last(), Some(SessionMessage::User(user))
+        if matches!(user.content.first(), Some(SessionUserContent::Text(text)) if text == "current request")));
 }
 
 #[test]

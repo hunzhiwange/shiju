@@ -490,7 +490,7 @@ for raw_line in sys.stdin:
 
 #[cfg(unix)]
 #[tokio::test]
-async fn acp_client_connect_and_load_adapter_delegates_to_client_methods() {
+async fn acp_client_adapter_reuses_loaded_session_for_preference_changes() {
     let fixture = AcpClientAdapterFixture::new();
     let client = fixture.client();
 
@@ -522,11 +522,19 @@ async fn acp_client_connect_and_load_adapter_delegates_to_client_methods() {
             "initialize".to_string(),
             "session/new".to_string(),
             "session/load".to_string(),
-            "session/resume".to_string(),
             "session/set_mode".to_string(),
-            "session/resume".to_string(),
             "session/set_model".to_string()
         ]
+    );
+    let calls = fs::read_to_string(&fixture.calls_log).expect("protocol calls");
+    let calls = calls
+        .lines()
+        .map(|line| serde_json::from_str::<serde_json::Value>(line).unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(calls[3]["params"], serde_json::json!({"sessionId":"existing", "modeId":"focus"}));
+    assert_eq!(
+        calls[4]["params"],
+        serde_json::json!({"sessionId":"existing", "modelId":"model-b"})
     );
 }
 

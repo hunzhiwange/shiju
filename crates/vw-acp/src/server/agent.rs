@@ -1,17 +1,21 @@
 //! ACP `Agent` trait 的会话生命周期实现。
 
 use std::cell::OnceCell;
+use std::future::Future;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::rc::Rc;
 
 use agent_client_protocol::{
     Agent, AgentCapabilities, AgentSideConnection, AuthenticateRequest, AuthenticateResponse,
-    CancelNotification, Client, ContentBlock, ContentChunk, Error, InitializeRequest,
-    InitializeResponse, LoadSessionRequest, LoadSessionResponse, McpCapabilities,
-    NewSessionRequest, NewSessionResponse, PermissionOption, PermissionOptionKind, PromptRequest,
-    PromptResponse, ProtocolVersion, RequestPermissionOutcome, RequestPermissionRequest, Result,
-    SessionNotification, SessionUpdate, StopReason, TextContent, ToolCallUpdate,
-    ToolCallUpdateFields,
+    CancelNotification, Client, ConfigOptionUpdate, ContentBlock, ContentChunk, Error,
+    InitializeRequest, InitializeResponse, LoadSessionRequest, LoadSessionResponse,
+    McpCapabilities, NewSessionRequest, NewSessionResponse, PermissionOption, PermissionOptionKind,
+    PromptRequest, PromptResponse, ProtocolVersion, RequestPermissionOutcome,
+    RequestPermissionRequest, Result, SessionConfigOption, SessionConfigOptionCategory,
+    SessionConfigSelectOption, SessionModelState, SessionNotification, SessionUpdate,
+    SetSessionConfigOptionRequest, SetSessionConfigOptionResponse, SetSessionModelRequest,
+    SetSessionModelResponse, StopReason, TextContent, ToolCallUpdate, ToolCallUpdateFields,
 };
 use parking_lot::Mutex;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -67,7 +71,12 @@ where
         ))
     }
 
-    fn register_session(&self, session: BackendSession, expected_cwd: &Path) -> Result<String> {
+    fn register_session(
+        &self,
+        session: BackendSession,
+        expected_cwd: &Path,
+        reload: bool,
+    ) -> Result<String> {
         let actual_cwd = canonical_directory(&session.cwd)?;
         if actual_cwd != expected_cwd {
             return Err(protocol_error(
@@ -89,6 +98,10 @@ where
 
         let id = session.id;
         let binding = SessionBinding::new(id.clone(), actual_cwd, session.history);
+        if reload {
+            self.state.lock().replace_binding(id.clone(), binding);
+            return Ok(id);
+        }
         self.state.lock().insert(id.clone(), binding).map_err(|_| {
             protocol_error(
                 Error::invalid_request(),
@@ -103,6 +116,7 @@ where
     }
 
     async fn request_permission(&self, session_id: &str, request: BackendPermissionRequest) {
+        let allowed_ids: Vec<_> = request.options.iter().map(|option| option.id.clone()).collect();
         let tool_call = ToolCallUpdate::new(
             request.call_id,
             ToolCallUpdateFields::new().title(request.title).raw_input(request.raw_input),
@@ -121,26 +135,76 @@ where
                 )
             })
             .collect();
-        let selected = match self
-            .updates
-            .request_permission(RequestPermissionRequest::new(
-                session_id.to_string(),
-                tool_call,
-                options,
-            ))
-            .await
-        {
+        let mut response_tx = request.response;
+        let permission = self.updates.request_permission(RequestPermissionRequest::new(
+            session_id.to_string(),
+            tool_call,
+            options,
+        ));
+        let result = tokio::select! {
+            result = permission => result,
+            () = response_tx.closed() => return,
+        };
+        let selected = match result {
             Ok(response) => match response.outcome {
                 RequestPermissionOutcome::Selected(selected) => {
-                    Some(selected.option_id.0.to_string())
+                    let id = selected.option_id.0.to_string();
+                    allowed_ids.contains(&id).then_some(id)
                 }
                 RequestPermissionOutcome::Cancelled => None,
                 _ => None,
             },
             Err(_) => None,
         };
-        let _ = request.response.send(selected);
+        let _ = response_tx.send(selected);
     }
+
+    async fn select_model(
+        &self,
+        session_id: &str,
+        model_id: &str,
+    ) -> Result<Vec<SessionConfigOption>> {
+        self.ensure_initialized()?;
+        if self.state.lock().binding(session_id).is_none() {
+            return Err(Error::resource_not_found(Some(session_id.to_string())));
+        }
+        let models = self
+            .backend
+            .set_session_model(session_id, model_id)
+            .await
+            .map_err(map_backend_error)?;
+        let options = model_config_options(Some(&models)).unwrap_or_default();
+        self.send_update(
+            session_id,
+            SessionUpdate::ConfigOptionUpdate(ConfigOptionUpdate::new(options.clone())),
+        )
+        .await?;
+        Ok(options)
+    }
+}
+
+fn model_config_options(models: Option<&SessionModelState>) -> Option<Vec<SessionConfigOption>> {
+    models.map(|models| {
+        vec![
+            SessionConfigOption::select(
+                "model",
+                "Model",
+                models.current_model_id.0.to_string(),
+                models
+                    .available_models
+                    .iter()
+                    .map(|model| {
+                        SessionConfigSelectOption::new(
+                            model.model_id.0.to_string(),
+                            model.name.clone(),
+                        )
+                        .description(model.description.clone())
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .category(SessionConfigOptionCategory::Model),
+        ]
+    })
 }
 
 struct PromptScope<'a> {
@@ -235,21 +299,45 @@ where
             .create_session_with_mcp(cwd.clone(), args.mcp_servers)
             .await
             .map_err(map_backend_error)?;
-        let session_id = self.register_session(session, &cwd)?;
-        Ok(NewSessionResponse::new(session_id))
+        let models = self.backend.session_models(&session.id).await.map_err(map_backend_error)?;
+        let options = model_config_options(models.as_ref());
+        let session_id = self.register_session(session, &cwd, false)?;
+        Ok(NewSessionResponse::new(session_id).models(models).config_options(options))
     }
 
     async fn load_session(&self, args: LoadSessionRequest) -> Result<LoadSessionResponse> {
         self.ensure_initialized()?;
         let cwd = canonical_directory(&args.cwd)?;
         let session_id = args.session_id.0.as_ref();
+        {
+            let mut state = self.state.lock();
+            if state.binding(session_id).is_some_and(|binding| binding.cwd() != cwd) {
+                return Err(protocol_error(
+                    Error::invalid_params(),
+                    "session cwd does not match its binding",
+                ));
+            }
+            if !state.reserve_prompt(session_id) {
+                return Err(protocol_error(Error::invalid_request(), "session is busy"));
+            }
+        }
+        let _scope =
+            PromptScope { state: &self.state, session_id: session_id.to_string(), completed: true };
         let session = self
             .backend
             .load_session_with_mcp(session_id, cwd.clone(), args.mcp_servers)
             .await
             .map_err(map_backend_error)?;
         let history = session.history.clone();
-        self.register_session(session, &cwd)?;
+        if session.id != session_id {
+            return Err(protocol_error(
+                Error::internal_error(),
+                "backend returned a different session id",
+            ));
+        }
+        let models = self.backend.session_models(session_id).await.map_err(map_backend_error)?;
+        let options = model_config_options(models.as_ref());
+        self.register_session(session, &cwd, true)?;
         for entry in history {
             let chunk = ContentChunk::new(ContentBlock::Text(TextContent::new(entry.text)));
             let update = match entry.role {
@@ -258,7 +346,27 @@ where
             };
             self.send_update(session_id, update).await?;
         }
-        Ok(LoadSessionResponse::new())
+        Ok(LoadSessionResponse::new().models(models).config_options(options))
+    }
+
+    async fn set_session_model(
+        &self,
+        args: SetSessionModelRequest,
+    ) -> Result<SetSessionModelResponse> {
+        self.select_model(args.session_id.0.as_ref(), args.model_id.0.as_ref()).await?;
+        Ok(SetSessionModelResponse::new())
+    }
+
+    async fn set_session_config_option(
+        &self,
+        args: SetSessionConfigOptionRequest,
+    ) -> Result<SetSessionConfigOptionResponse> {
+        self.ensure_initialized()?;
+        if args.config_id.0.as_ref() != "model" {
+            return Err(protocol_error(Error::invalid_params(), "unknown session config option"));
+        }
+        let options = self.select_model(args.session_id.0.as_ref(), args.value.0.as_ref()).await?;
+        Ok(SetSessionConfigOptionResponse::new(options))
     }
 
     async fn prompt(&self, args: PromptRequest) -> Result<PromptResponse> {
@@ -281,6 +389,7 @@ where
         self.state.lock().attach_cancel(&session_id, prompt.cancel.clone());
 
         let mut permissions_open = true;
+        let mut permission_reply: Option<Pin<Box<dyn Future<Output = ()> + '_>>> = None;
         loop {
             tokio::select! {
                 event = prompt.events.recv() => {
@@ -306,11 +415,14 @@ where
                         }
                     }
                 }
-                permission = prompt.permissions.recv(), if permissions_open => {
+                permission = prompt.permissions.recv(), if permissions_open && permission_reply.is_none() => {
                     match permission {
-                        Some(request) => self.request_permission(&session_id, request).await,
+                        Some(request) => permission_reply = Some(Box::pin(self.request_permission(&session_id, request))),
                         None => permissions_open = false,
                     }
+                }
+                () = async { permission_reply.as_mut().expect("pending permission reply").await }, if permission_reply.is_some() => {
+                    permission_reply = None;
                 }
             }
         }
@@ -372,3 +484,7 @@ where
         })
         .await
 }
+
+#[cfg(test)]
+#[path = "permission_tests.rs"]
+mod permission_tests;

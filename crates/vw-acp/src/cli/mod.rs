@@ -4,6 +4,7 @@ pub mod config_command;
 pub mod flags;
 pub mod json_output;
 pub mod output_render;
+pub mod session_target;
 pub mod status_command;
 
 #[cfg(test)]

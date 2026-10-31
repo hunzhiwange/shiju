@@ -128,7 +128,18 @@ for raw_line in sys.stdin:
         }
     elif method == "session/new":
         session_counter += 1
-        result = {"sessionId": f"session-{session_counter}"}
+        result = {"sessionId": f"session-{session_counter}",
+                  "models": {"currentModelId": "default-model", "availableModels": [
+                      {"modelId": model, "name": model} for model in ["default-model", "fast-model", "precise-model"]]},
+                  "configOptions": [{"id":"model", "name":"Model", "category":"model", "type":"select",
+                      "currentValue":"default-model", "options":[{"value":model,"name":model} for model in ["default-model", "fast-model", "precise-model"]]}]}
+    elif method == "session/set_model" and message["params"]["modelId"] == "missing":
+        sys.stdout.write(json.dumps({"jsonrpc":"2.0","id":request_id,"error":{"code":-32602,"message":"Unknown model"}}) + "\n")
+        sys.stdout.flush()
+        continue
+    elif method == "session/set_config_option":
+        result = {"configOptions": [{"id":"model", "name":"Model", "category":"model", "type":"select",
+                  "currentValue":message["params"]["value"], "options":[{"value":model,"name":model} for model in ["default-model", "fast-model", "precise-model"]]}]}
     else:
         result = {}
 
@@ -303,6 +314,14 @@ async fn create_session_writes_normalized_record_and_requested_options() {
     assert_eq!(record.name.as_deref(), Some("work"));
     let state = record.vwacp.as_ref().expect("vwacp state should be stored");
     assert_eq!(state.current_model_id.as_deref(), Some("fast-model"));
+    assert_eq!(
+        state.available_models.as_ref().unwrap(),
+        &["default-model", "fast-model", "precise-model"]
+    );
+    assert_eq!(
+        serde_json::to_value(state.config_options.as_ref().unwrap()).unwrap()[0]["currentValue"],
+        "fast-model"
+    );
     let options = state.session_options.as_ref().expect("session options should be stored");
     assert_eq!(options.model.as_deref(), Some("fast-model"));
     assert_eq!(options.allowed_tools.as_deref(), Some(&["shell".to_string()][..]));
@@ -313,6 +332,22 @@ async fn create_session_writes_normalized_record_and_requested_options() {
         .expect("created session should be listed");
     assert_eq!(sessions.len(), 1);
     assert_eq!(sessions[0].vwacp_record_id, "session-1");
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn create_session_rejects_invalid_requested_model_without_saving_record() {
+    let home = TempDir::new("rejected-model-home");
+    let _env = EnvGuard::set_home(home.path()).await;
+    let cwd = TempDir::new("rejected-model-cwd");
+    let agent = MockAgent::new();
+    let result = create_session(create_options(
+        cwd.path(),
+        &agent,
+        Some(AcpSessionOptions { model: Some("missing".into()), ..Default::default() }),
+    ))
+    .await;
+    assert!(result.is_err());
+    assert!(list_sessions().await.unwrap().is_empty());
 }
 
 #[tokio::test(flavor = "current_thread")]

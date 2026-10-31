@@ -74,6 +74,35 @@ async fn backend_prompt_persists_turn_once() {
     assert_eq!(loaded.history.len(), 2);
     assert_eq!(loaded.history[0].text, "hello");
     assert_eq!(loaded.history[1].text, "answer");
+    let mut follow_up = start_prompt_with_runtime_runner(
+        &backend,
+        &created.id,
+        vec![PromptContent::Text("follow-up".into())],
+        |request, mut emit| {
+            assert_eq!(
+                request.history.iter().map(|message| message.content.as_str()).collect::<Vec<_>>(),
+                ["hello", "answer"]
+            );
+            assert_eq!(request.history[0].role, crate::session::ui_types::ChatRole::User);
+            assert_eq!(request.history[1].role, crate::session::ui_types::ChatRole::Assistant);
+            emit(StreamEvent::Delta("second answer".into()));
+            emit(StreamEvent::Done(TokenUsage::default()));
+        },
+    )
+    .await
+    .expect("follow-up prompt");
+    while let Some(event) = follow_up.events.recv().await {
+        match event {
+            BackendEvent::Terminal(_) => break,
+            BackendEvent::Error(error) => panic!("follow-up failed: {error}"),
+            _ => {}
+        }
+    }
+    let loaded = backend.load_session(&created.id, root.path().into()).await.unwrap();
+    assert_eq!(
+        loaded.history.iter().map(|message| message.text.as_str()).collect::<Vec<_>>(),
+        ["hello", "answer", "follow-up", "second answer"]
+    );
     crate::project::instance::dispose_all().await;
 }
 
@@ -89,7 +118,7 @@ async fn backend_prompt_uses_native_model_and_local_tools() {
         vec![PromptContent::Text("hello".to_string())],
         |request, mut emit| {
             assert_eq!(request.channel_name.as_deref(), Some("acp"));
-            assert!(request.model.is_none());
+            assert_eq!(request.model.as_deref(), Some("auto"));
             assert!(crate::session::processor::should_execute_structured_tool_calls_locally(
                 &request.options
             ));

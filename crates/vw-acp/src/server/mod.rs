@@ -8,6 +8,9 @@ mod content;
 mod events;
 mod state;
 
+#[cfg(test)]
+mod model_tests;
+
 pub use agent::VibeWindowAgent;
 pub use agent::serve_with_io;
 pub use backend::{

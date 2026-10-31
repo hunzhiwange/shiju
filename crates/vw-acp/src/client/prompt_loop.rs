@@ -6,12 +6,32 @@
 use super::*;
 
 impl AcpClient {
+    #[cfg(test)]
     pub(super) async fn run_actor_prompt(
         &self,
         runtime: &mut ActorRuntime,
         request: PromptRequest,
         event_tx: mpsc::UnboundedSender<PromptEvent>,
     ) -> Result<PromptResult, AcpError> {
+        self.run_actor_prompt_with_controls(
+            runtime,
+            request,
+            event_tx,
+            None,
+            &mut std::collections::VecDeque::new(),
+        )
+        .await
+    }
+
+    pub(super) async fn run_actor_prompt_with_controls(
+        &self,
+        runtime: &mut ActorRuntime,
+        request: PromptRequest,
+        event_tx: mpsc::UnboundedSender<PromptEvent>,
+        mut command_rx: Option<&mut mpsc::UnboundedReceiver<ActorCommand>>,
+        deferred: &mut std::collections::VecDeque<ActorCommand>,
+    ) -> Result<PromptResult, AcpError> {
+        let mut controls = Vec::<super::prompt_controls::PromptControlFuture<'_>>::new();
         while runtime.event_rx.try_recv().is_ok() {}
 
         let mut session_id = self
@@ -100,6 +120,29 @@ impl AcpClient {
                         }
                     }
                 }
+                command = async { command_rx.as_mut().expect("actor command receiver").recv().await }, if command_rx.is_some() => {
+                    match command {
+                        Some(command) => {
+                            if matches!(&command, ActorCommand::Close { .. }) {
+                                let _ = self.request_cancel_active_prompt().await;
+                            }
+                            match super::prompt_controls::control_future(&runtime.conn, command, &session_id, &request.cwd) {
+                                Ok(control) => controls.push(control),
+                                Err(command) => deferred.push_back(command),
+                            }
+                        }
+                        None => command_rx = None,
+                    }
+                }
+                () = std::future::poll_fn(|cx| {
+                    for index in 0..controls.len() {
+                        if controls[index].as_mut().poll(cx).is_ready() {
+                            drop(controls.swap_remove(index));
+                            return Poll::Ready(());
+                        }
+                    }
+                    Poll::Pending
+                }), if !controls.is_empty() => {}
                 maybe_event = runtime.event_rx.recv() => {
                     match maybe_event {
                         Some(event) => {

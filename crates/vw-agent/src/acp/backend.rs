@@ -29,10 +29,14 @@ use crate::session::ui_types::{ChatMessage, ChatRole, TokenUsage};
 use super::approval::ApprovalBridge;
 use super::mcp::prepare_session_tools;
 
+#[path = "models.rs"]
+mod models;
+
 #[derive(Clone)]
 struct BoundSession {
     scope: SessionScope,
     tools: SessionToolset,
+    model: Arc<tokio::sync::Mutex<String>>,
 }
 
 /// VibeWindow 原生会话和提示运行时的 ACP 后端。
@@ -51,11 +55,20 @@ impl VibeWindowBackend {
         SessionScope::new(self.tenant.clone(), cwd).map_err(lifecycle_error)
     }
 
-    fn remember_scope(&self, session_id: &str, scope: SessionScope, tools: SessionToolset) {
-        self.sessions
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert(session_id.to_string(), BoundSession { scope, tools });
+    async fn remember_scope(
+        &self,
+        session_id: &str,
+        scope: SessionScope,
+        tools: SessionToolset,
+    ) -> Result<(), BackendError> {
+        let stored_model = models::load_selection(&scope, session_id).await?;
+        let mut sessions = self.sessions.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let model = sessions
+            .get(session_id)
+            .map(|bound| bound.model.clone())
+            .unwrap_or_else(|| Arc::new(tokio::sync::Mutex::new(stored_model)));
+        sessions.insert(session_id.to_string(), BoundSession { scope, tools, model });
+        Ok(())
     }
 
     fn bound_session(&self, session_id: &str) -> Result<BoundSession, BackendError> {
@@ -117,7 +130,12 @@ fn message_text(parts: &[message::Part]) -> String {
 }
 
 fn backend_history(mut history: Vec<message::WithParts>) -> Vec<BackendHistoryEntry> {
-    history.sort_by_key(|item| message_time(&item.info));
+    // 原生存储按新到旧返回；同毫秒内依靠单调递增消息 ID 恢复因果顺序。
+    history.sort_by(|left, right| {
+        message_time(&left.info)
+            .cmp(&message_time(&right.info))
+            .then_with(|| left.info.id().cmp(right.info.id()))
+    });
     history
         .into_iter()
         .filter_map(|item| {
@@ -301,6 +319,7 @@ async fn persist_turn(
     assistant_text: String,
     usage: TokenUsage,
     error: Option<String>,
+    cancelled: bool,
 ) -> Result<(), BackendError> {
     let tenant = scope.tenant().clone();
     let directory = scope.directory().to_path_buf();
@@ -376,7 +395,16 @@ async fn persist_turn(
                         cache: message::TokenCacheInfo { read: usage.cached_tokens, write: 0 },
                     },
                     variant: None,
-                    finish: Some(if error.is_some() { "error" } else { "stop" }.to_string()),
+                    finish: Some(
+                        if cancelled {
+                            "cancelled"
+                        } else if error.is_some() {
+                            "error"
+                        } else {
+                            "stop"
+                        }
+                        .to_string(),
+                    ),
                 }));
                 let assistant_part = message::Part::Text(message::TextPart {
                     base: message::PartBase {
@@ -449,6 +477,7 @@ fn bridge_prompt(
                         assistant_text.clone(),
                         usage.clone(),
                         None,
+                        false,
                     )) {
                         let _ = events_tx.send(BackendEvent::Error(error.to_string()));
                         break;
@@ -467,12 +496,26 @@ fn bridge_prompt(
                         stored_text,
                         TokenUsage::default(),
                         Some(error.clone()),
+                        false,
                     )) {
                         let _ = events_tx.send(BackendEvent::Error(persist_error.to_string()));
                         break;
                     }
                 }
-                PromptEvent::Terminated(PromptTermination::Cancelled) => {}
+                PromptEvent::Terminated(PromptTermination::Cancelled) => {
+                    if let Err(error) = runtime_handle.block_on(persist_turn(
+                        scope.clone(),
+                        session_id.clone(),
+                        query.clone(),
+                        assistant_text.clone(),
+                        TokenUsage::default(),
+                        None,
+                        true,
+                    )) {
+                        let _ = events_tx.send(BackendEvent::Error(error.to_string()));
+                        break;
+                    }
+                }
                 _ => {}
             }
             if let Some(event) = map_runtime_event(event) {
@@ -493,7 +536,8 @@ async fn start_prompt_core(
     prompt: Vec<PromptContent>,
     starter: impl FnOnce(Request) -> PromptTurn,
 ) -> Result<BackendPrompt, BackendError> {
-    let BoundSession { scope, tools } = backend.bound_session(session_id)?;
+    let BoundSession { scope, tools, model } = backend.bound_session(session_id)?;
+    let model = model.lock().await.clone();
     let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
     let history = backend_history(snapshot.history);
     let query = prompt_query(prompt);
@@ -502,7 +546,7 @@ async fn start_prompt_core(
         .map_err(|error| BackendError::Internal(error.to_string()))?;
     let approval = Arc::new(ApprovalManager::from_config(&config.autonomy));
     let (approval_tx, approval_rx) = tokio::sync::mpsc::unbounded_channel();
-    let request = runtime_request(
+    let mut request = runtime_request(
         session_id,
         &scope,
         query.clone(),
@@ -516,6 +560,7 @@ async fn start_prompt_core(
         tools,
         config.reliability,
     );
+    request.model = Some(model);
     let runtime = crate::session::ui_store::with_tenant_scope(scope.tenant().clone(), async move {
         starter(request)
     })
@@ -548,6 +593,28 @@ where
 
 #[async_trait]
 impl SessionBackend for VibeWindowBackend {
+    async fn session_models(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<agent_client_protocol::SessionModelState>, BackendError> {
+        let bound = self.bound_session(session_id)?;
+        let selected = bound.model.lock().await.clone();
+        models::session_models(bound.scope, selected).await.map(Some)
+    }
+
+    async fn set_session_model(
+        &self,
+        session_id: &str,
+        model_id: &str,
+    ) -> Result<agent_client_protocol::SessionModelState, BackendError> {
+        let bound = self.bound_session(session_id)?;
+        let mut selected = bound.model.lock().await;
+        let models = models::session_models(bound.scope.clone(), model_id.to_string()).await?;
+        models::save_selection(&bound.scope, session_id, model_id).await?;
+        *selected = model_id.to_string();
+        Ok(models)
+    }
+
     async fn create_session(&self, cwd: PathBuf) -> Result<BackendSession, BackendError> {
         self.create_session_with_mcp(cwd, Vec::new()).await
     }
@@ -557,8 +624,8 @@ impl SessionBackend for VibeWindowBackend {
         cwd: PathBuf,
         mcp_servers: Vec<McpServer>,
     ) -> Result<BackendSession, BackendError> {
-        let tools = prepare_session_tools(&mcp_servers).await?;
         let scope = self.scope(cwd)?;
+        let tools = prepare_session_tools(&mcp_servers).await?;
         let snapshot = create_session(CreateSessionInput {
             scope: scope.clone(),
             parent_id: None,
@@ -568,7 +635,7 @@ impl SessionBackend for VibeWindowBackend {
         .await
         .map_err(lifecycle_error)?;
         let session = backend_session(snapshot, &scope);
-        self.remember_scope(&session.id, scope, tools);
+        self.remember_scope(&session.id, scope, tools).await?;
         Ok(session)
     }
 
@@ -586,11 +653,11 @@ impl SessionBackend for VibeWindowBackend {
         cwd: PathBuf,
         mcp_servers: Vec<McpServer>,
     ) -> Result<BackendSession, BackendError> {
-        let tools = prepare_session_tools(&mcp_servers).await?;
         let scope = self.scope(cwd)?;
         let snapshot = load_session(scope.clone(), session_id).await.map_err(lifecycle_error)?;
+        let tools = prepare_session_tools(&mcp_servers).await?;
         let session = backend_session(snapshot, &scope);
-        self.remember_scope(&session.id, scope, tools);
+        self.remember_scope(&session.id, scope, tools).await?;
         Ok(session)
     }
 

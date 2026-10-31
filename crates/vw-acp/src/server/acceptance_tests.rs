@@ -18,6 +18,7 @@ struct AcceptanceBackend;
 
 struct CancelToTerminal {
     events: tokio::sync::mpsc::UnboundedSender<BackendEvent>,
+    _permission: tokio::sync::oneshot::Receiver<Option<String>>,
 }
 
 impl BackendCancelHandle for CancelToTerminal {
@@ -65,7 +66,7 @@ impl SessionBackend for AcceptanceBackend {
             })
             .expect("tool event");
         let (permissions_tx, permissions_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (response, _selected) = tokio::sync::oneshot::channel();
+        let (response, selected) = tokio::sync::oneshot::channel();
         permissions_tx
             .send(BackendPermissionRequest {
                 request_id: "approval-1".into(),
@@ -88,18 +89,23 @@ impl SessionBackend for AcceptanceBackend {
             })
             .expect("permission event");
         drop(permissions_tx);
-        Ok(BackendPrompt::new(events_rx, Arc::new(CancelToTerminal { events: events_tx }))
-            .with_permissions(permissions_rx))
+        Ok(BackendPrompt::new(
+            events_rx,
+            Arc::new(CancelToTerminal { events: events_tx, _permission: selected }),
+        )
+        .with_permissions(permissions_rx))
     }
 }
 
-async fn write_frame(stream: &mut tokio::io::DuplexStream, frame: serde_json::Value) {
+pub(super) async fn write_frame(stream: &mut tokio::io::DuplexStream, frame: serde_json::Value) {
     let mut bytes = serde_json::to_vec(&frame).expect("serialize frame");
     bytes.push(b'\n');
     stream.write_all(&bytes).await.expect("write frame");
 }
 
-async fn read_frame(reader: &mut BufReader<&mut tokio::io::DuplexStream>) -> serde_json::Value {
+pub(super) async fn read_frame(
+    reader: &mut BufReader<&mut tokio::io::DuplexStream>,
+) -> serde_json::Value {
     let mut line = String::new();
     reader.read_line(&mut line).await.expect("read frame");
     assert!(!line.is_empty(), "protocol stream closed before expected frame");

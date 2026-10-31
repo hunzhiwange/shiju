@@ -116,6 +116,10 @@ impl RuntimeState {
         self.buffering_connect_output.store(buffering, Ordering::SeqCst);
     }
 
+    pub(super) fn sync_session_state(&self, record: &SessionRecord) {
+        *self.vwacp_state.lock() = clone_session_vwacp_state(record.vwacp.as_ref());
+    }
+
     pub(super) fn apply_to_record(&self, record: &mut SessionRecord) {
         let conversation = self.conversation.lock().clone();
         apply_conversation(record, &conversation);
@@ -297,16 +301,23 @@ pub(super) fn build_runtime_state_callbacks(
             }
             {
                 let mut conversation = state.conversation.lock();
+                // session/load 回放的是已持久化历史，不能追加到当前用户提示之后。
+                let mut replay_conversation = clone_session_conversation(None);
+                let conversation = if state.buffering_connect_output.load(Ordering::SeqCst) {
+                    &mut replay_conversation
+                } else {
+                    &mut *conversation
+                };
                 let next_state = {
                     let vwacp_state = state.vwacp_state.lock();
                     record_session_update(
-                        &mut conversation,
+                        conversation,
                         vwacp_state.as_ref(),
                         &notification,
                         Some(&iso_now()),
                     )
                 };
-                trim_conversation_for_runtime(&mut conversation);
+                trim_conversation_for_runtime(conversation);
                 *state.vwacp_state.lock() = Some(next_state);
             }
             if let Some(callback) = on_session_update.as_ref() {

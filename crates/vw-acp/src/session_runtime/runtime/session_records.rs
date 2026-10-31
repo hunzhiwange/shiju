@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::session_mode_preference::set_current_model_id;
+use crate::session_mode_preference::{set_current_model_id, sync_config_options};
 use crate::session_persistence::{
     FindSessionByDirectoryWalkOptions, absolute_path, find_git_repository_root,
     find_session_by_directory_walk, iso_now, list_sessions, normalize_name, write_session_record,
@@ -58,8 +58,7 @@ async fn create_session_record_with_client(
         options.session_options.as_ref().and_then(|value| value.model.as_deref()),
         options.timeout_ms,
     )
-    .await
-    .unwrap_or(false);
+    .await?;
 
     let now = iso_now();
     let conversation = crate::session_conversation_model::create_session_conversation(Some(&now));
@@ -106,7 +105,8 @@ async fn create_session_record_with_client(
     };
 
     persist_session_options(&mut record, options.session_options.as_ref());
-    sync_model_state(&mut record, None);
+    sync_model_state(&mut record, session_info.models.as_ref());
+    sync_config_options(&mut record, session_info.config_options);
     if requested_model_applied {
         set_current_model_id(
             &mut record,

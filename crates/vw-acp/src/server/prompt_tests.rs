@@ -8,8 +8,9 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use agent_client_protocol::{
-    Agent, CancelNotification, ContentBlock, InitializeRequest, NewSessionRequest, PromptRequest,
-    ProtocolVersion, ResourceLink, SessionNotification, SessionUpdate, StopReason, TextContent,
+    Agent, CancelNotification, ContentBlock, InitializeRequest, LoadSessionRequest,
+    NewSessionRequest, PromptRequest, ProtocolVersion, ResourceLink, SessionNotification,
+    SessionUpdate, StopReason, TextContent,
 };
 use async_trait::async_trait;
 
@@ -22,6 +23,7 @@ use super::{
 #[derive(Default)]
 struct RecordingSink {
     notifications: Arc<Mutex<Vec<SessionNotification>>>,
+    permission_started: Option<Arc<AtomicBool>>,
 }
 
 #[async_trait(?Send)]
@@ -29,6 +31,14 @@ impl SessionUpdateSink for RecordingSink {
     async fn send(&self, notification: SessionNotification) -> agent_client_protocol::Result<()> {
         self.notifications.lock().expect("notification lock").push(notification);
         Ok(())
+    }
+
+    async fn request_permission(
+        &self,
+        _request: agent_client_protocol::RequestPermissionRequest,
+    ) -> agent_client_protocol::Result<agent_client_protocol::RequestPermissionResponse> {
+        self.permission_started.as_ref().unwrap().store(true, Ordering::Release);
+        std::future::pending().await
     }
 }
 
@@ -48,6 +58,8 @@ struct PromptBackend {
     active: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<BackendEvent>>>>,
     cancel_counts: Arc<Mutex<HashMap<String, usize>>>,
     next_session: AtomicUsize,
+    request_permission: bool,
+    permission_selected: Mutex<Option<tokio::sync::oneshot::Receiver<Option<String>>>>,
 }
 
 struct ChannelCancel {
@@ -102,6 +114,21 @@ impl SessionBackend for PromptBackend {
         for event in scripted {
             tx.send(event).expect("script receiver");
         }
+        let (permission_tx, permission_rx) = tokio::sync::mpsc::unbounded_channel();
+        if self.request_permission {
+            let (response, selected) = tokio::sync::oneshot::channel();
+            *self.permission_selected.lock().unwrap() = Some(selected);
+            permission_tx
+                .send(super::BackendPermissionRequest {
+                    request_id: "permission-1".into(),
+                    call_id: "call-1".into(),
+                    title: "fixture".into(),
+                    raw_input: serde_json::Value::Null,
+                    options: Vec::new(),
+                    response,
+                })
+                .unwrap();
+        }
         if self.hold_open {
             self.active.lock().expect("active lock").insert(session_id.to_string(), tx);
             Ok(BackendPrompt::new(
@@ -112,7 +139,8 @@ impl SessionBackend for PromptBackend {
                     cancel_counts: Arc::clone(&self.cancel_counts),
                     cancelled: AtomicBool::new(false),
                 }),
-            ))
+            )
+            .with_permissions(permission_rx))
         } else {
             drop(tx);
             Ok(BackendPrompt::new(rx, Arc::new(ScriptedCancel)))
@@ -164,7 +192,7 @@ async fn prompt_maps_text_resource_links_and_backend_events() {
         ],
     );
     let notifications = Arc::new(Mutex::new(Vec::new()));
-    let sink = RecordingSink { notifications: Arc::clone(&notifications) };
+    let sink = RecordingSink { notifications: Arc::clone(&notifications), ..Default::default() };
     let agent = prepared_agent(backend, sink, root.path()).await;
     let request = PromptRequest::new(
         "session-1",
@@ -253,4 +281,56 @@ async fn cancel_targets_only_active_session() {
     let (first, second, ()) = tokio::join!(first, second, control);
     assert_eq!(first.expect("first prompt").stop_reason, StopReason::Cancelled);
     assert_eq!(second.expect("second prompt").stop_reason, StopReason::Cancelled);
+}
+
+#[tokio::test]
+async fn cancel_completes_while_client_permission_reply_is_pending() {
+    let root = tempfile::tempdir().unwrap();
+    let permission_started = Arc::new(AtomicBool::new(false));
+    let backend = PromptBackend { hold_open: true, request_permission: true, ..Default::default() };
+    let sink = RecordingSink {
+        permission_started: Some(permission_started.clone()),
+        ..Default::default()
+    };
+    let agent = prepared_agent(backend, sink, root.path()).await;
+    let prompt = Agent::prompt(&agent, PromptRequest::new("session-1", vec!["hello".into()]));
+    let cancel = async {
+        while !permission_started.load(Ordering::Acquire) {
+            tokio::task::yield_now().await;
+        }
+        Agent::cancel(&agent, CancelNotification::new("session-1")).await.unwrap();
+    };
+    let (response, ()) = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        tokio::join!(prompt, cancel)
+    })
+    .await
+    .expect("cancellation must not wait for a permission reply");
+    assert_eq!(response.unwrap().stop_reason, StopReason::Cancelled);
+}
+
+#[tokio::test]
+async fn load_session_rejects_active_prompt_without_interrupting_it() {
+    let root = tempfile::tempdir().unwrap();
+    let backend = PromptBackend { hold_open: true, ..Default::default() };
+    let active = backend.active.clone();
+    let agent = prepared_agent(backend, RecordingSink::default(), root.path()).await;
+    let prompt = Agent::prompt(&agent, PromptRequest::new("session-1", vec!["hello".into()]));
+    let control = async {
+        while !active.lock().unwrap().contains_key("session-1") {
+            tokio::task::yield_now().await;
+        }
+        assert!(
+            Agent::load_session(&agent, LoadSessionRequest::new("session-1", root.path()))
+                .await
+                .is_err()
+        );
+        assert!(active.lock().unwrap().contains_key("session-1"));
+        Agent::cancel(&agent, CancelNotification::new("session-1")).await.unwrap();
+    };
+    let (response, ()) = tokio::time::timeout(std::time::Duration::from_secs(1), async {
+        tokio::join!(prompt, control)
+    })
+    .await
+    .unwrap();
+    assert_eq!(response.unwrap().stop_reason, StopReason::Cancelled);
 }

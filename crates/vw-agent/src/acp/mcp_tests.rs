@@ -125,3 +125,28 @@ async fn loaded_session_rebuilds_requested_mcp_scope() {
     assert_eq!(backend.session_tool_count(&created.id), Some(0));
     crate::project::instance::dispose_all().await;
 }
+
+#[tokio::test]
+async fn foreign_session_load_rejects_before_starting_mcp_processes() {
+    let root = TempDir::new().unwrap();
+    let owner = VibeWindowBackend::new(TenantScope::new("acp-load-platform", "owner").unwrap());
+    let created = owner.create_session(root.path().into()).await.unwrap();
+    let foreign = VibeWindowBackend::new(TenantScope::new("acp-load-platform", "foreign").unwrap());
+    let server = fixture_server(root.path(), Vec::new());
+    let script = root.path().join("fixture_mcp.py");
+    let contents = std::fs::read_to_string(&script).unwrap();
+    std::fs::write(
+        &script,
+        format!(
+            "from pathlib import Path\nPath(__file__).with_suffix('.started').touch()\n{contents}"
+        ),
+    )
+    .unwrap();
+    assert!(
+        foreign.load_session_with_mcp(&created.id, root.path().into(), vec![server]).await.is_err()
+    );
+    assert!(
+        !script.with_extension("started").exists(),
+        "MCP must not start for an unowned session"
+    );
+}

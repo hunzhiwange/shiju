@@ -1,6 +1,6 @@
 {
   "task": 29,
-  "status": "local_validation_passed_external_acceptance_pending",
+  "status": "已完成",
   "platform": "macOS-27.0-arm64-arm-64bit",
   "slot": 1,
   "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
@@ -78,7 +78,13 @@
   "acceptance": {
     "public_service": true,
     "desktop_rendering": false,
-    "full_compatibility_claimed": false
+    "full_compatibility_claimed": false,
+    "desktop_rendering_task": 31,
+    "scope_decision": {
+      "date": "2026-11-01",
+      "authorization": "用户已明确确认：允许，渲染验收放到31",
+      "task_29_scope": "资源识别、同会话关联、公开服务验证；真实渲染由任务31验收。"
+    }
   },
   "slot_released": true,
   "public_acceptance": {

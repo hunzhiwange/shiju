@@ -102,6 +102,7 @@ pub(crate) fn bind_input(
                 | "tool_input"
                 | "tool_response"
                 | "tool_use_id"
+                | "duration_ms"
         )
     });
     if event == E::BeforeLlmCall {

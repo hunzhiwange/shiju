@@ -82,3 +82,71 @@ async fn codex_plugin_compat_t38_delivers_result_context_once() {
     }
     assert_eq!(std::fs::read_dir(root.path()).unwrap().count(), 0);
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn codex_plugin_compat_t38_captures_failed_large_result() {
+    use crate::plugins::{CodexHooksManifest, PluginHookTrustStore, hook_handler::codex_handlers};
+    use crate::tools::{ToolResult, ToolUseContext, scope_tool_use_context};
+    let package = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let manifest: CodexHooksManifest = serde_json::from_value(json!({"hooks":{"PostToolUse":[{"hooks":[{"type":"command","command":"cat > \"$PLUGIN_DATA/input.json\"; printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"captured\"}}'"}]}]}})).unwrap();
+    let mut trust =
+        PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
+    trust.trust_codex_hooks("fixture", package.path(), &manifest).unwrap();
+    let handlers = codex_handlers("fixture", package.path(), &manifest, &trust).unwrap();
+    let context = std::sync::Arc::new(
+        ToolUseContext::new("session", Some(package.path().to_str().unwrap().into()))
+            .with_turn_id("turn")
+            .with_tool_call_id("call")
+            .with_model("model")
+            .with_hook_input(json!({"nested":{"value":3}})),
+    );
+    let result = ToolResult {
+        success: false,
+        output: json!({"data":"large".repeat(10000)}).to_string(),
+        error: Some("fixture failure".into()),
+    };
+    scope_tool_use_context(
+        context.clone(),
+        handlers[0].on_after_tool_call("marker", &result, std::time::Duration::from_millis(42)),
+    )
+    .await;
+    let data = std::fs::read_dir(state.path().join("plugin-hook-data"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let input: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(data.join("input.json")).unwrap()).unwrap();
+    assert_eq!(input["tool_response"], serde_json::to_value(&result).unwrap());
+    assert_eq!(input["tool_input"], json!({"nested":{"value":3}}));
+    assert_eq!(input["duration_ms"], 42);
+    assert_eq!(input["session_id"], "session");
+    assert_eq!(input["tool_use_id"], "call");
+    assert_eq!(context.take_hook_contexts(), ["captured"]);
+    assert!(context.take_hook_contexts().is_empty());
+    assert_eq!(std::fs::read_dir(package.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn codex_plugin_compat_t38_returns_block_and_stop_feedback() {
+    use super::hook_post_tool::parse;
+    for output in [
+        json!({"decision":"block","reason":"blocked"}),
+        json!({"continue":false,"reason":"blocked"}),
+    ] {
+        assert_eq!(
+            parse(Some(0), &serde_json::to_vec(&output).unwrap(), b"").unwrap()["hookSpecificOutput"]
+                ["additionalContext"],
+            "blocked"
+        );
+    }
+    assert!(
+        parse(Some(2), b"", b"fixture stderr").unwrap()["hookSpecificOutput"]["additionalContext"]
+            .as_str()
+            .unwrap()
+            .contains("fixture stderr")
+    );
+}

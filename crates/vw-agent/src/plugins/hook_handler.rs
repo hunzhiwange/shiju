@@ -144,8 +144,15 @@ impl CommandPluginHookHandler {
             return Ok(Value::Null);
         }
         if self.codex_protocol {
-            let parsed =
-                super::compat::hook_command::interpret(output.status.code(), &output.stdout)?;
+            let parsed = if self.hook.event == PluginHookEvent::AfterToolCall {
+                super::compat::hook_post_tool::parse(
+                    output.status.code(),
+                    &output.stdout,
+                    &output.stderr,
+                )?
+            } else {
+                super::compat::hook_command::interpret(output.status.code(), &output.stdout)?
+            };
             if self.hook.event == PluginHookEvent::AfterToolCall {
                 super::compat::hook_post_tool::validate(&parsed)?;
             }

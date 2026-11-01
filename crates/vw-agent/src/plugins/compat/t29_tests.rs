@@ -101,3 +101,49 @@ async fn codex_plugin_compat_t29_reads_resource_over_real_stdio() {
     );
     pool.shutdown();
 }
+
+#[tokio::test]
+#[ignore = "requires public Chess MCP network service"]
+async fn codex_plugin_compat_t29_public_chess_resource() {
+    use agent_client_protocol::{McpServer, McpServerHttp};
+    let server = McpServer::Http(McpServerHttp::new("chess", "https://mcp.chess.niklas.sh/mcp"));
+    let pool = super::mcp_connections::McpSessionConnections::default();
+    let result = pool
+        .with_client(&server, Some(std::time::Duration::from_secs(45)), |client| {
+            Box::pin(async move {
+                let tools = client.service().catalogs.tools(client.peer()).await?;
+                assert!(tools.iter().any(|t| t.name == "get-daily-puzzle"));
+                let metadata =
+                    client.service().raw_responses.tool_metadata("get-daily-puzzle").unwrap();
+                let mut app = association("chess", "get-daily-puzzle", Some(&metadata))?.unwrap();
+                // The same tool also declares a private template; select the public ext-apps URI.
+                assert!(app["resource_uri"].as_str().unwrap().contains("/ext-apps/"));
+                let mut result = client
+                    .peer()
+                    .call_tool(rmcp::model::CallToolRequestParam {
+                        name: "get-daily-puzzle".into(),
+                        arguments: Some(Default::default()),
+                    })
+                    .await?;
+                super::mcp_apps::resource(client, &mut app).await?;
+                assert!(!app["resource"]["contents"][0]["text"].as_str().unwrap().is_empty());
+                result
+                    .meta
+                    .get_or_insert_with(Default::default)
+                    .0
+                    .insert(super::mcp_apps::BINDING.to_owned(), app);
+                super::mcp_content::normalize_mcp_tool_result("chess", "get-daily-puzzle", result)
+            })
+        })
+        .await
+        .unwrap();
+    assert_eq!(result.data["is_error"], false);
+    assert!(result.data["structured_content"].is_object());
+    assert!(!result.data["content"].as_array().unwrap().is_empty());
+    assert_eq!(
+        result.data["mcp_app"]["resource"]["contents"][0]["mimeType"],
+        "text/html;profile=mcp-app"
+    );
+    assert_eq!(result.data["mcp_app"]["renderable"], false);
+    pool.shutdown();
+}

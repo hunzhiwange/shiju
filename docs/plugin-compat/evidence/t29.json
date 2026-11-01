@@ -28,11 +28,18 @@
       "sha256": "c6846c1bc3c6b2eb58298aa304c5823a0e68bcb3b11728d3150ad98cba7f45e9"
     },
     {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t29_public_chess_resource -- --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "local_record": "/tmp/shiju-t29-public.log",
+      "sha256": "6eab3b322cfd24066e538821f3f31076d55b1ebaf3cf0d5f4ce5349bd94d384f"
+    },
+    {
       "command": "cargo clippy --all-targets --all-features -- -D warnings",
       "exit_code": 0,
       "effective_tests": null,
       "local_record": "/tmp/shiju-t29-clippy.log",
-      "sha256": "7a3598da0e0a808dea962680a36f21468ae29b443c9bc5220eaadb8e5ce04ebb"
+      "sha256": "d85311410d0ecad59b4742a51d9e698eadc15fd0fa7ff1873b6857cba950876e"
     }
   ],
   "red_note": "Target association and invalid-input assertions observed; host panic runtime subsequently SIGABRT. No completed failed-test summary claimed. Initial Cargo invocation was interrupted after detecting repository build-dir override; rerun used slot build directory.",
@@ -69,9 +76,28 @@
     "Real local Python stdio fixture verifies catalog capture and resource read; unit tests verify result binding and connection isolation."
   ],
   "acceptance": {
-    "public_service": false,
+    "public_service": true,
     "desktop_rendering": false,
     "full_compatibility_claimed": false
   },
-  "slot_released": true
+  "slot_released": true,
+  "public_acceptance": {
+    "url": "https://mcp.chess.niklas.sh/mcp",
+    "source": "https://github.com/nbialk/chess-mcp",
+    "tool": "get-daily-puzzle",
+    "transport": "production McpSessionConnections HTTP",
+    "result": "Real tools/list captures both public and private metadata; selects /ext-apps/ UI URI. Real tools/call succeeds with nonempty text content and structuredContent; same connection reads nonempty HTML with exact App MIME. Host result normalization preserves association without rendering capability.",
+    "authorization": "User authorized selecting a public test service; read-only daily public puzzle, no account or credentials.",
+    "other_probes": [
+      {
+        "url": "https://remote-mcp-server-authless.idosalomon.workers.dev/mcp",
+        "initialize_http_status": 403
+      },
+      {
+        "url": "https://mcp.webrobot.eu/mcp",
+        "initialize_http_status": 200,
+        "apps_acceptance_claimed": false
+      }
+    ]
+  }
 }

@@ -23,7 +23,12 @@ pub(crate) fn connections(session: &str, root: &Path) -> Arc<McpSessionConnectio
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .entry(key(session, root))
-        .or_default()
+        .or_insert_with(|| {
+            Arc::new(McpSessionConnections::for_form_owner(super::mcp_elicitation::FormOwner {
+                session: session.to_owned(),
+                tenant: crate::session::ui_store::current_tenant_scope(),
+            }))
+        })
         .clone()
 }
 pub(crate) fn close_session(session: &str, root: &Path) {

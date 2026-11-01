@@ -62,6 +62,9 @@ const UNSUPPORTED_MCP_CAPABILITIES: &[UnsupportedMcpCapability] = &[
 
 pub(crate) struct NoopClient {
     info: ClientInfo,
+    form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
+    form_server: String,
+    closed: tokio_util::sync::CancellationToken,
     pub(crate) catalogs: std::sync::Arc<crate::plugins::McpCatalogs>,
     pub(crate) raw_responses: std::sync::Arc<crate::plugins::RawMcpResponse>,
 }
@@ -74,6 +77,9 @@ impl Default for NoopClient {
 impl NoopClient {
     fn with_cancellation(closed: tokio_util::sync::CancellationToken) -> Self {
         Self {
+            form_owner: None,
+            form_server: String::new(),
+            closed: closed.clone(),
             raw_responses: Default::default(),
             catalogs: std::sync::Arc::new(crate::plugins::McpCatalogs::new(closed)),
             info: crate::plugins::mcp_client_info(),
@@ -125,10 +131,27 @@ impl rmcp::ClientHandler for NoopClient {
 
     fn create_elicitation(
         &self,
-        _request: CreateElicitationRequestParam,
-        _context: RequestContext<RoleClient>,
+        request: CreateElicitationRequestParam,
+        context: RequestContext<RoleClient>,
     ) -> impl Future<Output = Result<CreateElicitationResult, ErrorData>> + Send + '_ {
-        std::future::ready(Err(unsupported_client_capability_error("elicitation")))
+        async move {
+            let schema = self.raw_responses.take_form(&context.id);
+            let owner = self
+                .form_owner
+                .clone()
+                .ok_or_else(|| unsupported_client_capability_error("elicitation"))?;
+            crate::plugins::mcp_elicitation::request(
+                owner,
+                self.form_server.clone(),
+                request,
+                context.ct,
+                self.closed.clone(),
+                Some(schema.ok_or_else(|| {
+                    ErrorData::invalid_params("MCP form wire schema is unavailable", None)
+                })?),
+            )
+            .await
+        }
     }
 
     fn on_resource_list_changed(
@@ -574,8 +597,15 @@ pub(crate) async fn open_server_peer(
     server: McpServer,
     timeout: Duration,
     closed: tokio_util::sync::CancellationToken,
+    form_owner: Option<crate::plugins::mcp_elicitation::FormOwner>,
 ) -> anyhow::Result<RunningMcpPeer> {
-    let peer_client = NoopClient::with_cancellation(closed);
+    let mut peer_client = NoopClient::with_cancellation(closed);
+    if form_owner.is_some() {
+        peer_client.info.capabilities.elicitation =
+            Some(rmcp::model::ElicitationCapability { schema_validation: Some(true) });
+    }
+    peer_client.form_owner = form_owner;
+    peer_client.form_server = server_name(&server).to_owned();
     let responses = peer_client.raw_responses.clone();
     let server = &server;
     let running = match server {

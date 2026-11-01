@@ -11,6 +11,7 @@ pub(crate) mod mcp_connection_sessions;
 pub(crate) mod mcp_connection_settings;
 pub(crate) mod mcp_connections;
 pub(super) mod mcp_content;
+pub(crate) mod mcp_elicitation;
 pub(super) mod mcp_environment;
 pub(super) mod mcp_legacy;
 pub(super) mod mcp_portable;
@@ -114,3 +115,6 @@ mod t22_tests;
 
 #[cfg(test)]
 mod t23_tests;
+
+#[cfg(test)]
+mod t24_tests;

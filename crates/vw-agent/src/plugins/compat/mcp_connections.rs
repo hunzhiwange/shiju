@@ -40,6 +40,7 @@ struct State {
 #[derive(Default)]
 pub(crate) struct McpSessionConnections {
     state: Mutex<State>,
+    pub(crate) form_owner: Option<super::mcp_elicitation::FormOwner>,
 }
 
 // Discovery creates temporary synchronous bridge runtimes. Transport tasks must outlive them.
@@ -101,6 +102,10 @@ fn connection_key(server: &McpServer, configuration: &str) -> Result<String> {
     Ok(hex::encode(hash.finalize()))
 }
 impl McpSessionConnections {
+    pub(crate) fn for_form_owner(owner: super::mcp_elicitation::FormOwner) -> Self {
+        Self { form_owner: Some(owner), state: Mutex::new(State::default()) }
+    }
+
     #[cfg(test)]
     pub(crate) async fn list_tools(
         &self,
@@ -269,10 +274,13 @@ impl McpSessionConnections {
         if active.client.is_none() {
             let server = server.clone();
             let closed = entry.closed.child_token();
+            let form_owner = self.form_owner.clone();
             let task = runtime().spawn(async move {
                 let operation = async {
-                    let client =
-                        crate::tools::mcp_common::open_server_peer(server, startup, closed).await?;
+                    let client = crate::tools::mcp_common::open_server_peer(
+                        server, startup, closed, form_owner,
+                    )
+                    .await?;
                     if client.peer_info().is_some_and(|info| info.capabilities.tools.is_some()) {
                         client
                             .service()

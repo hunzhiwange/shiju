@@ -1,0 +1,62 @@
+{
+  "task": 24,
+  "status": "in_progress",
+  "scope": "native chat MCP 2025-06-18 forms; no hosted extensions or ACP UI grants",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 0,
+      "summary": [
+        "test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 10692 filtered out; finished in 0.10s"
+      ]
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+      "exit_code": 0,
+      "summary": [
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10685 filtered out; finished in 0.41s"
+      ]
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common::tests:: -- --test-threads=1",
+      "exit_code": 0,
+      "summary": [
+        "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10662 filtered out; finished in 0.21s"
+      ]
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features question::mod_tests:: -- --test-threads=1 --skip poisoned_state_lock_recovers_for_public_operations",
+      "exit_code": 0,
+      "summary": [
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10686 filtered out; finished in 0.13s"
+      ]
+    }
+  ],
+  "clippy": {
+    "command": "cargo clippy --all-targets --all-features -- -D warnings",
+    "exit_code": 0
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+    "exit_code": 101,
+    "target_assertions_observed": 3,
+    "note": "Reconstructed refusal regression by temporarily disconnecting FormOwner, restored afterward; target assertions observed before host SIGABRT, no completed failure summary claimed."
+  },
+  "remaining": [
+    "actual desktop form rendering and user interaction acceptance"
+  ],
+  "limitations": [
+    "Manual desktop test did not pass; ignored in automated filter.",
+    "Conservative email validation rejects quoted mailboxes.",
+    "Existing poison-lock test skipped after host SIGABRT; not claimed passed."
+  ],
+  "implementation": [
+    "trusted tenant/session owner bound before handshake",
+    "raw wire schema retained by connection/request ID to preserve rmcp enum constraints",
+    "accept/decline/cancel, 120 second timeout and cancellation cleanup",
+    "sensitive replies omitted from question.replied event"
+  ]
+}

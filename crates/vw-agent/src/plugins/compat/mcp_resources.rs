@@ -17,9 +17,26 @@ use std::sync::Mutex;
 /// A single response slot is sufficient: McpSessionConnections serializes each peer operation.
 /// The response id must match; unsolicited/overlapping responses fail closed, never cross-route.
 #[derive(Default)]
-pub(crate) struct RawResponse(Mutex<Option<(Value, Value)>>);
+pub(crate) struct RawResponse(
+    Mutex<Option<(Value, Value)>>,
+    Mutex<std::collections::HashMap<String, Value>>,
+);
 impl RawResponse {
+    pub(crate) fn take_form(&self, id: &RequestId) -> Option<Value> {
+        let key = serde_json::to_string(id).ok()?;
+        self.1.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&key)
+    }
     pub(crate) fn capture(&self, message: &Value) {
+        if message["method"] == "elicitation/create" {
+            if let (Some(id), Some(schema)) =
+                (message.get("id"), message.pointer("/params/requestedSchema"))
+            {
+                let mut forms = self.1.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                if forms.len() < 64 {
+                    forms.insert(id.to_string(), schema.clone());
+                }
+            }
+        }
         if message.get("method").is_some() {
             return;
         }

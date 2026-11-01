@@ -66,6 +66,7 @@ impl From<id::Error> for Error {
 
 struct Pending {
     tenant: vw_api_types::id::TenantScope,
+    sensitive: bool,
     info: Request,
     tx: oneshot::Sender<Result<Vec<Answer>, RejectedError>>,
 }
@@ -103,6 +104,14 @@ impl Drop for PendingGuard {
 /// 返回回答列表；如果 ID 生成失败会返回 `Error::Id`，如果请求被拒绝或等待
 /// 通道被关闭会返回 `Error::Rejected`。
 pub async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
+    ask_inner(input, false).await
+}
+
+pub(crate) async fn ask_sensitive(input: AskInput) -> Result<Vec<Answer>, Error> {
+    ask_inner(input, true).await
+}
+
+async fn ask_inner(input: AskInput, sensitive: bool) -> Result<Vec<Answer>, Error> {
     let id = id::ascending(id::Prefix::Question, None)?;
     LOGGER.info(
         "asking",
@@ -126,6 +135,7 @@ pub async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
         lock.pending.insert(
             id.clone(),
             Pending {
+                sensitive,
                 tenant: crate::session::ui_store::current_tenant_scope(),
                 info: req.clone(),
                 tx,
@@ -182,7 +192,7 @@ pub fn reply(input: ReplyInput) {
         serde_json::json!({
             "sessionID": existing.info.session_id,
             "requestID": existing.info.id,
-            "answers": input.answers,
+            "answers": if existing.sensitive { Value::Null } else { serde_json::to_value(&input.answers).unwrap_or(Value::Null) },
         }),
         None,
     );

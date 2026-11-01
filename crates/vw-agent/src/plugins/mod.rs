@@ -113,3 +113,5 @@ pub(crate) use compat::mcp_auth::runtime_oauth_headers as plugin_mcp_oauth_heade
 pub(crate) use compat::mcp_apps;
 
 pub(crate) use compat::mcp_app_execution;
+
+pub(crate) use compat::hook_async::AsyncHooks;

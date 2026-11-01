@@ -154,3 +154,7 @@ mod t33_tests;
 mod t34_tests;
 
 pub(crate) mod hook_command;
+
+pub(crate) mod hook_async;
+#[cfg(test)]
+mod t35_tests;

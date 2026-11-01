@@ -104,6 +104,7 @@ pub struct ToolUseContext {
     session: String,
     hook_input: Option<serde_json::Value>,
     hook_contexts: Arc<Mutex<Vec<String>>>,
+    pub(crate) async_hooks: Arc<crate::plugins::AsyncHooks>,
     agent_name: Option<String>,
     root: Option<String>,
     message_id: Option<String>,
@@ -187,6 +188,7 @@ impl ToolUseContext {
             session: session.into(),
             hook_input: None,
             hook_contexts: Arc::new(Mutex::new(Vec::new())),
+            async_hooks: Arc::default(),
             agent_name: None,
             root,
             message_id: None,
@@ -665,6 +667,8 @@ impl ToolUseContext {
 
     /// 注入 turn ID。
     pub fn with_turn_id(mut self, turn_id: impl Into<String>) -> Self {
+        self.async_hooks = Arc::default();
+        self.hook_contexts = Arc::default();
         self.turn_id = Some(turn_id.into());
         self
     }

@@ -1,0 +1,76 @@
+{
+  "task": 35,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "slot_released": true,
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t35-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t35_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": null,
+      "log": "/tmp/t35-red.log",
+      "sha256": "49fe4ffe5aff3179c077becad4cc608d8d20d330ff1384abf3e434819f1dc5a4"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t35_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 9,
+      "log": "/tmp/t35-final.log",
+      "sha256": "c4f9afb9df1be210c3755fb89a511960d8dab47245f2f12376186053067aa0df"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins::hook_handler_tests:: -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 11,
+      "log": "/tmp/t35-adjacent.log",
+      "sha256": "4d96c6fa31e13e82cbe57827ad6814284722bcbb38dbf6b7ad4e99fffc987582"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t34_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 10,
+      "log": "/tmp/t35-t34.log",
+      "sha256": "2b502d5e5a9be27d79973eefafaa79dfffaa5bca42707e30922f85463b06e907"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t35-clippy.log",
+      "sha256": "48336699a4cfdab72b708a15d742eaae4df41ea15f23ffd7a04e22d3913d8961"
+    }
+  ],
+  "red_evidence": "Temporarily restored original async rejection at admission. Target assertion async commands must be admitted failed with unsupported async handlers; panic runtime subsequently SIGABRT. Not counted as a normal failed-test summary.",
+  "behavior": [
+    "Turn-owned JoinSet queues work behind eight semaphore permits; closing aborts and joins tasks and rejects new work.",
+    "Two production model paths close async work at turn exit including error returns; existing cancellation token drops execution future and process-tree guard.",
+    "Async context delivery is bound to original turn and ignores control/permission decisions; temporary tool context can disappear while live turn still receives its output. New turn gets independent context buffer and runtime.",
+    "Real process cancellation prevents delayed filesystem side effects; original plugin directory remains unchanged. Trusted admission and existing bounded command I/O/environment/data-directory audit remain in use.",
+    "SessionEnd async command declarations execute synchronously through existing HookHandler event boundary, timeout clamped to 1–3 seconds; shared plugin registry cancels and joins active async work before end command."
+  ],
+  "limitations": [
+    "macOS execution evidence only; Windows/Linux platform acceptance remains separate. No claim of complete cross-platform plugin compatibility.",
+    "Automatic SessionStart/SessionEnd emission, restore semantics and full lifecycle fields remain task39 scope; this task verifies async downgrade through admitted real handler execution.",
+    "Preliminary exploratory checks inherited repository build-dir=target; final red/green/regression/clippy runs explicitly override both target and build directories to slot1."
+  ],
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/engine/command_runner.rs",
+      "sha256": "8f30ad4d5f31633822b3718dd3e967df98a17b1b0fd42c9a12f8cb52973c3166"
+    },
+    {
+      "path": "codex-rs/hooks/src/engine/discovery.rs",
+      "sha256": "b61b90060075bf60ecad8fea012cfa332526a5badc5c2f541fda61446513d094"
+    }
+  ]
+}

@@ -155,6 +155,7 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         .with_model(model.to_string())
         .with_turn_id(turn_id.clone())
         .with_bypass_non_cli_approval_for_turn(bypass_non_cli_approval_for_turn);
+    let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
     if let Some(security) = security.clone() {
         tool_use_context = tool_use_context.with_security(security);
     }

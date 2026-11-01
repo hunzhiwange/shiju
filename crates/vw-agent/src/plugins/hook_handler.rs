@@ -22,6 +22,10 @@ use super::{
     plugin_hook_trust_file,
 };
 
+type AsyncHookOwners = std::sync::Arc<
+    std::sync::Mutex<std::collections::HashMap<String, Vec<std::sync::Weak<super::AsyncHooks>>>>,
+>;
+
 const DEFAULT_HOOK_TIMEOUT_SECS: u64 = 30;
 const MAX_DIAGNOSTIC_CHARS: usize = 512;
 
@@ -35,6 +39,8 @@ pub(crate) struct CommandPluginHookHandler {
     codex_protocol: bool,
     data_directory: Option<PathBuf>,
     additional_context_limit: Option<usize>,
+    asynchronous: bool,
+    active_async: AsyncHookOwners,
 }
 
 impl CommandPluginHookHandler {
@@ -48,6 +54,8 @@ impl CommandPluginHookHandler {
             codex_protocol: false,
             data_directory: None,
             additional_context_limit: None,
+            asynchronous: false,
+            active_async: Default::default(),
         }
     }
 
@@ -61,11 +69,66 @@ impl CommandPluginHookHandler {
     }
 
     async fn execute_payload(&self, mut payload: Value) -> Result<Value> {
-        if self.codex_protocol {
+        if self.codex_protocol && self.hook.event != PluginHookEvent::SessionEnd {
             super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
         }
         let input =
             serde_json::to_vec(&payload).context("failed to serialize plugin hook payload")?;
+        if self.asynchronous {
+            let context = crate::tools::current_tool_use_context()
+                .context("async hook requires active turn")?;
+            let owner = context.async_hooks.clone();
+            {
+                let mut active = self
+                    .active_async
+                    .lock()
+                    .map_err(|_| anyhow!("async hook registry poisoned"))?;
+                let owners = active.entry(context.session().to_owned()).or_default();
+                owners.retain(|owner| owner.strong_count() > 0);
+                if !owners.iter().any(|entry| entry.ptr_eq(&std::sync::Arc::downgrade(&owner))) {
+                    owners.push(std::sync::Arc::downgrade(&owner));
+                }
+            }
+            let destination = {
+                let mut delivery = context.as_ref().clone();
+                delivery.async_hooks = std::sync::Arc::default();
+                std::sync::Arc::new(delivery)
+            };
+            let turn = std::sync::Arc::downgrade(&owner);
+            let plugin = self.plugin_name.clone();
+            let hook = self.hook.clone();
+            let data = self.data_directory.clone();
+            let limit = self.additional_context_limit;
+            let cancellation = context.abort_token().cloned();
+            owner.schedule(async move {
+                let execution = run_hook_command(&plugin, &hook, &input, true, data.as_deref());
+                let output = if let Some(cancellation) = cancellation {
+                    tokio::select! { biased; _ = cancellation.cancelled() => return, output = execution => output }
+                } else { execution.await };
+                match output {
+                    Ok(output) if output.status.success() => {
+                        if let Ok(value) = serde_json::from_slice::<Value>(&output.stdout)
+                            && let Some(text) = value
+                                .pointer("/hookSpecificOutput/additionalContext")
+                                .and_then(Value::as_str)
+                            && let Some(turn) = turn.upgrade()
+                            && !turn.is_closed()
+                            && matches!(hook.event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall)
+                            && let Some(data) = data.as_deref()
+                        {
+                            let text = text.to_owned();
+                            crate::tools::scope_tool_use_context(destination, async {
+                                if super::compat::hook_command::retain_context(&text, limit, data).is_err() {
+                                    tracing::warn!("failed to retain async hook context");
+                                }
+                            }).await;
+                        }
+                    }
+                    _ => tracing::warn!("asynchronous plugin hook failed"),
+                }
+            })?;
+            return Ok(Value::Null);
+        }
         let output = run_hook_command(
             &self.plugin_name,
             &self.hook,
@@ -120,6 +183,24 @@ impl CommandPluginHookHandler {
 impl HookHandler for CommandPluginHookHandler {
     fn name(&self) -> &str {
         &self.name
+    }
+
+    async fn on_session_end(&self, session_id: &str, _channel: &str) {
+        let owners = self
+            .active_async
+            .lock()
+            .map(|mut active| active.remove(session_id).unwrap_or_default())
+            .unwrap_or_default();
+        for owner in owners {
+            if let Some(owner) = owner.upgrade() {
+                owner.shutdown().await;
+            }
+        }
+        if self.hook.event == PluginHookEvent::SessionEnd
+            && let Err(error) = self.execute_payload(json!({"hook_event_name":"SessionEnd", "session_id":session_id, "reason":"other"})).await
+        {
+            tracing::warn!(error = %error, "SessionEnd command failed");
+        }
     }
 
     async fn before_llm_call(
@@ -339,6 +420,12 @@ async fn run_hook_command(
         command.env("CLAUDE_PLUGIN_DATA", &data);
         command.env("PLUGIN_ROOT", &hook.working_dir);
         command.env("CLAUDE_PLUGIN_ROOT", &hook.working_dir);
+        if let Some(cwd) = serde_json::from_slice::<Value>(input)
+            .ok()
+            .and_then(|value| value.get("cwd").and_then(Value::as_str).map(str::to_owned))
+        {
+            command.current_dir(cwd);
+        }
         if let Some(context) = crate::tools::current_tool_use_context()
             && let Some(cwd) = context.workspace_root()
         {
@@ -470,6 +557,7 @@ pub(crate) fn codex_handlers(
     use super::compat::hook_matcher::HookMatcher;
     use super::{CodexHookEvent as E, CodexHookHandler as H, PluginHookMode};
     let mut admitted = Vec::new();
+    let active_async: AsyncHookOwners = Default::default();
     for (event, groups) in &manifest.hooks {
         for group in groups {
             let matcher = HookMatcher::new(*event, group.matcher.as_deref())?;
@@ -478,6 +566,7 @@ pub(crate) fn codex_handlers(
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    E::SessionEnd => PluginHookEvent::SessionEnd,
                     _ => {
                         anyhow::bail!("Codex hook execution is not supported for event: {event:?}")
                     }
@@ -493,10 +582,7 @@ pub(crate) fn codex_handlers(
                 else {
                     anyhow::bail!("Codex hook execution is not supported for non-command handlers");
                 };
-                anyhow::ensure!(
-                    !r#async,
-                    "Codex hook execution is not supported for async handlers"
-                );
+
                 #[cfg(windows)]
                 let (program, args) = (
                     "cmd.exe",
@@ -512,14 +598,23 @@ pub(crate) fn codex_handlers(
                     event: mapped,
                     command: program.to_owned(),
                     args,
-                    timeout_secs: *timeout,
+                    timeout_secs: if *event == E::SessionEnd {
+                        Some(timeout.unwrap_or(1).clamp(1, 3))
+                    } else {
+                        *timeout
+                    },
                     working_dir: root.canonicalize()?,
                     mode: PluginHookMode::Blocking,
                     manifest_path: root.canonicalize()?,
                 };
                 let mut handler = CommandPluginHookHandler::new(name.to_owned(), hook);
+                handler.active_async = active_async.clone();
                 handler.matcher = matcher.clone();
                 handler.codex_protocol = true;
+                handler.asynchronous = *r#async && *event != E::SessionEnd;
+                if *r#async && *event == E::SessionEnd {
+                    tracing::warn!("running async SessionEnd hook synchronously");
+                }
                 handler.additional_context_limit = *additional_context_limit;
                 use sha2::{Digest, Sha256};
                 let identity = format!("{}\0{}", root.canonicalize()?.display(), name);
@@ -555,6 +650,11 @@ struct OrderedCodexHooks {
 impl HookHandler for OrderedCodexHooks {
     fn name(&self) -> &str {
         &self.name
+    }
+    async fn on_session_end(&self, session: &str, channel: &str) {
+        for handler in &self.handlers {
+            handler.on_session_end(session, channel).await;
+        }
     }
     async fn before_tool_call(
         &self,

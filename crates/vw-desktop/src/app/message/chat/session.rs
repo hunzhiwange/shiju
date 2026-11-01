@@ -661,24 +661,6 @@ fn save_session_task(session: models::ChatSession, directory: Option<String>) ->
     stream::save_session_task(session, directory)
 }
 
-fn save_agent_session_scoped_task(info: session::Info, scope: Option<String>) -> Task<Message> {
-    Task::perform(
-        async move {
-            crate::app::session_gateway::gateway_save_agent_session_scoped_async(
-                &info,
-                scope.as_deref(),
-            )
-            .await
-        },
-        |result| {
-            if let Err(error) = result {
-                tracing::warn!(target: "vw_desktop", error = %error, "failed to save scoped agent session");
-            }
-            Message::Chat(ChatMessage::SessionSaveAck)
-        },
-    )
-}
-
 fn restore_cached_chat_for_session(app: &mut App, session_id: &str) {
     if let Some(cached) = app.cached_chat_messages(session_id) {
         app.chat = cached.iter().cloned().collect();
@@ -1969,6 +1951,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     app.agent_stream_id = app.agent_stream_id.wrapping_add(1);
     let stream_id = app.agent_stream_id;
     let mut save_tasks = Vec::new();
+    let mut initial_save = Task::none();
     let pending_runtime = app.current_session_runtime();
 
     app.cache_active_session_chat();
@@ -2033,9 +2016,6 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             permission: None,
             revert: None,
         };
-
-        save_tasks
-            .push(save_agent_session_scoped_task(info.clone(), Some(info.project_id.clone())));
 
         app.sessions.insert(0, info);
         let info = app.sessions[0].clone();
@@ -2212,7 +2192,8 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             .get(&session_id)
             .is_none_or(|runtime| runtime.stream_save_seq_base == 0)
         {
-            save_tasks.push(save_session_task(local, session_directory));
+            // Persist the initial rows before starting deltas, title generation or the stream.
+            initial_save = save_session_task(local, session_directory);
         }
         // The snapshot writer can fail or be coalesced independently. Include the
         // user row and assistant placeholder in the acknowledged delta queue too.
@@ -2245,7 +2226,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
     } else {
         save_tasks.push(title_task);
     }
-    Task::batch(save_tasks)
+    initial_save.chain(Task::batch(save_tasks))
 }
 #[cfg(test)]
 #[path = "session_tests.rs"]

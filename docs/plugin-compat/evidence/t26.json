@@ -1,0 +1,54 @@
+{
+  "task": 26,
+  "status": "已完成",
+  "platform": "macOS aarch64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t26_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "record": "t26/red-slot.log",
+      "sha256": "e3ddc7c10c6779ca978c6e6847527b938dced7dfb15b402803c8af4d97a29ef2",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t26_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "record": "t26/green.log",
+      "sha256": "6ded5c9ee0552a786740924cca47a356471b7a3dc5778328acd459b6dc0c3cb0",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 13,
+      "record": "t26/adjacent.log",
+      "sha256": "e9181edab440bffafb0d7ac62ef7abd8dea3821f70829344e610584e96edbd59",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "record": "t26/clippy.log",
+      "sha256": "43565a8f7ade430a71742d986c8e082e79da72bd71495c8c9606fc8d101a3f08",
+      "storage": "local_only"
+    }
+  ],
+  "red_note": "Target unwrap/is_ok assertions failed against callable skeleton; host panic runtime subsequently SIGABRT. No completed red test summary claimed.",
+  "behavior": [
+    "exact resource and issuer binding",
+    "credential-free pinned-public-DNS HTTPS discovery; redirects refused; timeout and 1MiB response limit",
+    "host entry revalidates manifest fingerprint and routing identity; only public client identifier returned",
+    "7 target and 13 adjacent tests passed; package bytes unchanged in source identity test"
+  ],
+  "limitations": [
+    "External network boundary substituted for deterministic discovery tests. No claim of browser authorization, registration, refresh or complete plugin compatibility.",
+    "Public HTTPS only; ambiguous multiple authorization servers fail explicitly."
+  ],
+  "slot_released": true
+}

@@ -92,3 +92,6 @@ mod skills_tests;
 pub(crate) use compat::mcp_catalog::list_tools as list_mcp_catalog_tools;
 
 pub(crate) use compat::mcp_connection_settings::tool_allowed as plugin_mcp_tool_allowed;
+
+pub use compat::mcp_auth::discover_oauth as discover_plugin_mcp_oauth;
+pub use compat::mcp_oauth_discovery::OAuthDiscovery;

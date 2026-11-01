@@ -111,7 +111,7 @@ pub(crate) fn bind(server: &mut McpServerHttp, context: HttpContext) -> Result<(
 }
 
 /// Re-read the exact source declaration before connecting. Changed endpoints or packages fail closed.
-pub(crate) fn runtime_headers(server: &McpServerHttp) -> Result<Option<HeaderMap>> {
+fn source_config(server: &McpServerHttp) -> Result<Option<Map<String, Value>>> {
     let Some(value) = server.meta.as_ref().and_then(|meta| meta.get(CONTEXT_KEY)) else {
         return Ok(None);
     };
@@ -150,6 +150,53 @@ pub(crate) fn runtime_headers(server: &McpServerHttp) -> Result<Option<HeaderMap
         bail!("plugin MCP HTTP credential declaration changed; reload plugin configuration");
     }
     validate_oauth(&config)?;
+    Ok(Some(config))
+}
+
+/// Revalidates package identity before making credential-free discovery requests.
+pub async fn discover_oauth(
+    server: &McpServerHttp,
+) -> Result<super::mcp_oauth_discovery::OAuthDiscovery> {
+    let config =
+        source_config(server)?.context("OAuth discovery requires a plugin source context")?;
+    if !matches!(
+        super::mcp_public_auth::policy(&config)?,
+        Some(super::mcp_public_auth::ConnectionPolicy::OAuth)
+    ) && config
+        .get("extensions")
+        .and_then(|v| v.pointer("/com.openai/auth/type"))
+        .and_then(Value::as_str)
+        != Some("mixed")
+        && !["oauth", "oauth_resource", "scopes"]
+            .iter()
+            .any(|key| config.get(*key).is_some_and(|v| !v.is_null()))
+    {
+        bail!("plugin MCP has no OAuth declaration");
+    }
+    for resource in [
+        config.get("oauth_resource"),
+        config.get("extensions").and_then(|v| v.pointer("/com.openai/auth/resource")),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        if !resource.is_null() && resource.as_str() != Some(server.url.as_str()) {
+            bail!("plugin MCP OAuth resource differs from its server URL");
+        }
+    }
+    let mut discovered = super::mcp_oauth_discovery::discover(&server.url).await?;
+    // Only the public identifier is returned; secrets and package headers never reach discovery.
+    discovered.client_id = config
+        .get("extensions")
+        .and_then(|v| v.pointer("/com.openai/auth/client/clientId"))
+        .or_else(|| config.get("oauth").and_then(|v| v.get("client_id")))
+        .and_then(Value::as_str)
+        .map(str::to_owned);
+    Ok(discovered)
+}
+
+pub(crate) fn runtime_headers(server: &McpServerHttp) -> Result<Option<HeaderMap>> {
+    let Some(config) = source_config(server)? else { return Ok(None) };
     let headers = headers(&config)?;
     match super::mcp_public_auth::policy(&config)? {
         Some(super::mcp_public_auth::ConnectionPolicy::OAuth) => bail!(

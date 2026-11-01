@@ -118,3 +118,7 @@ mod t23_tests;
 
 #[cfg(test)]
 mod t24_tests;
+
+pub mod mcp_oauth_discovery;
+#[cfg(test)]
+mod t26_tests;

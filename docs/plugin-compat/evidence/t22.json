@@ -568,5 +568,30 @@
     "artifact_hashes_verified": 54,
     "mapped_source_hashes_verified": 2,
     "plan_source_hashes_verified": 4
+  },
+  "reverification_2026_10_31": {
+    "implementation_commit": "ecb53464ab6a4cf7d25765a0016e2247b0bfc0bf",
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "commands": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 13,
+        "record": "t22-recovery/focused.log"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
+        "exit_code": 0,
+        "passed": 342,
+        "record": "t22-recovery/adjacent.log"
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "record": "t22-recovery/clippy.log"
+      }
+    ],
+    "historical_evidence_limitation": "Historical t22/*.log files are absent from this checkout and were not found under /Users/xiangmin/worker/code or /Users/Shared. Historical red assertions remain recorded in the committed JSON only; no new red run is claimed. Existing implementation was not changed or reverted to fabricate a red run."
   }
 }

@@ -1,0 +1,26 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.34s
+     Running unittests src/lib.rs (target/debug/deps/vw_agent-ed3aa5638c4e91f8)
+
+running 13 tests
+test plugins::compat::t22_tests::codex_plugin_compat_t22_rejects_invalid_input ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_disabled_and_cancelled_sessions_reject_before_connecting ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_rejects_invalid_actions_uris_and_parameter_shapes ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_preserves_resource_origin_and_prompt_roles ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_lists_all_pages_and_preserves_metadata ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_keeps_package_and_host_files_unchanged ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_inspection_retains_resource_and_prompt_metadata ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_rejects_remote_malformed_content_and_roles ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_preserves_isolation ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_registers_resource_tool_in_actual_runtime ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_reads_and_gets_over_http_json_and_sse ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_preserves_admission_timeouts_and_sanitizes_remote_errors ... ok
+test plugins::compat::t22_tests::codex_plugin_compat_t22_rejects_pagination_cycles_and_limits ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10677 filtered out; finished in 0.40s
+
+Traceback (most recent call last):
+  File "/Users/xiangmin/worker/code/shiju/crates/vw-agent/testdata/plugin_compat/t22/server.py", line 37, in <module>
+    print(json.dumps({'jsonrpc':'2.0','id':req['id'],'result':result}),flush=True)
+BrokenPipeError: [Errno 32] Broken pipe
+Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>
+BrokenPipeError: [Errno 32] Broken pipe

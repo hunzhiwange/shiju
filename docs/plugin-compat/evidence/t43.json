@@ -1,6 +1,6 @@
 {
   "task": 43,
-  "status": "已完成，待回归",
+  "status": "已完成",
   "platform": "Darwin arm64",
   "source_fixture": "crates/vw-agent/testdata/plugin_compat/t43/source.json",
   "dependency": {
@@ -69,7 +69,9 @@
     "error": "ProviderAuthError: API key 为空",
     "default_path_error": "missing scripted LLM stream",
     "cause": "existing custom HTTP provider fixture omits test API key; HEAD test runner selects scripted streams unless existing VW_RECOVERY_WINDOW_HTTP flag is set",
-    "required_next_action": "repair existing HTTP test fixture, rerun isolated test and child_agent_tests::; keep numbered task pending regression"
+    "required_next_action": null,
+    "status": "resolved",
+    "resolution": "HTTP fixture selects real provider path under existing global env lock; synthetic key supplied through temporary configured provider env, verified Bearer header; local server handles authenticated model discovery and valid SSE choices.index/usage.total_tokens. No authentication bypass or real credentials."
   },
   "behavior": [
     "trusted command processes receive parent session_id, persisted child agent_id and selected agent_type",
@@ -80,5 +82,41 @@
     "package roots remain unchanged; state and retained context use host directories",
     "direct child callers use existing trusted runner factory; no scheduler added"
   ],
-  "scope": "local command hook lifecycle on Darwin arm64; provider is the only substituted boundary; unrelated HTTP regression still pending; no complete compatibility claim"
+  "scope": "local command hook lifecycle on Darwin arm64; real local authenticated HTTP provider regression passed; no cross-platform or hosted-service compatibility claim",
+  "final_regression": {
+    "date": "2026-11-01",
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "lock_released": true,
+    "cache_retained": true,
+    "commands": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t43_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 7,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features child_agent_tests:: -- --nocapture --test-threads=1",
+        "exit_code": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0,
+        "skipped": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ]
+  }
 }

@@ -239,56 +239,77 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
     let _home = EnvGuard::set("HOME", config_home.path());
     let _config_dir = EnvGuard::set("VIBEWINDOW_CONFIG_DIR", &config_dir);
 
+    let _http = EnvGuard::set("VW_RECOVERY_WINDOW_HTTP", "1");
+    let _key = EnvGuard::set("VW_T43_LOCAL_PROVIDER_KEY", "synthetic-local-http-test-key");
     let listener = TcpListener::bind("127.0.0.1:0").expect("test provider should bind");
     let address = listener.local_addr().expect("test provider address");
     let provider_request = Arc::new(Mutex::new(None));
     let provider_request_in_server = Arc::clone(&provider_request);
     let server = std::thread::spawn(move || {
-        let (mut stream, _) = listener.accept().expect("test provider should receive request");
-        let mut request = Vec::new();
-        let mut buffer = [0_u8; 4096];
         loop {
-            let read = stream.read(&mut buffer).expect("test provider should read request");
-            assert!(read > 0, "request should not close before its body");
-            request.extend_from_slice(&buffer[..read]);
-            let Some(headers_end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n")
-            else {
-                continue;
-            };
-            let headers =
-                std::str::from_utf8(&request[..headers_end]).expect("request headers utf8");
-            let content_length = headers
-                .lines()
-                .find_map(|line| {
-                    line.strip_prefix("Content-Length: ")
-                        .or_else(|| line.strip_prefix("content-length: "))
-                })
-                .expect("provider request content length")
-                .parse::<usize>()
-                .expect("numeric content length");
-            if request.len() >= headers_end + 4 + content_length {
-                break;
+            let (mut stream, _) = listener.accept().expect("test provider should receive request");
+            let mut request = Vec::new();
+            let mut buffer = [0_u8; 4096];
+            loop {
+                let read = stream.read(&mut buffer).expect("test provider should read request");
+                assert!(read > 0, "request should not close before its body");
+                request.extend_from_slice(&buffer[..read]);
+                let Some(headers_end) = request.windows(4).position(|bytes| bytes == b"\r\n\r\n")
+                else {
+                    continue;
+                };
+                let headers =
+                    std::str::from_utf8(&request[..headers_end]).expect("request headers utf8");
+                let content_length = headers
+                    .lines()
+                    .find_map(|line| {
+                        line.strip_prefix("Content-Length: ")
+                            .or_else(|| line.strip_prefix("content-length: "))
+                    })
+                    .unwrap_or("0")
+                    .parse::<usize>()
+                    .expect("numeric content length");
+                if request.len() >= headers_end + 4 + content_length {
+                    break;
+                }
             }
-        }
-        let headers_end = request.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
-        let request_body: serde_json::Value = serde_json::from_slice(&request[headers_end + 4..])
-            .expect("provider request json body");
-        *provider_request_in_server.lock().expect("provider request lock") = Some(request_body);
+            assert!(
+                String::from_utf8_lossy(&request)
+                    .to_ascii_lowercase()
+                    .contains("authorization: bearer synthetic-local-http-test-key")
+            );
+            if request.starts_with(b"GET ") {
+                let body = r#"{"data":[{"id":"test-model"}]}"#;
+                let response = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                stream.write_all(response.as_bytes()).expect("model discovery response");
+                continue;
+            }
+            let headers_end = request.windows(4).position(|bytes| bytes == b"\r\n\r\n").unwrap();
+            let request_body: serde_json::Value =
+                serde_json::from_slice(&request[headers_end + 4..])
+                    .expect("provider request json body");
+            *provider_request_in_server.lock().expect("provider request lock") = Some(request_body);
 
-        let body = concat!(
-            "data: {\"choices\":[{\"delta\":{\"content\":\"delegated child complete\"}}]}\n\n",
-            "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1}}\n\n",
-            "data: [DONE]\n\n"
-        );
-        let response = format!(
-            "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
-            body.len()
-        );
-        stream.write_all(response.as_bytes()).expect("test provider should respond");
+            let body = concat!(
+                "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"delegated child complete\"}}]}\n\n",
+                "data: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":1,\"completion_tokens\":1,\"total_tokens\":2}}\n\n",
+                "data: [DONE]\n\n"
+            );
+            let response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            stream.write_all(response.as_bytes()).expect("test provider should respond");
+            break;
+        }
     });
     crate::config::update(json!({
         "providers": {
             "delegated-child-test-provider": {
+                "env": ["VW_T43_LOCAL_PROVIDER_KEY"],
                 "api": format!("http://{address}/v1"),
                 "models": {"test-model": {"status": "active"}}
             }

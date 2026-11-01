@@ -65,6 +65,7 @@ impl From<id::Error> for Error {
 }
 
 struct Pending {
+    tenant: vw_api_types::id::TenantScope,
     info: Request,
     tx: oneshot::Sender<Result<Vec<Answer>, RejectedError>>,
 }
@@ -75,6 +76,23 @@ struct State {
 }
 
 static STATE: LazyLock<Mutex<State>> = LazyLock::new(|| Mutex::new(State::default()));
+
+struct PendingGuard(String);
+impl Drop for PendingGuard {
+    fn drop(&mut self) {
+        let pending = STATE.lock().unwrap_or_else(|e| e.into_inner()).pending.remove(&self.0);
+        if let Some(pending) = pending {
+            let _ = bus::publish(
+                event::REJECTED,
+                serde_json::json!({
+                    "sessionID": pending.info.session_id,
+                    "requestID": pending.info.id,
+                }),
+                None,
+            );
+        }
+    }
+}
 
 /// 创建一个问题请求并等待回答。
 ///
@@ -105,9 +123,17 @@ pub async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
     {
         // 先登记再发布事件，避免事件消费者立即回答时找不到 pending 请求。
         let mut lock = STATE.lock().unwrap_or_else(|e| e.into_inner());
-        lock.pending.insert(id.clone(), Pending { info: req.clone(), tx });
+        lock.pending.insert(
+            id.clone(),
+            Pending {
+                tenant: crate::session::ui_store::current_tenant_scope(),
+                info: req.clone(),
+                tx,
+            },
+        );
     }
 
+    let _pending_guard = PendingGuard(id);
     let _ = bus::publish(event::ASKED, &req, None);
 
     match rx.await {
@@ -124,7 +150,15 @@ pub async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
 pub fn reply(input: ReplyInput) {
     let pending = {
         let mut lock = STATE.lock().unwrap_or_else(|e| e.into_inner());
-        lock.pending.remove(&input.request_id)
+        if lock
+            .pending
+            .get(&input.request_id)
+            .is_some_and(|p| p.tenant == crate::session::ui_store::current_tenant_scope())
+        {
+            lock.pending.remove(&input.request_id)
+        } else {
+            None
+        }
     };
 
     let Some(existing) = pending else {
@@ -139,7 +173,7 @@ pub fn reply(input: ReplyInput) {
         "replied",
         Some(extra([
             ("requestID", Value::String(existing.info.id.clone())),
-            ("answers", serde_json::to_value(&input.answers).unwrap_or(Value::Null)),
+            ("answer_count", Value::from(input.answers.len())),
         ])),
     );
 
@@ -165,7 +199,15 @@ pub fn reject(request_id: impl Into<String>) {
     let request_id = request_id.into();
     let pending = {
         let mut lock = STATE.lock().unwrap_or_else(|e| e.into_inner());
-        lock.pending.remove(&request_id)
+        if lock
+            .pending
+            .get(&request_id)
+            .is_some_and(|p| p.tenant == crate::session::ui_store::current_tenant_scope())
+        {
+            lock.pending.remove(&request_id)
+        } else {
+            None
+        }
     };
 
     let Some(existing) = pending else {
@@ -195,7 +237,11 @@ pub fn reject(request_id: impl Into<String>) {
 /// 返回值是 pending 表中请求信息的快照；调用方不能通过该快照修改内部状态。
 pub fn list() -> Vec<Request> {
     let lock = STATE.lock().unwrap_or_else(|e| e.into_inner());
-    lock.pending.values().map(|p| p.info.clone()).collect()
+    lock.pending
+        .values()
+        .filter(|p| p.tenant == crate::session::ui_store::current_tenant_scope())
+        .map(|p| p.info.clone())
+        .collect()
 }
 
 fn extra<const N: usize>(pairs: [(&'static str, Value); N]) -> Map<String, Value> {

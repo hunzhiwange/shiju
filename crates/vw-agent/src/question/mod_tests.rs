@@ -333,3 +333,36 @@ fn question_error_display_conversion_and_events_are_stable() {
     assert_eq!(event::REPLIED.r#type, "question.replied");
     assert_eq!(event::REJECTED.r#type, "question.rejected");
 }
+
+#[tokio::test]
+async fn pending_questions_reject_cross_tenant_access() {
+    use crate::session::ui_store::{with_tenant_scope, with_tenant_scope_sync};
+    let tenant = vw_api_types::id::TenantScope::new("t24-platform", "t24-company").unwrap();
+    let owner = tenant.clone();
+    let task = tokio::spawn(with_tenant_scope(owner, async {
+        ask(AskInput { session_id: "t24-isolation".into(), questions: vec![], tool: None }).await
+    }));
+    let request = with_tenant_scope(tenant.clone(), pending_request("t24-isolation")).await;
+    assert!(!list().iter().any(|q| q.id == request.id));
+    reply(ReplyInput { request_id: request.id.clone(), answers: vec![vec!["foreign".into()]] });
+    reject(request.id.clone());
+    assert!(!task.is_finished());
+    with_tenant_scope_sync(tenant, || {
+        assert!(list().iter().any(|q| q.id == request.id));
+        reply(ReplyInput { request_id: request.id, answers: vec![vec!["owner".into()]] });
+    });
+    assert_eq!(task.await.unwrap().unwrap(), vec![vec!["owner".to_string()]]);
+}
+
+#[tokio::test]
+async fn cancelled_question_removes_pending_request() {
+    let task = tokio::spawn(ask(AskInput {
+        session_id: "t24-cancel-cleanup".into(),
+        questions: vec![],
+        tool: None,
+    }));
+    let request = pending_request("t24-cancel-cleanup").await;
+    task.abort();
+    assert!(task.await.unwrap_err().is_cancelled());
+    assert!(!list().iter().any(|q| q.id == request.id));
+}

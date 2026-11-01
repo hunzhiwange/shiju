@@ -1,0 +1,79 @@
+{
+  "task": 37,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "slot_released": true,
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t37-fmt.log"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t37_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "log": "/tmp/t37-red.log",
+      "sha256": "9cc460e83af144e503e6c9fe8e78475919c1ff3623a7eeab898294d6d4300feb"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t37_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 8,
+      "log": "/tmp/t37-green.log",
+      "sha256": "bb6ab56b177e790c4cb99f16cfec7638673ab5eb8246a115ddad3f2a7dd57603"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features agent::loop_::approval::approval_tests -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "log": "/tmp/t37-approval.log",
+      "sha256": "f6df7c969fafa281948e909a9d7c7cdbf44ef77c7ed7ff7372713063e5c246e6"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::decision::tests -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 16,
+      "log": "/tmp/t37-decision.log",
+      "sha256": "1a2d49f5fa308777f1621012eb96e822ce9ce772cfc8fcc9d440d9658130cfaf"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t36_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 3,
+      "log": "/tmp/t37-adjacent.log",
+      "sha256": "2177415747d558d4e381bf1232b7763c21f4f5c9fb387959250f4ebf78e9e4cf"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t37-clippy.log",
+      "sha256": "7ce6a93cedbe31b1b23faea32bd895378dd4e9ae6ea47b6c7ee073d2e593fefb"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "effective_tests": null
+    }
+  ],
+  "red_evidence": "PermissionRequest admission assertion failed; two parsing/isolation tests passed; target panic then SIGABRT.",
+  "behavior": [
+    "Trusted real command receives session/turn/tool input; allow/deny results isolated, unmatched tool does not execute; original package unchanged.",
+    "Host security denial precedes hooks; allow is request-local and rechecked; deny wins, recursion rejected, cancellation overrides previously recorded allow, command timeout fails closed."
+  ],
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/events/permission_request.rs",
+      "sha256": "1536389f0b318480bcb332d86c385165ac4c412027cc218809fa5b313155a079"
+    }
+  ],
+  "limitations": [
+    "Reserved capability fields fail closed even when empty; asynchronous PermissionRequest rejected explicitly.",
+    "No desktop rendering changes; platform matrix acceptance remains separate."
+  ]
+}

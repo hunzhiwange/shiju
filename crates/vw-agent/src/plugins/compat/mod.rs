@@ -162,3 +162,7 @@ mod t35_tests;
 pub(crate) mod hook_pre_tool;
 #[cfg(test)]
 mod t36_tests;
+
+pub(crate) mod hook_permission;
+#[cfg(test)]
+mod t37_tests;

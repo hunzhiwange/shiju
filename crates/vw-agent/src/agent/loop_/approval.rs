@@ -119,6 +119,14 @@ pub(crate) async fn await_non_cli_approval_decision(
     let started = Instant::now();
 
     loop {
+        // 检查任务是否被取消
+        if cancellation_token.is_some_and(CancellationToken::is_cancelled) {
+            let _ =
+                mgr.reject_non_cli_pending_request(request_id, sender, channel_name, reply_target);
+            let _ = mgr.take_non_cli_pending_resolution(request_id);
+            return ApprovalResponse::No;
+        }
+
         // 优先检查是否有已解决的审批决策
         if let Some(decision) = mgr.take_non_cli_pending_resolution(request_id) {
             return decision;
@@ -127,14 +135,6 @@ pub(crate) async fn await_non_cli_approval_decision(
         // 检查审批请求是否仍然存在
         if !mgr.has_non_cli_pending_request(request_id) {
             // 当请求在没有明确解决的情况下消失时，采用安全失败策略，返回拒绝
-            return ApprovalResponse::No;
-        }
-
-        // 检查任务是否被取消
-        if cancellation_token.is_some_and(CancellationToken::is_cancelled) {
-            let _ =
-                mgr.reject_non_cli_pending_request(request_id, sender, channel_name, reply_target);
-            let _ = mgr.take_non_cli_pending_resolution(request_id);
             return ApprovalResponse::No;
         }
 

@@ -134,3 +134,23 @@ async fn await_non_cli_approval_decision_denies_and_cleans_up_on_timeout() {
     assert!(!manager.has_non_cli_pending_request(&request_id));
     assert_eq!(manager.take_non_cli_pending_resolution(&request_id), None);
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t37_cancelled_request_cannot_consume_prior_allow() {
+    let (manager, request_id) = approval_manager_with_request();
+    manager.record_non_cli_pending_resolution(&request_id, ApprovalResponse::Yes);
+    let token = tokio_util::sync::CancellationToken::new();
+    token.cancel();
+    assert_eq!(
+        await_non_cli_approval_decision(
+            &manager,
+            &request_id,
+            "alice",
+            "telegram",
+            "chat-1",
+            Some(&token)
+        )
+        .await,
+        ApprovalResponse::No
+    );
+}

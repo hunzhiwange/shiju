@@ -65,7 +65,39 @@ pub struct HookRunner {
     handlers: Vec<Box<dyn HookHandler>>,
 }
 
+tokio::task_local! { static PERMISSION_HOOK_ACTIVE: (); }
+
 impl HookRunner {
+    /// Denial, panic and malformed output fail closed. Any denial wins.
+    pub async fn run_permission_request(
+        &self,
+        name: &str,
+        input: &Value,
+    ) -> anyhow::Result<Option<bool>> {
+        anyhow::ensure!(
+            PERMISSION_HOOK_ACTIVE.try_with(|_| ()).is_err(),
+            "recursive permission hook request"
+        );
+        PERMISSION_HOOK_ACTIVE
+            .scope((), async {
+                let mut verdict = None;
+                for handler in &self.handlers {
+                    let result = AssertUnwindSafe(handler.permission_request(name, input))
+                        .catch_unwind()
+                        .await
+                        .map_err(|_| anyhow::anyhow!("permission hook panicked"))??;
+                    if result == Some(false) {
+                        return Ok(Some(false));
+                    }
+                    if result.is_some() {
+                        verdict = result;
+                    }
+                }
+                Ok(verdict)
+            })
+            .await
+    }
+
     /// 创建一个空的钩子运行器
     ///
     /// # 返回值

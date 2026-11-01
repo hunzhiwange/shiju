@@ -161,6 +161,23 @@ async fn request_interactive_approval(
     pending: PermissionDecision,
     context: &ToolUseContext,
 ) -> PermissionDecision {
+    if let Some(runner) = context.hook_runner() {
+        let input = pending.updated_input().cloned().unwrap_or(Value::Null);
+        let execution = runner.run_permission_request(tool_name, &input);
+        let verdict = if let Some(token) = context.abort_token() {
+            tokio::select! { biased; _ = token.cancelled() => Err(anyhow::anyhow!("permission request cancelled")), value = execution => value }
+        } else {
+            execution.await
+        };
+        match verdict {
+            Ok(Some(true)) => return approve_after_decision(tool_name, input, pending, context),
+            Ok(None) => {}
+            Ok(Some(false)) | Err(_) => {
+                return PermissionDecision::deny("Permission request denied by hook.")
+                    .with_updated_input(input);
+            }
+        }
+    }
     let Some(manager) = context.approval_manager() else {
         return PermissionDecision::deny(match pending.reason() {
             Some(reason) => format!("Approval required but unavailable: {reason}"),

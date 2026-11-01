@@ -40,6 +40,7 @@ pub(crate) fn bind_input(
     use crate::plugins::PluginHookEvent as E;
     use serde_json::json;
     let event_name = match event {
+        E::PermissionRequest => "PermissionRequest",
         E::BeforeToolCall => "PreToolUse",
         E::AfterToolCall => "PostToolUse",
         E::BeforeLlmCall => "PreModelRequest",

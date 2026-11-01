@@ -173,6 +173,15 @@ impl<T> HookHandlerBounds for T {}
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait HookHandler: HookHandlerBounds {
+    /// Return a request-local verdict; no verdict continues host approval.
+    async fn permission_request(
+        &self,
+        _name: &str,
+        _input: &Value,
+    ) -> anyhow::Result<Option<bool>> {
+        Ok(None)
+    }
+
     /// 返回钩子处理器的名称
     ///
     /// 名称用于日志记录、调试和钩子管理。建议使用唯一且有描述性的名称。

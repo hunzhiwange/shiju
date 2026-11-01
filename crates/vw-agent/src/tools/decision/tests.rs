@@ -337,3 +337,40 @@ fn classify_message_separates_denials_from_execution_failures() {
         ToolCallError::Failed(_)
     ));
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
+    struct AllowHook;
+    #[async_trait::async_trait]
+    impl crate::hooks::HookHandler for AllowHook {
+        fn name(&self) -> &str {
+            "fixture"
+        }
+        async fn permission_request(&self, _: &str, _: &Value) -> anyhow::Result<Option<bool>> {
+            Ok(Some(true))
+        }
+    }
+    let root = tempfile::tempdir().unwrap();
+    let mut security = SecurityPolicy::default();
+    security.workspace_dir = root.path().to_path_buf();
+    let mut runner = crate::hooks::HookRunner::new();
+    runner.register(Box::new(AllowHook));
+    let context = ToolUseContext::new("t37", None)
+        .with_security(Arc::new(security))
+        .with_hook_runner(Arc::new(runner));
+    let denied = resolve_permission_decision(
+        &tool("write", false, None),
+        json!({"path":"/etc/t37-outside"}),
+        &context,
+    )
+    .await;
+    assert!(matches!(denied, PermissionDecision::Deny { .. }));
+    let allowed = request_interactive_approval(
+        "marker",
+        PermissionDecision::ask("fixture", json!({"value":1})),
+        &context,
+    )
+    .await;
+    assert!(matches!(allowed, PermissionDecision::Allow { .. }));
+    assert_eq!(allowed.updated_input(), Some(&json!({"value":1})));
+}

@@ -181,6 +181,17 @@ impl CommandPluginHookHandler {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for CommandPluginHookHandler {
+    async fn permission_request(&self, name: &str, input: &Value) -> Result<Option<bool>> {
+        if self.hook.event != PluginHookEvent::PermissionRequest
+            || !self.matcher.matches(Some(name))
+        {
+            return Ok(None);
+        }
+        anyhow::ensure!(!name.is_empty() && input.is_object(), "invalid permission request input");
+        let output = self.execute_payload(json!({"tool":{"name":name,"args":input}})).await?;
+        super::compat::hook_permission::decision(&output)
+    }
+
     fn name(&self) -> &str {
         &self.name
     }
@@ -558,6 +569,7 @@ pub(crate) fn codex_handlers(
             let matcher = HookMatcher::new(*event, group.matcher.as_deref())?;
             for handler in &group.hooks {
                 let mapped = match event {
+                    E::PermissionRequest => PluginHookEvent::PermissionRequest,
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
@@ -606,6 +618,10 @@ pub(crate) fn codex_handlers(
                 handler.active_async = active_async.clone();
                 handler.matcher = matcher.clone();
                 handler.codex_protocol = true;
+                anyhow::ensure!(
+                    !*r#async || *event != E::PermissionRequest,
+                    "asynchronous PermissionRequest hooks are unsupported"
+                );
                 handler.asynchronous = *r#async && *event != E::SessionEnd;
                 if *r#async && *event == E::SessionEnd {
                     tracing::warn!("running async SessionEnd hook synchronously");
@@ -643,6 +659,20 @@ struct OrderedCodexHooks {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for OrderedCodexHooks {
+    async fn permission_request(&self, name: &str, input: &Value) -> Result<Option<bool>> {
+        let mut verdict = None;
+        for handler in &self.handlers {
+            let decision = handler.permission_request(name, input).await?;
+            if decision == Some(false) {
+                return Ok(Some(false));
+            }
+            if decision.is_some() {
+                verdict = decision;
+            }
+        }
+        Ok(verdict)
+    }
+
     fn name(&self) -> &str {
         &self.name
     }

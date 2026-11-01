@@ -11,6 +11,7 @@ use super::audit::canonical_plugin_root;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PluginHookEvent {
     BeforeToolCall,
+    PermissionRequest,
     AfterToolCall,
     BeforeLlmCall,
     UserPromptSubmit,
@@ -22,6 +23,7 @@ impl PluginHookEvent {
     /// 返回清单与信任摘要使用的稳定事件标识。
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::PermissionRequest => "permission_request",
             Self::BeforeToolCall => "before_tool_call",
             Self::AfterToolCall => "after_tool_call",
             Self::BeforeLlmCall => "before_llm_call",

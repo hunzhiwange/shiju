@@ -166,3 +166,7 @@ mod t36_tests;
 pub(crate) mod hook_permission;
 #[cfg(test)]
 mod t37_tests;
+
+pub(crate) mod hook_post_tool;
+#[cfg(test)]
+mod t38_tests;

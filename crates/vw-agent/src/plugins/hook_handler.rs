@@ -146,6 +146,9 @@ impl CommandPluginHookHandler {
         if self.codex_protocol {
             let parsed =
                 super::compat::hook_command::interpret(output.status.code(), &output.stdout)?;
+            if self.hook.event == PluginHookEvent::AfterToolCall {
+                super::compat::hook_post_tool::validate(&parsed)?;
+            }
             if let Some(text) =
                 parsed.pointer("/hookSpecificOutput/additionalContext").and_then(Value::as_str)
             {
@@ -271,6 +274,11 @@ impl HookHandler for CommandPluginHookHandler {
             "duration_ms": duration_millis(duration),
         });
         if let Err(error) = self.execute_payload(payload).await {
+            if self.codex_protocol {
+                if let Some(context) = crate::tools::current_tool_use_context() {
+                    let _ = context.push_hook_context(format!("PostToolUse hook failed: {error}"));
+                }
+            }
             tracing::warn!(
                 hook = self.name.as_str(),
                 error = %error,

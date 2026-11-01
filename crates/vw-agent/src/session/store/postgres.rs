@@ -18,8 +18,7 @@ use super::{
     LlmRawArtifact, LlmRawRound, LlmRawTurnContext, SessionMessageDeltaError,
     SessionMessageDeltaResult, from_i64, from_i64_usize, message_processing_values,
     parse_agent_info, resulting_message_count, role_from_db, role_to_db, session_last_content,
-    to_i64, usize_to_i64,
-    validate_session_message_delta,
+    to_i64, usize_to_i64, validate_session_message_delta,
 };
 use crate::global_database::GlobalDatabase;
 
@@ -1082,9 +1081,7 @@ fn apply_session_message_delta_postgres(
     if stored_updated_ms != delta.expected_updated_ms {
         return Err(SessionMessageDeltaError::Conflict(format!(
             "stale session message delta for {}: expected updated_ms {}, stored updated_ms {}",
-            delta.session_id,
-            delta.expected_updated_ms,
-            stored_updated_ms
+            delta.session_id, delta.expected_updated_ms, stored_updated_ms
         ))
         .into());
     }

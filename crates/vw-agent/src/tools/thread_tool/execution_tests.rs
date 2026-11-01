@@ -67,10 +67,7 @@ async fn create_thread_registry_preserves_manual_model_in_background_request() {
     let output: Value = serde_json::from_str(&result.model_text()).expect("create JSON");
     let request = request_rx.recv_timeout(Duration::from_secs(2)).expect("background request");
 
-    assert_eq!(
-        request.model.as_deref(),
-        Some("alibaba-token-plan-cn/deepseek-v4.1-flash-1017")
-    );
+    assert_eq!(request.model.as_deref(), Some("alibaba-token-plan-cn/deepseek-v4.1-flash-1017"));
     assert_eq!(request.session_id.as_ref().map(AsRef::as_ref), output["thread_id"].as_str());
     let completion = global_task_session_coordinator()
         .wait(

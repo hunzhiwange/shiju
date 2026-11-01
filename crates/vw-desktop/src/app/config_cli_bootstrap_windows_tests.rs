@@ -68,7 +68,8 @@ fn exited_retained_daemon_is_replaced_on_retry() {
         "build",
         &mut child,
         Duration::from_secs(2),
-    ).unwrap_err();
+    )
+    .unwrap_err();
 
     assert!(error.contains("完整服务已退出"), "{error}");
     let log = dir.path().join(format!("logs/desktop-{}.daemon.stderr.log", std::process::id()));

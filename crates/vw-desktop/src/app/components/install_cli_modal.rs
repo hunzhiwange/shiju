@@ -21,7 +21,9 @@ use crate::app::components::system_settings_common::{
 };
 use crate::app::{Message, message};
 use iced::alignment::Horizontal;
-use iced::widget::{Space, button, column, container, image, pick_list, progress_bar, row, scrollable, text};
+use iced::widget::{
+    Space, button, column, container, image, pick_list, progress_bar, row, scrollable, text,
+};
 use iced::{Alignment, Background, ContentFit, Element, Length, Theme};
 use std::hash::{Hash, Hasher};
 
@@ -271,8 +273,10 @@ fn view_inner<'a>(
         {
             action_row.push(
                 button("跳过此版本")
-                    .on_press_maybe((!is_checking && !state.saving_skip)
-                        .then_some(Message::View(message::ViewMessage::SkipAppUpdate)))
+                    .on_press_maybe(
+                        (!is_checking && !state.saving_skip)
+                            .then_some(Message::View(message::ViewMessage::SkipAppUpdate)),
+                    )
                     .padding([8, 16])
                     .style(rounded_action_btn_style),
             )

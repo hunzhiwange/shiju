@@ -87,11 +87,8 @@ async fn full_access_continuation_loads_skills_after_missing_skill_without_resel
         })
         .await;
         for name in ["expert-main", "expert-child", "expert-main"] {
-            let result = scope_tool_use_context(
-                context.clone(),
-                tool.invoke(json!({"skill": name})),
-            )
-            .await;
+            let result =
+                scope_tool_use_context(context.clone(), tool.invoke(json!({"skill": name}))).await;
             assert_eq!(result.data["success"], true, "{:?}", result.data);
         }
     })

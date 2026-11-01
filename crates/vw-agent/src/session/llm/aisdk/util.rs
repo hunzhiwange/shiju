@@ -313,9 +313,7 @@ pub(crate) fn openai_messages_to_aisdk_messages(
         }
 
         match role {
-            "system" | "developer"
-                if uses_anthropic_instructions || !preserves_developer =>
-            {
+            "system" | "developer" if uses_anthropic_instructions || !preserves_developer => {
                 let text = openai_message_content_to_text(obj.get("content"));
                 if !text.trim().is_empty() {
                     // 仅在不支持 developer 的协议边界合并指令，用户消息仍保持用户角色。

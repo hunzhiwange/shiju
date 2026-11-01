@@ -330,7 +330,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.app_update_progress = None;
             app.app_update_progress_rx = None;
             app.cli_install_modal_server_version = "未检测".into();
-            app.cli_install_modal_show_install_action = !app.cli_install_modal_use_app_update_action;
+            app.cli_install_modal_show_install_action =
+                !app.cli_install_modal_use_app_update_action;
             app.cli_install_modal_is_checking_update = false;
             app.cli_install_modal_message = "来源已切换，请重新检测更新。".into();
             Task::perform(

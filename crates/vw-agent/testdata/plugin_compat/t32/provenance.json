@@ -1,0 +1,54 @@
+{
+  "origin": "Original synthetic fixtures authored for VibeWindow; no upstream code or user data copied",
+  "license": "MIT (crates/vw-agent/Cargo.toml); original synthetic test data",
+  "sources": [
+    "codex:codex-rs/config/src/hook_config.rs#HooksFile",
+    "codex:codex-rs/protocol/src/hooks.rs#HookEventsToml,MatcherGroup,HookHandlerConfig",
+    "codex:codex-rs/hooks/src/engine/discovery.rs#append_matcher_groups"
+  ],
+  "expected": {
+    "events": [
+      "PreModelRequest",
+      "PostModelRequest",
+      "PreToolUse",
+      "PermissionRequest",
+      "PostToolUse",
+      "PreCompact",
+      "PostCompact",
+      "SessionStart",
+      "SessionEnd",
+      "UserPromptSubmit",
+      "SubagentStart",
+      "SubagentStop",
+      "Stop",
+      "Interrupt"
+    ],
+    "diagnostics": [
+      "prompt",
+      "agent",
+      "SessionEnd MCP"
+    ],
+    "command_fields": [
+      "command",
+      "commandWindows",
+      "timeout",
+      "async",
+      "statusMessage",
+      "additionalContextLimit"
+    ],
+    "mcp_input": "TOML-representable object; null and oversized unsigned integers rejected",
+    "wrapper_fields": [
+      "description",
+      "hooks"
+    ],
+    "matcher_fields": [
+      "matcher",
+      "hooks"
+    ]
+  },
+  "scope": "declaration parsing only; Codex execution remains an explicit error in the legacy runtime",
+  "safety_differences": [
+    "Unknown event keys are rejected rather than silently ignored by the reference event struct.",
+    "Codex declarations are never converted to executable legacy commands; the current legacy runtime returns an explicit unsupported-execution error. Runtime matcher/process behavior is outside task 32."
+  ]
+}

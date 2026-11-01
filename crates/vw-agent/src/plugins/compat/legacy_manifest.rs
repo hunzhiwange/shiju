@@ -125,6 +125,7 @@ fn paths(root: &Path, field: &str, value: Option<Value>) -> Result<Vec<PluginPat
 
 fn hooks(root: &Path, value: Option<Value>) -> Result<Vec<PluginHookSource>> {
     match value {
+        None => default_hook_sources(root),
         Some(Value::Object(hooks)) => Ok(vec![PluginHookSource::Inline(hooks)]),
         Some(Value::Array(hooks)) if hooks.iter().all(Value::is_object) => Ok(hooks
             .into_iter()
@@ -163,4 +164,16 @@ fn normalize_default_prompts(value: Option<serde_json::Value>) -> Vec<String> {
         prompts.push(prompt);
     }
     prompts
+}
+
+/// Only absent declarations use the conventional file; explicit empty lists stay empty.
+pub(super) fn default_hook_sources(root: &Path) -> Result<Vec<PluginHookSource>> {
+    if root.join("hooks/hooks.json").is_file() {
+        return Ok(vec![PluginHookSource::Path(resolve_component_path(
+            root,
+            "hooks",
+            "./hooks/hooks.json",
+        )?)]);
+    }
+    Ok(Vec::new())
 }

@@ -1,0 +1,254 @@
+{
+  "description": "Synthetic hook declarations",
+  "hooks": {
+    "PreModelRequest": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "PostModelRequest": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          },
+          {
+            "type": "mcp_tool",
+            "server": "public",
+            "tool": "inspect",
+            "input": {
+              "nested": [
+                true,
+                3,
+                "synthetic"
+              ]
+            },
+            "timeout": 4,
+            "statusMessage": "Inspecting"
+          },
+          {
+            "type": "prompt"
+          },
+          {
+            "type": "agent"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          },
+          {
+            "type": "mcp_tool",
+            "server": "public",
+            "tool": "inspect"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ],
+    "Interrupt": [
+      {
+        "matcher": "Read|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo synthetic",
+            "commandWindows": "echo windows",
+            "timeout": 7,
+            "async": true,
+            "statusMessage": "Checking",
+            "additionalContextLimit": 0
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "task": 32,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t32_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "log": "/tmp/shiju-t32-red-slot.log",
+      "sha256": "cc189255ea9a2b0b1ac654b71ab5c7b677240da3b49360943282a284d1e24520",
+      "summary": "Three target assertions failed: event objects do not match RawHookManifest; inline declarations unsupported. Process aborted after assertion panics; no completed failed-test summary claimed."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t32_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "log": "/tmp/shiju-t32-final-codex_plugin_compat_t32_.log",
+      "sha256": "d3d500c314772c55dc40473eb1b4495a7fd103e3c9e77780d3c5d1ea2811594c",
+      "summary": "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 10743 filtered out; finished in 0.02s"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins::hooks_tests:: -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 14,
+      "log": "/tmp/shiju-t32-final-pluginshooks_tests.log",
+      "sha256": "74bf91ddc95b6a541696bfa7e7298a91751887c0f9d21a5aa440cfe8f66ecd9d",
+      "summary": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 10736 filtered out; finished in 0.01s"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins::hook_handler_tests:: -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 11,
+      "log": "/tmp/shiju-t32-final-pluginshook_handler_tests.log",
+      "sha256": "84cc6890c7afbdd2424c0c3f487100f3e5c4e3af61f794d4b2b3644d2d58c2d1",
+      "summary": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 10739 filtered out; finished in 1.02s"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 9,
+      "log": "/tmp/shiju-t32-final-codex_plugin_compat_t03_.log",
+      "sha256": "e44491828d598cf34200bf664bb4818435c1ea40927da2fab9547deb779f780c",
+      "summary": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 10741 filtered out; finished in 0.01s"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 9,
+      "log": "/tmp/shiju-t32-final-codex_plugin_compat_t04_.log",
+      "sha256": "fe045657be482d7d4676a7fbeb59b88067e40359dd438a5216b399c750b2e649",
+      "summary": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 10741 filtered out; finished in 0.01s"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/shiju-t32-clippy.log",
+      "sha256": "d07c785b4c8645aa013f16f0d88e8c665f4713f301c77c5eccd3001b82b9fbda"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "sources": [
+    {
+      "source": "codex:codex-rs/config/src/hook_config.rs",
+      "sha256": "4770495c0005de296cb86ebbaa6ab8c9486c4fa336d3d748ed7389901dab7e5d",
+      "matches_frozen_source": true
+    },
+    {
+      "source": "codex:codex-rs/protocol/src/hooks.rs",
+      "sha256": "adb3a5c02a215f2bf66d7c8f8c79facbd4fe3d4478ac4db0816fb466ca864ce7",
+      "matches_frozen_source": true
+    },
+    {
+      "source": "codex:codex-rs/hooks/src/engine/discovery.rs",
+      "sha256": "b61b90060075bf60ecad8fea012cfa332526a5badc5c2f541fda61446513d094",
+      "matches_frozen_source": true
+    }
+  ],
+  "scope": "Declaration parsing only; no claim of executable Codex hooks, full plugin compatibility, or cross-platform runtime acceptance.",
+  "implementation": {
+    "parser": "plugins::load_plugin_hook_source -> PluginHooksManifest::Codex(CodexHooksManifest) or Legacy(Vec<PluginHook>)",
+    "diagnostics": "CodexHooksManifest::diagnostics retains event/group/handler positions for unsupported prompt/agent, SessionEnd MCP and empty command/server/tool. Valid sibling declarations remain available.",
+    "entry_points": "Legacy .codex-plugin/plugin.json and portable plugin.json com.openai overlay; paths, path arrays, inline objects and object arrays. Absent declarations use audited hooks/hooks.json. Explicit empty declarations suppress fallback.",
+    "runtime": "trusted_plugin_hook_handlers consumes parsed declarations, preserves legacy trust/execution behavior and explicitly rejects nonempty Codex execution until subsequent runtime tasks. Empty declarations remain no-ops.",
+    "isolation": "Repeated loading in separate workspaces preserves original manifest/hook bytes, creates no workspace/config/state files, and rejects file paths escaping the package.",
+    "fields": "All 14 frozen events, matcher groups, command/commandWindows/command_windows, timeout, async, statusMessage, additionalContextLimit and mcp_tool server/tool/input; TOML-incompatible input rejected."
+  },
+  "baseline_items_in_scope": [
+    "hooks.file",
+    "hooks.default",
+    "hooks.command.command",
+    "hooks.command.commandWindows",
+    "hooks.command.command_windows",
+    "hooks.command.timeout",
+    "hooks.command.async",
+    "hooks.command.statusMessage",
+    "hooks.command.additionalContextLimit",
+    "hooks.mcp.server",
+    "hooks.mcp.tool",
+    "hooks.mcp.input",
+    "hooks.mcp.timeout",
+    "hooks.mcp.statusMessage",
+    "hooks.handler.prompt-agent",
+    "acceptance.t32",
+    "official.hooks"
+  ],
+  "safety_differences": [
+    "Unknown event names rejected rather than silently ignored by the reference event struct.",
+    "The legacy runtime reports unsupported Codex execution; successful parsing grants no trust or execution permission."
+  ],
+  "validation_notes": [
+    "Accepted red evidence repeats the run entirely inside slot 1 with build-dir override. Initial exploratory run inherited repository build-dir=target and is not the accepted red evidence.",
+    "Adjacent regression found missing source path in outer load-error context; restored before final 11 handler tests passed.",
+    "The three task-specific reference source files match frozen hashes. The adjacent core-plugins/src/loader.rs whole-file hash differs from baseline (current 0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39; frozen 4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7). Its inspected load_plugin_hooks default-path branch agrees with the read-only hooks.default expected contract; no baseline source hash changed and no new behavior inferred from the drift.",
+    "Runtime timeout normalization, matcher execution, async processes, output spill, external services and platform execution remain subsequent task acceptance; raw declaration fields are preserved."
+  ],
+  "slot_released": true
+}

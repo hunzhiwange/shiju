@@ -8,7 +8,7 @@ use std::path::Path;
 
 use super::super::audit::resolve_component_path;
 use super::super::types::{PluginInterface, PluginManifest, PluginMcpServers, PluginPath};
-use super::legacy_manifest::parse_legacy_manifest;
+use super::legacy_manifest::{default_hook_sources, parse_legacy_manifest};
 
 const SCHEMA: &str = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json";
 pub(super) const SCHEMA_PREFIX: &str = "https://agent-plugins.org/schemas/";
@@ -162,6 +162,8 @@ pub(crate) fn load_portable_manifest(root: &Path) -> Result<Option<PluginManifes
         if extension.interface.is_some() {
             manifest.interface = extension.interface;
         }
+    } else {
+        manifest.hooks = default_hook_sources(root)?;
     }
     Ok(Some(manifest))
 }

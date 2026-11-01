@@ -18,7 +18,8 @@ use crate::app::agent::tools::ToolResult;
 
 use super::{
     PluginDiscoveryOptions, PluginHook, PluginHookEvent, PluginHookTrustStatus,
-    PluginHookTrustStore, discover_plugins, load_plugin_hooks_manifest, plugin_hook_trust_file,
+    PluginHookTrustStore, PluginHooksManifest, discover_plugins, load_plugin_hook_source,
+    plugin_hook_trust_file,
 };
 
 const DEFAULT_HOOK_TIMEOUT_SECS: u64 = 30;
@@ -145,27 +146,41 @@ pub(crate) fn trusted_plugin_hook_handlers(config: &Config) -> Result<Vec<Box<dy
 
     for plugin in discovery.enabled {
         for source in &plugin.manifest.hooks {
-            let hooks_path = match source {
-                super::PluginHookSource::Path(path) => path,
-                super::PluginHookSource::Inline(_) => {
+            let parsed =
+                load_plugin_hook_source(source, &plugin.manifest.root, &options.workspace_dir)
+                    .with_context(|| {
+                        let source_path = match source {
+                            super::PluginHookSource::Path(path) => &path.canonical_path,
+                            super::PluginHookSource::Inline(_) => &plugin.manifest.manifest_path,
+                        };
+                        format!(
+                            "failed to load hooks for plugin '{}': {}",
+                            plugin.manifest.name,
+                            source_path.display()
+                        )
+                    })?;
+            let hooks = match parsed {
+                PluginHooksManifest::Legacy(hooks) => hooks,
+                PluginHooksManifest::Codex(manifest) => {
+                    if manifest.hooks.values().all(Vec::is_empty) {
+                        continue;
+                    }
+                    for diagnostic in manifest.diagnostics() {
+                        tracing::warn!(
+                            plugin = plugin.manifest.name.as_str(),
+                            event = ?diagnostic.event,
+                            group_index = diagnostic.group_index,
+                            handler_index = diagnostic.handler_index,
+                            message = diagnostic.message.as_str(),
+                            "Codex plugin hook load failure"
+                        );
+                    }
                     anyhow::bail!(
-                        "inline hook execution is not supported for plugin '{}'",
+                        "Codex hook execution is not supported for plugin '{}' (declarations parsed successfully)",
                         plugin.manifest.name
                     );
                 }
             };
-            let hooks = load_plugin_hooks_manifest(
-                &hooks_path.canonical_path,
-                &plugin.manifest.root,
-                &options.workspace_dir,
-            )
-            .with_context(|| {
-                format!(
-                    "failed to load hooks for plugin '{}': {}",
-                    plugin.manifest.name,
-                    hooks_path.canonical_path.display()
-                )
-            })?;
 
             for hook in hooks {
                 if trust_store.review_status(&plugin.manifest.name, &hook)

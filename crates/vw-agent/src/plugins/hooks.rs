@@ -200,3 +200,55 @@ struct RawPluginHook {
     #[serde(default)]
     mode: Option<String>,
 }
+
+/// Parsed declarations remain separate from executable legacy hooks.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PluginHooksManifest {
+    Legacy(Vec<PluginHook>),
+    Codex(super::compat::hook_manifest::CodexHooksManifest),
+}
+
+/// Load an audited file or an inline declaration without executing it.
+pub fn load_plugin_hook_source(
+    source: &super::PluginHookSource,
+    plugin_root: &Path,
+    workspace_dir: &Path,
+) -> Result<PluginHooksManifest> {
+    let canonical_root = canonical_plugin_root(plugin_root)?;
+    let canonical_workspace = workspace_dir.canonicalize().with_context(|| {
+        format!("failed to canonicalize workspace: {}", workspace_dir.display())
+    })?;
+    let (value, manifest_path) = match source {
+        super::PluginHookSource::Path(path) => {
+            let path = canonical_hooks_path(&path.canonical_path, &canonical_root)?;
+            let bytes = fs::read(&path).with_context(|| {
+                format!("failed to read plugin hooks manifest: {}", path.display())
+            })?;
+            let value = serde_json::from_slice::<serde_json::Value>(&bytes).with_context(|| {
+                format!("failed to parse plugin hooks manifest: {}", path.display())
+            })?;
+            (value, path)
+        }
+        super::PluginHookSource::Inline(object) => {
+            (serde_json::Value::Object(object.clone()), canonical_root.clone())
+        }
+    };
+    if value.is_array()
+        || value.as_object().is_some_and(|object| object.is_empty())
+        || value.get("hooks").is_some_and(serde_json::Value::is_array)
+    {
+        let raw: RawHookManifest = serde_json::from_value(value).with_context(|| {
+            format!("failed to parse legacy plugin hooks: {}", manifest_path.display())
+        })?;
+        let hooks = raw
+            .into_hooks()
+            .into_iter()
+            .map(|hook| normalize_hook(hook, &manifest_path, &canonical_root, &canonical_workspace))
+            .collect::<Result<Vec<_>>>()?;
+        return Ok(PluginHooksManifest::Legacy(hooks));
+    }
+    let parsed = serde_json::from_value(value).with_context(|| {
+        format!("failed to parse Codex plugin hooks: {}", manifest_path.display())
+    })?;
+    Ok(PluginHooksManifest::Codex(parsed))
+}

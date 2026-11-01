@@ -141,3 +141,7 @@ pub(crate) mod mcp_app_execution;
 #[cfg(test)]
 #[path = "t30_tests.rs"]
 mod t30_tests;
+
+pub(crate) mod hook_manifest;
+#[cfg(test)]
+mod t32_tests;

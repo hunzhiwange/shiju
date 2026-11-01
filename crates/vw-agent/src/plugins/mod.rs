@@ -33,13 +33,20 @@ pub(crate) use compat::mcp_resources::{RawResponse as RawMcpResponse, call as ca
 /// 插件管理命令与命令行执行入口。
 pub use crate::cli_commands::PluginCommands;
 pub use cli::handle_command;
+pub use compat::hook_manifest::{
+    CodexHookDiagnostic, CodexHookEvent, CodexHookHandler, CodexHookMatcherGroup,
+    CodexHooksManifest,
+};
 pub(crate) use compat::mcp_environment::runtime_cwd as plugin_mcp_runtime_cwd;
 pub(crate) use compat::skill_invocation::reference_text as plugin_skill_reference_text;
 pub(crate) use hook_handler::trusted_plugin_hook_handlers;
 pub use hook_trust::{
     PluginHookTrustStatus, PluginHookTrustStore, plugin_hook_trust_file, plugin_hook_trust_hash,
 };
-pub use hooks::{PluginHook, PluginHookEvent, PluginHookMode, load_plugin_hooks_manifest};
+pub use hooks::{
+    PluginHook, PluginHookEvent, PluginHookMode, PluginHooksManifest, load_plugin_hook_source,
+    load_plugin_hooks_manifest,
+};
 pub use install::{
     PluginInstallResult, install_plugin_from_marketplace, install_plugin_from_source,
 };

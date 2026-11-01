@@ -253,3 +253,7 @@ mod main_tests;
 #[cfg(test)]
 #[path = "app/plugin_compat_t25_tests.rs"]
 mod plugin_compat_t25_tests;
+
+#[cfg(test)]
+#[path = "app/plugin_compat_t30_tests.rs"]
+mod plugin_compat_t30_tests;

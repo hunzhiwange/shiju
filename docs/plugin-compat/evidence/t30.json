@@ -1,0 +1,71 @@
+{
+  "task": 30,
+  "status": "incomplete",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "log": "/tmp/shiju-t30-red.log",
+      "sha256": "b6e057e90db1260a8e10a2d02c4691fde880879c130084c3be6c2fbcdf92e0cf"
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "log": "/tmp/shiju-t30-green.log",
+      "sha256": "d0cece77c434f77dbcd94d380b332b32f6c66187b1ff2be2d8932a9635f32f3e"
+    },
+    {
+      "command": "VW_T30_HELPER=\"$CARGO_TARGET_DIR/debug/vw-webview\" cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t30_real_webview_roundtrip -- --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t30-real.log",
+      "sha256": "51c01da3e221fe16188a64c4b10c41304660e971a51e4d3a5987bb3e8abe744c"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/shiju-t30-clippy.log",
+      "sha256": "e4ab58b5b7d5911e06d548909813e2363bd4766b7f3e8cccf82005b3fb96315b"
+    },
+    {
+      "command": "cargo test -p vw-desktop --lib --all-features work_browser_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": null,
+      "log": "/tmp/shiju-t30-adjacent.log",
+      "sha256": "9d46ddb81e6aad2e5acdc38867af5f524ab719f7143c831267b39bbc461f3bad"
+    },
+    {
+      "command": "cargo test -p vw-desktop --lib --all-features webview_runtime::work_browser_controller_tests -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "log": "/tmp/shiju-t30-runtime.log",
+      "sha256": "e1957a475c07678402ed29878fa0651d883c3ce2636a8501259239ac57037036"
+    }
+  ],
+  "red_note": "Missing JSON-RPC request ID admission assertion failed; native panic runtime subsequently aborted, so no completed failed-test summary claimed. Initial unregistered bin test ran zero tests, discarded as acceptance evidence; registration corrected in main.rs.",
+  "rendering": {
+    "actual_webview": true,
+    "light_dark_chinese_long_cancel": true,
+    "method": "CUA AX and screenshots of native ShiJuBridgeQA.app; test-only bundle copied from slot helper. Python host is a declared boundary harness, followed by a separate production McpAppProcess real roundtrip test.",
+    "observed": [
+      "初始化完成 · 中文渲染正常 · 越权调用已拒绝",
+      "已取消",
+      "scrollbar value 0.8181818"
+    ],
+    "glyph_panic_observed": false
+  },
+  "limitations": [
+    "McpAppProcess approval callback is not yet wired to live chat session backend; its tests demonstrate callback admission, not real MCP permission execution.",
+    "External resource/CSP grants, resources/read, open-link and unknown methods are denied; only self-contained HTML is currently supported.",
+    "No complete compatibility claim; task retained for required session integration and further security lifecycle coverage."
+  ],
+  "adjacent_failure": "Existing work_browser_toolbar_close_action_is_reachable assertion fails in untouched UI toolbar; panic runtime aborts. Narrow runtime controller module passes.",
+  "slot_released": true
+}

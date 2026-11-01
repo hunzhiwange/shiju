@@ -175,3 +175,6 @@ pub use vw_shared::time;
 mod tests;
 
 pub(crate) mod mcp_form;
+
+/// MCP Apps host identity and RPC boundary.
+pub mod mcp_app_bridge;

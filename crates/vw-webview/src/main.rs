@@ -7,6 +7,8 @@
 #[cfg(all(not(target_arch = "wasm32"), target_os = "macos"))]
 mod edit_menu;
 #[cfg(not(target_arch = "wasm32"))]
+mod mcp_app;
+#[cfg(not(target_arch = "wasm32"))]
 mod toolbar;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -756,6 +758,12 @@ fn main() {
     };
 
     let args = env::args().skip(1).collect::<Vec<_>>();
+    if args.first().is_some_and(|arg| arg == "--mcp-app-stdin") {
+        if let Err(error) = mcp_app::run() {
+            eprintln!("MCP app failed: {error}");
+        }
+        return;
+    }
     let target = normalize_url(args.first().map(String::as_str).unwrap_or(DEFAULT_TARGET));
     let options = parse_launch_options(&args[1..]);
     let shiju_app_set_cookie = if options.shiju_app_set_cookie_stdin {

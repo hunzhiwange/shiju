@@ -39,3 +39,41 @@ pub async fn handle_api_mcp_inspect(
 #[cfg(test)]
 #[path = "mcp_tests.rs"]
 mod mcp_tests;
+
+#[derive(serde::Deserialize)]
+pub struct AppToolCall {
+    session: String,
+    server: String,
+    binding: String,
+    name: String,
+    arguments: serde_json::Value,
+}
+
+/// This endpoint accepts only a previously issued session binding, never an MCP URL.
+pub async fn handle_api_mcp_app_call(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(body): Json<AppToolCall>,
+) -> impl IntoResponse {
+    if let Err(error) = super::super::auth::require_auth(&state, &headers) {
+        return error.into_response();
+    }
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let result = tokio::task::spawn_blocking(move || {
+        crate::session::ui_store::with_tenant_scope_sync(tenant, || {
+            crate::plugins::mcp_app_execution::call(
+                &body.session,
+                &body.server,
+                &body.binding,
+                &body.name,
+                body.arguments,
+            )
+        })
+    })
+    .await;
+    match result {
+        Ok(Ok(result)) => Json(result).into_response(),
+        _ => (StatusCode::FORBIDDEN, Json(serde_json::json!({"error":"MCP app call denied"})))
+            .into_response(),
+    }
+}

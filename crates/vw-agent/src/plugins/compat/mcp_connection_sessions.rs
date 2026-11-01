@@ -32,6 +32,7 @@ pub(crate) fn connections(session: &str, root: &Path) -> Arc<McpSessionConnectio
         .clone()
 }
 pub(crate) fn close_session(session: &str, root: &Path) {
+    super::mcp_app_execution::revoke(session, root);
     if let Some(pool) = sessions()
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

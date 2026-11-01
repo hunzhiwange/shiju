@@ -391,7 +391,30 @@ pub fn execute_tool_call(
         parsed,
         tool_use_context.clone(),
     ))?;
+    let mut result = finish_tool_call(executed)?;
+    if result.data.get("mcp_app").is_none() {
+        return Ok(result);
+    }
+    let tools = tools.into_iter().map(Arc::from).collect();
+    let app_context = ctx
+        .clone()
+        .with_tool_use_context((*tool_use_context).clone())
+        .with_session_tools(SessionToolset::new(tools));
+    crate::plugins::mcp_app_execution::register(&app_context, requested_name, &mut result)
+        .map_err(|error| classify_message(error.to_string()))?;
+    Ok(result)
+}
 
+pub(crate) fn execute_bound_app_tool(
+    requested_name: &str,
+    input: &str,
+    ctx: &ToolRuntimeContext,
+) -> Result<ToolCallResult, ToolCallError> {
+    let parsed = parse_tool_input(requested_name, input)?;
+    let (mut tools, tool_use_context) = execution_environment_for_context(ctx);
+    tools.retain(|tool| tool.name() == requested_name);
+    let executed =
+        block_on(execute_tool_from_registry(&tools, requested_name, parsed, tool_use_context))?;
     finish_tool_call(executed)
 }
 

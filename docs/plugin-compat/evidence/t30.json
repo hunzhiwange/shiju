@@ -1,6 +1,6 @@
 {
   "task": 30,
-  "status": "incomplete",
+  "status": "已完成",
   "platform": "macOS arm64",
   "slot": 1,
   "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
@@ -47,6 +47,48 @@
       "effective_tests": 7,
       "log": "/tmp/shiju-t30-runtime.log",
       "sha256": "e1957a475c07678402ed29878fa0651d883c3ce2636a8501259239ac57037036"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 2,
+      "log": "/tmp/shiju-t30-session-test.log",
+      "sha256": "a7a97005c819bc4dd457f87a126edf7b2c26229b16cfc2e78cd9d17c3d328e26"
+    },
+    {
+      "command": "cargo test -p vw-gateway-client --lib codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t30-client-test.log",
+      "sha256": "71769bed1fa8306c9daa304a35b3abe383165340db75a9feca28c02bdb1e8e92"
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "log": "/tmp/shiju-t30-session-desktop.log",
+      "sha256": "ab8f006efe27bb2ad2919b93c4d9dc20ee719f68ed1f06f6a852df5b787cf6e8"
+    },
+    {
+      "command": "VW_T30_HELPER=\"$CARGO_TARGET_DIR/debug/vw-webview\" cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t30_real_webview_roundtrip -- --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t30-session-real.log",
+      "sha256": "f61c027b85a8cbd518d2d8a5286a964249e43f8f4db677966b3d8931435da7f2"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features execute_tool_call_runs_dynamic_mcp_tool_through_context_registry -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t30-session-adjacent.log",
+      "sha256": "3f0e586ce39c67ae5cec9f0c699f301107e729e6f5ba14bfd277e7817a71138c"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/shiju-t30-session-clippy.log",
+      "sha256": "c977d47222401e035aa285c53fa1b99b646f0a70cbd2e22c23510b93b871ce17"
     }
   ],
   "red_note": "Missing JSON-RPC request ID admission assertion failed; native panic runtime subsequently aborted, so no completed failed-test summary claimed. Initial unregistered bin test ran zero tests, discarded as acceptance evidence; registration corrected in main.rs.",
@@ -62,10 +104,26 @@
     "glyph_panic_observed": false
   },
   "limitations": [
-    "McpAppProcess approval callback is not yet wired to live chat session backend; its tests demonstrate callback admission, not real MCP permission execution.",
-    "External resource/CSP grants, resources/read, open-link and unknown methods are denied; only self-contained HTML is currently supported.",
-    "No complete compatibility claim; task retained for required session integration and further security lifecycle coverage."
+    "External network/resource grants and unknown methods remain denied by this isolated surface; no hosted connectors or general native execution bridge are exposed.",
+    "Task31 owns the complete chat panel and remaining application rendering integration."
   ],
   "adjacent_failure": "Existing work_browser_toolbar_close_action_is_reachable assertion fails in untouched UI toolbar; panic runtime aborts. Narrow runtime controller module passes.",
-  "slot_released": true
+  "slot_released": true,
+  "full_compatibility_claimed": false,
+  "session_integration": [
+    "Host execution_binding is minted only from the actual executed MCP tool and its captured session registry.",
+    "Authenticated /v1/mcp/apps/call checks tenant, session and server; tool IDs derive from the bound server.",
+    "Normal executor performs security, interactive approval, hooks, plugin admission and current MCP catalog checks on the original tool instance. Hook rewrites cannot leave the single bound-tool registry.",
+    "Page context clears model-turn full access and non-CLI approval bypass; real gateway approval manager remains authoritative. Dedicated prompt receiver retains delivery while gateway pending-permission API supplies the user interface.",
+    "Session closure and new prompt revoke bindings; cancellation propagates to pending approval and revoked results are withheld.",
+    "Real Python stdio test proves original tool call, allowed app call, cross-tenant/session/server rejection, unknown tool rejection, actual No/Yes decisions, no extra stdio call on denial, and close invalidation."
+  ],
+  "fmt": {
+    "command": "cargo fmt --all",
+    "exit_code": 0
+  },
+  "diff_check": {
+    "command": "git diff --check",
+    "exit_code": 0
+  }
 }

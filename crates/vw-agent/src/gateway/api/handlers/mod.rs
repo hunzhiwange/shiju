@@ -196,7 +196,7 @@ pub use integrations::{
 pub use memory::{handle_api_memory_delete, handle_api_memory_list, handle_api_memory_store};
 
 /// 重新导出 MCP 检查处理器
-pub use mcp::handle_api_mcp_inspect;
+pub use mcp::{handle_api_mcp_app_call, handle_api_mcp_inspect};
 
 /// 重新导出系统状态处理器
 ///

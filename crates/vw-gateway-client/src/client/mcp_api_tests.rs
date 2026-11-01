@@ -43,3 +43,20 @@ async fn mcp_inspect_gets_gateway_inspection_response() {
     assert_eq!(request.path, "/v1/mcp/inspect");
     server.join();
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t30_client_sends_only_bound_tool_call() {
+    let server = test_support::server(vec![(200, json!({"content":[]}))]);
+    assert_eq!(
+        server
+            .client()
+            .mcp_app_call("session", "weather", "host-binding", "forecast", &json!({}))
+            .await
+            .unwrap(),
+        json!({"content":[]})
+    );
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/mcp/apps/call");
+    server.join();
+}

@@ -191,6 +191,59 @@ impl McpAppProcess {
         Ok(count)
     }
 
+    /// Run admitted requests via authenticated Gateway session bindings. No approval callback is supplied by the page.
+    pub async fn poll_gateway(
+        &mut self,
+        client: &vw_gateway_client::GatewayClient,
+        binding: &str,
+    ) -> Result<usize> {
+        use std::io::Write;
+        let mut count = 0;
+        for raw in self.events.try_iter() {
+            let envelope: Value = serde_json::from_str(&raw)?;
+            let origin =
+                envelope["origin"].as_str().ok_or_else(|| anyhow::anyhow!("missing origin"))?;
+            let request = &envelope["message"];
+            let mut call = None;
+            let admitted = self.bridge.receive(
+                &self.session,
+                &self.server,
+                origin,
+                &request.to_string(),
+                |_, _, name, args| {
+                    call = Some((name.to_owned(), args.clone()));
+                    Ok(Value::Null)
+                },
+            );
+            let response = match (admitted, call) {
+                (Ok(mut response), Some((name, arguments))) => {
+                    match client
+                        .mcp_app_call(&self.session, &self.server, binding, &name, &arguments)
+                        .await
+                    {
+                        Ok(result) => {
+                            response["result"] = result;
+                            response
+                        }
+                        Err(_) => {
+                            json!({"jsonrpc":"2.0","id":request["id"],"error":{"code":-32600,"message":"MCP app call denied"}})
+                        }
+                    }
+                }
+                (Ok(response), None) => response,
+                (Err(_), _) => {
+                    json!({"jsonrpc":"2.0","id":request["id"],"error":{"code":-32600,"message":"MCP app request denied"}})
+                }
+            };
+            if !response.is_null() {
+                writeln!(self.input, "{response}")?;
+                self.input.flush()?;
+            }
+            count += 1;
+        }
+        Ok(count)
+    }
+
     /// Deliver only host-selected tool data after the handshake.
     pub fn tool_result(&mut self, arguments: Value, result: Value) -> Result<()> {
         use std::io::Write;
@@ -208,9 +261,24 @@ impl McpAppProcess {
     }
 
     pub fn close(&mut self) -> Result<()> {
+        use std::io::Write;
         self.bridge.close();
         if self.child.try_wait()?.is_none() {
-            self.child.kill()?;
+            // Give the page a bounded opportunity to release its resources; never execute new calls during teardown.
+            let _ = writeln!(self.input, "{}", json!({"jsonrpc":"2.0","id":"host-teardown","method":"ui/resource-teardown","params":{}})).and_then(|_| self.input.flush());
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(200);
+            while let Some(remaining) = deadline.checked_duration_since(std::time::Instant::now()) {
+                let Ok(raw) = self.events.recv_timeout(remaining) else { break };
+                if serde_json::from_str::<Value>(&raw).is_ok_and(|value| {
+                    value["message"]["id"] == "host-teardown"
+                        && value["message"].get("result").is_some()
+                }) {
+                    break;
+                }
+            }
+            if self.child.try_wait()?.is_none() {
+                self.child.kill()?;
+            }
         }
         self.child.wait()?;
         Ok(())

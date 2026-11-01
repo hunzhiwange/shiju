@@ -157,3 +157,23 @@ async fn handle_api_mcp_inspect_maps_invalid_workspace_config_to_bad_request() {
             .starts_with("Failed to inspect MCP servers:")
     );
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t30_gateway_requires_authentication() {
+    let tmp = TempDir::new().unwrap();
+    let workspace = write_workspace_config(&tmp, json!({"mcpServers":[]}));
+    let response = super::handle_api_mcp_app_call(
+        State(state(config_for_workspace(&workspace), true, &["paired"])),
+        HeaderMap::new(),
+        axum::Json(super::AppToolCall {
+            session: "session".into(),
+            server: "weather".into(),
+            binding: "unknown".into(),
+            name: "forecast".into(),
+            arguments: json!({}),
+        }),
+    )
+    .await
+    .into_response();
+    assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+}

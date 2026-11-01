@@ -6,6 +6,18 @@ use super::GatewayClient;
 use vw_api_types::mcp::McpInspectResponse;
 
 impl GatewayClient {
+    /// Call only through the host-issued binding for this exact session and server.
+    pub async fn mcp_app_call(
+        &self,
+        session: &str,
+        server: &str,
+        binding: &str,
+        name: &str,
+        arguments: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        self.post_json("/v1/mcp/apps/call", &[], &serde_json::json!({"session":session,"server":server,"binding":binding,"name":name,"arguments":arguments})).await
+    }
+
     /// Inspect configured MCP servers and their currently exposed tools.
     pub async fn mcp_inspect(&self) -> Result<McpInspectResponse, String> {
         self.get_json("/v1/mcp/inspect", &[]).await

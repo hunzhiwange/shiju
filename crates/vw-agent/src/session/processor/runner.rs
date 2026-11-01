@@ -602,6 +602,9 @@ fn run_in_project(
     if full_access_enabled {
         tool_use_context = tool_use_context.with_bypass_non_cli_approval_for_turn(true);
     }
+    if let Some(root) = req.root.as_deref() {
+        crate::plugins::mcp_app_execution::revoke(&req.session, std::path::Path::new(root));
+    }
     let mut ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)
         .with_session_tools(req.session_tools.clone());

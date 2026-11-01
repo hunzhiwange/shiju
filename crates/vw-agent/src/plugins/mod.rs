@@ -104,3 +104,5 @@ pub(crate) use compat::mcp_oauth_tokens::access as plugin_mcp_oauth_access;
 pub(crate) use compat::mcp_auth::runtime_oauth_headers as plugin_mcp_oauth_headers;
 
 pub(crate) use compat::mcp_apps;
+
+pub(crate) use compat::mcp_app_execution;

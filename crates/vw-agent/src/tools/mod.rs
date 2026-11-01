@@ -274,3 +274,5 @@ mod coverage_tests;
 mod tests;
 #[cfg(test)]
 pub(crate) use delegate::DelegateTool;
+
+pub(crate) use toolset::execute_bound_app_tool;

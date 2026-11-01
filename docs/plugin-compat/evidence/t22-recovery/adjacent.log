@@ -376,4 +376,3 @@ test plugins::compat::t18_tests::codex_plugin_compat_t18_times_out_initializatio
 test plugins::compat::t18_tests::codex_plugin_compat_t18_closes_timed_out_and_cancelled_calls ... ok
 
 test result: ok. 342 passed; 0 failed; 0 ignored; 0 measured; 10348 filtered out; finished in 7.47s
-

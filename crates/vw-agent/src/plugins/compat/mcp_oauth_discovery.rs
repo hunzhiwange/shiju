@@ -11,6 +11,10 @@ pub struct OAuthDiscovery {
     pub token_endpoint: String,
     pub scopes_supported: Option<Vec<String>>,
     pub client_id: Option<String>,
+    pub registration_endpoint: Option<String>,
+    #[serde(default)]
+    pub client_id_metadata_document_supported: bool,
+    pub token_endpoint_auth_methods_supported: Option<Vec<String>>,
 }
 #[derive(Deserialize)]
 struct Resource {
@@ -23,8 +27,12 @@ struct Authority {
     authorization_endpoint: String,
     token_endpoint: String,
     scopes_supported: Option<Vec<String>>,
+    registration_endpoint: Option<String>,
+    #[serde(default)]
+    client_id_metadata_document_supported: bool,
+    token_endpoint_auth_methods_supported: Option<Vec<String>>,
 }
-fn endpoint(raw: &str) -> Result<Url> {
+pub(super) fn endpoint(raw: &str) -> Result<Url> {
     let url = Url::parse(raw).context("invalid OAuth metadata URL")?;
     if url.scheme() != "https"
         || url.host_str().is_none()
@@ -63,6 +71,9 @@ pub(super) fn bind(
     }
     endpoint(&authority.authorization_endpoint)?;
     endpoint(&authority.token_endpoint)?;
+    if let Some(registration) = &authority.registration_endpoint {
+        endpoint(registration)?;
+    }
     if authority
         .scopes_supported
         .as_ref()
@@ -77,6 +88,9 @@ pub(super) fn bind(
         token_endpoint: authority.token_endpoint,
         scopes_supported: authority.scopes_supported,
         client_id: None,
+        registration_endpoint: authority.registration_endpoint,
+        client_id_metadata_document_supported: authority.client_id_metadata_document_supported,
+        token_endpoint_auth_methods_supported: authority.token_endpoint_auth_methods_supported,
     })
 }
 /// Discover without package headers or bearer tokens. Redirects and private DNS answers are rejected.

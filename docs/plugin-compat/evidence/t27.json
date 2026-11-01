@@ -1,6 +1,6 @@
 {
   "task": 27,
-  "status": "incomplete; public-service acceptance deferred by user",
+  "status": "local_verified; blocked only on user-deferred external acceptance",
   "platform": "macOS aarch64",
   "slot": 1,
   "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
@@ -8,18 +8,39 @@
   "checks": [
     {
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t27_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": null,
+      "record": "t27/red.log",
+      "sha256": "d061713d1cf9b7abb91c3a93953af6a7dcc630b11131ed6b0459b06e95441d37",
+      "storage": "local_only",
+      "compiled": true,
+      "started_tests": 14,
+      "observed_target_assertions": 6,
+      "note": "New callback orchestration tests exercised a callable unavailable skeleton before the public entry was refactored to the shared implementation. Assertions failed at the missing session interaction. Host panic runtime then SIGABRT; no completed failing-test summary is claimed. The original eight unit tests already passed before this supplementary red run."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t27_ -- --nocapture",
       "exit_code": 0,
-      "effective_tests": 8,
+      "effective_tests": 22,
       "record": "t27/test.log",
-      "sha256": "6643ef02237578ee7f7a620d3f65a7e26365d451b2ffb1bb7868e383e153c3a5",
+      "sha256": "698986ada79d21411508e874579101f406e30805079726be0a815585bcc98927",
       "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "record": "t27/forms.log",
+      "sha256": "f569ec3b0b178dc1a7c2987aac286a30539d3f7e6be9201b6049cc01849266a6",
+      "storage": "local_only",
+      "ignored_tests": 1
     },
     {
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t26_ -- --nocapture",
       "exit_code": 0,
       "effective_tests": 7,
       "record": "t27/adjacent.log",
-      "sha256": "864484faf9f854083dceb3aac11e573f67a90345a814187d6677d11e3a6dbb98",
+      "sha256": "15d96425ef4a3b82d81cf91ef85d1e112ce6b08e6154abd126db29a2d6540268",
       "storage": "local_only"
     },
     {
@@ -27,22 +48,63 @@
       "exit_code": 0,
       "effective_tests": null,
       "record": "t27/clippy.log",
-      "sha256": "94f69746b19c5e7bdc4fbdd7975fd1ecda051772c9ea98b182697ccaca07ca6c",
+      "sha256": "ad7991e97c0e87db1a67a18bfac8f1f0bf958743401855572028d121a6d5fea1",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null,
+      "record": "t27/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "storage": "local_only"
     }
   ],
+  "diff_check": {
+    "command": "git diff --check",
+    "exit_code": 0
+  },
   "behavior": [
-    "S256 PKCE with OS entropy; one-shot exact state/origin/path and duplicate-parameter rejection",
-    "session/tenant-owned sensitive authorization question; decline, cancellation, loopback callback and bounded timeout",
-    "public DNS pinned token exchange without proxy or redirects; source revalidation; bounded response",
-    "URL elicitation raw request-ID preservation and real question accept/decline/cancel/closed-session paths"
+    "OS-entropy S256 PKCE; one-shot state/origin/path and callback issuer validation; duplicate-parameter and zero-port rejection",
+    "Source-bound plugin declaration, tenant/session-owned real question, real loopback browser callback and real HTTP provider exchange; only provider addresses/metadata and user answers substituted",
+    "Accepted code sends matching verifier/client/resource/redirect; denial, cancellation, actual timeout, forged state/issuer and changed source never send token requests; all terminal listeners/questions close",
+    "DCR registers native public client with exact loopback redirect and auth none; secret-bearing registration responses rejected",
+    "CIMD requires advertised support, auth none, valid loopback and operator-configured public metadata URL; no Codex-hosted identities copied",
+    "Configured scopes precede discovery; explicitly empty scopes never expand",
+    "Real Python stdio MCP peer receives exact URL elicitation response ID; original package bytes remain unchanged"
   ],
-  "limitations": [
-    "No target behavioral red run was captured; initial compile errors are not red evidence.",
-    "User elected to handle public MCP/provider and desktop rendering acceptance later; no complete compatibility claim.",
-    "Token exchange and browser callback are not yet covered by an end-to-end provider test.",
-    "Only pre-registered public clients are accepted; missing client identifiers and confidential clients fail explicitly.",
-    "URL confirmation is user-mediated; no claim of server completion-notification tracking."
+  "baseline_review": [
+    {
+      "source": "codex:codex-rs/codex-mcp/src/elicitation.rs",
+      "sha256": "e0ecb78e1d92fda60288912205c7ea9efa0c350bbdec40f7afe03e6ae733e13a",
+      "symbols": [
+        "ElicitationRequestRouter::request_user_interaction",
+        "ResponderMap"
+      ],
+      "finding": "Server/request-bound URL user response is required. No elicitation/complete notification route exists in the frozen runtime; no new notification feature is inferred."
+    },
+    {
+      "source": "codex:codex-rs/codex-mcp/src/mcp/auth.rs",
+      "sha256": "6261318f8456c307d3808a6f68b90cdc982093f232a6ffc06ef794285559cd4e",
+      "symbols": [
+        "resolve_oauth_callback",
+        "resolve_oauth_scopes"
+      ]
+    },
+    {
+      "source": "codex:codex-rs/rmcp-client/src/oauth_client_registration.rs",
+      "sha256": "2420e339645a9fd55b76a83a791e01b0fd646b4f10798397e70bed85ec4d87d2",
+      "symbols": [
+        "start_authorization"
+      ]
+    }
+  ],
+  "external_acceptance": [
+    "Public provider/browser acceptance and actual desktop rendering are deferred by the user, who elected to perform them later. No request for accounts or external operations remains pending."
+  ],
+  "scope": [
+    "Public native clients use authentication none. Confidential-client declarations fail explicitly; model/Codex credentials are never read.",
+    "Refresh/storage/logout are task 28; this task returns the invocation-owned access token without persistence."
   ],
   "slot_released": true
 }

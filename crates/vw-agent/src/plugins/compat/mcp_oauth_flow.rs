@@ -29,7 +29,7 @@ impl PendingAuthorization {
             || client.trim().is_empty()
             || redirect.scheme() != "http"
             || redirect.host_str() != Some("127.0.0.1")
-            || redirect.port().is_none()
+            || redirect.port().is_none_or(|port| port == 0)
             || redirect.query().is_some()
             || redirect.fragment().is_some()
             || !redirect.username().is_empty()
@@ -90,6 +90,33 @@ pub async fn authorize(
     tenant: vw_api_types::id::TenantScope,
     cancelled: tokio_util::sync::CancellationToken,
 ) -> Result<String> {
+    authorize_with(
+        server,
+        super::mcp_elicitation::FormOwner { session, tenant },
+        cancelled,
+        std::time::Duration::from_secs(120),
+        super::mcp_auth::discover_oauth(server),
+        |endpoint, body, content_type| async move {
+            let client = super::mcp_oauth_discovery::public_client(&endpoint).await?;
+            send_provider_request(client, endpoint, body, content_type).await
+        },
+    )
+    .await
+}
+
+pub(super) async fn authorize_with<D, X, XF>(
+    server: &agent_client_protocol::McpServerHttp,
+    owner: super::mcp_elicitation::FormOwner,
+    cancelled: tokio_util::sync::CancellationToken,
+    timeout: std::time::Duration,
+    discovery: D,
+    mut exchange: X,
+) -> Result<String>
+where
+    D: std::future::Future<Output = Result<super::mcp_oauth_discovery::OAuthDiscovery>>,
+    X: FnMut(Url, String, &'static str) -> XF,
+    XF: std::future::Future<Output = Result<serde_json::Value>>,
+{
     let operation = async {
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
         let config = super::mcp_auth::source_config(server)?
@@ -101,11 +128,25 @@ pub async fn authorize(
         {
             bail!("MCP authorization currently requires a public client without a secret");
         }
-        let metadata = super::mcp_auth::discover_oauth(server).await?;
-        let client = metadata
-            .client_id
-            .as_deref()
-            .context("MCP authorization requires a registered public client identifier")?;
+        if config
+            .get("extensions")
+            .and_then(|v| v.pointer("/com.openai/auth/client/tokenEndpointAuthMethod"))
+            .and_then(serde_json::Value::as_str)
+            .is_some_and(|method| method != "none")
+        {
+            bail!("MCP authorization currently requires public client authentication method none");
+        }
+        let metadata = discovery.await?;
+        let mode = config
+            .get("extensions")
+            .and_then(|v| v.pointer("/com.openai/auth/client/mode"))
+            .and_then(serde_json::Value::as_str);
+        let mut client_id = metadata.client_id.clone();
+        if mode == Some("dcr") {
+            client_id = None;
+        }
+        // Validate callbacks before sending registration metadata to any provider.
+        let callback_client = client_id.as_deref().unwrap_or("registration-pending");
         let configured_callback = config
             .get("oauth")
             .and_then(|v| v.get("callback_url"))
@@ -119,7 +160,7 @@ pub async fn authorize(
             let callback = Url::parse(callback)?;
             PendingAuthorization::new(
                 &metadata.authorization_endpoint,
-                client,
+                callback_client,
                 callback.as_str(),
                 &metadata.resource,
             )?;
@@ -128,21 +169,70 @@ pub async fn authorize(
             u16::try_from(callback_port).context("invalid MCP callback port")?
         };
         let listener = tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await?;
-        let redirect = configured_callback.map(str::to_owned).unwrap_or_else(|| {
-            format!(
-                "http://127.0.0.1:{}/callback",
-                listener.local_addr().expect("bound listener address").port()
-            )
-        });
+        let bound_port = listener.local_addr()?.port();
+        let redirect = configured_callback
+            .map(str::to_owned)
+            .unwrap_or_else(|| format!("http://127.0.0.1:{bound_port}/callback"));
         let redirect_url = Url::parse(&redirect)?;
+        if mode == Some("cimd") {
+            if !metadata.client_id_metadata_document_supported
+                || metadata
+                    .token_endpoint_auth_methods_supported
+                    .as_ref()
+                    .is_none_or(|methods| !methods.iter().any(|method| method == "none"))
+            {
+                bail!("MCP server must advertise CIMD and public client authentication none");
+            }
+            let client = client_id.as_deref().context("MCP CIMD requires a configured public client metadata URL; no hosted identity is assumed")?;
+            super::mcp_oauth_discovery::endpoint(client)?;
+        }
+        if client_id.is_none() {
+            if mode == Some("provided") {
+                bail!("MCP provided client requires a registered client identifier");
+            }
+            if metadata
+                .token_endpoint_auth_methods_supported
+                .as_ref()
+                .is_some_and(|methods| !methods.iter().any(|method| method == "none"))
+            {
+                bail!("MCP registration requires public client authentication none");
+            }
+            let endpoint = metadata.registration_endpoint.as_deref().context(
+                "MCP authorization server does not advertise public client registration",
+            )?;
+            let registration = exchange(Url::parse(endpoint)?, serde_json::json!({"client_name":"VibeWindow","redirect_uris":[redirect],"token_endpoint_auth_method":"none","grant_types":["authorization_code"],"response_types":["code"]}).to_string(), "application/json").await?;
+            if registration["token_endpoint_auth_method"] != "none"
+                || registration.get("client_secret").is_some_and(|v| !v.is_null())
+            {
+                bail!("MCP registration did not return a public client without a secret");
+            }
+            if registration
+                .get("redirect_uris")
+                .is_some_and(|uris| uris != &serde_json::json!([redirect]))
+            {
+                bail!("MCP registration callback mismatch");
+            }
+            client_id = Some(
+                registration["client_id"]
+                    .as_str()
+                    .filter(|id| !id.trim().is_empty())
+                    .context("MCP registration returned no client identifier")?
+                    .to_owned(),
+            );
+        }
+        let client = client_id.as_deref().context("MCP client identifier unavailable")?;
+
         let mut pending = PendingAuthorization::new(
             &metadata.authorization_endpoint,
             client,
             &redirect,
             &metadata.resource,
         )?;
-        let scopes = config.get("scopes").or_else(|| {
-            config.get("extensions").and_then(|v| v.pointer("/com.openai/auth/scopes"))
+        let scopes = config.get("scopes").filter(|v| !v.is_null()).or_else(|| {
+            config
+                .get("extensions")
+                .and_then(|v| v.pointer("/com.openai/auth/defaultScopes"))
+                .filter(|v| !v.is_null())
         });
         if let Some(scopes) = scopes.filter(|v| !v.is_null()) {
             let scopes = scopes.as_array().context("MCP OAuth scopes must be an array")?;
@@ -155,10 +245,14 @@ pub async fn authorize(
             if !scopes.is_empty() {
                 pending.authorization_url.query_pairs_mut().append_pair("scope", &scopes.join(" "));
             }
+        } else if let Some(scopes) =
+            metadata.scopes_supported.as_ref().filter(|scopes| !scopes.is_empty())
+        {
+            pending.authorization_url.query_pairs_mut().append_pair("scope", &scopes.join(" "));
         }
-        let answers = crate::session::ui_store::with_tenant_scope(tenant,
+        let answers = crate::session::ui_store::with_tenant_scope(owner.tenant,
             crate::question::ask_sensitive(crate::question::AskInput {
-                session_id: session,
+                session_id: owner.session,
                 questions: vec![crate::question::Info {
                     question: format!("Authorize MCP server {}? Open this URL in your browser, then accept to continue:\n{}", server.name, pending.authorization_url),
                     header: server.name.clone(),
@@ -191,11 +285,17 @@ pub async fn authorize(
         {
             bail!("invalid MCP callback request");
         }
-        let (code, verifier) = pending.complete(&format!(
-            "{}{}",
-            redirect_url.origin().ascii_serialization(),
-            parts[1]
-        ))?;
+        let callback = format!("{}{}", redirect_url.origin().ascii_serialization(), parts[1]);
+        let callback_url = Url::parse(&callback)?;
+        let issuers: Vec<_> = callback_url
+            .query_pairs()
+            .filter(|(name, _)| name == "iss")
+            .map(|(_, value)| value.into_owned())
+            .collect();
+        if issuers.len() > 1 || issuers.first().is_some_and(|issuer| issuer != &metadata.issuer) {
+            bail!("MCP authorization callback issuer mismatch");
+        }
+        let (code, verifier) = pending.complete(&callback)?;
         socket.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 23\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nAuthorization received.").await?;
         // Recheck package provenance after user interaction, before exchanging the code.
         super::mcp_auth::source_config(server)?.context("MCP source context disappeared")?;
@@ -210,26 +310,7 @@ pub async fn authorize(
                 ("resource", &metadata.resource),
             ])
             .finish();
-        let mut response = super::mcp_oauth_discovery::public_client(&endpoint)
-            .await?
-            .post(endpoint)
-            .header("Content-Type", "application/x-www-form-urlencoded")
-            .body(body)
-            .send()
-            .await
-            .context("MCP token exchange transport failed")?;
-        if !response.status().is_success() {
-            bail!("MCP token exchange rejected");
-        }
-        let mut bytes = Vec::new();
-        while let Some(chunk) = response.chunk().await? {
-            if bytes.len() + chunk.len() > 1024 * 1024 {
-                bail!("MCP token response exceeds size limit");
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        let value: serde_json::Value =
-            serde_json::from_slice(&bytes).context("invalid MCP token response")?;
+        let value = exchange(endpoint, body, "application/x-www-form-urlencoded").await?;
         if value["token_type"].as_str().is_none_or(|value| !value.eq_ignore_ascii_case("bearer")) {
             bail!("unsupported MCP token type");
         }
@@ -242,6 +323,35 @@ pub async fn authorize(
     tokio::select! {
         biased;
         _ = cancelled.cancelled() => bail!("MCP authorization cancelled"),
-        result = tokio::time::timeout(std::time::Duration::from_secs(120), operation) => result.context("MCP authorization timed out")?,
+        result = tokio::time::timeout(timeout, operation) => result.context("MCP authorization timed out")?,
     }
+}
+
+// Provider I/O is the only substituted boundary in callback integration tests.
+pub(super) async fn send_provider_request(
+    client: reqwest_012::Client,
+    endpoint: Url,
+    body: String,
+    content_type: &'static str,
+) -> Result<serde_json::Value> {
+    let mut response = client
+        .post(endpoint)
+        .header("Content-Type", content_type)
+        .body(body)
+        .send()
+        .await
+        .context("MCP token exchange transport failed")?;
+    if !response.status().is_success() {
+        bail!("MCP token exchange rejected");
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = response.chunk().await? {
+        if bytes.len() + chunk.len() > 1024 * 1024 {
+            bail!("MCP token response exceeds size limit");
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    let value: serde_json::Value =
+        serde_json::from_slice(&bytes).context("invalid MCP token response")?;
+    Ok(value)
 }

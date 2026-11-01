@@ -40,6 +40,15 @@ fn codex_plugin_compat_t27_accepts_only_matching_state_and_pkce() {
 #[test]
 fn codex_plugin_compat_t27_rejects_invalid_input() {
     assert!(
+        PendingAuthorization::new(
+            "https://auth.example/authorize",
+            "client",
+            "http://127.0.0.1:0/callback",
+            "https://mcp.example/mcp"
+        )
+        .is_err()
+    );
+    assert!(
         pending().complete("http://127.0.0.1:8432/callback?state=forged&code=fixture").is_err()
     );
     let flow = pending();

@@ -238,6 +238,7 @@ fn spawn_real_llm_stream_thread(
     abort_rx: tokio::sync::watch::Receiver<bool>,
     tx: std::sync::mpsc::Sender<llm::StreamEvent>,
 ) -> std::thread::JoinHandle<()> {
+    let tool_context = crate::tools::current_tool_use_context();
     let tenant = crate::session::ui_store::current_tenant_scope();
     let project =
         crate::project::instance::project().map(|project| crate::project::instance::Context {
@@ -274,6 +275,12 @@ fn spawn_real_llm_stream_thread(
                         let _ = tx.send(event);
                     },
                 );
+            };
+            let request = async move {
+                match tool_context {
+                    Some(context) => crate::tools::scope_tool_use_context(context, request).await,
+                    None => request.await,
+                }
             };
             match project {
                 Some(context) => crate::project::instance::provide_context(context, request).await,

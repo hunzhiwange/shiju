@@ -545,7 +545,10 @@ fn run_in_project(
         ToolUseContext::new(req.session.clone(), req.root.clone()),
         selected_model.step_event_model(),
     )
-    .with_auto_model_selection(model_selected_by_auto);
+    .with_auto_model_selection(model_selected_by_auto)
+    .with_turn_id(
+        req.assistant_message_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string()),
+    );
     if let Some(name) = agent_key.as_deref() {
         tool_use_context = tool_use_context.with_agent_name(name);
     }
@@ -900,6 +903,12 @@ fn run_in_project(
             }
         };
         let mut provider_messages = assembled_messages.messages;
+        provider_messages.extend(
+            ctx.tool_use_context()
+                .take_hook_contexts()
+                .into_iter()
+                .map(|text| json!({"role":"user", "content":text})),
+        );
         let message_sources = assembled_messages.message_sources;
         let compaction = match prepare_context_before_llm_step(
             &mut provider_messages,
@@ -992,79 +1001,84 @@ fn run_in_project(
         let mut retry_budget = initial_budget.take().unwrap_or_else(|| {
             super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms)
         });
-        let step_out = match llm_runner::run_llm_step_with_budget(
-            &req.session,
-            &provider_messages,
-            &system,
-            Some(selected_model.model.clone()),
-            &provider_options,
-            &tool_specs_for_context,
-            tools_for_step,
-            &mut on_event,
-            &mut retry_budget,
-            req.abort_token.as_ref(),
-        ) {
-            Ok(output) => {
-                if let Some(image_ctx) = image_turn.as_mut() {
-                    if !pending_reloads.is_empty() {
-                        ctx.tool_use_context().clear_pending_image_reloads();
-                    }
-                    if !image_ctx.has_first_success() || !pending_reloads.is_empty() {
-                        image_ctx.mark_first_success();
-                        image_ctx.rewrite_json_messages(&mut llm_messages);
-                    }
-                }
-                // A successful primary request permits a fresh compaction after later
-                // tool results grow the context. Consecutive failed attempts stay bounded.
-                internal_compaction_attempted = false;
-                output
-            }
-            Err(message) => {
-                if !is_acp
-                    && llm_runner::is_request_too_long_error(&message, &provider_messages)
-                    && !internal_compaction_attempted
-                {
-                    match compact_transient_history_for_request(
-                        &req.session,
-                        &checkpoint_source,
-                        &mut llm_messages,
-                        &selected_model.model,
-                        &req.reliability,
-                        &mut on_event,
-                        req.abort_token.as_ref(),
-                        &model_limit,
-                    ) {
-                        Ok(true) => {
-                            internal_compaction_attempted = true;
-                            observed_input_tokens = None;
-                            session_protocol.skill_state.reset_catalog(&session_protocol.agent_id);
-                            continue;
-                        }
-                        Ok(false) => {
-                            on_event(StreamEvent::Error(message));
-                            return;
-                        }
-                        Err(error) => {
-                            on_event(StreamEvent::Error(format!(
-                                "{message}; internal compaction failed: {error}"
-                            )));
-                            return;
-                        }
-                    }
-                }
-                if handle_step_error(
-                    &mut session,
-                    &mut llm_messages,
-                    &mut empty_response_retries,
-                    &mut step,
+        let step_out =
+            match crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
+                llm_runner::run_llm_step_with_budget(
+                    &req.session,
+                    &provider_messages,
+                    &system,
+                    Some(selected_model.model.clone()),
+                    &provider_options,
+                    &tool_specs_for_context,
+                    tools_for_step,
                     &mut on_event,
-                    message,
-                ) {
-                    continue;
+                    &mut retry_budget,
+                    req.abort_token.as_ref(),
+                )
+            }) {
+                Ok(output) => {
+                    if let Some(image_ctx) = image_turn.as_mut() {
+                        if !pending_reloads.is_empty() {
+                            ctx.tool_use_context().clear_pending_image_reloads();
+                        }
+                        if !image_ctx.has_first_success() || !pending_reloads.is_empty() {
+                            image_ctx.mark_first_success();
+                            image_ctx.rewrite_json_messages(&mut llm_messages);
+                        }
+                    }
+                    // A successful primary request permits a fresh compaction after later
+                    // tool results grow the context. Consecutive failed attempts stay bounded.
+                    internal_compaction_attempted = false;
+                    output
                 }
-                return;
-            }
-        };
+                Err(message) => {
+                    if !is_acp
+                        && llm_runner::is_request_too_long_error(&message, &provider_messages)
+                        && !internal_compaction_attempted
+                    {
+                        match compact_transient_history_for_request(
+                            &req.session,
+                            &checkpoint_source,
+                            &mut llm_messages,
+                            &selected_model.model,
+                            &req.reliability,
+                            &mut on_event,
+                            req.abort_token.as_ref(),
+                            &model_limit,
+                        ) {
+                            Ok(true) => {
+                                internal_compaction_attempted = true;
+                                observed_input_tokens = None;
+                                session_protocol
+                                    .skill_state
+                                    .reset_catalog(&session_protocol.agent_id);
+                                continue;
+                            }
+                            Ok(false) => {
+                                on_event(StreamEvent::Error(message));
+                                return;
+                            }
+                            Err(error) => {
+                                on_event(StreamEvent::Error(format!(
+                                    "{message}; internal compaction failed: {error}"
+                                )));
+                                return;
+                            }
+                        }
+                    }
+                    if handle_step_error(
+                        &mut session,
+                        &mut llm_messages,
+                        &mut empty_response_retries,
+                        &mut step,
+                        &mut on_event,
+                        message,
+                    ) {
+                        continue;
+                    }
+                    return;
+                }
+            };
 
         artifacts::persist_step_ai_call_payload(
             &req,

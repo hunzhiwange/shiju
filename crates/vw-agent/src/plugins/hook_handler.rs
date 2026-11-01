@@ -9,7 +9,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::time::Duration;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 
 use crate::app::agent::config::Config;
@@ -32,12 +32,23 @@ pub(crate) struct CommandPluginHookHandler {
     name: String,
     hook: PluginHook,
     matcher: super::compat::hook_matcher::HookMatcher,
+    codex_protocol: bool,
+    data_directory: Option<PathBuf>,
+    additional_context_limit: Option<usize>,
 }
 
 impl CommandPluginHookHandler {
     fn new(plugin_name: String, hook: PluginHook) -> Self {
         let name = format!("plugin:{}:{}", plugin_name, hook.event.as_str());
-        Self { plugin_name, name, hook, matcher: super::compat::hook_matcher::HookMatcher::All }
+        Self {
+            plugin_name,
+            name,
+            hook,
+            matcher: super::compat::hook_matcher::HookMatcher::All,
+            codex_protocol: false,
+            data_directory: None,
+            additional_context_limit: None,
+        }
     }
 
     fn supports_event(event: PluginHookEvent) -> bool {
@@ -49,12 +60,49 @@ impl CommandPluginHookHandler {
         )
     }
 
-    async fn execute_payload(&self, payload: Value) -> Result<()> {
+    async fn execute_payload(&self, mut payload: Value) -> Result<Value> {
+        if self.codex_protocol {
+            super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
+        }
         let input =
             serde_json::to_vec(&payload).context("failed to serialize plugin hook payload")?;
-        let output = run_hook_command(&self.plugin_name, &self.hook, &input).await?;
+        let output = run_hook_command(
+            &self.plugin_name,
+            &self.hook,
+            &input,
+            self.codex_protocol,
+            self.data_directory.as_deref(),
+        )
+        .await?;
+        if self.codex_protocol && self.hook.event == PluginHookEvent::BeforeLlmCall {
+            if !output.stdout.is_empty() || !output.status.success() {
+                tracing::warn!("PreModelRequest hook output is observation-only and was ignored");
+            }
+            return Ok(Value::Null);
+        }
+        if self.codex_protocol {
+            let parsed =
+                super::compat::hook_command::interpret(output.status.code(), &output.stdout)?;
+            if let Some(text) =
+                parsed.pointer("/hookSpecificOutput/additionalContext").and_then(Value::as_str)
+            {
+                if matches!(
+                    self.hook.event,
+                    PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall
+                ) {
+                    super::compat::hook_command::retain_context(
+                        text,
+                        self.additional_context_limit,
+                        self.data_directory.as_deref().context("missing hook data directory")?,
+                    )?;
+                } else {
+                    tracing::warn!("ignored additionalContext for unsupported hook event");
+                }
+            }
+            return Ok(parsed);
+        }
         if output.status.success() {
-            return Ok(());
+            return Ok(Value::Null);
         }
 
         Err(anyhow!(hook_failure_diagnostic(
@@ -83,7 +131,11 @@ impl HookHandler for CommandPluginHookHandler {
             return HookResult::Continue((messages, model));
         }
         match self.execute_payload(json!({"event": "before_llm_call", "model": &model})).await {
-            Ok(()) => HookResult::Continue((messages, model)),
+            Ok(_) => HookResult::Continue((messages, model)),
+            Err(error) if self.codex_protocol => {
+                tracing::warn!(error = %error, "PreModelRequest hook failed");
+                HookResult::Continue((messages, model))
+            }
             Err(error) => HookResult::Cancel(error.to_string()),
         }
     }
@@ -103,7 +155,16 @@ impl HookHandler for CommandPluginHookHandler {
             },
         });
         match self.execute_payload(payload).await {
-            Ok(()) => HookResult::Continue((name, args)),
+            Ok(output) => {
+                let specific = &output["hookSpecificOutput"];
+                if let Some(updated) = specific.get("updatedInput") {
+                    if specific["hookEventName"] != "PreToolUse" || !updated.is_object() {
+                        return HookResult::Cancel("invalid Codex updatedInput output".into());
+                    }
+                    return HookResult::Continue((name, updated.clone()));
+                }
+                HookResult::Continue((name, args))
+            }
             Err(error) => HookResult::Cancel(error.to_string()),
         }
     }
@@ -247,6 +308,8 @@ async fn run_hook_command(
     plugin_name: &str,
     hook: &PluginHook,
     input: &[u8],
+    codex_protocol: bool,
+    data_directory: Option<&Path>,
 ) -> Result<CommandHookOutput> {
     let timeout_secs = hook.timeout_secs.unwrap_or(DEFAULT_HOOK_TIMEOUT_SECS).max(1);
     let mut command = Command::new(&hook.command);
@@ -257,44 +320,74 @@ async fn run_hook_command(
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
         .kill_on_drop(true);
+    if codex_protocol {
+        for name in [
+            "CODEX_EXEC_SERVER_NOISE_AUTH_TOKEN",
+            "NODE_REPL_AUTH_TOKEN",
+            "CODEX_GUARDIAN_DECISIONS_API_KEY",
+            "OPENAI_FEDERATION_RULE_ID",
+            "OPENAI_IDENTITY_TOKEN_FILE",
+            "OPENAI_WORKLOAD_IDENTITY_CONTEXT",
+        ] {
+            command.env_remove(name);
+        }
+        let data = super::compat::hook_command::prepare_data_directory(
+            data_directory.context("missing Codex hook data directory")?,
+            &hook.working_dir,
+        )?;
+        command.env("PLUGIN_DATA", &data);
+        command.env("CLAUDE_PLUGIN_DATA", &data);
+        command.env("PLUGIN_ROOT", &hook.working_dir);
+        command.env("CLAUDE_PLUGIN_ROOT", &hook.working_dir);
+        if let Some(context) = crate::tools::current_tool_use_context()
+            && let Some(cwd) = context.workspace_root()
+        {
+            command.current_dir(cwd);
+        }
+    }
     command.env("VIBEWINDOW_PLUGIN_NAME", plugin_name);
     command.env("VIBEWINDOW_PLUGIN_HOOK_EVENT", hook.event.as_str());
     command.env("VIBEWINDOW_PLUGIN_HOOK_MODE", hook.mode.as_str());
 
-    let mut child = command.spawn().with_context(|| {
-        format!("failed to spawn plugin hook {}:{}", plugin_name, hook.event.as_str())
-    })?;
-
-    if let Some(mut stdin) = child.stdin.take() {
-        match stdin.write_all(input).await {
-            Ok(()) => {}
-            Err(error) if error.kind() == ErrorKind::BrokenPipe => {}
-            Err(error) => {
-                tracing::warn!(
-                    plugin = plugin_name,
-                    event = hook.event.as_str(),
-                    error = %error,
-                    "failed to write plugin hook stdin"
-                );
-            }
-        }
-    }
-
-    let output = tokio::time::timeout(Duration::from_secs(timeout_secs), child.wait_with_output())
-        .await
-        .map_err(|_| {
-            anyhow!(
-                "plugin hook {}:{} timed out after {}s",
-                plugin_name,
-                hook.event.as_str(),
-                timeout_secs
-            )
-        })?
-        .with_context(|| {
-            format!("failed to wait for plugin hook {}:{}", plugin_name, hook.event.as_str())
+    let (mut child, _process_tree) =
+        crate::tools::shell::processes::termination::spawn(&mut command).with_context(|| {
+            format!("failed to spawn plugin hook {}:{}", plugin_name, hook.event.as_str())
         })?;
+    let stdin = child.stdin.take();
+    let stdout = child.stdout.take().context("missing hook stdout")?;
+    let stderr = child.stderr.take().context("missing hook stderr")?;
+    let execution = async {
+        let write = async {
+            if let Some(mut stdin) = stdin {
+                match stdin.write_all(input).await {
+                    Ok(()) => {}
+                    Err(error) if error.kind() == ErrorKind::BrokenPipe => {}
+                    Err(error) => return Err(anyhow!(error).context("failed to write hook input")),
+                }
+            }
+            Ok(())
+        };
+        let ((), stdout, stderr, status) =
+            tokio::try_join!(write, read_hook_output(stdout), read_hook_output(stderr), async {
+                child.wait().await.context("failed to wait for hook")
+            },)?;
+        Ok::<_, anyhow::Error>(CommandHookOutput { status, stdout, stderr })
+    };
+    tokio::time::timeout(Duration::from_secs(timeout_secs), execution).await.map_err(|_| {
+        anyhow!(
+            "plugin hook {}:{} timed out after {timeout_secs}s",
+            plugin_name,
+            hook.event.as_str()
+        )
+    })?
+}
 
-    Ok(CommandHookOutput { status: output.status, stdout: output.stdout, stderr: output.stderr })
+async fn read_hook_output(reader: impl tokio::io::AsyncRead + Unpin) -> Result<Vec<u8>> {
+    const LIMIT: u64 = 1024 * 1024;
+    let mut output = Vec::new();
+    reader.take(LIMIT + 1).read_to_end(&mut output).await.context("failed to read hook output")?;
+    anyhow::ensure!(output.len() as u64 <= LIMIT, "plugin hook output limit exceeded");
+    Ok(output)
 }
 
 fn duration_millis(duration: Duration) -> u64 {
@@ -389,7 +482,15 @@ pub(crate) fn codex_handlers(
                         anyhow::bail!("Codex hook execution is not supported for event: {event:?}")
                     }
                 };
-                let H::Command { command, command_windows, timeout, r#async, .. } = handler else {
+                let H::Command {
+                    command,
+                    command_windows,
+                    timeout,
+                    r#async,
+                    additional_context_limit,
+                    ..
+                } = handler
+                else {
                     anyhow::bail!("Codex hook execution is not supported for non-command handlers");
                 };
                 anyhow::ensure!(
@@ -404,7 +505,7 @@ pub(crate) fn codex_handlers(
                 #[cfg(not(windows))]
                 let (program, args) = {
                     let _ = command_windows;
-                    ("/bin/sh", vec!["-c".to_owned(), command.clone()])
+                    ("/bin/sh", vec!["-lc".to_owned(), command.clone()])
                 };
                 anyhow::ensure!(!command.trim().is_empty(), "empty Codex hook command");
                 let hook = PluginHook {
@@ -418,6 +519,16 @@ pub(crate) fn codex_handlers(
                 };
                 let mut handler = CommandPluginHookHandler::new(name.to_owned(), hook);
                 handler.matcher = matcher.clone();
+                handler.codex_protocol = true;
+                handler.additional_context_limit = *additional_context_limit;
+                use sha2::{Digest, Sha256};
+                let identity = format!("{}\0{}", root.canonicalize()?.display(), name);
+                handler.data_directory = Some(
+                    trust
+                        .host_directory()?
+                        .join("plugin-hook-data")
+                        .join(hex::encode(Sha256::digest(identity.as_bytes()))),
+                );
                 admitted.push(Box::new(handler) as Box<dyn HookHandler>);
             }
         }

@@ -149,3 +149,8 @@ mod t32_tests;
 pub(crate) mod hook_matcher;
 #[cfg(test)]
 mod t33_tests;
+
+#[cfg(test)]
+mod t34_tests;
+
+pub(crate) mod hook_command;

@@ -102,6 +102,8 @@ impl PendingImageReloadQueue {
 #[derive(Clone)]
 pub struct ToolUseContext {
     session: String,
+    hook_input: Option<serde_json::Value>,
+    hook_contexts: Arc<Mutex<Vec<String>>>,
     agent_name: Option<String>,
     root: Option<String>,
     message_id: Option<String>,
@@ -183,6 +185,8 @@ impl ToolUseContext {
     pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
         Self {
             session: session.into(),
+            hook_input: None,
+            hook_contexts: Arc::new(Mutex::new(Vec::new())),
             agent_name: None,
             root,
             message_id: None,
@@ -214,6 +218,31 @@ impl ToolUseContext {
             tool_exposure_snapshot: None,
             invoked_skills: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    pub(crate) fn with_hook_input(mut self, input: serde_json::Value) -> Self {
+        self.hook_input = Some(input);
+        self
+    }
+
+    pub(crate) fn hook_input(&self) -> Option<&serde_json::Value> {
+        self.hook_input.as_ref()
+    }
+
+    /// Buffer context for the owning turn only.
+    pub(crate) fn push_hook_context(&self, text: String) -> anyhow::Result<()> {
+        let mut pending =
+            self.hook_contexts.lock().map_err(|_| anyhow::anyhow!("hook context lock poisoned"))?;
+        anyhow::ensure!(pending.len() < 64, "too many pending hook contexts");
+        pending.push(text);
+        Ok(())
+    }
+
+    pub(crate) fn take_hook_contexts(&self) -> Vec<String> {
+        self.hook_contexts
+            .lock()
+            .map(|mut pending| std::mem::take(&mut *pending))
+            .unwrap_or_default()
     }
 
     /// 返回当前会话 ID。
@@ -687,6 +716,14 @@ where
     F: Future<Output = T>,
 {
     ACTIVE_TOOL_USE_CONTEXT.scope(context, future).await
+}
+
+/// Carry an existing context across a synchronous request boundary.
+pub(crate) fn scope_tool_use_context_sync<T>(
+    context: Arc<ToolUseContext>,
+    body: impl FnOnce() -> T,
+) -> T {
+    ACTIVE_TOOL_USE_CONTEXT.sync_scope(context, body)
 }
 
 /// 读取当前 task-local 中的工具上下文。

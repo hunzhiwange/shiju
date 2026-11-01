@@ -101,6 +101,14 @@ impl PluginHookTrustStore {
         Ok(removed)
     }
 
+    pub(crate) fn host_directory(&self) -> Result<PathBuf> {
+        self.path
+            .parent()
+            .context("hook trust store has no host directory")?
+            .canonicalize()
+            .context("failed to resolve hook host directory")
+    }
+
     fn save(&self) -> Result<()> {
         if let Some(parent) = self.path.parent() {
             fs::create_dir_all(parent).with_context(|| {

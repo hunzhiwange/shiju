@@ -135,7 +135,11 @@ pub async fn execute_tool_from_registry(
         })
         .await?;
 
-    PostToolHook::run(hook_runner, tool_name.as_str(), &result, started.elapsed()).await;
+    scope_tool_use_context(
+        Arc::new(tool_use_context.as_ref().clone().with_hook_input(final_input.clone())),
+        PostToolHook::run(hook_runner, tool_name.as_str(), &result, started.elapsed()),
+    )
+    .await;
 
     let Some(tool) = find_tool_by_name(tools, tool_name.as_str()) else {
         return Err(ToolCallError::Failed(format!("Unknown tool: {tool_name}")));

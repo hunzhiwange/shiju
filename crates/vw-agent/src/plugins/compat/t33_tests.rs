@@ -13,33 +13,49 @@ fn manifest() -> CodexHooksManifest {
 #[tokio::test]
 async fn codex_plugin_compat_t33_executes_only_matching_handlers() {
     let root = tempfile::tempdir().unwrap();
-    let state = tempfile::tempdir().unwrap();
-    let manifest = manifest();
-    let mut trust =
-        PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
-    trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
-    let handlers = codex_handlers("fixture", root.path(), &manifest, &trust).unwrap();
-    assert_eq!(handlers.len(), 1);
-    for handler in handlers {
-        assert!(matches!(
-            handler.before_tool_call("Write".into(), json!({})).await,
-            HookResult::Continue(_)
-        ));
-    }
-    assert_eq!(std::fs::read(root.path().join("result")).unwrap(), b"abbc");
-    std::fs::write(root.path().join("result"), b"").unwrap();
-    let mut after = manifest.clone();
-    let groups = after.hooks.remove(&E::PreToolUse).unwrap();
-    after.hooks.insert(E::PostToolUse, groups);
-    trust.trust_codex_hooks("fixture", root.path(), &after).unwrap();
-    let mut runner = crate::app::agent::hooks::HookRunner::new();
-    for handler in codex_handlers("fixture", root.path(), &after, &trust).unwrap() {
-        runner.register(handler);
-    }
-    let result =
-        crate::app::agent::tools::ToolResult { success: true, output: String::new(), error: None };
-    runner.fire_after_tool_call("Write", &result, std::time::Duration::ZERO).await;
-    assert_eq!(std::fs::read(root.path().join("result")).unwrap(), b"abbc");
+    let fixture_context = std::sync::Arc::new(
+        crate::tools::ToolUseContext::new(
+            "fixture-session",
+            Some(root.path().to_str().unwrap().into()),
+        )
+        .with_turn_id("fixture-turn")
+        .with_tool_call_id("fixture-call")
+        .with_model("fixture-model")
+        .with_hook_input(serde_json::json!({})),
+    );
+    crate::tools::scope_tool_use_context(fixture_context, async {
+        let state = tempfile::tempdir().unwrap();
+        let manifest = manifest();
+        let mut trust =
+            PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();
+        trust.trust_codex_hooks("fixture", root.path(), &manifest).unwrap();
+        let handlers = codex_handlers("fixture", root.path(), &manifest, &trust).unwrap();
+        assert_eq!(handlers.len(), 1);
+        for handler in handlers {
+            assert!(matches!(
+                handler.before_tool_call("Write".into(), json!({})).await,
+                HookResult::Continue(_)
+            ));
+        }
+        assert_eq!(std::fs::read(root.path().join("result")).unwrap(), b"abbc");
+        std::fs::write(root.path().join("result"), b"").unwrap();
+        let mut after = manifest.clone();
+        let groups = after.hooks.remove(&E::PreToolUse).unwrap();
+        after.hooks.insert(E::PostToolUse, groups);
+        trust.trust_codex_hooks("fixture", root.path(), &after).unwrap();
+        let mut runner = crate::app::agent::hooks::HookRunner::new();
+        for handler in codex_handlers("fixture", root.path(), &after, &trust).unwrap() {
+            runner.register(handler);
+        }
+        let result = crate::app::agent::tools::ToolResult {
+            success: true,
+            output: String::new(),
+            error: None,
+        };
+        runner.fire_after_tool_call("Write", &result, std::time::Duration::ZERO).await;
+        assert_eq!(std::fs::read(root.path().join("result")).unwrap(), b"abbc");
+    })
+    .await;
 }
 #[test]
 fn codex_plugin_compat_t33_rejects_invalid_input() {

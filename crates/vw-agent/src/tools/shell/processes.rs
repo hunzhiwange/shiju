@@ -12,7 +12,7 @@ use tokio::sync::{Notify, mpsc, oneshot};
 #[path = "output.rs"]
 mod output;
 #[path = "termination.rs"]
-mod termination;
+pub(crate) mod termination;
 use output::{OutputBuffer, OutputDecoder};
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;

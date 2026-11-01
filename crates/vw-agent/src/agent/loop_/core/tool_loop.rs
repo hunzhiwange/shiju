@@ -211,10 +211,12 @@ pub(crate) async fn run_tool_call_loop_with_skills(
             ctx.attach_pending_reloads_to_chat(history, &pending_reloads);
         }
 
-        let skill_messages = match skills.as_deref_mut() {
+        let mut skill_messages = match skills.as_deref_mut() {
             Some(skills) => skills.messages(tool_specs.iter().any(|spec| spec.id == "skill"))?,
             None => Vec::new(),
         };
+        skill_messages
+            .extend(tool_use_context.take_hook_contexts().into_iter().map(ChatMessage::user));
         let request_history =
             if !skill_messages.is_empty() || (!use_native_tools && !tool_specs.is_empty()) {
                 let mut request_history = history.clone();

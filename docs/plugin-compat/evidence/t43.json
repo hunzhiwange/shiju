@@ -1,0 +1,84 @@
+{
+  "task": 43,
+  "status": "已完成，待回归",
+  "platform": "Darwin arm64",
+  "source_fixture": "crates/vw-agent/testdata/plugin_compat/t43/source.json",
+  "dependency": {
+    "task": 42,
+    "evidence": "docs/plugin-compat/evidence/t42.json",
+    "status": "已完成"
+  },
+  "cargo": {
+    "red_slot": 2,
+    "red_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true,
+    "cache_retained": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t43_ -- --nocapture",
+    "exit_code": 101,
+    "tests_started": 3,
+    "passed": 1,
+    "target_failures": [
+      "child lifecycle must reach plugin: events file missing",
+      "concurrent children must reach plugin: events file missing"
+    ],
+    "termination": "assertion panics followed by SIGABRT in repository test runtime"
+  },
+  "green": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t43_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 7,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t33_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features child_agent_tests:: -- --nocapture --test-threads=1 --skip delegated_child_first_provider_request_auto_loads_workspace_agents",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0,
+      "explicit_exclusion": "existing fixture authentication defect separately exercised and retained for regression"
+    }
+  ],
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "regression": {
+    "command": "VW_RECOVERY_WINDOW_HTTP=1 cargo test -p vw-agent --lib --all-features delegated_child_first_provider_request_auto_loads_workspace_agents -- --nocapture --test-threads=1",
+    "exit_code": 101,
+    "error": "ProviderAuthError: API key 为空",
+    "default_path_error": "missing scripted LLM stream",
+    "cause": "existing custom HTTP provider fixture omits test API key; HEAD test runner selects scripted streams unless existing VW_RECOVERY_WINDOW_HTTP flag is set",
+    "required_next_action": "repair existing HTTP test fixture, rerun isolated test and child_agent_tests::; keep numbered task pending regression"
+  },
+  "behavior": [
+    "trusted command processes receive parent session_id, persisted child agent_id and selected agent_type",
+    "persistent child success/failure/cancellation emit correctly bound stop metadata",
+    "concurrent children preserve identities; mismatched parent and invalid identity are rejected",
+    "SubagentStart context and continue:false follow frozen context-only semantics without contaminating parent",
+    "SubagentStop block continues same persisted child; second stop_hook_active=true; start occurs once",
+    "package roots remain unchanged; state and retained context use host directories",
+    "direct child callers use existing trusted runner factory; no scheduler added"
+  ],
+  "scope": "local command hook lifecycle on Darwin arm64; provider is the only substituted boundary; unrelated HTTP regression still pending; no complete compatibility claim"
+}

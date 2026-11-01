@@ -189,6 +189,14 @@ impl HookRunner {
     ///
     /// - `session_id`：会话的唯一标识符
     /// - `channel`：会话所属的通道名称
+    pub(crate) async fn subagent(&self, input: &serde_json::Value) -> anyhow::Result<Vec<String>> {
+        let mut contexts = Vec::new();
+        for handler in &self.handlers {
+            contexts.extend(handler.subagent(input).await?);
+        }
+        Ok(contexts)
+    }
+
     pub(crate) async fn start_session(&self, input: &serde_json::Value) -> anyhow::Result<()> {
         for handler in &self.handlers {
             handler.start_session(input).await?;

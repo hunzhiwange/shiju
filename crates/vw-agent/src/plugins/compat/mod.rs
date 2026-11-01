@@ -1,4 +1,7 @@
 //! 插件清单兼容适配与通过真实入口运行的独立验收测试。
+pub(crate) mod hook_subagent;
+#[cfg(test)]
+mod t43_tests;
 
 pub(super) mod agents;
 pub(super) mod commands;

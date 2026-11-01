@@ -120,6 +120,7 @@ pub(crate) use compat::hook_compact;
 pub(crate) use compat::hook_model;
 pub(crate) use compat::hook_prompt;
 pub(crate) use compat::hook_session;
+pub(crate) use compat::hook_subagent;
 
 #[cfg(test)]
 pub(crate) use compat::t41_tests;

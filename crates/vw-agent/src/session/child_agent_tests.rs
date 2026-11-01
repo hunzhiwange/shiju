@@ -328,7 +328,7 @@ async fn delegated_child_first_provider_request_auto_loads_workspace_agents() {
     .await
     .expect("delegated child should complete through gateway and processor");
 
-    assert_eq!(result.terminal_state, ChildAgentTerminalState::Succeeded);
+    assert_eq!(result.terminal_state, ChildAgentTerminalState::Succeeded, "{result:?}");
     server.join().expect("test provider should stop");
     let expected_path = agents_path.to_string_lossy().to_string();
     let observed = observed.lock().expect("observed gateway payloads lock");

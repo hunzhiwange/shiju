@@ -237,6 +237,10 @@ pub trait HookHandler: HookHandlerBounds {
         Ok(())
     }
 
+    async fn subagent(&self, _input: &serde_json::Value) -> anyhow::Result<Vec<String>> {
+        Ok(Vec::new())
+    }
+
     async fn model_request(&self, _input: &serde_json::Value) {}
 
     /// Submit only the current user input before any model request.

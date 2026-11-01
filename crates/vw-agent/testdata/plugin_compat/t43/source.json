@@ -1,0 +1,24 @@
+{
+  "license": "Apache-2.0 (reference Codex); synthetic fixtures authored for this repository",
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/events/session_start.rs",
+      "sha256": "4c3bfe8f9ca2229a9958c17d4459ed050b7ac712e03a3b0d95ee433b84a3c843",
+      "symbol": "command_input / StartHookTarget::SubagentStart"
+    },
+    {
+      "path": "codex-rs/hooks/src/events/stop.rs",
+      "sha256": "24d79f820e59f3733fc6febd7fee0e55fe04db1497f3e317a9bbc106d3d94d38",
+      "symbol": "command_input / StopHookTarget::SubagentStop"
+    }
+  ],
+  "expected": {
+    "session_id": "persisted parent session",
+    "agent_id": "persisted child session",
+    "agent_type": "selected delegate key",
+    "transcript_path": null,
+    "agent_transcript_path": null,
+    "last_assistant_message": "successful child handoff or null on failure/cancellation"
+  },
+  "boundary": "real trusted command processes; only stream/provider response is substituted"
+}

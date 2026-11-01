@@ -79,6 +79,8 @@ impl CommandPluginHookHandler {
                     | PluginHookEvent::PostModelRequest
                     | PluginHookEvent::PreCompact
                     | PluginHookEvent::PostCompact
+                    | PluginHookEvent::SubagentStart
+                    | PluginHookEvent::SubagentStop
             )
         {
             super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
@@ -159,10 +161,13 @@ impl CommandPluginHookHandler {
                 if self.codex_protocol
                     && matches!(
                         self.hook.event,
-                        PluginHookEvent::PreCompact | PluginHookEvent::PostCompact
+                        PluginHookEvent::PreCompact
+                            | PluginHookEvent::PostCompact
+                            | PluginHookEvent::SubagentStart
+                            | PluginHookEvent::SubagentStop
                     ) =>
             {
-                tracing::warn!("compact hook execution failed");
+                tracing::warn!("lifecycle hook execution failed");
                 return Ok(Value::Null);
             }
             Err(error) => return Err(error),
@@ -180,6 +185,16 @@ impl CommandPluginHookHandler {
         }
         if self.codex_protocol {
             let parsed = if matches!(
+                self.hook.event,
+                PluginHookEvent::SubagentStart | PluginHookEvent::SubagentStop
+            ) {
+                super::compat::hook_subagent::parse(
+                    output.status.code(),
+                    &output.stdout,
+                    &output.stderr,
+                    self.hook.event == PluginHookEvent::SubagentStop,
+                )?
+            } else if matches!(
                 self.hook.event,
                 PluginHookEvent::PreCompact | PluginHookEvent::PostCompact
             ) {
@@ -252,6 +267,37 @@ impl HookHandler for CommandPluginHookHandler {
 
     fn name(&self) -> &str {
         &self.name
+    }
+
+    async fn subagent(&self, input: &Value) -> Result<Vec<String>> {
+        let expected = match self.hook.event {
+            PluginHookEvent::SubagentStart => "SubagentStart",
+            PluginHookEvent::SubagentStop => "SubagentStop",
+            _ => return Ok(Vec::new()),
+        };
+        if self.codex_protocol && input["hook_event_name"] == expected {
+            super::compat::hook_subagent::validate(input)?;
+            if self.matcher.matches(input["agent_type"].as_str()) {
+                let output = self.execute_payload(input.clone()).await?;
+                let contexts = super::compat::hook_subagent::contexts(&output, expected)?;
+                if expected == "SubagentStart" {
+                    for text in contexts {
+                        super::compat::hook_command::retain_context(
+                            &text,
+                            self.additional_context_limit,
+                            self.data_directory
+                                .as_deref()
+                                .context("missing hook data directory")?,
+                        )?;
+                    }
+                    return Ok(crate::tools::current_tool_use_context()
+                        .context("missing subagent hook context")?
+                        .take_hook_contexts());
+                }
+                return Ok(contexts);
+            }
+        }
+        Ok(Vec::new())
     }
 
     async fn compact(&self, input: &Value) -> Result<()> {
@@ -699,6 +745,8 @@ pub(crate) fn codex_handlers(
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    E::SubagentStart => PluginHookEvent::SubagentStart,
+                    E::SubagentStop => PluginHookEvent::SubagentStop,
                     E::PreCompact => PluginHookEvent::PreCompact,
                     E::PostCompact => PluginHookEvent::PostCompact,
                     E::PostModelRequest => PluginHookEvent::PostModelRequest,
@@ -791,6 +839,14 @@ struct OrderedCodexHooks {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for OrderedCodexHooks {
+    async fn subagent(&self, input: &Value) -> Result<Vec<String>> {
+        let mut contexts = Vec::new();
+        for handler in &self.handlers {
+            contexts.extend(handler.subagent(input).await?);
+        }
+        Ok(contexts)
+    }
+
     async fn compact(&self, input: &Value) -> Result<()> {
         for handler in &self.handlers {
             handler.compact(input).await?;

@@ -88,6 +88,10 @@ pub struct ChildAgentRunResult {
 #[derive(Debug, Clone)]
 pub(crate) struct CreatedChildAgentRun {
     input: ChildAgentRunInput,
+    hook_context: Option<std::sync::Arc<crate::tools::ToolUseContext>>,
+    hook_started: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    hook_continuations: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    stop_hook_active: bool,
     /// 新创建且已持久化的子会话 ID。
     pub child_session_id: String,
 }
@@ -315,6 +319,27 @@ pub(crate) async fn create(mut input: ChildAgentRunInput) -> Result<CreatedChild
         .to_string_lossy()
         .to_string();
     validate_input(&input)?;
+    let hook_context = if let Some(context) = crate::tools::current_tool_use_context() {
+        anyhow::ensure!(
+            context.session() == input.parent_session_id,
+            "subagent parent session mismatch"
+        );
+        Some(context)
+    } else {
+        let config = crate::config::get_project_for_tenant(
+            &crate::session::ui_store::current_tenant_scope(),
+            std::path::Path::new(&input.directory),
+        )
+        .await?;
+        let mut context = crate::tools::ToolUseContext::new(
+            &input.parent_session_id,
+            Some(input.directory.clone()),
+        );
+        if let Some(runner) = crate::hooks::execution_hook_runner(&config)? {
+            context = context.with_hook_runner(runner);
+        }
+        Some(std::sync::Arc::new(context))
+    };
     let directory = input.directory.clone();
     let parent_session_id = input.parent_session_id.clone();
     let project_directory = directory.clone();
@@ -333,16 +358,61 @@ pub(crate) async fn create(mut input: ChildAgentRunInput) -> Result<CreatedChild
     .await
     .context("initialize child agent project context")??;
 
-    Ok(CreatedChildAgentRun { input, child_session_id: child.id })
+    Ok(CreatedChildAgentRun {
+        input,
+        child_session_id: child.id.clone(),
+        hook_context: hook_context.map(|context| {
+            std::sync::Arc::new(context.as_ref().clone().with_turn_id(child.id.clone()))
+        }),
+        hook_started: Default::default(),
+        hook_continuations: Default::default(),
+        stop_hook_active: false,
+    })
 }
 
 /// 同步执行一个已经创建的持久化子会话。
 pub(crate) async fn run_created(created: CreatedChildAgentRun) -> Result<ChildAgentRunResult> {
     let directory = created.input.directory.clone();
-    run_created_with_stream_executor(created, move |request| {
-        collect_gateway_chat_stream(directory, request)
+    run_created_with_repeating_executor(created, move |request| {
+        collect_gateway_chat_stream(directory.clone(), request)
     })
     .await
+}
+
+pub(crate) async fn run_created_with_repeating_executor<F, Fut>(
+    mut created: CreatedChildAgentRun,
+    execute: F,
+) -> Result<ChildAgentRunResult>
+where
+    F: FnMut(GatewayChatStreamRequest) -> Fut + Send + 'static,
+    Fut:
+        Future<Output = std::result::Result<GatewayChatStreamCollected, ApiError>> + Send + 'static,
+{
+    let execute = std::sync::Arc::new(std::sync::Mutex::new(execute));
+    loop {
+        let execute = execute.clone();
+        let result = run_created_with_stream_executor(created.clone(), move |request| {
+            let mut execute = execute.lock().expect("subagent executor lock poisoned");
+            execute(request)
+        })
+        .await?;
+        let continuation = std::mem::take(
+            &mut *created
+                .hook_continuations
+                .lock()
+                .map_err(|_| anyhow::anyhow!("subagent continuation lock poisoned"))?,
+        );
+        if result.terminal_state != ChildAgentTerminalState::Succeeded || continuation.is_empty() {
+            return Ok(result);
+        }
+        created
+            .input
+            .context
+            .push(serde_json::json!({"role":"user","content":created.input.prompt}));
+        created.input.context.push(serde_json::json!({"role":"assistant","content":result.output}));
+        created.input.prompt = continuation.join("\n");
+        created.stop_hook_active = true;
+    }
 }
 
 /// 将已经创建的子会话持久化为取消终态。
@@ -351,9 +421,13 @@ pub(crate) async fn cancel_created(
     reason: impl Into<String>,
 ) -> Result<ChildAgentRunResult> {
     let CreatedChildAgentRun {
+        hook_context,
+        hook_started: _,
+        hook_continuations: _,
+        stop_hook_active: _,
         input:
             ChildAgentRunInput {
-                parent_session_id: _,
+                parent_session_id,
                 directory,
                 agent_key,
                 model: _,
@@ -367,9 +441,10 @@ pub(crate) async fn cancel_created(
         child_session_id,
     } = created;
     let reason = reason.into();
+    let hook_agent = agent_key.clone();
     let result_child_session_id = child_session_id.clone();
     let project_directory = directory.clone();
-    project::instance::provide(project_directory, None, move || {
+    let result = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
             ensure_turn_history(&child_session_id, &prompt, &agent_key, None, Some(&reason))
                 .await?;
@@ -383,7 +458,17 @@ pub(crate) async fn cancel_created(
     })
     .await
     .context("initialize child agent project context")?
-    .with_context(|| format!("persist cancelled child agent session '{result_child_session_id}'"))
+    .with_context(|| format!("persist cancelled child agent session '{result_child_session_id}'"));
+    crate::plugins::hook_subagent::emit_boundary(
+        hook_context,
+        &parent_session_id,
+        &result_child_session_id,
+        &hook_agent,
+        None,
+        Some(false),
+    )
+    .await?;
+    result
 }
 
 /// 使用可注入的 stream 收集器创建并执行持久化子会话。
@@ -413,9 +498,13 @@ where
         Future<Output = std::result::Result<GatewayChatStreamCollected, ApiError>> + Send + 'static,
 {
     let CreatedChildAgentRun {
+        hook_context,
+        hook_started,
+        hook_continuations,
+        stop_hook_active,
         input:
             ChildAgentRunInput {
-                parent_session_id: _,
+                parent_session_id,
                 directory,
                 agent_key,
                 model,
@@ -428,6 +517,23 @@ where
             },
         child_session_id,
     } = created;
+    let mut context = context;
+    if !hook_started.swap(true, std::sync::atomic::Ordering::SeqCst) {
+        let additional = crate::plugins::hook_subagent::emit_boundary(
+            hook_context.clone(),
+            &parent_session_id,
+            &child_session_id,
+            &agent_key,
+            None,
+            None,
+        )
+        .await?;
+        for text in additional {
+            context.push(serde_json::json!({"role":"system","content":text}));
+        }
+    }
+    let hook_child = child_session_id.clone();
+    let hook_agent = agent_key.clone();
     let project_directory = directory.clone();
     let result = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
@@ -479,5 +585,19 @@ where
     .await
     .context("initialize child agent project context")?;
 
+    if let Ok(result) = &result {
+        let continuation = crate::plugins::hook_subagent::emit_boundary(
+            hook_context,
+            &parent_session_id,
+            &hook_child,
+            &hook_agent,
+            result.output.as_deref(),
+            Some(stop_hook_active),
+        )
+        .await?;
+        *hook_continuations
+            .lock()
+            .map_err(|_| anyhow::anyhow!("subagent continuation lock poisoned"))? = continuation;
+    }
     result
 }

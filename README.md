@@ -162,9 +162,17 @@ bash scripts/bundle_windows.sh
 
 Linux 打包：
 
+请在 Linux 构建环境中运行，并准备 GTK 3、WebKitGTK 4.1 等开发库及所需的
+`dpkg-deb` / `rpmbuild` 打包工具。默认目标为 x86_64；ARM64 Linux 使用
+`TARGET=aarch64-unknown-linux-gnu`。首次构建需为当前 Rust 工具链安装对应目标：
+
 ```bash
+rustup target add x86_64-unknown-linux-gnu
 bash scripts/bundle_linux.sh
 ```
+
+在 macOS 上仅安装 Linux Rust 目标不足以完成桌面应用交叉编译；请使用 Linux
+虚拟机、容器或 Linux CI。macOS 应用使用上面的 `bundle_macos.sh`。
 
 CLI 多平台构建脚本示例：
 

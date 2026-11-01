@@ -214,6 +214,14 @@ if [ "$PROFILE" = "release" ]; then
   for binary in shi-ju vw-webview shiju acp; do
     if [ ! -f "$BIN_DIR/$binary" ]; then
       need_cmd cargo
+      need_cmd rustc
+      target_libdir="$(rustc --print target-libdir --target "$TARGET")"
+      if ! compgen -G "$target_libdir/libcore-*.rlib" >/dev/null; then
+        echo "error: Rust standard library is missing for target: $TARGET" >&2
+        echo "Install it for the active toolchain: rustup target add $TARGET" >&2
+        echo "Linux desktop builds also require a Linux linker and GTK/WebKit development libraries; use a Linux build environment." >&2
+        exit 1
+      fi
       cargo build --release --target "$TARGET" \
         -p vw-desktop --bin shi-ju \
         -p vw-webview --bin vw-webview \

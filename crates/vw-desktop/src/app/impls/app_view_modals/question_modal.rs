@@ -103,8 +103,9 @@ pub(crate) fn with_question_modal<'a>(
 ) -> Element<'a, Message> {
     if let Some(req) = app.question_modal_request.clone() {
         use crate::app::components::system_settings_common::{
-            primary_action_btn_style, rounded_action_btn_style, settings_modal_card,
-            settings_modal_overlay, settings_text_input_style,
+            SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
+            rounded_action_btn_style, settings_modal_card, settings_modal_overlay,
+            settings_text_input_style,
         };
         use iced::widget::{Space, button, column, container, row, text, text_input};
         use iced::{Length, Theme};
@@ -115,7 +116,7 @@ pub(crate) fn with_question_modal<'a>(
             .map(|question| question.header.clone())
             .unwrap_or_else(|| "需要确认".to_string());
 
-        let mut content = column![text(header).size(16)].spacing(12);
+        let mut content = column![].spacing(12);
         for (question_index, question) in req.questions.iter().enumerate() {
             let mut question_column = column![text(question.question.clone()).size(14)].spacing(8);
             let selected_answers =
@@ -187,7 +188,8 @@ pub(crate) fn with_question_modal<'a>(
                             value,
                         ))
                     })
-                    .padding([10, 12])
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
                     .style(settings_text_input_style);
                 question_column = question_column.push(input);
             }
@@ -204,7 +206,16 @@ pub(crate) fn with_question_modal<'a>(
             .padding([6, 12])
             .style(primary_action_btn_style);
 
-        content = content.push(row![Space::new().width(Length::Fill), cancel, submit].spacing(8));
+        let content = column![
+            text(header).size(16),
+            iced::widget::scrollable(container(content).padding([0, 7]))
+                .height(Length::Fixed(460.0))
+                .direction(iced::widget::scrollable::Direction::Vertical(
+                    iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+                )),
+            row![Space::new().width(Length::Fill), cancel, submit].spacing(8),
+        ]
+        .spacing(12);
 
         let card = settings_modal_card(content).width(Length::Fixed(420.0));
 

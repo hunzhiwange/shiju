@@ -132,3 +132,8 @@ pub(crate) use compat::hook_stop;
 
 #[cfg(test)]
 pub(crate) use compat::t44_tests;
+
+pub use compat::marketplace::{
+    AuthenticationPolicy, InstallationPolicy, MarketplaceEntry, MarketplacePolicy,
+    MarketplaceSource, PluginMarketplace, load_plugin_marketplace,
+};

@@ -1,0 +1,61 @@
+{
+  "task": 47,
+  "status": "已完成",
+  "dependency": "t46.json / 3a7d7fd3",
+  "platform": "macOS arm64",
+  "implementation": [
+    "plugins::load_plugin_marketplace",
+    "compat/marketplace.rs: ordered layouts, stable identities, local/git/npm source normalization, policies and fallback metadata"
+  ],
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t47/README.md",
+  "reference": "baseline.json codex:codex-rs/core-plugins/src/marketplace.rs sha256 cf54401d3a5a66c68384a23f61756b0238cfaf8f82f757595fa5659229304195",
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t47_ -- --nocapture",
+    "exit_code": 101,
+    "failures": [
+      "Directory-only unsupported-source guard: positive and isolation assertions fail",
+      "Real boundary failure: ../escape accepted as GitHub shorthand; repaired by rejecting dot repository segments"
+    ],
+    "process_deviation": "The first three tests were added alongside implementation; unsupported-source failure was captured afterwards using a temporary guard, not a historical pre-implementation run. A subsequently added fourth boundary test failed against the real implementation before correction."
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t47_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "security": [
+    "Unsupported and malformed entries fail visibly rather than being silently skipped",
+    "Read operation performs no network, authentication, installation or package writes",
+    "Canonical existing ancestors must stay within marketplace root; duplicate full identities rejected",
+    "Npm requires registry version selectors and HTTPS registry without embedded credentials/query/fragment"
+  ],
+  "scope": "Metadata reading only; Git/npm installation and authentication execution belong to subsequent tasks."
+}

@@ -202,3 +202,7 @@ mod t45_tests;
 mod t46_tests;
 
 pub(crate) mod hook_trust_content;
+
+pub(crate) mod marketplace;
+#[cfg(test)]
+mod t47_tests;

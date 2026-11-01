@@ -4482,8 +4482,8 @@ dependencies = [
 
 [[package]]
 name = "iced_term"
-version = "0.8.0"
-source = "git+https://github.com/Harzu/iced_term?branch=master#91a3510661b32e0f9a641263e6c4bcb16f39f6c1"
+version = "0.8.1"
+source = "git+https://github.com/doyouhaobaby/iced_term.git?tag=v0.8.1#4cf92c247879d1cce1b8bdba5dd301d844179ac5"
 dependencies = [
  "alacritty_terminal",
  "anyhow",

@@ -1,6 +1,6 @@
 {
   "task": 25,
-  "status": "已阻塞",
+  "status": "已完成（用户豁免剩余GUI回归）",
   "slot": 1,
   "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
   "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
@@ -43,13 +43,10 @@
     "note": "Reconstructed regression: temporarily suppress MCP requests at desktop entry; target cancel.units()>0 assertion failed. Host panic handling then SIGABRT; no completed failure summary claimed. Earlier numeric constraint mutation recorded separately, not historical TDD."
   },
   "rendering": "t25/rendering.txt",
-  "remaining": [
-    "Mac locked; cua.getApp failed twice with automatic unlock failure. Actual real MCP -> Gateway -> desktop submit roundtrip not completed. Manual t24 test interrupted (exit130), not passed. Must rerun after unlock."
-  ],
   "limitations": [
     "Local validation checks required fields, primitive types, enums, size and numeric bounds. Server remains authoritative for formats and all constraints.",
     "Actual light/dark Chinese long-content renderer and dismissal observed using temporary user-response fixture; does not replace real end-to-end acceptance.",
-    "No complete compatibility claim; task file retained."
+    "No complete compatibility claim; remaining GUI regression explicitly waived by user."
   ],
   "slot_released": true,
   "artifacts": [
@@ -93,5 +90,10 @@
       "sha256": "0123507f2e03a8f6036f05526d1b9723ded5823a11a44171b86b043e4bc9f204",
       "storage": "local_only"
     }
-  ]
+  ],
+  "user_waiver": "用户明确要求：可以不用回归啊，直接完结任务吧。",
+  "unverified": [
+    "Mac locked; cua.getApp failed twice with automatic unlock failure. Actual real MCP -> Gateway -> desktop submit roundtrip not completed. Manual t24 test interrupted (exit130), not passed. Remaining GUI regression waived by explicit user instruction."
+  ],
+  "remaining": []
 }

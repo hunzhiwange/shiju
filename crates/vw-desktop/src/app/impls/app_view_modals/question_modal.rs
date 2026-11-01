@@ -178,7 +178,27 @@ pub(crate) fn with_question_modal<'a>(
                 );
             }
 
-            if question.custom.unwrap_or(false) {
+            if let Some(form) = &req.mcp_form
+                && let Some((name, field)) = form.schema["properties"]
+                    .as_object()
+                    .and_then(|fields| fields.iter().nth(question_index))
+            {
+                let required = form.schema["required"]
+                    .as_array()
+                    .is_some_and(|xs| xs.iter().any(|v| v == name));
+                question_column = question_column.push(
+                    text(format!(
+                        "{}{} · {}",
+                        field["title"].as_str().unwrap_or(name),
+                        if required { "（必填）" } else { "（可选）" },
+                        field["type"].as_str().unwrap_or("")
+                    ))
+                    .size(12),
+                );
+            }
+            if question.custom.unwrap_or(false)
+                && !(req.mcp_form.is_some() && !question.options.is_empty())
+            {
                 let value =
                     app.question_modal_custom.get(question_index).cloned().unwrap_or_default();
                 let input = text_input("输入你的答案", &value)

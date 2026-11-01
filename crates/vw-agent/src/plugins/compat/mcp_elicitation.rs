@@ -179,7 +179,7 @@ pub(crate) async fn request(
     }
     questions.push(question::Info {
         question: "Submit this information to the MCP server?".into(),
-        header: server,
+        header: server.clone(),
         options: ["accept", "decline"]
             .into_iter()
             .map(|label| question::OptionInfo {
@@ -193,11 +193,10 @@ pub(crate) async fn request(
     });
     let future = ui_store::with_tenant_scope(
         owner.tenant,
-        question::ask_sensitive(question::AskInput {
-            session_id: owner.session,
-            questions,
-            tool: None,
-        }),
+        question::ask_sensitive(
+            question::AskInput { session_id: owner.session, questions, tool: None },
+            vw_shared::question::McpForm { server, schema: schema.clone() },
+        ),
     );
     let answers = tokio::select! {
         biased;

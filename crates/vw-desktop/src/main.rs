@@ -249,3 +249,7 @@ pub fn main() -> iced::Result {
 #[cfg(test)]
 #[path = "main_tests.rs"]
 mod main_tests;
+
+#[cfg(test)]
+#[path = "app/plugin_compat_t25_tests.rs"]
+mod plugin_compat_t25_tests;

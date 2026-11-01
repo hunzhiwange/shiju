@@ -1,0 +1,1 @@
+{"license":"MIT","source":"../t24/server.py (repository synthetic local MCP peer)","protocol":"2025-06-18","reference":"docs/plugin-compat/baseline.json#mcp.elicitation","fields":{"age":"integer 18..99, required","choice":"string enum a/b, required"},"actions":["accept","decline","cancel"],"data":"synthetic only"}

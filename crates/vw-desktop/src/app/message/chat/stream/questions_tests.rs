@@ -40,6 +40,7 @@ fn question(
 
 fn request(id: &str, questions: Vec<vw_shared::question::Info>) -> vw_shared::question::Request {
     vw_shared::question::Request {
+        mcp_form: None,
         id: id.to_string(),
         session_id: "session".to_string(),
         questions,

@@ -1,0 +1,4 @@
+macOS native Iced renderer, slot1 desktop binary, 2026-10-31.
+Temporary local-only startup harness: NativeStartupState::Ready, user-response fixture supplied to QuestionListLoaded, background polling disabled to keep synthetic request visible. All temporary startup/polling changes restored afterward.
+Observed via cua_repl: light modal displayed Chinese title 表单验收 and 60 repetitions of 中文长内容与服务器表单说明。; scrollbar moved to input and accept/decline controls; footer remained fixed; click at (1925,1500) dismissed modal. Dark theme showed the same readable Chinese long content and footer; cancel clicked, process quit normally. No glyph shaping panic observed. Screenshots are present in the chat tool output; this log records observations, not an exported screenshot.
+This harness proves actual rendering and dismissal only. It does not prove server roundtrip; that evidence is recorded separately.

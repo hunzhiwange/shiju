@@ -46,6 +46,10 @@ async fn roundtrip(session: &str, answer: Option<Vec<Vec<String>>>) -> Value {
         pool.shutdown();
         return serde_json::from_str(result["content"][0]["text"].as_str().unwrap()).unwrap();
     };
+    let form =
+        request.mcp_form.as_ref().expect("MCP metadata reaches the trusted question request");
+    assert_eq!(form.server, "form-fixture");
+    assert_eq!(form.schema["properties"]["age"]["minimum"], 18);
     assert_eq!(request.questions.len(), 3);
     assert_eq!(request.questions[1].options.len(), 2);
     match answer {

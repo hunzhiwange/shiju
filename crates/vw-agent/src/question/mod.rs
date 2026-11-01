@@ -104,14 +104,21 @@ impl Drop for PendingGuard {
 /// 返回回答列表；如果 ID 生成失败会返回 `Error::Id`，如果请求被拒绝或等待
 /// 通道被关闭会返回 `Error::Rejected`。
 pub async fn ask(input: AskInput) -> Result<Vec<Answer>, Error> {
-    ask_inner(input, false).await
+    ask_inner(input, false, None).await
 }
 
-pub(crate) async fn ask_sensitive(input: AskInput) -> Result<Vec<Answer>, Error> {
-    ask_inner(input, true).await
+pub(crate) async fn ask_sensitive(
+    input: AskInput,
+    form: vw_shared::question::McpForm,
+) -> Result<Vec<Answer>, Error> {
+    ask_inner(input, true, Some(form)).await
 }
 
-async fn ask_inner(input: AskInput, sensitive: bool) -> Result<Vec<Answer>, Error> {
+async fn ask_inner(
+    input: AskInput,
+    sensitive: bool,
+    mcp_form: Option<vw_shared::question::McpForm>,
+) -> Result<Vec<Answer>, Error> {
     let id = id::ascending(id::Prefix::Question, None)?;
     LOGGER.info(
         "asking",
@@ -123,6 +130,7 @@ async fn ask_inner(input: AskInput, sensitive: bool) -> Result<Vec<Answer>, Erro
 
     let (tx, rx) = oneshot::channel::<Result<Vec<Answer>, RejectedError>>();
     let req = Request {
+        mcp_form,
         id: id.clone(),
         session_id: input.session_id,
         questions: input.questions,

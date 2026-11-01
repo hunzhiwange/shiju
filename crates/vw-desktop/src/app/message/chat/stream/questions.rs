@@ -145,6 +145,9 @@ pub(super) fn handle_question_submit(app: &mut App) -> Task<Message> {
         answers.push(a);
     }
 
+    if req.mcp_form.as_ref().is_some_and(|form| !crate::app::mcp_form::valid(form, &answers)) {
+        return app.show_error_toast("请检查 MCP 表单的必填字段、类型与取值范围");
+    }
     clear_question_modal(app);
     Task::perform(
         async move { session_gateway::gateway_question_reply_async(&request_id, answers).await },

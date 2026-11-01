@@ -5,6 +5,7 @@ use super::tools::question_request_targets_message;
 
 fn request_with_message_id(message_id: &str) -> vw_shared::question::Request {
     vw_shared::question::Request {
+        mcp_form: None,
         id: "q-1".to_string(),
         session_id: "session-1".to_string(),
         questions: vec![],
@@ -26,6 +27,7 @@ fn question_request_targets_matching_message_id() {
 #[test]
 fn question_request_without_tool_meta_matches_current_message() {
     let request = vw_shared::question::Request {
+        mcp_form: None,
         id: "q-1".to_string(),
         session_id: "session-1".to_string(),
         questions: vec![],

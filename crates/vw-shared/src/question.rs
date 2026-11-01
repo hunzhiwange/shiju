@@ -31,9 +31,18 @@ pub struct ToolMeta {
     pub call_id: String,
 }
 
+/// 可信 MCP 请求的服务器来源及原始受支持 schema；不包含用户回答。
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct McpForm {
+    pub server: String,
+    pub schema: serde_json::Value,
+}
+
 /// 发给前端的问题请求载荷。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Request {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mcp_form: Option<McpForm>,
     pub id: String,
     #[serde(rename = "sessionID")]
     pub session_id: String,

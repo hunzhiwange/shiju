@@ -5,6 +5,7 @@
 #[test]
 fn request_serialization_uses_frontend_field_names() {
     let request = super::Request {
+        mcp_form: None,
         id: "req-1".to_string(),
         session_id: "session-1".to_string(),
         questions: vec![super::Info {

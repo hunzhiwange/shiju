@@ -1,0 +1,97 @@
+{
+  "task": 25,
+  "status": "已阻塞",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t25_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 3,
+      "record": "t25/green.log"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "record": "t25/agent.log"
+    },
+    {
+      "command": "cargo test -p vw-desktop --lib --all-features question_modal_tests -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 11,
+      "record": "t25/modal.log"
+    },
+    {
+      "command": "cargo test -p vw-desktop --lib --all-features questions_tests -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 16,
+      "record": "t25/questions.log"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "record": "t25/clippy.log"
+    }
+  ],
+  "red": {
+    "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t25_ -- --nocapture",
+    "exit_code": 101,
+    "record": "t25/red-entry.log",
+    "note": "Reconstructed regression: temporarily suppress MCP requests at desktop entry; target cancel.units()>0 assertion failed. Host panic handling then SIGABRT; no completed failure summary claimed. Earlier numeric constraint mutation recorded separately, not historical TDD."
+  },
+  "rendering": "t25/rendering.txt",
+  "remaining": [
+    "Mac locked; cua.getApp failed twice with automatic unlock failure. Actual real MCP -> Gateway -> desktop submit roundtrip not completed. Manual t24 test interrupted (exit130), not passed. Must rerun after unlock."
+  ],
+  "limitations": [
+    "Local validation checks required fields, primitive types, enums, size and numeric bounds. Server remains authoritative for formats and all constraints.",
+    "Actual light/dark Chinese long-content renderer and dismissal observed using temporary user-response fixture; does not replace real end-to-end acceptance.",
+    "No complete compatibility claim; task file retained."
+  ],
+  "slot_released": true,
+  "artifacts": [
+    {
+      "path": "t25/red-entry.log",
+      "sha256": "ea3a31f69bdcb1632b70b4ffa7ed972fc6df7f6ae8bf744e83f371e4890fc01f",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/modal.log",
+      "sha256": "4af18502aaa217c1210faa4bd42eb51cc198a3cb324d7ce5e8594e5a36433ae6",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/red.log",
+      "sha256": "e08f58409794b0c3329b77817a24b9dcb7d53e976c8be61ebbd8b155c8f3f482",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/green.log",
+      "sha256": "a536e7c3401b26fcd81d2b69048d0758a7cd502068fbeab312a66e3779a1c40d",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/clippy.log",
+      "sha256": "5e91bc5316aad83c6d04f7ed416e636fc302f5e78b3db5224d70d8b084bd7746",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/questions.log",
+      "sha256": "ec0dea6855b1f69d997cb5227bddc3bc2907259c731d5123640fdb42e446dd1c",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/desktop.log",
+      "sha256": "19a60e48df7a834982afceb6b31b352a3d50846409e767a1067ea8df8b8da522",
+      "storage": "local_only"
+    },
+    {
+      "path": "t25/agent.log",
+      "sha256": "0123507f2e03a8f6036f05526d1b9723ded5823a11a44171b86b043e4bc9f204",
+      "storage": "local_only"
+    }
+  ]
+}

@@ -162,7 +162,7 @@ fn request_bypasses_auto_selector(_model: Option<&str>, options: &Value) -> bool
     request_options_enable_acp(options)
 }
 
-async fn resolve_auto_model(
+pub(crate) async fn resolve_auto_model(
     message: &str,
     options: &Value,
     needs_tools: bool,

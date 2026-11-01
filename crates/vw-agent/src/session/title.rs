@@ -6,7 +6,7 @@
 //! # 主要功能
 //!
 //! - 基于会话首条消息内容生成标题
-//! - 支持优先使用指定模型，回退到系统小型模型
+//! - 支持指定模型或复用 auto 模型选择策略
 //! - 自动截断过长的标题，保证标题简洁性
 //!
 //! # 使用示例
@@ -145,7 +145,7 @@ fn finalize_generated_title(output: &str) -> Result<String, String> {
 /// 根据会话内容生成标题
 ///
 /// 该函数接收会话 ID 和内容，通过调用 LLM 生成简洁的会话标题。
-/// 支持指定优先使用的模型，若不可用则自动回退到系统配置的默认模型。
+/// 支持指定模型；未指定模型或选择 auto 时复用运行时的自动选择策略。
 ///
 /// # 参数
 ///
@@ -186,8 +186,8 @@ fn finalize_generated_title(output: &str) -> Result<String, String> {
 ///
 /// 1. **内容预处理**：截断过长内容（超过 200 字符），避免 LLM token 浪费
 /// 2. **模型解析与回退**：
-///    - 尝试解析并获取指定的优先模型
-///    - 若无指定或不可用，依次尝试 Anthropic 和 OpenAI 的小型模型
+///    - 显式模型必须可用，短名称必须唯一
+///    - 未指定或选择 auto 时，从 active 模型中自动选择
 /// 3. **LLM 调用**：构造提示词并流式调用 LLM
 /// 4. **后处理**：截断过长标题（超过 50 字符），添加省略号
 pub async fn generate_from_content(
@@ -204,40 +204,38 @@ pub async fn generate_from_content(
         return Err("Empty title source".to_string());
     }
 
-    // 解析优先模型：支持 "provider/model" 和 "model" 两种格式
-    let preferred_resolved = if let Some(s) = preferred_model.as_ref() {
-        if s.contains('/') {
-            // 完整格式：直接解析 provider/model
-            let parsed = provider::parse_model(s);
-            match provider::get_model(&parsed.provider_id, &parsed.model_id).await {
-                Ok(model) => Some(model),
-                Err(provider::CatalogError::ModelNotFound(_)) => None,
-                Err(error) => return Err(error.to_string()),
+    let requested_model = preferred_model
+        .as_deref()
+        .map(str::trim)
+        .filter(|model| !model.is_empty() && !model.eq_ignore_ascii_case("auto"));
+    let model = match requested_model {
+        None => {
+            crate::session::llm::resolve_auto_model(
+                &build_title_prompt(&truncated),
+                &Value::Null,
+                false,
+            )
+            .await?
+        }
+        Some(requested) => {
+            let parsed = provider::parse_model(requested);
+            if requested.contains('/') {
+                provider::get_model(&parsed.provider_id, &parsed.model_id)
+                    .await
+                    .map_err(|error| error.to_string())?
+            } else {
+                let providers = provider::list().await.map_err(|error| error.to_string())?;
+                let mut matches = providers.values().filter_map(|info| info.models.get(requested));
+                let model = matches
+                    .next()
+                    .cloned()
+                    .ok_or_else(|| format!("Title model not found: {requested}"))?;
+                if matches.next().is_some() {
+                    return Err(format!("Ambiguous title model: {requested}; use provider/model"));
+                }
+                model
             }
-        } else {
-            // 简短格式：遍历所有 provider 查找匹配的模型
-            let providers = provider::list().await.map_err(|error| error.to_string())?;
-            providers.values().find_map(|info| info.models.get(s).cloned())
         }
-    } else {
-        None
-    };
-
-    // 确定最终使用的模型（按优先级回退）
-    let model = if preferred_resolved.is_some() {
-        // 优先级 1：用户指定的模型
-        preferred_resolved
-    } else {
-        // 优先级 2：系统小型模型（先尝试 Anthropic，再尝试 OpenAI）
-        match provider::get_small_model("anthropic").await.map_err(|error| error.to_string())? {
-            Some(m) => Some(m),
-            None => provider::get_small_model("openai").await.map_err(|error| error.to_string())?,
-        }
-    };
-
-    // 确保有可用模型
-    let Some(model) = model else {
-        return Err("No model available for title generation".to_string());
     };
 
     let output = stream_title(

@@ -260,6 +260,17 @@ impl App {
         Subscription::batch(vec![
             agent,
             #[cfg(not(target_arch = "wasm32"))]
+            if self
+                .session_runtime_states
+                .values()
+                .any(|runtime| !runtime.mcp_app_panels.is_empty())
+            {
+                iced::time::every(std::time::Duration::from_millis(250))
+                    .map(|_| Message::Chat(message::ChatMessage::McpAppPanelTick))
+            } else {
+                Subscription::none()
+            },
+            #[cfg(not(target_arch = "wasm32"))]
             iced::time::every(crate::app::desktop_update::UPDATE_CHECK_INTERVAL)
                 .map(|_| Message::View(message::ViewMessage::AutoCheckAppUpdate)),
             #[cfg(target_arch = "wasm32")]

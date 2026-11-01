@@ -1795,3 +1795,15 @@ fn shell_session_failed_command_retains_stderr_and_exit_code() {
     assert!(events.iter().any(|event| matches!(event, StreamEvent::Tool(tool) if tool.kind == ToolEventKind::Complete && tool.status == ToolCallStatus::Failed && tool.payload["metadata"]["exit_code"] == 7)));
     eprintln!("real command reaped: state=exited exit_code=7 stderr retained in model/history/UI");
 }
+
+#[test]
+fn codex_plugin_compat_t31_stream_preserves_app_without_content_blocks() {
+    let result = crate::tools::ToolCallResult {
+        data: serde_json::json!({"mcp_app":{"server":"panel","execution_binding":"host-binding"}}),
+        ..Default::default()
+    };
+    let payload = super::completed_tool_payload_for_ui("panel_show", "{}", &result, "ready");
+    assert_eq!(payload["data"]["mcp_app"], result.data["mcp_app"]);
+    assert_eq!(payload["output"], "ready");
+    assert!(payload.get("result").is_none());
+}

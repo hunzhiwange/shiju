@@ -432,6 +432,8 @@ fn trailing_chars(value: &str, max_chars: usize) -> &str {
 /// 模型配置、任务模式等会话特定的信息。
 #[derive(Debug, Clone)]
 pub(crate) struct SessionRuntimeState {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) mcp_app_panels: Vec<crate::app::components::mcp_app_panel::McpAppPanel>,
     /// 是否正在处理请求
     pub(crate) is_requesting: bool,
     /// 本轮请求开始的毫秒时间戳，用于状态栏展示运行时长；0 表示未在请求中
@@ -651,6 +653,8 @@ impl SessionRuntimeState {
             task_mode_subtasks.iter().map(|value| text_editor::Content::with_text(value)).collect();
         let task_mode_model = model.clone();
         Self {
+            #[cfg(not(target_arch = "wasm32"))]
+            mcp_app_panels: Vec::new(),
             is_requesting: false,
             request_started_ms: 0,
             processing_timer: vw_shared::time::ActiveTimer::default(),

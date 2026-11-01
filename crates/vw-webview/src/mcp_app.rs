@@ -20,10 +20,57 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         .ok_or("missing host nonce")?
         .to_owned();
     let html = input["html"].as_str().ok_or("missing app HTML")?;
+    let mut resource_domains = String::new();
+    let mut connect_domains = String::new();
+    let mut base_domains = String::new();
+    if let Some(policy) = input.get("csp") {
+        let object = policy.as_object().ok_or("invalid CSP")?;
+        for (key, values) in object {
+            if !matches!(
+                key.as_str(),
+                "resourceDomains" | "connectDomains" | "baseUriDomains" | "redirectDomains"
+            ) {
+                return Err("unsupported CSP directive".into());
+            }
+            let values =
+                values.as_array().filter(|v| v.len() <= 32).ok_or("invalid CSP domains")?;
+            for value in values {
+                let origin = value.as_str().ok_or("invalid origin")?;
+                let authority = origin.strip_prefix("https://").ok_or("HTTPS origin required")?;
+                if authority.is_empty()
+                    || authority.len() > 253
+                    || !authority.contains('.')
+                    || !authority
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':'))
+                    || authority.starts_with('.')
+                    || authority.ends_with('.')
+                    || authority.split(':').count() > 2
+                {
+                    return Err("exact origin required".into());
+                }
+                if let Some((_, port)) = authority.split_once(':')
+                    && port.parse::<u16>().ok().is_none_or(|p| p == 0)
+                {
+                    return Err("invalid origin port".into());
+                }
+                let target = match key.as_str() {
+                    "resourceDomains" => &mut resource_domains,
+                    "connectDomains" => &mut connect_domains,
+                    "baseUriDomains" => &mut base_domains,
+                    _ => continue,
+                };
+                target.push(' ');
+                target.push_str(origin);
+            }
+        }
+    }
+    let connect_policy = if connect_domains.is_empty() { "'none'" } else { connect_domains.trim() };
+    let base_policy = if base_domains.is_empty() { "'none'" } else { base_domains.trim() };
     // An opaque-origin iframe has no filesystem, native IPC, cookies, or host DOM access.
     // Deny network by default; unsupported declarations must be rejected by the host.
     let document = format!(
-        r#"<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; frame-src 'self' about:; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'"><style>html,body,iframe{{margin:0;width:100%;height:100%;border:0}}::-webkit-scrollbar{{width:4px}}</style><iframe sandbox="allow-scripts" srcdoc="{}"></iframe><script>const f=document.querySelector('iframe');window.addEventListener('message',e=>{{if(e.source===f.contentWindow&&e.origin==='null')window.ipc.postMessage(JSON.stringify({{nonce:"{nonce}",message:e.data}}));}});window.__mcpDeliver=(v)=>f.contentWindow.postMessage(v,'*');</script>"#,
+        r#"<!doctype html><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'{resource_domains}; style-src 'unsafe-inline'{resource_domains}; font-src data:{resource_domains}; frame-src 'self' about:; img-src data:{resource_domains}; connect-src {connect_policy}; base-uri {base_policy}; form-action 'none'"><style>html,body,iframe{{margin:0;width:100%;height:100%;border:0}}::-webkit-scrollbar{{width:4px}}</style><iframe sandbox="allow-scripts" srcdoc="{}"></iframe><script>const f=document.querySelector('iframe');window.addEventListener('message',e=>{{if(e.source===f.contentWindow&&e.origin==='null')window.ipc.postMessage(JSON.stringify({{nonce:"{nonce}",message:e.data}}));}});window.__mcpDeliver=(v)=>f.contentWindow.postMessage(v,'*');</script>"#,
         html.replace('&', "&amp;").replace('"', "&quot;").replace('<', "&lt;").replace('>', "&gt;")
     );
     let event_loop = EventLoopBuilder::<Option<Value>>::with_user_event().build();

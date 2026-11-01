@@ -455,6 +455,7 @@ pub enum ChatMessage {
 
     /// Agent 工具调用的类型化生命周期事件。
     AgentToolLifecycle(u64, vw_gateway_client::GatewayChatToolEvent),
+    McpAppPanelTick,
 
     /// 自动压缩生命周期状态；`completed` 为真时表示安全替换已经完成。
     AgentCompactionStatus(u64, bool),
@@ -1139,6 +1140,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         message,
         ChatMessage::AgentStreamDelta(_, _)
             | ChatMessage::AgentToolLifecycle(_, _)
+            | ChatMessage::McpAppPanelTick
             | ChatMessage::AgentCompactionStatus(_, _)
             | ChatMessage::AgentModelRecovery(_, _)
             | ChatMessage::VisibleTaskSessionLoaded(_)
@@ -1278,6 +1280,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         // 流式响应相关消息：Agent 增量更新、步骤状态、会话标题、问题应答等
         ChatMessage::AgentStreamDelta(_, _)
         | ChatMessage::AgentToolLifecycle(_, _)
+        | ChatMessage::McpAppPanelTick
         | ChatMessage::AgentCompactionStatus(_, _)
         | ChatMessage::AgentModelRecovery(_, _)
         | ChatMessage::VisibleTaskSessionLoaded(_)

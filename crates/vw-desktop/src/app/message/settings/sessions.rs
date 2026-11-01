@@ -14,6 +14,12 @@ use super::messages::SettingsMessage;
 pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         SettingsMessage::SessionDelete(id) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(runtime) = app.session_runtime_states.get(&id) {
+                for panel in &runtime.mcp_app_panels {
+                    panel.cancel();
+                }
+            }
             app.session_runtime_states.remove(&id);
 
             if let Some(pos) = app.sessions.iter().position(|s| s.id == id) {

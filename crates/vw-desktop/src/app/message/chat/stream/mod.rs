@@ -367,7 +367,66 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamDelta(id, delta) => {
             stream_events::queue_agent_stream_delta(app, id, delta)
         }
+        ChatMessage::McpAppPanelTick => {
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let mut failed = false;
+                for runtime in app.session_runtime_states.values_mut() {
+                    runtime.mcp_app_panels.retain(|panel| {
+                        failed |= panel.failed();
+                        !panel.finished()
+                    });
+                }
+                if failed {
+                    return app.show_error_toast("MCP 应用加载或通信失败，请重试".to_string());
+                }
+            }
+            Task::none()
+        }
         ChatMessage::AgentToolLifecycle(id, event) => {
+            let mut app_task = Task::none();
+            #[cfg(not(target_arch = "wasm32"))]
+            if event.kind == vw_gateway_client::GatewayChatToolEventKind::Complete
+                && event.status == vw_gateway_client::GatewayChatToolStatus::Completed
+                && let Some(session) = app.find_session_by_request_id(id)
+                && let Some(data) = event
+                    .payload
+                    .get("result")
+                    .and_then(|v| v.get("data"))
+                    .or_else(|| event.payload.get("data"))
+                && let Some(resource) = data.get("mcp_app")
+            {
+                let launch = crate::app::gateway_client().and_then(|client| {
+                    let helper = crate::app::webview_runtime::webview_helper_candidates()
+                        .into_iter()
+                        .find(|path| path.is_file())
+                        .ok_or_else(|| "MCP app helper unavailable".to_string())?;
+                    crate::app::components::mcp_app_panel::McpAppPanel::launch(
+                        &helper,
+                        session.clone(),
+                        resource,
+                        event
+                            .payload
+                            .get("input")
+                            .and_then(|value| {
+                                value
+                                    .as_str()
+                                    .and_then(|text| serde_json::from_str(text).ok())
+                                    .or_else(|| value.is_object().then(|| value.clone()))
+                            })
+                            .unwrap_or_else(|| serde_json::json!({})),
+                        serde_json::json!({"content":data["content"],"structuredContent":data["structured_content"],"isError":data["is_error"]}),
+                        client,
+                    )
+                    .map_err(|error| error.to_string())
+                });
+                match launch {
+                    Ok(panel) => app.get_session_runtime_mut(&session).mcp_app_panels.push(panel),
+                    Err(error) => {
+                        app_task = app.show_error_toast(format!("MCP 应用加载失败: {error}"));
+                    }
+                }
+            }
             let timing_task = steps::handle_agent_tool_lifecycle(app, id, &event);
             let delta_task = stream_events::queue_agent_stream_delta(app, id, event.legacy_delta());
             let refresh_task = session_tool_created_session(&event)
@@ -386,7 +445,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     )
                 })
                 .unwrap_or_else(Task::none);
-            Task::batch([timing_task, delta_task, refresh_task])
+            Task::batch([timing_task, delta_task, refresh_task, app_task])
         }
         ChatMessage::AgentModelRecovery(id, event) => {
             stream_events::handle_agent_model_recovery(app, id, event)

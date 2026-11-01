@@ -1,0 +1,6 @@
+<!doctype html><meta charset="utf-8"><style>
+:root{color-scheme:light dark}body{font:16px system-ui;margin:20px;background:#f5f6fa;color:#182030}body.dark{background:#191d28;color:#edf1fc}button{border:1px solid #8794ad;border-radius:8px;padding:9px 16px;margin:4px;background:inherit;color:inherit}#content{height:260px;overflow:auto;padding-right:11px}::-webkit-scrollbar{width:4px}p{line-height:1.6}
+</style><h1>本地 MCP 应用 · 中文验收</h1><div id="state">正在初始化</div><button id="theme">切换明暗</button><button id="interact">交互计数</button><button id="cancel">取消</button><div id="content"></div><script>
+let count=0;theme.onclick=()=>document.body.classList.toggle('dark');interact.onclick=()=>state.textContent='交互成功 '+(++count);cancel.onclick=()=>{state.textContent='已取消';interact.disabled=true};content.innerHTML=Array.from({length:60},(_,i)=>'<p>长内容第 '+(i+1)+' 行：中文字体正常，滚动区域保持间距。</p>').join('');
+parent.postMessage({jsonrpc:'2.0',id:1,method:'ui/initialize',params:{}},'*');addEventListener('message',e=>{if(e.source!==parent)return;if(e.data.id===1){parent.postMessage({jsonrpc:'2.0',method:'ui/notifications/initialized'},'*');state.textContent='初始化成功'}if(e.data.method==='ui/notifications/tool-result')state.textContent='工具结果已加载';if(e.data.method==='ui/resource-teardown')parent.postMessage({jsonrpc:'2.0',id:e.data.id,result:{}},'*')});
+</script>

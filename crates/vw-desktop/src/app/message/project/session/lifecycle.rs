@@ -857,6 +857,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             ))
         }
         ProjectMessage::SessionArchivePressed(id) => {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(runtime) = app.session_runtime_states.get_mut(&id) {
+                for panel in runtime.mcp_app_panels.drain(..) {
+                    panel.cancel();
+                }
+            }
             app.session_menu_id = None;
             app.session_menu_anchor = None;
             app.show_session_actions_popover = false;
@@ -955,6 +961,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             app.session_menu_id = None;
             app.session_menu_anchor = None;
             app.show_session_actions_popover = false;
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(runtime) = app.session_runtime_states.get(&id) {
+                for panel in &runtime.mcp_app_panels {
+                    panel.cancel();
+                }
+            }
             app.session_runtime_states.remove(&id);
             app.session_view_cache.remove(&id);
             app.session_chat_cache.remove(&id);

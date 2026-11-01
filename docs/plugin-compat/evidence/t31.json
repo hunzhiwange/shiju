@@ -1,0 +1,107 @@
+{
+  "task": 31,
+  "status": "已完成",
+  "full_compatibility_claimed": false,
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t31_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "log": "/tmp/shiju-t31-final-green.log",
+      "sha256": "33668765dc4c71dd6b510d94e621c5b80f69529688506e3b4d18ac0064f46cce"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t31_stream_preserves_app_without_content_blocks -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t31-agent-green.log",
+      "sha256": "dadb4aa44154d618e25e48db39838592c7ab4831a9507c6513b1c7a2d2afb437"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 2,
+      "log": "/tmp/shiju-t31-approval.log",
+      "sha256": "6f56d7da8a17e4cd4f6df684030c717ac30dea9b7a0d94810e665dcc16174753"
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t30_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "log": "/tmp/shiju-t31-adjacent.log",
+      "sha256": "805e20f091fcb460b13ae858076528fde0bd83d96a7e4baa5e9be134254bfd08"
+    },
+    {
+      "command": "VW_T31_HELPER=/private/tmp/ShiJuBridgeQA.app/Contents/MacOS/ShiJuBridgeQA cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t31_real_local_mcp_page -- --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t31-ui.log",
+      "sha256": "29011058a01435d89bacb6b593b1eb0a8eeff0edaa7deab0da3ec8298eeb5d86"
+    },
+    {
+      "command": "VW_T31_HELPER=/private/tmp/ShiJuBridgeQA.app/Contents/MacOS/ShiJuBridgeQA VW_T31_PUBLIC_RESOURCE=/tmp/shiju-t31-public-resource.json VW_T31_PUBLIC_RESULT=/tmp/shiju-t31-public-result.json cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t31_real_local_mcp_page -- --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "log": "/tmp/shiju-t31-public-ui.log",
+      "sha256": "d42297f4976f853fb52ef9fa55aa556918d64be1970d88c49a510d2843c1b71d"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/shiju-t31-final-clippy.log",
+      "sha256": "011340767a9e8596358f602f50c9945010e41be9910518df33238496d84d01b4"
+    },
+    {
+      "command": "cargo build -p vw-desktop --bin shi-ju --all-features",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/shiju-t31-desktop-build.log",
+      "sha256": "60913b13c0930bfb815b4c25b7d93bf952e62701528ae0532f87ce7994ec4854"
+    }
+  ],
+  "lifecycle_sensitivity": {
+    "log": "/tmp/shiju-t31-lifecycle-red.log",
+    "method": "Temporary mutation disabling cancellation in lease Drop; restored before green run. This is sensitivity evidence, not an original preimplementation red run.",
+    "result": "Actual helper remained alive; target assertion failed, followed by native panic runtime SIGABRT. Owned orphan helper was explicitly terminated."
+  },
+  "rendering": {
+    "accepted": true,
+    "platform": "macOS arm64",
+    "path": "Production McpAppPanel -> McpAppProcess -> slot-built vw-webview in test-only app bundle; real Python stdio MCP local resource; unmodified public Chess HTTP resource and actual tools/call result. Full slot-built desktop also launched via CUA and exited.",
+    "observed": [
+      "工具结果已加载",
+      "交互成功 1",
+      "已取消; interaction button disabled",
+      "light and dark screenshots inspected",
+      "long content scrolled to line 26",
+      "native window resized from 800x664 screenshot to 654x566; content reflowed",
+      "Chess PUZZLE / Take Your Sweet Time / Black to move / full board AX",
+      "Show solution -> Showing the solution. / Reset; board disabled"
+    ],
+    "glyph_shaping_panic_observed": false,
+    "helper_sha256": "9ef7f084ef37f4c4acae70d13d6ea91e3f6752424fc15bc7d6b77ac1ed0c337b",
+    "source_sha256": "1358fab2e1a916ddcafafc7eb297d77d30c3e04cfa1528edc7608385a484367b",
+    "public_source": "https://mcp.chess.niklas.sh/mcp",
+    "approval": "t30 production Gateway approval and revocation tests rerun; page never supplies execution identity or approval callback."
+  },
+  "slot_released": true,
+  "scope_authorization": "User explicitly authorized exact resource CSP support in task31; no wildcard or native privilege grants.",
+  "security": [
+    "Opaque-origin sandbox allow-scripts; no browser profile, cookies, clipboard, devtools or filesystem protocol",
+    "Exact HTTPS origins only, capped domain lists; unknown directives, wildcard, path, unsafe scheme and injection rejected",
+    "Resource and connect grants separated; base URI is constrained; redirect/new window/navigation remain denied",
+    "Session archive/delete explicitly cancel all panels; disposal drops lease, closes bridge, bounded teardown then kills and reaps child",
+    "Missing helper errors use existing toast; handshake timeout/early child exit/IPC failure surface through panel status tick",
+    "Original public HTML unchanged; only host wrapper enforces CSP"
+  ],
+  "validation_notes": [
+    "Lifecycle sensitivity log is a mutation check, not original preimplementation red; no completed failed-test summary claimed after native panic abort.",
+    "General hosted connectors and unknown MCP App methods remain unsupported, not silently granted.",
+    "UI interaction evidence is CUA AX and screenshots in this chat; screenshots are not committed.",
+    "cargo fmt --all and git diff --check exit 0."
+  ]
+}

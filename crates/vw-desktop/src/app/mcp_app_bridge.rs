@@ -104,12 +104,29 @@ pub struct McpAppProcess {
 }
 
 impl McpAppProcess {
+    pub fn is_ready(&self) -> bool {
+        self.bridge.ready && !self.bridge.closed
+    }
+    pub fn is_running(&mut self) -> bool {
+        self.child.try_wait().is_ok_and(|status| status.is_none())
+    }
+
     pub fn launch(
         helper: &std::path::Path,
         session: String,
         server: String,
         html: &str,
         tools: BTreeSet<String>,
+    ) -> Result<Self> {
+        Self::launch_with_policy(helper, session, server, html, tools, json!({}))
+    }
+    pub fn launch_with_policy(
+        helper: &std::path::Path,
+        session: String,
+        server: String,
+        html: &str,
+        tools: BTreeSet<String>,
+        csp: Value,
     ) -> Result<Self> {
         use std::io::{BufRead, Write};
         if html.len() > 4 * 1024 * 1024 {
@@ -126,7 +143,7 @@ impl McpAppProcess {
         if let Err(error) = writeln!(
             input,
             "{}",
-            json!({"html":html,"nonce":format!("{:032x}",rand::random::<u128>())})
+            json!({"html":html,"csp":csp,"nonce":format!("{:032x}",rand::random::<u128>())})
         )
         .and_then(|_| input.flush())
         {

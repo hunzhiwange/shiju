@@ -363,6 +363,9 @@ fn completed_tool_payload_for_ui(
     payload.insert("metadata".to_string(), result.render_metadata());
     payload.insert("output".to_string(), string_value(output));
 
+    if let Some(app) = result.data.get("mcp_app") {
+        payload.insert("data".to_string(), serde_json::json!({"mcp_app": app}));
+    }
     if result.content_blocks.is_empty() {
         return serde_json::Value::Object(payload);
     }

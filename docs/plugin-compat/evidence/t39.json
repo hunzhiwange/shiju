@@ -1,0 +1,68 @@
+{
+  "task": 39,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "slot_released": true,
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "log": "/tmp/t39-fmt.log",
+      "exit_code": 0,
+      "effective_tests": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t39_ -- --nocapture",
+      "log": "/tmp/t39-red.log",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "sha256": "28e35219db64d781a30920d8fd7d82b5c2d805a7440735de3812e895def40ded"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t39_ -- --nocapture",
+      "log": "/tmp/t39-green.log",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "sha256": "b9e01257747866310182849d983bc47258ce29e51ad2d73f09b7e0e04c295025"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t35_ -- --nocapture",
+      "log": "/tmp/t39-adjacent.log",
+      "exit_code": 0,
+      "effective_tests": 9,
+      "sha256": "2fcdf9dc7a59a0382f060a36cb5fa45d19d4e6724ef480a4542e07cd5bca78f0"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "log": "/tmp/t39-clippy.log",
+      "exit_code": 0,
+      "effective_tests": null,
+      "sha256": "9489da7f164b98f735199ae67938fe92a37e54b29eb53bc452f4b9d8bc6356d7"
+    }
+  ],
+  "red_evidence": "Controlled removal of startup dispatch while preserving callable API: event counts 1 != 2 and 2 != 4; exit 101/SIGABRT after target assertions. Restored dispatch passes.",
+  "behavior": [
+    "First execution starts host-owned lifecycle, startup/resume source; subsequent turns do not repeat startup effects.",
+    "Tenant/workspace/session ownership; ordered trusted command handlers, startup refusal prevents model request; startup failure fires cleanup end.",
+    "Archive/update_any/remove/remove_any close once using retained owner context; SessionEnd reason other and absolute cwd; matcher other respected.",
+    "Real shell fixtures append payloads outside package; package unchanged; startup additionalContext drained once; blocked startup retains no context."
+  ],
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/events/session_start.rs",
+      "sha256": "4c3bfe8f9ca2229a9958c17d4459ed050b7ac712e03a3b0d95ee433b84a3c843"
+    },
+    {
+      "path": "codex-rs/hooks/src/events/session_end.rs",
+      "sha256": "7085e3d62b419d9413c4d4f87c300e76c02869fea9c5ef6d08e4e3be2fd515da"
+    }
+  ],
+  "scope_notes": [
+    "Local trusted command lifecycle acceptance; no public service or UI rendering required for this runtime change.",
+    "In-process ownership is reset across application restarts; resumed lifecycle receives source resume.",
+    "Existing non-command handler admission remains explicitly unsupported; this evidence does not establish all plugin compatibility."
+  ]
+}

@@ -115,3 +115,5 @@ pub(crate) use compat::mcp_apps;
 pub(crate) use compat::mcp_app_execution;
 
 pub(crate) use compat::hook_async::AsyncHooks;
+
+pub(crate) use compat::hook_session;

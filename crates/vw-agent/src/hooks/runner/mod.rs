@@ -168,6 +168,13 @@ impl HookRunner {
     ///
     /// - `session_id`：会话的唯一标识符
     /// - `channel`：会话所属的通道名称
+    pub(crate) async fn start_session(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+        for handler in &self.handlers {
+            handler.start_session(input).await?;
+        }
+        Ok(())
+    }
+
     pub async fn fire_session_start(&self, session_id: &str, channel: &str) {
         let futs: Vec<_> =
             self.handlers.iter().map(|h| h.on_session_start(session_id, channel)).collect();

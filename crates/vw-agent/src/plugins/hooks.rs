@@ -16,6 +16,7 @@ pub enum PluginHookEvent {
     BeforeLlmCall,
     UserPromptSubmit,
     InstructionsLoaded,
+    SessionStart,
     SessionEnd,
 }
 
@@ -29,6 +30,7 @@ impl PluginHookEvent {
             Self::BeforeLlmCall => "before_llm_call",
             Self::UserPromptSubmit => "user_prompt_submit",
             Self::InstructionsLoaded => "instructions_loaded",
+            Self::SessionStart => "session_start",
             Self::SessionEnd => "session_end",
         }
     }

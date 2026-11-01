@@ -69,7 +69,12 @@ impl CommandPluginHookHandler {
     }
 
     async fn execute_payload(&self, mut payload: Value) -> Result<Value> {
-        if self.codex_protocol && self.hook.event != PluginHookEvent::SessionEnd {
+        if self.codex_protocol
+            && !matches!(
+                self.hook.event,
+                PluginHookEvent::SessionStart | PluginHookEvent::SessionEnd
+            )
+        {
             super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
         }
         let input =
@@ -206,6 +211,27 @@ impl HookHandler for CommandPluginHookHandler {
         &self.name
     }
 
+    async fn start_session(&self, input: &Value) -> Result<()> {
+        if self.hook.event != PluginHookEvent::SessionStart {
+            return Ok(());
+        }
+        super::compat::hook_session::validate(input)?;
+        if !self.matcher.matches(input["source"].as_str()) {
+            return Ok(());
+        }
+        let output = self.execute_payload(input.clone()).await?;
+        if let Some(text) =
+            output.pointer("/hookSpecificOutput/additionalContext").and_then(Value::as_str)
+        {
+            super::compat::hook_command::retain_context(
+                text,
+                self.additional_context_limit,
+                self.data_directory.as_deref().context("missing hook data directory")?,
+            )?;
+        }
+        Ok(())
+    }
+
     async fn on_session_end(&self, session_id: &str, _channel: &str) {
         let owners = self
             .active_async
@@ -218,7 +244,8 @@ impl HookHandler for CommandPluginHookHandler {
             }
         }
         if self.hook.event == PluginHookEvent::SessionEnd
-            && let Err(error) = self.execute_payload(json!({"hook_event_name":"SessionEnd", "session_id":session_id, "reason":"other"})).await
+            && self.matcher.matches(Some("other"))
+            && let Err(error) = self.execute_payload(json!({"hook_event_name":"SessionEnd", "session_id":session_id, "reason":"other", "cwd":crate::tools::current_tool_use_context().and_then(|context|context.workspace_root()), "transcript_path":null})).await
         {
             tracing::warn!(error = %error, "SessionEnd command failed");
         }
@@ -588,6 +615,7 @@ pub(crate) fn codex_handlers(
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    E::SessionStart => PluginHookEvent::SessionStart,
                     E::SessionEnd => PluginHookEvent::SessionEnd,
                     _ => {
                         anyhow::bail!("Codex hook execution is not supported for event: {event:?}")
@@ -690,6 +718,12 @@ impl HookHandler for OrderedCodexHooks {
 
     fn name(&self) -> &str {
         &self.name
+    }
+    async fn start_session(&self, input: &Value) -> Result<()> {
+        for handler in &self.handlers {
+            handler.start_session(input).await?;
+        }
+        Ok(())
     }
     async fn on_session_end(&self, session: &str, channel: &str) {
         for handler in &self.handlers {

@@ -233,6 +233,12 @@ pub trait HookHandler: HookHandlerBounds {
     /// - `_channel`：会话所在的通道标识（如 "telegram"、"discord"）
     async fn on_session_start(&self, _session_id: &str, _channel: &str) {}
 
+    /// Validated host lifecycle input; errors stop startup before model execution.
+    async fn start_session(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+        self.on_session_start(input["session_id"].as_str().unwrap_or_default(), "").await;
+        Ok(())
+    }
+
     /// 会话结束时触发
     ///
     /// 当用户会话终止时调用此钩子。会话可能因超时、用户主动结束

@@ -170,3 +170,8 @@ mod t37_tests;
 pub(crate) mod hook_post_tool;
 #[cfg(test)]
 mod t38_tests;
+
+pub(crate) mod hook_session;
+
+#[cfg(test)]
+mod t39_tests;

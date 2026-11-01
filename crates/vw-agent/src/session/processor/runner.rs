@@ -608,6 +608,13 @@ fn run_in_project(
     if let Some(root) = req.root.as_deref() {
         crate::plugins::mcp_app_execution::revoke(&req.session, std::path::Path::new(root));
     }
+    if let Err(error) = prompt::block_on(crate::plugins::hook_session::start(
+        std::sync::Arc::new(tool_use_context.clone()),
+        !req.history.is_empty(),
+    )) {
+        on_event(StreamEvent::Error(error.to_string()));
+        return;
+    }
     let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
     let mut ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)

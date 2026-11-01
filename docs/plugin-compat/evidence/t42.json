@@ -1,0 +1,108 @@
+{
+  "task": 42,
+  "status": "已完成",
+  "platform": "Darwin arm64",
+  "source": {
+    "path": "codex-rs/hooks/src/events/compact.rs",
+    "sha256": "0c03f57f9490987bac823b639e3aae450b9f3ca1ae6b589df30f7429696ccf2e",
+    "symbols": [
+      "pre_command_input",
+      "post_command_input",
+      "parse_completed"
+    ]
+  },
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "lock_released": true,
+    "cache_retained": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t42_ -- --nocapture",
+    "exit_code": 101,
+    "tests_started": 3,
+    "passed": 1,
+    "target_failures": [
+      "compaction must notify plugins: missing events file",
+      "cross-session emit was not rejected"
+    ],
+    "termination": "test assertions triggered panic followed by SIGABRT in local test runtime",
+    "slot": 1
+  },
+  "green": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t42_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features compaction::compaction_tests:: -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 24,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features internal_compaction_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features query_engine_tests:: -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 28,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t33_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t41_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features compaction_lifecycle_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features runner_tests::compaction_checkpoint_ -- --nocapture --test-threads=1",
+      "exit_code": 0,
+      "passed": 2,
+      "failed": 0
+    }
+  ],
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "behavior": [
+    "PreCompact precedes summary provider; PostCompact follows persisted checkpoint only on success",
+    "manual, automatic processor, and query-engine compaction use trusted runner dispatch",
+    "failure leaves history intact; retry emits a fresh pre event",
+    "continue:false stops; pre-stop prevents checkpoint, post-stop preserves checkpoint",
+    "nonzero command exit, malformed output, and unsupported decision fields do not apply control",
+    "trigger matcher uses auto/manual; metadata contains no provider messages or credentials",
+    "session mismatch rejected; no package-root modifications or retained additionalContext"
+  ],
+  "regression_note": "Parallel neighboring compaction tests initially hit a shared temporary storage race; all 24 passed with --test-threads=1. An exploratory initial run exposed repository build-dir override; red and final verification were repeated with both Cargo paths set to slot 1.",
+  "acceptance_scope": "local command hooks on Darwin arm64; no claim of other platform or hosted connector acceptance"
+}

@@ -233,6 +233,10 @@ fn compact_transient_history_for_request(
     if !on_event(StreamEvent::Compaction { phase: CompactionPhase::Started }) {
         return Err("stream consumer stopped".to_string());
     }
+    prompt::block_on(crate::plugins::hook_compact::emit(
+        session_id, session_id, model, true, false,
+    ))
+    .map_err(|error| error.to_string())?;
     let summary = crate::session::compaction_summary::summarize(
         session_id,
         llm_messages,
@@ -251,6 +255,8 @@ fn compact_transient_history_for_request(
     }
     persist_context_checkpoint(session_id, checkpoint_source, &replacement)?;
     *llm_messages = replacement;
+    prompt::block_on(crate::plugins::hook_compact::emit(session_id, session_id, model, true, true))
+        .map_err(|error| error.to_string())?;
     on_event(StreamEvent::Compaction { phase: CompactionPhase::Completed });
     Ok(true)
 }
@@ -958,16 +964,18 @@ fn run_in_project(
                 input_limit = context_governance::effective_input_window(&model_limit),
                 "session processor requires internal compaction before llm step"
             );
-            match compact_transient_history_for_request(
-                &req.session,
-                &checkpoint_source,
-                &mut llm_messages,
-                &selected_model.model,
-                &req.reliability,
-                &mut on_event,
-                req.abort_token.as_ref(),
-                &model_limit,
-            ) {
+            match crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
+                compact_transient_history_for_request(
+                    &req.session,
+                    &checkpoint_source,
+                    &mut llm_messages,
+                    &selected_model.model,
+                    &req.reliability,
+                    &mut on_event,
+                    req.abort_token.as_ref(),
+                    &model_limit,
+                )
+            }) {
                 Ok(true) => {
                     internal_compaction_attempted = true;
                     observed_input_tokens = None;
@@ -1051,15 +1059,20 @@ fn run_in_project(
                         && llm_runner::is_request_too_long_error(&message, &provider_messages)
                         && !internal_compaction_attempted
                     {
-                        match compact_transient_history_for_request(
-                            &req.session,
-                            &checkpoint_source,
-                            &mut llm_messages,
-                            &selected_model.model,
-                            &req.reliability,
-                            &mut on_event,
-                            req.abort_token.as_ref(),
-                            &model_limit,
+                        match crate::tools::scope_tool_use_context_sync(
+                            ctx.tool_use_context().clone(),
+                            || {
+                                compact_transient_history_for_request(
+                                    &req.session,
+                                    &checkpoint_source,
+                                    &mut llm_messages,
+                                    &selected_model.model,
+                                    &req.reliability,
+                                    &mut on_event,
+                                    req.abort_token.as_ref(),
+                                    &model_limit,
+                                )
+                            },
                         ) {
                             Ok(true) => {
                                 internal_compaction_attempted = true;

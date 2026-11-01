@@ -440,6 +440,7 @@ async fn compact_with_summary(
     input: ProcessInput,
     model_result: Result<String, String>,
     source: &[serde_json::Value],
+    model: &provider::Model,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
     let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
@@ -451,6 +452,15 @@ async fn compact_with_summary(
     super::compaction_checkpoint::save(&input.session_id, source, &summary, None)
         .await
         .map_err(|error| crate::session::session::Error::Runtime(anyhow::anyhow!(error)))?;
+    crate::plugins::hook_compact::emit(
+        &input.session_id,
+        &input.parent_id,
+        &format!("{}/{}", model.provider_id, model.id),
+        input.auto,
+        true,
+    )
+    .await
+    .map_err(crate::session::session::Error::Runtime)?;
     let history = input.messages.clone();
     Ok(CompactionOutcome::Compacted {
         history,
@@ -470,10 +480,36 @@ async fn compact_with_summary(
 pub async fn process(
     input: ProcessInput,
     model: &provider::Model,
+) -> Result<CompactionOutcome, crate::session::session::Error> {
+    if compaction_boundary(&input).is_none() {
+        return Ok(CompactionOutcome::NotNeeded { history: input.messages });
+    }
+    let context = crate::plugins::hook_compact::context(
+        &input.session_id,
+        &input.parent_id,
+        &format!("{}/{}", model.provider_id, model.id),
+    )
+    .await
+    .map_err(crate::session::session::Error::Runtime)?;
+    crate::tools::scope_tool_use_context(context, process_inner(input, model)).await
+}
+
+async fn process_inner(
+    input: ProcessInput,
+    model: &provider::Model,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
     let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
+    crate::plugins::hook_compact::emit(
+        &input.session_id,
+        &input.parent_id,
+        &format!("{}/{}", model.provider_id, model.id),
+        input.auto,
+        false,
+    )
+    .await
+    .map_err(crate::session::session::Error::Runtime)?;
     let source = checkpoint_source(&input, boundary)?;
     let context = super::compaction_checkpoint::restore(&input.session_id, &source)
         .await
@@ -492,7 +528,7 @@ pub async fn process(
         model.limit.clone(),
     )
     .await;
-    let outcome = compact_with_summary(input, model_result, &source).await?;
+    let outcome = compact_with_summary(input, model_result, &source, model).await?;
     if matches!(outcome, CompactionOutcome::Compacted { .. }) {
         let session_id = match &outcome {
             CompactionOutcome::Compacted { history, .. } => history
@@ -564,21 +600,30 @@ pub async fn process_session(
 }
 
 #[cfg(test)]
-async fn process_with_summarizer(
+pub(crate) async fn process_with_summarizer(
     input: ProcessInput,
-    _model: &provider::Model,
+    model: &provider::Model,
     mut summarize: impl FnMut(&InternalCompactionRequest) -> Result<String, String>,
 ) -> Result<CompactionOutcome, crate::app::agent::session::session::Error> {
     let Some(boundary) = compaction_boundary(&input) else {
         return Ok(CompactionOutcome::NotNeeded { history: input.messages });
     };
+    crate::plugins::hook_compact::emit(
+        &input.session_id,
+        &input.parent_id,
+        &format!("{}/{}", model.provider_id, model.id),
+        input.auto,
+        false,
+    )
+    .await
+    .map_err(crate::session::session::Error::Runtime)?;
     let context = extract_compaction_text(&input.messages[..boundary]);
     let result = summarize(&InternalCompactionRequest {
         prompt: internal_summary_prompt(&context),
         tools: Vec::new(),
     });
     let source = model_history(&input.messages[..boundary]);
-    compact_with_summary(input, result, &source).await
+    compact_with_summary(input, result, &source, model).await
 }
 
 /// 创建压缩请求输入参数
@@ -662,4 +707,4 @@ pub async fn create(input: CreateInput) -> Result<(), crate::app::agent::session
 }
 #[cfg(test)]
 #[path = "compaction_tests.rs"]
-mod compaction_tests;
+pub(crate) mod compaction_tests;

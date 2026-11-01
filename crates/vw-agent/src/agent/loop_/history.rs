@@ -168,6 +168,7 @@ pub(crate) async fn compact_history_with_internal_service(
     let context = crate::session::compaction_checkpoint::restore(session_id, &source)
         .await
         .map_err(anyhow::Error::msg)?;
+    crate::plugins::hook_compact::emit(session_id, session_id, model, true, false).await?;
     let summary = crate::session::compaction_summary::summarize_async(
         session_id.to_string(),
         context,
@@ -181,5 +182,6 @@ pub(crate) async fn compact_history_with_internal_service(
         .await
         .map_err(anyhow::Error::msg)?;
     apply_compaction_summary(history, start, end, &summary);
+    crate::plugins::hook_compact::emit(session_id, session_id, model, true, true).await?;
     Ok(true)
 }

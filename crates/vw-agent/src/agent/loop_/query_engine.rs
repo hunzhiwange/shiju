@@ -79,6 +79,7 @@ pub(crate) struct QueryEngineSnapshot {
 }
 
 pub(crate) struct QueryEngine {
+    workspace_dir: std::path::PathBuf,
     session_id: String,
     reliability: crate::config::ReliabilityConfig,
     history: Vec<ChatMessage>,
@@ -314,6 +315,7 @@ impl QueryEngine {
             usize::try_from(model_limit.context).unwrap_or(usize::MAX),
         ));
         Ok(Self {
+            workspace_dir: config.workspace_dir.clone(),
             session_id: session_id.to_string(),
             reliability: config.reliability.clone(),
             history: Vec::new(),
@@ -493,16 +495,30 @@ impl QueryEngine {
         // Keep the authoritative history intact, including across repeated checkpoints.
         // The service restores the previous checkpoint before summarizing this raw prefix.
         let mut source_history = self.history.clone();
-        let compacted = compact_history_with_internal_service(
-            &mut source_history,
+        let mut hook_context = crate::tools::ToolUseContext::new(
             &self.session_id,
-            &if self.model_name.contains('/') {
-                self.model_name.clone()
-            } else {
-                format!("{}/{}", self.provider_name, self.model_name)
-            },
-            &self.reliability,
-            &self.model_limit,
+            Some(self.workspace_dir.to_string_lossy().into_owned()),
+        )
+        .with_turn_id(uuid::Uuid::new_v4().to_string())
+        .with_model(&self.model_name);
+        if let Some(runner) =
+            self.hook_runtime.as_ref().and_then(|runtime| runtime.runner_snapshot())
+        {
+            hook_context = hook_context.with_hook_runner(runner);
+        }
+        let compacted = crate::tools::scope_tool_use_context(
+            Arc::new(hook_context),
+            compact_history_with_internal_service(
+                &mut source_history,
+                &self.session_id,
+                &if self.model_name.contains('/') {
+                    self.model_name.clone()
+                } else {
+                    format!("{}/{}", self.provider_name, self.model_name)
+                },
+                &self.reliability,
+                &self.model_limit,
+            ),
         )
         .await?;
         if !compacted {

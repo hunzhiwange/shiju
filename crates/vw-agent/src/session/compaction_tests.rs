@@ -12,7 +12,7 @@ fn capability_io(text: bool) -> provider::CapabilityIO {
     provider::CapabilityIO { text, audio: false, image: false, video: false, pdf: false }
 }
 
-fn model_with_limits(context: u64, input: Option<u64>, output: u64) -> provider::Model {
+pub(crate) fn model_with_limits(context: u64, input: Option<u64>, output: u64) -> provider::Model {
     provider::Model {
         id: "model-fixture".to_string(),
         provider_id: "provider-fixture".to_string(),
@@ -74,7 +74,7 @@ fn text_part(session_id: &str, message_id: &str, part_id: &str, text: &str) -> m
     })
 }
 
-fn user_message(session_id: &str, id: &str, text: &str) -> message::WithParts {
+pub(crate) fn user_message(session_id: &str, id: &str, text: &str) -> message::WithParts {
     let parts = if text.is_empty() {
         Vec::new()
     } else {

@@ -77,6 +77,8 @@ impl CommandPluginHookHandler {
                     | PluginHookEvent::UserPromptSubmit
                     | PluginHookEvent::BeforeLlmCall
                     | PluginHookEvent::PostModelRequest
+                    | PluginHookEvent::PreCompact
+                    | PluginHookEvent::PostCompact
             )
         {
             super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
@@ -150,7 +152,21 @@ impl CommandPluginHookHandler {
             self.codex_protocol,
             self.data_directory.as_deref(),
         )
-        .await?;
+        .await;
+        let output = match output {
+            Ok(output) => output,
+            Err(_)
+                if self.codex_protocol
+                    && matches!(
+                        self.hook.event,
+                        PluginHookEvent::PreCompact | PluginHookEvent::PostCompact
+                    ) =>
+            {
+                tracing::warn!("compact hook execution failed");
+                return Ok(Value::Null);
+            }
+            Err(error) => return Err(error),
+        };
         if self.codex_protocol
             && matches!(
                 self.hook.event,
@@ -163,7 +179,12 @@ impl CommandPluginHookHandler {
             return Ok(Value::Null);
         }
         if self.codex_protocol {
-            let parsed = if self.hook.event == PluginHookEvent::UserPromptSubmit {
+            let parsed = if matches!(
+                self.hook.event,
+                PluginHookEvent::PreCompact | PluginHookEvent::PostCompact
+            ) {
+                super::compat::hook_compact::parse(output.status.code(), &output.stdout)?
+            } else if self.hook.event == PluginHookEvent::UserPromptSubmit {
                 super::compat::hook_prompt::parse(
                     output.status.code(),
                     &output.stdout,
@@ -231,6 +252,21 @@ impl HookHandler for CommandPluginHookHandler {
 
     fn name(&self) -> &str {
         &self.name
+    }
+
+    async fn compact(&self, input: &Value) -> Result<()> {
+        let expected = match self.hook.event {
+            PluginHookEvent::PreCompact => "PreCompact",
+            PluginHookEvent::PostCompact => "PostCompact",
+            _ => return Ok(()),
+        };
+        if self.codex_protocol && input["hook_event_name"] == expected {
+            super::compat::hook_compact::validate(input)?;
+            if self.matcher.matches(input["trigger"].as_str()) {
+                self.execute_payload(input.clone()).await?;
+            }
+        }
+        Ok(())
     }
 
     async fn model_request(&self, input: &Value) {
@@ -663,6 +699,8 @@ pub(crate) fn codex_handlers(
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    E::PreCompact => PluginHookEvent::PreCompact,
+                    E::PostCompact => PluginHookEvent::PostCompact,
                     E::PostModelRequest => PluginHookEvent::PostModelRequest,
 
                     E::UserPromptSubmit => PluginHookEvent::UserPromptSubmit,
@@ -753,6 +791,13 @@ struct OrderedCodexHooks {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for OrderedCodexHooks {
+    async fn compact(&self, input: &Value) -> Result<()> {
+        for handler in &self.handlers {
+            handler.compact(input).await?;
+        }
+        Ok(())
+    }
+
     async fn model_request(&self, input: &Value) {
         for handler in &self.handlers {
             handler.model_request(input).await;

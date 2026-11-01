@@ -183,3 +183,7 @@ mod t39_tests;
 pub(crate) mod hook_model;
 #[cfg(test)]
 pub(crate) mod t41_tests;
+
+pub(crate) mod hook_compact;
+#[cfg(test)]
+pub(crate) mod t42_tests;

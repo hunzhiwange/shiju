@@ -132,3 +132,46 @@ async fn internal_compaction_keeps_history_when_provider_fails() {
     assert_eq!(history.len(), 2);
     assert_eq!(history[0].content, "old");
 }
+
+#[tokio::test]
+#[allow(clippy::await_holding_lock)] // Serialize the deterministic provider boundary.
+async fn codex_plugin_compat_t42_agent_loop_emits_around_real_summary() {
+    let _guard = crate::session::processor::test_llm_stream_guard();
+    crate::session::processor::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("fixture summary".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let session = format!("t42-loop-{}", uuid::Uuid::new_v4());
+    let context = crate::plugins::t42_tests::fixture(root.path(), state.path(), &session);
+    let mut history = vec![
+        ChatMessage::user("old"),
+        ChatMessage::assistant("old answer"),
+        ChatMessage::user("current"),
+    ];
+    assert!(
+        crate::tools::scope_tool_use_context(
+            context,
+            compact_history_with_internal_service(
+                &mut history,
+                &session,
+                "fixture/model",
+                &Default::default(),
+                &crate::provider::provider::resolve_model_limit(None, None, None)
+            )
+        )
+        .await
+        .unwrap()
+    );
+    assert!(history[0].content.contains("fixture summary"));
+    let contents = std::fs::read_to_string(state.path().join("events")).unwrap();
+    let events: Vec<serde_json::Value> =
+        contents.lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["hook_event_name"], "PreCompact");
+    assert_eq!(events[1]["hook_event_name"], "PostCompact");
+}

@@ -1,0 +1,11 @@
+{
+  "origin": "repository-authored deterministic fixture, no external package or credentials",
+  "license": "repository license",
+  "reference": "codex-rs/hooks/src/events/compact.rs",
+  "sha256": "0c03f57f9490987bac823b639e3aae450b9f3ca1ae6b589df30f7429696ccf2e",
+  "symbols": ["pre_command_input", "post_command_input", "parse_completed"],
+  "expected_fields": ["session_id", "turn_id", "cwd", "model", "transcript_path", "hook_event_name", "trigger"],
+  "expected": "auto/manual; pre on each attempt, post only after successful checkpoint; continue:false stops; nonzero exits and decision:block do not stop",
+  "isolation": "host-owned metadata; no messages or credentials; package root unchanged",
+  "platform": "local POSIX command fixture"
+}

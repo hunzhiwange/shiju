@@ -160,6 +160,13 @@ impl HookRunner {
         join_all(futs).await;
     }
 
+    pub(crate) async fn compact(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+        for handler in &self.handlers {
+            handler.compact(input).await?;
+        }
+        Ok(())
+    }
+
     pub(crate) async fn model_request(&self, input: &serde_json::Value) {
         for handler in &self.handlers {
             handler.model_request(input).await;

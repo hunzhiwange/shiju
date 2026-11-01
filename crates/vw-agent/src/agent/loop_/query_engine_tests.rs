@@ -266,6 +266,7 @@ fn command_logger_runtime(enabled: bool) -> crate::app::agent::hooks::HookRuntim
 // 查询引擎夹具关闭无关外部能力，只保留可记录供应商与可控记忆。
 fn test_engine(provider: ScriptedProvider, memory: Arc<dyn Memory>) -> QueryEngine {
     QueryEngine {
+        workspace_dir: std::env::temp_dir(),
         session_id: format!("query-engine-{}", uuid::Uuid::new_v4()),
         reliability: crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
         history: Vec::new(),

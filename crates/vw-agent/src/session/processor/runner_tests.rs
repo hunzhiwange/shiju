@@ -2713,3 +2713,44 @@ fn codex_plugin_compat_t10_compaction_restores_qualified_invocation_arguments() 
         assert_eq!(history.len(), 2);
     }
 }
+
+#[test]
+fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let session = format!("t42-processor-{}", uuid::Uuid::new_v4());
+    let context = crate::plugins::t42_tests::fixture(root.path(), state.path(), &session);
+    let mut history = vec![
+        serde_json::json!({"role":"user","content":"old"}),
+        serde_json::json!({"role":"assistant","content":"old answer"}),
+        serde_json::json!({"role":"user","content":"current"}),
+    ];
+    super::llm_runner::enqueue_test_llm_stream(vec![
+        crate::session::llm::StreamEvent::Delta("fixture summary".into()),
+        crate::session::llm::StreamEvent::Done {
+            usage: Default::default(),
+            finish_reason: Some("stop".into()),
+        },
+    ]);
+    crate::tools::scope_tool_use_context_sync(context, || {
+        super::compact_transient_history_for_request(
+            &session,
+            &[],
+            &mut history,
+            "fixture/model",
+            &crate::config::ReliabilityConfig { provider_retries: 0, ..Default::default() },
+            &mut |_| true,
+            None,
+            &crate::provider::provider::resolve_model_limit(None, None, None),
+        )
+        .unwrap();
+    });
+    assert_eq!(history.len(), 2);
+    let contents = std::fs::read_to_string(state.path().join("events")).unwrap();
+    let events: Vec<serde_json::Value> =
+        contents.lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["hook_event_name"], "PreCompact");
+    assert_eq!(events[1]["hook_event_name"], "PostCompact");
+    assert_eq!(events[1]["trigger"], "auto");
+}

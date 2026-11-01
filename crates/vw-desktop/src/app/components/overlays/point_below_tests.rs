@@ -548,7 +548,7 @@ fn point_below_overlay_element_layout_draws_and_reports_interaction() {
     > as overlay::Overlay<TestMessage, Theme, RecordingRenderer>>::mouse_interaction(
         &element,
         Layout::new(&layout),
-        mouse::Cursor::Unavailable,
+        mouse::Cursor::Available(Point::new(90.0, 60.0)),
         &renderer,
     );
 
@@ -838,4 +838,25 @@ fn point_below_overlay_element_closes_on_target_click_when_enabled() {
 
     // 开启 close_on_target_click 后，锚点区域内点击也应触发关闭。
     assert_eq!(messages, vec![TestMessage::Close, TestMessage::ContentUpdated]);
+}
+
+#[test]
+fn point_below_overlay_blocks_hover_over_menu_background_only() {
+    let mut content: Element<'static, TestMessage, Theme, RecordingRenderer> =
+        TestContent { interaction: mouse::Interaction::None, ..TestContent::default() }.into();
+    let mut tree = widget::Tree::empty();
+    let element = overlay_element(&mut content, &mut tree, true);
+    let renderer = RecordingRenderer::default();
+    let node = layout_for(Rectangle { x: 80.0, y: 46.0, width: 70.0, height: 40.0 });
+
+    for (cursor, expected) in [
+        (mouse::Cursor::Available(Point::new(90.0, 60.0)), mouse::Interaction::Idle),
+        (mouse::Cursor::Available(Point::new(10.0, 10.0)), mouse::Interaction::None),
+        (mouse::Cursor::Unavailable, mouse::Interaction::None),
+    ] {
+        assert_eq!(
+            overlay::Overlay::mouse_interaction(&element, Layout::new(&node), cursor, &renderer),
+            expected,
+        );
+    }
 }

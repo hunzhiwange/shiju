@@ -753,13 +753,15 @@ where
         // renderer 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         renderer: &RendererT,
     ) -> mouse::Interaction {
-        self.overlay.as_widget().mouse_interaction(
-            self.tree,
-            layout,
-            cursor,
-            &self.viewport,
-            renderer,
-        )
+        if !cursor.is_over(layout.bounds()) {
+            return mouse::Interaction::None;
+        }
+
+        // Iced 通过非 None 交互遮挡底层鼠标；菜单留白也必须阻止悬停穿透。
+        self.overlay
+            .as_widget()
+            .mouse_interaction(self.tree, layout, cursor, &self.viewport, renderer)
+            .max(mouse::Interaction::Idle)
     }
 
     /// 处理 draw 对应的局部职责。

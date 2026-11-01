@@ -616,6 +616,13 @@ fn run_in_project(
         return;
     }
     let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
+    if let Err(error) = prompt::block_on(crate::plugins::hook_prompt::submit(
+        std::sync::Arc::new(tool_use_context.clone()),
+        &req.query,
+    )) {
+        on_event(StreamEvent::Error(error.to_string()));
+        return;
+    }
     let mut ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)
         .with_session_tools(req.session_tools.clone());

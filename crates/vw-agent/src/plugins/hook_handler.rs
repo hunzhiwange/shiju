@@ -72,7 +72,9 @@ impl CommandPluginHookHandler {
         if self.codex_protocol
             && !matches!(
                 self.hook.event,
-                PluginHookEvent::SessionStart | PluginHookEvent::SessionEnd
+                PluginHookEvent::SessionStart
+                    | PluginHookEvent::SessionEnd
+                    | PluginHookEvent::UserPromptSubmit
             )
         {
             super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
@@ -112,13 +114,18 @@ impl CommandPluginHookHandler {
                 } else { execution.await };
                 match output {
                     Ok(output) if output.status.success() => {
-                        if let Ok(value) = serde_json::from_slice::<Value>(&output.stdout)
+                        let value = serde_json::from_slice::<Value>(&output.stdout).ok().or_else(|| {
+                            (hook.event == PluginHookEvent::UserPromptSubmit
+                                && !output.stdout.starts_with(b"{"))
+                                .then(|| json!({"hookSpecificOutput":{"additionalContext":String::from_utf8_lossy(&output.stdout).trim()}}))
+                        });
+                        if let Some(value) = value
                             && let Some(text) = value
                                 .pointer("/hookSpecificOutput/additionalContext")
                                 .and_then(Value::as_str)
                             && let Some(turn) = turn.upgrade()
                             && !turn.is_closed()
-                            && matches!(hook.event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall)
+                            && matches!(hook.event, PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall | PluginHookEvent::UserPromptSubmit)
                             && let Some(data) = data.as_deref()
                         {
                             let text = text.to_owned();
@@ -149,7 +156,13 @@ impl CommandPluginHookHandler {
             return Ok(Value::Null);
         }
         if self.codex_protocol {
-            let parsed = if self.hook.event == PluginHookEvent::AfterToolCall {
+            let parsed = if self.hook.event == PluginHookEvent::UserPromptSubmit {
+                super::compat::hook_prompt::parse(
+                    output.status.code(),
+                    &output.stdout,
+                    &output.stderr,
+                )?
+            } else if self.hook.event == PluginHookEvent::AfterToolCall {
                 super::compat::hook_post_tool::parse(
                     output.status.code(),
                     &output.stdout,
@@ -166,7 +179,9 @@ impl CommandPluginHookHandler {
             {
                 if matches!(
                     self.hook.event,
-                    PluginHookEvent::BeforeToolCall | PluginHookEvent::AfterToolCall
+                    PluginHookEvent::BeforeToolCall
+                        | PluginHookEvent::AfterToolCall
+                        | PluginHookEvent::UserPromptSubmit
                 ) {
                     super::compat::hook_command::retain_context(
                         text,
@@ -209,6 +224,15 @@ impl HookHandler for CommandPluginHookHandler {
 
     fn name(&self) -> &str {
         &self.name
+    }
+
+    async fn user_prompt_submit(&self, input: &Value) -> Result<()> {
+        if self.hook.event != PluginHookEvent::UserPromptSubmit {
+            return Ok(());
+        }
+        super::compat::hook_prompt::validate(input)?;
+        self.execute_payload(input.clone()).await?;
+        Ok(())
     }
 
     async fn start_session(&self, input: &Value) -> Result<()> {
@@ -615,6 +639,7 @@ pub(crate) fn codex_handlers(
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    E::UserPromptSubmit => PluginHookEvent::UserPromptSubmit,
                     E::SessionStart => PluginHookEvent::SessionStart,
                     E::SessionEnd => PluginHookEvent::SessionEnd,
                     _ => {
@@ -702,6 +727,13 @@ struct OrderedCodexHooks {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for OrderedCodexHooks {
+    async fn user_prompt_submit(&self, input: &Value) -> Result<()> {
+        for handler in &self.handlers {
+            handler.user_prompt_submit(input).await?;
+        }
+        Ok(())
+    }
+
     async fn permission_request(&self, name: &str, input: &Value) -> Result<Option<bool>> {
         let mut verdict = None;
         for handler in &self.handlers {

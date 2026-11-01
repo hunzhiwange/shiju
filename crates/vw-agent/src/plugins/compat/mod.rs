@@ -171,6 +171,10 @@ pub(crate) mod hook_post_tool;
 #[cfg(test)]
 mod t38_tests;
 
+pub(crate) mod hook_prompt;
+#[cfg(test)]
+mod t40_tests;
+
 pub(crate) mod hook_session;
 
 #[cfg(test)]

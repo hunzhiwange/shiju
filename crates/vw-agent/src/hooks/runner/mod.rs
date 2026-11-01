@@ -160,6 +160,14 @@ impl HookRunner {
         join_all(futs).await;
     }
 
+    /// Dispatch the current prompt once; refusal stops model execution.
+    pub(crate) async fn user_prompt_submit(&self, input: &serde_json::Value) -> anyhow::Result<()> {
+        for handler in &self.handlers {
+            handler.user_prompt_submit(input).await?;
+        }
+        Ok(())
+    }
+
     /// 触发会话开始事件
     ///
     /// 并行通知所有处理器新会话已开始。

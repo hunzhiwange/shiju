@@ -1,0 +1,72 @@
+{
+  "task": 40,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "slot_released": true,
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t40_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "log": "/tmp/t40-red.log",
+      "sha256": "853f6fa7dc0745e1f24d4b977985866bca803b2d56b3c7d2191cca00e0256048"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t40_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "log": "/tmp/t40-final.log",
+      "sha256": "1a204a6aaf5bd550ef03698b746ebe99710a618efd2740940f9052f8a6c65c5b"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t39_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "log": "/tmp/t40-adjacent39.log",
+      "sha256": "cb7b06ae77baa3c764a6df07043badbe7cdc4c4a3dc6762e207a1e4bb5239a4f"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t35_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 9,
+      "log": "/tmp/t40-adjacent35.log",
+      "sha256": "5cdfc9fac26a3785b5b4a254748d948697002dc413603c2d601bb0c978c32919"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t40-clippy.log",
+      "sha256": "304d6fa01a09d828d3b34c156fdb2531f00ce71b7d9579c0b888ff3c04ef88bc"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t40-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "red_evidence": "Three registered tests failed at admission assertion: Codex hook execution is not supported for event: UserPromptSubmit; exit 101 (panic runtime SIGABRT).",
+  "behavior": [
+    "Current req.query dispatched once before provider loop; restored req.history is not replayed.",
+    "Host session/turn/model/cwd/permission fields; ordered trusted handlers; blocking reason propagated to StreamEvent::Error with no provider execution.",
+    "JSON or plain stdout context consumed once by owning turn; refusal clears pending contexts.",
+    "Real shell markers stored outside package; package remains empty; untrusted source creates no executable handlers.",
+    "Async output retains existing owning-turn cancellation boundary and cannot apply control effects."
+  ],
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/events/user_prompt_submit.rs",
+      "sha256": "8eaed82e2e6ceac98e1110a57037b2bb6dea89ef5cef586afa408ee30de43e72"
+    }
+  ],
+  "scope_notes": [
+    "Malformed output and missing block feedback fail closed under host safety; reference may continue after handler failure.",
+    "Local command runtime acceptance; no remote service or UI dependency. This does not establish full plugin compatibility.",
+    "Provider boundary uses an explicit test sentinel; actual processor call site reviewed before provider loop."
+  ]
+}

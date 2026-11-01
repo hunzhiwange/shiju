@@ -1,0 +1,66 @@
+{
+  "task": 41,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "slot_released": true,
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t41_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "log": "/tmp/t41-red.log",
+      "sha256": "04c0c0852eac9289399716ad6a00a6a3287740ab8511519c09cefc8826cf2f89"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t41_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "log": "/tmp/t41-final.log",
+      "sha256": "d4b55fdd659ac2dbcdb0d688e53933776a3ce868491a2561a1c36d6e9ee71b5c"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t40_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "log": "/tmp/t41-adjacent.log",
+      "sha256": "46a81a31bd23692dfcc97cdc5dfef12e3633266be0cc4b13025d84459f6499b5"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t41-clippy.log",
+      "sha256": "a86b667cfe8678e363eddd5c05a15fe43f3572d3b8d6c2010d39d1c888d28809"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t41-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "red_evidence": "Three registered tests reached admission assertion and failed because PostModelRequest execution was unsupported (exit 101, panic runtime SIGABRT).",
+  "behavior": [
+    "Codex PreModelRequest is removed from old before_llm_call dispatch; host model events use explicit runner dispatch.",
+    "Non-streaming actual provider round emits completed, failed or cancelled; provider error is replaced with a fixed diagnostic to prevent secret leakage.",
+    "Streaming events are inside actual request retry loop, after setup validation, with usage observed at Done; each local HTTP retry is paired.",
+    "Real shell commands return exit 2 and control-shaped JSON; requests continue and no additionalContext is retained.",
+    "Invalid or absent host context does not execute commands; package remains unchanged; request content and keys are excluded."
+  ],
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/events/model_request.rs",
+      "sha256": "d1c9a89a31fb48ed53bf47f42bacb45fffa4169c61d564ae15e86b7831e3797e"
+    }
+  ],
+  "scope_notes": [
+    "Source conversation and user confirmed observation-only semantics.",
+    "No UI or public external service is required for this local lifecycle task. Local HTTP and shell are real; non-streaming provider boundary uses an explicit test double.",
+    "Error details are intentionally redacted; raw provider errors and raw hook output are not logged.",
+    "QueryEngine delegates to the core tool loop; wiring belongs at core provider round and streaming request loop rather than at submit_message."
+  ]
+}

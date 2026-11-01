@@ -581,3 +581,133 @@ fn model_recovery_network_requests_do_not_multiply() {
         },
     );
 }
+
+#[test]
+fn codex_plugin_compat_t41_stream_retries_emit_per_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    // env::all 使用上下文快照，不能依赖其他测试何时初始化默认快照。
+    crate::env::provide_with(
+        HashMap::from([("VW_MODEL_RECOVERY_TEST_KEY".into(), "isolated-test-key".into())]),
+        || {
+            runtime.block_on(async {
+
+    use std::io::{Read, Write};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    for caller_owns_budget in [false] {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let stop = Arc::new(AtomicBool::new(false));
+        let count = Arc::new(AtomicUsize::new(0));
+        let server_stop = stop.clone();
+        let server_count = count.clone();
+        let server = std::thread::spawn(move || {
+            for stream in listener.incoming() {
+                let mut stream = stream.unwrap();
+                if server_stop.load(Ordering::SeqCst) {
+                    break;
+                }
+                stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).unwrap();
+                let mut request = Vec::new();
+                loop {
+                    let mut chunk = [0u8; 4096];
+                    let size = stream.read(&mut chunk).unwrap();
+                    if size == 0 {
+                        break;
+                    }
+                    request.extend_from_slice(&chunk[..size]);
+                    if let Some(headers_end) =
+                        request.windows(4).position(|bytes| bytes == b"\r\n\r\n")
+                    {
+                        let headers = String::from_utf8_lossy(&request[..headers_end]);
+                        let length = headers
+                            .lines()
+                            .find_map(|line| {
+                                line.split_once(':')
+                                    .filter(|(key, _)| key.eq_ignore_ascii_case("content-length"))
+                                    .and_then(|(_, value)| value.trim().parse::<usize>().ok())
+                            })
+                            .unwrap_or(0);
+                        if request.len() >= headers_end + 4 + length {
+                            break;
+                        }
+                    }
+                }
+                // 初始化目录的 GET /models 与模型 POST 分别处理。
+                if request.starts_with(b"GET ") {
+                    let body = r#"{"object":"list","data":[{"id":"original","object":"model"}]}"#;
+                    let _ = write!(
+                        stream,
+                        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        body.len(),
+                        body
+                    );
+                    continue;
+                }
+                assert!(request.starts_with(b"POST /v1/chat/completions "));
+                server_count.fetch_add(1, Ordering::SeqCst);
+                let body =
+                    r#"{"error":{"message":"temporary service failure","type":"server_error"}}"#;
+                let _ = write!(
+                    stream,
+                    "HTTP/1.1 503 Service Unavailable\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+            }
+        });
+        let _fixture = super::super::recovery_test_support::RecoveryConfig::new(
+            &format!("http://{address}/v1"),
+            Some("isolated-test-key"),
+        )
+        .await;
+        let mut input = test_input("model-recovery");
+        input.model = provider::get_model("model-recovery", "original").await.unwrap();
+        input.retry_in_caller = caller_owns_budget;
+        // The outer owner must override configured inner retries; standalone zero means exactly one request.
+        input
+            .agent
+            .options
+            .insert("max_retries".into(), json!(1));
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let output = events.clone();
+        let root = tempfile::tempdir().unwrap();
+        let state = tempfile::tempdir().unwrap();
+        let marker = state.path().join("model-events");
+        let context = crate::plugins::t41_tests::fixture(root.path(), state.path(), &marker);
+        let result = crate::tools::scope_tool_use_context(context.clone(), stream(input, move |event| output.lock().unwrap().push(event))).await;
+
+        stop.store(true, Ordering::SeqCst);
+        let _ = std::net::TcpStream::connect(address);
+        server.join().unwrap();
+        assert!(result.is_err());
+        let payload = std::fs::read_to_string(marker).unwrap();
+        let hooks: Vec<Value> = payload.lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+        assert_eq!(hooks.len(), 4);
+        for pair in hooks.chunks_exact(2) {
+            assert_eq!(pair[0]["hook_event_name"], "PreModelRequest");
+            assert_eq!(pair[1]["status"], "failed");
+            assert!(pair[1]["token_usage"].is_null());
+        }
+        assert!(!payload.contains("isolated-test-key"));
+        assert!(context.take_hook_contexts().is_empty());
+
+        assert_eq!(
+            count.load(Ordering::SeqCst),
+            2,
+            "caller owns budget: {caller_owns_budget}, result: {result:?}"
+        );
+        assert_eq!(
+            events
+                .lock()
+                .unwrap()
+                .iter()
+                .filter(|event| matches!(event, StreamEvent::Error(_)))
+                .count(),
+            1
+        );
+    }
+    })
+        },
+    );
+}

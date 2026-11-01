@@ -179,3 +179,7 @@ pub(crate) mod hook_session;
 
 #[cfg(test)]
 mod t39_tests;
+
+pub(crate) mod hook_model;
+#[cfg(test)]
+pub(crate) mod t41_tests;

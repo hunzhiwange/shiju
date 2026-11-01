@@ -75,6 +75,8 @@ impl CommandPluginHookHandler {
                 PluginHookEvent::SessionStart
                     | PluginHookEvent::SessionEnd
                     | PluginHookEvent::UserPromptSubmit
+                    | PluginHookEvent::BeforeLlmCall
+                    | PluginHookEvent::PostModelRequest
             )
         {
             super::compat::hook_command::bind_input(&mut payload, self.hook.event)?;
@@ -149,7 +151,12 @@ impl CommandPluginHookHandler {
             self.data_directory.as_deref(),
         )
         .await?;
-        if self.codex_protocol && self.hook.event == PluginHookEvent::BeforeLlmCall {
+        if self.codex_protocol
+            && matches!(
+                self.hook.event,
+                PluginHookEvent::BeforeLlmCall | PluginHookEvent::PostModelRequest
+            )
+        {
             if !output.stdout.is_empty() || !output.status.success() {
                 tracing::warn!("PreModelRequest hook output is observation-only and was ignored");
             }
@@ -226,6 +233,23 @@ impl HookHandler for CommandPluginHookHandler {
         &self.name
     }
 
+    async fn model_request(&self, input: &Value) {
+        let expected = match self.hook.event {
+            PluginHookEvent::BeforeLlmCall => "PreModelRequest",
+            PluginHookEvent::PostModelRequest => "PostModelRequest",
+            _ => return,
+        };
+        if self.codex_protocol && input["hook_event_name"] == expected {
+            if let Err(error) = super::compat::hook_model::validate(input) {
+                tracing::warn!(%error, "invalid model hook input");
+                return;
+            }
+            if self.execute_payload(input.clone()).await.is_err() {
+                tracing::warn!("model observation hook failed");
+            }
+        }
+    }
+
     async fn user_prompt_submit(&self, input: &Value) -> Result<()> {
         if self.hook.event != PluginHookEvent::UserPromptSubmit {
             return Ok(());
@@ -280,7 +304,7 @@ impl HookHandler for CommandPluginHookHandler {
         messages: Vec<crate::providers::ChatMessage>,
         model: String,
     ) -> HookResult<(Vec<crate::providers::ChatMessage>, String)> {
-        if self.hook.event != PluginHookEvent::BeforeLlmCall {
+        if self.codex_protocol || self.hook.event != PluginHookEvent::BeforeLlmCall {
             return HookResult::Continue((messages, model));
         }
         match self.execute_payload(json!({"event": "before_llm_call", "model": &model})).await {
@@ -639,6 +663,8 @@ pub(crate) fn codex_handlers(
                     E::PreToolUse => PluginHookEvent::BeforeToolCall,
                     E::PostToolUse => PluginHookEvent::AfterToolCall,
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    E::PostModelRequest => PluginHookEvent::PostModelRequest,
+
                     E::UserPromptSubmit => PluginHookEvent::UserPromptSubmit,
                     E::SessionStart => PluginHookEvent::SessionStart,
                     E::SessionEnd => PluginHookEvent::SessionEnd,
@@ -727,6 +753,12 @@ struct OrderedCodexHooks {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for OrderedCodexHooks {
+    async fn model_request(&self, input: &Value) {
+        for handler in &self.handlers {
+            handler.model_request(input).await;
+        }
+    }
+
     async fn user_prompt_submit(&self, input: &Value) -> Result<()> {
         for handler in &self.handlers {
             handler.user_prompt_submit(input).await?;

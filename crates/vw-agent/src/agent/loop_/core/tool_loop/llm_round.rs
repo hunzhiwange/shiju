@@ -155,6 +155,7 @@ async fn run_llm_round_with_extractor(
     }
 
     let request_tools = if use_native_tools { Some(tool_specs) } else { None };
+    crate::plugins::hook_model::emit(None, serde_json::Value::Null).await;
     let chat_future = provider.chat(
         ChatRequest { messages: &prepared_messages.messages, tools: request_tools },
         model,
@@ -162,13 +163,34 @@ async fn run_llm_round_with_extractor(
     );
     let chat_result = if let Some(token) = cancellation_token {
         tokio::select! {
-            () = token.cancelled() => return Err(ToolLoopCancelled.into()),
+            () = token.cancelled() => {
+                crate::plugins::hook_model::emit(Some("cancelled"), serde_json::Value::Null).await;
+                return Err(ToolLoopCancelled.into());
+            },
             result = chat_future => result,
         }
     } else {
         chat_future.await
     };
 
+    let usage = chat_result
+        .as_ref()
+        .ok()
+        .and_then(|response| response.usage.as_ref())
+        .map(|usage| {
+            crate::plugins::hook_model::token_usage(
+                i64::try_from(usage.input_tokens.unwrap_or(0)).unwrap_or(i64::MAX),
+                i64::try_from(usage.output_tokens.unwrap_or(0)).unwrap_or(i64::MAX),
+                i64::try_from(usage.cached_tokens.unwrap_or(0)).unwrap_or(i64::MAX),
+                i64::try_from(usage.reasoning_tokens.unwrap_or(0)).unwrap_or(i64::MAX),
+            )
+        })
+        .unwrap_or(serde_json::Value::Null);
+    crate::plugins::hook_model::emit(
+        Some(if chat_result.is_ok() { "completed" } else { "failed" }),
+        usage,
+    )
+    .await;
     match chat_result {
         Ok(resp) => {
             let (resp_input_tokens, resp_output_tokens, resp_cached_tokens, resp_reasoning_tokens) =

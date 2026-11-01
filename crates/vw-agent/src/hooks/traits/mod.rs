@@ -233,6 +233,8 @@ pub trait HookHandler: HookHandlerBounds {
     /// - `_channel`：会话所在的通道标识（如 "telegram"、"discord"）
     async fn on_session_start(&self, _session_id: &str, _channel: &str) {}
 
+    async fn model_request(&self, _input: &serde_json::Value) {}
+
     /// Submit only the current user input before any model request.
     async fn user_prompt_submit(&self, _input: &serde_json::Value) -> anyhow::Result<()> {
         Ok(())

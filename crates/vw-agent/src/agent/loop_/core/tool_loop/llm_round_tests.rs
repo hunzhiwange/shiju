@@ -562,3 +562,57 @@ impl Observer for RecordingObserver {
         self
     }
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t41_real_provider_failure_and_success() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let marker = state.path().join("events");
+    let context = crate::plugins::t41_tests::fixture(root.path(), state.path(), &marker);
+    crate::tools::scope_tool_use_context(context.clone(), async {
+        let observer = RecordingObserver::default();
+        let history = vec![ChatMessage::user("private input must not enter hooks")];
+        let failed = TestProvider::with_error("secret-provider-error");
+        assert!(run_test_round(&failed, &observer, &history, false, &[], None, 0).await.is_err());
+        let success = TestProvider::with_response(ChatResponse {
+            text: Some("done".into()),
+            tool_calls: Vec::new(),
+            reasoning_content: None,
+            usage: Some(TokenUsage {
+                input_tokens: Some(3),
+                output_tokens: Some(2),
+                cached_tokens: Some(1),
+                reasoning_tokens: Some(1),
+            }),
+        });
+        assert!(run_test_round(&success, &observer, &history, false, &[], None, 1).await.is_ok());
+        let delayed = TestProvider::with_delay(
+            Duration::from_secs(60),
+            ChatResponse {
+                text: None,
+                tool_calls: Vec::new(),
+                usage: None,
+                reasoning_content: None,
+            },
+        );
+        let cancellation = CancellationToken::new();
+        cancellation.cancel();
+        assert!(
+            run_test_round(&delayed, &observer, &history, false, &[], Some(&cancellation), 2)
+                .await
+                .is_err()
+        );
+    })
+    .await;
+    let text = std::fs::read_to_string(marker).unwrap();
+    let events: Vec<serde_json::Value> =
+        text.lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+    assert_eq!(events.len(), 6);
+    assert_eq!(events[1]["status"], "failed");
+    assert_eq!(events[3]["status"], "completed");
+    assert_eq!(events[3]["token_usage"]["total_tokens"], 5);
+    assert_eq!(events[5]["status"], "cancelled");
+    assert!(!text.contains("secret-provider-error"));
+    assert!(!text.contains("private input"));
+    assert!(context.take_hook_contexts().is_empty());
+}

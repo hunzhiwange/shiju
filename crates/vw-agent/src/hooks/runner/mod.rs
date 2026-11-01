@@ -160,6 +160,12 @@ impl HookRunner {
         join_all(futs).await;
     }
 
+    pub(crate) async fn model_request(&self, input: &serde_json::Value) {
+        for handler in &self.handlers {
+            handler.model_request(input).await;
+        }
+    }
+
     /// Dispatch the current prompt once; refusal stops model execution.
     pub(crate) async fn user_prompt_submit(&self, input: &serde_json::Value) -> anyhow::Result<()> {
         for handler in &self.handlers {

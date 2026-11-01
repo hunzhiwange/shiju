@@ -550,8 +550,19 @@ async fn stream_inner(
             attempt += 1;
 
             // 一旦输出内容或工具状态，失败后不能安全重放。
+            crate::plugins::hook_model::emit(None, Value::Null).await;
+            let mut model_usage = Value::Null;
             let mut output_started = false;
             let mut request_event = |event: StreamEvent| {
+                if let StreamEvent::Done { usage, .. } = &event {
+                    model_usage = crate::plugins::hook_model::token_usage(
+                        usage.input_tokens,
+                        usage.output_tokens,
+                        usage.cached_tokens,
+                        usage.reasoning_tokens,
+                    );
+                }
+
                 output_started |= matches!(&event, StreamEvent::Delta(text) | StreamEvent::ReasoningDelta(text) if !text.is_empty())
                     || matches!(&event, StreamEvent::ToolCalls(calls) if !calls.is_empty())
                     || matches!(&event, StreamEvent::RemoteToolUpdate { .. });
@@ -589,6 +600,14 @@ async fn stream_inner(
                 .await
             };
 
+            let status = if should_abort(input.abort.as_ref()) {
+                "cancelled"
+            } else if res.is_ok() {
+                "completed"
+            } else {
+                "failed"
+            };
+            crate::plugins::hook_model::emit(Some(status), model_usage).await;
             // 处理请求结果
             match res {
                 Ok(()) => return Ok(()), // 请求成功，返回

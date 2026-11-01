@@ -20,8 +20,12 @@ use std::sync::Mutex;
 pub(crate) struct RawResponse(
     Mutex<Option<(Value, Value)>>,
     Mutex<std::collections::HashMap<String, Value>>,
+    Mutex<std::collections::HashMap<String, Value>>,
 );
 impl RawResponse {
+    pub(crate) fn tool_metadata(&self, name: &str) -> Option<Value> {
+        self.2.lock().unwrap_or_else(std::sync::PoisonError::into_inner).get(name).cloned()
+    }
     pub(crate) fn take_form(&self, id: &RequestId) -> Option<Value> {
         let key = serde_json::to_string(id).ok()?;
         self.1.lock().unwrap_or_else(std::sync::PoisonError::into_inner).remove(&key)
@@ -44,6 +48,19 @@ impl RawResponse {
         }
         if message.get("method").is_some() {
             return;
+        }
+        if let Some(tools) = message.pointer("/result/tools").and_then(Value::as_array) {
+            let mut metadata = self.2.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            for tool in tools {
+                if let Some(name) = tool["name"].as_str() {
+                    if metadata.len() < 2048 || metadata.contains_key(name) {
+                        metadata.insert(
+                            name.to_owned(),
+                            tool.get("_meta").cloned().unwrap_or(Value::Null),
+                        );
+                    }
+                }
+            }
         }
         if let (Some(id), Some(result)) = (message.get("id"), message.get("result")) {
             if ["resources", "resourceTemplates", "contents", "prompts", "messages"]
@@ -72,7 +89,7 @@ struct Args {
     name: Option<String>,
     arguments: Option<std::collections::BTreeMap<String, String>>,
 }
-async fn request(client: &RunningMcpPeer, method: &str, params: Value) -> Result<Value> {
+pub(super) async fn request(client: &RunningMcpPeer, method: &str, params: Value) -> Result<Value> {
     let req: ClientRequest = serde_json::from_value(json!({"method":method,"params":params}))?;
     let handle = client
         .peer()
@@ -113,7 +130,7 @@ fn uri(value: &str) -> Result<()> {
     }
     Ok(())
 }
-fn validate_contents(value: &Value) -> Result<()> {
+pub(super) fn validate_contents(value: &Value) -> Result<()> {
     let contents = value
         .get("contents")
         .and_then(Value::as_array)

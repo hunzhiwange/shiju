@@ -1,0 +1,77 @@
+{
+  "task": 29,
+  "status": "local_validation_passed_external_acceptance_pending",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t29_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": null,
+      "local_record": "/tmp/shiju-t29-red.log",
+      "sha256": "bed112f4a674cafca9e596fe5c947417ba63e330d2b2748694df09da38006f5a"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t29_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 6,
+      "local_record": "/tmp/shiju-t29-green.log",
+      "sha256": "2559b692c438cfb6a463a50c28093811e030efd9a7a31832a6eaefcc56232e0b"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features mcp_tool_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 21,
+      "local_record": "/tmp/shiju-t29-adjacent.log",
+      "sha256": "c6846c1bc3c6b2eb58298aa304c5823a0e68bcb3b11728d3150ad98cba7f45e9"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "local_record": "/tmp/shiju-t29-clippy.log",
+      "sha256": "7a3598da0e0a808dea962680a36f21468ae29b443c9bc5220eaadb8e5ce04ebb"
+    }
+  ],
+  "red_note": "Target association and invalid-input assertions observed; host panic runtime subsequently SIGABRT. No completed failed-test summary claimed. Initial Cargo invocation was interrupted after detecting repository build-dir override; rerun used slot build directory.",
+  "fmt": {
+    "command": "cargo fmt --all",
+    "exit_code": 0
+  },
+  "diff_check": {
+    "command": "git diff --check",
+    "exit_code": 0
+  },
+  "sources": [
+    {
+      "url": "https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx",
+      "version": "2026-01-26",
+      "symbols": [
+        "McpUiToolMeta",
+        "UIResourceMeta"
+      ],
+      "review": "Official web search excerpts; raw-source fetch failed TLS, no source hash claimed."
+    },
+    {
+      "path": "codex-rs/protocol/src/mcp.rs",
+      "symbol": "MCP_APP_UI_EXTENSION_ID",
+      "sha256": "d0d4efa82f985b53c426c0b1026b3af8b8cd0c4041ce19dee9cf4789000d0f81"
+    }
+  ],
+  "behavior": [
+    "Connection-local bounded raw tools metadata survives rmcp Tool deserialization.",
+    "Current catalog admission and existing permission checks precede tool calls; UI references use same serialized session connection.",
+    "Public modern and legacy UI URIs bind only to host-side result data; private outputTemplate does not enable Apps.",
+    "Resource URI/MIME validated; original resource MIME/CSP/permissions, structuredContent and text retained. Metadata grants no permissions.",
+    "No UI extension advertised while renderer absent; renderable remains false.",
+    "Real local Python stdio fixture verifies catalog capture and resource read; unit tests verify result binding and connection isolation."
+  ],
+  "acceptance": {
+    "public_service": false,
+    "desktop_rendering": false,
+    "full_compatibility_claimed": false
+  },
+  "slot_released": true
+}

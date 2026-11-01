@@ -132,3 +132,7 @@ mod t27_tests;
 pub mod mcp_oauth_tokens;
 #[cfg(test)]
 mod t28_tests;
+
+pub(crate) mod mcp_apps;
+#[cfg(test)]
+mod t29_tests;

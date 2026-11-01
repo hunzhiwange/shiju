@@ -360,6 +360,7 @@ async fn call_configured_remote_mcp_tool(
             let tool_name = tool_name.to_string();
             let arguments = arguments.clone();
             let binding = binding.clone();
+            let server = server.clone();
             Box::pin(async move {
                 let peer = client.peer();
                 let catalogs = &client.service().catalogs;
@@ -381,12 +382,34 @@ async fn call_configured_remote_mcp_tool(
                         "MCP tool catalog changed; refresh the tool binding before calling"
                     )));
                 }
-                let result = peer
+                if !tools.iter().any(|tool| tool.name.as_ref() == tool_name) {
+                    anyhow::bail!("MCP tool is absent from the current catalog");
+                }
+                let metadata =
+                    client.service().raw_responses.tool_metadata(&tool_name).ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "MCP tool wire metadata is unavailable; reconnect the server"
+                        )
+                    })?;
+                let app = crate::plugins::mcp_apps::association(
+                    crate::tools::mcp_common::server_name(&server),
+                    &tool_name,
+                    Some(&metadata),
+                )?;
+                let mut result = peer
                     .call_tool(CallToolRequestParam {
                         name: Cow::Owned(tool_name),
                         arguments: Some(arguments),
                     })
                     .await?;
+                if let Some(mut app) = app {
+                    crate::plugins::mcp_apps::resource(client, &mut app).await?;
+                    result
+                        .meta
+                        .get_or_insert_with(Default::default)
+                        .0
+                        .insert(crate::plugins::mcp_apps::BINDING.to_owned(), app);
+                }
                 Ok(Ok(result))
             })
         })

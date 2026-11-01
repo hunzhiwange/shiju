@@ -1,0 +1,21 @@
+{
+  "contents": [
+    {
+      "uri": "ui://weather/view",
+      "mimeType": "text/html;profile=mcp-app",
+      "text": "<p>天气</p>",
+      "_meta": {
+        "ui": {
+          "csp": {
+            "connectDomains": [
+              "https://weather.example"
+            ]
+          },
+          "permissions": {
+            "camera": {}
+          }
+        }
+      }
+    }
+  ]
+}

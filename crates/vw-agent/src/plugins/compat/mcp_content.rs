@@ -49,6 +49,7 @@ pub(crate) fn normalize_mcp_tool_result(
     tool: &str,
     mut typed: CallToolResult,
 ) -> Result<ToolCallResult> {
+    let app = typed.meta.as_mut().and_then(|meta| meta.0.remove(super::mcp_apps::BINDING));
     let raw = match typed.meta.as_mut().and_then(|meta| meta.0.remove(WIRE_RESULT)) {
         Some(raw) => raw,
         None => serde_json::to_value(typed).context("failed to encode MCP tool result")?,
@@ -83,6 +84,9 @@ pub(crate) fn normalize_mcp_tool_result(
         "_meta": object.get("_meta").unwrap_or(&Value::Null),
         "mcp_result": raw,
     });
+    if let Some(app) = app {
+        data["mcp_app"] = app;
+    }
     if failed {
         let text = text_content(content);
         data["error"] = json!(if text.is_empty() {

@@ -1,0 +1,16 @@
+{
+  "source": "https://github.com/modelcontextprotocol/ext-apps/blob/main/specification/2026-01-26/apps.mdx",
+  "license": "original synthetic fixture, repository license; protocol shape from MIT-licensed ext-apps",
+  "version": "2026-01-26",
+  "expected": [
+    "ui.resourceUri and legacy ui/resourceUri",
+    "ui:// URI",
+    "text/html;profile=mcp-app",
+    "CSP and permissions preserved as untrusted metadata"
+  ],
+  "reference_symbols": [
+    "McpUiToolMeta",
+    "UIResourceMeta"
+  ],
+  "private_connectors": "openai/outputTemplate does not enable public MCP Apps"
+}

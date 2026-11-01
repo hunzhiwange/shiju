@@ -632,6 +632,7 @@ fn run_in_project(
     let mut ctx = ToolRuntimeContext::new(req.session.clone(), req.root.clone())
         .with_tool_use_context(tool_use_context)
         .with_session_tools(req.session_tools.clone());
+    let _interrupt = InterruptGuard(ctx.tool_use_context().clone());
     let mut tool_state = ToolSessionState::default();
     let skill_workspace = req
         .root
@@ -833,6 +834,7 @@ fn run_in_project(
         }
     }
 
+    let mut stop_hook_active = false;
     let mut initial_budget = Some(initial_budget);
     let mut step = 0usize;
     let mut step_index: u32 = 0;
@@ -1256,6 +1258,7 @@ fn run_in_project(
             is_last_step,
             step_index,
             app_session_scope.as_deref(),
+            &mut stop_hook_active,
         );
         if let Err(error) =
             session_protocol.consume_invoked_skills(ctx.tool_use_context().as_ref(), &session)
@@ -1516,6 +1519,7 @@ fn handle_assistant_text_branch(
     is_last_step: bool,
     step_index: u32,
     app_session_scope: Option<&str>,
+    stop_hook_active: &mut bool,
 ) -> bool {
     let mut ran_tool = false;
     let session_message_count_before_tool_parse = session.messages.len();
@@ -1598,6 +1602,27 @@ fn handle_assistant_text_branch(
             final_text_preview = %response_preview(text),
             "session processor accepted final-step assistant response and completed turn"
         );
+        match prompt::block_on(crate::plugins::hook_stop::emit(
+            ctx.tool_use_context().clone(),
+            false,
+            *stop_hook_active,
+            Some(text),
+        )) {
+            Ok(outcome) if !outcome.contexts.is_empty() => {
+                on_event(StreamEvent::Error(
+                    "Stop hook continuation exceeded maximum tool iterations".into(),
+                ));
+                return false;
+            }
+            Ok(_) => {}
+            Err(error) => {
+                on_event(StreamEvent::Error(error.to_string()));
+                return false;
+            }
+        }
+        if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
+            return false;
+        }
         if !tools_exec::finalize_agent_tool_children(&req.session, session, on_event, tool_state) {
             return false;
         }
@@ -1651,6 +1676,30 @@ fn handle_assistant_text_branch(
         final_text_preview = %response_preview(text),
         "session processor completed turn with assistant response"
     );
+    match prompt::block_on(crate::plugins::hook_stop::emit(
+        ctx.tool_use_context().clone(),
+        false,
+        *stop_hook_active,
+        Some(text),
+    )) {
+        Ok(outcome) if !outcome.contexts.is_empty() => {
+            for message in outcome.contexts {
+                session.push(Role::User, message.clone());
+                llm_messages.push(json!({"role":"user", "content":message}));
+            }
+            *stop_hook_active = true;
+            *step += 1;
+            return true;
+        }
+        Ok(_) => {}
+        Err(error) => {
+            on_event(StreamEvent::Error(error.to_string()));
+            return false;
+        }
+    }
+    if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
+        return false;
+    }
     if !tools_exec::finalize_agent_tool_children(&req.session, session, on_event, tool_state) {
         return false;
     }
@@ -1816,3 +1865,16 @@ fn build_image_turn_context_for_request(
 #[cfg(test)]
 #[path = "runner_tests.rs"]
 mod runner_tests;
+
+/// The synchronous session runner exits through many error and cancellation branches.
+struct InterruptGuard(std::sync::Arc<ToolUseContext>);
+impl Drop for InterruptGuard {
+    fn drop(&mut self) {
+        if self.0.abort_token().is_some_and(|token| token.is_cancelled())
+            && prompt::block_on(crate::plugins::hook_stop::emit(self.0.clone(), true, false, None))
+                .is_err()
+        {
+            tracing::warn!("interrupt hook failed");
+        }
+    }
+}

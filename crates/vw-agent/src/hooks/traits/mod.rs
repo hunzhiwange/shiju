@@ -237,6 +237,13 @@ pub trait HookHandler: HookHandlerBounds {
         Ok(())
     }
 
+    async fn turn_end(
+        &self,
+        _input: &serde_json::Value,
+    ) -> anyhow::Result<crate::plugins::hook_stop::Outcome> {
+        Ok(Default::default())
+    }
+
     async fn subagent(&self, _input: &serde_json::Value) -> anyhow::Result<Vec<String>> {
         Ok(Vec::new())
     }

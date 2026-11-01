@@ -310,3 +310,105 @@ async fn run_tool_call_loop_with_non_cli_approval_context_scopes_none_when_conte
     assert!(TOOL_LOOP_REPLY_TARGET.try_with(|target| target.clone()).is_err());
     assert!(TOOL_LOOP_NON_CLI_APPROVAL_CONTEXT.try_with(|ctx| ctx.clone()).is_err());
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t44_actual_turn_continues_after_stop_block() {
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let runner = crate::plugins::t44_tests::runner(root.path(), state.path());
+    let calls = Arc::new(AtomicUsize::new(0));
+    let response = crate::providers::ChatResponse {
+        text: Some("finished".into()),
+        tool_calls: Vec::new(),
+        usage: None,
+        reasoning_content: None,
+    };
+    let provider =
+        RecordingProvider::from_responses(vec![response.clone(), response], calls.clone());
+    let mut history = vec![ChatMessage::user("hello")];
+    let mut security = SecurityPolicy::default();
+    security.workspace_dir = root.path().to_path_buf();
+    let result = super::run_tool_call_loop_with_reply_target(
+        &provider,
+        &mut history,
+        &[],
+        &crate::observability::NoopObserver,
+        "fixture",
+        "fixture",
+        0.0,
+        true,
+        None,
+        "cli",
+        None,
+        &Default::default(),
+        4,
+        None,
+        None,
+        Some(runner),
+        Some(Arc::new(security)),
+        &[],
+    )
+    .await
+    .unwrap();
+    assert_eq!(result, "finished");
+    assert_eq!(calls.load(Ordering::SeqCst), 2);
+    assert!(
+        history.iter().any(|message| message.role == "user" && message.content == "verify work")
+    );
+    let events: Vec<serde_json::Value> = std::fs::read_to_string(state.path().join("events"))
+        .unwrap()
+        .lines()
+        .map(|s| serde_json::from_str(s).unwrap())
+        .collect();
+    assert_eq!(events.len(), 2);
+    assert_eq!(events[0]["stop_hook_active"], false);
+    assert_eq!(events[1]["stop_hook_active"], true);
+}
+
+#[tokio::test]
+async fn codex_plugin_compat_t44_actual_turn_failure_and_cancellation() {
+    for cancelled in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let state = tempfile::tempdir().unwrap();
+        let runner = crate::plugins::t44_tests::runner(root.path(), state.path());
+        let provider = RecordingProvider::from_responses(Vec::new(), Arc::default());
+        let mut history = vec![ChatMessage::user("hello")];
+        let mut security = SecurityPolicy::default();
+        security.workspace_dir = root.path().to_path_buf();
+        let token = CancellationToken::new();
+        if cancelled {
+            token.cancel();
+        }
+        let result = super::run_tool_call_loop_with_reply_target(
+            &provider,
+            &mut history,
+            &[],
+            &crate::observability::NoopObserver,
+            "fixture",
+            "fixture",
+            0.0,
+            true,
+            None,
+            "cli",
+            None,
+            &Default::default(),
+            4,
+            Some(token),
+            None,
+            Some(runner),
+            Some(Arc::new(security)),
+            &[],
+        )
+        .await;
+        assert!(result.is_err());
+        let marker = state.path().join("events");
+        if cancelled {
+            let events = std::fs::read_to_string(marker).unwrap();
+            let event: serde_json::Value = serde_json::from_str(events.trim()).unwrap();
+            assert_eq!(event["hook_event_name"], "Interrupt");
+            assert!(event.get("stop_hook_active").is_none());
+        } else {
+            assert!(!marker.exists());
+        }
+    }
+}

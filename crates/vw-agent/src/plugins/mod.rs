@@ -127,3 +127,8 @@ pub(crate) use compat::t41_tests;
 
 #[cfg(test)]
 pub(crate) use compat::t42_tests;
+
+pub(crate) use compat::hook_stop;
+
+#[cfg(test)]
+pub(crate) use compat::t44_tests;

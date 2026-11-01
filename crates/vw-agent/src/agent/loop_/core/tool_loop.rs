@@ -187,6 +187,8 @@ pub(crate) async fn run_tool_call_loop_with_skills(
     }
     let tool_use_context = Arc::new(tool_use_context);
 
+    let mut stop_hook_active = false;
+    let result = async {
     for iteration in 0..max_iterations {
         if cancellation_token.as_ref().is_some_and(CancellationToken::is_cancelled) {
             return Err(ToolLoopCancelled.into());
@@ -364,6 +366,16 @@ pub(crate) async fn run_tool_call_loop_with_skills(
                     "text": scrub_credentials(&round.display_text),
                 }),
             );
+            let stop = crate::plugins::hook_stop::emit(tool_use_context.clone(), false, stop_hook_active, Some(&round.display_text)).await?;
+            if cancellation_token.as_ref().is_some_and(CancellationToken::is_cancelled) {
+                return Err(ToolLoopCancelled.into());
+            }
+            if !stop.contexts.is_empty() {
+                history.push(ChatMessage::assistant(round.response_text));
+                history.extend(stop.contexts.into_iter().map(ChatMessage::user));
+                stop_hook_active = true;
+                continue;
+            }
             stream_final_response(
                 &round.display_text,
                 on_delta.as_ref(),
@@ -420,6 +432,11 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         }),
     );
     anyhow::bail!("Agent exceeded maximum tool iterations ({max_iterations})")
+    }.await;
+    if cancellation_token.as_ref().is_some_and(CancellationToken::is_cancelled) {
+        crate::plugins::hook_stop::emit(tool_use_context, true, false, None).await?;
+    }
+    result
 }
 
 async fn prepare_legacy_image_turn(

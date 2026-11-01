@@ -1052,6 +1052,7 @@ fn handle_assistant_text_branch_accepts_plain_final_text() {
         false,
         1,
         None,
+        &mut false,
     );
 
     assert!(!should_continue);
@@ -1101,6 +1102,7 @@ fn legacy_require_agent_tool_option_does_not_reject_plain_final_text() {
         false,
         1,
         None,
+        &mut false,
     );
 
     assert!(!should_continue);
@@ -1143,6 +1145,7 @@ fn handle_assistant_text_branch_retries_empty_text_with_reasoning_message() {
         false,
         1,
         None,
+        &mut false,
     );
 
     assert!(should_continue);
@@ -1206,6 +1209,7 @@ fn handle_assistant_text_branch_continues_when_incomplete_todos_remain() {
         false,
         1,
         None,
+        &mut false,
     );
 
     assert!(should_continue);
@@ -1267,6 +1271,7 @@ fn unfinished_todos_do_not_auto_complete_from_assistant_text() {
         false,
         1,
         None,
+        &mut false,
     );
 
     let todos: Vec<todo::Todo> =
@@ -2753,4 +2758,56 @@ fn codex_plugin_compat_t42_processor_emits_around_real_summary() {
     assert_eq!(events[0]["hook_event_name"], "PreCompact");
     assert_eq!(events[1]["hook_event_name"], "PostCompact");
     assert_eq!(events[1]["trigger"], "auto");
+}
+
+#[test]
+fn codex_plugin_compat_t44_session_final_text_requests_continuation() {
+    let session_id = unique_session_id("plain-text");
+    let req = request_with_session(&session_id);
+    let root = tempfile::tempdir().unwrap();
+    let state = tempfile::tempdir().unwrap();
+    let context = crate::plugins::t44_tests::fixture(root.path(), state.path(), "turn");
+    let ctx = ToolRuntimeContext::new(
+        session_id.clone(),
+        Some(root.path().to_string_lossy().into_owned()),
+    )
+    .with_tool_use_context(context.as_ref().clone());
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state = super::ToolSessionState::default();
+    let mut retries = 2usize;
+    let mut step = 0;
+    let mut events = Vec::new();
+    let empty_tools = HashSet::new();
+    let step_out = llm_step("  final answer  ");
+
+    let should_continue = super::handle_assistant_text_branch(
+        &req,
+        &mut session,
+        &ctx,
+        &empty_tools,
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut tool_state,
+        &mut retries,
+        &mut step,
+        &step_out,
+        "final answer",
+        &empty_tools,
+        false,
+        1,
+        None,
+        &mut false,
+    );
+
+    assert!(should_continue);
+    assert_eq!(step, 1);
+    assert_eq!(llm_messages.last().unwrap()["content"], "verify work");
+    assert!(event_texts(&events).is_empty());
+    assert!(std::fs::read_to_string(state.path().join("events")).unwrap().contains("Stop"));
 }

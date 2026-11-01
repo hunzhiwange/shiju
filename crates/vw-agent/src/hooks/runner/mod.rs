@@ -181,6 +181,18 @@ impl HookRunner {
         Ok(())
     }
 
+    /// Apply host-owned completion or interruption hooks in declaration order.
+    pub(crate) async fn turn_end(
+        &self,
+        input: &serde_json::Value,
+    ) -> anyhow::Result<crate::plugins::hook_stop::Outcome> {
+        let mut outcome = crate::plugins::hook_stop::Outcome::default();
+        for handler in &self.handlers {
+            outcome.merge(handler.turn_end(input).await?);
+        }
+        Ok(outcome)
+    }
+
     /// 触发会话开始事件
     ///
     /// 并行通知所有处理器新会话已开始。

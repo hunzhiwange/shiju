@@ -80,6 +80,8 @@ impl CommandPluginHookHandler {
                     | PluginHookEvent::PreCompact
                     | PluginHookEvent::PostCompact
                     | PluginHookEvent::SubagentStart
+                    | PluginHookEvent::Stop
+                    | PluginHookEvent::Interrupt
                     | PluginHookEvent::SubagentStop
             )
         {
@@ -164,6 +166,8 @@ impl CommandPluginHookHandler {
                         PluginHookEvent::PreCompact
                             | PluginHookEvent::PostCompact
                             | PluginHookEvent::SubagentStart
+                            | PluginHookEvent::Stop
+                            | PluginHookEvent::Interrupt
                             | PluginHookEvent::SubagentStop
                     ) =>
             {
@@ -184,36 +188,44 @@ impl CommandPluginHookHandler {
             return Ok(Value::Null);
         }
         if self.codex_protocol {
-            let parsed = if matches!(
-                self.hook.event,
-                PluginHookEvent::SubagentStart | PluginHookEvent::SubagentStop
-            ) {
-                super::compat::hook_subagent::parse(
-                    output.status.code(),
-                    &output.stdout,
-                    &output.stderr,
-                    self.hook.event == PluginHookEvent::SubagentStop,
-                )?
-            } else if matches!(
-                self.hook.event,
-                PluginHookEvent::PreCompact | PluginHookEvent::PostCompact
-            ) {
-                super::compat::hook_compact::parse(output.status.code(), &output.stdout)?
-            } else if self.hook.event == PluginHookEvent::UserPromptSubmit {
-                super::compat::hook_prompt::parse(
-                    output.status.code(),
-                    &output.stdout,
-                    &output.stderr,
-                )?
-            } else if self.hook.event == PluginHookEvent::AfterToolCall {
-                super::compat::hook_post_tool::parse(
-                    output.status.code(),
-                    &output.stdout,
-                    &output.stderr,
-                )?
-            } else {
-                super::compat::hook_command::interpret(output.status.code(), &output.stdout)?
-            };
+            let parsed =
+                if matches!(self.hook.event, PluginHookEvent::Stop | PluginHookEvent::Interrupt) {
+                    super::compat::hook_stop::parse(
+                        output.status.code(),
+                        &output.stdout,
+                        &output.stderr,
+                        self.hook.event == PluginHookEvent::Stop,
+                    )?
+                } else if matches!(
+                    self.hook.event,
+                    PluginHookEvent::SubagentStart | PluginHookEvent::SubagentStop
+                ) {
+                    super::compat::hook_subagent::parse(
+                        output.status.code(),
+                        &output.stdout,
+                        &output.stderr,
+                        self.hook.event == PluginHookEvent::SubagentStop,
+                    )?
+                } else if matches!(
+                    self.hook.event,
+                    PluginHookEvent::PreCompact | PluginHookEvent::PostCompact
+                ) {
+                    super::compat::hook_compact::parse(output.status.code(), &output.stdout)?
+                } else if self.hook.event == PluginHookEvent::UserPromptSubmit {
+                    super::compat::hook_prompt::parse(
+                        output.status.code(),
+                        &output.stdout,
+                        &output.stderr,
+                    )?
+                } else if self.hook.event == PluginHookEvent::AfterToolCall {
+                    super::compat::hook_post_tool::parse(
+                        output.status.code(),
+                        &output.stdout,
+                        &output.stderr,
+                    )?
+                } else {
+                    super::compat::hook_command::interpret(output.status.code(), &output.stdout)?
+                };
             if self.hook.event == PluginHookEvent::AfterToolCall {
                 super::compat::hook_post_tool::validate(&parsed)?;
             }
@@ -267,6 +279,20 @@ impl HookHandler for CommandPluginHookHandler {
 
     fn name(&self) -> &str {
         &self.name
+    }
+
+    async fn turn_end(&self, input: &Value) -> Result<super::compat::hook_stop::Outcome> {
+        let expected = match self.hook.event {
+            PluginHookEvent::Stop => "Stop",
+            PluginHookEvent::Interrupt => "Interrupt",
+            _ => return Ok(Default::default()),
+        };
+        if !self.codex_protocol || input["hook_event_name"] != expected {
+            return Ok(Default::default());
+        }
+        super::compat::hook_stop::validate(input)?;
+        let output = self.execute_payload(input.clone()).await?;
+        Ok(super::compat::hook_stop::outcome(&output, expected == "Stop"))
     }
 
     async fn subagent(&self, input: &Value) -> Result<Vec<String>> {
@@ -747,6 +773,8 @@ pub(crate) fn codex_handlers(
                     E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
                     E::SubagentStart => PluginHookEvent::SubagentStart,
                     E::SubagentStop => PluginHookEvent::SubagentStop,
+                    E::Stop => PluginHookEvent::Stop,
+                    E::Interrupt => PluginHookEvent::Interrupt,
                     E::PreCompact => PluginHookEvent::PreCompact,
                     E::PostCompact => PluginHookEvent::PostCompact,
                     E::PostModelRequest => PluginHookEvent::PostModelRequest,
@@ -754,9 +782,6 @@ pub(crate) fn codex_handlers(
                     E::UserPromptSubmit => PluginHookEvent::UserPromptSubmit,
                     E::SessionStart => PluginHookEvent::SessionStart,
                     E::SessionEnd => PluginHookEvent::SessionEnd,
-                    _ => {
-                        anyhow::bail!("Codex hook execution is not supported for event: {event:?}")
-                    }
                 };
                 let H::Command {
                     command,
@@ -785,7 +810,7 @@ pub(crate) fn codex_handlers(
                     event: mapped,
                     command: program.to_owned(),
                     args,
-                    timeout_secs: if *event == E::SessionEnd {
+                    timeout_secs: if matches!(*event, E::SessionEnd | E::Interrupt) {
                         Some(timeout.unwrap_or(1).clamp(1, 3))
                     } else {
                         *timeout
@@ -839,6 +864,13 @@ struct OrderedCodexHooks {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl HookHandler for OrderedCodexHooks {
+    async fn turn_end(&self, input: &Value) -> Result<super::compat::hook_stop::Outcome> {
+        let mut outcome = super::compat::hook_stop::Outcome::default();
+        for handler in &self.handlers {
+            outcome.merge(handler.turn_end(input).await?);
+        }
+        Ok(outcome)
+    }
     async fn subagent(&self, input: &Value) -> Result<Vec<String>> {
         let mut contexts = Vec::new();
         for handler in &self.handlers {

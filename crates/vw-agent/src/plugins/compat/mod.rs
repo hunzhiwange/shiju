@@ -190,3 +190,7 @@ pub(crate) mod t41_tests;
 pub(crate) mod hook_compact;
 #[cfg(test)]
 pub(crate) mod t42_tests;
+
+pub(crate) mod hook_stop;
+#[cfg(test)]
+pub(crate) mod t44_tests;

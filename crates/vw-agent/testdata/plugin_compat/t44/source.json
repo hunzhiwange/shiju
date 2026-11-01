@@ -1,0 +1,33 @@
+{
+  "task": 44,
+  "fixture": "repository-authored temporary shell commands in t44_tests.rs",
+  "license": "repository license; no copied reference implementation",
+  "sources": [
+    {
+      "tree": "codex",
+      "path": "codex-rs/hooks/src/events/stop.rs",
+      "symbols": [
+        "StopRequest",
+        "parse_completed",
+        "aggregate_results"
+      ],
+      "sha256": "24d79f820e59f3733fc6febd7fee0e55fe04db1497f3e317a9bbc106d3d94d38"
+    },
+    {
+      "tree": "codex",
+      "path": "codex-rs/hooks/src/events/interrupt.rs",
+      "symbols": [
+        "InterruptRequest",
+        "parse_completed"
+      ],
+      "sha256": "46fb1334dcdd6ab94dbc1adcbd13fda6a05f0603d960a4fa8603a0a5f8e7e6d4"
+    }
+  ],
+  "expected": {
+    "Stop": "block plus nonempty reason or exit 2 stderr continues; continue:false takes priority",
+    "Interrupt": "observation only; no Stop-only fields",
+    "recursion": "turn-local stop_hook_active false initially, true after continuation",
+    "isolation": "package bytes unchanged; state external; failure and close do not emit Stop or Interrupt"
+  },
+  "safety_difference": "interrupt commands capped at 1–3s; aggregate interruption cleanup capped at 3s; Stop cancellation drops real process tree"
+}

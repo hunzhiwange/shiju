@@ -37,6 +37,7 @@ pub(crate) struct CommandPluginHookHandler {
     hook: PluginHook,
     matcher: super::compat::hook_matcher::HookMatcher,
     codex_protocol: bool,
+    mcp: Option<super::CodexHookHandler>,
     data_directory: Option<PathBuf>,
     additional_context_limit: Option<usize>,
     asynchronous: bool,
@@ -52,6 +53,7 @@ impl CommandPluginHookHandler {
             hook,
             matcher: super::compat::hook_matcher::HookMatcher::All,
             codex_protocol: false,
+            mcp: None,
             data_directory: None,
             additional_context_limit: None,
             asynchronous: false,
@@ -149,14 +151,30 @@ impl CommandPluginHookHandler {
             })?;
             return Ok(Value::Null);
         }
-        let output = run_hook_command(
-            &self.plugin_name,
-            &self.hook,
-            &input,
-            self.codex_protocol,
-            self.data_directory.as_deref(),
-        )
-        .await;
+        let output = if let Some(handler) = &self.mcp {
+            super::compat::hook_mcp::execute(&self.hook.working_dir, handler, &payload).await.map(
+                |stdout| {
+                    #[cfg(unix)]
+                    use std::os::unix::process::ExitStatusExt;
+                    #[cfg(windows)]
+                    use std::os::windows::process::ExitStatusExt;
+                    CommandHookOutput {
+                        status: ExitStatus::from_raw(0),
+                        stdout,
+                        stderr: Vec::new(),
+                    }
+                },
+            )
+        } else {
+            run_hook_command(
+                &self.plugin_name,
+                &self.hook,
+                &input,
+                self.codex_protocol,
+                self.data_directory.as_deref(),
+            )
+            .await
+        };
         let output = match output {
             Ok(output) => output,
             Err(_)
@@ -783,6 +801,36 @@ pub(crate) fn codex_handlers(
                     E::SessionStart => PluginHookEvent::SessionStart,
                     E::SessionEnd => PluginHookEvent::SessionEnd,
                 };
+                if matches!(handler, H::McpTool { .. }) {
+                    if *event == E::SessionEnd {
+                        tracing::warn!("SessionEnd MCP hooks are unsupported");
+                        continue;
+                    }
+                    let hook = PluginHook {
+                        event: mapped,
+                        command: String::new(),
+                        args: Vec::new(),
+                        timeout_secs: None,
+                        working_dir: root.canonicalize()?,
+                        mode: PluginHookMode::Blocking,
+                        manifest_path: root.canonicalize()?,
+                    };
+                    let mut executable = CommandPluginHookHandler::new(name.to_owned(), hook);
+                    executable.codex_protocol = true;
+                    executable.matcher = matcher.clone();
+                    executable.mcp = Some(handler.clone());
+                    use sha2::{Digest, Sha256};
+                    let identity = format!("{}\0{}", root.canonicalize()?.display(), name);
+                    executable.data_directory = Some(
+                        trust
+                            .host_directory()?
+                            .join("plugin-hook-data")
+                            .join(hex::encode(Sha256::digest(identity.as_bytes()))),
+                    );
+
+                    admitted.push(Box::new(executable) as Box<dyn HookHandler>);
+                    continue;
+                }
                 let H::Command {
                     command,
                     command_windows,

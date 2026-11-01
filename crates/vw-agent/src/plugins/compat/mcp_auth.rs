@@ -442,3 +442,19 @@ fn validate_oauth(config: &Map<String, Value>) -> Result<()> {
     }
     Ok(())
 }
+
+/// Verify the source before resolving a hook's package-local server name.
+pub(crate) fn hook_source_matches(
+    server: &McpServerHttp,
+    root: &std::path::Path,
+    name: &str,
+) -> Result<bool> {
+    let Some(value) = server.meta.as_ref().and_then(|meta| meta.get(CONTEXT_KEY)) else {
+        return Ok(false);
+    };
+    let context: HttpContext = serde_json::from_value(value.clone())?;
+    if context.root != root.canonicalize()? || context.name != name {
+        return Ok(false);
+    }
+    Ok(source_config(server)?.is_some())
+}

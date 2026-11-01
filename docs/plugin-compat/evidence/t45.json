@@ -1,0 +1,73 @@
+{
+  "task": 45,
+  "status": "已完成",
+  "platform": "Darwin arm64",
+  "dependency": {
+    "task": 44,
+    "commit": "bc719c58",
+    "evidence": "t44.json"
+  },
+  "implementation": [
+    "hook_mcp::execute",
+    "hook_mcp::expand",
+    "mcp_auth::hook_source_matches",
+    "hook_handler::codex_handlers / execute_payload"
+  ],
+  "source": "codex-rs/hooks/src/engine/mcp_runner.rs: run_mcp_tool, expand_mcp_argument_template; engine/discovery.rs SessionEnd handling; frozen baseline.json unchanged",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t45/README.md",
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t45_ -- --nocapture",
+    "exit_code": 101,
+    "tests_started": 4,
+    "target_failure": "codex_handlers rejects non-command MCP handlers; restored original command-only admission to establish regression",
+    "termination": "target assertion panic followed by repository runtime SIGABRT"
+  },
+  "green": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t45_ -- --nocapture",
+    "exit_code": 0,
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  "adjacent": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t34_ -- --nocapture",
+    "exit_code": 0,
+    "passed": 10,
+    "failed": 0
+  },
+  "verified": [
+    "Trusted handler admission and SessionEnd non-execution",
+    "Real local HTTP JSON-RPC tools/list and tools/call through actual before_tool_call handler; exact hello argument and retained fixture-context",
+    "Original mcp.json bytes unchanged",
+    "Missing template field rejected without tools/call",
+    "Different plugin root rejected without tools/call",
+    "Executor tool exposure denial preserved without tools/call",
+    "Typed nested template substitution",
+    "Existing event-specific output parsers and external context storage reused; recursion avoided with empty nested hook runner while retaining approval and cancellation context"
+  ],
+  "limitations": [
+    "Real local HTTP MCP fixture verifies the execution path; public deployed service/OAuth and platform matrix acceptance remain tasks 62–64.",
+    "No hosted connector or bundled auto-authorization; missing source-bound HTTP server fails explicitly."
+  ],
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ]
+}

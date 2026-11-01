@@ -1,0 +1,77 @@
+{
+  "task": 33,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t33_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": 3,
+      "log": "/tmp/t33-red.log",
+      "sha256": "1d2535d58140288d4d1f3d3d1d0f4ea9c6d5e25b2c1d80db514c02565c0df1f3"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t33_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 3,
+      "log": "/tmp/t33-final.log",
+      "sha256": "4e514c8f6c082f4ae6b121967c91ff05946e4f59702cd2a1126c444d2fd1a2d0"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t32_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "log": "/tmp/t33-t32.log",
+      "sha256": "2a7602719458b4de794bacc77a7a5034d1fa9afc9986f9018499b3b1060abda3"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins::hook_handler_tests:: -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 11,
+      "log": "/tmp/t33-adjacent.log",
+      "sha256": "e2f24e0b6b1d317c368d9e211ca1107011340f45a9c1f77d326f2448e8bfb7bf"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "log": "/tmp/t33-clippy.log",
+      "sha256": "8932aa13f78da25627a545ec2495b674d28447cc4109f3c54c7503eb55951909"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "effective_tests": null
+    }
+  ],
+  "red_evidence": "After minimal callable admission scaffold, dispatch without matcher filtering appended abbxc instead of abbc; assertion failed and test process subsequently aborted. This is not a completed failed-test summary. Final dispatch filters matching groups.",
+  "behavior": [
+    "Exact alternatives use whole tool names, regex uses reference search semantics, empty/absent/star match all. Non-matcher events ignore invalid patterns.",
+    "Group and duplicate handler declaration order preserved, including actual HookRunner PostToolUse broadcast through a sequential source adapter.",
+    "Trust covers full declaration including matcher and canonical package root; changes or another plugin/root remain untrusted. No payload logged in matcher errors."
+  ],
+  "scope": "Matcher admission and ordered dispatch through existing tool/model command hook bridge only. Other event execution, async and non-command handlers remain explicit errors for subsequent tasks; no full hook compatibility claim. No external service or GUI is involved in this story.",
+  "sources": [
+    {
+      "path": "codex-rs/hooks/src/engine/discovery.rs",
+      "sha256": "b61b90060075bf60ecad8fea012cfa332526a5badc5c2f541fda61446513d094"
+    },
+    {
+      "path": "codex-rs/hooks/src/engine/matcher.rs",
+      "sha256": "a4b97468515eeb3d20793805a176af97008c26ca39781002d66a044d00e28693"
+    },
+    {
+      "path": "codex-rs/hooks/src/events/common.rs",
+      "sha256": "e269c86dae1d9b35f6f1171300ef29095a975d4a8e33c11244c88f65dd057063"
+    }
+  ],
+  "slot_released": true
+}

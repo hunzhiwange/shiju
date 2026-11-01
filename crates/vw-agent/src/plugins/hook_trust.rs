@@ -72,6 +72,26 @@ impl PluginHookTrustStore {
         self.save()
     }
 
+    /// Approve the complete Codex declaration, including matchers and package location.
+    pub fn trust_codex_hooks(
+        &mut self,
+        plugin_name: &str,
+        root: &Path,
+        manifest: &super::CodexHooksManifest,
+    ) -> Result<()> {
+        self.trusted_hashes.insert(codex_hook_hash(plugin_name, root, manifest)?);
+        self.save()
+    }
+
+    pub(crate) fn codex_hooks_trusted(
+        &self,
+        plugin_name: &str,
+        root: &Path,
+        manifest: &super::CodexHooksManifest,
+    ) -> Result<bool> {
+        Ok(self.trusted_hashes.contains(&codex_hook_hash(plugin_name, root, manifest)?))
+    }
+
     /// 按精确稳定摘要撤销一个已审核声明。
     pub(crate) fn revoke_hash(&mut self, hook_hash: &str) -> Result<bool> {
         let removed = self.trusted_hashes.remove(hook_hash);
@@ -118,4 +138,14 @@ pub fn plugin_hook_trust_hash(plugin_name: &str, hook: &PluginHook) -> String {
 
 fn default_trust_version() -> u32 {
     TRUST_VERSION
+}
+
+fn codex_hook_hash(
+    plugin_name: &str,
+    root: &Path,
+    manifest: &super::CodexHooksManifest,
+) -> Result<String> {
+    let root = root.canonicalize().context("invalid Codex hook package root")?;
+    let bytes = serde_json::to_vec(&("codex-hooks-v1", plugin_name, root, manifest))?;
+    Ok(hex::encode(Sha256::digest(bytes)))
 }

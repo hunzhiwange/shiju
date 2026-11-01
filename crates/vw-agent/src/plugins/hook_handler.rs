@@ -31,12 +31,13 @@ pub(crate) struct CommandPluginHookHandler {
     plugin_name: String,
     name: String,
     hook: PluginHook,
+    matcher: super::compat::hook_matcher::HookMatcher,
 }
 
 impl CommandPluginHookHandler {
     fn new(plugin_name: String, hook: PluginHook) -> Self {
         let name = format!("plugin:{}:{}", plugin_name, hook.event.as_str());
-        Self { plugin_name, name, hook }
+        Self { plugin_name, name, hook, matcher: super::compat::hook_matcher::HookMatcher::All }
     }
 
     fn supports_event(event: PluginHookEvent) -> bool {
@@ -88,7 +89,8 @@ impl HookHandler for CommandPluginHookHandler {
     }
 
     async fn before_tool_call(&self, name: String, args: Value) -> HookResult<(String, Value)> {
-        if self.hook.event != PluginHookEvent::BeforeToolCall {
+        if self.hook.event != PluginHookEvent::BeforeToolCall || !self.matcher.matches(Some(&name))
+        {
             return HookResult::Continue((name, args));
         }
 
@@ -107,7 +109,7 @@ impl HookHandler for CommandPluginHookHandler {
     }
 
     async fn on_after_tool_call(&self, tool: &str, result: &ToolResult, duration: Duration) {
-        if self.hook.event != PluginHookEvent::AfterToolCall {
+        if self.hook.event != PluginHookEvent::AfterToolCall || !self.matcher.matches(Some(tool)) {
             return;
         }
 
@@ -165,20 +167,13 @@ pub(crate) fn trusted_plugin_hook_handlers(config: &Config) -> Result<Vec<Box<dy
                     if manifest.hooks.values().all(Vec::is_empty) {
                         continue;
                     }
-                    for diagnostic in manifest.diagnostics() {
-                        tracing::warn!(
-                            plugin = plugin.manifest.name.as_str(),
-                            event = ?diagnostic.event,
-                            group_index = diagnostic.group_index,
-                            handler_index = diagnostic.handler_index,
-                            message = diagnostic.message.as_str(),
-                            "Codex plugin hook load failure"
-                        );
-                    }
-                    anyhow::bail!(
-                        "Codex hook execution is not supported for plugin '{}' (declarations parsed successfully)",
-                        plugin.manifest.name
-                    );
+                    handlers.extend(codex_handlers(
+                        &plugin.manifest.name,
+                        &plugin.manifest.root,
+                        &manifest,
+                        &trust_store,
+                    )?);
+                    continue;
                 }
             };
 
@@ -370,4 +365,115 @@ fn truncate_for_diagnostic(text: &str) -> String {
         out.push_str("...[truncated]");
     }
     out
+}
+
+/// Admission compiles every matcher before creating any executable handler.
+pub(crate) fn codex_handlers(
+    name: &str,
+    root: &Path,
+    manifest: &super::CodexHooksManifest,
+    trust: &PluginHookTrustStore,
+) -> Result<Vec<Box<dyn HookHandler>>> {
+    use super::compat::hook_matcher::HookMatcher;
+    use super::{CodexHookEvent as E, CodexHookHandler as H, PluginHookMode};
+    let mut admitted = Vec::new();
+    for (event, groups) in &manifest.hooks {
+        for group in groups {
+            let matcher = HookMatcher::new(*event, group.matcher.as_deref())?;
+            for handler in &group.hooks {
+                let mapped = match event {
+                    E::PreToolUse => PluginHookEvent::BeforeToolCall,
+                    E::PostToolUse => PluginHookEvent::AfterToolCall,
+                    E::PreModelRequest => PluginHookEvent::BeforeLlmCall,
+                    _ => {
+                        anyhow::bail!("Codex hook execution is not supported for event: {event:?}")
+                    }
+                };
+                let H::Command { command, command_windows, timeout, r#async, .. } = handler else {
+                    anyhow::bail!("Codex hook execution is not supported for non-command handlers");
+                };
+                anyhow::ensure!(
+                    !r#async,
+                    "Codex hook execution is not supported for async handlers"
+                );
+                #[cfg(windows)]
+                let (program, args) = (
+                    "cmd.exe",
+                    vec!["/C".to_owned(), command_windows.as_ref().unwrap_or(command).clone()],
+                );
+                #[cfg(not(windows))]
+                let (program, args) = {
+                    let _ = command_windows;
+                    ("/bin/sh", vec!["-c".to_owned(), command.clone()])
+                };
+                anyhow::ensure!(!command.trim().is_empty(), "empty Codex hook command");
+                let hook = PluginHook {
+                    event: mapped,
+                    command: program.to_owned(),
+                    args,
+                    timeout_secs: *timeout,
+                    working_dir: root.canonicalize()?,
+                    mode: PluginHookMode::Blocking,
+                    manifest_path: root.canonicalize()?,
+                };
+                let mut handler = CommandPluginHookHandler::new(name.to_owned(), hook);
+                handler.matcher = matcher.clone();
+                admitted.push(Box::new(handler) as Box<dyn HookHandler>);
+            }
+        }
+    }
+    if !trust.codex_hooks_trusted(name, root, manifest)? {
+        admitted.clear();
+    }
+    if admitted.is_empty() {
+        return Ok(Vec::new());
+    }
+    Ok(vec![Box::new(OrderedCodexHooks {
+        name: format!("plugin:{name}:codex"),
+        handlers: admitted,
+    })])
+}
+
+/// Keep declaration order even when the host broadcasts observer events concurrently.
+struct OrderedCodexHooks {
+    name: String,
+    handlers: Vec<Box<dyn HookHandler>>,
+}
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl HookHandler for OrderedCodexHooks {
+    fn name(&self) -> &str {
+        &self.name
+    }
+    async fn before_tool_call(
+        &self,
+        mut name: String,
+        mut args: Value,
+    ) -> HookResult<(String, Value)> {
+        for handler in &self.handlers {
+            match handler.before_tool_call(name, args).await {
+                HookResult::Continue(value) => (name, args) = value,
+                HookResult::Cancel(reason) => return HookResult::Cancel(reason),
+            }
+        }
+        HookResult::Continue((name, args))
+    }
+    async fn before_llm_call(
+        &self,
+        mut messages: Vec<crate::providers::ChatMessage>,
+        mut model: String,
+    ) -> HookResult<(Vec<crate::providers::ChatMessage>, String)> {
+        for handler in &self.handlers {
+            match handler.before_llm_call(messages, model).await {
+                HookResult::Continue(value) => (messages, model) = value,
+                HookResult::Cancel(reason) => return HookResult::Cancel(reason),
+            }
+        }
+        HookResult::Continue((messages, model))
+    }
+    async fn on_after_tool_call(&self, tool: &str, result: &ToolResult, duration: Duration) {
+        for handler in &self.handlers {
+            handler.on_after_tool_call(tool, result, duration).await;
+        }
+    }
 }

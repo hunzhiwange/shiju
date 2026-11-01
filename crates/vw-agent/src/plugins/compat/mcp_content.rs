@@ -11,6 +11,13 @@ const WIRE_RESULT: &str = "vibewindow/internal-wire-result";
 /// This carrier is replaced at every transport decode, so a server cannot forge its outer layer.
 /// It is consumed before any tool result leaves the MCP adapter, never used as authority.
 pub(crate) fn preserve_mcp_wire_result(message: &mut Value) {
+    // rmcp 0.8 has only the form request type; retain URL params in the raw request slot.
+    if message["method"] == "elicitation/create"
+        && message.pointer("/params/mode").and_then(Value::as_str) == Some("url")
+    {
+        message["params"]["requestedSchema"] = serde_json::json!({"type":"object","properties":{}});
+    }
+
     if message.get("id").is_none() || message.get("method").is_some() {
         return;
     }

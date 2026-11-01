@@ -114,6 +114,9 @@ pub(crate) async fn request(
         Some(schema) => schema,
         None => serde_json::to_value(&request.requested_schema).map_err(|_| invalid())?,
     };
+    if schema["mode"] == "url" {
+        return request_url(owner, server, schema, cancelled, closed).await;
+    }
     if schema["type"] != "object" {
         return Err(invalid());
     }
@@ -236,4 +239,72 @@ pub(crate) async fn request(
     let content = Value::Object(content);
     validate(&schema, &content)?;
     Ok(CreateElicitationResult { action: ElicitationAction::Accept, content: Some(content) })
+}
+
+async fn request_url(
+    owner: FormOwner,
+    server: String,
+    params: Value,
+    cancelled: CancellationToken,
+    closed: CancellationToken,
+) -> Result<CreateElicitationResult, ErrorData> {
+    let url = params["url"].as_str().ok_or_else(invalid)?;
+    let parsed = url::Url::parse(url).map_err(|_| invalid())?;
+    if parsed.scheme() != "https"
+        || parsed.host_str().is_none()
+        || !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || crate::tools::url_validation::is_private_or_local_host(parsed.host_str().unwrap_or(""))
+        || params["elicitationId"].as_str().is_none_or(|id| id.trim().is_empty())
+    {
+        return Err(invalid());
+    }
+    let message = params["message"].as_str().ok_or_else(invalid)?;
+    let future = ui_store::with_tenant_scope(
+        owner.tenant,
+        question::ask_sensitive(
+            question::AskInput {
+                session_id: owner.session,
+                tool: None,
+                questions: vec![question::Info {
+                    header: server.clone(),
+                    question: format!(
+                        "{message}\n{url}\nRequest: {}\nOpen this URL to authorize, then accept; decline to refuse.",
+                        params["elicitationId"].as_str().unwrap_or("")
+                    ),
+                    options: ["accept", "decline"]
+                        .into_iter()
+                        .map(|label| question::OptionInfo {
+                            label: label.into(),
+                            description: String::new(),
+                            preview: None,
+                        })
+                        .collect(),
+                    multiple: Some(false),
+                    custom: Some(false),
+                }],
+            },
+            vw_shared::question::McpForm {
+                server,
+                schema: json!({"type":"object","properties":{}}),
+            },
+        ),
+    );
+    let answers = tokio::select! {
+        biased;
+        _ = cancelled.cancelled() => return Ok(result(ElicitationAction::Cancel)),
+        _ = closed.cancelled() => return Ok(result(ElicitationAction::Cancel)),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(120)) => return Ok(result(ElicitationAction::Cancel)),
+        answers = future => answers,
+    };
+    match answers {
+        Ok(answers) if answers == vec![vec![String::from("accept")]] => {
+            Ok(result(ElicitationAction::Accept))
+        }
+        Ok(answers) if answers == vec![vec![String::from("decline")]] => {
+            Ok(result(ElicitationAction::Decline))
+        }
+        Err(question::Error::Rejected(_)) => Ok(result(ElicitationAction::Cancel)),
+        _ => Err(invalid()),
+    }
 }

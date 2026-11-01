@@ -1,0 +1,48 @@
+{
+  "task": 27,
+  "status": "incomplete; public-service acceptance deferred by user",
+  "platform": "macOS aarch64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t27_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 8,
+      "record": "t27/test.log",
+      "sha256": "6643ef02237578ee7f7a620d3f65a7e26365d451b2ffb1bb7868e383e153c3a5",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t26_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "record": "t27/adjacent.log",
+      "sha256": "864484faf9f854083dceb3aac11e573f67a90345a814187d6677d11e3a6dbb98",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "record": "t27/clippy.log",
+      "sha256": "94f69746b19c5e7bdc4fbdd7975fd1ecda051772c9ea98b182697ccaca07ca6c",
+      "storage": "local_only"
+    }
+  ],
+  "behavior": [
+    "S256 PKCE with OS entropy; one-shot exact state/origin/path and duplicate-parameter rejection",
+    "session/tenant-owned sensitive authorization question; decline, cancellation, loopback callback and bounded timeout",
+    "public DNS pinned token exchange without proxy or redirects; source revalidation; bounded response",
+    "URL elicitation raw request-ID preservation and real question accept/decline/cancel/closed-session paths"
+  ],
+  "limitations": [
+    "No target behavioral red run was captured; initial compile errors are not red evidence.",
+    "User elected to handle public MCP/provider and desktop rendering acceptance later; no complete compatibility claim.",
+    "Token exchange and browser callback are not yet covered by an end-to-end provider test.",
+    "Only pre-registered public clients are accepted; missing client identifiers and confidential clients fail explicitly.",
+    "URL confirmation is user-mediated; no claim of server completion-notification tracking."
+  ],
+  "slot_released": true
+}

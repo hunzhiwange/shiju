@@ -28,9 +28,14 @@ impl RawResponse {
     }
     pub(crate) fn capture(&self, message: &Value) {
         if message["method"] == "elicitation/create" {
-            if let (Some(id), Some(schema)) =
-                (message.get("id"), message.pointer("/params/requestedSchema"))
-            {
+            if let (Some(id), Some(schema)) = (
+                message.get("id"),
+                if message.pointer("/params/mode").and_then(Value::as_str) == Some("url") {
+                    message.get("params")
+                } else {
+                    message.pointer("/params/requestedSchema")
+                },
+            ) {
                 let mut forms = self.1.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 if forms.len() < 64 {
                     forms.insert(id.to_string(), schema.clone());

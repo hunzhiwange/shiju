@@ -111,7 +111,7 @@ pub(crate) fn bind(server: &mut McpServerHttp, context: HttpContext) -> Result<(
 }
 
 /// Re-read the exact source declaration before connecting. Changed endpoints or packages fail closed.
-fn source_config(server: &McpServerHttp) -> Result<Option<Map<String, Value>>> {
+pub(super) fn source_config(server: &McpServerHttp) -> Result<Option<Map<String, Value>>> {
     let Some(value) = server.meta.as_ref().and_then(|meta| meta.get(CONTEXT_KEY)) else {
         return Ok(None);
     };

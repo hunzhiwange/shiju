@@ -122,3 +122,7 @@ mod t24_tests;
 pub mod mcp_oauth_discovery;
 #[cfg(test)]
 mod t26_tests;
+
+pub mod mcp_oauth_flow;
+#[cfg(test)]
+mod t27_tests;

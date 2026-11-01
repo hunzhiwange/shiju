@@ -104,7 +104,8 @@ where
     let authority = fetch(metadata_url(&issuer, "oauth-authorization-server")).await?;
     bind(server, resource, authority)
 }
-async fn fetch(url: &Url) -> Result<serde_json::Value> {
+pub(super) async fn public_client(url: &Url) -> Result<reqwest_012::Client> {
+    endpoint(url.as_str())?;
     let host = url.host_str().context("missing discovery host")?;
     let addresses: Vec<_> =
         tokio::net::lookup_host((host, url.port_or_known_default().unwrap_or(443)))
@@ -124,8 +125,15 @@ async fn fetch(url: &Url) -> Result<serde_json::Value> {
         .timeout(std::time::Duration::from_secs(10))
         .resolve_to_addrs(host, &addresses)
         .build()?;
-    let mut response =
-        client.get(url.clone()).send().await.context("OAuth metadata request failed")?;
+    Ok(client)
+}
+async fn fetch(url: &Url) -> Result<serde_json::Value> {
+    let mut response = public_client(url)
+        .await?
+        .get(url.clone())
+        .send()
+        .await
+        .context("OAuth metadata request failed")?;
     if !response.status().is_success() {
         bail!("OAuth metadata HTTP status {}", response.status());
     }

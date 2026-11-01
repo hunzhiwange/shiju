@@ -96,3 +96,9 @@ pub(crate) use compat::mcp_connection_settings::tool_allowed as plugin_mcp_tool_
 pub use compat::mcp_auth::discover_oauth as discover_plugin_mcp_oauth;
 pub use compat::mcp_oauth_discovery::OAuthDiscovery;
 pub use compat::mcp_oauth_flow::authorize as authorize_plugin_mcp;
+
+pub use compat::mcp_oauth_tokens::logout as logout_plugin_mcp;
+
+pub(crate) use compat::mcp_oauth_tokens::access as plugin_mcp_oauth_access;
+
+pub(crate) use compat::mcp_auth::runtime_oauth_headers as plugin_mcp_oauth_headers;

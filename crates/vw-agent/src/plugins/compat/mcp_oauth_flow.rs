@@ -83,18 +83,21 @@ impl PendingAuthorization {
 }
 
 /// Authorize a source-validated public MCP server in an existing user session.
-/// The returned access token is owned by the caller and is never logged or persisted here.
+/// The grant is encrypted in host storage and scoped to the invoking tenant/session.
 pub async fn authorize(
     server: &agent_client_protocol::McpServerHttp,
     session: String,
     tenant: vw_api_types::id::TenantScope,
     cancelled: tokio_util::sync::CancellationToken,
 ) -> Result<String> {
-    authorize_with(
+    let owner = super::mcp_elicitation::FormOwner { session, tenant };
+    let _guard = super::mcp_oauth_tokens::lock(server, &owner).await?;
+    authorize_inner(
         server,
-        super::mcp_elicitation::FormOwner { session, tenant },
+        owner,
         cancelled,
         std::time::Duration::from_secs(120),
+        true,
         super::mcp_auth::discover_oauth(server),
         |endpoint, body, content_type| async move {
             let client = super::mcp_oauth_discovery::public_client(&endpoint).await?;
@@ -104,11 +107,29 @@ pub async fn authorize(
     .await
 }
 
+#[cfg(test)]
 pub(super) async fn authorize_with<D, X, XF>(
     server: &agent_client_protocol::McpServerHttp,
     owner: super::mcp_elicitation::FormOwner,
     cancelled: tokio_util::sync::CancellationToken,
     timeout: std::time::Duration,
+    discovery: D,
+    exchange: X,
+) -> Result<String>
+where
+    D: std::future::Future<Output = Result<super::mcp_oauth_discovery::OAuthDiscovery>>,
+    X: FnMut(Url, String, &'static str) -> XF,
+    XF: std::future::Future<Output = Result<serde_json::Value>>,
+{
+    authorize_inner(server, owner, cancelled, timeout, false, discovery, exchange).await
+}
+
+async fn authorize_inner<D, X, XF>(
+    server: &agent_client_protocol::McpServerHttp,
+    owner: super::mcp_elicitation::FormOwner,
+    cancelled: tokio_util::sync::CancellationToken,
+    timeout: std::time::Duration,
+    persist: bool,
     discovery: D,
     mut exchange: X,
 ) -> Result<String>
@@ -250,9 +271,9 @@ where
         {
             pending.authorization_url.query_pairs_mut().append_pair("scope", &scopes.join(" "));
         }
-        let answers = crate::session::ui_store::with_tenant_scope(owner.tenant,
+        let answers = crate::session::ui_store::with_tenant_scope(owner.tenant.clone(),
             crate::question::ask_sensitive(crate::question::AskInput {
-                session_id: owner.session,
+                session_id: owner.session.clone(),
                 questions: vec![crate::question::Info {
                     question: format!("Authorize MCP server {}? Open this URL in your browser, then accept to continue:\n{}", server.name, pending.authorization_url),
                     header: server.name.clone(),
@@ -311,6 +332,17 @@ where
             ])
             .finish();
         let value = exchange(endpoint, body, "application/x-www-form-urlencoded").await?;
+        if persist {
+            let grant = super::mcp_oauth_tokens::Grant::response(
+                &value,
+                metadata.issuer.clone(),
+                client.to_owned(),
+                metadata.resource.clone(),
+                metadata.token_endpoint.clone(),
+                None,
+            )?;
+            super::mcp_oauth_tokens::save(server, &owner, &grant)?;
+        }
         if value["token_type"].as_str().is_none_or(|value| !value.eq_ignore_ascii_case("bearer")) {
             bail!("unsupported MCP token type");
         }

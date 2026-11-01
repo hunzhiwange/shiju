@@ -1,0 +1,112 @@
+{
+  "task": 28,
+  "status": "已完成",
+  "platform": "macOS aarch64",
+  "slot": 1,
+  "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+  "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t28_ -- --nocapture",
+      "exit_code": 101,
+      "effective_tests": null,
+      "record": "t28/red.log",
+      "sha256": "e59db3827bfba794d2f876fe1fc8aa18b9f549f50d2592ff092ec70f2ac05931",
+      "storage": "local_only",
+      "started_tests": 4,
+      "observed_target_assertions": 1,
+      "note": "Ciphertext transplant assertion failed against callable storage implementation before owner binding was encrypted and verified. Three other tests passed; host panic runtime then SIGABRT, so no completed failure summary is claimed. No claim that all three initial named tests were obtained red before implementation."
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t28_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 5,
+      "record": "t28/test.log",
+      "sha256": "36ba6d4539680916f0b7d5b8c708671db405388c3e35b6ffecbf2c3a874629bc",
+      "storage": "local_only",
+      "ignored_tests": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t28_public_oauth_refresh -- --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "record": "t28/public.log",
+      "sha256": "8f1036535e6f905de914a8326a7d5415dc51905f5f86e058ef47f27b0189ed24",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t23_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 6,
+      "record": "t28/connections.log",
+      "sha256": "1b195b0a95535aedb85c5084223b9fa7fd8022b22ff30530779ea5d8560a108c",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t17_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 13,
+      "record": "t28/headers.log",
+      "sha256": "5fd3299d5eeeaa6489268b3308e3d04ad79157d877203a7497ee97ccb67e9bc4",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t27_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 22,
+      "record": "t28/authorization.log",
+      "sha256": "3d65b811e29379d1ad4072242f9f2248af26e7faa6f0e002aea265bf8df67ec0",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "effective_tests": null,
+      "record": "t28/clippy.log",
+      "sha256": "bf0613fe4826253c37514aad9bea79ee9ba4562a3bb9a01bd5d66234c037acbb",
+      "storage": "local_only"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "effective_tests": null,
+      "record": "t28/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "storage": "local_only"
+    }
+  ],
+  "diff_check": {
+    "command": "git diff --check",
+    "exit_code": 0
+  },
+  "behavior": [
+    "Existing authorize_plugin_mcp stores the full public-client grant through encrypted SecretStore, outside the original plugin package; provenance, tenant/session/server configuration bind the encrypted payload.",
+    "Issuer/client/resource/token endpoint remain in the encrypted grant; refresh rechecks source and discovered identity before sending refresh_token. Missing/invalid expiry and unsafe token values fail explicitly.",
+    "Async per-owner lock deduplicates in-process refresh; OS file lock rejects concurrent cross-process mutation. Refresh deletes expired state before provider I/O, so failure or cancellation cannot reuse it.",
+    "logout_plugin_mcp serializes against refresh, deletes the grant and cancels active connection entries; token changes participate in connection fingerprints and rebuild transport headers.",
+    "Five deterministic tests cover logout, explicit failure, independent owners, concurrent refreshed results, encryption and ciphertext-transplant rejection. Tests use real temporary files and real source parsing.",
+    "Real Sondahub public DCR + S256 code exchange uses documented auto=1 consent; forcing stored expiry to zero exercises production discovery/refresh, encrypted storage and the actual rmcp HTTP transport. The real MCP tool catalog is nonempty; after logout the same session cannot list tools. Original manifest bytes are identical."
+  ],
+  "public_acceptance": {
+    "service": "https://api.sondahub.com/mcp/secure",
+    "documentation": [
+      "https://www.sondahub.com/oauth2-test-server/",
+      "https://www.sondahub.com/mcp-oauth-test-server/"
+    ],
+    "authorization": "User authorized selecting a public test service; provider explicitly offers public playground testing and auto consent. No private account credentials used.",
+    "limits": "No claim of remote RFC7009 invalidation or desktop rendering. Provider documents stateless revocation; frozen Codex logout deletes local grants. This task verifies local credential/connection revocation against the real public service."
+  },
+  "baseline_review": [
+    {
+      "source": "codex-rs/rmcp-client/src/oauth.rs",
+      "sha256": "a26b6f35be2c85855af3ccc10416c313677c4bde2af32617e4ea7aadc22de9ac",
+      "license": "Apache-2.0",
+      "symbols": [
+        "delete_oauth_tokens",
+        "delete_oauth_tokens_with_lock_held"
+      ],
+      "finding": "Logout acquires the refresh credential lock, invalidates version and deletes local keyring/file credentials; it does not require provider-side revocation."
+    }
+  ],
+  "slot_released": true
+}

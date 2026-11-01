@@ -653,7 +653,14 @@ pub(crate) async fn open_server_peer(
             .with_context(|| format!("failed to initialize MCP peer '{}'", server.name))?
         }
         McpServer::Http(server) => {
-            let scoped_headers = crate::plugins::plugin_mcp_http_headers(server)?;
+            let oauth = match peer_client.form_owner.as_ref() {
+                Some(owner) => crate::plugins::plugin_mcp_oauth_access(server, owner).await?,
+                None => None,
+            };
+            let scoped_headers = match oauth.as_deref() {
+                Some(token) => crate::plugins::plugin_mcp_oauth_headers(server, Some(token))?,
+                None => crate::plugins::plugin_mcp_http_headers(server)?,
+            };
             let client = if let Some(headers) = scoped_headers {
                 reqwest_012::Client::builder()
                     .default_headers(headers)

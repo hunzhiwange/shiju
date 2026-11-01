@@ -128,3 +128,7 @@ pub mod mcp_oauth_flow;
 mod t27_flow_tests;
 #[cfg(test)]
 mod t27_tests;
+
+pub mod mcp_oauth_tokens;
+#[cfg(test)]
+mod t28_tests;

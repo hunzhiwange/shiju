@@ -1,0 +1,28 @@
+{
+  "fixture": "synthetic in t28_tests.rs; no actual credentials persisted in repository",
+  "license": "repository license for authored synthetic fixtures; reference sources remain in read-only Codex checkout under their original license",
+  "fields": {
+    "token_type": "bearer",
+    "expires_in": "positive integer seconds; invalid or missing rejected",
+    "access_token": "synthetic printable ASCII",
+    "refresh_token": "synthetic; omitted refresh response preserves previous grant",
+    "binding": "encrypted host owner/server identity; transplanted ciphertext rejected"
+  },
+  "sources": [
+    {
+      "path": "codex-rs/codex-mcp/src/auth_elicitation.rs",
+      "sha256": "4c248a19c2e9b7a4626d71787c9955eece10e3841f98e0e0880a4a2cf60cc656",
+      "use": "read-only OAuth ownership and provider binding reference"
+    },
+    {
+      "path": "codex-rs/codex-mcp/src/mcp/auth.rs",
+      "sha256": "6261318f8456c307d3808a6f68b90cdc982093f232a6ffc06ef794285559cd4e",
+      "use": "read-only OAuth ownership and provider binding reference"
+    }
+  ],
+  "public_test": {
+    "url": "https://www.sondahub.com/oauth2-test-server/",
+    "permission": "documentation explicitly describes public playground and auto=1 consent",
+    "limitation": "provider documents stateless revocation; HTTP 200 does not invalidate its token"
+  }
+}

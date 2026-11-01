@@ -196,25 +196,39 @@ pub async fn discover_oauth(
 }
 
 pub(crate) fn runtime_headers(server: &McpServerHttp) -> Result<Option<HeaderMap>> {
+    runtime_oauth_headers(server, None)
+}
+
+pub(crate) fn runtime_oauth_headers(
+    server: &McpServerHttp,
+    token: Option<&str>,
+) -> Result<Option<HeaderMap>> {
     let Some(config) = source_config(server)? else { return Ok(None) };
-    let headers = headers(&config)?;
+    let mut headers = headers(&config)?;
     match super::mcp_public_auth::policy(&config)? {
-        Some(super::mcp_public_auth::ConnectionPolicy::OAuth) => bail!(
-            "plugin MCP OAuth authorization requires a separate login; interactive OAuth is not available yet"
+        Some(super::mcp_public_auth::ConnectionPolicy::OAuth) if token.is_none() => bail!(
+            "plugin MCP OAuth authorization requires a separate login; a source-bound session grant is required"
         ),
         Some(super::mcp_public_auth::ConnectionPolicy::ApiKey) => bail!(
             "plugin MCP API-key authentication requires separate host connection credentials; package declarations cannot supply them"
         ),
         _ => {}
     }
-    if headers.is_empty()
+    if token.is_none()
+        && headers.is_empty()
         && ["oauth", "oauth_resource", "scopes"]
             .iter()
             .any(|field| config.get(*field).is_some_and(|v| !v.is_null()))
     {
         bail!(
-            "plugin MCP OAuth authorization requires a separate login; interactive OAuth is not available yet"
+            "plugin MCP OAuth authorization requires a separate login; a source-bound session grant is required"
         );
+    }
+    if let Some(token) = token {
+        if headers.contains_key(AUTHORIZATION) {
+            bail!("conflicting MCP authorization sources");
+        }
+        headers.insert(AUTHORIZATION, sensitive_header(&format!("Bearer {token}"))?);
     }
     Ok(Some(headers))
 }

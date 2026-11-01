@@ -78,7 +78,7 @@ impl Drop for ActiveConnection {
 pub(crate) fn configuration_key(server: &McpServer) -> Result<String> {
     Ok(hex::encode(Sha256::digest(serde_json::to_vec(server)?)))
 }
-fn connection_key(server: &McpServer, configuration: &str) -> Result<String> {
+fn connection_key(server: &McpServer, configuration: &str, oauth: Option<&str>) -> Result<String> {
     let mut hash = Sha256::new();
     hash.update(configuration);
     match server {
@@ -88,7 +88,7 @@ fn connection_key(server: &McpServer, configuration: &str) -> Result<String> {
             }
         }
         McpServer::Http(server) => {
-            if let Some(headers) = crate::plugins::plugin_mcp_http_headers(server)? {
+            if let Some(headers) = super::mcp_auth::runtime_oauth_headers(server, oauth)? {
                 for (key, value) in &headers {
                     hash.update(key.as_str());
                     hash.update([0]);
@@ -217,8 +217,23 @@ impl McpSessionConnections {
         }
         let configuration = configuration_key(server)?;
         let name = crate::tools::mcp_common::server_name(server);
-        let connection = match connection_key(server, &configuration) {
-            Ok(key) => key,
+        {
+            let state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            if state.closed {
+                bail!("MCP session is closed");
+            }
+            if state.allowed.as_ref().is_some_and(|a| a.get(name) != Some(&configuration)) {
+                bail!("MCP server configuration is no longer enabled in this session");
+            }
+        }
+        let oauth = match (server, self.form_owner.as_ref()) {
+            (McpServer::Http(server), Some(owner)) => {
+                super::mcp_oauth_tokens::access(server, owner).await?
+            }
+            _ => None,
+        };
+        let connection = match connection_key(server, &configuration, oauth.as_deref()) {
+            Ok(key) => hex::encode(Sha256::digest(serde_json::to_vec(&(key, oauth))?)),
             Err(error) => {
                 if let Some(entry) = self
                     .state
@@ -235,6 +250,14 @@ impl McpSessionConnections {
         if name.trim().is_empty() {
             bail!("MCP server name must not be empty");
         }
+        let oauth_closed = match (server, self.form_owner.as_ref()) {
+            (McpServer::Http(server), Some(owner))
+                if super::mcp_auth::source_config(server)?.is_some() =>
+            {
+                super::mcp_oauth_tokens::connection_cancellation(server, owner)?
+            }
+            _ => CancellationToken::new(),
+        };
         let entry = {
             let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             if state.closed {
@@ -243,7 +266,11 @@ impl McpSessionConnections {
             if state.allowed.as_ref().is_some_and(|a| a.get(name) != Some(&configuration)) {
                 bail!("MCP server configuration is no longer enabled in this session");
             }
-            if state.entries.get(name).is_some_and(|e| e.connection != connection) {
+            if state
+                .entries
+                .get(name)
+                .is_some_and(|e| e.connection != connection || e.closed.is_cancelled())
+            {
                 state.entries.remove(name).expect("entry checked").closed.cancel();
             }
             state
@@ -254,7 +281,7 @@ impl McpSessionConnections {
                         configuration,
                         connection,
                         source_root: settings.source_root.clone(),
-                        closed: CancellationToken::new(),
+                        closed: oauth_closed,
                         client: Arc::new(AsyncMutex::new(None)),
                         catalogs: Mutex::new(std::sync::Weak::new()),
                     })

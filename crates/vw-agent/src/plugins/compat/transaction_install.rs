@@ -19,6 +19,15 @@ pub(crate) fn install_package(
     identity: PluginIdentity,
     plugins_dir: &Path,
 ) -> Result<PluginInstallResult> {
+    install_package_with_source(source, identity, plugins_dir, None)
+}
+
+pub(crate) fn install_package_with_source(
+    source: &PluginManifest,
+    identity: PluginIdentity,
+    plugins_dir: &Path,
+    provenance: Option<&str>,
+) -> Result<PluginInstallResult> {
     reject_installation_inside_source(&source.root, plugins_dir)?;
     ensure_install_root(plugins_dir)?;
     let canonical_parent = plugins_dir.canonicalize().context("failed to resolve install root")?;
@@ -65,7 +74,9 @@ pub(crate) fn install_package(
         }
         let metadata = PluginInstallMetadata {
             identity: identity.clone(),
-            source: source.root.to_string_lossy().into_owned(),
+            source: provenance
+                .map(str::to_owned)
+                .unwrap_or_else(|| source.root.to_string_lossy().into_owned()),
             version: source.version.clone(),
         };
         write_install_metadata(&staged, &metadata)?;

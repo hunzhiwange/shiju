@@ -1,0 +1,61 @@
+{
+  "task": 48,
+  "status": "已完成",
+  "dependency": "t47.json / 945f2ca8",
+  "platform": "macOS arm64",
+  "implementation": [
+    "compat/git_source.rs: isolated bare clone and object extraction, explicit ref/sha, subpath validation, symlink/submodule rejection",
+    "install_plugin_from_source: git+URL#revision",
+    "install_plugin_marketplace_entry: normalized Git source",
+    "transaction_install::install_package_with_source: provenance published atomically outside package"
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t48_ -- --nocapture",
+    "exit_code": 101,
+    "failure": "Plugin source is not supported yet: git+...",
+    "deviation": "Regression guard restored after initial implementation to demonstrate baseline rejection; not historical test-first evidence. First fixture run failed for misplaced root manifest; initial run inherited configured build-dir target before subsequent runs explicitly isolated both Cargo directories."
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t48_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 12,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "assertions": [
+    "unchanged original manifest bytes",
+    "actual commit recorded outside payload",
+    "nested plugin selected by full SHA and marketplace identity preserved",
+    "real Git symlink rejected without installation side effects",
+    "invalid revision and path rejected"
+  ],
+  "reference": "baseline.json marketplace.git.url/path/ref/sha; frozen core-plugins/marketplace_add/source.rs and git_policy.rs",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t48/README.md",
+  "security_difference": "Requires explicit revision; does not automatically execute hooks or submodules; rejects embedded HTTP credentials and query parameters."
+}

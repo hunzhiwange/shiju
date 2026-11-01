@@ -59,6 +59,34 @@ pub fn install_plugin_from_marketplace(
     install_plugin(source, plugins_dir, Some(marketplace))
 }
 
+/// Install a normalized marketplace entry without changing its package.
+pub fn install_plugin_marketplace_entry(
+    entry: &super::MarketplaceEntry,
+    plugins_dir: &Path,
+) -> Result<PluginInstallResult> {
+    use super::{InstallationPolicy, MarketplaceSource};
+    if entry.policy.installation == InstallationPolicy::NotAvailable {
+        bail!("Plugin installation is not available");
+    }
+    let marketplace = entry.identity.marketplace_name().context("missing marketplace identity")?;
+    match &entry.source {
+        MarketplaceSource::Git { url, path, reference, sha } => super::compat::git_source::install(
+            url,
+            path.as_deref(),
+            reference.as_deref(),
+            sha.as_deref(),
+            plugins_dir,
+            Some(marketplace),
+        ),
+        MarketplaceSource::Local(path) => install_plugin_from_marketplace(
+            path.to_str().context("non UTF-8 plugin path")?,
+            plugins_dir,
+            marketplace,
+        ),
+        MarketplaceSource::Npm { .. } => bail!("npm plugin installation is not supported yet"),
+    }
+}
+
 fn install_plugin(
     source: &str,
     plugins_dir: &Path,
@@ -67,6 +95,18 @@ fn install_plugin(
     let source = source.trim();
     if source.is_empty() {
         bail!("Plugin source cannot be empty");
+    }
+    if let Some(spec) = source.strip_prefix("git+") {
+        let (url, revision) =
+            spec.rsplit_once('#').context("Git plugin source requires #revision")?;
+        return super::compat::git_source::install(
+            url,
+            None,
+            Some(revision),
+            None,
+            plugins_dir,
+            marketplace,
+        );
     }
     if is_unsupported_remote_source(source) {
         bail!("Plugin source is not supported yet: {source}");

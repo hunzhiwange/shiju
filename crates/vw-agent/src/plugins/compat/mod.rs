@@ -206,3 +206,7 @@ pub(crate) mod hook_trust_content;
 pub(crate) mod marketplace;
 #[cfg(test)]
 mod t47_tests;
+
+pub(crate) mod git_source;
+#[cfg(test)]
+mod t48_tests;

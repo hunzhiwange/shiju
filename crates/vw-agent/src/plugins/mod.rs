@@ -49,6 +49,7 @@ pub use hooks::{
 };
 pub use install::{
     PluginInstallResult, install_plugin_from_marketplace, install_plugin_from_source,
+    install_plugin_marketplace_entry,
 };
 pub(crate) use install::{install_dir_from_config, remove_installed_plugin, set_plugin_enabled};
 pub use loader::{

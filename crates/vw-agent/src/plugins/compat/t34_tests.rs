@@ -77,7 +77,7 @@ async fn codex_plugin_compat_t34_applies_updated_input() {
     let root = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let manifest: CodexHooksManifest = serde_json::from_value(serde_json::json!({
-        "hooks": {"PreToolUse": [{"hooks": [{"type":"command", "command": "printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"updatedInput\":{\"path\":\"updated\"}}}'"}]}]}
+        "hooks": {"PreToolUse": [{"hooks": [{"type":"command", "command": "printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"updatedInput\":{\"path\":\"updated\"}}}'"}]}]}
     })).unwrap();
     let mut trust =
         PluginHookTrustStore::load_or_default(&state.path().join("trust.json")).unwrap();

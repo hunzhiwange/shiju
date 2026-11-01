@@ -158,3 +158,7 @@ pub(crate) mod hook_command;
 pub(crate) mod hook_async;
 #[cfg(test)]
 mod t35_tests;
+
+pub(crate) mod hook_pre_tool;
+#[cfg(test)]
+mod t36_tests;

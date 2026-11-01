@@ -236,16 +236,11 @@ impl HookHandler for CommandPluginHookHandler {
             },
         });
         match self.execute_payload(payload).await {
-            Ok(output) => {
-                let specific = &output["hookSpecificOutput"];
-                if let Some(updated) = specific.get("updatedInput") {
-                    if specific["hookEventName"] != "PreToolUse" || !updated.is_object() {
-                        return HookResult::Cancel("invalid Codex updatedInput output".into());
-                    }
-                    return HookResult::Continue((name, updated.clone()));
-                }
-                HookResult::Continue((name, args))
-            }
+            Ok(output) => match super::compat::hook_pre_tool::updated_input(&output) {
+                Ok(Some(updated)) => HookResult::Continue((name, updated)),
+                Ok(None) => HookResult::Continue((name, args)),
+                Err(error) => HookResult::Cancel(error.to_string()),
+            },
             Err(error) => HookResult::Cancel(error.to_string()),
         }
     }

@@ -154,6 +154,7 @@ fn codex_hook_hash(
     manifest: &super::CodexHooksManifest,
 ) -> Result<String> {
     let root = root.canonicalize().context("invalid Codex hook package root")?;
-    let bytes = serde_json::to_vec(&("codex-hooks-v1", plugin_name, root, manifest))?;
+    let content = super::compat::hook_trust_content::plugin_content_hash(&root, &|| false)?;
+    let bytes = serde_json::to_vec(&("codex-hooks-v2", plugin_name, root, manifest, content))?;
     Ok(hex::encode(Sha256::digest(bytes)))
 }

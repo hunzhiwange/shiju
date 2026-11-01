@@ -37,6 +37,7 @@ pub(crate) struct CommandPluginHookHandler {
     hook: PluginHook,
     matcher: super::compat::hook_matcher::HookMatcher,
     codex_protocol: bool,
+    trusted_content: Option<String>,
     mcp: Option<super::CodexHookHandler>,
     data_directory: Option<PathBuf>,
     additional_context_limit: Option<usize>,
@@ -53,6 +54,7 @@ impl CommandPluginHookHandler {
             hook,
             matcher: super::compat::hook_matcher::HookMatcher::All,
             codex_protocol: false,
+            trusted_content: None,
             mcp: None,
             data_directory: None,
             additional_context_limit: None,
@@ -71,6 +73,16 @@ impl CommandPluginHookHandler {
     }
 
     async fn execute_payload(&self, mut payload: Value) -> Result<Value> {
+        if let Some(expected) = &self.trusted_content {
+            let current = super::compat::hook_trust_content::plugin_content_hash(
+                &self.hook.working_dir,
+                &|| false,
+            )?;
+            anyhow::ensure!(
+                &current == expected,
+                "plugin contents changed; hook approval required"
+            );
+        }
         if self.codex_protocol
             && !matches!(
                 self.hook.event,
@@ -778,6 +790,7 @@ pub(crate) fn codex_handlers(
 ) -> Result<Vec<Box<dyn HookHandler>>> {
     use super::compat::hook_matcher::HookMatcher;
     use super::{CodexHookEvent as E, CodexHookHandler as H, PluginHookMode};
+    let content = super::compat::hook_trust_content::plugin_content_hash(root, &|| false)?;
     let mut admitted = Vec::new();
     let active_async: AsyncHookOwners = Default::default();
     for (event, groups) in &manifest.hooks {
@@ -817,6 +830,7 @@ pub(crate) fn codex_handlers(
                     };
                     let mut executable = CommandPluginHookHandler::new(name.to_owned(), hook);
                     executable.codex_protocol = true;
+                    executable.trusted_content = Some(content.clone());
                     executable.matcher = matcher.clone();
                     executable.mcp = Some(handler.clone());
                     use sha2::{Digest, Sha256};
@@ -871,6 +885,7 @@ pub(crate) fn codex_handlers(
                 handler.active_async = active_async.clone();
                 handler.matcher = matcher.clone();
                 handler.codex_protocol = true;
+                handler.trusted_content = Some(content.clone());
                 anyhow::ensure!(
                     !*r#async || *event != E::PermissionRequest,
                     "asynchronous PermissionRequest hooks are unsupported"

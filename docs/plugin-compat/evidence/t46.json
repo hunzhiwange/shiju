@@ -1,0 +1,61 @@
+{
+  "task": 46,
+  "status": "已完成",
+  "dependency": "t45.json / 9d0a0c08",
+  "platform": "macOS arm64",
+  "implementation": [
+    "hook_trust::codex_hook_hash v2 binds canonical root, name, full declaration and bundle content",
+    "hook_trust_content::plugin_content_hash",
+    "hook_handler::execute_payload checks fresh content before execution"
+  ],
+  "source": "Frozen baseline.json plugin_fingerprint.rs::plugin_content_hash and plugin_trust.rs::PluginHookTrust::verify; no private allowlist",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t46/README.md",
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t46_ -- --nocapture",
+    "exit_code": 101,
+    "target_failure": "script change retained trust; invalid file root accepted; assertion panic followed by runtime SIGABRT"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t46_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t34_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 10,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "assertions": [
+    "script mutation revokes trust",
+    "matcher mutation revokes trust",
+    "invalid root leaves no approval file",
+    "name and root isolation",
+    "trust does not write package contents"
+  ],
+  "limitations": [
+    "Fingerprint is a bounded file scan, not an atomic filesystem execution snapshot; runtime artifact exclusions follow frozen reference."
+  ]
+}

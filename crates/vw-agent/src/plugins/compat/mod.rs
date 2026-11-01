@@ -198,3 +198,7 @@ pub(crate) mod t44_tests;
 
 #[cfg(test)]
 mod t45_tests;
+#[cfg(test)]
+mod t46_tests;
+
+pub(crate) mod hook_trust_content;

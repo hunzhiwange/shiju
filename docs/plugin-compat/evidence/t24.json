@@ -1,6 +1,6 @@
 {
   "task": 24,
-  "status": "in_progress",
+  "status": "已完成",
   "scope": "native chat MCP 2025-06-18 forms; no hosted extensions or ACP UI grants",
   "slot": 1,
   "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
@@ -11,28 +11,32 @@
       "exit_code": 0,
       "summary": [
         "test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 10692 filtered out; finished in 0.10s"
-      ]
+      ],
+      "record": "t24/final-1-test.log"
     },
     {
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t22_ -- --nocapture",
       "exit_code": 0,
       "summary": [
-        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10685 filtered out; finished in 0.41s"
-      ]
+        "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 10685 filtered out; finished in 0.42s"
+      ],
+      "record": "t24/final-2-test.log"
     },
     {
       "command": "cargo test -p vw-agent --lib --all-features tools::mcp_common::tests:: -- --test-threads=1",
       "exit_code": 0,
       "summary": [
-        "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10662 filtered out; finished in 0.21s"
-      ]
+        "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 10662 filtered out; finished in 0.20s"
+      ],
+      "record": "t24/final-3-test.log"
     },
     {
       "command": "cargo test -p vw-agent --lib --all-features question::mod_tests:: -- --test-threads=1 --skip poisoned_state_lock_recovers_for_public_operations",
       "exit_code": 0,
       "summary": [
         "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 10686 filtered out; finished in 0.13s"
-      ]
+      ],
+      "record": "t24/final-4-test.log"
     }
   ],
   "clippy": {
@@ -45,18 +49,75 @@
     "target_assertions_observed": 3,
     "note": "Reconstructed refusal regression by temporarily disconnecting FormOwner, restored afterward; target assertions observed before host SIGABRT, no completed failure summary claimed."
   },
-  "remaining": [
-    "actual desktop form rendering and user interaction acceptance"
-  ],
+  "remaining": [],
   "limitations": [
-    "Manual desktop test did not pass; ignored in automated filter.",
-    "Conservative email validation rejects quoted mailboxes.",
-    "Existing poison-lock test skipped after host SIGABRT; not claimed passed."
+    "Conservative email validation rejects quoted mailboxes; unsupported schema keywords fail explicitly.",
+    "Existing deliberate poison-lock test skipped after host SIGABRT; not claimed passed.",
+    "Native 2025-06-18 forms only; no hosted/privileged extension grants, no ACP form capability, no Linux/Windows acceptance claimed.",
+    "Automated filter ignores the manual desktop case; it was separately executed and passed."
   ],
   "implementation": [
     "trusted tenant/session owner bound before handshake",
     "raw wire schema retained by connection/request ID to preserve rmcp enum constraints",
     "accept/decline/cancel, 120 second timeout and cancellation cleanup",
     "sensitive replies omitted from question.replied event"
-  ]
+  ],
+  "desktop": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t24_desktop_roundtrip -- --ignored --nocapture",
+    "exit_code": 0,
+    "effective_tests": 1,
+    "expected": {
+      "action": "accept",
+      "content": {
+        "age": 24,
+        "choice": "a"
+      }
+    },
+    "record": "t24/desktop.log",
+    "rendering": "Actual Iced modal displayed with Chinese title; synthetic values entered and accepted through native UI, production Gateway question routes and real stdio MCP peer. Light theme observed; existing shared theme-aware modal controls reused.",
+    "harness": "Temporary local-only endpoint 127.0.0.1:43124 and startup-ready/QuestionPollTick boot tasks; normal startup tasks omitted to isolate fixture. Temporary desktop source changes restored after building; no production startup/config change committed."
+  },
+  "prior_attempts": {
+    "red": "Temporarily unbound FormOwner reconstructed refusal behavior; 3 target assertions observed before SIGABRT. Not a historical preimplementation log.",
+    "manual": "Earlier manual runs timed out or returned invalid_params with nonfixture input; no failed run counted as passed."
+  },
+  "artifacts": [
+    {
+      "path": "t24/desktop.log",
+      "sha256": "4f623358d68eb136db94e8f92413356af4493c4d6100b2303e564029143e059b",
+      "storage": "local_only"
+    },
+    {
+      "path": "t24/red.log",
+      "sha256": "842484b5c4612884ef6baa5dd376b15962f50a230b968605a5bb9f879b08784f",
+      "storage": "local_only"
+    },
+    {
+      "path": "t24/final-1-test.log",
+      "sha256": "873df163952378ce861ced556289cb314cb91e0787a218e0d2560d9d8ddf59c7",
+      "storage": "local_only"
+    },
+    {
+      "path": "t24/final-2-test.log",
+      "sha256": "7a9ec8c0d56b9098cb851bfb916e5e53004396243eb7f5cd25c66a263b260f7f",
+      "storage": "local_only"
+    },
+    {
+      "path": "t24/final-3-test.log",
+      "sha256": "215835c3d006ac085fb0b96af2f9d75ef00a6c57d8aef9394a16ca508e9d9122",
+      "storage": "local_only"
+    },
+    {
+      "path": "t24/final-4-test.log",
+      "sha256": "65a419732bbe8fb79dadf9070e8dcbc55e924c079bf42229fcd0788240b8910c",
+      "storage": "local_only"
+    },
+    {
+      "path": "t24/clippy.log",
+      "sha256": "94cf0c08fbe30875f987a1ce02ecc12cb28c3160dd842b8fa96909e6bddba695",
+      "storage": "local_only"
+    }
+  ],
+  "fixture_sha256": "471159dfb394f86c1115a5fbd2b9f5ed78642bc89fbd6905793cded9307e6b06",
+  "slot_released": true
 }

@@ -168,7 +168,9 @@ fn codex_plugin_compat_t24_validates_primitive_constraints() {
 #[ignore = "requires an unlocked desktop running the task24 UI harness"]
 async fn codex_plugin_compat_t24_desktop_roundtrip() {
     let (_, gateway) =
-        crate::gateway::start(crate::gateway::ServeOptions::default()).await.unwrap();
+        crate::gateway::start(crate::gateway::ServeOptions { port: 43124, ..Default::default() })
+            .await
+            .unwrap();
     let pool = McpSessionConnections::for_form_owner(FormOwner {
         session: "t24-desktop".into(),
         tenant: crate::session::ui_store::current_tenant_scope(),
@@ -178,7 +180,7 @@ async fn codex_plugin_compat_t24_desktop_roundtrip() {
     })).unwrap();
     eprintln!("TASK24_DESKTOP_READY: enter age 24, choose a and accept, then submit");
     let result = pool
-        .with_peer(&server, None, |peer| {
+        .with_peer(&server, Some(std::time::Duration::from_secs(180)), |peer| {
             Box::pin(async move {
                 let response = peer
                     .call_tool(
@@ -192,6 +194,7 @@ async fn codex_plugin_compat_t24_desktop_roundtrip() {
         .unwrap();
     let response: Value =
         serde_json::from_str(result["content"][0]["text"].as_str().unwrap()).unwrap();
+    eprintln!("TASK24_SYNTHETIC_RESPONSE: {response}");
     assert_eq!(response["result"], json!({"action":"accept","content":{"age":24,"choice":"a"}}));
     pool.shutdown();
     gateway.abort();

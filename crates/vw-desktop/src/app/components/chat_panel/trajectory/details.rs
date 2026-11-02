@@ -89,6 +89,7 @@ pub(crate) fn trajectory_detail_values(
 }
 
 pub(crate) fn trajectory_details<'a>(
+    i18n: crate::app::i18n::I18n,
     record: &TrajectoryRecord,
     state: &'a TrajectoryDetailsState,
 ) -> Element<'a, Message> {
@@ -96,14 +97,35 @@ pub(crate) fn trajectory_details<'a>(
     let record_kind = record.kind;
     let details = build_details_content(record, active_tab);
     let header = row![
-        container(text(details.badge).font(Font::DEFAULT).size(10))
-            .padding([3, 6])
-            .style(move |theme: &Theme| styles::role_badge_style(theme, record_kind)),
-        text(details.location).font(Font::DEFAULT).size(12).width(Length::Fill).style(
-            |theme: &Theme| iced::widget::text::Style {
-                color: Some(styles::details_label_color(theme)),
+        container(
+            text(crate::app::i18n::chat::trajectory_label(i18n, &details.badge))
+                .font(Font::DEFAULT)
+                .size(10)
+        )
+        .padding([3, 6])
+        .style(move |theme: &Theme| styles::role_badge_style(theme, record_kind)),
+        text(if record.kind == TrajectoryRecordKind::System {
+            i18n.format("步骤 %u · 记录 #%u", &[record.step_index.into(), record.index.into()])
+                .expect("valid record location template")
+        } else {
+            let kind = i18n.__(match record.kind {
+                TrajectoryRecordKind::User | TrajectoryRecordKind::Context => "消息",
+                TrajectoryRecordKind::Assistant => "模型",
+                TrajectoryRecordKind::Tool => "工具",
+                TrajectoryRecordKind::System => unreachable!(),
+            });
+            match record.turn_index {
+                Some(turn) => i18n.format("轮次 %u · %s", &[turn.into(), kind.into()]),
+                None => i18n.format("步骤 %u · %s", &[record.step_index.into(), kind.into()]),
             }
-        ),
+            .expect("valid record location template")
+        })
+        .font(Font::DEFAULT)
+        .size(12)
+        .width(Length::Fill)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(styles::details_label_color(theme)),
+        }),
         button(icon_svg(Icon::X).width(Length::Fixed(12.0)).height(Length::Fixed(12.0)).style(
             |theme: &Theme, _status| iced::widget::svg::Style {
                 color: Some(theme.palette().text.scale_alpha(0.78)),
@@ -119,10 +141,14 @@ pub(crate) fn trajectory_details<'a>(
     let mut tabs = row![].spacing(4);
     for tab in details.tabs {
         let selected = active_tab == tab;
-        let tab_button = button(text(tab.label()).font(Font::DEFAULT).size(11))
-            .padding([5, 8])
-            .style(move |theme, status| styles::details_tab_style(theme, status, selected))
-            .on_press(Message::Chat(message::ChatMessage::TrajectoryDetailsTabSelected(tab)));
+        let tab_button = button(
+            text(crate::app::i18n::chat::trajectory_label(i18n, tab.label()))
+                .font(Font::DEFAULT)
+                .size(11),
+        )
+        .padding([5, 8])
+        .style(move |theme, status| styles::details_tab_style(theme, status, selected))
+        .on_press(Message::Chat(message::ChatMessage::TrajectoryDetailsTabSelected(tab)));
         let underline = container(Space::new().height(Length::Fixed(2.0)))
             .width(Length::Fill)
             .height(Length::Fixed(2.0))
@@ -130,7 +156,7 @@ pub(crate) fn trajectory_details<'a>(
         tabs = tabs.push(column![tab_button, underline].spacing(1));
     }
 
-    let body = trajectory_details_body(details.body, state);
+    let body = trajectory_details_body(i18n, details.body, state);
     let body = scrollable(container(body).width(Length::Fill).padding([2, 4]))
         .direction(details_scroll_direction())
         .width(Length::Fill)

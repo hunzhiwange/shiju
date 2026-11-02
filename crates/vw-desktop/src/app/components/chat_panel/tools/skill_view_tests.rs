@@ -30,8 +30,24 @@ fn skill_names_fall_back_to_output_and_errors() {
     assert_eq!(quoted_attr_value("name=bare", "name"), None);
     assert_eq!(yaml_name_value("title: x\nname: 'yaml-skill'").as_deref(), Some("yaml-skill"));
     assert_eq!(skill_name_from_output("name: yaml-skill").as_deref(), Some("yaml-skill"));
-    assert_eq!(skill_display_name("", "", "name: error-skill"), "error-skill");
-    assert_eq!(skill_display_name("", "", ""), "未知技能");
+    assert_eq!(
+        skill_display_name(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "",
+            "",
+            "name: error-skill"
+        ),
+        "error-skill"
+    );
+    assert_eq!(
+        skill_display_name(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "",
+            "",
+            ""
+        ),
+        "未知技能"
+    );
 }
 
 #[test]

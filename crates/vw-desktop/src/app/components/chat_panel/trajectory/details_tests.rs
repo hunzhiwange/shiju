@@ -120,7 +120,11 @@ fn trajectory_details_trims_input_and_builds_single_line_tooltip_view() {
     assert!(preview.ends_with('…'));
 
     let state = details_state(&user, TrajectoryDetailsTab::Preview);
-    let element = trajectory_details(&user, &state);
+    let element = trajectory_details(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &user,
+        &state,
+    );
     let tree = Tree::new(element.as_widget());
     assert!(!tree.children.is_empty());
 }
@@ -161,7 +165,11 @@ fn trajectory_details_tab_and_close_actions_are_observable() {
 
     let assistant = record(TrajectoryRecordKind::Assistant);
     let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
-    let element = trajectory_details(&assistant, &state);
+    let element = trajectory_details(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &assistant,
+        &state,
+    );
     let tree = Tree::new(element.as_widget());
     assert!(!tree.children.is_empty());
 }
@@ -182,7 +190,11 @@ fn trajectory_details_wraps_payloads_and_uses_safe_fonts() {
     let mut assistant = record(TrajectoryRecordKind::Assistant);
     assistant.detail.output = Some("x".repeat(20_000));
     let state = details_state(&assistant, TrajectoryDetailsTab::Preview);
-    let element = trajectory_details(&assistant, &state);
+    let element = trajectory_details(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &assistant,
+        &state,
+    );
     let tree = Tree::new(element.as_widget());
     assert!(!tree.children.is_empty());
 }
@@ -246,7 +258,20 @@ fn details_render_exact_reference_tabs_by_kind() {
         assert_eq!(model.tabs, kind.detail_tabs());
 
         let state = details_state(&record, first_tab);
-        assert!(!Tree::new(trajectory_details(&record, &state).as_widget()).children.is_empty());
+        assert!(
+            !Tree::new(
+                trajectory_details(
+                    crate::app::i18n::I18n::new(
+                        vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                    ),
+                    &record,
+                    &state
+                )
+                .as_widget()
+            )
+            .children
+            .is_empty()
+        );
     }
 
     for theme in [iced::Theme::Dark, iced::Theme::Light] {
@@ -277,7 +302,18 @@ fn details_render_system_prompt_and_tools() {
     );
 
     let state = details_state(&system, TrajectoryDetailsTab::Tools);
-    assert!(!Tree::new(trajectory_details(&system, &state).as_widget()).children.is_empty());
+    assert!(
+        !Tree::new(
+            trajectory_details(
+                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                &system,
+                &state
+            )
+            .as_widget()
+        )
+        .children
+        .is_empty()
+    );
 }
 
 #[test]

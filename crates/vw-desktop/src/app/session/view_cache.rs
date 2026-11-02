@@ -177,8 +177,12 @@ fn render_cache_bytes(entry: &ChatRenderCacheEntry) -> usize {
         ParsedChatBlock::Tool { raw } => raw.len(),
     });
     let special_text_bytes = entry.special_text_blocks.iter().map(String::len);
-    let tool_text_bytes = entry.tool_card_text_blocks.iter().flatten().map(String::len);
-    let explore_bytes = entry.explore_summary_text_blocks.iter().map(|(_, text)| text.len());
+    let tool_text_bytes = entry
+        .tool_card_text_blocks
+        .iter()
+        .map(|source| source.tool_name.len() + source.value.to_string().len());
+    let explore_bytes =
+        entry.explore_summary_text_blocks.iter().map(|(_, counts)| std::mem::size_of_val(counts));
 
     entry.display_text.len()
         + entry.preview_text.len()

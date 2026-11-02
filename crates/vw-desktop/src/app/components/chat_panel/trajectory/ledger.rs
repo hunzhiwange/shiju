@@ -42,6 +42,7 @@ pub(crate) enum LedgerFoldAction {
 }
 
 pub(crate) fn filter_ledger_records<'a>(
+    i18n: crate::app::i18n::I18n,
     projection: &'a TrajectoryProjection,
     query: &str,
 ) -> Vec<&'a TrajectoryRecord> {
@@ -50,7 +51,7 @@ pub(crate) fn filter_ledger_records<'a>(
     let mut records = projection
         .records
         .iter()
-        .filter(|record| ledger_record_matches(record, &query))
+        .filter(|record| ledger_record_matches(i18n, record, &query))
         .collect::<Vec<_>>();
     records.sort_by_key(|record| {
         (
@@ -65,6 +66,7 @@ pub(crate) fn filter_ledger_records<'a>(
 }
 
 pub(crate) fn build_ledger_groups<'a>(
+    i18n: crate::app::i18n::I18n,
     projection: &'a TrajectoryProjection,
     query: &str,
     selected_record_id: Option<&str>,
@@ -72,7 +74,7 @@ pub(crate) fn build_ledger_groups<'a>(
 ) -> Vec<LedgerGroup<'a>> {
     let mut groups = Vec::<LedgerGroup<'a>>::new();
     let search_active = !query.trim().is_empty();
-    for record in filter_ledger_records(projection, query) {
+    for record in filter_ledger_records(i18n, projection, query) {
         let group_title =
             record.turn_index.map_or_else(|| "上下文".to_string(), |index| format!("轮次 {index}"));
         if groups.last().is_none_or(|group| group.title != group_title) {
@@ -117,6 +119,7 @@ pub(crate) fn build_ledger_groups<'a>(
 }
 
 pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     projection: &TrajectoryProjection,
     query: &str,
     selected_record_id: Option<&str>,
@@ -124,15 +127,15 @@ pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
     on_select: impl Fn(String) -> Message,
     on_fold: impl Fn(LedgerFoldAction) -> Message,
 ) -> Element<'a, Message> {
-    let groups = build_ledger_groups(projection, query, selected_record_id, controls);
+    let groups = build_ledger_groups(i18n, projection, query, selected_record_id, controls);
     let mut ledger = column![].spacing(8).width(Length::Fill);
 
     if groups.is_empty() {
         let label =
             if projection.records.is_empty() { "暂无轨迹记录" } else { "没有匹配记录" };
         ledger = ledger.push(
-            container(text(label).size(12).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(styles::empty_text_color(theme)),
+            container(text(i18n.__(label).to_string()).size(12).style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(styles::empty_text_color(theme)) }
             }))
             .padding([18, 12])
             .width(Length::Fill)
@@ -141,19 +144,33 @@ pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
     }
 
     for group in groups {
-        let mut group_content =
-            column![ledger_group_header(group.title, group.turn_index, group.collapsed, &on_fold,)]
-                .spacing(4)
-                .width(Length::Fill);
+        let mut group_content = column![ledger_group_header(
+            group.turn_index.map_or_else(
+                || i18n.__("上下文").to_string(),
+                |index| i18n.format("轮次 %u", &[index.into()]).expect("valid turn template")
+            ),
+            group.turn_index,
+            group.collapsed,
+            &on_fold,
+        )]
+        .spacing(4)
+        .width(Length::Fill);
 
         for step in group.steps {
-            let mut step_header = row![text(step.title).size(11).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(styles::step_header_text_color(theme)) }
-            })]
+            let mut step_header = row![
+                text(
+                    i18n.format("步骤 %u", &[step.step_index.into()]).expect("valid step template")
+                )
+                .size(11)
+                .style(|theme: &Theme| {
+                    iced::widget::text::Style { color: Some(styles::step_header_text_color(theme)) }
+                })
+            ]
             .spacing(6)
             .align_y(Alignment::Center);
             if step.has_tools {
                 step_header = step_header.push(ledger_tool_group_button(
+                    i18n,
                     step.step_index,
                     step.tools_collapsed,
                     &on_fold,
@@ -161,7 +178,7 @@ pub(crate) fn trajectory_ledger<'a, Message: Clone + 'a>(
             }
             group_content = group_content.push(step_header);
             for record in step.records {
-                group_content = group_content.push(record_row(record, &on_select));
+                group_content = group_content.push(record_row(i18n, record, &on_select));
             }
         }
         ledger = ledger.push(group_content);
@@ -202,15 +219,22 @@ pub(crate) fn ledger_group_header<'a, Message: Clone + 'a>(
 }
 
 pub(crate) fn ledger_tool_group_button<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     step_index: u32,
     collapsed: bool,
     on_fold: impl Fn(LedgerFoldAction) -> Message,
 ) -> Element<'a, Message> {
-    button(text(format!("{} Tools", fold_arrow(collapsed))).size(10))
-        .padding([3, 6])
-        .style(move |theme, status| styles::ledger_tool_fold_button_style(theme, status, collapsed))
-        .on_press(on_fold(LedgerFoldAction::ToolStep(step_index)))
-        .into()
+    button(
+        text(
+            i18n.format("%s 工具", &[fold_arrow(collapsed).into()])
+                .expect("valid tool group template"),
+        )
+        .size(10),
+    )
+    .padding([3, 6])
+    .style(move |theme, status| styles::ledger_tool_fold_button_style(theme, status, collapsed))
+    .on_press(on_fold(LedgerFoldAction::ToolStep(step_index)))
+    .into()
 }
 
 const fn fold_arrow(collapsed: bool) -> &'static str {
@@ -218,6 +242,7 @@ const fn fold_arrow(collapsed: bool) -> &'static str {
 }
 
 fn record_row<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     row_state: LedgerRecord<'_>,
     on_select: &impl Fn(String) -> Message,
 ) -> Element<'a, Message> {
@@ -226,9 +251,18 @@ fn record_row<'a, Message: Clone + 'a>(
     let missing = record.preview.trim().is_empty();
     let preview = if missing { "—".to_string() } else { record.preview.clone() };
     let mut leading = row![
-        container(text(role_label(record_kind)).size(10))
-            .padding([2, 5])
-            .style(move |theme: &Theme| styles::role_badge_style(theme, record_kind)),
+        container(
+            text(i18n.__(match record_kind {
+                TrajectoryRecordKind::System => "系统",
+                TrajectoryRecordKind::User => "用户",
+                TrajectoryRecordKind::Context => "上下文",
+                TrajectoryRecordKind::Assistant => "助手",
+                TrajectoryRecordKind::Tool => "工具",
+            }))
+            .size(10)
+        )
+        .padding([2, 5])
+        .style(move |theme: &Theme| styles::role_badge_style(theme, record_kind)),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
@@ -258,9 +292,16 @@ fn record_row<'a, Message: Clone + 'a>(
     .into()
 }
 
-fn ledger_record_matches(record: &TrajectoryRecord, query: &str) -> bool {
+fn ledger_record_matches(
+    i18n: crate::app::i18n::I18n,
+    record: &TrajectoryRecord,
+    query: &str,
+) -> bool {
     query.is_empty()
         || role_label(record.kind).to_lowercase().contains(query)
+        || record.id.to_lowercase().contains(query)
+        || role_source(record.kind).contains(query)
+        || i18n.__(role_source(record.kind)).to_lowercase().contains(query)
         || record.preview.to_lowercase().contains(query)
         || record
             .detail
@@ -276,5 +317,15 @@ const fn role_label(kind: TrajectoryRecordKind) -> &'static str {
         TrajectoryRecordKind::Context => "CONTEXT",
         TrajectoryRecordKind::Assistant => "ASSISTANT",
         TrajectoryRecordKind::Tool => "TOOL",
+    }
+}
+
+const fn role_source(kind: TrajectoryRecordKind) -> &'static str {
+    match kind {
+        TrajectoryRecordKind::System => "系统",
+        TrajectoryRecordKind::User => "用户",
+        TrajectoryRecordKind::Context => "上下文",
+        TrajectoryRecordKind::Assistant => "助手",
+        TrajectoryRecordKind::Tool => "工具",
     }
 }

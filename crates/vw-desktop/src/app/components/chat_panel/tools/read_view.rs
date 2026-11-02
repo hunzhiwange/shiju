@@ -88,8 +88,8 @@ pub fn tool_read_compact_view<'a>(app: &'a App, visible: &str) -> Option<Element
     };
 
     let verb = match tool_name {
-        "pdf_read" => "读取PDF",
-        _ => "读取",
+        "pdf_read" => crate::app::i18n::I18n::new(app.desktop_locale).__("读取PDF"),
+        _ => crate::app::i18n::I18n::new(app.desktop_locale).__("读取"),
     };
     let title = verb.to_string();
 
@@ -136,8 +136,8 @@ pub fn tool_read_view<'a>(
     let range_text_value = range_text.clone().unwrap_or_default();
 
     let verb = match tool_name {
-        "pdf_read" => "读取PDF",
-        _ => "读取",
+        "pdf_read" => crate::app::i18n::I18n::new(app.desktop_locale).__("读取PDF"),
+        _ => crate::app::i18n::I18n::new(app.desktop_locale).__("读取"),
     };
     let context_key = chat_context_target_key(msg_idx, Some(tool_idx));
     let context_text = abs.clone();

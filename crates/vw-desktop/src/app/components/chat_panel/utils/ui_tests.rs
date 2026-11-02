@@ -32,8 +32,20 @@ fn bold_font_is_configured() {
 
 #[test]
 fn menu_and_tooltip_build_only_when_requested() {
-    assert!(chat_context_menu(false).is_none());
-    assert!(chat_context_menu(true).is_some());
+    assert!(
+        chat_context_menu(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            false
+        )
+        .is_none()
+    );
+    assert!(
+        chat_context_menu(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            true
+        )
+        .is_some()
+    );
     let _ = copy_tooltip_content("复制");
 }
 

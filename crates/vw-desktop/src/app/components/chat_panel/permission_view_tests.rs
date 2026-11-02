@@ -95,9 +95,30 @@ fn pending_permission_badge_label_shows_position_for_multiple_requests() {
         },
     ];
 
-    assert_eq!(pending_permission_badge_label(&requests, Some("perm-2")), "当前审批 2/2");
-    assert_eq!(pending_permission_badge_label(&requests, Some("missing")), "当前审批 1/2");
-    assert_eq!(pending_permission_request_badge_label(&requests, "perm-1"), "待审批 1/2");
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &requests,
+            Some("perm-2")
+        ),
+        "当前审批 2/2"
+    );
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &requests,
+            Some("missing")
+        ),
+        "当前审批 1/2"
+    );
+    assert_eq!(
+        pending_permission_request_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &requests,
+            "perm-1"
+        ),
+        "待审批 1/2"
+    );
 }
 
 #[test]

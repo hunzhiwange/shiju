@@ -14,9 +14,7 @@ use crate::app::components::widgets::RightClickArea;
 use crate::app::{App, Message, message};
 
 /// 共享工具活动头部、标题与摘要语义。
-use super::tool_meta::{
-    tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state,
-};
+use super::tool_meta::{tool_activity_header, tool_header_label, tool_visual_state};
 /// 重新导出 use super::tool_parse::{tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text}，让上层模块通过稳定路径访问。
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text,
@@ -24,7 +22,7 @@ use super::tool_parse::{
 /// 重新导出 use super::{，让上层模块通过稳定路径访问。
 use super::{
     ToolPermissionState, ToolTextTarget, canonical_tool_name, selected_chat_text_for_target,
-    tool_permission_error_text, tool_permission_state, tool_permission_title, tool_text_editor,
+    tool_permission_state, tool_text_editor,
 };
 /// 重新导出 use crate::app::components::chat_panel::utils::{，让上层模块通过稳定路径访问。
 use crate::app::components::chat_panel::utils::{
@@ -55,6 +53,7 @@ pub fn tool_web_view<'a>(
     // visible 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     visible: &str,
 ) -> Option<Element<'a, Message>> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let (first, rest) = visible.split_once('\n')?;
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
     if !matches!(tool_name, "web_fetch" | "fetch_webpage" | "http_request" | "web_search") {
@@ -69,10 +68,14 @@ pub fn tool_web_view<'a>(
     let output = tool_output_text(&value).unwrap_or_default();
     let output = output.trim();
     let body_text = if is_error {
-        tool_permission_error_text(tool_name, &value)
-            .or_else(|| tool_error_text(&value))
-            .or_else(|| (!output.is_empty()).then(|| output.to_string()))
-            .unwrap_or_default()
+        crate::app::components::chat_panel::tools::localized_tool_permission_error_text(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            tool_name,
+            &value,
+        )
+        .or_else(|| tool_error_text(&value))
+        .or_else(|| (!output.is_empty()).then(|| output.to_string()))
+        .unwrap_or_default()
     } else {
         output.to_string()
     };
@@ -80,11 +83,17 @@ pub fn tool_web_view<'a>(
 
     let permission_state = tool_permission_state(tool_name, &value);
     let base_title = tool_header_label(tool_name);
-    let title = web_tool_title(base_title.as_str(), permission_state, is_running, is_error);
+    let title = web_tool_title(i18n, base_title.as_str(), permission_state, is_running, is_error);
     let summary = tool_summary_text(&value)
-        .or_else(|| tool_inline_summary(tool_name, tool_input(&value)))
+        .or_else(|| {
+            crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                tool_name,
+                tool_input(&value),
+            )
+        })
         .unwrap_or_default();
-    let metadata_text = web_metadata_text(tool_name, &value);
+    let metadata_text = web_metadata_text(i18n, tool_name, &value);
 
     if !is_running && summary.trim().is_empty() && body_text.is_empty() && metadata_text.is_empty()
     {
@@ -156,23 +165,33 @@ pub fn tool_web_view<'a>(
     }
 
     let body: Element<'a, Message> = if is_running {
-        container(text(format!("{}中…", base_title)).size(14).style(|theme: &Theme| {
-            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            iced::widget::text::Style {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
-            }
-        }))
+        container(
+            text(
+                i18n.format("%s中…", &[(base_title).into()]).expect("valid tool display template"),
+            )
+            .size(14)
+            .style(|theme: &Theme| {
+                // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                iced::widget::text::Style {
+                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                    color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
+                }
+            }),
+        )
         .width(Length::Fill)
         .into()
     } else if body_text.is_empty() {
-        container(text("没有可展示的网页结果").size(14).style(|theme: &Theme| {
-            // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-            iced::widget::text::Style {
-                // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                color: Some(chat_secondary_muted_text_color(theme)),
-            }
-        }))
+        container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有可展示的网页结果"))
+                .size(14)
+                .style(|theme: &Theme| {
+                    // iced 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                    iced::widget::text::Style {
+                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                        color: Some(chat_secondary_muted_text_color(theme)),
+                    }
+                }),
+        )
         .padding([10, 12])
         .width(Length::Fill)
         .style(simplified_block_style)
@@ -318,6 +337,7 @@ pub fn tool_web_view<'a>(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(super) fn web_tool_title(
+    i18n: crate::app::i18n::I18n,
     base_title: &str,
     // permission_state 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     permission_state: Option<ToolPermissionState>,
@@ -326,12 +346,17 @@ pub(super) fn web_tool_title(
     // is_error 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     is_error: bool,
 ) -> String {
+    let base_title = i18n.__(base_title);
     if is_running {
-        format!("{}中", base_title)
+        i18n.format("%s中", &[(base_title).into()]).expect("valid tool display template")
     } else if let Some(permission_state) = permission_state {
-        tool_permission_title(base_title, permission_state)
+        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+            i18n,
+            base_title,
+            permission_state,
+        )
     } else if is_error {
-        format!("{}失败", base_title)
+        i18n.format("%s失败", &[(base_title).into()]).expect("valid tool display template")
     } else {
         base_title.to_string()
     }
@@ -350,7 +375,11 @@ pub(super) fn web_tool_title(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn web_metadata_text(tool_name: &str, value: &serde_json::Value) -> String {
+pub(super) fn web_metadata_text(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    value: &serde_json::Value,
+) -> String {
     let mut parts = Vec::new();
 
     match tool_name {
@@ -362,10 +391,13 @@ pub(super) fn web_metadata_text(tool_name: &str, value: &serde_json::Value) -> S
                 parts.push(provider);
             }
             if let Some(format) = web_metadata_field(value, "format") {
-                parts.push(format!("格式 {format}"));
+                parts.push(
+                    i18n.format("格式 %s", &[(format).into()])
+                        .expect("valid tool display template"),
+                );
             }
             if web_metadata_bool(value, "truncated") {
-                parts.push("已截断".to_string());
+                parts.push(i18n.__("已截断").to_string());
             }
         }
         "web_search" => {
@@ -376,7 +408,10 @@ pub(super) fn web_metadata_text(tool_name: &str, value: &serde_json::Value) -> S
                 parts.push(provider);
             }
             if let Some(result_count) = web_metadata_number(value, "result_count") {
-                parts.push(format!("{} 条结果", result_count));
+                parts.push(
+                    i18n.format("%u 条结果", &[(result_count).into()])
+                        .expect("valid tool display template"),
+                );
             }
         }
         _ => {}

@@ -107,8 +107,14 @@ fn chat_mode_control(app: &App) -> Element<'_, Message> {
             .on_press(Message::Chat(message::ChatMessage::ChatPanelModeSelected(mode)))
     };
     row![
-        mode_button("对话", ChatPanelMode::Conversation),
-        mode_button("轨迹", ChatPanelMode::Trajectory),
+        mode_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("对话"),
+            ChatPanelMode::Conversation
+        ),
+        mode_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("轨迹"),
+            ChatPanelMode::Trajectory
+        ),
     ]
     .spacing(3)
     .align_y(Alignment::Center)
@@ -217,7 +223,7 @@ fn return_to_parent_button_style(
     }
 }
 
-fn return_to_parent_button<'a>(msg: Message) -> Element<'a, Message> {
+fn return_to_parent_button<'a>(app: &App, msg: Message) -> Element<'a, Message> {
     button(
         row![
             icon_svg(Icon::Back).width(Length::Fixed(11.0)).height(Length::Fixed(11.0)).style(
@@ -225,7 +231,7 @@ fn return_to_parent_button<'a>(msg: Message) -> Element<'a, Message> {
                     color: Some(theme.palette().text.scale_alpha(0.88)),
                 }
             ),
-            text("返回主会话").size(10),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("返回主会话")).size(10),
         ]
         .spacing(4)
         .align_y(Alignment::Center),
@@ -241,14 +247,16 @@ fn session_workspace_badge_state(app: &App) -> Option<(String, bool)> {
     let project_path = app.project_path.as_deref().unwrap_or_default();
     let is_primary = !project_path.is_empty() && directory == project_path;
     let label = if is_primary {
-        "主工作区".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("主工作区").to_string()
     } else {
         std::path::Path::new(&directory)
             .file_name()
             .and_then(|s| s.to_str())
             .map(|s| s.to_string())
             .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "工作区".to_string())
+            .unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("工作区").to_string()
+            })
     };
 
     Some((label, is_primary))
@@ -444,7 +452,7 @@ pub(super) fn header_icon_button<'a>(
 /// - **状态图标**：根据会话状态显示不同颜色的圆点（运行中/排队中/成功）
 /// - **会话标题**：可点击，触发重命名操作
 /// - **工作区徽章**：显示会话所属的工作区名称
-/// - **状态标签**：显示"运行中"或"排队 N"等状态信息
+/// - **状态标签**：显示crate::app::i18n::I18n::new(app.desktop_locale).__("运行中")或crate::app::i18n::I18n::new(app.desktop_locale).__("排队 N")等状态信息
 /// - **使用率按钮**：显示环形进度条，悬停显示详细的 token 使用信息
 /// - **菜单按钮**：打开会话操作菜单（重命名、归档、删除）
 pub fn chat_header_view(app: &App) -> Element<'_, Message> {
@@ -485,7 +493,7 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
                         text(spinner_frame(app.status_animation_frame))
                             .size(9)
                             .style(move |_: &Theme| colored_text_style(running_badge_color)),
-                        text("运行中").size(9)
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("运行中")).size(9)
                     ]
                     .spacing(4)
                     .align_y(Alignment::Center),
@@ -496,9 +504,16 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
         }
         if queued > 0 {
             badges_row = badges_row.push(
-                container(text(format!("排队 {}", queued)).size(9))
-                    .padding([1, 6])
-                    .style(|_: &Theme| queued_status_badge_style()),
+                container(
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .format("排队 %u", &[queued.into()])
+                            .expect("valid usage template"),
+                    )
+                    .size(9),
+                )
+                .padding([1, 6])
+                .style(|_: &Theme| queued_status_badge_style()),
             );
         }
         status_badges = badges_row.into();
@@ -517,7 +532,11 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 
     let fullscreen_icon =
         if app.is_chat_fullscreen() { Icon::FullscreenExit } else { Icon::Fullscreen };
-    let fullscreen_label = if app.is_chat_fullscreen() { "退出全屏" } else { "全屏" };
+    let fullscreen_label = if app.is_chat_fullscreen() {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("退出全屏")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("全屏")
+    };
     let fullscreen_button = header_icon_button(
         fullscreen_icon,
         fullscreen_label,
@@ -527,7 +546,11 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     if show_half_fullscreen_control(app.workspace_mode) {
         fullscreen_controls = fullscreen_controls.push(header_icon_button(
             Icon::LayoutTextWindow,
-            if app.is_chat_half_fullscreen() { "退出半屏" } else { "半屏" },
+            if app.is_chat_half_fullscreen() {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("退出半屏")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("半屏")
+            },
             Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
         ));
     }
@@ -545,25 +568,53 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
 
     let usage_tooltip_content = container(
         column![
-            text(format!("输入窗口: {} / {}", input_tokens, input_limit))
-                .size(12)
-                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
-            text(format!("上下文上限: {}", context_limit))
-                .size(12)
-                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
-            text(format!("使用率: {:.1}%", usage_percent)).size(12).style(|_theme: &Theme| {
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("输入窗口: %u / %u", &[input_tokens.into(), input_limit.into()])
+                    .expect("valid usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("上下文上限: %u", &[context_limit.into()])
+                    .expect("valid usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("使用率: %.1f%%", &[usage_percent.into()])
+                    .expect("valid usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::from_rgb8(255, 225, 80)) }
             }),
-            text(format!("累计 Token: {}", total_tokens)).size(12).style(|_theme: &Theme| {
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("累计 Token: %u", &[total_tokens.into()])
+                    .expect("valid usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.9)) }
             }),
-            text(format!("预估成本: ${:.4}", estimated_cost)).size(12).style(|_theme: &Theme| {
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("预估成本: $%.4f", &[estimated_cost.into()])
+                    .expect("valid usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.9)) }
             }),
             if app.usage_model_info.as_ref().is_some_and(|info| info.limit_is_default) {
-                text("限制：使用保守默认值").size(12).style(|_theme: &Theme| {
-                    iced::widget::text::Style { color: Some(Color::from_rgb8(255, 225, 80)) }
-                })
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("限制：使用保守默认值"))
+                    .size(12)
+                    .style(|_theme: &Theme| iced::widget::text::Style {
+                        color: Some(Color::from_rgb8(255, 225, 80)),
+                    })
             } else {
                 text("").size(12)
             },
@@ -612,7 +663,7 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
         left = left.push(tag);
     }
     if let Some(return_msg) = return_to_parent_session_pressed(app) {
-        left = left.push(return_to_parent_button(return_msg));
+        left = left.push(return_to_parent_button(app, return_msg));
     }
     left = left.push(status_badges);
 
@@ -755,10 +806,22 @@ fn session_actions_popover(app: &App) -> Element<'_, Message> {
         Message::Project(message::ProjectMessage::SessionDeletePressed(session_id.clone()));
 
     let content = column![
-        session_actions_button("压缩当前会话", session_compact_message(app)),
-        session_actions_button("重命名", Some(rename_msg)),
-        session_actions_button("归档", Some(archive_msg)),
-        session_actions_button("删除", Some(delete_msg)),
+        session_actions_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("压缩当前会话"),
+            session_compact_message(app)
+        ),
+        session_actions_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("重命名"),
+            Some(rename_msg)
+        ),
+        session_actions_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("归档"),
+            Some(archive_msg)
+        ),
+        session_actions_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("删除"),
+            Some(delete_msg)
+        ),
     ]
     .spacing(4);
 

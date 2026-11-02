@@ -44,10 +44,38 @@ fn mcp_payload_detection_covers_generic_tools_events() {
 #[test]
 fn mcp_summary_prefers_server_name_and_tool_fallbacks() {
     let output = r#"[{"server":{"name":"rustcodegraph","transport":"stdio"},"prompts":[]}]"#;
-    assert_eq!(mcp_display_name("MCP", &json!({"output": output})), "rustcodegraph");
-    assert_eq!(mcp_display_name("mcp_linear", &json!({"input":"{}"})), "linear");
-    assert_eq!(mcp_display_name("list_mcp_resources", &json!({"input":"{}"})), "资源列表");
-    assert_eq!(mcp_display_name("MCP", &json!({"summary":" connected "})), "connected");
+    assert_eq!(
+        mcp_display_name(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "MCP",
+            &json!({"output": output})
+        ),
+        "rustcodegraph"
+    );
+    assert_eq!(
+        mcp_display_name(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "mcp_linear",
+            &json!({"input":"{}"})
+        ),
+        "linear"
+    );
+    assert_eq!(
+        mcp_display_name(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "list_mcp_resources",
+            &json!({"input":"{}"})
+        ),
+        "资源列表"
+    );
+    assert_eq!(
+        mcp_display_name(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "MCP",
+            &json!({"summary":" connected "})
+        ),
+        "connected"
+    );
 }
 
 #[test]

@@ -9,16 +9,15 @@ use super::{App, ChatMessage, ChatRole, ChatSessionStep, HashMap, StepUiMeta};
 use crate::app::state::{SessionStepRawKey, UserQuestionMarker};
 use serde_json::Value;
 
-fn message_meta_text(model: Option<&str>, time_ms: Option<u64>) -> Option<String> {
+fn message_meta_text(
+    model: Option<&str>,
+    time_ms: Option<u64>,
+) -> Option<crate::app::i18n::chat::MessageMeta> {
     let model = model?.trim();
     if model.is_empty() {
         return None;
     }
-    let Some(time_ms) = time_ms else {
-        return Some(model.to_string());
-    };
-    let time_label = crate::app::components::chat_panel::utils::format_chat_time_label(time_ms);
-    Some(format!("{model} · {time_label}"))
+    Some(crate::app::i18n::chat::MessageMeta::Model { model: model.to_string(), time_ms })
 }
 
 fn normalize_step_turn_id(step: &mut ChatSessionStep) {
@@ -30,7 +29,7 @@ fn normalize_step_turn_id(step: &mut ChatSessionStep) {
 fn build_message_meta_labels(
     chat: &[ChatMessage],
     step_index_map: &HashMap<u32, StepUiMeta>,
-) -> Vec<Option<String>> {
+) -> Vec<Option<crate::app::i18n::chat::MessageMeta>> {
     let mut assistant_count = 0u32;
     let mut labels = Vec::with_capacity(chat.len());
 
@@ -47,10 +46,7 @@ fn build_message_meta_labels(
                 )
                 .is_some()
                 {
-                    Some(
-                        vw_shared::session::session_utils::TASK_SESSION_SOURCE_DISPLAY_LABEL
-                            .to_string(),
-                    )
+                    Some(crate::app::i18n::chat::MessageMeta::TaskSource)
                 } else {
                     let step_index = assistant_count + 1;
                     let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);
@@ -69,7 +65,7 @@ fn build_message_meta_label(
     message: &ChatMessage,
     assistant_count: &mut u32,
     step_index_map: &HashMap<u32, StepUiMeta>,
-) -> Option<String> {
+) -> Option<crate::app::i18n::chat::MessageMeta> {
     match message.role {
         ChatRole::Assistant => {
             *assistant_count += 1;
@@ -80,10 +76,7 @@ fn build_message_meta_label(
             if vw_shared::session::session_utils::parse_task_session_source_marker(&message.content)
                 .is_some()
             {
-                Some(
-                    vw_shared::session::session_utils::TASK_SESSION_SOURCE_DISPLAY_LABEL
-                        .to_string(),
-                )
+                Some(crate::app::i18n::chat::MessageMeta::TaskSource)
             } else {
                 let step_index = *assistant_count + 1;
                 let time_ms = step_index_map.get(&step_index).map(|step| step.started_ms);

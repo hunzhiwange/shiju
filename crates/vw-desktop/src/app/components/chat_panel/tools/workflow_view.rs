@@ -79,13 +79,13 @@ fn icon_button<'a>(icon: Icon, label: &'static str, message: Message) -> Element
     Tooltip::new(button, copy_tooltip_content(label), TooltipPosition::Top).gap(6).into()
 }
 
-fn status_text(state: WorkflowNodeState) -> &'static str {
+fn status_text(i18n: crate::app::i18n::I18n, state: WorkflowNodeState) -> &'static str {
     match state {
-        WorkflowNodeState::Running => "正在执行节点",
-        WorkflowNodeState::Waiting => "正在等待后代智能体",
-        WorkflowNodeState::Completed => "节点执行完成",
-        WorkflowNodeState::Failed => "节点执行失败",
-        WorkflowNodeState::Cancelled => "节点执行已取消",
+        WorkflowNodeState::Running => i18n.__("正在执行节点"),
+        WorkflowNodeState::Waiting => i18n.__("正在等待后代智能体"),
+        WorkflowNodeState::Completed => i18n.__("节点执行完成"),
+        WorkflowNodeState::Failed => i18n.__("节点执行失败"),
+        WorkflowNodeState::Cancelled => i18n.__("节点执行已取消"),
     }
 }
 
@@ -102,7 +102,10 @@ fn metadata_string(value: &Value, key: &str) -> String {
         .to_string()
 }
 
-fn plan_run_card_display(value: &Value) -> Option<PlanRunCardDisplay> {
+fn plan_run_card_display(
+    i18n: crate::app::i18n::I18n,
+    value: &Value,
+) -> Option<PlanRunCardDisplay> {
     if metadata_value(value, "plan_run").and_then(Value::as_bool) != Some(true) {
         return None;
     }
@@ -111,12 +114,15 @@ fn plan_run_card_display(value: &Value) -> Option<PlanRunCardDisplay> {
     let (primary_text, tooltip_text) = match metadata_string(value, "event_type").as_str() {
         "planning_started" | "plan_created" => {
             let primary_text = if metadata_string(value, "event_type") == "planning_started" {
-                "正在规划计划任务".to_string()
+                i18n.__("正在规划计划任务").to_string()
             } else {
                 metadata_value(value, "subtask_count")
                     .and_then(Value::as_u64)
-                    .map(|count| format!("计划任务已创建，共 {count} 个任务。"))
-                    .unwrap_or_else(|| "计划任务已创建。".to_string())
+                    .map(|count| {
+                        i18n.format("计划任务已创建，共 %u 个任务。", &[count.into()])
+                            .expect("valid workflow template")
+                    })
+                    .unwrap_or_else(|| i18n.__("计划任务已创建。").to_string())
             };
             let mut tooltip_lines = Vec::new();
             let task_id = metadata_string(value, "task_id");
@@ -124,14 +130,21 @@ fn plan_run_card_display(value: &Value) -> Option<PlanRunCardDisplay> {
                 tooltip_lines.push(format!("UUID：{task_id}"));
             }
             if !task_path.is_empty() {
-                tooltip_lines.push(format!("任务路径：{task_path}"));
+                tooltip_lines.push(
+                    i18n.format("任务路径：%s", &[task_path.as_str().into()])
+                        .expect("valid workflow template"),
+                );
             }
             (primary_text, (!tooltip_lines.is_empty()).then(|| tooltip_lines.join("\n")))
         }
         "subtask_started" | "subtask_finished" => {
             let title = metadata_string(value, "title");
-            let primary_text = if title.is_empty() { "工作流节点".to_string() } else { title };
-            let tooltip_text = (!task_path.is_empty()).then(|| format!("任务路径：{task_path}"));
+            let primary_text =
+                if title.is_empty() { i18n.__("工作流节点").to_string() } else { title };
+            let tooltip_text = (!task_path.is_empty()).then(|| {
+                i18n.format("任务路径：%s", &[task_path.as_str().into()])
+                    .expect("valid workflow template")
+            });
             (primary_text, tooltip_text)
         }
         _ => return None,
@@ -204,7 +217,7 @@ fn usage_value(value: &Value) -> Option<Value> {
         .or_else(|| output_value(value).and_then(|output| output.get("usage").cloned()))
 }
 
-fn usage_label(value: &Value) -> Option<String> {
+fn usage_label(i18n: crate::app::i18n::I18n, value: &Value) -> Option<String> {
     let usage = usage_value(value)?;
     let input = token_value(&usage, &["prompt_tokens", "input_tokens"]);
     let output = token_value(&usage, &["completion_tokens", "output_tokens"]);
@@ -217,34 +230,38 @@ fn usage_label(value: &Value) -> Option<String> {
 
     let mut parts = Vec::new();
     if let Some(input) = input.filter(|value| *value > 0) {
-        parts.push(format!("输入 {input}"));
+        parts.push(i18n.format("输入 %u", &[input.into()]).expect("valid workflow template"));
     }
     if let Some(output) = output.filter(|value| *value > 0) {
-        parts.push(format!("输出 {output}"));
+        parts.push(i18n.format("输出 %u", &[output.into()]).expect("valid workflow template"));
     }
     if let Some(reasoning) = reasoning.filter(|value| *value > 0) {
-        parts.push(format!("推理 {reasoning}"));
+        parts.push(i18n.format("推理 %u", &[reasoning.into()]).expect("valid workflow template"));
     }
     if let Some(cached) = cached.filter(|value| *value > 0) {
-        parts.push(format!("缓存 {cached}"));
+        parts.push(i18n.format("缓存 %u", &[cached.into()]).expect("valid workflow template"));
     }
     if let Some(total) = total.filter(|value| *value > 0) {
-        parts.push(format!("总计 {total}"));
+        parts.push(i18n.format("总计 %u", &[total.into()]).expect("valid workflow template"));
     }
 
     (!parts.is_empty()).then(|| format!("Token {}", parts.join(" · ")))
 }
 
-fn output_preview_text(value: &Value, state: WorkflowNodeState) -> String {
+fn output_preview_text(
+    i18n: crate::app::i18n::I18n,
+    value: &Value,
+    state: WorkflowNodeState,
+) -> String {
     if state == WorkflowNodeState::Failed {
-        return tool_error_text(value).unwrap_or_else(|| "节点执行失败".to_string());
+        return tool_error_text(value).unwrap_or_else(|| i18n.__("节点执行失败").to_string());
     }
 
     let Some(raw_output) = tool_output_text(value) else {
         return if state == WorkflowNodeState::Running {
-            "正在执行工作流节点".to_string()
+            i18n.__("正在执行工作流节点").to_string()
         } else {
-            "节点执行完成".to_string()
+            i18n.__("节点执行完成").to_string()
         };
     };
     let trimmed = raw_output.trim();
@@ -252,9 +269,9 @@ fn output_preview_text(value: &Value, state: WorkflowNodeState) -> String {
         || (state == WorkflowNodeState::Running && trimmed == "正在执行工作流节点")
     {
         return if state == WorkflowNodeState::Running {
-            "正在执行工作流节点".to_string()
+            i18n.__("正在执行工作流节点").to_string()
         } else {
-            "节点执行完成".to_string()
+            i18n.__("节点执行完成").to_string()
         };
     }
 
@@ -272,7 +289,7 @@ fn output_preview_text(value: &Value, state: WorkflowNodeState) -> String {
         if let Some(map) = parsed.as_object_mut() {
             map.remove("usage");
             if map.is_empty() {
-                return "节点执行完成".to_string();
+                return i18n.__("节点执行完成").to_string();
             }
         }
         return serde_json::to_string(&parsed).unwrap_or_else(|_| trimmed.to_string());
@@ -281,7 +298,7 @@ fn output_preview_text(value: &Value, state: WorkflowNodeState) -> String {
     trimmed.to_string()
 }
 
-fn node_meta_label(value: &Value, node_type: &str) -> String {
+fn node_meta_label(i18n: crate::app::i18n::I18n, value: &Value, node_type: &str) -> String {
     let mut parts = Vec::new();
     if let Some(index) = metadata_value(value, "index").and_then(Value::as_u64) {
         parts.push(format!("#{index}"));
@@ -290,23 +307,27 @@ fn node_meta_label(value: &Value, node_type: &str) -> String {
         parts.push(node_type.to_string());
     }
     if let Some(elapsed) = elapsed_label(value) {
-        parts.push(format!("耗时 {elapsed}"));
+        parts.push(i18n.format("耗时 %s", &[elapsed.into()]).expect("valid workflow template"));
     }
-    if let Some(usage) = usage_label(value) {
+    if let Some(usage) = usage_label(i18n, value) {
         parts.push(usage);
     }
     parts.join(" · ")
 }
 
-fn chat_summary_text(value: &Value, state: WorkflowNodeState) -> String {
-    let preview = output_preview_text(value, state);
-    let meta = node_meta_label(value, &metadata_string(value, "node_type"));
+fn chat_summary_text(
+    i18n: crate::app::i18n::I18n,
+    value: &Value,
+    state: WorkflowNodeState,
+) -> String {
+    let preview = output_preview_text(i18n, value, state);
+    let meta = node_meta_label(i18n, value, &metadata_string(value, "node_type"));
     let summary = if meta.is_empty() {
         preview
-    } else if preview == status_text(state)
-        || preview == "正在执行工作流节点"
-        || preview == "节点执行完成"
-        || preview == "节点执行失败"
+    } else if preview == status_text(i18n, state)
+        || preview == i18n.__("正在执行工作流节点")
+        || preview == i18n.__("节点执行完成")
+        || preview == i18n.__("节点执行失败")
     {
         meta
     } else {
@@ -315,16 +336,20 @@ fn chat_summary_text(value: &Value, state: WorkflowNodeState) -> String {
     truncate_chars(&summary, 96)
 }
 
-fn workflow_detail_content(value: &Value, state: WorkflowNodeState) -> String {
+fn workflow_detail_content(
+    i18n: crate::app::i18n::I18n,
+    value: &Value,
+    state: WorkflowNodeState,
+) -> String {
     if state == WorkflowNodeState::Failed {
-        return tool_error_text(value).unwrap_or_else(|| "节点执行失败".to_string());
+        return tool_error_text(value).unwrap_or_else(|| i18n.__("节点执行失败").to_string());
     }
     let Some(raw_output) = tool_output_text(value) else {
-        return status_text(state).to_string();
+        return status_text(i18n, state).to_string();
     };
     let trimmed = raw_output.trim();
     if trimmed.is_empty() {
-        return status_text(state).to_string();
+        return status_text(i18n, state).to_string();
     }
     if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
         return serde_json::to_string_pretty(&parsed).unwrap_or_else(|_| trimmed.to_string());
@@ -367,6 +392,7 @@ pub fn tool_workflow_view<'a>(
     tool_idx: usize,
     visible: &str,
 ) -> Option<Element<'a, Message>> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let (first, rest) = visible.split_once('\n')?;
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
     if tool_name != "workflow_node" {
@@ -377,13 +403,17 @@ pub fn tool_workflow_view<'a>(
     let status = tool_status(&value);
     let state = workflow_node_state(status);
     let visual = tool_visual_state(status);
-    let plan_run_card = plan_run_card_display(&value);
+    let plan_run_card = plan_run_card_display(i18n, &value);
     let (title, summary) = if let Some(display) = &plan_run_card {
         (display.primary_text.clone(), display.summary_text.clone())
     } else {
         let title = metadata_string(&value, "title");
-        let title = if title.is_empty() { "工作流节点".to_string() } else { title };
-        (title, chat_summary_text(&value, state))
+        let title = if title.is_empty() {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("工作流节点").to_string()
+        } else {
+            title
+        };
+        (title, chat_summary_text(i18n, &value, state))
     };
     let primary_message = workflow_node_primary_message(
         app.project_path.as_deref(),
@@ -404,13 +434,24 @@ pub fn tool_workflow_view<'a>(
     .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
     .on_press(detail_message);
 
-    let preview_btn = workflow_preview_message(&value)
-        .map(|message| icon_button(Icon::Grid1x2, "预览工作流", message));
+    let preview_btn = workflow_preview_message(&value).map(|message| {
+        icon_button(
+            Icon::Grid1x2,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("预览工作流"),
+            message,
+        )
+    });
     let open_session_btn = matches!(
         &primary_message,
         Message::Project(message::ProjectMessage::OpenProjectSessionPressed(..))
     )
-    .then(|| icon_button(Icon::ChatTextFill, "打开子会话", primary_message.clone()));
+    .then(|| {
+        icon_button(
+            Icon::ChatTextFill,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("打开子会话"),
+            primary_message.clone(),
+        )
+    });
 
     let mut actions = row![].spacing(4).align_y(Alignment::Center);
     if let Some(preview_btn) = preview_btn {
@@ -446,9 +487,9 @@ pub fn tool_workflow_view<'a>(
 }
 
 /// 供详情弹窗复用的节点正文（pretty JSON / 错误文本）。
-pub(crate) fn workflow_node_detail_body(value: &Value) -> String {
+pub(crate) fn workflow_node_detail_body(i18n: crate::app::i18n::I18n, value: &Value) -> String {
     let state = workflow_node_state(tool_status(value));
-    workflow_detail_content(value, state)
+    workflow_detail_content(i18n, value, state)
 }
 
 #[cfg(test)]

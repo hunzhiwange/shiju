@@ -57,6 +57,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         && tool_steps.iter().all(|step| trajectory_controls.is_tool_step_collapsed(*step));
 
     let timeline = trajectory_timeline(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         &projection,
         trajectory_controls.duration_mode(),
         turns_collapsed,
@@ -71,12 +72,16 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         },
         select_record,
     );
-    let search = text_input("搜索角色、工具、内容或 ID", &app.trajectory_search_text)
-        .on_input(|search| Message::Chat(ChatMessage::TrajectorySearchChanged(search)))
-        .padding([7, 9])
-        .size(12)
-        .style(styles::trajectory_search_input_style);
+    let search = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索角色、工具、内容或 ID"),
+        &app.trajectory_search_text,
+    )
+    .on_input(|search| Message::Chat(ChatMessage::TrajectorySearchChanged(search)))
+    .padding([7, 9])
+    .size(12)
+    .style(styles::trajectory_search_input_style);
     let ledger = trajectory_ledger(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         &projection,
         &app.trajectory_search_text,
         selected_record_id,
@@ -104,7 +109,11 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         .keys()
         .filter(|(error_session_id, _, _)| error_session_id == session_id)
         .count();
-    let status = raw_refresh_status(loading_count, error_count);
+    let status = raw_refresh_status(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        loading_count,
+        error_count,
+    );
 
     let body =
         container(column![search, ledger].spacing(8)).width(Length::Fill).height(Length::Fill);
@@ -123,7 +132,11 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
             )
             .on_press(close),
         );
-        let details = details::trajectory_details(record, &app.trajectory_details);
+        let details = details::trajectory_details(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            record,
+            &app.trajectory_details,
+        );
         let details_layer = row![
             Space::new().width(Length::FillPortion(3)),
             container(opaque(details)).width(Length::FillPortion(2)).height(Length::Fill),
@@ -140,22 +153,32 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     container(content).padding([10, 12]).width(Length::Fill).height(Length::Fill).into()
 }
 
-fn raw_refresh_status<'a>(loading_count: usize, error_count: usize) -> Element<'a, Message> {
+fn raw_refresh_status<'a>(
+    i18n: crate::app::i18n::I18n,
+    loading_count: usize,
+    error_count: usize,
+) -> Element<'a, Message> {
     if loading_count > 0 {
-        return text(format!("正在自动补载 {loading_count} 个步骤的原始数据（最多 3 次）…"))
-            .size(11)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().primary.base.color),
-            })
-            .into();
+        return text(
+            i18n.format("正在自动补载 %u 个步骤的原始数据（最多 3 次）…", &[loading_count.into()])
+                .expect("valid raw refresh template"),
+        )
+        .size(11)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().primary.base.color),
+        })
+        .into();
     }
     if error_count > 0 {
-        return text(format!("{error_count} 个步骤自动重试后仍未取得原始数据，可稍后重试"))
-            .size(11)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().warning.base.color),
-            })
-            .into();
+        return text(
+            i18n.format("%u 个步骤自动重试后仍未取得原始数据，可稍后重试", &[error_count.into()])
+                .expect("valid raw error template"),
+        )
+        .size(11)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().warning.base.color),
+        })
+        .into();
     }
     Space::new().height(Length::Fixed(0.0)).into()
 }

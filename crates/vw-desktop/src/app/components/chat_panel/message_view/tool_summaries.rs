@@ -11,9 +11,9 @@ use crate::app::state::{AdvancedToolSurfaceState, explicit_advanced_tool_surface
 
 use super::super::tools::{
     EXPLORE_GROUP_TOOL_IDX, ExploreToolKind, canonical_tool_name, explore_item_dedupe_key,
-    explore_tool_kind, is_explore_tool, tool_error_text, tool_inline_summary, tool_input,
-    tool_name_from_raw, tool_output_text, tool_permission_error_text, tool_permission_summary,
-    tool_status, tool_status_from_raw, tool_structured_diff_text, tool_summary_text,
+    explore_tool_kind, is_explore_tool, tool_error_text, tool_input, tool_name_from_raw,
+    tool_output_text, tool_permission_summary, tool_status, tool_status_from_raw,
+    tool_structured_diff_text, tool_summary_text,
 };
 use super::super::utils::{
     normalize_display_text, normalize_file_reference_to_path, single_line_preview,
@@ -21,7 +21,7 @@ use super::super::utils::{
 };
 use super::parse::{RenderBlock, borrowed_blocks, owned_blocks_from_raw};
 
-fn bash_command_title(input: &str) -> String {
+fn bash_command_title(i18n: crate::app::i18n::I18n, input: &str) -> String {
     let cmd_line = if input.trim_start().starts_with('{') {
         serde_json::from_str::<serde_json::Value>(input)
             .ok()
@@ -34,7 +34,7 @@ fn bash_command_title(input: &str) -> String {
     };
 
     let title = single_line_preview(&cmd_line, 140);
-    if title.is_empty() { "运行命令".to_string() } else { title }
+    if title.is_empty() { i18n.__("运行命令").to_string() } else { title }
 }
 
 fn parse_read_summary_input(input: &str) -> Option<(String, usize, usize)> {
@@ -180,7 +180,11 @@ fn tool_result_data_object(
         .and_then(|data| data.as_object())
 }
 
-fn browser_preview_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String> {
+fn browser_preview_texts(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    value: &serde_json::Value,
+) -> Vec<String> {
     let Some(data) = tool_result_data_object(value) else {
         return Vec::new();
     };
@@ -191,7 +195,10 @@ fn browser_preview_texts(tool_name: &str, value: &serde_json::Value) -> Vec<Stri
         let url = data.get("url").and_then(|item| item.as_str()).map(str::trim).unwrap_or("");
         return match (browser.is_empty(), url.is_empty()) {
             (true, true) => Vec::new(),
-            (false, true) => vec![format!("已在 {browser} 中打开页面")],
+            (false, true) => vec![
+                i18n.format("已在 %s 中打开页面", &[browser.into()])
+                    .expect("valid browser template"),
+            ],
             (true, false) => vec![url.to_string()],
             (false, false) => vec![format!("{browser} · {url}")],
         };
@@ -390,7 +397,11 @@ pub(crate) fn trailing_tool_tail_text_source_block_idx(
     None
 }
 
-fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String> {
+fn collect_tool_texts(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    value: &serde_json::Value,
+) -> Vec<String> {
     let tool_name = canonical_tool_name(tool_name);
     let mut tool_texts = Vec::new();
     let status = tool_status(value);
@@ -399,13 +410,17 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
     let output = output_text.trim();
     let err_owned = tool_error_text(value).unwrap_or_default();
     let err_text = err_owned.trim();
-    let permission_error_text = tool_permission_error_text(tool_name, value).unwrap_or_default();
+    let permission_error_text =
+        crate::app::components::chat_panel::tools::localized_tool_permission_error_text(
+            i18n, tool_name, value,
+        )
+        .unwrap_or_default();
     let permission_error_text = permission_error_text.trim();
 
     match tool_name {
         "bash" => {
             let input = tool_input(value);
-            tool_texts.push(bash_command_title(input));
+            tool_texts.push(bash_command_title(i18n, input));
         }
         "read" | "file_read" | "pdf_read" => {
             if let Some((file_name, range_text)) = read_summary_parts(tool_input(value)) {
@@ -421,7 +436,7 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                     tool_texts.push(permission_error_text.to_string());
                 }
             } else if let Some(summary) = tool_permission_summary(tool_name, value) {
-                tool_texts.push(summary.to_string());
+                tool_texts.push(i18n.__(summary).to_string());
             } else if let Some(summary) = tool_summary_text(value) {
                 tool_texts.push(summary);
             }
@@ -443,7 +458,7 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                     tool_texts.push(permission_error_text.to_string());
                 }
             } else if let Some(summary) = tool_permission_summary(tool_name, value) {
-                tool_texts.push(summary.to_string());
+                tool_texts.push(i18n.__(summary).to_string());
             } else if let Some(summary) = tool_summary_text(value)
                 && !summary.trim().is_empty()
             {
@@ -500,7 +515,11 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
             {
                 tool_texts.push(summary);
             } else if let Some(summary) =
-                super::super::tools::tool_inline_summary(tool_name, tool_input(value))
+                crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+                    i18n,
+                    tool_name,
+                    tool_input(value),
+                )
                 && !summary.trim().is_empty()
             {
                 tool_texts.push(summary);
@@ -514,7 +533,7 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                         tool_texts.push(output.to_string());
                     }
                 } else {
-                    let previews = browser_preview_texts(tool_name, value);
+                    let previews = browser_preview_texts(i18n, tool_name, value);
                     if previews.is_empty() {
                         tool_texts.push(output.to_string());
                     } else {
@@ -525,7 +544,10 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
         }
         _ if explicit_advanced_tool_surface_spec(tool_name).is_some() => {
             if let Some(spec) = explicit_advanced_tool_surface_spec(tool_name) {
-                tool_texts.push(format!("状态: {}", spec.state.label()));
+                tool_texts.push(
+                    i18n.format("状态: %s", &[spec.state.label().into()])
+                        .expect("valid surface status template"),
+                );
                 if is_error {
                     if !permission_error_text.is_empty() {
                         tool_texts.push(permission_error_text.to_string());
@@ -536,12 +558,12 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                     tool_texts.push(output.to_string());
                 } else {
                     let state_text = match spec.state {
-                        AdvancedToolSurfaceState::Available => {
-                            format!("{} 已接入当前会话工具面。", spec.label)
-                        }
-                        AdvancedToolSurfaceState::Planned => {
-                            format!("{} 当前已明确标记为 planned。", spec.label)
-                        }
+                        AdvancedToolSurfaceState::Available => i18n
+                            .format("%s 已接入当前会话工具面。", &[spec.label.into()])
+                            .expect("valid surface template"),
+                        AdvancedToolSurfaceState::Planned => i18n
+                            .format("%s 当前已明确标记为 planned。", &[spec.label.into()])
+                            .expect("valid planned surface template"),
                     };
                     tool_texts.push(state_text);
                 }
@@ -563,7 +585,7 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                         let content = todo
                             .get("content")
                             .and_then(|item| item.as_str())
-                            .unwrap_or("（无内容）")
+                            .unwrap_or_else(|| i18n.__("（无内容）"))
                             .trim();
                         let symbol = match status {
                             "completed" => "✓",
@@ -582,7 +604,7 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
         "todoread" => {
             if let Ok(todos) = serde_json::from_str::<Vec<vw_shared::todo::Todo>>(output) {
                 if todos.is_empty() {
-                    tool_texts.push("暂无任务".to_string());
+                    tool_texts.push(i18n.__("暂无任务").to_string());
                 } else {
                     for todo in todos {
                         tool_texts.push(todo.content.trim().to_string());
@@ -597,7 +619,12 @@ fn collect_tool_texts(tool_name: &str, value: &serde_json::Value) -> Vec<String>
                 && !summary.trim().is_empty()
             {
                 tool_texts.push(summary);
-            } else if let Some(summary) = tool_inline_summary(tool_name, tool_input(value))
+            } else if let Some(summary) =
+                crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+                    i18n,
+                    tool_name,
+                    tool_input(value),
+                )
                 && !summary.trim().is_empty()
             {
                 tool_texts.push(summary);
@@ -634,7 +661,11 @@ pub(super) fn collect_tool_card_texts(raw: &str) -> Option<Vec<String>> {
     let (first, rest) = raw.split_once('\n')?;
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
-    Some(collect_tool_texts(tool_name, &value))
+    Some(collect_tool_texts(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        tool_name,
+        &value,
+    ))
 }
 
 pub(crate) fn summarize_explore_items<'a>(
@@ -642,6 +673,21 @@ pub(crate) fn summarize_explore_items<'a>(
     group_idx: usize,
     force_running: bool,
 ) -> Option<(usize, String)> {
+    summarize_explore_semantics(items, group_idx, force_running).map(|(index, counts)| {
+        (
+            index,
+            counts.render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            )),
+        )
+    })
+}
+
+pub(crate) fn summarize_explore_semantics<'a>(
+    items: impl Iterator<Item = &'a str>,
+    group_idx: usize,
+    force_running: bool,
+) -> Option<(usize, crate::app::i18n::chat::ExploreCounts)> {
     let mut latest_items: HashMap<String, (Option<ExploreToolKind>, Option<String>)> =
         HashMap::new();
     let mut fallback_idx = 0usize;
@@ -683,20 +729,12 @@ pub(crate) fn summarize_explore_items<'a>(
         }
     }
 
-    let mut parts = Vec::new();
-    if read_count > 0 {
-        parts.push(format!("{} 次读取", read_count));
-    }
-    if search_count > 0 {
-        parts.push(format!("{} 次搜索", search_count));
-    }
-    if list_count > 0 {
-        parts.push(format!("{} 次列出", list_count));
-    }
-    if other_count > 0 {
-        parts.push(format!("{} 次其他", other_count));
-    }
-    let summary_text = if parts.is_empty() { "暂无".to_string() } else { parts.join("，") };
+    let summary_text = crate::app::i18n::chat::ExploreCounts {
+        reads: read_count,
+        searches: search_count,
+        listings: list_count,
+        others: other_count,
+    };
     let group_base_idx = EXPLORE_GROUP_TOOL_IDX.saturating_sub(group_idx.saturating_mul(2));
     let group_running_idx = group_base_idx.saturating_sub(1);
     let group_tool_idx =
@@ -805,4 +843,19 @@ pub(crate) fn explore_summary_text_blocks(
 
     flush_explore_summary(&mut out, &mut explore_items, group_idx, explore_group_force_running);
     out
+}
+
+pub(super) fn collect_tool_card_source(
+    raw: &str,
+) -> Option<crate::app::models::ToolCardTextSource> {
+    let (first, rest) = raw.split_once('\n')?;
+    let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim()).to_string();
+    let value = serde_json::from_str(rest.trim()).ok()?;
+    Some(crate::app::models::ToolCardTextSource { tool_name, value })
+}
+
+impl crate::app::models::ToolCardTextSource {
+    pub(crate) fn render(&self, i18n: crate::app::i18n::I18n) -> Vec<String> {
+        collect_tool_texts(i18n, &self.tool_name, &self.value)
+    }
 }

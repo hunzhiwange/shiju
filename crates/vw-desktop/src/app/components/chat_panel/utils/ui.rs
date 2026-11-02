@@ -91,7 +91,10 @@ pub fn chat_context_target_key(msg_idx: usize, sub_idx: Option<usize>) -> u64 {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub fn chat_context_menu<'a>(is_open: bool) -> Option<Element<'a, Message>> {
+pub fn chat_context_menu<'a>(
+    i18n: crate::app::i18n::I18n,
+    is_open: bool,
+) -> Option<Element<'a, Message>> {
     if !is_open {
         return None;
     }
@@ -111,11 +114,14 @@ pub fn chat_context_menu<'a>(is_open: bool) -> Option<Element<'a, Message>> {
 
     let menu = container(
         column![
-            menu_item("复制", Message::Chat(ChatMessage::CopyContextMenuText)),
-            menu_item("添加到对话", Message::Chat(ChatMessage::AppendContextMenuText)),
-            menu_item("百度搜索", Message::Chat(ChatMessage::SearchContextMenuWithBaidu)),
-            menu_item("Google 搜索", Message::Chat(ChatMessage::SearchContextMenuWithGoogle)),
-            menu_item("Bing 搜索", Message::Chat(ChatMessage::SearchContextMenuWithBing)),
+            menu_item(i18n.__("复制"), Message::Chat(ChatMessage::CopyContextMenuText)),
+            menu_item(i18n.__("添加到对话"), Message::Chat(ChatMessage::AppendContextMenuText)),
+            menu_item(i18n.__("百度搜索"), Message::Chat(ChatMessage::SearchContextMenuWithBaidu)),
+            menu_item(
+                i18n.__("Google 搜索"),
+                Message::Chat(ChatMessage::SearchContextMenuWithGoogle)
+            ),
+            menu_item(i18n.__("Bing 搜索"), Message::Chat(ChatMessage::SearchContextMenuWithBing)),
         ]
         .spacing(0)
         .width(Length::Fixed(134.0)),

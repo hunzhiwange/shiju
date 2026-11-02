@@ -37,15 +37,15 @@ pub(crate) fn with_chat_reset_dialog<'a>(
 
     let card = settings_modal_card(
         column![
-            text("重置到此点?").size(18),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点?")).size(18),
             text(
-                "会先立即截断本地聊天历史并保存，然后同步网关历史。选择回滚代码会额外还原此点之后的文件改动。"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("会先立即截断本地聊天历史并保存，然后同步网关历史。选择回滚代码会额外还原此点之后的文件改动。")
             )
             .size(13)
             .style(settings_muted_text_style),
             button(column![
-                text("仅重置会话历史").size(14).style(action_button_title_text_style),
-                text("保留当前文件内容，只把聊天回到此点")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("仅重置会话历史")).size(14).style(action_button_title_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("保留当前文件内容，只把聊天回到此点"))
                     .size(12)
                     .style(action_button_detail_text_style),
             ])
@@ -54,8 +54,8 @@ pub(crate) fn with_chat_reset_dialog<'a>(
             .style(primary_action_btn_style)
             .on_press(keep_files_message),
             button(column![
-                text("回滚代码并重置").size(14).style(action_button_title_text_style),
-                text("同时撤销此点之后产生的文件改动")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("回滚代码并重置")).size(14).style(action_button_title_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("同时撤销此点之后产生的文件改动"))
                     .size(12)
                     .style(action_button_detail_text_style),
             ])
@@ -65,7 +65,7 @@ pub(crate) fn with_chat_reset_dialog<'a>(
             .on_press(revert_files_message),
             row![
                 Space::new().width(Length::Fill),
-                button(text("取消").size(13))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
                     .style(rounded_action_btn_style)
                     .padding([9, 18])
                     .on_press(close_message.clone()),

@@ -70,7 +70,16 @@ fn message_meta_labels_use_step_start_for_user_and_finish_for_assistant() {
     let step = step(1, 1_000, Some(1_500), "model-a");
     let step_index_map = HashMap::from([(1, StepUiMeta::from(&step))]);
 
-    let labels = build_message_meta_labels(&chat, &step_index_map);
+    let labels = build_message_meta_labels(&chat, &step_index_map)
+        .into_iter()
+        .map(|meta| {
+            meta.map(|meta| {
+                meta.render(crate::app::i18n::I18n::new(
+                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                ))
+            })
+        })
+        .collect::<Vec<_>>();
 
     let started = crate::app::components::chat_panel::utils::format_chat_time_label(1_000);
     let finished = crate::app::components::chat_panel::utils::format_chat_time_label(1_500);
@@ -98,7 +107,16 @@ fn message_meta_labels_omit_missing_models_but_keep_assistant_step_alignment() {
     let step_index_map =
         HashMap::from([(1, StepUiMeta::from(&first)), (2, StepUiMeta::from(&second))]);
 
-    let labels = build_message_meta_labels(&chat, &step_index_map);
+    let labels = build_message_meta_labels(&chat, &step_index_map)
+        .into_iter()
+        .map(|meta| {
+            meta.map(|meta| {
+                meta.render(crate::app::i18n::I18n::new(
+                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                ))
+            })
+        })
+        .collect::<Vec<_>>();
 
     assert_eq!(labels[0], None);
     assert!(labels[1].as_deref().is_some_and(|label| label.contains("message-model-b")));
@@ -114,7 +132,16 @@ fn task_session_source_display_uses_vibewindow_label() {
     .expect("source marker should encode");
     let chat = vec![message(ChatRole::User, &content), message(ChatRole::User, "普通问题")];
 
-    let labels = build_message_meta_labels(&chat, &HashMap::new());
+    let labels = build_message_meta_labels(&chat, &HashMap::new())
+        .into_iter()
+        .map(|meta| {
+            meta.map(|meta| {
+                meta.render(crate::app::i18n::I18n::new(
+                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                ))
+            })
+        })
+        .collect::<Vec<_>>();
     let markers = build_user_question_markers(&chat);
 
     assert_eq!(labels, vec![Some("由 VibeWindow 从另一项任务发起".to_string()), None]);
@@ -132,7 +159,10 @@ fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), 1);
     assert!(
         app.active_session_view_state.message_meta_texts[0]
-            .as_deref()
+            .as_ref()
+            .map(|meta| meta.render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+            )))
             .is_some_and(|label| label.contains("message-model"))
     );
 
@@ -140,7 +170,10 @@ fn refresh_tail_message_meta_appends_then_replaces_changed_label() {
     app.refresh_active_session_tail_message_meta(0);
     assert!(
         app.active_session_view_state.message_meta_texts[0]
-            .as_deref()
+            .as_ref()
+            .map(|meta| meta.render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+            )))
             .is_some_and(|label| label.contains("message-model"))
     );
 }
@@ -154,11 +187,15 @@ fn refresh_tail_message_meta_rebuilds_gaps_and_truncates_out_of_range_entries() 
     app.refresh_active_session_tail_message_meta(1);
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
 
-    app.active_session_view_state.message_meta_texts.push(Some("stale".to_string()));
+    app.active_session_view_state.message_meta_texts.push(Some(
+        crate::app::i18n::chat::MessageMeta::Model { model: "stale".to_string(), time_ms: None },
+    ));
     app.refresh_active_session_tail_message_meta(1);
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
 
-    app.active_session_view_state.message_meta_texts.push(Some("stale".to_string()));
+    app.active_session_view_state.message_meta_texts.push(Some(
+        crate::app::i18n::chat::MessageMeta::Model { model: "stale".to_string(), time_ms: None },
+    ));
     app.refresh_active_session_tail_message_meta(2);
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), 2);
 }

@@ -24,7 +24,9 @@ pub(super) fn handle_open_tool_detail(
     tool_idx: usize,
     raw: String,
 ) -> Task<Message> {
-    if let Some((title, content)) = tool_detail_from_raw(&raw) {
+    if let Some((title, content)) =
+        tool_detail_from_raw(crate::app::i18n::I18n::new(app.desktop_locale), &raw)
+    {
         let editor = text_editor::Content::with_text(&content);
         app.tool_detail_dialog = Some(ToolDetailDialog {
             msg_idx,
@@ -237,7 +239,7 @@ pub(super) fn handle_close_tool_detail(app: &mut App) -> Task<Message> {
     Task::none()
 }
 
-fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
+fn tool_detail_from_raw(i18n: crate::app::i18n::I18n, raw: &str) -> Option<(String, String)> {
     let (first, rest) = raw.split_once('\n')?;
     let raw_tool_name = first.trim().strip_prefix("tool ")?.trim();
     let is_mcp = is_mcp_tool_raw(raw);
@@ -246,7 +248,7 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
     } else {
         crate::app::components::chat_panel::tools::canonical_tool_name(raw_tool_name)
     };
-    let fallback_title = tool_header_label(tool_name).to_string();
+    let fallback_title = i18n.__(&tool_header_label(tool_name)).to_string();
     let value = serde_json::from_str::<serde_json::Value>(rest.trim()).ok();
     let title = if tool_name == "workflow_node" {
         value
@@ -259,8 +261,12 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
             .map(|title| {
                 let status = value.as_ref().map(tool_status).unwrap_or("");
                 match status {
-                    "error" | "denied" | "failed" => format!("{title} · 失败"),
-                    "running" => format!("{title} · 运行中"),
+                    "error" | "denied" | "failed" => i18n
+                        .format("%s · 失败", &[title.into()])
+                        .expect("valid tool detail title template"),
+                    "running" => i18n
+                        .format("%s · 运行中", &[title.into()])
+                        .expect("valid tool detail title template"),
                     _ => title.to_string(),
                 }
             })
@@ -269,8 +275,12 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
                     .as_ref()
                     .map(tool_status)
                     .map(|status| match status {
-                        "error" | "denied" | "failed" => format!("{fallback_title} 失败"),
-                        "running" => format!("{fallback_title} 运行中"),
+                        "error" | "denied" | "failed" => i18n
+                            .format("%s 失败", &[fallback_title.as_str().into()])
+                            .expect("valid tool detail title template"),
+                        "running" => i18n
+                            .format("%s 运行中", &[fallback_title.as_str().into()])
+                            .expect("valid tool detail title template"),
                         _ => fallback_title.clone(),
                     })
                     .unwrap_or(fallback_title)
@@ -280,8 +290,12 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
             .as_ref()
             .map(tool_status)
             .map(|status| match status {
-                "error" | "denied" => format!("{fallback_title} 失败"),
-                "running" => format!("{fallback_title} 运行中"),
+                "error" | "denied" => i18n
+                    .format("%s 失败", &[fallback_title.as_str().into()])
+                    .expect("valid tool detail title template"),
+                "running" => i18n
+                    .format("%s 运行中", &[fallback_title.as_str().into()])
+                    .expect("valid tool detail title template"),
                 _ => fallback_title.clone(),
             })
             .unwrap_or(fallback_title)
@@ -289,7 +303,7 @@ fn tool_detail_from_raw(raw: &str) -> Option<(String, String)> {
     let content = if tool_name == "workflow_node" {
         value
             .as_ref()
-            .map(workflow_node_detail_body)
+            .map(|value| workflow_node_detail_body(i18n, value))
             .filter(|content| !content.trim().is_empty())
             .unwrap_or_else(|| rest.trim().to_string())
     } else {

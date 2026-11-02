@@ -62,26 +62,50 @@ fn write_tool_summary_uses_first_file_name_and_total_count() {
         ("src/lib.rs".to_string(), "/tmp/src/lib.rs".to_string()),
     ]);
 
-    assert_eq!(write_tool_summary(&state), Some("main.rs 等 2 个文件".to_string()));
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        Some("main.rs 等 2 个文件".to_string())
+    );
 }
 
 #[test]
 fn write_tool_summary_uses_single_file_name() {
     let state = file_list_state(vec![("src/main.rs".to_string(), "/tmp/src/main.rs".to_string())]);
 
-    assert_eq!(write_tool_summary(&state), Some("main.rs".to_string()));
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        Some("main.rs".to_string())
+    );
 }
 
 #[test]
 fn write_tool_summary_falls_back_to_file_count_for_blank_names() {
     let state = file_list_state(vec![("".to_string(), "/tmp/src/main.rs".to_string())]);
 
-    assert_eq!(write_tool_summary(&state), Some("1 个文件".to_string()));
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        Some("1 个文件".to_string())
+    );
 }
 
 #[test]
 fn write_tool_summary_returns_none_for_empty_state() {
-    assert_eq!(write_tool_summary(&file_list_state(Vec::new())), None);
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &file_list_state(Vec::new())
+        ),
+        None
+    );
 }
 
 #[test]
@@ -89,7 +113,13 @@ fn write_tool_summary_trims_the_first_file_name() {
     let state =
         file_list_state(vec![("src/main.rs  ".to_string(), "/tmp/src/main.rs".to_string())]);
 
-    assert_eq!(write_tool_summary(&state), Some("main.rs".to_string()));
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        Some("main.rs".to_string())
+    );
 }
 
 #[test]
@@ -97,40 +127,124 @@ fn write_tool_summary_uses_minimum_count_for_whitespace_only_name() {
     let mut state = file_list_state(vec![("   ".to_string(), "/tmp/blank".to_string())]);
     state.total_items = 0;
 
-    assert_eq!(write_tool_summary(&state), Some("1 个文件".to_string()));
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        Some("1 个文件".to_string())
+    );
 }
 
 #[test]
 fn write_tool_summary_preserves_root_path_without_file_name() {
     let state = file_list_state(vec![("/".to_string(), "/".to_string())]);
 
-    assert_eq!(write_tool_summary(&state), Some("/".to_string()));
+    assert_eq!(
+        write_tool_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        Some("/".to_string())
+    );
 }
 
 #[test]
 fn write_tool_title_applies_running_permission_error_and_success_precedence() {
-    assert_eq!(write_tool_title("写入", true, Some(ToolPermissionState::Rejected), true), "写入中");
     assert_eq!(
-        write_tool_title("写入", false, Some(ToolPermissionState::ApprovalRequired), true,),
+        write_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            true,
+            Some(ToolPermissionState::Rejected),
+            true
+        ),
+        "写入中"
+    );
+    assert_eq!(
+        write_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            Some(ToolPermissionState::ApprovalRequired),
+            true,
+        ),
         "写入待批准"
     );
     assert_eq!(
-        write_tool_title("写入", false, Some(ToolPermissionState::Rejected), true),
+        write_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            Some(ToolPermissionState::Rejected),
+            true
+        ),
         "写入已拒绝"
     );
-    assert_eq!(write_tool_title("写入", false, None, true), "写入失败");
-    assert_eq!(write_tool_title("写入", false, None, false), "写入");
+    assert_eq!(
+        write_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            None,
+            true
+        ),
+        "写入失败"
+    );
+    assert_eq!(
+        write_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            None,
+            false
+        ),
+        "写入"
+    );
 }
 
 #[test]
 fn write_tool_detail_text_prefers_running_then_non_blank_error_then_fallback() {
-    assert_eq!(write_tool_detail_text("写入", true, Some("disk full"), "summary"), "写入中…");
     assert_eq!(
-        write_tool_detail_text("写入", false, Some("  disk full  "), "summary"),
+        write_tool_detail_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            true,
+            Some("disk full"),
+            "summary"
+        ),
+        "写入中…"
+    );
+    assert_eq!(
+        write_tool_detail_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            Some("  disk full  "),
+            "summary"
+        ),
         "disk full"
     );
-    assert_eq!(write_tool_detail_text("写入", false, Some("   "), "summary"), "summary");
-    assert_eq!(write_tool_detail_text("写入", false, None, "summary"), "summary");
+    assert_eq!(
+        write_tool_detail_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            Some("   "),
+            "summary"
+        ),
+        "summary"
+    );
+    assert_eq!(
+        write_tool_detail_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "写入",
+            false,
+            None,
+            "summary"
+        ),
+        "summary"
+    );
 }
 
 #[test]

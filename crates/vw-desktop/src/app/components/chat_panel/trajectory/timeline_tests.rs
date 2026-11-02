@@ -127,6 +127,7 @@ fn trajectory_timeline_selects_stable_record() {
     let captured_ids = Rc::clone(&selected_ids);
 
     let element = trajectory_timeline(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         &projection,
         TrajectoryDurationMode::Timed,
         false,
@@ -174,11 +175,17 @@ fn timeline_toolbar_emits_control_messages() {
     let actions = Rc::new(RefCell::new(Vec::new()));
     let captured_actions = Rc::clone(&actions);
 
-    let toolbar =
-        timeline_toolbar(summary, TrajectoryDurationMode::Timed, false, true, move |action| {
+    let toolbar = timeline_toolbar(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        summary,
+        TrajectoryDurationMode::Timed,
+        false,
+        true,
+        move |action| {
             captured_actions.borrow_mut().push(action);
             TestMessage::Control(action)
-        });
+        },
+    );
     let tree = Tree::new(toolbar.as_widget());
 
     assert!(!tree.children.is_empty());
@@ -201,9 +208,12 @@ fn timeline_block_tooltip_truncates_preview_to_100_characters() {
     assistant.detail.output = Some(format!("  第一行\n第二行   完整内容 {}  ", "长".repeat(180)));
     assistant.metrics.duration_ms = MetricAvailability::Available(1_250);
 
-    let tooltip = timeline_block_tooltip(&assistant);
+    let tooltip = timeline_block_tooltip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        &assistant,
+    );
 
-    assert!(tooltip.contains("ASSISTANT"));
+    assert!(tooltip.contains("Assistant"));
     assert!(tooltip.contains("第一行 第二行 完整内容"));
     assert!(tooltip.contains(&format!("{}{}…", "第一行 第二行 完整内容 ", "长".repeat(87))));
     assert!(!tooltip.contains(&"长".repeat(88)));
@@ -213,7 +223,13 @@ fn timeline_block_tooltip_truncates_preview_to_100_characters() {
     assert!(!tooltip.contains('\n'));
 
     let unknown = record("user:2", 8, TrajectoryRecordKind::User);
-    assert!(timeline_block_tooltip(&unknown).contains("不可用"));
+    assert!(
+        timeline_block_tooltip(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+            &unknown
+        )
+        .contains("不可用")
+    );
 }
 
 mod trajectory_controls {

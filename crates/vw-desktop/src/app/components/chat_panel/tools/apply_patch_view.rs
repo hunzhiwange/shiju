@@ -28,8 +28,8 @@ use super::tool_parse::{
 };
 use super::types::ChangeFile;
 use super::{
-    ToolTextTarget, canonical_tool_name, selected_chat_text_for_target, tool_permission_error_text,
-    tool_permission_state, tool_permission_target_summary, tool_permission_title, tool_text_editor,
+    ToolTextTarget, canonical_tool_name, selected_chat_text_for_target, tool_permission_state,
+    tool_permission_target_summary, tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
     bold_font, change_pills, chat_context_target_key, chat_scroll_direction, deletions_pill,
@@ -130,16 +130,21 @@ pub fn tool_apply_patch_view<'a>(
         visible.to_string(),
     )));
 
-    let (primary_name, _primary_dir, trailing_summary) = apply_patch_header_summary(&files);
+    let (primary_name, _primary_dir, trailing_summary) =
+        apply_patch_header_summary(crate::app::i18n::I18n::new(app.desktop_locale), &files);
     let permission_target = tool_permission_target_summary(tool_name, &v);
     let title = if let Some(permission_state) = tool_permission_state(tool_name, &v) {
-        tool_permission_title("补丁", permission_state)
+        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("补丁"),
+            permission_state,
+        )
     } else if is_error {
-        "补丁失败".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("补丁失败").to_string()
     } else if is_running {
-        "应用补丁中".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("应用补丁中").to_string()
     } else {
-        "补丁".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("补丁").to_string()
     };
     let header_icon = apply_patch_header_file_icon(
         files.first().map(|(_, path)| path.as_str()).unwrap_or(primary_name.as_str()),
@@ -180,11 +185,13 @@ pub fn tool_apply_patch_view<'a>(
     let mut content = column![head_with_hover].spacing(10);
     if is_running {
         content = content.push(
-            container(text("应用补丁中…").size(14).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
-                }
-            }))
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用补丁中…"))
+                    .size(14)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
+                    }),
+            )
             .width(Length::Fill),
         );
         return Some(
@@ -198,7 +205,12 @@ pub fn tool_apply_patch_view<'a>(
 
     if !is_error || expanded {
         if is_error {
-            let err_full = tool_permission_error_text(tool_name, &v)
+            let err_full =
+                crate::app::components::chat_panel::tools::localized_tool_permission_error_text(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    tool_name,
+                    &v,
+                )
                 .or_else(|| tool_error_text(&v))
                 .unwrap_or_default();
             if !err_full.trim().is_empty() {
@@ -295,18 +307,20 @@ pub fn tool_apply_patch_view<'a>(
                     };
                     let resolved_change =
                         resolve_apply_patch_change_preview(app, &changes, *kind, path);
-                    let external_diff_btn: Element<'a, Message> = if let Some(change) =
-                        resolved_change.clone()
-                    {
-                        external_diff_button(Message::Git(message::GitMessage::OpenChatTextDiff {
-                            title: title.clone(),
-                            file: path.clone(),
-                            before: change.before,
-                            after: change.after,
-                        }))
-                    } else {
-                        Space::new().width(Length::Fixed(20.0)).into()
-                    };
+                    let external_diff_btn: Element<'a, Message> =
+                        if let Some(change) = resolved_change.clone() {
+                            external_diff_button(
+                                crate::app::i18n::I18n::new(app.desktop_locale),
+                                Message::Git(message::GitMessage::OpenChatTextDiff {
+                                    title: title.clone(),
+                                    file: path.clone(),
+                                    before: change.before,
+                                    after: change.after,
+                                }),
+                            )
+                        } else {
+                            Space::new().width(Length::Fixed(20.0)).into()
+                        };
                     let toggle_message = Message::Chat(message::ChatMessage::ToggleToolFile(
                         msg_idx,
                         tool_idx,
@@ -348,11 +362,16 @@ pub fn tool_apply_patch_view<'a>(
                             .into()
                         } else if *kind == 'D' {
                             container(
-                                text("文件已删除，但当前记录未包含删除前内容预览").size(14).style(
-                                    |theme: &Theme| iced::widget::text::Style {
+                                text(
+                                    crate::app::i18n::I18n::new(app.desktop_locale)
+                                        .__("文件已删除，但当前记录未包含删除前内容预览"),
+                                )
+                                .size(14)
+                                .style(|theme: &Theme| {
+                                    iced::widget::text::Style {
                                         color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
-                                    },
-                                ),
+                                    }
+                                }),
                             )
                             .width(Length::Fill)
                             .clip(true)
@@ -360,11 +379,18 @@ pub fn tool_apply_patch_view<'a>(
                             .style(apply_patch_inner_card_style)
                             .into()
                         } else {
-                            container(text("未能解析文件变更").size(14).style(|theme: &Theme| {
-                                iced::widget::text::Style {
-                                    color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
-                                }
-                            }))
+                            container(
+                                text(
+                                    crate::app::i18n::I18n::new(app.desktop_locale)
+                                        .__("未能解析文件变更"),
+                                )
+                                .size(14)
+                                .style(|theme: &Theme| {
+                                    iced::widget::text::Style {
+                                        color: Some(apply_patch_secondary_text(theme, 0.72, 0.74)),
+                                    }
+                                }),
+                            )
                             .width(Length::Fill)
                             .clip(true)
                             .padding([10, 0])
@@ -413,7 +439,8 @@ pub fn tool_apply_patch_view<'a>(
                     icon_svg(Icon::ChevronRight).style(|theme: &Theme, _status| {
                         svg::Style { color: Some(apply_patch_secondary_text(theme, 0.92, 0.90)) }
                     }),
-                    text("打开完整输出").size(14)
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("打开完整输出"))
+                        .size(14)
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
@@ -479,8 +506,8 @@ pub fn tool_apply_patch_view<'a>(
     Some(content)
 }
 
-fn view_changes_pill<'a>() -> Element<'a, Message> {
-    container(text("查看变更").size(14).style(|theme: &Theme| {
+fn view_changes_pill<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
+    container(text(i18n.__("查看变更")).size(14).style(|theme: &Theme| {
         let is_dark = theme.palette().background.r
             + theme.palette().background.g
             + theme.palette().background.b
@@ -532,8 +559,11 @@ fn view_changes_toggle_button<'a>(expanded: bool, on_press: Message) -> Element<
     .into()
 }
 
-fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
-    button(view_changes_pill())
+fn external_diff_button<'a>(
+    i18n: crate::app::i18n::I18n,
+    on_press: Message,
+) -> Element<'a, Message> {
+    button(view_changes_pill(i18n))
         .padding(0)
         .style(apply_patch_file_button_style)
         .on_press(on_press)
@@ -566,6 +596,7 @@ fn resolve_apply_patch_change_preview(
 }
 
 pub(super) fn apply_patch_header_summary(
+    i18n: crate::app::i18n::I18n,
     files: &[(char, String)],
 ) -> (String, String, Option<String>) {
     let Some((_, first_path)) = files.first() else {
@@ -584,7 +615,14 @@ pub(super) fn apply_patch_header_summary(
         .filter(|parent| !parent.is_empty() && *parent != ".")
         .map(|parent| format!("/{}", parent.trim_start_matches('/')))
         .unwrap_or_default();
-    let extra = if files.len() > 1 { Some(format!("等 {} 个文件", files.len())) } else { None };
+    let extra = if files.len() > 1 {
+        Some(
+            i18n.format("等 %u 个文件", &[files.len().into()])
+                .expect("valid patch summary template"),
+        )
+    } else {
+        None
+    };
     (file_name, parent_dir, extra)
 }
 

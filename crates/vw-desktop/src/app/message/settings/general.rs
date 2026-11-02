@@ -29,6 +29,16 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         GeneralSettingsMessage::LocaleSelected(locale) => {
             app.desktop_locale = locale;
+            let chunks = app
+                .active_session_view_state
+                .prepared_chat_ui_chunks
+                .iter()
+                .copied()
+                .collect::<Vec<_>>();
+            for chunk in chunks {
+                app.invalidate_chat_ui_chunk(chunk);
+            }
+            app.chat_explore_summary_animations.clear();
             super::cron::refresh_run_history_locale(app);
             app.desktop_locale_selected = true;
             if !app.desktop_locale_saving {

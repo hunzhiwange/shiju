@@ -14,29 +14,43 @@ use crate::app::{Message, message};
 
 use super::super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::super::{
-    ToolPermissionState, ToolTextTarget, tool_header_label, tool_inline_summary,
-    tool_permission_error_text, tool_permission_state, tool_permission_title, tool_status,
-    tool_summary_text, tool_text_editor,
+    ToolPermissionState, ToolTextTarget, tool_header_label, tool_permission_error_text,
+    tool_permission_state, tool_status, tool_summary_text, tool_text_editor,
 };
 use super::{FileListState, FilesViewContext};
 
-pub(super) fn common_tool_meta_text(render_state: &FileListState) -> String {
+pub(super) fn common_tool_meta_text(
+    i18n: crate::app::i18n::I18n,
+    render_state: &FileListState,
+) -> String {
     if !render_state.filter_query.is_empty() {
-        format!("{}/{} 项", render_state.display_count, render_state.total_items)
+        i18n.format(
+            "%u/%u 项",
+            &[render_state.display_count.into(), render_state.total_items.into()],
+        )
     } else if render_state.truncated_middle {
-        format!(
-            "{}项 (省略{}项)",
-            render_state.total_items.min(render_state.max_items) + render_state.middle_omitted,
-            render_state.middle_omitted
+        i18n.format(
+            "%u项 (省略%u项)",
+            &[
+                (render_state.total_items.min(render_state.max_items)
+                    + render_state.middle_omitted)
+                    .into(),
+                render_state.middle_omitted.into(),
+            ],
         )
     } else if render_state.tail_omitted > 0 {
-        format!("{}项 (省略{}项)", render_state.total_items, render_state.tail_omitted)
+        i18n.format(
+            "%u项 (省略%u项)",
+            &[render_state.total_items.into(), render_state.tail_omitted.into()],
+        )
     } else {
-        format!("{}项", render_state.total_items)
+        i18n.format("%u项", &[render_state.total_items.into()])
     }
+    .expect("valid file metadata template")
 }
 
 pub(super) fn common_tool_title(
+    i18n: crate::app::i18n::I18n,
     tool_name: &str,
     verb: &str,
     is_running: bool,
@@ -44,13 +58,17 @@ pub(super) fn common_tool_title(
     is_error: bool,
 ) -> String {
     if is_running {
-        format!("{verb}中")
+        i18n.format("%s中", &[i18n.__(verb).into()]).expect("valid file activity template")
     } else if let Some(permission_state) = permission_state {
-        tool_permission_title(tool_header_label(tool_name).as_str(), permission_state)
+        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+            i18n,
+            tool_header_label(tool_name).as_str(),
+            permission_state,
+        )
     } else if is_error {
-        format!("{verb}失败")
+        i18n.format("%s失败", &[i18n.__(verb).into()]).expect("valid file failure template")
     } else {
-        tool_header_label(tool_name)
+        i18n.__(&tool_header_label(tool_name)).to_string()
     }
 }
 
@@ -118,7 +136,10 @@ pub(crate) fn build_common_tool_view<'a>(
     let selected_context_text =
         super::super::selected_chat_text_for_target(view_ctx.app, context_key);
 
-    let meta = common_tool_meta_text(render_state);
+    let meta = common_tool_meta_text(
+        crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+        render_state,
+    );
 
     let tool_value = view_ctx
         .visible
@@ -133,9 +154,15 @@ pub(crate) fn build_common_tool_view<'a>(
     let mut summary =
         tool_value.as_ref().and_then(|value| tool_summary_text(value)).unwrap_or_default();
     if summary.is_empty() {
-        summary = tool_inline_summary(&view_ctx.tool_name, &view_ctx.input).unwrap_or_default();
+        summary = crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+            crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+            &view_ctx.tool_name,
+            &view_ctx.input,
+        )
+        .unwrap_or_default();
     }
     let title = common_tool_title(
+        crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
         &view_ctx.tool_name,
         view_ctx.verb,
         view_ctx.is_running,
@@ -169,38 +196,52 @@ pub(crate) fn build_common_tool_view<'a>(
         tool_activity_header(&view_ctx.tool_name, title, header_summary, visual, detail_slot);
 
     let filter_row: Element<'a, Message> = if render_state.is_search {
-        let filter_input = text_input("筛选文件...", &view_ctx.app.tool_files_filter)
-            .on_input(|value| Message::Chat(message::ChatMessage::ToolFilesFilterChanged(value)))
-            .size(12)
-            .padding([6, 10])
-            .style(|theme: &Theme, status| {
-                let ext = theme.extended_palette();
-                let background = match status {
-                    iced::widget::text_input::Status::Focused { .. } => {
-                        ext.background.weak.color.scale_alpha(0.5)
-                    }
-                    _ => ext.background.weak.color.scale_alpha(0.3),
-                };
-                iced::widget::text_input::Style {
-                    background: Background::Color(background),
-                    border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 10.0.into() },
-                    icon: Color::TRANSPARENT,
-                    placeholder: ext.secondary.base.text.scale_alpha(0.7),
-                    value: theme.palette().text,
-                    selection: theme.palette().primary.scale_alpha(0.25),
+        let filter_input = text_input(
+            crate::app::i18n::I18n::new(view_ctx.app.desktop_locale).__("筛选文件..."),
+            &view_ctx.app.tool_files_filter,
+        )
+        .on_input(|value| Message::Chat(message::ChatMessage::ToolFilesFilterChanged(value)))
+        .size(12)
+        .padding([6, 10])
+        .style(|theme: &Theme, status| {
+            let ext = theme.extended_palette();
+            let background = match status {
+                iced::widget::text_input::Status::Focused { .. } => {
+                    ext.background.weak.color.scale_alpha(0.5)
                 }
-            });
+                _ => ext.background.weak.color.scale_alpha(0.3),
+            };
+            iced::widget::text_input::Style {
+                background: Background::Color(background),
+                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 10.0.into() },
+                icon: Color::TRANSPARENT,
+                placeholder: ext.secondary.base.text.scale_alpha(0.7),
+                value: theme.palette().text,
+                selection: theme.palette().primary.scale_alpha(0.25),
+            }
+        });
         container(filter_input).width(Length::Fill).padding([0, 2]).into()
     } else {
         Space::new().into()
     };
 
     let list_view: Element<'a, Message> = if view_ctx.is_running {
-        container(text(format!("{}中…", view_ctx.verb)).size(14).style(|theme: &Theme| {
-            iced::widget::text::Style {
+        container(
+            text(
+                crate::app::i18n::I18n::new(view_ctx.app.desktop_locale)
+                    .format(
+                        "%s中…",
+                        &[crate::app::i18n::I18n::new(view_ctx.app.desktop_locale)
+                            .__(view_ctx.verb)
+                            .into()],
+                    )
+                    .expect("valid file progress template"),
+            )
+            .size(14)
+            .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
-            }
-        }))
+            }),
+        )
         .width(Length::Fill)
         .into()
     } else {

@@ -425,16 +425,55 @@ fn rough_message_heights_grow_for_rich_messages() {
 #[test]
 fn live_message_meta_fallback_only_applies_to_requesting_tail_chat_roles() {
     assert_eq!(
-        live_message_meta_fallback(ChatRole::Assistant, true, true, "gpt"),
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::Assistant,
+            true,
+            true,
+            "gpt"
+        ),
         Some("gpt · 刚刚".to_string())
     );
     assert_eq!(
-        live_message_meta_fallback(ChatRole::User, true, true, "gpt"),
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::User,
+            true,
+            true,
+            "gpt"
+        ),
         Some("gpt · 刚刚".to_string())
     );
-    assert_eq!(live_message_meta_fallback(ChatRole::Assistant, false, true, "new-model"), None);
-    assert_eq!(live_message_meta_fallback(ChatRole::User, true, false, "new-model"), None);
-    assert_eq!(live_message_meta_fallback(ChatRole::System, true, true, "gpt"), None);
+    assert_eq!(
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::Assistant,
+            false,
+            true,
+            "new-model"
+        ),
+        None
+    );
+    assert_eq!(
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::User,
+            true,
+            false,
+            "new-model"
+        ),
+        None
+    );
+    assert_eq!(
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::System,
+            true,
+            true,
+            "gpt"
+        ),
+        None
+    );
 }
 
 #[test]
@@ -522,7 +561,7 @@ fn user_question_preview_flattens_newlines() {
 
 #[test]
 fn user_question_preview_returns_placeholder_for_empty() {
-    assert_eq!(user_question_preview(""), "空提问");
+    assert_eq!(user_question_preview(""), "");
 }
 
 #[test]

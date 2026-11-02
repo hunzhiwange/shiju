@@ -40,9 +40,9 @@ pub(super) fn bash_view_padding(tool_name: &str) -> iced::Padding {
     }
 }
 
-pub(super) fn bash_command_preview(command: &str) -> String {
+pub(super) fn bash_command_preview(i18n: crate::app::i18n::I18n, command: &str) -> String {
     let preview = single_line_preview(command, BASH_COMMAND_PREVIEW_MAX_CHARS);
-    if preview.is_empty() { "运行命令".to_string() } else { preview }
+    if preview.is_empty() { i18n.__("运行命令").to_string() } else { preview }
 }
 
 /// 渲染 Bash 工具的视图组件
@@ -106,8 +106,9 @@ pub fn tool_bash_view<'a>(
         input.clone()
     };
 
-    // 生成命令标题，空命令显示"运行命令"，否则截断显示
-    let cmd_title = bash_command_preview(&cmd_line);
+    // 生成命令标题，空命令显示crate::app::i18n::I18n::new(app.desktop_locale).__("运行命令")，否则截断显示
+    let cmd_title =
+        bash_command_preview(crate::app::i18n::I18n::new(app.desktop_locale), &cmd_line);
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
             .width(Length::Fixed(10.0))
@@ -124,7 +125,13 @@ pub fn tool_bash_view<'a>(
     let detail_slot: Element<'a, Message> =
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
     // 构建头部行：仅显示摘要，详细输出统一进弹窗。
-    let head_row = tool_activity_header("bash", "运行", cmd_title, visual, detail_slot);
+    let head_row = tool_activity_header(
+        "bash",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("运行"),
+        cmd_title,
+        visual,
+        detail_slot,
+    );
     let head = mouse_area(container(head_row).width(Length::Fill))
         .on_enter(Message::Chat(message::ChatMessage::ToolHover(msg_idx, tool_idx)))
         .on_exit(Message::Chat(message::ChatMessage::ToolHoverLeave));

@@ -32,7 +32,7 @@ pub fn get_session_title(app: &App) -> String {
             return session.title.clone();
         }
     }
-    "暂无".to_string()
+    crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
 }
 
 /// 处理 current project path label 对应的局部职责。
@@ -49,7 +49,9 @@ pub fn get_session_title(app: &App) -> String {
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn current_project_path_label(app: &App) -> String {
-    app.project_path.clone().unwrap_or_else(|| "未打开项目".to_string())
+    app.project_path.clone().unwrap_or_else(|| {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("未打开项目").to_string()
+    })
 }
 
 /// 处理 current branch label 对应的局部职责。

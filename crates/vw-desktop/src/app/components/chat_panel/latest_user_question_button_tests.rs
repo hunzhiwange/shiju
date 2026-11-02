@@ -69,16 +69,43 @@ fn user_question_indices_preserve_question_order() {
 #[test]
 fn live_message_meta_fallback_applies_to_chat_roles() {
     assert_eq!(
-        live_message_meta_fallback(ChatRole::Assistant, true, true, "model-b"),
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::Assistant,
+            true,
+            true,
+            "model-b"
+        ),
         Some("model-b · 刚刚".to_string())
     );
     assert_eq!(
-        live_message_meta_fallback(ChatRole::Assistant, true, false, "model-b"),
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::Assistant,
+            true,
+            false,
+            "model-b"
+        ),
         Some("model-b · 刚刚".to_string())
     );
     assert_eq!(
-        live_message_meta_fallback(ChatRole::User, true, true, "model-b"),
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::User,
+            true,
+            true,
+            "model-b"
+        ),
         Some("model-b · 刚刚".to_string())
     );
-    assert_eq!(live_message_meta_fallback(ChatRole::System, true, true, "model-b"), None);
+    assert_eq!(
+        live_message_meta_fallback(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ChatRole::System,
+            true,
+            true,
+            "model-b"
+        ),
+        None
+    );
 }

@@ -46,9 +46,18 @@ fn bash_rows_remove_left_indent() {
 
 #[test]
 fn bash_command_preview_is_single_line_and_truncates_overflow() {
-    assert_eq!(bash_command_preview("cargo check\n  --all-targets"), "cargo check --all-targets");
+    assert_eq!(
+        bash_command_preview(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "cargo check\n  --all-targets"
+        ),
+        "cargo check --all-targets"
+    );
 
-    let preview = bash_command_preview(&"x".repeat(100));
+    let preview = bash_command_preview(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &"x".repeat(100),
+    );
     assert!(!preview.contains('\n'));
     assert!(preview.ends_with('…'));
     assert_eq!(preview.chars().count(), 73);

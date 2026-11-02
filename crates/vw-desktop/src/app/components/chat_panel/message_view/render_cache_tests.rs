@@ -105,7 +105,12 @@ fn build_render_cache_entry_merges_explore_across_hidden_think() {
     let entry = build_render_cache_entry(raw, raw, hash_chat_content(raw), false);
 
     assert_eq!(entry.explore_summary_text_blocks.len(), 1);
-    assert_eq!(entry.explore_summary_text_blocks[0].1, "2 次读取");
+    assert_eq!(
+        entry.explore_summary_text_blocks[0].1.render(crate::app::i18n::I18n::new(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese
+        )),
+        "2 次读取"
+    );
 }
 
 #[test]
@@ -139,7 +144,15 @@ fn build_render_cache_entry_collects_text_and_tool_card_blocks() {
     let entry = build_render_cache_entry(raw, raw, hash_chat_content(raw), true);
 
     assert!(entry.special_text_blocks.iter().any(|text| text.contains("visible text")));
-    assert!(entry.tool_card_text_blocks.iter().flatten().any(|text| text == "pwd"));
+    assert!(
+        entry
+            .tool_card_text_blocks
+            .iter()
+            .flat_map(|source| source.render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese
+            )))
+            .any(|text| text == "pwd")
+    );
     assert!(entry.estimated_expanded_height >= entry.estimated_collapsed_height);
 }
 

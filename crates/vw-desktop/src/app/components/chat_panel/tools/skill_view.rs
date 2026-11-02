@@ -12,12 +12,12 @@ use crate::app::components::chat_panel::utils::{
 };
 use crate::app::{App, Message, message};
 
+use super::canonical_tool_name;
 use super::tool_meta::{tool_activity_header, tool_visual_state};
 use super::tool_parse::{tool_error_text, tool_input, tool_output_text, tool_status};
-use super::{canonical_tool_name, tool_permission_error_text};
 
 pub fn tool_skill_view<'a>(
-    _app: &'a App,
+    app: &'a App,
     msg_idx: usize,
     tool_idx: usize,
     visible: &str,
@@ -33,11 +33,24 @@ pub fn tool_skill_view<'a>(
     let is_error = matches!(status, "error" | "failed" | "denied");
     let visual = tool_visual_state(status);
     let output = tool_output_text(&value).unwrap_or_default();
-    let error = tool_permission_error_text(tool_name, &value)
-        .or_else(|| tool_error_text(&value))
-        .unwrap_or_default();
-    let skill_name = skill_display_name(tool_input(&value), &output, &error);
-    let title = if is_error { "技能失败" } else { "技能" };
+    let error = crate::app::components::chat_panel::tools::localized_tool_permission_error_text(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        tool_name,
+        &value,
+    )
+    .or_else(|| tool_error_text(&value))
+    .unwrap_or_default();
+    let skill_name = skill_display_name(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        tool_input(&value),
+        &output,
+        &error,
+    );
+    let title = if is_error {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("技能失败")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("技能")
+    };
 
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
@@ -65,12 +78,17 @@ pub fn tool_skill_view<'a>(
     Some(content)
 }
 
-pub(super) fn skill_display_name(input: &str, output: &str, error: &str) -> String {
+pub(super) fn skill_display_name(
+    i18n: crate::app::i18n::I18n,
+    input: &str,
+    output: &str,
+    error: &str,
+) -> String {
     skill_name_from_input(input)
         .or_else(|| skill_name_from_output(output))
         .or_else(|| skill_name_from_output(error))
         .map(|name| truncate_chars(&name, 80).to_string())
-        .unwrap_or_else(|| "未知技能".to_string())
+        .unwrap_or_else(|| i18n.__("未知技能").to_string())
 }
 
 pub(super) fn skill_name_from_input(input: &str) -> Option<String> {

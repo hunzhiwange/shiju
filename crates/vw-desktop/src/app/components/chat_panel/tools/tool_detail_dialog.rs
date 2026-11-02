@@ -58,7 +58,9 @@ pub fn tool_detail_dialog_view<'a>(app: &'a App) -> Option<Element<'a, Message>>
             row![
                 column![
                     title,
-                    text("查看工具输出详情。").size(12).style(settings_muted_text_style),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("查看工具输出详情。"))
+                        .size(12)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fill),

@@ -157,13 +157,19 @@ pub fn tool_files_view<'a>(
     if matches!(tool_name, "write" | "file_write" | "file_edit" | "notebook_edit") {
         let permission_state = tool_permission_state(tool_name, &v);
         let title = write_view::write_tool_title(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             view_ctx.verb,
             view_ctx.is_running,
             permission_state,
             view_ctx.is_error,
         );
         let summary = tool_permission_target_summary(tool_name, &v)
-            .or_else(|| write_view::write_tool_summary(&render_state))
+            .or_else(|| {
+                write_view::write_tool_summary(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    &render_state,
+                )
+            })
             .unwrap_or_default();
         let key = ((msg_idx as u64) << 32) | tool_idx as u64;
         let detail_btn = button(

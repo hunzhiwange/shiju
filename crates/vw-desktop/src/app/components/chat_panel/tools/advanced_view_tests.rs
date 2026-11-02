@@ -53,21 +53,61 @@ fn result_data_message_reads_nested_message() {
 
 #[test]
 fn advanced_base_title_uses_explicit_and_builtin_labels() {
-    assert_eq!(advanced_base_title("Agent", None), "AgentTool");
-    assert_eq!(advanced_base_title("browser", None), "浏览器");
-    assert_eq!(advanced_base_title("browser_open", None), "打开页面");
-    assert_eq!(advanced_base_title("read_file", None), "读取");
     assert_eq!(
-        advanced_base_title("mcp_linear", explicit_advanced_tool_surface_spec("mcp_linear")),
+        advanced_base_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "Agent",
+            None
+        ),
+        "AgentTool"
+    );
+    assert_eq!(
+        advanced_base_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser",
+            None
+        ),
+        "浏览器"
+    );
+    assert_eq!(
+        advanced_base_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser_open",
+            None
+        ),
+        "打开页面"
+    );
+    assert_eq!(
+        advanced_base_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "read_file",
+            None
+        ),
+        "读取"
+    );
+    assert_eq!(
+        advanced_base_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "mcp_linear",
+            explicit_advanced_tool_surface_spec("mcp_linear")
+        ),
         "mcp_* 集成"
     );
 }
 
 #[test]
 fn advanced_summary_prefers_summary_and_formats_inputs() {
-    assert_eq!(advanced_summary("AgentTool", &json!({"summary":" ready "})), "ready");
     assert_eq!(
         advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "AgentTool",
+            &json!({"summary":" ready "})
+        ),
+        "ready"
+    );
+    assert_eq!(
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "AgentTool",
             &json!({"input":"{\"agent\":\"reviewer\",\"prompt\":\"inspect patch\"}"})
         ),
@@ -75,6 +115,7 @@ fn advanced_summary_prefers_summary_and_formats_inputs() {
     );
     assert_eq!(
         advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"input":"{\"action\":\"click\",\"selector\":\"#save\"}"})
         ),
@@ -82,37 +123,79 @@ fn advanced_summary_prefers_summary_and_formats_inputs() {
     );
     assert_eq!(
         advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"input":"{\"action\":\"open\",\"url\":\"local-page\"}"})
         ),
         "open · local-page"
     );
-    assert_eq!(advanced_summary("browser", &json!({"input":"not-json"})), "not-json");
     assert_eq!(
-        advanced_summary("browser_open", &json!({"input":"{\"url\":\"https://example.test\"}"})),
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser",
+            &json!({"input":"not-json"})
+        ),
+        "not-json"
+    );
+    assert_eq!(
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser_open",
+            &json!({"input":"{\"url\":\"https://example.test\"}"})
+        ),
         "https://example.test"
     );
-    assert_eq!(advanced_summary("unknown", &json!({"input":"{}"})), "");
+    assert_eq!(
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "unknown",
+            &json!({"input":"{}"})
+        ),
+        ""
+    );
 }
 
 #[test]
 fn advanced_summary_handles_partial_agent_and_default_browser_inputs() {
     assert_eq!(
-        advanced_summary("AgentTool", &json!({"input":"{\"agent\":\"reviewer\"}"})),
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "AgentTool",
+            &json!({"input":"{\"agent\":\"reviewer\"}"})
+        ),
         "调用 reviewer"
     );
     assert_eq!(
-        advanced_summary("Agent", &json!({"input":"{\"task\":\"inspect patch\"}"})),
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "Agent",
+            &json!({"input":"{\"task\":\"inspect patch\"}"})
+        ),
         "inspect patch"
     );
-    assert_eq!(advanced_summary("Agent", &json!({"input":"{}"})), "");
-    assert_eq!(advanced_summary("browser", &json!({"input":"{}"})), "browser");
+    assert_eq!(
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "Agent",
+            &json!({"input":"{}"})
+        ),
+        ""
+    );
+    assert_eq!(
+        advanced_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser",
+            &json!({"input":"{}"})
+        ),
+        "browser"
+    );
 }
 
 #[test]
 fn advanced_metadata_text_formats_tool_specific_parts() {
     assert_eq!(
         advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "AgentTool",
             &json!({"result":{"data":{"agent":" reviewer ","session_id":" s1 "}}}),
             None
@@ -121,6 +204,7 @@ fn advanced_metadata_text_formats_tool_specific_parts() {
     );
     assert_eq!(
         advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({
                 "renderHint":{"metadata":{"action":" open ","backend":" playwright "}},
@@ -132,6 +216,7 @@ fn advanced_metadata_text_formats_tool_specific_parts() {
     );
     assert_eq!(
         advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"result":{"data":{"result":{"title":"Page title"}}}}),
             None
@@ -140,6 +225,7 @@ fn advanced_metadata_text_formats_tool_specific_parts() {
     );
     assert_eq!(
         advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser_open",
             &json!({"renderHint":{"metadata":{"browser":"Chrome"}},"result":{"data":{"url":"local-page"}}}),
             None
@@ -148,15 +234,25 @@ fn advanced_metadata_text_formats_tool_specific_parts() {
     );
     assert_eq!(
         advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "open_browser_page",
             &json!({"renderHint":{"metadata":{"url":"https://example.test"}}}),
             None
         ),
         "https://example.test"
     );
-    assert_eq!(advanced_metadata_text("unknown", &json!({}), None), "");
     assert_eq!(
         advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "unknown",
+            &json!({}),
+            None
+        ),
+        ""
+    );
+    assert_eq!(
+        advanced_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "mcp_linear",
             &json!({}),
             explicit_advanced_tool_surface_spec("mcp_linear")
@@ -169,6 +265,7 @@ fn advanced_metadata_text_formats_tool_specific_parts() {
 fn advanced_fallback_body_formats_explicit_and_agent_defaults() {
     assert_eq!(
         advanced_fallback_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "mcp_linear",
             &json!({}),
             explicit_advanced_tool_surface_spec("mcp_linear")
@@ -176,39 +273,79 @@ fn advanced_fallback_body_formats_explicit_and_agent_defaults() {
         "mcp_* 集成 当前已明确标记为 planned，桌面端先提供清晰状态，不补完整后端。"
     );
     assert_eq!(
-        advanced_fallback_body("AgentTool", &json!({"result":{"data":{"message":"done"}}}), None),
+        advanced_fallback_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "AgentTool",
+            &json!({"result":{"data":{"message":"done"}}}),
+            None
+        ),
         "done"
     );
-    assert_eq!(advanced_fallback_body("browser", &json!({}), None), "");
+    assert_eq!(
+        advanced_fallback_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser",
+            &json!({}),
+            None
+        ),
+        ""
+    );
 }
 
 #[test]
 fn advanced_success_body_formats_agent_browser_and_plan_results() {
-    assert_eq!(advanced_success_body("AgentTool", r#"{"message":" done "}"#, &json!({})), "done");
     assert_eq!(
         advanced_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "AgentTool",
+            r#"{"message":" done "}"#,
+            &json!({})
+        ),
+        "done"
+    );
+    assert_eq!(
+        advanced_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "AgentTool",
             "raw",
             &json!({"result":{"data":{"message":"from result"}}})
         ),
         "from result"
     );
-    assert_eq!(advanced_success_body("AgentTool", "raw", &json!({})), "raw");
     assert_eq!(
         advanced_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "AgentTool",
+            "raw",
+            &json!({})
+        ),
+        "raw"
+    );
+    assert_eq!(
+        advanced_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             "raw",
             &json!({"result":{"data":{"result":{"message":"loaded"}}}})
         ),
         "loaded"
     );
-    assert_eq!(advanced_success_body("unknown", "raw", &json!({})), "raw");
+    assert_eq!(
+        advanced_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "unknown",
+            "raw",
+            &json!({})
+        ),
+        "raw"
+    );
 }
 
 #[test]
 fn format_browser_success_body_covers_open_and_result_shapes() {
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser_open",
             &json!({"result":{"data":{"browser":"Chrome"}}})
         ),
@@ -216,6 +353,7 @@ fn format_browser_success_body_covers_open_and_result_shapes() {
     );
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser_open",
             &json!({"result":{"data":{"url":"local-page"}}})
         ),
@@ -223,15 +361,31 @@ fn format_browser_success_body_covers_open_and_result_shapes() {
     );
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "open_browser_page",
             &json!({"result":{"data":{"browser":"Chrome","url":"local-page"}}})
         ),
         Some("已在 Chrome 中打开 local-page".to_string())
     );
-    assert_eq!(format_browser_success_body("browser_open", &json!({"result":{"data":{}}})), None);
-    assert_eq!(format_browser_success_body("browser", &json!({})), None);
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser_open",
+            &json!({"result":{"data":{}}})
+        ),
+        None
+    );
+    assert_eq!(
+        format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser",
+            &json!({})
+        ),
+        None
+    );
+    assert_eq!(
+        format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"result":{"data":{"result":{"text":"hello"}}}})
         ),
@@ -239,6 +393,7 @@ fn format_browser_success_body_covers_open_and_result_shapes() {
     );
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"result":{"data":{"result":{"path":"/tmp/out"}}}})
         ),
@@ -246,13 +401,18 @@ fn format_browser_success_body_covers_open_and_result_shapes() {
     );
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"result":{"data":{"result":{"title":"Title","url":"local-page"}}}})
         ),
         Some("Title\nlocal-page".to_string())
     );
     assert_eq!(
-        format_browser_success_body("browser", &json!({"result":{"data":{"result":{"value":1}}}})),
+        format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "browser",
+            &json!({"result":{"data":{"result":{"value":1}}}})
+        ),
         Some("{\n  \"value\": 1\n}".to_string())
     );
 }
@@ -261,6 +421,7 @@ fn format_browser_success_body_covers_open_and_result_shapes() {
 fn format_browser_success_body_uses_single_title_or_url() {
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"result":{"data":{"result":{"title":"Only title"}}}})
         ),
@@ -268,6 +429,7 @@ fn format_browser_success_body_uses_single_title_or_url() {
     );
     assert_eq!(
         format_browser_success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             "browser",
             &json!({"result":{"data":{"result":{"url":"local-page"}}}})
         ),
@@ -692,4 +854,12 @@ async fn specialized_tool_headers_dark_permission_and_failure_render_path_is_saf
         image::save_buffer(path, &pixels, 1120, 900, image::ColorType::Rgba8)
             .expect("save specialized tool header screenshot");
     }
+}
+
+#[test]
+fn desktop_gettext_area_8_browser_success_preserves_raw_url_and_argument_order() {
+    let i18n = crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English);
+    let value = serde_json::json!({"result": {"data": {"browser": "RawBrowser", "url": "https://example.invalid/中文/%n/%s"}}});
+    let text = format_browser_success_body(i18n, "browser_open", &value).unwrap();
+    assert_eq!(text, "Opened https://example.invalid/中文/%n/%s in RawBrowser");
 }

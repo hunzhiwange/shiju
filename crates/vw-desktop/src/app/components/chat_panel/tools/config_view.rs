@@ -81,41 +81,48 @@ fn parse_config_input(input: &str) -> Option<ConfigInputData> {
     serde_json::from_str(trimmed).ok()
 }
 
-fn summary_from_result(result: &ConfigResultData) -> String {
+fn summary_from_result(i18n: crate::app::i18n::I18n, result: &ConfigResultData) -> String {
     if !result.success {
-        return result.error.clone().unwrap_or_else(|| "配置操作失败".to_string());
+        return result.error.clone().unwrap_or_else(|| i18n.__("配置操作失败").to_string());
     }
 
     match result.operation.as_deref() {
         Some("get") => match (&result.setting, &result.value) {
             (Some(setting), Some(value)) => format!("{} = {}", setting, value_label(value)),
-            _ => "当前配置概览".to_string(),
+            _ => i18n.__("当前配置概览").to_string(),
         },
         Some("set") => match (&result.setting, &result.new_value) {
             (Some(setting), Some(value)) => format!("{} -> {}", setting, value_label(value)),
-            _ => "配置已更新".to_string(),
+            _ => i18n.__("配置已更新").to_string(),
         },
-        _ => "配置".to_string(),
+        _ => i18n.__("配置").to_string(),
     }
 }
 
-fn summary_from_input(input: &ConfigInputData) -> String {
+fn summary_from_input(i18n: crate::app::i18n::I18n, input: &ConfigInputData) -> String {
     if let Some(setting) = input.setting.as_deref().map(str::trim).filter(|value| !value.is_empty())
     {
         if let Some(value) = input.value.as_ref() {
-            return format!("设置 {} = {}", setting, value_label(value));
+            return i18n
+                .format("设置 %s = %s", &[setting.into(), value_label(value).into()])
+                .expect("valid configuration template");
         }
-        return format!("读取 {}", setting);
+        return i18n
+            .format("读取 %s", &[setting.into()])
+            .expect("valid configuration read template");
     }
 
     match input.section.as_deref() {
-        Some("proxy") => "读取 proxy 高级配置".to_string(),
-        Some("model_routing") => "读取 model_routing 高级配置".to_string(),
-        _ => "读取配置概览".to_string(),
+        Some("proxy") => i18n.__("读取 proxy 高级配置").to_string(),
+        Some("model_routing") => i18n.__("读取 model_routing 高级配置").to_string(),
+        _ => i18n.__("读取配置概览").to_string(),
     }
 }
 
-fn success_body<'a>(result: &ConfigResultData) -> Option<Element<'a, Message>> {
+fn success_body<'a>(
+    i18n: crate::app::i18n::I18n,
+    result: &ConfigResultData,
+) -> Option<Element<'a, Message>> {
     match result.operation.as_deref() {
         Some("get") => {
             if let (Some(setting), Some(value)) = (&result.setting, &result.value) {
@@ -142,9 +149,13 @@ fn success_body<'a>(result: &ConfigResultData) -> Option<Element<'a, Message>> {
                 if let Some(object) = value.as_object() {
                     let keys = object.keys().take(5).cloned().collect::<Vec<_>>();
                     let mut text_value = if keys.is_empty() {
-                        "已返回配置概览，点击查看详情。".to_string()
+                        i18n.__("已返回配置概览，点击查看详情。").to_string()
                     } else {
-                        format!("包含 {} 个配置段：{}", object.len(), keys.join("、"))
+                        i18n.format(
+                            "包含 %u 个配置段：%s",
+                            &[object.len().into(), keys.join("、").into()],
+                        )
+                        .expect("valid configuration overview template")
                     };
                     if object.len() > keys.len() {
                         text_value.push('…');
@@ -169,7 +180,7 @@ fn success_body<'a>(result: &ConfigResultData) -> Option<Element<'a, Message>> {
                 let display = value_label(previous_value);
                 body = body.push(
                     row![
-                        text("旧值").size(12).font(bold_font()).style(|theme: &Theme| {
+                        text(i18n.__("旧值")).size(12).font(bold_font()).style(|theme: &Theme| {
                             iced::widget::text::Style {
                                 color: Some(chat_secondary_text_color(theme)),
                             }
@@ -188,7 +199,7 @@ fn success_body<'a>(result: &ConfigResultData) -> Option<Element<'a, Message>> {
                 let display = value_label(new_value);
                 body = body.push(
                     row![
-                        text("新值").size(12).font(bold_font()).style(|theme: &Theme| {
+                        text(i18n.__("新值")).size(12).font(bold_font()).style(|theme: &Theme| {
                             iced::widget::text::Style {
                                 color: Some(chat_secondary_text_color(theme)),
                             }
@@ -256,9 +267,13 @@ pub fn tool_config_view<'a>(
         || result.as_ref().is_some_and(|item| !item.success);
     let summary = result
         .as_ref()
-        .map(summary_from_result)
+        .map(|value| summary_from_result(crate::app::i18n::I18n::new(app.desktop_locale), value))
         .filter(|summary| !summary.trim().is_empty())
-        .or_else(|| input.as_ref().map(summary_from_input))
+        .or_else(|| {
+            input.as_ref().map(|value| {
+                summary_from_input(crate::app::i18n::I18n::new(app.desktop_locale), value)
+            })
+        })
         .unwrap_or_default();
     let summary = truncate_chars(summary.replace(['\n', '\r'], " ").trim(), 120).to_string();
 
@@ -268,16 +283,16 @@ pub fn tool_config_view<'a>(
 
     let title = if is_running || is_waiting {
         if input.as_ref().and_then(|item| item.value.as_ref()).is_some() {
-            "设置配置"
+            crate::app::i18n::I18n::new(app.desktop_locale).__("设置配置")
         } else {
-            "读取配置"
+            crate::app::i18n::I18n::new(app.desktop_locale).__("读取配置")
         }
     } else if is_error {
-        "配置失败"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("配置失败")
     } else if result.as_ref().and_then(|item| item.operation.as_deref()) == Some("set") {
-        "设置配置"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("设置配置")
     } else {
-        "配置"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("配置")
     };
 
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
@@ -306,7 +321,9 @@ pub fn tool_config_view<'a>(
             .and_then(|item| item.error.as_deref())
             .map(ToOwned::to_owned)
             .or_else(|| tool_error_text(&value))
-            .unwrap_or_else(|| "配置操作失败".to_string());
+            .unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("配置操作失败").to_string()
+            });
 
         Some(
             container(text(truncate_chars(&error_text, 220).to_string()).size(12).style(
@@ -332,9 +349,17 @@ pub fn tool_config_view<'a>(
         )
     } else if is_running || is_waiting {
         let pending = if input.as_ref().and_then(|item| item.value.as_ref()).is_some() {
-            if is_waiting { "等待写入配置…" } else { "正在写入配置…" }
+            if is_waiting {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("等待写入配置…")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("正在写入配置…")
+            }
         } else {
-            if is_waiting { "等待读取配置…" } else { "正在读取配置…" }
+            if is_waiting {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("等待读取配置…")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("正在读取配置…")
+            }
         };
         Some(
             text(pending)
@@ -345,7 +370,9 @@ pub fn tool_config_view<'a>(
                 .into(),
         )
     } else {
-        result.as_ref().and_then(success_body)
+        result
+            .as_ref()
+            .and_then(|value| success_body(crate::app::i18n::I18n::new(app.desktop_locale), value))
     };
 
     let mut content = column![head_row].spacing(10);

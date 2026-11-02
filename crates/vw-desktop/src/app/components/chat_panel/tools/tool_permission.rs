@@ -168,19 +168,21 @@ pub(crate) fn pending_permission_request_for_message<'a>(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_badge_label(
+    i18n: crate::app::i18n::I18n,
     requests: &[vw_gateway_client::PendingPermissionRequestDto],
     // current_request_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     current_request_id: Option<&str>,
 ) -> String {
     if requests.len() <= 1 {
-        return "当前审批".to_string();
+        return i18n.__("当前审批").to_string();
     }
 
     let current_idx = current_request_id
         .and_then(|request_id| requests.iter().position(|request| request.id == request_id))
         .map(|idx| idx + 1)
         .unwrap_or(1);
-    format!("当前审批 {current_idx}/{}", requests.len())
+    i18n.format("当前审批 %u/%u", &[current_idx.into(), requests.len().into()])
+        .expect("valid approval counter template")
 }
 
 /// 解析或展示工具权限请求的 pending permission request badge label 状态。
@@ -197,12 +199,13 @@ pub(crate) fn pending_permission_badge_label(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub(crate) fn pending_permission_request_badge_label(
+    i18n: crate::app::i18n::I18n,
     requests: &[vw_gateway_client::PendingPermissionRequestDto],
     // request_id 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     request_id: &str,
 ) -> String {
     if requests.len() <= 1 {
-        return "当前审批".to_string();
+        return i18n.__("当前审批").to_string();
     }
 
     let request_idx = requests
@@ -210,7 +213,8 @@ pub(crate) fn pending_permission_request_badge_label(
         .position(|request| request.id == request_id)
         .map(|idx| idx + 1)
         .unwrap_or(1);
-    format!("待审批 {request_idx}/{}", requests.len())
+    i18n.format("待审批 %u/%u", &[request_idx.into(), requests.len().into()])
+        .expect("valid pending approval template")
 }
 
 /// ToolPermissionState 描述 tool_permission 模块支持的离散状态。
@@ -438,6 +442,7 @@ pub(crate) fn tool_permission_target_summary(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
+#[cfg(test)]
 pub(crate) fn tool_permission_title(
     base_title: &str,
     // state 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
@@ -491,5 +496,78 @@ fn permission_request_input_summary(
             if trimmed.is_empty() { None } else { Some(trimmed.chars().take(80).collect()) }
         }
         _ => None,
+    }
+}
+
+/// Render permission state from its semantic enum without interpreting the title as a template.
+pub(crate) fn localized_tool_permission_title(
+    i18n: crate::app::i18n::I18n,
+    base_title: &str,
+    state: ToolPermissionState,
+) -> String {
+    let source = match state {
+        ToolPermissionState::ApprovalRequired => "%s待批准",
+        ToolPermissionState::Rejected => "%s已拒绝",
+    };
+    i18n.format(source, &[i18n.__(base_title).into()]).expect("valid permission title template")
+}
+
+pub(crate) fn localized_tool_permission_detail_text(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    // value 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+    value: &Value,
+) -> Option<String> {
+    let request = value.get("permission_request")?;
+    let reason = request
+        .get("reason")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    let warning = request
+        .get("warning")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    let target = request
+        .get("updated_input")
+        .and_then(|input| permission_request_input_summary(tool_name, input));
+
+    let mut lines = Vec::new();
+    if let Some(reason) = reason {
+        lines.push(
+            i18n.format("原因：%s", &[reason.into()]).expect("valid permission detail template"),
+        );
+    }
+    if let Some(warning) = warning {
+        lines.push(
+            i18n.format("提示：%s", &[warning.into()]).expect("valid permission detail template"),
+        );
+    }
+    if let Some(target) = target {
+        lines.push(
+            i18n.format("目标：%s", &[target.into()]).expect("valid permission detail template"),
+        );
+    }
+
+    (!lines.is_empty()).then(|| lines.join("\n"))
+}
+
+pub(crate) fn localized_tool_permission_error_text(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    // value 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+    value: &Value,
+) -> Option<String> {
+    let detail = localized_tool_permission_detail_text(i18n, tool_name, value).unwrap_or_default();
+    let error = tool_error_text(value).unwrap_or_default();
+    let detail = detail.trim();
+    let error = error.trim();
+
+    match (detail.is_empty(), error.is_empty()) {
+        (true, true) => None,
+        (false, true) => Some(detail.to_string()),
+        (true, false) => Some(error.to_string()),
+        (false, false) => Some(format!("{detail}\n{error}")),
     }
 }

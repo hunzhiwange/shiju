@@ -546,8 +546,11 @@ impl ActiveSessionViewState {
         let step_llm_raw_bytes = self.step_llm_raw.values().map(json_value_bytes);
         let step_meta_bytes =
             self.step_index_map.values().map(|meta| meta.model.as_deref().map_or(0, str::len));
-        let message_meta_bytes =
-            self.message_meta_texts.iter().filter_map(Option::as_deref).map(str::len);
+        let message_meta_bytes = self
+            .message_meta_texts
+            .iter()
+            .filter_map(Option::as_ref)
+            .map(crate::app::i18n::chat::MessageMeta::cached_bytes);
         let user_question_preview_bytes =
             self.user_question_markers.iter().map(|marker| marker.preview.len());
 
@@ -597,7 +600,7 @@ pub(crate) struct ActiveSessionViewState {
     pub(crate) trajectory_projection_rebuild_count: usize,
     pub(crate) llm_raw_step_indices: HashSet<SessionStepRawKey>,
     pub(crate) step_index_map: HashMap<u32, StepUiMeta>,
-    pub(crate) message_meta_texts: Vec<Option<String>>,
+    pub(crate) message_meta_texts: Vec<Option<crate::app::i18n::chat::MessageMeta>>,
     pub(crate) user_question_markers: Vec<UserQuestionMarker>,
     pub(crate) user_question_indexed_chat_len: usize,
     pub(crate) ui_preparing: bool,

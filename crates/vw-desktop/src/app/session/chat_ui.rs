@@ -332,11 +332,12 @@ fn sync_chat_explore_summary_animations_for_message(
     for (group_idx, (_, summary_text)) in
         render_entry.explore_summary_text_blocks.iter().enumerate()
     {
+        let summary_text = summary_text.render(crate::app::i18n::I18n::new(app.desktop_locale));
         let key = explore_summary_animation_key(msg_idx, group_idx);
         match app.chat_explore_summary_animations.entry(key) {
             std::collections::hash_map::Entry::Occupied(mut entry) => {
                 let state = entry.get_mut();
-                if state.current_summary_text != *summary_text {
+                if state.current_summary_text != summary_text {
                     state.previous_summary_text = state.current_summary_text.clone();
                     state.current_summary_text = summary_text.clone();
                     state.changed_at_ms = Some(now_ms);
@@ -493,7 +494,8 @@ fn sync_chat_aux_text_editors_for_message(
         sync_markdown_blocks_for_text(app, msg_idx, 0, &render_entry.display_text);
     }
 
-    for (tool_idx, texts) in render_entry.tool_card_text_blocks.iter().enumerate() {
+    for (tool_idx, source) in render_entry.tool_card_text_blocks.iter().enumerate() {
+        let texts = source.render(crate::app::i18n::I18n::new(app.desktop_locale));
         for (text_idx, text) in texts.iter().enumerate() {
             if let Some(editor) = read_only_chat_editor_content(text) {
                 let key = crate::app::components::chat_panel::tool_text_support::tool_text_key(
@@ -505,7 +507,8 @@ fn sync_chat_aux_text_editors_for_message(
     }
 
     for (group_tool_idx, summary_text) in &render_entry.explore_summary_text_blocks {
-        if let Some(editor) = read_only_chat_editor_content(summary_text) {
+        let summary_text = summary_text.render(crate::app::i18n::I18n::new(app.desktop_locale));
+        if let Some(editor) = read_only_chat_editor_content(&summary_text) {
             let key = crate::app::components::chat_panel::tool_text_support::tool_text_key(
                 msg_idx,
                 *group_tool_idx,

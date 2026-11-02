@@ -65,7 +65,13 @@ fn trajectory_ledger_groups_turns_and_steps() {
     ]);
 
     let controls = TrajectoryControlsState::default();
-    let groups = build_ledger_groups(&projection, "", Some("tool:call-1"), &controls);
+    let groups = build_ledger_groups(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &projection,
+        "",
+        Some("tool:call-1"),
+        &controls,
+    );
 
     assert_eq!(
         groups.iter().map(|group| group.title.as_str()).collect::<Vec<_>>(),
@@ -105,6 +111,7 @@ fn trajectory_ledger_groups_turns_and_steps() {
     assert_eq!(selected, ["tool:call-1"]);
 
     let element = trajectory_ledger(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         &projection,
         "",
         Some("tool:call-1"),
@@ -127,10 +134,38 @@ fn trajectory_ledger_filter_matches_visible_fields() {
         tool,
     ]);
 
-    assert_eq!(ids(filter_ledger_records(&filtered_projection, "AsSiStAnT")), ["assistant:1"]);
-    assert_eq!(ids(filter_ledger_records(&filtered_projection, "read_FILE")), ["tool:read"]);
-    assert_eq!(ids(filter_ledger_records(&filtered_projection, "上海")), ["tool:read"]);
-    assert!(filter_ledger_records(&filtered_projection, "hidden-only-argument").is_empty());
+    assert_eq!(
+        ids(filter_ledger_records(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &filtered_projection,
+            "AsSiStAnT"
+        )),
+        ["assistant:1"]
+    );
+    assert_eq!(
+        ids(filter_ledger_records(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &filtered_projection,
+            "read_FILE"
+        )),
+        ["tool:read"]
+    );
+    assert_eq!(
+        ids(filter_ledger_records(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &filtered_projection,
+            "上海"
+        )),
+        ["tool:read"]
+    );
+    assert!(
+        filter_ledger_records(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &filtered_projection,
+            "hidden-only-argument"
+        )
+        .is_empty()
+    );
 
     let many = projection(
         (0..=MAX_LEDGER_SEARCH_RESULTS)
@@ -146,7 +181,15 @@ fn trajectory_ledger_filter_matches_visible_fields() {
             })
             .collect(),
     );
-    assert_eq!(filter_ledger_records(&many, "match").len(), MAX_LEDGER_SEARCH_RESULTS);
+    assert_eq!(
+        filter_ledger_records(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &many,
+            "match"
+        )
+        .len(),
+        MAX_LEDGER_SEARCH_RESULTS
+    );
 }
 
 #[test]
@@ -204,10 +247,15 @@ fn ledger_headers_emit_fold_messages() {
     assert!(!turn_tree.children.is_empty());
 
     let tool_actions = Rc::clone(&actions);
-    let tool_button = ledger_tool_group_button(9, true, move |action| {
-        tool_actions.borrow_mut().push(action);
-        TestMessage::Fold(action)
-    });
+    let tool_button = ledger_tool_group_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        9,
+        true,
+        move |action| {
+            tool_actions.borrow_mut().push(action);
+            TestMessage::Fold(action)
+        },
+    );
     let tool_tree = Tree::new(tool_button.as_widget());
     assert!(!tool_tree.children.is_empty());
 
@@ -257,22 +305,46 @@ mod trajectory_controls {
         let mut controls = TrajectoryControlsState::default();
 
         controls.toggle_all_turns(&projection);
-        let collapsed = build_ledger_groups(&projection, "", None, &controls);
+        let collapsed = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "",
+            None,
+            &controls,
+        );
         assert_eq!(collapsed.len(), 2);
         assert!(collapsed.iter().all(|group| group.collapsed));
         assert!(collapsed.iter().all(|group| group.steps.is_empty()));
 
         controls.toggle_turn(1);
-        let partly_expanded = build_ledger_groups(&projection, "", None, &controls);
+        let partly_expanded = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "",
+            None,
+            &controls,
+        );
         assert!(!partly_expanded[0].collapsed);
         assert!(partly_expanded[1].collapsed);
 
         controls.toggle_all_turns(&projection);
-        let collapsed_again = build_ledger_groups(&projection, "", None, &controls);
+        let collapsed_again = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "",
+            None,
+            &controls,
+        );
         assert!(collapsed_again.iter().all(|group| group.collapsed));
 
         controls.toggle_all_turns(&projection);
-        let expanded = build_ledger_groups(&projection, "", None, &controls);
+        let expanded = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "",
+            None,
+            &controls,
+        );
         assert!(expanded.iter().all(|group| !group.collapsed));
     }
 
@@ -282,7 +354,13 @@ mod trajectory_controls {
         let mut controls = TrajectoryControlsState::default();
 
         controls.toggle_all_calls(&projection);
-        let groups = build_ledger_groups(&projection, "", None, &controls);
+        let groups = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "",
+            None,
+            &controls,
+        );
         let visible_ids = groups
             .iter()
             .flat_map(|group| &group.steps)
@@ -293,7 +371,13 @@ mod trajectory_controls {
         assert!(!visible_ids.contains(&"tool:1"));
 
         controls.toggle_tool_step(1);
-        let expanded = build_ledger_groups(&projection, "", None, &controls);
+        let expanded = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "",
+            None,
+            &controls,
+        );
         assert!(
             expanded
                 .iter()
@@ -310,11 +394,39 @@ mod trajectory_controls {
         controls.toggle_all_turns(&projection);
         controls.toggle_all_calls(&projection);
 
-        let groups = build_ledger_groups(&projection, "needle", None, &controls);
+        let groups = build_ledger_groups(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &projection,
+            "needle",
+            None,
+            &controls,
+        );
         assert_eq!(groups.len(), 1);
         assert!(!groups[0].collapsed);
         assert_eq!(groups[0].steps[0].records[0].record.id, "tool:1");
         assert!(controls.is_turn_collapsed(1));
         assert!(controls.is_tool_step_collapsed(1));
+    }
+}
+
+#[test]
+fn desktop_gettext_area_8_ledger_search_matches_locale_chinese_and_stable_id() {
+    use crate::app::i18n::I18n;
+    use vw_config_types::ui::DesktopLocale;
+    let data = projection(vec![record(
+        "message-unique",
+        0,
+        TrajectoryRecordKind::User,
+        1,
+        Some(1),
+        "raw body",
+    )]);
+    for (locale, query) in [
+        (DesktopLocale::English, "User"),
+        (DesktopLocale::TraditionalChinese, "使用者"),
+        (DesktopLocale::English, "用户"),
+        (DesktopLocale::English, "message-unique"),
+    ] {
+        assert_eq!(filter_ledger_records(I18n::new(locale), &data, query).len(), 1);
     }
 }

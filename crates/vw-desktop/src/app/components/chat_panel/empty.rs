@@ -21,6 +21,7 @@ fn empty_session_title(workspace_mode: WorkspaceMode) -> &'static str {
     }
 }
 
+#[cfg(test)]
 fn login_greeting(name: &str, hour: u32) -> String {
     let greeting = if hour < 12 { "上午好" } else { "下午好" };
     format!("{greeting}，{name}")
@@ -54,7 +55,7 @@ fn placeholder_chip_style(theme: &Theme) -> iced::widget::container::Style {
 /// 执行 session_loading_placeholder 对应的模块功能。
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
-pub fn session_loading_placeholder(_app: &App) -> Element<'_, Message> {
+pub fn session_loading_placeholder(app: &App) -> Element<'_, Message> {
     let skeleton_line = |width: f32, height: f32, emphasized: bool| {
         container(Space::new().width(Length::Fixed(width)).height(Length::Fixed(height))).style(
             move |theme: &Theme| {
@@ -187,9 +188,14 @@ pub fn session_loading_placeholder(_app: &App) -> Element<'_, Message> {
     container(
         container(
             column![
-                row![logo, text("正在恢复会话").size(20).font(bold_font()),]
-                    .spacing(14)
-                    .align_y(Alignment::Center),
+                row![
+                    logo,
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("正在恢复会话"))
+                        .size(20)
+                        .font(bold_font()),
+                ]
+                .spacing(14)
+                .align_y(Alignment::Center),
                 timeline_block,
             ]
             .spacing(16),
@@ -222,17 +228,39 @@ pub fn empty_session_placeholder(app: &App) -> Element<'_, Message> {
     let mut content = column![logo].spacing(12).align_x(iced::alignment::Horizontal::Center);
     if let Some(name) = name {
         content = content.push(
-            text(login_greeting(name, chrono::Local::now().hour())).size(26).font(bold_font()),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format(
+                        if chrono::Local::now().hour() < 12 {
+                            "上午好，%s"
+                        } else {
+                            "下午好，%s"
+                        },
+                        &[name.into()],
+                    )
+                    .expect("valid greeting template"),
+            )
+            .size(26)
+            .font(bold_font()),
         );
     }
     content = content
-        .push(text(empty_session_title(app.workspace_mode)).size(26).font(bold_font()))
+        .push(
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__(empty_session_title(app.workspace_mode)),
+            )
+            .size(26)
+            .font(bold_font()),
+        )
         .push(text(path_text).size(14).style(|theme: &Theme| iced::widget::text::Style {
             color: Some(theme.palette().text.scale_alpha(0.72)),
         }));
 
     if app.project_is_git_repo {
-        let branch_text = format!("分支 {}", current_branch_label(app));
+        let branch_text = crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("分支 %s", &[current_branch_label(app).into()])
+            .expect("valid branch template");
         let modified_text = relative_modified_label(app);
         let branch_row = container(
             row![

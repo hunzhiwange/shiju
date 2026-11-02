@@ -36,9 +36,29 @@ fn text_view_test_module_is_linked() {
 
 #[test]
 fn text_tool_header_includes_canonical_tool_name() {
-    assert_eq!(tool_text_header_label("rustcodegraph", "工具"), "工具 rustcodegraph");
-    assert_eq!(tool_text_header_label("shell", "运行"), "运行 bash");
-    assert_eq!(tool_text_failure_title("工具 rustcodegraph"), "工具 rustcodegraph 失败");
+    assert_eq!(
+        tool_text_header_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "rustcodegraph",
+            "工具"
+        ),
+        "工具 rustcodegraph"
+    );
+    assert_eq!(
+        tool_text_header_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "shell",
+            "运行"
+        ),
+        "运行 bash"
+    );
+    assert_eq!(
+        tool_text_failure_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "工具 rustcodegraph"
+        ),
+        "工具 rustcodegraph 失败"
+    );
 }
 
 #[test]

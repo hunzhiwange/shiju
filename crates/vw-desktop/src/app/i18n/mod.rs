@@ -39,3 +39,11 @@ mod gettext_area_6_tests;
 
 #[cfg(test)]
 mod gettext_area_7_tests;
+
+#[cfg(test)]
+mod gettext_area_8_tests;
+
+pub mod chat;
+
+#[cfg(test)]
+mod chat_tests;

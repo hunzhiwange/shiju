@@ -18,7 +18,7 @@ use super::tool_parse::{
 };
 
 pub fn tool_mcp_view<'a>(
-    _app: &'a App,
+    app: &'a App,
     msg_idx: usize,
     tool_idx: usize,
     visible: &str,
@@ -33,11 +33,14 @@ pub fn tool_mcp_view<'a>(
     let status = tool_status(&value);
     let visual = tool_visual_state(status);
     let title = match status {
-        "running" => "MCP 运行中",
-        "error" | "failed" | "denied" => "MCP 失败",
+        "running" => crate::app::i18n::I18n::new(app.desktop_locale).__("MCP 运行中"),
+        "error" | "failed" | "denied" => {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("MCP 失败")
+        }
         _ => "MCP",
     };
-    let summary = mcp_display_name(&tool_name, &value);
+    let summary =
+        mcp_display_name(crate::app::i18n::I18n::new(app.desktop_locale), &tool_name, &value);
 
     let detail_btn = button(
         icon_svg(Icon::ChevronRight)
@@ -97,7 +100,11 @@ pub(crate) fn is_mcp_tool_raw(raw: &str) -> bool {
         .any(|candidate| looks_like_mcp_payload(&candidate))
 }
 
-pub(super) fn mcp_display_name(tool_name: &str, value: &Value) -> String {
+pub(super) fn mcp_display_name(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    value: &Value,
+) -> String {
     if let Some(summary) = tool_summary_text(value).filter(|summary| !summary.trim().is_empty()) {
         return truncate_chars(summary.trim(), 80).to_string();
     }
@@ -114,16 +121,16 @@ pub(super) fn mcp_display_name(tool_name: &str, value: &Value) -> String {
 
     let normalized = tool_name.trim().to_ascii_lowercase();
     match normalized.as_str() {
-        "list_mcp_resources" => "资源列表".to_string(),
-        "list_mcp_resource_templates" => "资源模板".to_string(),
-        "read_mcp_resource" => "读取资源".to_string(),
-        "mcp" => "详情".to_string(),
+        "list_mcp_resources" => i18n.__("资源列表").to_string(),
+        "list_mcp_resource_templates" => i18n.__("资源模板").to_string(),
+        "read_mcp_resource" => i18n.__("读取资源").to_string(),
+        "mcp" => i18n.__("详情").to_string(),
         _ if is_mcp_tool_name(&normalized) => normalized
             .strip_prefix("mcp_")
             .filter(|name| !name.is_empty())
-            .unwrap_or("详情")
+            .unwrap_or(i18n.__("详情"))
             .replace('_', " "),
-        _ => "详情".to_string(),
+        _ => i18n.__("详情").to_string(),
     }
 }
 

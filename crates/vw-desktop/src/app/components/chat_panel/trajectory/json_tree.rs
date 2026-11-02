@@ -243,6 +243,7 @@ pub(crate) fn json_tree_scroll_direction() -> Direction {
 }
 
 pub(crate) fn json_tree<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     value: &Value,
     collapsed_paths: &HashSet<String>,
     on_toggle: impl Fn(String) -> Message + Clone + 'a,
@@ -274,7 +275,7 @@ pub(crate) fn json_tree<'a, Message: Clone + 'a>(
             }
             let copy: Element<'a, Message> =
                 if json_tree_copy_visible_in_layer(show_copy, tree_row.kind) {
-                    button(text("复制").font(Font::DEFAULT).size(10))
+                    button(text(i18n.__("复制")).font(Font::DEFAULT).size(10))
                         .padding([1, 4])
                         .style(styles::json_tree_action_style)
                         .on_press(on_copy.clone()(tree_row.copy_value.clone()))

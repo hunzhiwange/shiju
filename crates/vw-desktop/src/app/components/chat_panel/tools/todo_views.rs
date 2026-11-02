@@ -180,7 +180,7 @@ pub fn tool_todowrite_compact_view<'a>(
             let content = t
                 .get("content")
                 .and_then(|c| c.as_str())
-                .unwrap_or("（无内容）")
+                .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("（无内容）"))
                 .trim()
                 .to_string();
             (status, content)
@@ -188,17 +188,21 @@ pub fn tool_todowrite_compact_view<'a>(
         .collect();
 
     let label = if is_error {
-        "更新任务失败".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("更新任务失败").to_string()
     } else if is_completed {
-        if merge { "任务已更新".to_string() } else { "任务已写入".to_string() }
+        if merge {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("任务已更新").to_string()
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("任务已写入").to_string()
+        }
     } else if tool_status == "cancelled" {
-        "任务已取消".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("任务已取消").to_string()
     } else if tool_status == "waiting" {
-        "等待更新任务".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("等待更新任务").to_string()
     } else if is_running {
-        "写任务中".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("写任务中").to_string()
     } else {
-        "更新任务".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("更新任务").to_string()
     };
 
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
@@ -216,7 +220,9 @@ pub fn tool_todowrite_compact_view<'a>(
         todo_meta_pill(if todos_list.is_empty() {
             "-".to_string()
         } else {
-            format!("{} 项", todos_list.len())
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("%u 项", &[(todos_list.len()).into()])
+                .expect("valid chat count template")
         }),
         visual,
         expanded,
@@ -381,11 +387,13 @@ pub fn tool_todos_view<'a>(
         tool_idx,
         tool_name,
         visible.to_string(),
-        "读取当前任务".to_string(),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("读取当前任务").to_string(),
         todo_summary_pill(if total == 0 {
-            "任务未开始".to_string()
+            crate::app::i18n::I18n::new(app.desktop_locale).__("任务未开始").to_string()
         } else {
-            format!("{}/{} 任务完成", done, total)
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("%u/%u 任务完成", &[(done).into(), (total).into()])
+                .expect("valid chat count template")
         }),
         visual,
         expanded,

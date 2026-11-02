@@ -186,21 +186,23 @@ fn session_control_row(title: &'static str, items: &[String]) -> Option<Element<
 }
 
 pub(super) fn session_control_selection_card<'a>(
+    i18n: crate::app::i18n::I18n,
     selection: SessionControlSelection,
 ) -> Element<'a, Message> {
-    let mut rows =
-        column![text("会话上下文").size(12).font(chat_text_font()).style(|theme: &Theme| {
+    let mut rows = column![text(i18n.__("会话上下文")).size(12).font(chat_text_font()).style(
+        |theme: &Theme| {
             iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.78)) }
-        })]
-        .spacing(8);
+        }
+    )]
+    .spacing(8);
 
-    if let Some(row) = session_control_row("工具", &selection.tools) {
+    if let Some(row) = session_control_row(i18n.__("工具"), &selection.tools) {
         rows = rows.push(row);
     }
-    if let Some(row) = session_control_row("技能", &selection.skills) {
+    if let Some(row) = session_control_row(i18n.__("技能"), &selection.skills) {
         rows = rows.push(row);
     }
-    if let Some(row) = session_control_row("识矩功能", &selection.shiju_skills) {
+    if let Some(row) = session_control_row(i18n.__("识矩功能"), &selection.shiju_skills) {
         rows = rows.push(row);
     }
 

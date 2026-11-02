@@ -73,10 +73,14 @@ pub fn project_last_modified_ms(app: &App) -> Option<u64> {
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn relative_modified_label(app: &App) -> String {
     let Some(modified_ms) = project_last_modified_ms(app) else {
-        return "最后修改 暂无".to_string();
+        return crate::app::i18n::I18n::new(app.desktop_locale).__("最后修改 暂无").to_string();
     };
     let bucket = relative_time_bucket(modified_ms, crate::app::time::now_ms());
-    format!("最后修改 {}", relative_time_label_for_bucket(bucket))
+    {
+        let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+        i18n.format("最后修改 %s", &[crate::app::i18n::chat::relative_time(i18n, bucket).into()])
+            .expect("valid modified template")
+    }
 }
 
 /// 生成 time bucket，用于界面中显示更短的相对信息。

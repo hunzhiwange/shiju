@@ -197,6 +197,7 @@ pub(crate) fn message_footer_padding(is_user: bool) -> iced::Padding {
 }
 
 fn processing_duration_label(
+    i18n: crate::app::i18n::I18n,
     timing: Option<&ProcessingTiming>,
     live_elapsed_ms: Option<u64>,
 ) -> Option<String> {
@@ -219,7 +220,7 @@ fn processing_duration_label(
     } else {
         format!("{seconds}s")
     };
-    Some(format!("已处理 {duration}"))
+    Some(i18n.format("已处理 %s", &[duration.into()]).expect("valid duration template"))
 }
 
 /// 渲染消息视图（主入口函数）
@@ -269,9 +270,13 @@ pub(crate) fn message_view_with_runtime<'a>(
 ) -> Element<'a, Message> {
     if role == ChatRole::System && compaction_status_card_contract(content).is_some() {
         return container(
-            container(iced_text(content).size(MESSAGE_META_TEXT_SIZE).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(compaction_status_text_color(theme)) }
-            }))
+            container(
+                iced_text(crate::app::i18n::I18n::new(app.desktop_locale).__(content).to_string())
+                    .size(MESSAGE_META_TEXT_SIZE)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(compaction_status_text_color(theme)),
+                    }),
+            )
             .padding([8, 14])
             .style(compaction_status_card_style),
         )
@@ -279,6 +284,22 @@ pub(crate) fn message_view_with_runtime<'a>(
         .height(Length::Fixed(44.0))
         .align_x(iced::alignment::Horizontal::Center)
         .align_y(iced::alignment::Vertical::Center)
+        .into();
+    }
+    if role == ChatRole::System
+        && let Some((_, event)) =
+            app.current_session_runtime_ref().and_then(|runtime| runtime.model_recovery.as_ref())
+        && content == model_recovery_text(event)
+    {
+        return container(
+            iced_text(localized_model_recovery_text(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                event,
+            ))
+            .size(MESSAGE_META_TEXT_SIZE),
+        )
+        .padding([8, 14])
+        .width(Length::Fill)
         .into();
     }
     let task_session_content = if role == ChatRole::User {
@@ -326,8 +347,13 @@ pub(crate) fn message_view_with_runtime<'a>(
 
     let recently_copied = is_recent_copy(app, visible_content_hash);
     let copy_icon = if recently_copied { Icon::Check } else { Icon::Copy };
-    let copy_tip = if recently_copied { "已复制" } else { "复制消息" };
+    let copy_tip = if recently_copied {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("已复制")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("复制消息")
+    };
     let permission_badge_text = pending_permission_badge_label(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         &app.permission_modal_requests,
         app.permission_modal_request_id.as_deref(),
     );
@@ -351,6 +377,7 @@ pub(crate) fn message_view_with_runtime<'a>(
         matched_permission_request.map(|request| {
             (
                 pending_permission_request_badge_label(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
                     &app.permission_modal_requests,
                     request.id.as_str(),
                 ),
@@ -487,7 +514,10 @@ pub(crate) fn message_view_with_runtime<'a>(
             }
         }
         if let Some(selection) = selection {
-            body = body.push(session_control_selection_card(selection));
+            body = body.push(session_control_selection_card(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                selection,
+            ));
         }
         body
     };
@@ -503,7 +533,10 @@ pub(crate) fn message_view_with_runtime<'a>(
             attachment_body = attachment_body.push(message_text_body(text, true));
         }
         if let Some(selection) = selection {
-            attachment_body = attachment_body.push(session_control_selection_card(selection));
+            attachment_body = attachment_body.push(session_control_selection_card(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                selection,
+            ));
         }
         attachment_body
     } else if !attachment_items.is_empty() && !assistant_like {
@@ -515,7 +548,10 @@ pub(crate) fn message_view_with_runtime<'a>(
             attachment_body = attachment_body.push(message_text_body(text, true));
         }
         if let Some(selection) = selection {
-            attachment_body = attachment_body.push(session_control_selection_card(selection));
+            attachment_body = attachment_body.push(session_control_selection_card(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                selection,
+            ));
         }
         attachment_body
     } else {
@@ -523,9 +559,11 @@ pub(crate) fn message_view_with_runtime<'a>(
     };
     let body = if assistant_like {
         let mut assistant_content = column![].spacing(ASSISTANT_HEADER_BODY_SPACING);
-        if let Some(label) =
-            processing_duration_label(processing_timing, live_processing_elapsed_ms)
-        {
+        if let Some(label) = processing_duration_label(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            processing_timing,
+            live_processing_elapsed_ms,
+        ) {
             assistant_content = assistant_content.push(
                 iced_text(label).size(PROCESSING_DURATION_TEXT_SIZE).style(|theme: &Theme| {
                     iced::widget::text::Style { color: Some(processing_duration_text_color(theme)) }
@@ -583,14 +621,14 @@ pub(crate) fn message_view_with_runtime<'a>(
                 if can_branch_or_reset {
                     row = row.push(icon_action_btn(
                         Icon::GitBranch,
-                        "分叉到新会话",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
                         fork_press.clone(),
                         false,
                         true,
                     ));
                     row = row.push(icon_action_btn(
                         Icon::ArrowCounterClockwise,
-                        "重置到此点",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
                         reset_press.clone(),
                         false,
                         true,
@@ -612,14 +650,14 @@ pub(crate) fn message_view_with_runtime<'a>(
                 if can_branch_or_reset {
                     row = row.push(icon_action_btn(
                         Icon::GitBranch,
-                        "分叉到新会话",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
                         fork_press.clone(),
                         false,
                         true,
                     ));
                     row = row.push(icon_action_btn(
                         Icon::ArrowCounterClockwise,
-                        "重置到此点",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
                         reset_press.clone(),
                         false,
                         true,
@@ -644,14 +682,14 @@ pub(crate) fn message_view_with_runtime<'a>(
             if can_branch_or_reset {
                 row = row.push(icon_action_btn(
                     Icon::GitBranch,
-                    "分叉到新会话",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
                     fork_press.clone(),
                     false,
                     true,
                 ));
                 row = row.push(icon_action_btn(
                     Icon::ArrowCounterClockwise,
-                    "重置到此点",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
                     reset_press.clone(),
                     false,
                     true,
@@ -673,14 +711,14 @@ pub(crate) fn message_view_with_runtime<'a>(
             if can_branch_or_reset {
                 row = row.push(icon_action_btn(
                     Icon::GitBranch,
-                    "分叉到新会话",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话"),
                     fork_press.clone(),
                     false,
                     true,
                 ));
                 row = row.push(icon_action_btn(
                     Icon::ArrowCounterClockwise,
-                    "重置到此点",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("重置到此点"),
                     reset_press.clone(),
                     false,
                     true,
@@ -757,6 +795,44 @@ pub(crate) fn model_recovery_text(event: &vw_gateway_client::GatewayModelRecover
     }
 }
 
+pub(crate) fn localized_model_recovery_text(
+    i18n: crate::app::i18n::I18n,
+    event: &vw_gateway_client::GatewayModelRecoveryEvent,
+) -> String {
+    use vw_gateway_client::GatewayModelRecoveryPhase;
+    match event.phase {
+        GatewayModelRecoveryPhase::Waiting => i18n
+            .format(
+                "正在重试 %u/%u，等待 %ums，原因：%s",
+                &[
+                    event.attempt.into(),
+                    event.max_attempts.into(),
+                    event.wait_ms.into(),
+                    event.reason.clone().into(),
+                ],
+            )
+            .expect("valid recovery template"),
+        GatewayModelRecoveryPhase::Stopped => {
+            let attempts = if event.attempt <= 1 {
+                i18n.__("未重试").to_string()
+            } else {
+                i18n.format(
+                    "已尝试 %u 次（重试 %u 次）",
+                    &[event.attempt.into(), (event.attempt - 1).into()],
+                )
+                .expect("valid attempt template")
+            };
+            i18n.format(
+                "已停止，%s，原因：%s。%s",
+                &[attempts.into(), event.reason.clone().into(), event.next_action.clone().into()],
+            )
+            .expect("valid stopped template")
+        }
+        GatewayModelRecoveryPhase::Recovered => i18n.__("模型调用已恢复").to_string(),
+        GatewayModelRecoveryPhase::Cancelled => i18n.__("已取消重试").to_string(),
+    }
+}
+
 pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
     let runtime = app.current_session_runtime_ref()?;
     let (id, event) = runtime.model_recovery.as_ref()?;
@@ -765,7 +841,7 @@ pub(crate) fn recovery_notice_text(app: &App) -> Option<String> {
     {
         return None;
     }
-    Some(model_recovery_text(event))
+    Some(localized_model_recovery_text(crate::app::i18n::I18n::new(app.desktop_locale), event))
 }
 
 pub(crate) fn recovery_notice_view(app: &App) -> Element<'_, Message> {

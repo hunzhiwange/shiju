@@ -18,27 +18,26 @@ use serde_json::Value;
 use crate::app::assets::Icon;
 use crate::app::{App, Message, message};
 
-use super::tool_meta::{
-    tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state,
-};
+use super::tool_meta::{tool_activity_header, tool_header_label, tool_visual_state};
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_status, tool_summary_text,
 };
-use super::{
-    canonical_tool_name, tool_permission_error_text, tool_permission_state,
-    tool_permission_summary, tool_permission_title,
-};
+use super::{canonical_tool_name, tool_permission_state, tool_permission_summary};
 use crate::app::components::chat_panel::utils::{
     copy_tooltip_content, eye_icon_button_style, eye_icon_svg_style, icon_svg,
     simplified_block_style, truncate_chars,
 };
 
-pub(super) fn tool_text_header_label(tool_name: &str, label: &str) -> String {
-    format!("{label} {}", canonical_tool_name(tool_name))
+pub(super) fn tool_text_header_label(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    label: &str,
+) -> String {
+    format!("{} {}", i18n.__(label), canonical_tool_name(tool_name))
 }
 
-pub(super) fn tool_text_failure_title(label: &str) -> String {
-    format!("{label} 失败")
+pub(super) fn tool_text_failure_title(i18n: crate::app::i18n::I18n, label: &str) -> String {
+    i18n.format("%s 失败", &[label.into()]).expect("valid tool failure template")
 }
 
 pub(super) fn tool_text_detail_message(msg_idx: usize, tool_idx: usize, visible: &str) -> Message {
@@ -67,7 +66,10 @@ pub(super) fn workflow_preview_message(tool_name: &str, value: &Value) -> Option
     }))
 }
 
-fn workflow_preview_button<'a>(message: Message) -> Element<'a, Message> {
+fn workflow_preview_button<'a>(
+    i18n: crate::app::i18n::I18n,
+    message: Message,
+) -> Element<'a, Message> {
     let button = button(
         icon_svg(Icon::Grid1x2)
             .width(Length::Fixed(11.0))
@@ -78,7 +80,9 @@ fn workflow_preview_button<'a>(message: Message) -> Element<'a, Message> {
     .style(|theme: &Theme, status| eye_icon_button_style(theme, status))
     .on_press(message);
 
-    Tooltip::new(button, copy_tooltip_content("预览工作流"), TooltipPosition::Top).gap(6).into()
+    Tooltip::new(button, copy_tooltip_content(i18n.__("预览工作流")), TooltipPosition::Top)
+        .gap(6)
+        .into()
 }
 
 /// 创建工具文本视图组件
@@ -168,7 +172,12 @@ pub fn tool_text_view<'a>(
     let input = tool_input(&v).trim();
     let output_text = tool_output_text(&v).unwrap_or_default();
     let output = output_text.trim();
-    let err_owned = tool_permission_error_text(tool_name, &v)
+    let err_owned =
+        crate::app::components::chat_panel::tools::localized_tool_permission_error_text(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            tool_name,
+            &v,
+        )
         .or_else(|| tool_error_text(&v))
         .unwrap_or_default();
     let err_text = err_owned.trim();
@@ -182,7 +191,12 @@ pub fn tool_text_view<'a>(
         summary = tool_summary_text(&v).unwrap_or_default();
     }
     if summary.is_empty() {
-        summary = tool_inline_summary(tool_name, input).unwrap_or_default();
+        summary = crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            tool_name,
+            input,
+        )
+        .unwrap_or_default();
     }
     if summary.is_empty() && !is_error && !display_text.is_empty() {
         summary = truncate_chars(display_text, 96).to_string();
@@ -196,11 +210,19 @@ pub fn tool_text_view<'a>(
     let key = ((msg_idx as u64) << 32) | (tool_idx as u64);
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
 
-    let label = tool_text_header_label(tool_name, &tool_header_label(tool_name));
+    let label = tool_text_header_label(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        tool_name,
+        &tool_header_label(tool_name),
+    );
     let title = if let Some(permission_state) = permission_state {
-        tool_permission_title(&label, permission_state)
+        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            &label,
+            permission_state,
+        )
     } else if is_error {
-        tool_text_failure_title(&label)
+        tool_text_failure_title(crate::app::i18n::I18n::new(app.desktop_locale), &label)
     } else {
         label
     };
@@ -217,10 +239,13 @@ pub fn tool_text_view<'a>(
         if is_hovered { detail_btn.into() } else { Space::new().width(Length::Fixed(22.0)).into() };
     let detail_slot: Element<'a, Message> =
         if let Some(message) = workflow_preview_message(tool_name, &v) {
-            row![workflow_preview_button(message), detail_button]
-                .spacing(4)
-                .align_y(Alignment::Center)
-                .into()
+            row![
+                workflow_preview_button(crate::app::i18n::I18n::new(app.desktop_locale), message),
+                detail_button
+            ]
+            .spacing(4)
+            .align_y(Alignment::Center)
+            .into()
         } else {
             detail_button
         };

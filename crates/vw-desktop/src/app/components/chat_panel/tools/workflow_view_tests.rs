@@ -82,11 +82,41 @@ fn workflow_preview_message_requires_nonempty_yaml_and_trims_focus_node() {
 
 #[test]
 fn status_copy_matches_each_workflow_state() {
-    assert_eq!(status_text(WorkflowNodeState::Running), "正在执行节点");
-    assert_eq!(status_text(WorkflowNodeState::Waiting), "正在等待后代智能体");
-    assert_eq!(status_text(WorkflowNodeState::Completed), "节点执行完成");
-    assert_eq!(status_text(WorkflowNodeState::Failed), "节点执行失败");
-    assert_eq!(status_text(WorkflowNodeState::Cancelled), "节点执行已取消");
+    assert_eq!(
+        status_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            WorkflowNodeState::Running
+        ),
+        "正在执行节点"
+    );
+    assert_eq!(
+        status_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            WorkflowNodeState::Waiting
+        ),
+        "正在等待后代智能体"
+    );
+    assert_eq!(
+        status_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            WorkflowNodeState::Completed
+        ),
+        "节点执行完成"
+    );
+    assert_eq!(
+        status_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            WorkflowNodeState::Failed
+        ),
+        "节点执行失败"
+    );
+    assert_eq!(
+        status_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            WorkflowNodeState::Cancelled
+        ),
+        "节点执行已取消"
+    );
 }
 
 #[test]
@@ -96,12 +126,19 @@ fn chat_summary_text_stays_compact_and_detail_body_keeps_full_output() {
         "output": "{\"answer\":\"这是一段很长的节点输出，不应该整段塞进聊天摘要行\",\"usage\":{\"total_tokens\":9}}",
         "metadata": {"node_type": "llm", "index": 3, "elapsed_time": 0.5}
     });
-    let summary = chat_summary_text(&value, WorkflowNodeState::Completed);
+    let summary = chat_summary_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &value,
+        WorkflowNodeState::Completed,
+    );
     assert!(summary.contains("很长的节点输出"));
     assert!(summary.contains("#3"));
     assert!(summary.chars().count() <= 96);
 
-    let detail = workflow_node_detail_body(&value);
+    let detail = workflow_node_detail_body(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &value,
+    );
     assert!(detail.contains("这是一段很长的节点输出，不应该整段塞进聊天摘要行"));
     assert!(detail.contains('\n') || detail.contains("answer"));
 }
@@ -171,40 +208,89 @@ fn output_and_usage_values_follow_documented_precedence() {
 
 #[test]
 fn usage_label_formats_aliases_and_computes_missing_total() {
-    let label = usage_label(&json!({"metadata": {"usage": {
-        "input_tokens": 10,
-        "output_tokens": 4,
-        "reasoning_tokens": 2,
-        "cache_read_tokens": 3
-    }}}));
+    let label = usage_label(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &json!({"metadata": {"usage": {
+            "input_tokens": 10,
+            "output_tokens": 4,
+            "reasoning_tokens": 2,
+            "cache_read_tokens": 3
+        }}}),
+    );
     assert_eq!(label.as_deref(), Some("Token 输入 10 · 输出 4 · 推理 2 · 缓存 3 · 总计 16"));
 
     assert_eq!(
         usage_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             &json!({"usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 20}})
         )
         .as_deref(),
         Some("Token 输入 1 · 输出 2 · 总计 20")
     );
-    assert!(usage_label(&json!({"usage": {"total_tokens": 0}})).is_none());
-    assert!(usage_label(&json!({"usage": {"prompt_tokens": "many"}})).is_none());
+    assert!(
+        usage_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"usage": {"total_tokens": 0}})
+        )
+        .is_none()
+    );
+    assert!(
+        usage_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"usage": {"prompt_tokens": "many"}})
+        )
+        .is_none()
+    );
 }
 
 #[test]
 fn output_preview_uses_state_defaults_and_failure_errors() {
-    assert_eq!(output_preview_text(&json!({}), WorkflowNodeState::Running), "正在执行工作流节点");
-    assert_eq!(output_preview_text(&json!({}), WorkflowNodeState::Completed), "节点执行完成");
     assert_eq!(
-        output_preview_text(&json!({"error": "  broken  "}), WorkflowNodeState::Failed),
-        "broken"
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({}),
+            WorkflowNodeState::Running
+        ),
+        "正在执行工作流节点"
     );
-    assert_eq!(output_preview_text(&json!({}), WorkflowNodeState::Failed), "节点执行失败");
     assert_eq!(
-        output_preview_text(&json!({"output": "   "}), WorkflowNodeState::Completed),
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({}),
+            WorkflowNodeState::Completed
+        ),
         "节点执行完成"
     );
     assert_eq!(
-        output_preview_text(&json!({"output": "正在执行工作流节点"}), WorkflowNodeState::Running),
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"error": "  broken  "}),
+            WorkflowNodeState::Failed
+        ),
+        "broken"
+    );
+    assert_eq!(
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({}),
+            WorkflowNodeState::Failed
+        ),
+        "节点执行失败"
+    );
+    assert_eq!(
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"output": "   "}),
+            WorkflowNodeState::Completed
+        ),
+        "节点执行完成"
+    );
+    assert_eq!(
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"output": "正在执行工作流节点"}),
+            WorkflowNodeState::Running
+        ),
         "正在执行工作流节点"
     );
 }
@@ -216,13 +302,18 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
             serde_json::to_string(&json!({(key): "  node result  ", "usage": {"total_tokens": 2}}))
                 .expect("output json");
         assert_eq!(
-            output_preview_text(&json!({"output": output}), WorkflowNodeState::Completed),
+            output_preview_text(
+                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                &json!({"output": output}),
+                WorkflowNodeState::Completed
+            ),
             "node result"
         );
     }
 
     assert_eq!(
         output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "{\"usage\":{\"total_tokens\":2}}"}),
             WorkflowNodeState::Completed
         ),
@@ -230,17 +321,26 @@ fn output_preview_extracts_json_text_and_removes_usage_only_payloads() {
     );
     assert_eq!(
         output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             &json!({"output": "{\"value\":1,\"usage\":{\"total_tokens\":2}}"}),
             WorkflowNodeState::Completed
         ),
         "{\"value\":1}"
     );
     assert_eq!(
-        output_preview_text(&json!({"output": " plain output "}), WorkflowNodeState::Completed),
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"output": " plain output "}),
+            WorkflowNodeState::Completed
+        ),
         "plain output"
     );
     assert_eq!(
-        output_preview_text(&json!({"output": "[1,2]"}), WorkflowNodeState::Completed),
+        output_preview_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"output": "[1,2]"}),
+            WorkflowNodeState::Completed
+        ),
         "[1,2]"
     );
 }
@@ -252,9 +352,30 @@ fn node_meta_label_joins_only_available_metadata() {
         "elapsed_time": 0.5,
         "usage": {"total_tokens": 9}
     }});
-    assert_eq!(node_meta_label(&value, "llm"), "#3 · llm · 耗时 500ms · Token 总计 9");
-    assert_eq!(node_meta_label(&json!({}), ""), "");
-    assert_eq!(node_meta_label(&json!({"metadata": {"index": "3"}}), "code"), "code");
+    assert_eq!(
+        node_meta_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value,
+            "llm"
+        ),
+        "#3 · llm · 耗时 500ms · Token 总计 9"
+    );
+    assert_eq!(
+        node_meta_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({}),
+            ""
+        ),
+        ""
+    );
+    assert_eq!(
+        node_meta_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &json!({"metadata": {"index": "3"}}),
+            "code"
+        ),
+        "code"
+    );
 }
 
 #[test]
@@ -352,7 +473,11 @@ async fn plan_run_planning_card_uses_compact_state_copy_and_hover_details() {
         }
     });
 
-    let started_display = plan_run_card_display(&started).expect("planning display");
+    let started_display = plan_run_card_display(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &started,
+    )
+    .expect("planning display");
     assert_eq!(started_display.primary_text, "正在规划计划任务");
     assert!(!started_display.primary_text.contains("task-1-uuid"));
     assert!(!started_display.primary_text.contains("/plans/task-1"));
@@ -361,7 +486,11 @@ async fn plan_run_planning_card_uses_compact_state_copy_and_hover_details() {
         Some("UUID：task-1-uuid\n任务路径：/plans/task-1")
     );
 
-    let created_display = plan_run_card_display(&created).expect("created display");
+    let created_display = plan_run_card_display(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &created,
+    )
+    .expect("created display");
     assert_eq!(created_display.primary_text, "计划任务已创建，共 3 个任务。");
     assert!(!created_display.primary_text.contains("task-1-uuid"));
     assert!(!created_display.primary_text.contains("/plans/task-1"));
@@ -448,7 +577,11 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
             .expect("tiny-skia headless renderer should be available");
     let app = test_app();
     for (value, detail_fragment) in cases {
-        let display = plan_run_card_display(&value).expect("subtask display");
+        let display = plan_run_card_display(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value,
+        )
+        .expect("subtask display");
         assert_eq!(display.primary_text, "整理卡片");
         assert!(display.summary_text.is_empty());
         assert!(!display.primary_text.contains("任务文件"));
@@ -456,7 +589,10 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
         let expected_tooltip = format!("任务路径：{task_path}");
         assert_eq!(display.tooltip_text.as_deref(), Some(expected_tooltip.as_str()));
 
-        let detail = workflow_node_detail_body(&value);
+        let detail = workflow_node_detail_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value,
+        );
         assert!(detail.contains(task_path));
         assert!(detail.contains(detail_fragment));
 
@@ -480,7 +616,14 @@ async fn plan_run_subtask_card_hides_path_until_hover() {
             "task_path": ""
         }
     });
-    assert_eq!(plan_run_card_display(&without_path).and_then(|display| display.tooltip_text), None);
+    assert_eq!(
+        plan_run_card_display(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &without_path
+        )
+        .and_then(|display| display.tooltip_text),
+        None
+    );
 
     for theme in [Theme::Light, Theme::Dark] {
         let mut tooltip = plan_run_tooltip_content(format!("任务路径：{task_path}"));
@@ -644,4 +787,16 @@ fn specialized_tool_actions_survive_header_migration() {
         workflow_preview_message(&value),
         Some(Message::WorkflowTool(crate::apps::workflow::WorkflowMessage::OpenInlineYaml { .. }))
     ));
+}
+
+#[test]
+fn desktop_gettext_area_8_workflow_plan_retains_raw_path() {
+    let value = serde_json::json!({"metadata": {"plan_run": true, "event_type": "plan_created", "subtask_count": 3, "task_path": "中文/%s/%n"}});
+    let display = plan_run_card_display(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        &value,
+    )
+    .unwrap();
+    assert_eq!(display.primary_text, "Plan created with 3 tasks.");
+    assert_eq!(display.tooltip_text.unwrap(), "Task path: 中文/%s/%n");
 }

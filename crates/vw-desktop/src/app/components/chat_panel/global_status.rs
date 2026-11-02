@@ -28,6 +28,9 @@ const THINK_PULSE_ACCENT: Color = Color::from_rgb(0.235, 0.510, 0.961);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ChatGlobalStatus {
     pub action: String,
+    action_source: &'static str,
+    verb: Option<&'static str>,
+    summary_source: Option<(String, String)>,
     pub detail: String,
     visual: ToolVisual,
     is_thinking: bool,
@@ -109,6 +112,9 @@ pub(crate) fn chat_global_status(
     if is_requesting && !thinks.is_empty() {
         return Some(ChatGlobalStatus {
             action: "思考中".to_string(),
+            action_source: "思考中",
+            verb: None,
+            summary_source: None,
             detail: latest_think_detail(&thinks),
             visual: tool_visual_state("running"),
             is_thinking: true,
@@ -127,7 +133,13 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
         return Space::new().height(Length::Fixed(height)).into();
     };
     let is_thinking = status.is_thinking;
-    let action = status.action;
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let action = match status.verb {
+        Some(verb) => i18n
+            .format(status.action_source, &[i18n.__(verb).into()])
+            .expect("valid tool action template"),
+        None => i18n.__(status.action_source).to_string(),
+    };
 
     // 思考中恢复原有星形呼吸动画；工具状态继续使用紧凑状态图标。
     let activity_icon = if is_thinking {
@@ -137,7 +149,16 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
     };
 
     // 进行内容保留完整单行，由剩余布局宽度动态裁切，不再按固定字符数提前截短。
-    let detail_line = single_line(&status.detail);
+    let detail = status
+        .summary_source
+        .as_ref()
+        .and_then(|(tool, input)| {
+            crate::app::components::chat_panel::tools::localized_tool_inline_summary_unbounded(
+                i18n, tool, input,
+            )
+        })
+        .unwrap_or(status.detail);
+    let detail_line = single_line(&detail);
     let content = if detail_line.is_empty() { action } else { format!("{action} {detail_line}") };
 
     // 时间、token 紧跟图标，进行内容放到最后。
@@ -146,7 +167,10 @@ pub(crate) fn chat_global_status_view(app: &App) -> Element<'_, Message> {
         .current_session_runtime_ref()
         .map(|runtime| runtime.llm_timer.elapsed_ms_at(web_time::Instant::now()))
         .unwrap_or(0);
-    meta_parts.push(format_elapsed(elapsed_ms / 1_000));
+    meta_parts.push(crate::app::i18n::chat::elapsed(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        elapsed_ms / 1_000,
+    ));
     if let Some(tokens) = tokens_label(&app.usage) {
         meta_parts.push(tokens);
     }
@@ -286,6 +310,7 @@ fn single_line(text: &str) -> String {
 }
 
 /// 纯函数：把秒数格式化为 `X分 Y秒`（不足一分钟则 `Y秒`）。
+#[cfg(test)]
 pub(crate) fn format_elapsed(secs: u64) -> String {
     if secs >= 60 { format!("{}分 {}秒", secs / 60, secs % 60) } else { format!("{}秒", secs) }
 }
@@ -332,7 +357,22 @@ fn status_from_tool_raw(raw: &str, is_requesting: bool) -> Option<ChatGlobalStat
         ToolVisualState::Completed | ToolVisualState::Unknown => return None,
     };
 
-    Some(ChatGlobalStatus { action, detail, visual, is_thinking: false })
+    let action_source = match visual.state {
+        ToolVisualState::Waiting => "等待%s",
+        ToolVisualState::Running => "正在%s",
+        ToolVisualState::Failed => "%s失败",
+        ToolVisualState::Cancelled => "%s已取消",
+        ToolVisualState::Completed | ToolVisualState::Unknown => return None,
+    };
+    Some(ChatGlobalStatus {
+        action,
+        action_source,
+        verb: Some(verb),
+        summary_source: Some((tool_name, input.to_string())),
+        detail,
+        visual,
+        is_thinking: false,
+    })
 }
 
 fn latest_think_detail(thinks: &[String]) -> String {

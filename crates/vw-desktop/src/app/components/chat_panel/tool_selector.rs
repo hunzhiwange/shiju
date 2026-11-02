@@ -57,8 +57,12 @@ pub(super) fn count_badge<'a>(label: String, active: bool) -> Element<'a, Messag
         .into()
 }
 
-pub(super) fn tab_button(tab: SessionToolSelectorTab, selected: bool) -> Element<'static, Message> {
-    button(text(tab.label()).size(12))
+pub(super) fn tab_button(
+    i18n: crate::app::i18n::I18n,
+    tab: SessionToolSelectorTab,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(i18n.__(tab.label())).size(12))
         .padding([6, 10])
         .style(move |theme: &Theme, status| selectable_list_button_style(theme, status, selected))
         .on_press(Message::Chat(message::ChatMessage::SessionToolSelectorTabSelected(tab)))
@@ -106,7 +110,10 @@ pub(super) fn search_text_input_style(
     }
 }
 
-pub(super) fn selector_search_bar(query: String) -> Element<'static, Message> {
+pub(super) fn selector_search_bar(
+    i18n: crate::app::i18n::I18n,
+    query: String,
+) -> Element<'static, Message> {
     container(
         row![
             icon_svg(Icon::Search).width(Length::Fixed(14.0)).height(Length::Fixed(14.0)).style(
@@ -114,7 +121,7 @@ pub(super) fn selector_search_bar(query: String) -> Element<'static, Message> {
                     color: Some(theme.palette().text.scale_alpha(0.60)),
                 }
             ),
-            iced::widget::TextInput::new("搜索当前列表", query.as_str())
+            iced::widget::TextInput::new(i18n.__("搜索当前列表"), query.as_str())
                 .on_input(|value| {
                     Message::Chat(message::ChatMessage::SessionToolSelectorSearchChanged(value))
                 })
@@ -166,13 +173,17 @@ pub(super) fn ellipsize_text(value: &str, max_chars: usize) -> String {
 }
 
 pub(super) fn skill_tooltip_content(
+    i18n: crate::app::i18n::I18n,
     title: String,
     skill_id: String,
     source: String,
     description: String,
 ) -> Element<'static, Message> {
-    let description =
-        if description.trim().is_empty() { "暂无技能介绍".to_string() } else { description };
+    let description = if description.trim().is_empty() {
+        i18n.__("暂无技能介绍").to_string()
+    } else {
+        description
+    };
 
     container(
         column![
@@ -214,11 +225,12 @@ pub(super) fn skill_scope_label(scope: SkillsDirectoryScope) -> &'static str {
 }
 
 pub(super) fn skill_scope_button(
+    i18n: crate::app::i18n::I18n,
     scope: SkillsDirectoryScope,
     active_scope: SkillsDirectoryScope,
 ) -> Element<'static, Message> {
     let selected = scope == active_scope;
-    button(text(skill_scope_label(scope)).size(11))
+    button(text(i18n.__(skill_scope_label(scope))).size(11))
         .padding([5, 8])
         .style(move |theme: &Theme, status| selectable_list_button_style(theme, status, selected))
         .on_press(Message::Chat(
@@ -231,6 +243,7 @@ pub(super) fn skill_scope_button(
 ///
 /// 参数含义保持与函数签名一致；返回值用于调用方继续组合处理，错误由返回类型显式表达。
 pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let runtime = app.current_session_runtime();
     let mut manual_tools = app
         .session_tool_inventory(&runtime)
@@ -263,7 +276,10 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         .iter()
         .filter(|tool_id| {
             let display_name = tool_display_name(tool_id);
-            matches_query(&query, &[tool_id.as_str(), display_name.as_str()])
+            matches_query(
+                &query,
+                &[tool_id.as_str(), display_name.as_str(), i18n.__(&display_name)],
+            )
         })
         .cloned()
         .collect::<Vec<_>>();
@@ -272,45 +288,50 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
     let selected_tool_count = runtime.tool_selector.selected_manual_tools().len();
     let selected_skill_count = runtime.tool_selector.selected_manual_skills().len();
     let summary = if manual_tools.is_empty() && app.agents_settings.available_tools.is_empty() {
-        format!(
-            "可切换 {} 个代理；工具清单等待网关返回；已选 {} 个技能。",
-            available_agents.len(),
-            selected_skill_count,
+        i18n.format(
+            "可切换 %u 个代理；工具清单等待网关返回；已选 %u 个技能。",
+            &[available_agents.len().into(), selected_skill_count.into()],
         )
     } else if manual_tools.is_empty() {
-        format!(
-            "可切换 {} 个代理；当前代理未包含已注册工具；可选 {} 个技能。",
-            available_agents.len(),
-            usable_skill_count,
+        i18n.format(
+            "可切换 %u 个代理；当前代理未包含已注册工具；可选 %u 个技能。",
+            &[available_agents.len().into(), usable_skill_count.into()],
         )
     } else {
-        format!(
-            "可切换 {} 个代理；可选 {} 个工具 / {} 个技能；已选 {} 个工具 / {} 个技能。",
-            available_agents.len(),
-            manual_tools.len(),
-            usable_skill_count,
-            selected_tool_count,
-            selected_skill_count,
+        i18n.format(
+            "可切换 %u 个代理；可选 %u 个工具 / %u 个技能；已选 %u 个工具 / %u 个技能。",
+            &[
+                available_agents.len().into(),
+                manual_tools.len().into(),
+                usable_skill_count.into(),
+                selected_tool_count.into(),
+                selected_skill_count.into(),
+            ],
         )
-    };
+    }
+    .expect("valid selector summary template");
     let scope_hint = match runtime.tool_selector.active_tab() {
-        SessionToolSelectorTab::Agent => "代理只决定本会话委托目标，不改写系统设置。",
-        SessionToolSelectorTab::Tools => {
-            "只显示当前代理包含且已注册的工具；选择会随下一次发送写入提示词。"
-        }
-        SessionToolSelectorTab::Skills => "技能不受代理工具范围限制，可在需要时动态读取。",
+        SessionToolSelectorTab::Agent => crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("代理只决定本会话委托目标，不改写系统设置。"),
+        SessionToolSelectorTab::Tools => crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("只显示当前代理包含且已注册的工具；选择会随下一次发送写入提示词。"),
+        SessionToolSelectorTab::Skills => crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("技能不受代理工具范围限制，可在需要时动态读取。"),
     };
 
     let tabs = row![
         tab_button(
+            i18n,
             SessionToolSelectorTab::Agent,
             runtime.tool_selector.active_tab() == SessionToolSelectorTab::Agent,
         ),
         tab_button(
+            i18n,
             SessionToolSelectorTab::Tools,
             runtime.tool_selector.active_tab() == SessionToolSelectorTab::Tools,
         ),
         tab_button(
+            i18n,
             SessionToolSelectorTab::Skills,
             runtime.tool_selector.active_tab() == SessionToolSelectorTab::Skills,
         )
@@ -326,9 +347,10 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                 has_agents = true;
                 let selected = selected_agent_key == entry.key;
                 let allowlist_text = if entry.allowed_tools.is_empty() {
-                    "未包含工具".to_string()
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("未包含工具").to_string()
                 } else {
-                    format!("工具范围 {} 项", entry.allowed_tools.len())
+                    i18n.format("工具范围 %u 项", &[entry.allowed_tools.len().into()])
+                        .expect("valid tool scope template")
                 };
                 let subtitle = if entry.model.trim().is_empty() {
                     allowlist_text
@@ -378,9 +400,10 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
             }
             if !has_agents {
                 let empty_message = if query.trim().is_empty() {
-                    "当前没有可用于会话切换的 delegate agent。"
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("当前没有可用于会话切换的 delegate agent。")
                 } else {
-                    "没有匹配的代理。"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的代理。")
                 };
                 list = list.push(
                     container(text(empty_message).size(11).style(|theme: &Theme| {
@@ -408,9 +431,9 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         SessionToolSelectorTab::Tools => {
             if filtered_manual_tools.is_empty() {
                 let empty_message = if manual_tools.is_empty() {
-                    "等待网关返回可用工具列表。"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("等待网关返回可用工具列表。")
                 } else {
-                    "没有匹配的工具。"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的工具。")
                 };
                 container(text(empty_message).size(11).style(|theme: &Theme| {
                     iced::widget::text::Style {
@@ -562,21 +585,23 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
         }
         SessionToolSelectorTab::Skills => {
             if app.skills_settings.loading && app.skills_settings.catalog.is_empty() {
-                container(text("技能目录加载中。").size(11).style(|theme: &Theme| {
-                    iced::widget::text::Style {
-                        color: Some(theme.palette().text.scale_alpha(0.62)),
-                    }
-                }))
+                container(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("技能目录加载中。"))
+                        .size(11)
+                        .style(|theme: &Theme| iced::widget::text::Style {
+                            color: Some(theme.palette().text.scale_alpha(0.62)),
+                        }),
+                )
                 .padding([4, 2])
                 .into()
             } else {
                 let skill_scope = runtime.tool_selector.skill_directory_scope();
                 let scope_tabs = row![
-                    skill_scope_button(SkillsDirectoryScope::Project, skill_scope),
-                    skill_scope_button(SkillsDirectoryScope::Ancestor, skill_scope),
-                    skill_scope_button(SkillsDirectoryScope::Global, skill_scope),
-                    skill_scope_button(SkillsDirectoryScope::Bundled, skill_scope),
-                    skill_scope_button(SkillsDirectoryScope::All, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Project, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Ancestor, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Global, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::Bundled, skill_scope),
+                    skill_scope_button(i18n, SkillsDirectoryScope::All, skill_scope),
                 ]
                 .spacing(6)
                 .align_y(Alignment::Center);
@@ -619,6 +644,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                         )
                     };
                     let tooltip_content = skill_tooltip_content(
+                        i18n,
                         skill.title.clone(),
                         skill_id.clone(),
                         skill.source.clone(),
@@ -678,11 +704,12 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
 
                 if !has_skills {
                     let empty_message = if app.skills_settings.catalog.is_empty() {
-                        "技能目录尚未加载。"
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("技能目录尚未加载。")
                     } else if !has_scope_skills {
-                        "当前目录筛选下没有已安装且启用的技能。"
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("当前目录筛选下没有已安装且启用的技能。")
                     } else {
-                        "没有匹配的技能。"
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的技能。")
                     };
                     list = list.push(
                         container(text(empty_message).size(11).style(|theme: &Theme| {
@@ -718,7 +745,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
 
     container(
         column![
-            text("会话控制").size(13),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("会话控制")).size(13),
             text(summary).size(11).style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.palette().text.scale_alpha(0.84)),
             }),
@@ -726,7 +753,7 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                 color: Some(theme.palette().text.scale_alpha(0.62)),
             }),
             tabs,
-            selector_search_bar(query),
+            selector_search_bar(i18n, query),
             body,
         ]
         .spacing(10),

@@ -303,7 +303,13 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     app.active_session_view_state.updated_ms = 77;
     app.active_session_view_state.calls.push(json!({ "id": "call-live" }));
     app.active_session_view_state.message_meta_texts =
-        vec![Some("stale".to_string()); app.chat.len()];
+        vec![
+            Some(crate::app::i18n::chat::MessageMeta::Model {
+                model: "stale".to_string(),
+                time_ms: None
+            });
+            app.chat.len()
+        ];
     app.chat_render_cache.insert(0, Default::default());
     let previous_scroll_id = app.chat_scroll_id.clone();
     let usage = crate::app::models::TokenUsage {
@@ -344,12 +350,13 @@ fn session_messages_loaded_same_content_preserves_scroll_and_ui_cache() {
     assert_eq!(app.active_session_view_state.steps[0].usage.cached_tokens, 3);
     assert_eq!(app.active_session_view_state.steps[0].usage.reasoning_tokens, 4);
     assert_eq!(app.active_session_view_state.message_meta_texts.len(), app.chat.len());
-    assert!(
-        app.active_session_view_state
-            .message_meta_texts
-            .iter()
-            .all(|meta| meta.as_deref() != Some("stale"))
-    );
+    assert!(app.active_session_view_state.message_meta_texts.iter().all(|meta| meta.as_ref().map(
+        |meta| meta.render(crate::app::i18n::I18n::new(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese
+        ))
+    ) != Some(
+        "stale".to_string()
+    )));
 }
 
 #[test]

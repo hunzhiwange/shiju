@@ -22,24 +22,39 @@ fn apply_patch_header_summary_splits_first_path() {
     let files = vec![('M', "src/main.rs".to_string()), ('A', "README.md".to_string())];
 
     assert_eq!(
-        apply_patch_header_summary(&files),
+        apply_patch_header_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &files
+        ),
         ("main.rs".to_string(), "/src".to_string(), Some("等 2 个文件".to_string()))
     );
 }
 
 #[test]
 fn apply_patch_header_summary_handles_empty_changes() {
-    assert_eq!(apply_patch_header_summary(&[]), (String::new(), String::new(), None));
+    assert_eq!(
+        apply_patch_header_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[]
+        ),
+        (String::new(), String::new(), None)
+    );
 }
 
 #[test]
 fn apply_patch_header_summary_handles_single_and_absolute_paths() {
     assert_eq!(
-        apply_patch_header_summary(&[('A', "README.md".to_string())]),
+        apply_patch_header_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[('A', "README.md".to_string())]
+        ),
         ("README.md".to_string(), String::new(), None)
     );
     assert_eq!(
-        apply_patch_header_summary(&[('D', "/workspace/src/lib.rs".to_string())]),
+        apply_patch_header_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[('D', "/workspace/src/lib.rs".to_string())]
+        ),
         ("lib.rs".to_string(), "/workspace/src".to_string(), None)
     );
 }

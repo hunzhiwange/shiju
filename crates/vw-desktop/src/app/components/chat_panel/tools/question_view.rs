@@ -176,26 +176,34 @@ pub(super) fn derived_summary(
 
     if is_running {
         if app.question_modal_request.is_some() {
-            return "等待你的回答".to_string();
+            return crate::app::i18n::I18n::new(app.desktop_locale).__("等待你的回答").to_string();
         }
         return match questions.len() {
-            0 => "等待回答".to_string(),
-            1 => "等待 1 个问题的回答".to_string(),
-            count => format!("等待 {} 个问题的回答", count),
+            0 => crate::app::i18n::I18n::new(app.desktop_locale).__("等待回答").to_string(),
+            1 => crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("等待 1 个问题的回答")
+                .to_string(),
+            count => crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("等待 %u 个问题的回答", &[(count).into()])
+                .expect("valid chat count template"),
         };
     }
 
     if !answers.is_empty() {
         return match answers.len() {
-            1 => "已回答 1 个问题".to_string(),
-            count => format!("已回答 {} 个问题", count),
+            1 => crate::app::i18n::I18n::new(app.desktop_locale).__("已回答 1 个问题").to_string(),
+            count => crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("已回答 %u 个问题", &[(count).into()])
+                .expect("valid chat count template"),
         };
     }
 
     match questions.len() {
         0 => String::new(),
-        1 => "1 个问题".to_string(),
-        count => format!("{} 个问题", count),
+        1 => crate::app::i18n::I18n::new(app.desktop_locale).__("1 个问题").to_string(),
+        count => crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("%u 个问题", &[(count).into()])
+            .expect("valid chat count template"),
     }
 }
 
@@ -258,11 +266,11 @@ pub fn tool_question_view<'a>(
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
 
     let title = if is_running && is_active_request {
-        "等待回答"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("等待回答")
     } else if is_error {
-        "提问失败"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("提问失败")
     } else {
-        "提问"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("提问")
     };
 
     let detail_btn = button(
@@ -286,7 +294,9 @@ pub fn tool_question_view<'a>(
     let mut body = column![].spacing(8);
     for (index, question) in questions.iter().take(3).enumerate() {
         let label = if question.header.trim().is_empty() {
-            format!("问题 {}", index + 1)
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("问题 %u", &[(index + 1).into()])
+                .expect("valid chat count template")
         } else {
             truncate_chars(question.header.trim(), 96)
         };
@@ -314,12 +324,16 @@ pub fn tool_question_view<'a>(
 
         if !answer_text.trim().is_empty() {
             item = item.push(
-                text(format!("回答: {}", truncate_chars(answer_text.trim(), 160))).size(12).style(
-                    |theme: &Theme| iced::widget::text::Style {
-                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        color: Some(chat_secondary_text_color(theme)),
-                    },
-                ),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("回答: %s", &[(truncate_chars(answer_text.trim(), 160)).into()])
+                        .expect("valid chat count template"),
+                )
+                .size(12)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                    color: Some(chat_secondary_text_color(theme)),
+                }),
             );
         }
 
@@ -327,12 +341,18 @@ pub fn tool_question_view<'a>(
     }
 
     if questions.len() > 3 {
-        body = body.push(text(format!("还有 {} 个问题", questions.len() - 3)).size(12).style(
-            |theme: &Theme| iced::widget::text::Style {
+        body = body.push(
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("还有 %u 个问题", &[(questions.len() - 3).into()])
+                    .expect("valid chat count template"),
+            )
+            .size(12)
+            .style(|theme: &Theme| iced::widget::text::Style {
                 // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
                 color: Some(chat_secondary_muted_text_color(theme)),
-            },
-        ));
+            }),
+        );
     }
 
     let card = mouse_area(

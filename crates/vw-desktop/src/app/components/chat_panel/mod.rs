@@ -194,7 +194,8 @@ fn chat_panel_context_menu_overlay<'a>(
 ) -> Element<'a, Message> {
     let is_open = app.chat_context_menu_target.is_some();
     let anchor = app.chat_context_menu_pos.unwrap_or((12.0, 26.0));
-    let menu = chat_context_menu(is_open).unwrap_or_else(|| Space::new().into());
+    let menu = chat_context_menu(crate::app::i18n::I18n::new(app.desktop_locale), is_open)
+        .unwrap_or_else(|| Space::new().into());
 
     PointBelowOverlay::new(content, menu)
         .show(is_open)
@@ -366,7 +367,7 @@ pub(crate) fn user_question_preview(content: &str) -> String {
     }
 
     if preview.is_empty() {
-        return "空提问".to_string();
+        return String::new();
     }
     if truncated {
         preview.push('…');
@@ -375,13 +376,14 @@ pub(crate) fn user_question_preview(content: &str) -> String {
 }
 
 pub(crate) fn live_message_meta_fallback(
+    i18n: crate::app::i18n::I18n,
     role: ChatRole,
     is_requesting: bool,
     is_last: bool,
     model: &str,
 ) -> Option<String> {
     (is_requesting && is_last && matches!(role, ChatRole::Assistant | ChatRole::User))
-        .then(|| format!("{model} · 刚刚"))
+        .then(|| i18n.format("%s · 刚刚", &[model.into()]).expect("valid live metadata template"))
 }
 
 fn user_question_tooltip_content(label: String) -> Element<'static, Message> {
@@ -494,11 +496,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .active_session_view_state
             .message_meta_texts
             .get(i)
-            .and_then(|meta| meta.as_deref())
-            .map(Cow::Borrowed)
+            .and_then(|meta| meta.as_ref())
+            .map(|meta| Cow::Owned(meta.render(crate::app::i18n::I18n::new(app.desktop_locale))))
             .or_else(|| {
-                live_message_meta_fallback(m.role, runtime_is_requesting, is_last, runtime_model)
-                    .map(Cow::Owned)
+                live_message_meta_fallback(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    m.role,
+                    runtime_is_requesting,
+                    is_last,
+                    runtime_model,
+                )
+                .map(Cow::Owned)
             });
 
         let message = message_view::message_view_with_runtime(
@@ -636,13 +644,21 @@ pub(crate) fn rough_message_heights(chat: &[ChatMessage]) -> Vec<f32> {
 fn empty_fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
     let fullscreen_icon =
         if app.is_chat_fullscreen() { Icon::FullscreenExit } else { Icon::Fullscreen };
-    let fullscreen_label = if app.is_chat_fullscreen() { "退出全屏" } else { "全屏" };
+    let fullscreen_label = if app.is_chat_fullscreen() {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("退出全屏")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("全屏")
+    };
 
     let mut controls = row![].spacing(6).align_y(iced::Alignment::Center);
     if header::show_half_fullscreen_control(app.workspace_mode) {
         controls = controls.push(header::header_icon_button(
             Icon::LayoutTextWindow,
-            if app.is_chat_half_fullscreen() { "退出半屏" } else { "半屏" },
+            if app.is_chat_half_fullscreen() {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("退出半屏")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("半屏")
+            },
             Message::Chat(message::ChatMessage::ToggleHalfFullscreen),
         ));
     }
@@ -660,7 +676,7 @@ fn empty_fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
         .into()
 }
 
-/// 创建"跳转到底部"按钮
+/// 创建跳转到底部按钮
 ///
 /// 该函数渲染一个浮动按钮，当用户向上滚动离开最新消息时显示，
 /// 点击可将视图滚动回消息列表底部。
@@ -781,7 +797,20 @@ fn user_question_nav_overlay<'a>(
     ) {
         let marker = &user_question_markers[marker_position];
         let is_active = active_question_position == Some(marker_position);
-        let tooltip_label = format!("问题 {}: {}", marker_position + 1, marker.preview);
+        let tooltip_label = crate::app::i18n::I18n::new(app.desktop_locale)
+            .format(
+                "问题 %u: %s",
+                &[
+                    (marker_position + 1).into(),
+                    (if marker.preview.is_empty() {
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("空提问")
+                    } else {
+                        marker.preview.as_str()
+                    })
+                    .into(),
+                ],
+            )
+            .expect("valid question marker template");
 
         let dot = container(Space::new().width(Length::Shrink).height(Length::Shrink))
             .width(Length::Fixed(if is_active { 7.0 } else { 5.0 }))

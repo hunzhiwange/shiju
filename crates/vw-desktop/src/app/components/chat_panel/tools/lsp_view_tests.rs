@@ -34,8 +34,20 @@ fn lsp_summary_and_meta_use_structured_counts() {
     }))
     .expect("valid lsp payload");
 
-    assert!(summary_from_data(&data).contains("2"));
-    assert!(meta_text(&data).contains("2"));
+    assert!(
+        summary_from_data(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &data
+        )
+        .contains("2")
+    );
+    assert!(
+        meta_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &data
+        )
+        .contains("2")
+    );
     assert_eq!(action_title("hover"), "悬停信息");
 
     let hover_data: LspToolData = serde_json::from_value(json!({
@@ -45,8 +57,20 @@ fn lsp_summary_and_meta_use_structured_counts() {
         "payload": {"kind": "hover", "contents": "info"}
     }))
     .expect("valid lsp payload");
-    assert_eq!(meta_text(&hover_data), "悬停信息可用");
-    assert_eq!(summary_from_data(&hover_data), "悬停信息可用");
+    assert_eq!(
+        meta_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &hover_data
+        ),
+        "悬停信息可用"
+    );
+    assert_eq!(
+        summary_from_data(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &hover_data
+        ),
+        "悬停信息可用"
+    );
 }
 
 #[test]
@@ -69,7 +93,13 @@ fn lsp_meta_text_covers_operation_specific_labels() {
         }))
         .expect("valid lsp payload");
 
-        assert_eq!(meta_text(&data), expected);
+        assert_eq!(
+            meta_text(
+                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                &data
+            ),
+            expected
+        );
     }
 }
 
@@ -82,7 +112,13 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
         "payload": {"kind": "message", "message": "ok"}
     }))
     .expect("valid lsp payload");
-    assert_eq!(summary_from_data(&with_query), "Widget");
+    assert_eq!(
+        summary_from_data(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &with_query
+        ),
+        "Widget"
+    );
 
     let whitespace_query: LspToolData = serde_json::from_value(json!({
         "success": true,
@@ -92,7 +128,13 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
         "payload": {"kind": "message", "message": "ok"}
     }))
     .expect("valid lsp payload");
-    assert_eq!(summary_from_data(&whitespace_query), "src/lib.rs");
+    assert_eq!(
+        summary_from_data(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &whitespace_query
+        ),
+        "src/lib.rs"
+    );
 
     let with_file: LspToolData = serde_json::from_value(json!({
         "success": true,
@@ -101,7 +143,13 @@ fn lsp_summary_falls_back_to_query_then_file_path() {
         "payload": {"kind": "message", "message": "ok"}
     }))
     .expect("valid lsp payload");
-    assert_eq!(summary_from_data(&with_file), "src/main.rs");
+    assert_eq!(
+        summary_from_data(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &with_file
+        ),
+        "src/main.rs"
+    );
 }
 
 #[test]
@@ -113,7 +161,13 @@ fn lsp_summary_is_empty_without_counts_query_or_file_path() {
     }))
     .expect("valid empty-summary lsp payload");
 
-    assert_eq!(summary_from_data(&data), "");
+    assert_eq!(
+        summary_from_data(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &data
+        ),
+        ""
+    );
 }
 
 #[test]

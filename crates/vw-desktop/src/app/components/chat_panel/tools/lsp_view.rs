@@ -180,6 +180,7 @@ pub fn tool_lsp_view<'a>(
     // visible 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
     visible: &str,
 ) -> Option<Element<'a, Message>> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let (first, rest) = visible.split_once('\n')?;
     let tool_name = first.trim().strip_prefix("tool ")?.trim();
     if super::canonical_tool_name(tool_name) != "lsp" {
@@ -201,21 +202,28 @@ pub fn tool_lsp_view<'a>(
         .or_else(|| data.as_ref().and_then(|data| data.error.clone()))
         .unwrap_or_default();
     let summary = tool_summary_text(&value).unwrap_or_else(|| {
-        data.as_ref().map(summary_from_data).filter(|summary| !summary.is_empty()).unwrap_or_else(
-            || {
+        data.as_ref()
+            .map(|data| summary_from_data(crate::app::i18n::I18n::new(app.desktop_locale), data))
+            .filter(|summary| !summary.is_empty())
+            .unwrap_or_else(|| {
                 // super 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                super::tool_inline_summary("lsp", tool_input(&value))
-                    .unwrap_or_else(|| truncate_chars(output_text.trim(), 96).to_string())
-            },
-        )
+                crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "lsp",
+                    tool_input(&value),
+                )
+                .unwrap_or_else(|| truncate_chars(output_text.trim(), 96).to_string())
+            })
     });
 
     let title = if is_running || is_waiting {
-        "LSP 中".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 中").to_string()
     } else if is_error || data.as_ref().is_some_and(|data| !data.success) {
-        "LSP 失败".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 失败").to_string()
     } else if let Some(data) = data.as_ref() {
-        action_title(&data.operation).to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__(action_title(&data.operation))
+            .to_string()
     } else {
         "LSP".to_string()
     };
@@ -240,7 +248,10 @@ pub fn tool_lsp_view<'a>(
         Space::new().width(Length::Fixed(22.0)).into()
     };
 
-    let meta_label = data.as_ref().map(meta_text).unwrap_or_default();
+    let meta_label = data
+        .as_ref()
+        .map(|data| meta_text(crate::app::i18n::I18n::new(app.desktop_locale), data))
+        .unwrap_or_default();
 
     let header_summary = if meta_label.is_empty() {
         summary.clone()
@@ -253,13 +264,16 @@ pub fn tool_lsp_view<'a>(
         .width(Length::Fill);
 
     let body: Element<'a, Message> = if is_running || is_waiting {
-        let pending =
-            if is_waiting { "等待 LSP 响应..." } else { "正在等待 LSP 响应..." };
+        let pending = if is_waiting {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("等待 LSP 响应...")
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("正在等待 LSP 响应...")
+        };
         container(text(pending).size(14)).padding([10, 12]).width(Length::Fill).into()
     } else if is_error || data.as_ref().is_some_and(|data| !data.success) {
         build_error_body(&error_text)
     } else if let Some(data) = data.as_ref() {
-        build_success_body(data)
+        build_success_body(i18n, data)
     } else {
         build_text_body(output_text.trim())
     };
@@ -290,9 +304,9 @@ pub fn tool_lsp_view<'a>(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn summary_from_data(data: &LspToolData) -> String {
+pub(super) fn summary_from_data(i18n: crate::app::i18n::I18n, data: &LspToolData) -> String {
     if data.result_count > 0 {
-        return meta_text(data);
+        return meta_text(i18n, data);
     }
     if let Some(query) = data.query.as_deref().filter(|query| !query.trim().is_empty()) {
         return query.to_string();
@@ -313,23 +327,42 @@ pub(super) fn summary_from_data(data: &LspToolData) -> String {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn meta_text(data: &LspToolData) -> String {
+pub(super) fn meta_text(i18n: crate::app::i18n::I18n, data: &LspToolData) -> String {
     match data.operation.as_str() {
         "hover" => {
             if data.result_count > 0 {
-                "悬停信息可用".to_string()
+                i18n.__("悬停信息可用").to_string()
             } else {
-                "无悬停信息".to_string()
+                i18n.__("无悬停信息").to_string()
             }
         }
-        "documentSymbol" => format!("{} 个文档符号", data.result_count),
-        "workspaceSymbol" => {
-            format!("{} 个工作区符号 / {} 个文件", data.result_count, data.file_count)
-        }
-        "prepareCallHierarchy" => format!("{} 个调用层级项", data.result_count),
-        "incomingCalls" => format!("{} 个入向调用 / {} 个文件", data.result_count, data.file_count),
-        "outgoingCalls" => format!("{} 个出向调用 / {} 个文件", data.result_count, data.file_count),
-        _ => format!("{} 个结果 / {} 个文件", data.result_count, data.file_count),
+        "documentSymbol" => i18n
+            .format("%u 个文档符号", &[data.result_count.into()])
+            .expect("valid LSP count template"),
+        "workspaceSymbol" => i18n
+            .format(
+                "%u 个工作区符号 / %u 个文件",
+                &[data.result_count.into(), data.file_count.into()],
+            )
+            .expect("valid LSP count template"),
+        "prepareCallHierarchy" => i18n
+            .format("%u 个调用层级项", &[data.result_count.into()])
+            .expect("valid LSP count template"),
+        "incomingCalls" => i18n
+            .format(
+                "%u 个入向调用 / %u 个文件",
+                &[data.result_count.into(), data.file_count.into()],
+            )
+            .expect("valid LSP count template"),
+        "outgoingCalls" => i18n
+            .format(
+                "%u 个出向调用 / %u 个文件",
+                &[data.result_count.into(), data.file_count.into()],
+            )
+            .expect("valid LSP count template"),
+        _ => i18n
+            .format("%u 个结果 / %u 个文件", &[data.result_count.into(), data.file_count.into()])
+            .expect("valid LSP count template"),
     }
 }
 
@@ -417,20 +450,27 @@ fn build_error_body<'a>(error_text: &str) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn build_success_body<'a>(data: &LspToolData) -> Element<'a, Message> {
+fn build_success_body<'a>(
+    i18n: crate::app::i18n::I18n,
+    data: &LspToolData,
+) -> Element<'a, Message> {
     match &data.payload {
         // LspPayload 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        LspPayload::Locations { items } => build_location_list(items),
+        LspPayload::Locations { items } => build_location_list(i18n, items),
         // LspPayload 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        LspPayload::DocumentSymbols { items } => build_symbol_list(items),
+        LspPayload::DocumentSymbols { items } => build_symbol_list(i18n, items),
         // LspPayload 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
         LspPayload::CallHierarchyItems { items } | LspPayload::CallHierarchyCalls { items } => {
-            build_call_list(items)
+            build_call_list(i18n, items)
         }
         LspPayload::Hover { contents, line, character } => {
             let mut body = String::new();
             if let (Some(line), Some(character)) = (*line, *character) {
-                body.push_str(&format!("位置: {}:{}\n\n", line, character));
+                body.push_str(
+                    &i18n
+                        .format("位置: %u:%u\n\n", &[line.into(), character.into()])
+                        .expect("valid LSP location template"),
+                );
             }
             body.push_str(contents.trim());
             build_text_body(&body)
@@ -452,9 +492,12 @@ fn build_success_body<'a>(data: &LspToolData) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn build_location_list<'a>(items: &[LspLocationItem]) -> Element<'a, Message> {
+fn build_location_list<'a>(
+    i18n: crate::app::i18n::I18n,
+    items: &[LspLocationItem],
+) -> Element<'a, Message> {
     if items.is_empty() {
-        return build_text_body("未返回结构化位置结果。");
+        return build_text_body(i18n.__("未返回结构化位置结果。"));
     }
     let mut column_view = column![].spacing(6);
     for item in items {
@@ -490,9 +533,12 @@ fn build_location_list<'a>(items: &[LspLocationItem]) -> Element<'a, Message> {
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn build_symbol_list<'a>(items: &[LspDocumentSymbolItem]) -> Element<'a, Message> {
+fn build_symbol_list<'a>(
+    i18n: crate::app::i18n::I18n,
+    items: &[LspDocumentSymbolItem],
+) -> Element<'a, Message> {
     if items.is_empty() {
-        return build_text_body("文档中未返回结构化符号结果。");
+        return build_text_body(i18n.__("文档中未返回结构化符号结果。"));
     }
     let mut column_view = column![].spacing(6);
     for item in items {
@@ -523,9 +569,12 @@ fn build_symbol_list<'a>(items: &[LspDocumentSymbolItem]) -> Element<'a, Message
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn build_call_list<'a>(items: &[LspCallHierarchyItem]) -> Element<'a, Message> {
+fn build_call_list<'a>(
+    i18n: crate::app::i18n::I18n,
+    items: &[LspCallHierarchyItem],
+) -> Element<'a, Message> {
     if items.is_empty() {
-        return build_text_body("未返回结构化调用层级结果。");
+        return build_text_body(i18n.__("未返回结构化调用层级结果。"));
     }
     let mut column_view = column![].spacing(6);
     for item in items {
@@ -539,7 +588,16 @@ fn build_call_list<'a>(items: &[LspCallHierarchyItem]) -> Element<'a, Message> {
                 .map(|site| format!("{}:{}", site.line, site.character))
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("{}:{}:{} · 调用点 {}", item.path, item.line, item.character, call_sites)
+            i18n.format(
+                "%s:%u:%u · 调用点 %u",
+                &[
+                    item.path.as_str().into(),
+                    item.line.into(),
+                    item.character.into(),
+                    call_sites.into(),
+                ],
+            )
+            .expect("valid LSP calls template")
         };
         column_view =
             column_view.push(open_item_button(item.absolute_path.clone(), primary, secondary));

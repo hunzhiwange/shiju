@@ -33,7 +33,13 @@ fn parse_config_result_from_output_reads_get_shape() {
 
     assert_eq!(result.setting.as_deref(), Some("browser.enabled"));
     assert_eq!(result.value, Some(json!(true)));
-    assert_eq!(summary_from_result(&result), "browser.enabled = true");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &result
+        ),
+        "browser.enabled = true"
+    );
 }
 
 #[test]
@@ -64,7 +70,13 @@ fn parse_config_result_from_output_reads_set_shape() {
 
     assert_eq!(result.previous_value, Some(json!("system")));
     assert_eq!(result.new_value, Some(json!("monokai")));
-    assert_eq!(summary_from_result(&result), "appUi.terminalTheme -> monokai");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &result
+        ),
+        "appUi.terminalTheme -> monokai"
+    );
 }
 
 #[test]
@@ -73,12 +85,24 @@ fn summary_from_result_handles_failures_and_overview_gets() {
         r#"{"success":false,"operation":"set","error":"permission denied"}"#,
     )
     .expect("config failure payload should parse");
-    assert_eq!(summary_from_result(&failed), "permission denied");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &failed
+        ),
+        "permission denied"
+    );
 
     let overview =
         parse_config_result_from_output(r#"{"success":true,"operation":"get","value":{"proxy":{},"model_routing":{},"runtime":{}}}"#)
             .expect("config overview should parse");
-    assert_eq!(summary_from_result(&overview), "当前配置概览");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &overview
+        ),
+        "当前配置概览"
+    );
 }
 
 /// 解析 config input reads pending write request 的输入文本，返回后续视图可以直接消费的结构化结果。
@@ -101,21 +125,45 @@ fn parse_config_input_reads_pending_write_request() {
 
     assert_eq!(input.setting.as_deref(), Some("appUi.terminalTheme"));
     assert_eq!(input.value, Some(json!("monokai")));
-    assert_eq!(summary_from_input(&input), "设置 appUi.terminalTheme = monokai");
+    assert_eq!(
+        summary_from_input(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &input
+        ),
+        "设置 appUi.terminalTheme = monokai"
+    );
 }
 
 #[test]
 fn summary_from_input_handles_reads_and_sections() {
     let read = parse_config_input(r#"{"setting":"browser.enabled"}"#)
         .expect("config read input should parse");
-    assert_eq!(summary_from_input(&read), "读取 browser.enabled");
+    assert_eq!(
+        summary_from_input(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &read
+        ),
+        "读取 browser.enabled"
+    );
 
     let proxy =
         parse_config_input(r#"{"section":"proxy"}"#).expect("config section input should parse");
-    assert_eq!(summary_from_input(&proxy), "读取 proxy 高级配置");
+    assert_eq!(
+        summary_from_input(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &proxy
+        ),
+        "读取 proxy 高级配置"
+    );
 
     let overview = parse_config_input(r#"{}"#).expect("empty config input should parse");
-    assert_eq!(summary_from_input(&overview), "读取配置概览");
+    assert_eq!(
+        summary_from_input(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &overview
+        ),
+        "读取配置概览"
+    );
     assert!(parse_config_input("not-json").is_none());
 }
 
@@ -235,17 +283,35 @@ fn success_body_handles_get_set_and_unknown_operation_display_boundaries() {
     let get_missing_value =
         parse_config_result_from_output(r#"{"success":true,"operation":"get","setting":"theme"}"#)
             .expect("get without value");
-    assert!(success_body(&get_missing_value).is_none());
+    assert!(
+        success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &get_missing_value
+        )
+        .is_none()
+    );
 
     let set_without_values =
         parse_config_result_from_output(r#"{"success":true,"operation":"set","setting":"theme"}"#)
             .expect("set without values");
-    assert!(success_body(&set_without_values).is_some());
+    assert!(
+        success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &set_without_values
+        )
+        .is_some()
+    );
 
     let unknown_operation =
         parse_config_result_from_output(r#"{"success":true,"operation":"delete"}"#)
             .expect("unknown operation");
-    assert!(success_body(&unknown_operation).is_none());
+    assert!(
+        success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &unknown_operation
+        )
+        .is_none()
+    );
 }
 
 /// summary_from_result edge cases: fallback operation labels.
@@ -253,25 +319,55 @@ fn success_body_handles_get_set_and_unknown_operation_display_boundaries() {
 fn summary_from_result_fallback_labels() {
     let set_no_details = parse_config_result_from_output(r#"{"success":true,"operation":"set"}"#)
         .expect("set without details");
-    assert_eq!(summary_from_result(&set_no_details), "配置已更新");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &set_no_details
+        ),
+        "配置已更新"
+    );
 
     let unknown_op = parse_config_result_from_output(r#"{"success":true,"operation":"delete"}"#)
         .expect("delete operation");
-    assert_eq!(summary_from_result(&unknown_op), "配置");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &unknown_op
+        ),
+        "配置"
+    );
 
     let no_op = parse_config_result_from_output(r#"{"success":true}"#).expect("no operation");
-    assert_eq!(summary_from_result(&no_op), "配置");
+    assert_eq!(
+        summary_from_result(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &no_op
+        ),
+        "配置"
+    );
 }
 
 /// summary_from_input edge cases: empty setting, model_routing section.
 #[test]
 fn summary_from_input_edge_cases() {
     let empty_setting = parse_config_input(r#"{"setting":"  "}"#).expect("whitespace-only setting");
-    assert_eq!(summary_from_input(&empty_setting), "读取配置概览");
+    assert_eq!(
+        summary_from_input(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &empty_setting
+        ),
+        "读取配置概览"
+    );
 
     let model_routing =
         parse_config_input(r#"{"section":"model_routing"}"#).expect("model_routing section");
-    assert_eq!(summary_from_input(&model_routing), "读取 model_routing 高级配置");
+    assert_eq!(
+        summary_from_input(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &model_routing
+        ),
+        "读取 model_routing 高级配置"
+    );
 }
 
 /// tool_config_view renders denied status correctly.

@@ -99,11 +99,17 @@ pub(crate) fn build_file_list_column<'a>(
 
     if render_state.tail_omitted > 0 {
         column_view = column_view.push(
-            container(text(format!("… 省略{}条", render_state.tail_omitted)).size(14).style(
-                |theme: &Theme| iced::widget::text::Style {
+            container(
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("… 省略%u条", &[render_state.tail_omitted.into()])
+                        .expect("valid omitted item template"),
+                )
+                .size(14)
+                .style(|theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.8)),
-                },
-            ))
+                }),
+            )
             .padding([2, 6])
             .width(Length::Fill),
         );
@@ -111,11 +117,13 @@ pub(crate) fn build_file_list_column<'a>(
 
     if !render_state.filter_query.is_empty() && render_state.is_empty_filtered {
         column_view = column_view.push(
-            container(text("没有匹配的文件").size(14).style(|theme: &Theme| {
-                iced::widget::text::Style {
-                    color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.65)),
-                }
-            }))
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的文件"))
+                    .size(14)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.65)),
+                    }),
+            )
             .padding([2, 6])
             .width(Length::Fill),
         );
@@ -123,9 +131,9 @@ pub(crate) fn build_file_list_column<'a>(
         column_view = column_view.push(
             container(
                 text(if render_state.is_search {
-                    "未返回可定位的文件结果"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("未返回可定位的文件结果")
                 } else {
-                    "没有可展示的文件"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("没有可展示的文件")
                 })
                 .size(14)
                 .style(|theme: &Theme| iced::widget::text::Style {
@@ -171,7 +179,9 @@ pub(super) fn fallback_edit_diff_payload(
     }
 
     let file = relative_to_project_root(app, abs).unwrap_or_else(|| display.to_string());
-    let title = format!("{}  写入内容", file);
+    let title = crate::app::i18n::I18n::new(app.desktop_locale)
+        .format("%s  写入内容", &[file.as_str().into()])
+        .expect("valid file preview template");
     Some((title, file, after))
 }
 
@@ -206,9 +216,9 @@ pub(super) fn edit_file_change_block<'a>(
         Message::Chat(message::ChatMessage::ToggleToolFile(msg_idx, tool_idx, file.clone()));
 
     let mut header = row![
-        edit_verb_text(verb),
+        edit_verb_text(crate::app::i18n::I18n::new(app.desktop_locale).__(verb)),
         edit_file_name_link(abs, file_name),
-        external_diff_button(open_diff_message),
+        external_diff_button(crate::app::i18n::I18n::new(app.desktop_locale), open_diff_message),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -266,8 +276,11 @@ pub(super) fn edit_verb_text<'a>(verb: &'static str) -> Element<'a, Message> {
         .into()
 }
 
-pub(super) fn external_diff_button<'a>(on_press: Message) -> Element<'a, Message> {
-    button(view_changes_pill())
+pub(super) fn external_diff_button<'a>(
+    i18n: crate::app::i18n::I18n,
+    on_press: Message,
+) -> Element<'a, Message> {
+    button(view_changes_pill(i18n))
         .padding([0, 2])
         .style(edit_file_change_button_style)
         .on_press(on_press)
@@ -292,8 +305,8 @@ pub(super) fn view_changes_toggle_button<'a>(
     .into()
 }
 
-pub(super) fn view_changes_pill<'a>() -> Element<'a, Message> {
-    text("查看变更").size(14).into()
+pub(super) fn view_changes_pill<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
+    text(i18n.__("查看变更")).size(14).into()
 }
 
 pub(super) fn view_changes_secondary_text(theme: &Theme) -> Color {

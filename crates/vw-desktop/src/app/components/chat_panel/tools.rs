@@ -173,8 +173,16 @@ pub(crate) use tool_permission::{
     pending_permission_request_for_message, pending_permission_request_for_tool_call,
     pending_permission_targets_message, pending_permission_targets_tool_call,
     tool_permission_error_text, tool_permission_state, tool_permission_summary,
-    tool_permission_target_summary, tool_permission_title,
+    tool_permission_target_summary,
 };
 
 // 类型定义重导出
 pub use types::{ChangeFile, ChangeFileSummary, CommandItem, EXPLORE_GROUP_TOOL_IDX, ExploreItem};
+
+pub(crate) use tool_permission::{
+    localized_tool_permission_error_text, localized_tool_permission_title,
+};
+
+pub(crate) use tool_meta::{
+    localized_tool_inline_summary, localized_tool_inline_summary_unbounded,
+};

@@ -9,7 +9,13 @@ fn success_body_renders_empty_config_overview() {
         parse_config_result_from_output(r#"{"success":true,"operation":"get","value":{}}"#)
             .expect("empty config overview should parse");
 
-    assert!(success_body(&result).is_some());
+    assert!(
+        success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &result
+        )
+        .is_some()
+    );
 }
 
 #[test]
@@ -19,5 +25,11 @@ fn success_body_renders_truncated_config_section_summary() {
     )
     .expect("multi-section config overview should parse");
 
-    assert!(success_body(&result).is_some());
+    assert!(
+        success_body(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &result
+        )
+        .is_some()
+    );
 }

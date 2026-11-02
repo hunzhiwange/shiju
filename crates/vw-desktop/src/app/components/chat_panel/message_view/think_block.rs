@@ -92,12 +92,23 @@ pub(super) fn think_block_view_with_streaming<'a>(
     let (status_label, duration_label) = if let Some(timing) = timing {
         let end_ms = if is_thinking { now_ms } else { timing.end_ms.unwrap_or(now_ms) };
         let duration_secs = ((end_ms.saturating_sub(timing.start_ms)) as f64 / 1000.0) as u64;
-        let status = if is_thinking { "思考中" } else { "思考" };
-        (status.to_string(), Some(format!("{} 秒", duration_secs)))
+        let status = if is_thinking {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("思考中")
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("思考")
+        };
+        (
+            status.to_string(),
+            Some(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("%u 秒", &[duration_secs.into()])
+                    .expect("valid thinking duration template"),
+            ),
+        )
     } else if is_thinking {
-        ("思考中".to_string(), None)
+        (crate::app::i18n::I18n::new(app.desktop_locale).__("思考中").to_string(), None)
     } else {
-        ("思考".to_string(), None)
+        (crate::app::i18n::I18n::new(app.desktop_locale).__("思考").to_string(), None)
     };
 
     let is_hovered = app.chat_think_hovered_idx == Some(key);

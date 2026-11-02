@@ -67,11 +67,12 @@ pub(crate) fn detail_content_values(body: &TrajectoryDetailContent) -> Vec<Strin
 }
 
 pub(crate) fn trajectory_details_body<'a>(
+    i18n: crate::app::i18n::I18n,
     body: TrajectoryDetailContent,
     state: &'a TrajectoryDetailsState,
 ) -> Element<'a, Message> {
     match body {
-        TrajectoryDetailContent::Fields(fields) => fields_view(fields, state),
+        TrajectoryDetailContent::Fields(fields) => fields_view(i18n, fields, state),
         TrajectoryDetailContent::Text(value) => {
             container(selectable_value(0, value, Font::DEFAULT, 12.0, state))
                 .padding(10)
@@ -82,24 +83,28 @@ pub(crate) fn trajectory_details_body<'a>(
         TrajectoryDetailContent::Json(value) => {
             let collapsed_paths = state.json_collapsed_paths();
             json_tree::json_tree(
+                i18n,
                 &value,
                 &collapsed_paths,
                 |path| Message::Chat(message::ChatMessage::TrajectoryDetailsJsonToggled(path)),
                 |value| Message::Chat(message::ChatMessage::TrajectoryDetailsJsonCopied(value)),
             )
         }
-        TrajectoryDetailContent::Tools(tools) => tool_definitions_view(tools, state),
-        TrajectoryDetailContent::Unavailable(value) => text(value)
-            .font(Font::DEFAULT)
-            .size(12)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(styles::empty_text_color(theme)),
-            })
-            .into(),
+        TrajectoryDetailContent::Tools(tools) => tool_definitions_view(i18n, tools, state),
+        TrajectoryDetailContent::Unavailable(value) => {
+            text(crate::app::i18n::chat::trajectory_label(i18n, &value))
+                .font(Font::DEFAULT)
+                .size(12)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    color: Some(styles::empty_text_color(theme)),
+                })
+                .into()
+        }
     }
 }
 
 fn tool_definitions_view<'a>(
+    i18n: crate::app::i18n::I18n,
     tools: Vec<TrajectoryToolDefinition>,
     state: &'a TrajectoryDetailsState,
 ) -> Element<'a, Message> {
@@ -149,6 +154,7 @@ fn tool_definitions_view<'a>(
                 .collect();
             let toggle_prefix = schema_prefix.clone();
             let schema = json_tree::json_tree(
+                i18n,
                 &tool.input_schema,
                 &schema_collapsed_paths,
                 move |path| {
@@ -185,18 +191,26 @@ fn tool_definitions_view<'a>(
 }
 
 fn fields_view<'a>(
+    i18n: crate::app::i18n::I18n,
     fields: Vec<(String, String)>,
     state: &'a TrajectoryDetailsState,
 ) -> Element<'a, Message> {
     let mut content = column![].spacing(7).width(Length::Fill);
     for (index, (label, value)) in fields.into_iter().enumerate() {
+        let value = if matches!(label.as_str(), "Status" | "Timing source" | "Source") {
+            crate::app::i18n::chat::trajectory_label(i18n, &value)
+        } else {
+            value
+        };
         content = content.push(
             row![
-                text(label).font(Font::DEFAULT).size(11).width(Length::Fixed(112.0)).style(
-                    |theme: &Theme| iced::widget::text::Style {
+                text(crate::app::i18n::chat::trajectory_label(i18n, &label))
+                    .font(Font::DEFAULT)
+                    .size(11)
+                    .width(Length::Fixed(112.0))
+                    .style(|theme: &Theme| iced::widget::text::Style {
                         color: Some(styles::details_label_color(theme)),
-                    }
-                ),
+                    }),
                 selectable_value(index, value, Font::DEFAULT, 12.0, state),
             ]
             .spacing(8)

@@ -159,9 +159,21 @@ fn search_input_style_mutes_only_disabled_values() {
 fn selector_helpers_build_all_discrete_widget_variants() {
     let badges = [count_badge("0 / 2".to_string(), false), count_badge("1 / 2".to_string(), true)];
     let tabs = [
-        tab_button(SessionToolSelectorTab::Agent, true),
-        tab_button(SessionToolSelectorTab::Tools, false),
-        tab_button(SessionToolSelectorTab::Skills, false),
+        tab_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            SessionToolSelectorTab::Agent,
+            true,
+        ),
+        tab_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            SessionToolSelectorTab::Tools,
+            false,
+        ),
+        tab_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            SessionToolSelectorTab::Skills,
+            false,
+        ),
     ];
     let scopes = [
         SkillsDirectoryScope::Project,
@@ -170,15 +182,26 @@ fn selector_helpers_build_all_discrete_widget_variants() {
         SkillsDirectoryScope::Bundled,
         SkillsDirectoryScope::All,
     ]
-    .map(|scope| skill_scope_button(scope, SkillsDirectoryScope::Project));
-    let _ = selector_search_bar("read".to_string());
+    .map(|scope| {
+        skill_scope_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            scope,
+            SkillsDirectoryScope::Project,
+        )
+    });
+    let _ = selector_search_bar(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "read".to_string(),
+    );
     let _ = skill_tooltip_content(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "Review".to_string(),
         "review".to_string(),
         "workspace".to_string(),
         String::new(),
     );
     let _ = skill_tooltip_content(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "Review".to_string(),
         "review".to_string(),
         "workspace".to_string(),

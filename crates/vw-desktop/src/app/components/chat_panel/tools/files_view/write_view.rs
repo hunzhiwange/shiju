@@ -13,11 +13,14 @@ use crate::app::{Message, message};
 
 use super::super::{
     ToolPermissionState, selected_chat_text_for_target, tool_permission_state,
-    tool_permission_target_summary, tool_permission_title,
+    tool_permission_target_summary,
 };
 use super::{FileListState, FilesViewContext};
 
-pub(super) fn write_tool_summary(render_state: &FileListState) -> Option<String> {
+pub(super) fn write_tool_summary(
+    i18n: crate::app::i18n::I18n,
+    render_state: &FileListState,
+) -> Option<String> {
     let (display, _) = render_state.items_for_display.first()?;
     let file_name = Path::new(display)
         .file_name()
@@ -26,41 +29,53 @@ pub(super) fn write_tool_summary(render_state: &FileListState) -> Option<String>
         .trim();
 
     if file_name.is_empty() {
-        return Some(format!("{} 个文件", render_state.total_items.max(1)));
+        return Some(
+            i18n.format("%u 个文件", &[render_state.total_items.max(1).into()])
+                .expect("valid file count template"),
+        );
     }
 
     if render_state.total_items > 1 {
-        Some(format!("{} 等 {} 个文件", file_name, render_state.total_items))
+        Some(
+            i18n.format("%s 等 %u 个文件", &[file_name.into(), render_state.total_items.into()])
+                .expect("valid file summary template"),
+        )
     } else {
         Some(file_name.to_string())
     }
 }
 
 pub(super) fn write_tool_title(
+    i18n: crate::app::i18n::I18n,
     verb: &str,
     is_running: bool,
     permission_state: Option<ToolPermissionState>,
     is_error: bool,
 ) -> String {
     if is_running {
-        format!("{verb}中")
+        i18n.format("%s中", &[i18n.__(verb).into()]).expect("valid file activity template")
     } else if let Some(permission_state) = permission_state {
-        tool_permission_title(verb, permission_state)
+        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+            i18n,
+            verb,
+            permission_state,
+        )
     } else if is_error {
-        format!("{verb}失败")
+        i18n.format("%s失败", &[i18n.__(verb).into()]).expect("valid file failure template")
     } else {
-        verb.to_string()
+        i18n.__(verb).to_string()
     }
 }
 
 pub(super) fn write_tool_detail_text(
+    i18n: crate::app::i18n::I18n,
     verb: &str,
     is_running: bool,
     error_text: Option<&str>,
     fallback_summary: &str,
 ) -> String {
     if is_running {
-        format!("{verb}中…")
+        i18n.format("%s中…", &[i18n.__(verb).into()]).expect("valid file progress template")
     } else if let Some(error_text) = error_text.map(str::trim).filter(|text| !text.is_empty()) {
         error_text.to_string()
     } else {
@@ -106,16 +121,24 @@ pub(crate) fn build_write_tool_view<'a>(
     let permission_target = tool_value
         .as_ref()
         .and_then(|value| tool_permission_target_summary(&view_ctx.tool_name, value));
-    let title =
-        write_tool_title(view_ctx.verb, view_ctx.is_running, permission_state, view_ctx.is_error);
+    let title = write_tool_title(
+        crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
+        view_ctx.verb,
+        view_ctx.is_running,
+        permission_state,
+        view_ctx.is_error,
+    );
     let is_error = view_ctx.is_error;
 
-    let summary = permission_target.clone().or_else(|| write_tool_summary(render_state));
+    let summary = permission_target.clone().or_else(|| {
+        write_tool_summary(crate::app::i18n::I18n::new(view_ctx.app.desktop_locale), render_state)
+    });
     let fallback_summary = summary.clone().unwrap_or_else(|| title.clone());
     let body: Element<'a, Message> = if render_state.total_items > 0 {
         container(list_column).width(Length::Fill).into()
     } else {
         let detail_text = write_tool_detail_text(
+            crate::app::i18n::I18n::new(view_ctx.app.desktop_locale),
             view_ctx.verb,
             view_ctx.is_running,
             view_ctx.error_text.as_deref(),

@@ -14,7 +14,8 @@ use super::super::utils::{normalize_display_text, strip_internal_tool_trace, tru
 use super::parse::{RenderBlock, borrowed_blocks, hash_chat_content, owned_blocks_from_raw};
 use super::text::estimate_text_height;
 use super::tool_summaries::{
-    collect_tool_card_texts, count_code_blocks, normalized_visible_text, summarize_explore_items,
+    collect_tool_card_source, collect_tool_card_texts, count_code_blocks, normalized_visible_text,
+    summarize_explore_semantics,
 };
 
 const LARGE_MESSAGE_RAW_CHARS: usize = 12_000;
@@ -77,13 +78,13 @@ const LARGE_MESSAGE_TOOL_BLOCKS: usize = 10;
 const LARGE_MESSAGE_CODE_BLOCKS: usize = 6;
 
 fn flush_explore_summaries(
-    out: &mut Vec<(usize, String)>,
+    out: &mut Vec<(usize, crate::app::i18n::chat::ExploreCounts)>,
     items: &mut Vec<String>,
     group_idx: usize,
     force_running: bool,
 ) {
     if let Some(summary) =
-        summarize_explore_items(items.iter().map(String::as_str), group_idx, force_running)
+        summarize_explore_semantics(items.iter().map(String::as_str), group_idx, force_running)
     {
         out.push(summary);
     }
@@ -168,8 +169,8 @@ pub(crate) fn build_render_cache_entry(
                 group_idx = group_idx.saturating_add(1);
                 estimated_expanded_height += 72.0;
 
-                if let Some(tool_texts) = collect_tool_card_texts(raw) {
-                    tool_card_text_blocks.push(tool_texts);
+                if let Some(source) = collect_tool_card_source(raw) {
+                    tool_card_text_blocks.push(source);
                 }
             }
             RenderBlock::Text { content } => {
@@ -203,9 +204,12 @@ pub(crate) fn build_render_cache_entry(
     let display_text = if stripped_display.is_empty() {
         tool_card_text_blocks
             .iter()
-            .flatten()
+            .flat_map(|source| {
+                source.render(crate::app::i18n::I18n::new(
+                    vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                ))
+            })
             .find(|text| !text.trim().is_empty())
-            .cloned()
             .or_else(|| {
                 blocks.iter().find_map(|block| match block {
                     ParsedChatBlock::Tool { raw } => collect_tool_card_texts(raw)

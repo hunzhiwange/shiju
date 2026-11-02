@@ -89,6 +89,7 @@ fn non_user_message_footer_padding_is_zero() {
 fn processing_duration_formats_seconds_minutes_and_hours() {
     assert_eq!(
         processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             Some(&ProcessingTiming {
                 started_ms: 1_000,
                 completed_ms: Some(60_000),
@@ -102,6 +103,7 @@ fn processing_duration_formats_seconds_minutes_and_hours() {
     );
     assert_eq!(
         processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             Some(&ProcessingTiming {
                 started_ms: 1_000,
                 completed_ms: Some(61_000),
@@ -115,6 +117,7 @@ fn processing_duration_formats_seconds_minutes_and_hours() {
     );
     assert_eq!(
         processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             Some(&ProcessingTiming {
                 started_ms: 1_000,
                 completed_ms: Some(1_518_000),
@@ -128,6 +131,7 @@ fn processing_duration_formats_seconds_minutes_and_hours() {
     );
     assert_eq!(
         processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             Some(&ProcessingTiming {
                 started_ms: 1_000,
                 completed_ms: Some(3_601_000),
@@ -141,6 +145,7 @@ fn processing_duration_formats_seconds_minutes_and_hours() {
     );
     assert_eq!(
         processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             Some(&ProcessingTiming {
                 started_ms: 1_000,
                 completed_ms: Some(3_724_000),
@@ -154,6 +159,7 @@ fn processing_duration_formats_seconds_minutes_and_hours() {
     );
     assert_eq!(
         processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
             Some(&ProcessingTiming {
                 started_ms: 2_000,
                 completed_ms: Some(1_000),
@@ -186,7 +192,14 @@ fn message_view_builds_completed_processing_label() {
 
 #[test]
 fn message_view_hides_open_processing_label() {
-    assert_eq!(processing_duration_label(None, None), None);
+    assert_eq!(
+        processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            None,
+            None
+        ),
+        None
+    );
     let app = crate::app::App::new().0;
     let cache = ChatRenderCacheEntry::default();
     let timing = ProcessingTiming {
@@ -196,7 +209,14 @@ fn message_view_hides_open_processing_label() {
         llm_elapsed_ms: None,
     };
 
-    assert_eq!(processing_duration_label(Some(&timing), None), None);
+    assert_eq!(
+        processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&timing),
+            None
+        ),
+        None
+    );
     let view = message_view(
         &app,
         0,
@@ -221,7 +241,15 @@ fn processing_label_shows_zero_for_active_open_cycle() {
         llm_elapsed_ms: Some(0),
     };
 
-    assert_eq!(processing_duration_label(Some(&timing), Some(0)).as_deref(), Some("已处理 0s"));
+    assert_eq!(
+        processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&timing),
+            Some(0)
+        )
+        .as_deref(),
+        Some("已处理 0s")
+    );
 }
 
 #[test]
@@ -233,7 +261,15 @@ fn historical_processing_label_includes_pauses_outside_llm_activity() {
         llm_elapsed_ms: Some(2_750),
     };
 
-    assert_eq!(processing_duration_label(Some(&timing), None).as_deref(), Some("已处理 1m 0s"));
+    assert_eq!(
+        processing_duration_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&timing),
+            None
+        )
+        .as_deref(),
+        Some("已处理 1m 0s")
+    );
 }
 
 #[test]

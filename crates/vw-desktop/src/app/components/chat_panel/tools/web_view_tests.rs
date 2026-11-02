@@ -16,37 +16,80 @@ use serde_json::json;
 
 #[test]
 fn web_tool_title_running_suffix() {
-    assert_eq!(web_tool_title("网页搜索", None, true, false), "网页搜索中");
+    assert_eq!(
+        web_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "网页搜索",
+            None,
+            true,
+            false
+        ),
+        "网页搜索中"
+    );
 }
 
 #[test]
 fn web_tool_title_approval_required() {
-    let title =
-        web_tool_title("网页搜索", Some(ToolPermissionState::ApprovalRequired), false, false);
+    let title = web_tool_title(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "网页搜索",
+        Some(ToolPermissionState::ApprovalRequired),
+        false,
+        false,
+    );
     assert_eq!(title, "网页搜索待批准");
 }
 
 #[test]
 fn web_tool_title_rejected() {
-    let title = web_tool_title("网页搜索", Some(ToolPermissionState::Rejected), false, false);
+    let title = web_tool_title(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "网页搜索",
+        Some(ToolPermissionState::Rejected),
+        false,
+        false,
+    );
     assert_eq!(title, "网页搜索已拒绝");
 }
 
 #[test]
 fn web_tool_title_error_suffix() {
-    assert_eq!(web_tool_title("网页搜索", None, false, true), "网页搜索失败");
+    assert_eq!(
+        web_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "网页搜索",
+            None,
+            false,
+            true
+        ),
+        "网页搜索失败"
+    );
 }
 
 #[test]
 fn web_tool_title_base_title() {
-    assert_eq!(web_tool_title("网页搜索", None, false, false), "网页搜索");
+    assert_eq!(
+        web_tool_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "网页搜索",
+            None,
+            false,
+            false
+        ),
+        "网页搜索"
+    );
 }
 
 #[test]
 fn web_tool_title_permission_takes_precedence_over_error() {
     // permission_state is checked before is_error, so permission title should win
-    let title =
-        web_tool_title("网页搜索", Some(ToolPermissionState::ApprovalRequired), false, true);
+    let title = web_tool_title(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "网页搜索",
+        Some(ToolPermissionState::ApprovalRequired),
+        false,
+        true,
+    );
     assert_eq!(title, "网页搜索待批准");
 }
 
@@ -316,7 +359,14 @@ fn web_string_field_uses_raw_input_and_skips_blank_candidate() {
 #[test]
 fn web_metadata_text_web_fetch_has_url() {
     let value = json!({"data":{"url":"https://example.test"}});
-    assert!(web_metadata_text("web_fetch", &value).contains("https://example.test"));
+    assert!(
+        web_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "web_fetch",
+            &value
+        )
+        .contains("https://example.test")
+    );
 }
 
 #[test]
@@ -325,7 +375,11 @@ fn web_metadata_text_web_fetch_all_fields() {
         "renderHint":{"metadata":{"provider":"bing","format":"markdown","truncated":true}},
         "data":{"url":"https://example.test"}
     });
-    let text = web_metadata_text("web_fetch", &value);
+    let text = web_metadata_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "web_fetch",
+        &value,
+    );
     assert!(text.contains("https://example.test"));
     assert!(text.contains("bing"));
     assert!(text.contains("格式 markdown"));
@@ -338,7 +392,11 @@ fn web_metadata_text_web_search_has_query_and_results() {
         "renderHint":{"metadata":{"provider":"google","result_count":15}},
         "data":{"query":"rust programming"}
     });
-    let text = web_metadata_text("web_search", &value);
+    let text = web_metadata_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "web_search",
+        &value,
+    );
     assert!(text.contains("rust programming"));
     assert!(text.contains("google"));
     assert!(text.contains("15 条结果"));
@@ -347,27 +405,56 @@ fn web_metadata_text_web_search_has_query_and_results() {
 #[test]
 fn web_metadata_text_unknown_tool_returns_empty() {
     let value = json!({"data":{"url":"https://example.test"}});
-    assert_eq!(web_metadata_text("bash", &value), "");
+    assert_eq!(
+        web_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "bash",
+            &value
+        ),
+        ""
+    );
 }
 
 #[test]
 fn web_metadata_text_empty_value_returns_empty() {
     let value = json!({});
-    assert_eq!(web_metadata_text("web_fetch", &value), "");
-    assert_eq!(web_metadata_text("web_search", &value), "");
+    assert_eq!(
+        web_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "web_fetch",
+            &value
+        ),
+        ""
+    );
+    assert_eq!(
+        web_metadata_text(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "web_search",
+            &value
+        ),
+        ""
+    );
 }
 
 #[test]
 fn web_metadata_text_fetch_webpage() {
     let value = json!({"data":{"url":"https://example.test"}});
-    let text = web_metadata_text("fetch_webpage", &value);
+    let text = web_metadata_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "fetch_webpage",
+        &value,
+    );
     assert!(text.contains("https://example.test"));
 }
 
 #[test]
 fn web_metadata_text_http_request() {
     let value = json!({"data":{"url":"https://api.example.test/data"}});
-    let text = web_metadata_text("http_request", &value);
+    let text = web_metadata_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "http_request",
+        &value,
+    );
     assert!(text.contains("https://api.example.test/data"));
 }
 
@@ -377,7 +464,11 @@ fn web_metadata_text_join_parts_with_separator() {
         "data":{"url":"https://example.test"},
         "renderHint":{"metadata":{"provider":"custom"}}
     });
-    let text = web_metadata_text("web_fetch", &value);
+    let text = web_metadata_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "web_fetch",
+        &value,
+    );
     assert_eq!(text, "https://example.test · custom");
 }
 

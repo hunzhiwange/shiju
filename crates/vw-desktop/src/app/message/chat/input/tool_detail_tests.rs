@@ -13,7 +13,11 @@ fn tool_detail_from_raw_uses_output_text_for_success_payload() {
     let raw = r#"tool shell
 {"status":"success","output":"done\n"}"#;
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
 
     assert!(!title.is_empty());
     assert_eq!(content, "done");
@@ -24,7 +28,11 @@ fn tool_detail_from_raw_marks_error_title_and_uses_error_text() {
     let raw = r#"tool shell
 {"status":"error","error":"permission denied"}"#;
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
 
     assert!(title.ends_with("失败"));
     assert_eq!(content, "permission denied");
@@ -35,7 +43,11 @@ fn tool_detail_from_raw_marks_denied_title_and_uses_output_text() {
     let raw = r#"tool shell
 {"status":"denied","output":"blocked by policy"}"#;
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
 
     assert!(title.ends_with("失败"));
     assert_eq!(content, "blocked by policy");
@@ -46,7 +58,11 @@ fn tool_detail_from_raw_marks_running_title() {
     let raw = r#"tool shell
 {"status":"running","output":""}"#;
 
-    let (title, _) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+    let (title, _) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
 
     assert!(title.ends_with("运行中"));
 }
@@ -55,7 +71,11 @@ fn tool_detail_from_raw_marks_running_title() {
 fn tool_detail_from_raw_falls_back_to_trimmed_rest_for_non_json() {
     let raw = "tool unknown\n  plain output  ";
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
 
     assert_eq!(title, "工具");
     assert_eq!(content, "plain output");
@@ -65,7 +85,11 @@ fn tool_detail_from_raw_falls_back_to_trimmed_rest_for_non_json() {
 fn tool_detail_from_raw_preserves_trimmed_json_without_output_or_error() {
     let raw = "  tool shell  \n  {\"status\":\"success\",\"metadata\":{\"attempt\":1}}  ";
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid tool detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid tool detail");
 
     assert!(!title.ends_with("失败"));
     assert!(!title.ends_with("运行中"));
@@ -77,7 +101,11 @@ fn tool_detail_from_raw_formats_mcp_json_and_uses_mcp_title() {
     let raw = r#"tool MCP
 {"status":"success","output":"[{\"server\":{\"name\":\"rustcodegraph\"}}]"}"#;
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid MCP detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid MCP detail");
 
     assert_eq!(title, "MCP");
     assert_eq!(
@@ -91,7 +119,11 @@ fn tool_detail_from_raw_formats_generic_mcp_payload() {
     let raw = r#"tool tools
 {"status":"success","output":"[{\"server\":{\"name\":\"rustcodegraph\"},\"resources\":[]}]"}"#;
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("valid MCP detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("valid MCP detail");
 
     assert_eq!(title, "MCP");
     assert!(content.contains("\"resources\": []"));
@@ -99,8 +131,20 @@ fn tool_detail_from_raw_formats_generic_mcp_payload() {
 
 #[test]
 fn tool_detail_from_raw_rejects_missing_tool_header_or_body() {
-    assert!(super::tool_detail_from_raw("tool shell").is_none());
-    assert!(super::tool_detail_from_raw("shell\n{}").is_none());
+    assert!(
+        super::tool_detail_from_raw(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "tool shell"
+        )
+        .is_none()
+    );
+    assert!(
+        super::tool_detail_from_raw(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "shell\n{}"
+        )
+        .is_none()
+    );
 }
 
 #[test]
@@ -108,7 +152,11 @@ fn tool_detail_from_raw_formats_workflow_node_title_and_pretty_body() {
     let raw = r#"tool workflow_node
 {"status":"completed","output":"{\"answer\":\"long node body\",\"usage\":{\"total_tokens\":3}}","metadata":{"title":"实现入口","node_type":"llm"}}"#;
 
-    let (title, content) = super::tool_detail_from_raw(raw).expect("workflow detail");
+    let (title, content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        raw,
+    )
+    .expect("workflow detail");
 
     assert_eq!(title, "实现入口");
     assert!(content.contains("long node body"));
@@ -122,8 +170,16 @@ fn tool_detail_from_raw_marks_workflow_node_running_and_failed_titles() {
     let failed = r#"tool workflow_node
 {"status":"error","error":"boom","metadata":{"title":"规划任务"}}"#;
 
-    let (running_title, _) = super::tool_detail_from_raw(running).expect("running");
-    let (failed_title, failed_content) = super::tool_detail_from_raw(failed).expect("failed");
+    let (running_title, _) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        running,
+    )
+    .expect("running");
+    let (failed_title, failed_content) = super::tool_detail_from_raw(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        failed,
+    )
+    .expect("failed");
 
     assert_eq!(running_title, "规划任务 · 运行中");
     assert_eq!(failed_title, "规划任务 · 失败");

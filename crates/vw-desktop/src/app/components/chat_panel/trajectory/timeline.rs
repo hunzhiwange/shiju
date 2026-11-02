@@ -100,6 +100,7 @@ pub(crate) fn build_timeline(
 }
 
 pub(crate) fn trajectory_timeline<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     projection: &TrajectoryProjection,
     duration_mode: TrajectoryDurationMode,
     turns_collapsed: bool,
@@ -110,6 +111,7 @@ pub(crate) fn trajectory_timeline<'a, Message: Clone + 'a>(
 ) -> Element<'a, Message> {
     let timeline = build_timeline(projection, duration_mode);
     let toolbar = timeline_toolbar(
+        i18n,
         timeline.summary,
         duration_mode,
         turns_collapsed,
@@ -125,7 +127,7 @@ pub(crate) fn trajectory_timeline<'a, Message: Clone + 'a>(
             if block.lane == lane {
                 let selected = selected_record_id.is_some_and(|id| id == block.record.id);
                 let record_kind = block.record.kind;
-                let tooltip_text = timeline_block_tooltip(block.record);
+                let tooltip_text = timeline_block_tooltip(i18n, block.record);
                 let block_button = button(text(""))
                     .padding(0)
                     .width(Length::Fill)
@@ -158,11 +160,19 @@ pub(crate) fn trajectory_timeline<'a, Message: Clone + 'a>(
         }
         lanes = lanes.push(
             row![
-                container(text(lane.label()).size(11).style(move |theme| {
-                    iced::widget::text::Style {
-                        color: Some(styles::timeline_lane_text_color(theme, lane)),
-                    }
-                }))
+                container(
+                    text(i18n.__(match lane {
+                        TimelineLane::Input => "输入",
+                        TimelineLane::Model => "模型",
+                        TimelineLane::Tools => "工具",
+                    }))
+                    .size(11)
+                    .style(move |theme| {
+                        iced::widget::text::Style {
+                            color: Some(styles::timeline_lane_text_color(theme, lane)),
+                        }
+                    })
+                )
                 .width(Length::Fixed(48.0)),
                 container(track).width(Length::Fill).style(styles::timeline_track_style),
             ]
@@ -179,6 +189,7 @@ pub(crate) fn trajectory_timeline<'a, Message: Clone + 'a>(
 }
 
 pub(crate) fn timeline_toolbar<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     summary: TimelineSummary,
     duration_mode: TrajectoryDurationMode,
     turns_collapsed: bool,
@@ -186,24 +197,24 @@ pub(crate) fn timeline_toolbar<'a, Message: Clone + 'a>(
     on_control: impl Fn(TimelineToolbarAction) -> Message,
 ) -> Element<'a, Message> {
     let duration_state = match duration_mode {
-        TrajectoryDurationMode::Timed => "真实",
-        TrajectoryDurationMode::Equal => "等宽",
+        TrajectoryDurationMode::Timed => i18n.__("真实"),
+        TrajectoryDurationMode::Equal => i18n.__("等宽"),
     };
     row![
         toolbar_button(
-            "Duration",
+            i18n.__("耗时"),
             format!("{duration_state} · {}", format_timeline_duration(summary.duration_ms)),
             duration_mode == TrajectoryDurationMode::Timed,
             on_control(TimelineToolbarAction::ToggleDuration),
         ),
         toolbar_button(
-            "Turns",
+            i18n.__("轮次"),
             format!("{} · {}", fold_arrow(turns_collapsed), summary.turns),
             turns_collapsed,
             on_control(TimelineToolbarAction::ToggleTurns),
         ),
         toolbar_button(
-            "Calls",
+            i18n.__("调用"),
             format!("{} · {}", fold_arrow(calls_collapsed), summary.calls),
             calls_collapsed,
             on_control(TimelineToolbarAction::ToggleCalls),
@@ -214,26 +225,36 @@ pub(crate) fn timeline_toolbar<'a, Message: Clone + 'a>(
     .into()
 }
 
-pub(crate) fn timeline_block_tooltip(record: &TrajectoryRecord) -> String {
+pub(crate) fn timeline_block_tooltip(
+    i18n: crate::app::i18n::I18n,
+    record: &TrajectoryRecord,
+) -> String {
     let source = match record.kind {
-        TrajectoryRecordKind::System => "SYSTEM".to_string(),
-        TrajectoryRecordKind::User => "USER".to_string(),
-        TrajectoryRecordKind::Context => "CONTEXT".to_string(),
-        TrajectoryRecordKind::Assistant => "ASSISTANT".to_string(),
-        TrajectoryRecordKind::Tool => record
-            .detail
-            .tool_name
-            .as_deref()
-            .map_or_else(|| "TOOL".to_string(), |name| format!("TOOL ({})", clean_line(name))),
+        TrajectoryRecordKind::System => i18n.__("系统").to_string(),
+        TrajectoryRecordKind::User => i18n.__("用户").to_string(),
+        TrajectoryRecordKind::Context => i18n.__("上下文").to_string(),
+        TrajectoryRecordKind::Assistant => i18n.__("助手").to_string(),
+        TrajectoryRecordKind::Tool => record.detail.tool_name.as_deref().map_or_else(
+            || i18n.__("工具").to_string(),
+            |name| {
+                i18n.format("工具（%s）", &[clean_line(name).into()])
+                    .expect("valid tool tooltip template")
+            },
+        ),
     };
     let preview = truncate_chars(&full_preview(record), TIMELINE_TOOLTIP_PREVIEW_CHAR_LIMIT);
     let preview = if preview.is_empty() { "—" } else { preview.as_str() };
-    let turn = record.turn_index.map_or_else(|| "不可用".to_string(), |turn| turn.to_string());
+    let turn =
+        record.turn_index.map_or_else(|| i18n.__("不可用").to_string(), |turn| turn.to_string());
     let duration = recorded_timeline_duration(record).map_or_else(
-        || "不可用".to_string(),
+        || i18n.__("不可用").to_string(),
         |duration| format_timeline_duration(MetricAvailability::Available(duration)),
     );
-    format!("{source} · {preview} · step {} · turn {turn} · duration {duration}", record.step_index)
+    i18n.format(
+        "%s · %s · 步骤 %u · 轮次 %s · 耗时 %s",
+        &[source.into(), preview.into(), record.step_index.into(), turn.into(), duration.into()],
+    )
+    .expect("valid timeline tooltip template")
 }
 
 pub(crate) fn format_timeline_duration(duration_ms: MetricAvailability<u64>) -> String {

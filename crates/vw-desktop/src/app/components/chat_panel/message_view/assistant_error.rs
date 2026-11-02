@@ -75,6 +75,7 @@ pub(super) fn assistant_api_error_view<'a>(
         return None;
     }
 
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let retryable = value.get("is_retryable").and_then(|item| item.as_bool());
     let retry_hint = match retryable {
         Some(true) => "系统会自动重试，请稍候。",
@@ -83,7 +84,7 @@ pub(super) fn assistant_api_error_view<'a>(
     };
 
     let mut detail_col = column![
-        text("请求失败").size(14).font(bold_font()).style(|theme: &Theme| {
+        text(i18n.__("请求失败")).size(14).font(bold_font()).style(|theme: &Theme| {
             iced::widget::text::Style { color: Some(theme.extended_palette().danger.base.color) }
         }),
         text(message.clone()).size(14).style(|theme: &Theme| iced::widget::text::Style {
@@ -93,15 +94,16 @@ pub(super) fn assistant_api_error_view<'a>(
     .spacing(6);
 
     if let Some(url) = extract_url_from_error_message(&message) {
-        detail_col =
-            detail_col.push(text(format!("接口地址: {}", url)).size(14).style(|theme: &Theme| {
-                iced::widget::text::Style {
+        detail_col = detail_col.push(
+            text(i18n.format("接口地址: %s", &[url.into()]).expect("valid API address template"))
+                .size(14)
+                .style(|theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
-                }
-            }));
+                }),
+        );
     }
 
-    detail_col = detail_col.push(text(retry_hint).size(14).style(|theme: &Theme| {
+    detail_col = detail_col.push(text(i18n.__(retry_hint)).size(14).style(|theme: &Theme| {
         iced::widget::text::Style {
             color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.90)),
         }

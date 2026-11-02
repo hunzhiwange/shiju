@@ -23,7 +23,7 @@ use crate::app::components::chat_panel::utils::{
 use crate::app::components::status_animation::{EXPLORE_SUMMARY_FLIP_DURATION_MS, spinner_frame};
 use crate::app::{App, Message, message};
 
-use super::tool_meta::{tool_header_label, tool_inline_summary};
+use super::tool_meta::tool_header_label;
 use super::types::{EXPLORE_GROUP_TOOL_IDX, ExploreItem};
 use super::{
     ExploreToolKind, ToolTextTarget, canonical_tool_name, explore_item_dedupe_key,
@@ -374,7 +374,12 @@ fn explore_item_compact_view<'a>(
     }
     let v = serde_json::from_str::<serde_json::Value>(rest.trim()).ok()?;
     let input = v.get("input").and_then(|v| v.as_str()).unwrap_or("").trim();
-    let summary = tool_inline_summary(tool_name, input).unwrap_or_default();
+    let summary = crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        tool_name,
+        input,
+    )
+    .unwrap_or_default();
     let summary = truncate_chars(summary.replace(['\n', '\r'], " ").trim(), 64);
 
     let key = ((msg_idx as u64) << 32) | (item.tool_idx as u64);
@@ -403,13 +408,18 @@ fn explore_item_compact_view<'a>(
 
     let row_container = container(
         row![
-            text(tool_header_label(tool_name)).size(13).font(chat_text_font()).style(
-                |theme: &Theme| {
-                    iced::widget::text::Style {
-                        color: Some(chat_secondary_text_color(theme).scale_alpha(0.82)),
-                    }
-                },
-            ),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__(&tool_header_label(tool_name))
+                    .to_string()
+            )
+            .size(13)
+            .font(chat_text_font())
+            .style(|theme: &Theme| {
+                iced::widget::text::Style {
+                    color: Some(chat_secondary_text_color(theme).scale_alpha(0.82)),
+                }
+            },),
             text(summary).size(13).font(chat_text_font()).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(chat_secondary_subtle_text_color(theme)) }
             }),
@@ -516,18 +526,13 @@ pub fn tool_explore_summary_view<'a>(
         }
     }
 
-    // 构建摘要文本
-    let mut parts: Vec<String> = Vec::new();
-    if read_count > 0 {
-        parts.push(format!("{} 次读取", read_count));
+    let summary_text = crate::app::i18n::chat::ExploreCounts {
+        reads: read_count,
+        searches: search_count,
+        listings: ls_count,
+        others: 0,
     }
-    if search_count > 0 {
-        parts.push(format!("{} 次搜索", search_count));
-    }
-    if ls_count > 0 {
-        parts.push(format!("{} 次列出", ls_count));
-    }
-    let summary_text = if parts.is_empty() { "暂无".to_string() } else { parts.join("，") };
+    .render(crate::app::i18n::I18n::new(app.desktop_locale));
     let summary_text = truncate_chars(summary_text.replace(['\n', '\r'], " ").trim(), 64);
 
     // 计算工具的唯一标识键
@@ -544,7 +549,11 @@ pub fn tool_explore_summary_view<'a>(
     // 获取当前时间，用于动画效果
     let now_ms = crate::app::time::now_ms();
 
-    let title = if has_running { "正在探索" } else { "已探索" };
+    let title = if has_running {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("正在探索")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("已探索")
+    };
     let summary_slot: Element<'a, Message> =
         animated_summary_slot(app, msg_idx, group_idx, &summary_text).unwrap_or_else(|| {
             let cached_summary_matches = app

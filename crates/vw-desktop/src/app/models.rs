@@ -29,8 +29,8 @@ pub struct ChatRenderCacheEntry {
     pub tool_block_metadata: Vec<Option<ToolBlockRenderMetadata>>,
     pub has_special_blocks: bool,
     pub special_text_blocks: Vec<String>,
-    pub tool_card_text_blocks: Vec<Vec<String>>,
-    pub explore_summary_text_blocks: Vec<(usize, String)>,
+    pub(crate) tool_card_text_blocks: Vec<ToolCardTextSource>,
+    pub explore_summary_text_blocks: Vec<(usize, crate::app::i18n::chat::ExploreCounts)>,
     pub display_text: String,
     pub preview_text: String,
     pub foldable: bool,
@@ -48,3 +48,10 @@ pub struct ToolBlockRenderMetadata {
 #[cfg(test)]
 #[path = "models_tests.rs"]
 mod models_tests;
+
+/// Parsed tool payload cached independently of generated display text.
+#[derive(Debug, Clone)]
+pub(crate) struct ToolCardTextSource {
+    pub(crate) tool_name: String,
+    pub(crate) value: serde_json::Value,
+}

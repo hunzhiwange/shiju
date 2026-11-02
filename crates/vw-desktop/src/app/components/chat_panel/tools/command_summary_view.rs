@@ -84,8 +84,10 @@ pub(crate) fn tool_command_summary_view<'a>(
     let head = mouse_area(
         container(tool_activity_header(
             "bash",
-            "运行了命令",
-            format!("{} 条", items.len()),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("运行了命令"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("%u 条", &[(items.len()).into()])
+                .expect("valid chat count template"),
             command_summary_visual(items),
             toggle_slot,
         ))

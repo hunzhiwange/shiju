@@ -469,15 +469,25 @@ pub fn tool_activity_header<'a>(
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
 pub fn tool_inline_summary(tool_name: &str, input: &str) -> Option<String> {
-    tool_inline_summary_with_max_chars(tool_name, input, 80)
+    localized_tool_inline_summary(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        tool_name,
+        input,
+    )
 }
 
 /// 返回不预先按字符数截短的工具摘要，供按真实布局宽度裁切的状态栏使用。
 pub fn tool_inline_summary_unbounded(tool_name: &str, input: &str) -> Option<String> {
-    tool_inline_summary_with_max_chars(tool_name, input, usize::MAX)
+    tool_inline_summary_with_max_chars(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        tool_name,
+        input,
+        usize::MAX,
+    )
 }
 
 fn tool_inline_summary_with_max_chars(
+    i18n: crate::app::i18n::I18n,
     tool_name: &str,
     input: &str,
     max_chars: usize,
@@ -653,12 +663,20 @@ fn tool_inline_summary_with_max_chars(
 
                 match (label.is_empty(), count) {
                     (true, 0) => None,
-                    (true, 1) => Some("1 个问题".to_string()),
-                    (true, count) => Some(format!("{} 个问题", count)),
+                    (true, 1) => Some(i18n.__("1 个问题").to_string()),
+                    (true, count) => Some(
+                        i18n.format("%u 个问题", &[count.into()])
+                            .expect("valid question count template"),
+                    ),
                     (false, 1) => Some(truncate_chars(label, max_chars).to_string()),
                     (false, count) => Some(
-                        truncate_chars(&format!("{} 等 {} 个问题", label, count), max_chars)
-                            .to_string(),
+                        truncate_chars(
+                            &i18n
+                                .format("%s 等 %u 个问题", &[label.into(), count.into()])
+                                .expect("valid question summary template"),
+                            max_chars,
+                        )
+                        .to_string(),
                     ),
                 }
             }
@@ -668,14 +686,14 @@ fn tool_inline_summary_with_max_chars(
                 .and_then(|x| x.first())
                 .and_then(|x| x.as_str())
                 .and_then(normalize_file_reference_to_path)
-                .or_else(|| Some("当前诊断".to_string())),
+                .or_else(|| Some(i18n.__("当前诊断").to_string())),
             "get_changed_files" => {
                 let path = v
                     .get("repositoryPath")
                     .and_then(|x| x.as_str())
                     .and_then(normalize_file_reference_to_path)
                     .unwrap_or_default();
-                if path.is_empty() { Some("当前仓库".to_string()) } else { Some(path) }
+                if path.is_empty() { Some(i18n.__("当前仓库").to_string()) } else { Some(path) }
             }
             "view_image" => {
                 let path = v
@@ -710,7 +728,10 @@ fn tool_inline_summary_with_max_chars(
                     .trim();
                 match (agent.is_empty(), prompt.is_empty()) {
                     (true, true) => None,
-                    (false, true) => Some(format!("调用 {}", agent)),
+                    (false, true) => Some(
+                        i18n.format("调用 %s", &[agent.into()])
+                            .expect("valid agent summary template"),
+                    ),
                     (true, false) => Some(truncate_chars(prompt, max_chars).to_string()),
                     (false, false) => Some(
                         truncate_chars(
@@ -772,3 +793,18 @@ fn tool_inline_summary_with_max_chars(
 #[cfg(test)]
 #[path = "tool_meta_tests.rs"]
 mod tool_meta_tests;
+
+pub(crate) fn localized_tool_inline_summary(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    input: &str,
+) -> Option<String> {
+    tool_inline_summary_with_max_chars(i18n, tool_name, input, 80)
+}
+pub(crate) fn localized_tool_inline_summary_unbounded(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    input: &str,
+) -> Option<String> {
+    tool_inline_summary_with_max_chars(i18n, tool_name, input, usize::MAX)
+}

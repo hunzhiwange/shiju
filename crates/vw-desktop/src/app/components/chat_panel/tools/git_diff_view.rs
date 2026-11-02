@@ -22,7 +22,7 @@ use crate::app::{App, Message, message};
 /// 重新导出 use super::canonical_tool_name，让上层模块通过稳定路径访问。
 use super::canonical_tool_name;
 /// 共享工具活动头部与摘要语义。
-use super::tool_meta::{tool_activity_header, tool_inline_summary, tool_visual_state};
+use super::tool_meta::{tool_activity_header, tool_visual_state};
 /// 重新导出 use super::tool_parse::{tool_error_text, tool_input, tool_status}，让上层模块通过稳定路径访问。
 use super::tool_parse::{tool_error_text, tool_input, tool_status};
 
@@ -442,10 +442,12 @@ pub(super) fn secondary_text(theme: &Theme, dark_alpha: f32, light_alpha: f32) -
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-fn diff_pill<'a>() -> Element<'a, Message> {
-    container(text("查看 Diff").size(14).style(|theme: &Theme| iced::widget::text::Style {
-        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        color: Some(secondary_text(theme, 0.9, 0.86)),
+fn diff_pill<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
+    container(text(i18n.__("查看 Diff")).size(14).style(|theme: &Theme| {
+        iced::widget::text::Style {
+            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+            color: Some(secondary_text(theme, 0.9, 0.86)),
+        }
     }))
     .padding([3, 8])
     .style(|theme: &Theme| {
@@ -588,7 +590,7 @@ pub(super) fn git_diff_body<'a>(
             .align_y(Alignment::Center),
             container(Space::new()).width(Length::Fill),
             change_pills(preview.additions, preview.deletions),
-            diff_pill()
+            diff_pill(crate::app::i18n::I18n::new(app.desktop_locale))
         ]
         .spacing(10)
         .align_y(Alignment::Center);
@@ -621,12 +623,16 @@ pub(super) fn git_diff_body<'a>(
     if previews.len() > visible_count {
         list = list.push(
             container(
-                text(format!("还有 {} 个文件", previews.len() - visible_count)).size(14).style(
-                    |theme: &Theme| iced::widget::text::Style {
-                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                        color: Some(secondary_text(theme, 0.78, 0.72)),
-                    },
-                ),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("还有 %u 个文件", &[(previews.len() - visible_count).into()])
+                        .expect("valid diff file count template"),
+                )
+                .size(14)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                    color: Some(secondary_text(theme, 0.78, 0.72)),
+                }),
             )
             .padding([2, 4])
             .width(Length::Fill),
@@ -683,21 +689,28 @@ pub fn tool_git_diff_view<'a>(
     let is_hovered = app.chat_tool_hovered_idx == Some(key);
 
     let title = if is_running {
-        "Git Diff 中"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Git Diff 中")
     } else if is_error {
-        "Git Diff 失败"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Git Diff 失败")
     } else {
         "Git Diff"
     };
 
-    let mut summary = tool_inline_summary(tool_name, input).unwrap_or_default();
+    let mut summary = crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        tool_name,
+        input,
+    )
+    .unwrap_or_default();
     if summary.is_empty()
         && let Some(previews) = previews.as_ref()
     {
         summary = if previews.len() == 1 {
             previews[0].path.clone()
         } else {
-            format!("{} 个文件", previews.len())
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("%u 个文件", &[previews.len().into()])
+                .expect("valid diff summary template")
         };
     }
 
@@ -753,7 +766,11 @@ pub fn tool_git_diff_view<'a>(
         let git_body = git_diff_body(app, previews, expanded)?;
         container(git_body).width(Length::Fill).into()
     } else {
-        let err = if err_text.is_empty() { "Git diff 处理中…".to_string() } else { err_text };
+        let err = if err_text.is_empty() {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("Git diff 处理中…").to_string()
+        } else {
+            err_text
+        };
         container(text(err).size(13).style(move |theme: &Theme| iced::widget::text::Style {
             // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
             color: Some(if is_error {

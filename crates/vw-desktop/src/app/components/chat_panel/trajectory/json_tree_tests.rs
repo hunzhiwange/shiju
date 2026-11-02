@@ -71,9 +71,13 @@ fn json_tree_collapse_hides_only_selected_subtree() {
     );
     assert_eq!(rows[1].copy_value, json!({"hidden": [1, 2]}));
 
-    let element = json_tree(&value, &collapsed, TestMessage::Toggle, |value| {
-        TestMessage::Copy(value.to_string())
-    });
+    let element = json_tree(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &value,
+        &collapsed,
+        TestMessage::Toggle,
+        |value| TestMessage::Copy(value.to_string()),
+    );
     assert!(!Tree::new(element.as_widget()).children.is_empty());
 }
 

@@ -13,16 +13,14 @@ use crate::app::state::{
 };
 use crate::app::{App, Message, message};
 
-use super::tool_meta::{
-    tool_activity_header, tool_header_label, tool_inline_summary, tool_visual_state,
-};
+use super::tool_meta::{tool_activity_header, tool_header_label, tool_visual_state};
 use super::tool_parse::{
     tool_error_text, tool_input, tool_output_text, tool_render_hint_metadata, tool_result_data,
     tool_status, tool_summary_text,
 };
 use super::{
-    ToolTextTarget, canonical_tool_name, selected_chat_text_for_target, tool_permission_error_text,
-    tool_permission_state, tool_permission_title, tool_text_editor,
+    ToolTextTarget, canonical_tool_name, selected_chat_text_for_target, tool_permission_state,
+    tool_text_editor,
 };
 use crate::app::components::chat_panel::utils::{
     chat_context_target_key, chat_scroll_direction, chat_secondary_muted_text_color,
@@ -140,6 +138,7 @@ pub(super) fn nested_string<'a>(value: &'a Value, path: &[&str]) -> Option<&'a s
 }
 
 pub(super) fn advanced_base_title(
+    i18n: crate::app::i18n::I18n,
     tool_name: &str,
     explicit_spec: Option<AdvancedToolSurfaceSpec>,
 ) -> String {
@@ -149,20 +148,26 @@ pub(super) fn advanced_base_title(
 
     match tool_name {
         "AgentTool" | "Agent" => "AgentTool".to_string(),
-        "browser" => "浏览器".to_string(),
-        "browser_open" | "open_browser_page" => "打开页面".to_string(),
-        _ => tool_header_label(tool_name),
+        "browser" => i18n.__("浏览器").to_string(),
+        "browser_open" | "open_browser_page" => i18n.__("打开页面").to_string(),
+        _ => i18n.__(&tool_header_label(tool_name)).to_string(),
     }
 }
 
-pub(super) fn advanced_summary(tool_name: &str, value: &Value) -> String {
+pub(super) fn advanced_summary(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    value: &Value,
+) -> String {
     if let Some(summary) = tool_summary_text(value).filter(|summary| !summary.trim().is_empty()) {
         return summary;
     }
 
     let input = tool_input(value);
-    if let Some(summary) =
-        tool_inline_summary(tool_name, input).filter(|summary| !summary.trim().is_empty())
+    if let Some(summary) = crate::app::components::chat_panel::tools::localized_tool_inline_summary(
+        i18n, tool_name, input,
+    )
+    .filter(|summary| !summary.trim().is_empty())
     {
         return summary;
     }
@@ -187,7 +192,9 @@ pub(super) fn advanced_summary(tool_name: &str, value: &Value) -> String {
                 .unwrap_or("");
             match (agent.is_empty(), prompt.is_empty()) {
                 (true, true) => String::new(),
-                (false, true) => format!("调用 {}", agent),
+                (false, true) => {
+                    i18n.format("调用 %s", &[(agent).into()]).expect("valid tool display template")
+                }
                 (true, false) => truncate_chars(prompt, 80).to_string(),
                 (false, false) => format!("{} · {}", agent, truncate_chars(prompt, 56)),
             }
@@ -215,6 +222,7 @@ pub(super) fn advanced_summary(tool_name: &str, value: &Value) -> String {
 }
 
 pub(super) fn advanced_metadata_text(
+    i18n: crate::app::i18n::I18n,
     tool_name: &str,
     value: &Value,
     explicit_spec: Option<AdvancedToolSurfaceSpec>,
@@ -224,7 +232,10 @@ pub(super) fn advanced_metadata_text(
     let mut parts = Vec::new();
 
     if let Some(spec) = explicit_spec {
-        parts.push(format!("状态: {}", spec.state.label()));
+        parts.push(
+            i18n.format("状态: %s", &[(spec.state.label()).into()])
+                .expect("valid tool display template"),
+        );
     }
 
     match tool_name {
@@ -273,6 +284,7 @@ pub(super) fn advanced_metadata_text(
 }
 
 pub(super) fn advanced_fallback_body(
+    i18n: crate::app::i18n::I18n,
     tool_name: &str,
     value: &Value,
     explicit_spec: Option<AdvancedToolSurfaceSpec>,
@@ -283,15 +295,15 @@ pub(super) fn advanced_fallback_body(
         }
 
         return match spec.state {
-            AdvancedToolSurfaceState::Available => {
-                format!("{} 已接入当前会话工具面。", spec.label)
-            }
-            AdvancedToolSurfaceState::Planned => {
-                format!(
-                    "{} 当前已明确标记为 planned，桌面端先提供清晰状态，不补完整后端。",
-                    spec.label
+            AdvancedToolSurfaceState::Available => i18n
+                .format("%s 已接入当前会话工具面。", &[(spec.label).into()])
+                .expect("valid tool display template"),
+            AdvancedToolSurfaceState::Planned => i18n
+                .format(
+                    "%s 当前已明确标记为 planned，桌面端先提供清晰状态，不补完整后端。",
+                    &[spec.label.into()],
                 )
-            }
+                .expect("valid planned surface template"),
         };
     }
 
@@ -304,7 +316,12 @@ pub(super) fn advanced_fallback_body(
     String::new()
 }
 
-pub(super) fn advanced_success_body(tool_name: &str, raw_output: &str, value: &Value) -> String {
+pub(super) fn advanced_success_body(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    raw_output: &str,
+    value: &Value,
+) -> String {
     match tool_name {
         "AgentTool" | "Agent" => {
             if let Ok(parsed) = serde_json::from_str::<Value>(raw_output)
@@ -321,7 +338,8 @@ pub(super) fn advanced_success_body(tool_name: &str, raw_output: &str, value: &V
             raw_output.to_string()
         }
         "browser" | "browser_open" | "open_browser_page" => {
-            format_browser_success_body(tool_name, value).unwrap_or_else(|| raw_output.to_string())
+            format_browser_success_body(i18n, tool_name, value)
+                .unwrap_or_else(|| raw_output.to_string())
         }
         _ => raw_output.to_string(),
     }
@@ -337,16 +355,28 @@ pub(super) fn result_data_message(value: &Value) -> Option<String> {
         .map(ToString::to_string)
 }
 
-pub(super) fn format_browser_success_body(tool_name: &str, value: &Value) -> Option<String> {
+pub(super) fn format_browser_success_body(
+    i18n: crate::app::i18n::I18n,
+    tool_name: &str,
+    value: &Value,
+) -> Option<String> {
     let data = tool_result_data(value)?.as_object()?;
     if matches!(tool_name, "browser_open" | "open_browser_page") {
         let browser = data.get("browser").and_then(Value::as_str).map(str::trim).unwrap_or("");
         let url = data.get("url").and_then(Value::as_str).map(str::trim).unwrap_or("");
         return match (browser.is_empty(), url.is_empty()) {
             (true, true) => None,
-            (false, true) => Some(format!("已在 {browser} 中打开页面。")),
-            (true, false) => Some(format!("已打开 {url}")),
-            (false, false) => Some(format!("已在 {browser} 中打开 {url}")),
+            (false, true) => Some(
+                i18n.format("已在 %s 中打开页面。", &[(browser).into()])
+                    .expect("valid tool display template"),
+            ),
+            (true, false) => Some(
+                i18n.format("已打开 %s", &[(url).into()]).expect("valid tool display template"),
+            ),
+            (false, false) => Some(
+                i18n.format("已在 %s 中打开 %s", &[(browser).into(), (url).into()])
+                    .expect("valid tool display template"),
+            ),
         };
     }
 
@@ -358,7 +388,9 @@ pub(super) fn format_browser_success_body(tool_name: &str, value: &Value) -> Opt
         return Some(text.to_string());
     }
     if let Some(path) = nested_string(result, &["path"]) {
-        return Some(format!("结果路径: {path}"));
+        return Some(
+            i18n.format("结果路径: %s", &[(path).into()]).expect("valid tool display template"),
+        );
     }
 
     let title = nested_string(result, &["title"]).unwrap_or("");
@@ -390,6 +422,7 @@ pub fn tool_advanced_view<'a>(
     tool_idx: usize,
     visible: &str,
 ) -> Option<Element<'a, Message>> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let (first, rest) = visible.split_once('\n')?;
     let tool_name = canonical_tool_name(first.trim().strip_prefix("tool ")?.trim());
     if !is_advanced_surface_tool(tool_name) {
@@ -405,31 +438,40 @@ pub fn tool_advanced_view<'a>(
     let output = tool_output_text(&value).unwrap_or_default();
     let output = output.trim();
     let body_text = if is_error {
-        tool_permission_error_text(tool_name, &value)
-            .or_else(|| tool_error_text(&value))
-            .unwrap_or_default()
+        crate::app::components::chat_panel::tools::localized_tool_permission_error_text(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            tool_name,
+            &value,
+        )
+        .or_else(|| tool_error_text(&value))
+        .unwrap_or_default()
     } else if matches!(tool_name, "browser" | "browser_open" | "open_browser_page") {
-        advanced_success_body(tool_name, output, &value)
+        advanced_success_body(i18n, tool_name, output, &value)
     } else if !output.is_empty() {
-        advanced_success_body(tool_name, output, &value)
+        advanced_success_body(i18n, tool_name, output, &value)
     } else {
-        advanced_fallback_body(tool_name, &value, explicit_spec)
+        advanced_fallback_body(i18n, tool_name, &value, explicit_spec)
     };
     let body_text = body_text.trim().to_string();
 
     let permission_state = tool_permission_state(tool_name, &value);
-    let base_title = advanced_base_title(tool_name, explicit_spec);
+    let base_title = advanced_base_title(i18n, tool_name, explicit_spec);
     let title = if let Some(permission_state) = permission_state {
-        tool_permission_title(base_title.as_str(), permission_state)
+        crate::app::components::chat_panel::tools::localized_tool_permission_title(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            base_title.as_str(),
+            permission_state,
+        )
     } else if is_running {
-        format!("{} 运行中", base_title)
+        i18n.format("%s 运行中", &[base_title.as_str().into()])
+            .expect("valid tool display template")
     } else if is_error {
-        format!("{} 失败", base_title)
+        i18n.format("%s 失败", &[base_title.as_str().into()]).expect("valid tool display template")
     } else {
         base_title.clone()
     };
-    let mut summary = advanced_summary(tool_name, &value);
-    let metadata_text = advanced_metadata_text(tool_name, &value, explicit_spec);
+    let mut summary = advanced_summary(i18n, tool_name, &value);
+    let metadata_text = advanced_metadata_text(i18n, tool_name, &value, explicit_spec);
     let collapse_success_body =
         matches!(tool_name, "browser" | "browser_open" | "open_browser_page")
             && !is_running
@@ -439,7 +481,7 @@ pub fn tool_advanced_view<'a>(
     }
     if collapse_success_body && summary.trim().is_empty() {
         summary = if metadata_text.trim().is_empty() {
-            "查看详情".to_string()
+            crate::app::i18n::I18n::new(app.desktop_locale).__("查看详情").to_string()
         } else {
             truncate_chars(metadata_text.trim(), 80).to_string()
         };
@@ -471,11 +513,21 @@ pub fn tool_advanced_view<'a>(
         }
         if summary.trim().is_empty() {
             summary = match state {
-                AgentToolCardState::Running => "子代理正在执行".to_string(),
-                AgentToolCardState::Waiting => "正在等待子代理".to_string(),
-                AgentToolCardState::Completed => "子代理执行完成".to_string(),
-                AgentToolCardState::Failed => "子代理执行失败".to_string(),
-                AgentToolCardState::Cancelled => "子代理已取消".to_string(),
+                AgentToolCardState::Running => {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("子代理正在执行").to_string()
+                }
+                AgentToolCardState::Waiting => {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("正在等待子代理").to_string()
+                }
+                AgentToolCardState::Completed => {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("子代理执行完成").to_string()
+                }
+                AgentToolCardState::Failed => {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("子代理执行失败").to_string()
+                }
+                AgentToolCardState::Cancelled => {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("子代理已取消").to_string()
+                }
             };
         }
 
@@ -491,7 +543,13 @@ pub fn tool_advanced_view<'a>(
             &primary_message,
             Message::Chat(message::ChatMessage::OpenAgentSession { .. })
         )
-        .then(|| agent_tool_icon_button(Icon::ChatTextFill, "打开子会话", primary_message.clone()));
+        .then(|| {
+            agent_tool_icon_button(
+                Icon::ChatTextFill,
+                crate::app::i18n::I18n::new(app.desktop_locale).__("打开子会话"),
+                primary_message.clone(),
+            )
+        });
 
         let mut actions = row![].spacing(4).align_y(Alignment::Center);
         if let Some(open_session_button) = open_session_button {
@@ -557,17 +615,26 @@ pub fn tool_advanced_view<'a>(
     }
 
     let body: Element<'a, Message> = if is_running {
-        container(text(format!("{}中…", base_title)).size(14).style(|theme: &Theme| {
-            iced::widget::text::Style {
+        container(
+            text(
+                i18n.format("%s中…", &[base_title.as_str().into()])
+                    .expect("valid tool display template"),
+            )
+            .size(14)
+            .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.85)),
-            }
-        }))
+            }),
+        )
         .width(Length::Fill)
         .into()
     } else if body_text.is_empty() {
-        container(text("没有可展示的高级工具结果").size(14).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(chat_secondary_muted_text_color(theme)) }
-        }))
+        container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有可展示的高级工具结果"))
+                .size(14)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    color: Some(chat_secondary_muted_text_color(theme)),
+                }),
+        )
         .padding([10, 12])
         .width(Length::Fill)
         .style(simplified_block_style)

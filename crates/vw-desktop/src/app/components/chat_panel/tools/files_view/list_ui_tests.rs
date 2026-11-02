@@ -212,10 +212,15 @@ fn edit_file_expand_key_includes_indices_and_path() {
 
 #[test]
 fn edit_row_helpers_build_hovered_and_idle_elements() {
-    keep_element(external_diff_button(Message::None));
+    keep_element(external_diff_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        Message::None,
+    ));
     keep_element(view_changes_toggle_button(false, Message::None));
     keep_element(view_changes_toggle_button(true, Message::None));
-    keep_element(view_changes_pill());
+    keep_element(view_changes_pill(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    )));
     keep_element(edit_verb_text("读取"));
     keep_element(edit_change_counts(3, 1));
     keep_element(tool_file_left(

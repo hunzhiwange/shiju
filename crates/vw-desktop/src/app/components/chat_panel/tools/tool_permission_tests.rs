@@ -53,8 +53,22 @@ fn request_without_tool(id: &str) -> vw_gateway_client::PendingPermissionRequest
 
 #[test]
 fn permission_badge_labels_handle_empty_request_lists() {
-    assert_eq!(pending_permission_badge_label(&[], None), "当前审批");
-    assert_eq!(pending_permission_request_badge_label(&[], "missing"), "当前审批");
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[],
+            None
+        ),
+        "当前审批"
+    );
+    assert_eq!(
+        pending_permission_request_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[],
+            "missing"
+        ),
+        "当前审批"
+    );
 }
 
 #[test]
@@ -204,20 +218,76 @@ fn pending_permission_badge_label_multiple() {
         request("req-3", "msg-3", "call-3"),
     ];
 
-    assert_eq!(pending_permission_badge_label(&reqs, Some("req-1")), "当前审批 1/3");
-    assert_eq!(pending_permission_badge_label(&reqs, Some("req-2")), "当前审批 2/3");
-    assert_eq!(pending_permission_badge_label(&reqs, Some("req-3")), "当前审批 3/3");
-    assert_eq!(pending_permission_badge_label(&reqs, None), "当前审批 1/3");
-    assert_eq!(pending_permission_badge_label(&reqs, Some("missing")), "当前审批 1/3");
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            Some("req-1")
+        ),
+        "当前审批 1/3"
+    );
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            Some("req-2")
+        ),
+        "当前审批 2/3"
+    );
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            Some("req-3")
+        ),
+        "当前审批 3/3"
+    );
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            None
+        ),
+        "当前审批 1/3"
+    );
+    assert_eq!(
+        pending_permission_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            Some("missing")
+        ),
+        "当前审批 1/3"
+    );
 }
 
 #[test]
 fn pending_permission_request_badge_label_multiple() {
     let reqs = vec![request("req-1", "msg-1", "call-1"), request("req-2", "msg-2", "call-2")];
 
-    assert_eq!(pending_permission_request_badge_label(&reqs, "req-1"), "待审批 1/2");
-    assert_eq!(pending_permission_request_badge_label(&reqs, "req-2"), "待审批 2/2");
-    assert_eq!(pending_permission_request_badge_label(&reqs, "missing"), "待审批 1/2");
+    assert_eq!(
+        pending_permission_request_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            "req-1"
+        ),
+        "待审批 1/2"
+    );
+    assert_eq!(
+        pending_permission_request_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            "req-2"
+        ),
+        "待审批 2/2"
+    );
+    assert_eq!(
+        pending_permission_request_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &reqs,
+            "missing"
+        ),
+        "待审批 1/2"
+    );
 }
 
 #[test]

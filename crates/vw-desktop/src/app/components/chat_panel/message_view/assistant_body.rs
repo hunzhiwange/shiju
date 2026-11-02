@@ -346,6 +346,7 @@ where
         let is_permission_target_message =
             pending_permission_targets_message(app.permission_modal_request.as_ref(), message_id);
         let permission_badge_text = pending_permission_badge_label(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             &app.permission_modal_requests,
             app.permission_modal_request_id.as_deref(),
         );
@@ -503,6 +504,7 @@ where
                                 permission_badge_text.clone()
                             } else {
                                 pending_permission_request_badge_label(
+                                    crate::app::i18n::I18n::new(app.desktop_locale),
                                     &app.permission_modal_requests,
                                     request.id.as_str(),
                                 )

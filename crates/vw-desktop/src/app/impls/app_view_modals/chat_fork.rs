@@ -34,23 +34,23 @@ pub(crate) fn with_chat_fork_dialog<'a>(
 
     let card = settings_modal_card(
         column![
-            text("分叉到新会话").size(18),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话")).size(18),
             text(
-                "会复制当前消息及之前的聊天历史。选择新工作树时，会先创建隔离 worktree，再把会话复制过去。"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("会复制当前消息及之前的聊天历史。选择新工作树时，会先创建隔离 worktree，再把会话复制过去。")
             )
             .size(13)
             .style(settings_muted_text_style),
             button(column![
-                text("分叉到新会话").size(14),
-                text("打开一个新会话，并复制到当前消息为止").size(12).style(settings_muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新会话")).size(14),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("打开一个新会话，并复制到当前消息为止")).size(12).style(settings_muted_text_style),
             ])
             .width(Length::Fill)
             .padding([12, 14])
             .style(rounded_action_btn_style)
             .on_press(local_message),
             button(column![
-                text("分叉到新工作树").size(14),
-                text("先创建 git worktree，再在其中复制会话").size(12).style(settings_muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("分叉到新工作树")).size(14),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("先创建 git worktree，再在其中复制会话")).size(12).style(settings_muted_text_style),
             ])
             .width(Length::Fill)
             .padding([12, 14])
@@ -58,7 +58,7 @@ pub(crate) fn with_chat_fork_dialog<'a>(
             .on_press(worktree_message),
             row![
                 Space::new().width(Length::Fill),
-                button(text("取消").size(13))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
                     .style(rounded_action_btn_style)
                     .padding([9, 18])
                     .on_press(close_message.clone()),

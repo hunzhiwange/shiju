@@ -11,20 +11,14 @@ pub enum SettingsText {
 }
 
 pub fn settings_text(locale: DesktopLocale, key: SettingsText) -> &'static str {
-    match (locale, key) {
-        (DesktopLocale::SimplifiedChinese, SettingsText::Language) => "语言",
-        (DesktopLocale::TraditionalChinese, SettingsText::Language) => "語言",
-        (DesktopLocale::English, SettingsText::Language) => "Language",
+    match key {
+        SettingsText::Language => I18n::new(locale).__("语言"),
     }
 }
 
 /// Localize the application prefix while retaining the service error verbatim.
 pub fn save_error(locale: DesktopLocale, raw_error: &str) -> String {
-    let prefix = match locale {
-        DesktopLocale::SimplifiedChinese => "保存失败：",
-        DesktopLocale::TraditionalChinese => "儲存失敗：",
-        DesktopLocale::English => "Failed to save: ",
-    };
+    let prefix = I18n::new(locale).__("保存失败：");
     format!("{prefix}{raw_error}")
 }
 
@@ -37,3 +31,8 @@ pub mod settings_runtime;
 mod settings_runtime_tests;
 
 pub mod settings_security;
+
+pub mod catalog;
+pub use catalog::I18n;
+#[cfg(test)]
+mod gettext_catalog_tests;

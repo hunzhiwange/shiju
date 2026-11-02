@@ -142,3 +142,9 @@ pub use compat::marketplace::{
 pub use compat::npm_source::{NpmPluginArchive, fetch_npm_plugin};
 
 pub use compat::upgrade::{PluginUpgradePreview, activate_plugin_upgrade, prepare_plugin_upgrade};
+
+pub use compat::marketplace::{
+    MarketplaceRegistration, add_plugin_marketplace, list_plugin_marketplaces,
+    read_registered_marketplace, registered_plugin_entry,
+};
+pub use compat::upgrade::prepare_plugin_marketplace_upgrade;

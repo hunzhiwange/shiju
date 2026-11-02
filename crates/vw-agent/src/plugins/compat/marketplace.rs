@@ -290,3 +290,102 @@ fn resolve(root: &Path, manifest: &Path, value: &Value) -> Result<MarketplaceSou
         _ => bail!("unsupported marketplace source"),
     }
 }
+
+/// A named local catalog, kept outside all original packages.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MarketplaceRegistration {
+    pub name: String,
+    pub root: PathBuf,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Registrations {
+    schema_version: u32,
+    marketplaces: Vec<MarketplaceRegistration>,
+}
+/// Read registered local catalogs. This does not fetch remote data or install a package.
+pub fn list_plugin_marketplaces(config_dir: &Path) -> Result<Vec<MarketplaceRegistration>> {
+    let path = config_dir.join("plugin-marketplaces.json");
+    let metadata = match fs::symlink_metadata(&path) {
+        Ok(m) => m,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(e.into()),
+    };
+    if !metadata.is_file() || metadata.file_type().is_symlink() || metadata.len() > 64 * 1024 {
+        bail!("invalid marketplace registry file");
+    }
+    let state: Registrations = serde_json::from_slice(&fs::read(path)?)?;
+    if state.schema_version != 1 {
+        bail!("unsupported marketplace registry schema");
+    }
+    let mut names = HashSet::new();
+    for item in &state.marketplaces {
+        PluginIdentity::marketplace("validation", &item.name)?;
+        if !item.root.is_absolute() || !names.insert(&item.name) {
+            bail!("invalid marketplace registration");
+        }
+    }
+    Ok(state.marketplaces)
+}
+/// Register an existing local catalog; Git/npm entries within it use their audited factories.
+pub fn add_plugin_marketplace(config_dir: &Path, source: &Path) -> Result<MarketplaceRegistration> {
+    use std::io::Write;
+    let root = source.canonicalize().context("marketplace requires an existing local catalog")?;
+    let marketplace = load_plugin_marketplace(&root)?;
+    fs::create_dir_all(config_dir)?;
+    let mut options = fs::OpenOptions::new();
+    options.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    let lock_path = config_dir.join(".plugin-marketplaces.lock");
+    let lock = options.open(&lock_path)?;
+    if fs::symlink_metadata(&lock_path)?.file_type().is_symlink() {
+        bail!("unsafe marketplace registry lock");
+    }
+    lock.lock()?;
+    let mut entries = list_plugin_marketplaces(config_dir)?;
+    if let Some(old) = entries.iter().find(|e| e.name == marketplace.name) {
+        if old.root != root {
+            bail!("marketplace name is already registered at a different root");
+        }
+        return Ok(MarketplaceRegistration { name: marketplace.name, root });
+    }
+    entries.push(MarketplaceRegistration { name: marketplace.name.clone(), root: root.clone() });
+    let bytes = serde_json::to_vec(&Registrations { schema_version: 1, marketplaces: entries })?;
+    if bytes.len() > 64 * 1024 {
+        bail!("marketplace registry exceeds size limit");
+    }
+    let mut staged = tempfile::NamedTempFile::new_in(config_dir)?;
+    staged.write_all(&bytes)?;
+    staged.as_file().sync_all()?;
+    staged.persist(config_dir.join("plugin-marketplaces.json"))?;
+    super::installed_state::sync_dir(config_dir)?;
+    Ok(MarketplaceRegistration { name: marketplace.name, root })
+}
+/// Read the current catalog at a previously registered root, preserving its exact identity.
+pub fn read_registered_marketplace(config_dir: &Path, name: &str) -> Result<PluginMarketplace> {
+    let entry = list_plugin_marketplaces(config_dir)?
+        .into_iter()
+        .find(|e| e.name == name)
+        .context("marketplace is not registered")?;
+    let marketplace = load_plugin_marketplace(&entry.root)?;
+    if marketplace.name != name {
+        bail!("registered marketplace identity changed");
+    }
+    Ok(marketplace)
+}
+pub fn registered_plugin_entry(config_dir: &Path, key: &str) -> Result<MarketplaceEntry> {
+    let identity = PluginIdentity::parse_marketplace(key)?;
+    read_registered_marketplace(
+        config_dir,
+        identity.marketplace_name().context("missing marketplace")?,
+    )?
+    .plugins
+    .into_iter()
+    .find(|p| p.identity == identity)
+    .context("plugin is not listed in registered marketplace")
+}

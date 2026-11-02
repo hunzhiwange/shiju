@@ -16,10 +16,89 @@ pub fn handle_command(command: PluginCommands, config: &crate::config::Config) -
     let plugins_dir = install_dir_from_config(config);
 
     match command {
-        PluginCommands::List => list_plugins(config, &plugins_dir),
+        PluginCommands::Marketplace { command } => {
+            let config_dir = config.config_path.parent().context("missing config directory")?;
+            match command {
+                crate::cli_commands::PluginMarketplaceCommands::Add { source } => {
+                    let entry = super::add_plugin_marketplace(config_dir, Path::new(&source))?;
+                    println!("Marketplace registered: {} at {}", entry.name, entry.root.display());
+                }
+                crate::cli_commands::PluginMarketplaceCommands::List => {
+                    for entry in super::list_plugin_marketplaces(config_dir)? {
+                        println!("{} at {}", entry.name, entry.root.display());
+                    }
+                }
+            }
+            Ok(())
+        }
+        PluginCommands::Read { name } => {
+            let config_dir = config.config_path.parent().context("missing config directory")?;
+            let found = discover_plugins(&PluginDiscoveryOptions::new(
+                &config.workspace_dir,
+                config_dir,
+                config.plugins.clone(),
+            ))?
+            .installed
+            .into_iter()
+            .find(|p| p.identity.as_key() == name);
+            if let Some(plugin) = found {
+                println!(
+                    "{} {} ({})",
+                    name,
+                    plugin.manifest.version.as_deref().unwrap_or(""),
+                    component_summary(&plugin.manifest)
+                );
+            } else {
+                let entry = super::registered_plugin_entry(config_dir, &name)?;
+                println!("{} (registered marketplace plugin)", entry.identity.as_key());
+            }
+            Ok(())
+        }
+        PluginCommands::Update { name, source } => {
+            let preview = match source {
+                Some(source) => super::prepare_plugin_upgrade(&source, &plugins_dir, &name)?,
+                None => {
+                    let entry = super::registered_plugin_entry(
+                        config.config_path.parent().context("missing config directory")?,
+                        &name,
+                    )?;
+                    super::prepare_plugin_marketplace_upgrade(&entry, &plugins_dir)?
+                }
+            };
+            println!(
+                "Updating {}: {} -> {}",
+                name,
+                preview.old_version.as_deref().unwrap_or(""),
+                preview.new_version.as_deref().unwrap_or("")
+            );
+            super::activate_plugin_upgrade(preview)?;
+            println!("Plugin updated: {name}");
+            Ok(())
+        }
+        PluginCommands::List => {
+            let config_dir = config.config_path.parent().context("missing config directory")?;
+            for registered in super::list_plugin_marketplaces(config_dir)? {
+                for entry in
+                    super::read_registered_marketplace(config_dir, &registered.name)?.plugins
+                {
+                    println!("Available: {}", entry.identity.as_key());
+                }
+            }
+            list_plugins(config, &plugins_dir)
+        }
         PluginCommands::Audit { source } => audit_plugin_source(&source, &plugins_dir),
         PluginCommands::Install { source } => {
-            let result = install_plugin_from_source(&source, &plugins_dir)?;
+            let result = if !Path::new(&source).exists()
+                && super::PluginIdentity::parse_marketplace(&source).is_ok()
+            {
+                let entry = super::registered_plugin_entry(
+                    config.config_path.parent().context("missing config directory")?,
+                    &source,
+                )?;
+                super::install_plugin_marketplace_entry(&entry, &plugins_dir)?
+            } else {
+                install_plugin_from_source(&source, &plugins_dir)?
+            };
             println!("{}", installation_message(&result, config));
             Ok(())
         }

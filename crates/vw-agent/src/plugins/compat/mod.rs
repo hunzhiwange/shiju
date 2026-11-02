@@ -227,3 +227,6 @@ mod t52_tests;
 pub(crate) mod upgrade;
 
 pub(crate) mod installed_state;
+
+#[cfg(test)]
+mod t53_tests;

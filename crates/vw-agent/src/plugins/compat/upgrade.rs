@@ -47,10 +47,28 @@ fn identity(root: &Path, key: &str) -> Result<PluginIdentity> {
     }
     Ok(identity)
 }
+pub fn prepare_plugin_marketplace_upgrade(
+    entry: &crate::plugins::MarketplaceEntry,
+    plugins: &Path,
+) -> Result<PluginUpgradePreview> {
+    prepare_with(plugins, &entry.identity.as_key(), |_, root| {
+        crate::plugins::install_plugin_marketplace_entry(entry, root)
+    })
+}
 pub fn prepare_plugin_upgrade(
     source: &str,
     plugins: &Path,
     key: &str,
+) -> Result<PluginUpgradePreview> {
+    prepare_with(plugins, key, |identity, root| match identity.marketplace_name() {
+        Some(market) => install_plugin_from_marketplace(source, root, market),
+        None => install_plugin_from_source(source, root),
+    })
+}
+fn prepare_with(
+    plugins: &Path,
+    key: &str,
+    materialize: impl FnOnce(&PluginIdentity, &Path) -> Result<crate::plugins::PluginInstallResult>,
 ) -> Result<PluginUpgradePreview> {
     if !state::key_valid(key) {
         bail!("invalid plugin upgrade identity");
@@ -64,10 +82,7 @@ pub fn prepare_plugin_upgrade(
     let expected_metadata = fs::read(metadata_path(&old)?)?;
     let staging = tempfile::Builder::new().prefix(".plugin-upgrade-").tempdir_in(&root)?;
     let new_root = staging.path().join("new");
-    let installed = match identity.marketplace_name() {
-        Some(market) => install_plugin_from_marketplace(source, &new_root, market)?,
-        None => install_plugin_from_source(source, &new_root)?,
-    };
+    let installed = materialize(&identity, &new_root)?;
     if installed.identity != identity {
         bail!("plugin upgrade must retain exact identity");
     }

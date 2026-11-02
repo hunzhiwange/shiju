@@ -276,9 +276,23 @@ pub enum SkillCommands {
 /// 插件管理子命令
 ///
 /// 提供本地插件包的安装、审计、启用、禁用、列出和移除能力。
-/// 第一阶段仅支持本地目录源；远程 Git、npm、marketplace 等来源会返回明确错误。
+/// 支持经审计的本地、Git/npm 包和已登记本地市场条目。
 #[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum PluginCommands {
+    /// 登记和查询本地插件市场
+    Marketplace {
+        #[command(subcommand)]
+        command: PluginMarketplaceCommands,
+    },
+    /// 查看已安装或市场中插件的信息
+    Read { name: String },
+    /// 显式更新插件；不指定来源时使用已登记市场条目
+    Update {
+        name: String,
+        #[arg(long)]
+        source: Option<String>,
+    },
+
     /// 列出所有已安装插件
     List,
 
@@ -311,6 +325,15 @@ pub enum PluginCommands {
         /// 插件名称
         name: String,
     },
+}
+
+/// 已有本地市场后端支持的命令。
+#[derive(Subcommand, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum PluginMarketplaceCommands {
+    /// 登记一个现有本地市场目录或受支持清单
+    Add { source: String },
+    /// 列出已登记市场
+    List,
 }
 
 /// 迁移子命令

@@ -1,0 +1,58 @@
+{
+  "task": 53,
+  "status": "已完成",
+  "dependency": "12a24b69 / t52.json",
+  "platform": "macOS arm64",
+  "implementation": [
+    "PluginCommands marketplace add/list, read, update and exact-market install",
+    "marketplace.rs bounded atomic local registration store",
+    "prepare_plugin_marketplace_upgrade uses normalized factory so Git subdirectories and npm provenance are retained"
+  ],
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t53_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "Existing parser rejects marketplace subcommand in two acceptance tests; no compilation failure"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t53_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugin_cli_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 9,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true
+  },
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t53/README.md",
+  "reference": "baseline CLI actions; frozen cli/plugin_cmd.rs and cli/marketplace_cmd.rs",
+  "limits": "Catalog registration accepts existing local catalogs only; remote Git catalog snapshot add/refresh is not claimed. Normalized Git/npm plugin entries use their existing audited backends."
+}

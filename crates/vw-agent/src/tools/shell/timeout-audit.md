@@ -33,8 +33,8 @@
 
 使用原子 `mkdir` 动态领取，最终及中间产物均在槽位内（同时设置 `CARGO_BUILD_BUILD_DIR=$CARGO_TARGET_DIR`，避免仓库 `build.build-dir=target` 将中间产物写到共享根目录）。缓存保留，不删除其他会话的锁或进程。
 
-- 主验证槽位 1：`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`。
-- 补充诊断槽位 2：`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2`。
+- 主验证槽位 1：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。
+- 补充诊断槽位 2：`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`。
 - macOS 的 `/var` 临时路径别名导致 Shell 路径策略用例失败；规范化 `TMPDIR` 后完整 Shell 组通过。`/private/tmp` 虽能通过 Shell 组，但数据库测试拒绝该公共目录（`secure global database directory` / EPERM）；补充阶段采用当前用户临时目录的规范路径 `/private/var/folders/dt/hvzzy7ds3756n3cpg14j17200000gn/T`，没有放宽目录安全校验。
 
 ### 聚焦命令与有效数量（初次阶段记录）
@@ -99,7 +99,7 @@
 | `cargo test -p vw-cli --lib cli::runtime::processor -- --nocapture` | 0 | 20 passed、0 failed |
 | `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 修复 CLI 穷尽匹配后通过；仅既有 block v0.1.6 future-incompat 提示 |
 
-本轮配置、agent 聚焦验证及 Clippy 动态领取槽位 2，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2`；CLI 补充验证动态领取槽位 1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`。均设置同路径 `CARGO_BUILD_BUILD_DIR`，采用当前用户临时目录的规范路径，阶段结束释放本次锁并保留缓存。
+本轮配置、agent 聚焦验证及 Clippy 动态领取槽位 2，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；CLI 补充验证动态领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`。均设置同路径 `CARGO_BUILD_BUILD_DIR`，采用当前用户临时目录的规范路径，阶段结束释放本次锁并保留缓存。
 
 最终原始证据：`/tmp/vw-task7-final-regression-results.txt`、`/tmp/vw-task7-config-red.log`、`/tmp/vw-task7-final-config.log`、`/tmp/vw-task7-final-focused.log`、`/tmp/vw-task7-final-shell.log`、`/tmp/vw-task7-final-toolset.log`、`/tmp/vw-task7-final-session.log`、`/tmp/vw-task7-final-outer.log`、`/tmp/vw-task7-compat-clippy.log`。真实二十分钟证据沿用上节已完成的独立运行；本轮没有修改 Shell 宿主和长测代码，不将短回归的 ignored 算作长测通过。
 

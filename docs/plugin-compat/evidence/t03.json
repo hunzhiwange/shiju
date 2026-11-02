@@ -949,8 +949,8 @@
   },
   "cargo": {
     "slot": 2,
-    "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-    "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
     "actual_slots": [
       1,
       2
@@ -960,8 +960,8 @@
   "validation_runs": [
     {
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
       "exit_code": 101,
       "phase": "red",
@@ -970,8 +970,8 @@
     },
     {
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
       "exit_code": 101,
       "phase": "red-null",
@@ -980,8 +980,8 @@
     },
     {
       "slot": 2,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
       "exit_code": 0,
       "phase": "green-initial",
@@ -990,8 +990,8 @@
     },
     {
       "slot": 2,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
       "exit_code": 0,
       "phase": "green",
@@ -1001,16 +1001,16 @@
     {
       "command": "cargo fmt --all",
       "exit_code": 0,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "phase": "fmt-final",
       "record": "cargo fmt completed without output; exit code recorded in this validation_runs entry."
     },
     {
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t03_ -- --nocapture",
       "exit_code": 0,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "phase": "green-final",
       "record": "t03/green-final.log",
       "effective_tests": 9
@@ -1018,8 +1018,8 @@
     {
       "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
       "exit_code": 0,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "phase": "adjacent",
       "record": "t03/adjacent.log",
       "effective_tests": 122
@@ -1027,8 +1027,8 @@
     {
       "command": "cargo test -p vw-agent --lib --all-features gateway::api::handlers::plugins:: -- --nocapture",
       "exit_code": 0,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "phase": "gateway-plugins",
       "record": "t03/gateway-plugins.log",
       "effective_tests": 4
@@ -1036,8 +1036,8 @@
     {
       "command": "cargo test -p vw-agent --lib --all-features gateway::api::handlers::hooks:: -- --nocapture",
       "exit_code": 0,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "phase": "gateway-hooks",
       "record": "t03/gateway-hooks.log",
       "effective_tests": 3
@@ -1045,8 +1045,8 @@
     {
       "command": "cargo clippy --all-targets --all-features -- -D warnings",
       "exit_code": 0,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "phase": "clippy",
       "record": "t03/clippy.log"
     },
@@ -1123,8 +1123,8 @@
   "interrupted_attempts": [
     {
       "slot": 2,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "command": [
         "cargo",
         "test",
@@ -1144,8 +1144,8 @@
     },
     {
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "command": [
         "cargo",
         "test",

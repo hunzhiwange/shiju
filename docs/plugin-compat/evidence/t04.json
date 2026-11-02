@@ -671,12 +671,12 @@
       2
     ],
     "CARGO_TARGET_DIR": [
-      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2"
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-2"
     ],
     "CARGO_BUILD_BUILD_DIR": [
-      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
-      "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build"
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build"
     ],
     "lease_released": true
   },
@@ -685,8 +685,8 @@
       "phase": "red",
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
       "slot": 2,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "exit_code": 101,
       "record": "t04/red.log",
       "effective_tests": 3,
@@ -696,8 +696,8 @@
       "phase": "fmt",
       "command": "cargo fmt --all",
       "slot": 2,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-2/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2/build",
       "exit_code": 0,
       "record": "t04/fmt.log"
     },
@@ -705,8 +705,8 @@
       "phase": "fmt-final",
       "command": "cargo fmt --all",
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "exit_code": 0,
       "record": "t04/fmt-final.log"
     },
@@ -714,8 +714,8 @@
       "phase": "green",
       "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t04_ -- --nocapture",
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "exit_code": 0,
       "record": "t04/green.log",
       "effective_tests": 9
@@ -724,8 +724,8 @@
       "phase": "adjacent",
       "command": "cargo test -p vw-agent --lib --all-features plugins:: -- --nocapture",
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "exit_code": 0,
       "record": "t04/adjacent.log",
       "effective_tests": 132
@@ -734,8 +734,8 @@
       "phase": "clippy",
       "command": "cargo clippy --all-targets --all-features -- -D warnings",
       "slot": 1,
-      "CARGO_TARGET_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1",
-      "CARGO_BUILD_BUILD_DIR": "/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1/build",
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
       "exit_code": 0,
       "record": "t04/clippy.log"
     },

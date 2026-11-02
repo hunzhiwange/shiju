@@ -172,7 +172,7 @@ ShiJu 文案、技能名及 agents/shiju-agent/ 前缀已核对；旧技能名�
 | --- | --- |
 | 仓库：python3 -m unittest discover -s scripts/tests -p test_prepare_oss_release.py | 8 项通过，任务 2 迁移后退出 0 |
 | 外部技能：python3 -m unittest discover -s scripts/tests -p 'test_*.py' | 21 项通过，含独立目录预览与故障测试，退出 0 |
-| 外部技能：python3 scripts/tests/check_generator_contract.py --generator-root /Users/Shared/work/dir/data/codes/vibe-window | 生成产物/外部发布器契约退出 0 |
+| 外部技能：python3 scripts/tests/check_generator_contract.py --generator-root /Users/xiangmin/worker/code/shiju | 生成产物/外部发布器契约退出 0 |
 | 仓库：cargo test -p vw-shared --all-features desktop_release -- --nocapture | 15 项通过，退出 0（迁移后重跑） |
 
 桌面 d264dad37 回归已核对提交及 /tmp/vw-task5-regression-*.log：
@@ -181,7 +181,7 @@ install_cli_modal_tests 19、app_init_tests 17、native_menu 15 项全部通过�
 每组命令为 cargo test -p vw-desktop --all-features <过滤器> -- --nocapture，
 cargo clippy --all-targets --all-features -- -D warnings 也退出 0。
 使用 RUST_TEST_THREADS=1，动态槽位 1，CARGO_TARGET_DIR 与 CARGO_BUILD_BUILD_DIR
-均为 /Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1；锁已释放。
+均为 /Users/xiangmin/worker/code/shiju/target/rust-slot-1；锁已释放。
 此前快捷消息/工作区/浏览器默认值的基线失败已修复，不再作为阻塞。
 新增测试覆盖关闭重开、真实异步篡改文件拒绝、注入 opener 重试、就绪状态明暗绘制，
 并保留网关 PATCH/重新读取和保存失败 toast 验证；不能冒充实际窗口交互。
@@ -217,7 +217,7 @@ GUI 证据缺口已解除，结合已通过的本地契约和桌面自动化回�
 最终迁移回归：cargo fmt --all、cargo test -p vw-shared --all-features
  desktop_release -- --nocapture、cargo clippy --all-targets --all-features -- -D warnings
 均退出 0，Rust 有效测试 15 项。动态槽位 1，CARGO_TARGET_DIR 与
-CARGO_BUILD_BUILD_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1，
+CARGO_BUILD_BUILD_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1，
 RUST_TEST_THREADS=1；已释放锁并保留缓存，撤回 fmt 对无关文件的空行改动。
 Clippy 仅提示既有 block 0.1.6 future-incompatibility。
 

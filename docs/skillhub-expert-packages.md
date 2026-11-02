@@ -17,5 +17,5 @@
 
 - `cargo test -p vw-agent --lib expert_package_ -- --nocapture`：退出码 0，12 项通过。临时项目安装到 `.vibewindow/skills/fixture--skillset--fixture-suite/`，加载主技能 ID `fixture--skillset--fixture-suite`，实际 `skill` 工具调用返回 `skill.name` 上下文事件；错误 ZIP 返回具体原因且无部分安装。另覆盖成员按需加载及权限边界。
 - `cargo test -p vw-desktop expert_package_ -- --nocapture`：退出码 0，14 项通过。覆盖列表与详情状态、安装弹窗、选择和发送后清空；Iced headless renderer 在明暗主题下绘制中文长文本、重试状态和输入标签。截图保存在 `/tmp/vw-skillhub-task7/screenshots/`，包括 `experts-00.png` 至 `experts-10.png`、`expert-install-{light,dark}.png` 和 `expert-input-{light,dark}.png`。列表滚动条宽度为 4px，内容两侧留白 7px。
-- `cargo clippy --all-targets --all-features -- -D warnings`：退出码 0。验证领取槽位 1，`CARGO_TARGET_DIR=/Users/Shared/work/dir/data/codes/vibe-window/target/rust-slot-1`，并将 Cargo 的 `build-dir` 指向同一槽位；已释放锁，保留缓存。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出码 0。验证领取槽位 1，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-1`，并将 Cargo 的 `build-dir` 指向同一槽位；已释放锁，保留缓存。
 - 公开 SkillHub 列表与 `tech-test-automation` 详情只读冒烟成功。该详情含 `test-case-generator` 成员但缺少 namespace，当前属于可解释的上游未解析成员；未将夹具安装结果当作在线安装成功。

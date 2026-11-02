@@ -4,8 +4,8 @@
 
 ## 来源快照
 
-- 来源路径：`/Users/Shared/work/dir/data/codes/codex-main/codex-rs/tui`
-- 目标路径：`/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-tui`
+- 来源路径：`/Users/xiangmin/worker/code/codex-main/codex-rs/tui`
+- 目标路径：`/Users/xiangmin/worker/code/shiju/crates/vw-tui`
 - 复制日期：2026-08-22（Asia/Shanghai；目标目录创建时间为 22:05:11 +0800）
 - 上游版本：来源快照无可读取的 Git 元数据，因此不记录或推测 commit、tag、release 版本。
 - 源文件统计：1550 个普通文件，其中 492 个 Rust 文件、272084 行 Rust。
@@ -14,8 +14,8 @@
 统计和校验值取自复制完成后的原始副本、写入本文件之前。可用以下命令重新生成来源清单和内容差异：
 
 ```bash
-source_tui=/Users/Shared/work/dir/data/codes/codex-main/codex-rs/tui
-target_tui=/Users/Shared/work/dir/data/codes/vibe-window/crates/vw-tui
+source_tui=/Users/xiangmin/worker/code/codex-main/codex-rs/tui
+target_tui=/Users/xiangmin/worker/code/shiju/crates/vw-tui
 
 find "$source_tui" -type f | wc -l
 find "$source_tui" -type f -name '*.rs' | wc -l
@@ -32,8 +32,8 @@ diff -qr "$source_tui" "$target_tui"
 
 ## 许可
 
-- `LICENSE-CODEX` 原样复制自 `/Users/Shared/work/dir/data/codes/codex-main/LICENSE`，SHA-256 为 `d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc`。
-- `NOTICE-CODEX` 原样复制自 `/Users/Shared/work/dir/data/codes/codex-main/NOTICE`，SHA-256 为 `9d71575ecfd9a843fc1677b0efb08053c6ba9fd686a0de1a6f5382fd3c220915`。
+- `LICENSE-CODEX` 原样复制自 `/Users/xiangmin/worker/code/codex-main/LICENSE`，SHA-256 为 `d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc`。
+- `NOTICE-CODEX` 原样复制自 `/Users/xiangmin/worker/code/codex-main/NOTICE`，SHA-256 为 `9d71575ecfd9a843fc1677b0efb08053c6ba9fd686a0de1a6f5382fd3c220915`。
 - 修改上游文件时须保留适用的版权和归属声明，并增加简短、醒目的 VibeWindow 改动说明。
 
 ## 产品文案允许差异

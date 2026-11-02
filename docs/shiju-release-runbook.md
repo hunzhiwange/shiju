@@ -45,9 +45,9 @@
 本流程从已经准备好的 GitHub Release 开始，不会创建 tag 或触发打包。
 
 ```bash
-RELEASE_VERSION='0.5.14'
-SOURCE_REPO='/Users/Shared/work/dir/data/codes/vibe-window'
-PUBLISH_SKILL='/Users/Shared/work/dir/data/codes/data-gateway-oss-upload/skills/shiju-agent-oss-update'
+RELEASE_VERSION='0.5.17'
+SOURCE_REPO='/Users/xiangmin/worker/code/shiju'
+PUBLISH_SKILL='/Users/xiangmin/worker/code/data-gateway-oss-upload/skills/shiju-agent-oss-update'
 OUTPUT_ROOT='/private/tmp/shiju-oss-release'
 RELEASE_DIR="$OUTPUT_ROOT/v$RELEASE_VERSION"
 ```

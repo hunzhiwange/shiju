@@ -22,7 +22,7 @@
 ## 上下文
 
 - 先读 AGENTS.md、只读 plan.md 与任务 1 的基线（任务 1 自身负责创建）；按 rustcodegraph 技能导航，缺图覆盖时才回退 rg。
-- VibeWindow 根：`/Users/Shared/work/dir/data/codes/vibe-window`；参考 Codex 根：`/Users/Shared/work/dir/data/codes/codex-main`。
+- VibeWindow 根：`/Users/xiangmin/worker/code/shiju`；参考 Codex 根：`/Users/xiangmin/worker/code/codex-main`。
 - 参考实现：`公开 MCP 服务文档与基线 MCP 契约`。引用包含目录时先定位实际符号与调用者，不能按目录名推断支持。
 - Codex 参考目录只读；不得修改、提交或构建参考仓库来替代本仓库实现。
 - 新建文件名是本计划明确提出的产物，尚不是已存在接口；实施前验证现有导出与调用者，新增模块必须真实注册。

@@ -47,5 +47,5 @@ fallback 低时排查内置工具与 CLI、`grep`、`rg` 指导冲突。完整�
 需要观察完整 SSE 事件时，仍可使用下面的单任务命令：
 
 ```
-curl -sS -N --max-time 180 -H 'Content-Type: application/json' -H 'X-Platform-ID: 10000' -H 'X-Company-ID: 100000000' -H 'X-VibeWindow-Directory: /Users/Shared/work/dir/data/codes/vibe-window' --data-binary '{"model":"token-plan/qwen3.7-plus","agent":"main","messages":[{"role":"user","content":"定位 assemble_session_protocol_messages 的调用者，不要修改代码，简要回答。"}]}' http://127.0.0.1:42617/v1/chat/stream | rg 'chat\.(context_loaded|tool|post_tool_round|step_start|step_finish|delta|done|error)';
+curl -sS -N --max-time 180 -H 'Content-Type: application/json' -H 'X-Platform-ID: 10000' -H 'X-Company-ID: 100000000' -H 'X-VibeWindow-Directory: /Users/xiangmin/worker/code/shiju' --data-binary '{"model":"token-plan/qwen3.7-plus","agent":"main","messages":[{"role":"user","content":"定位 assemble_session_protocol_messages 的调用者，不要修改代码，简要回答。"}]}' http://127.0.0.1:42617/v1/chat/stream | rg 'chat\.(context_loaded|tool|post_tool_round|step_start|step_finish|delta|done|error)';
 ```

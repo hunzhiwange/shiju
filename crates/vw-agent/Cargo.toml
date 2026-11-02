@@ -15,6 +15,8 @@ doctest = false
 anyhow = "1"
 async-trait = "0.1.89"
 base64 = "0.23"
+flate2 = "1"
+tar = "0.4"
 chacha20poly1305 = "0.10.1"
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.10.4"

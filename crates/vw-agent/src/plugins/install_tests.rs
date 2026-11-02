@@ -69,12 +69,9 @@ fn plugin_install_rejects_remote_sources_before_touching_install_root() {
     let dir = tempfile::tempdir().expect("temp dir");
     let plugins_dir = dir.path().join("plugins");
 
-    for source in [
-        "https://example.test/plugin.git",
-        "git@github.com:owner/plugin.git",
-        "npm:package-name",
-        "marketplace:plugin",
-    ] {
+    for source in
+        ["https://example.test/plugin.git", "git@github.com:owner/plugin.git", "marketplace:plugin"]
+    {
         let error =
             install_plugin_from_source(source, &plugins_dir).expect_err("remote source must fail");
         assert!(error.to_string().contains("not supported yet"));

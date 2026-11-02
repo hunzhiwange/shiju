@@ -83,7 +83,15 @@ pub fn install_plugin_marketplace_entry(
             plugins_dir,
             marketplace,
         ),
-        MarketplaceSource::Npm { .. } => bail!("npm plugin installation is not supported yet"),
+        MarketplaceSource::Npm { package, version, registry } => {
+            super::compat::npm_archive::install(
+                package,
+                version.as_deref(),
+                registry.as_deref(),
+                plugins_dir,
+                Some(marketplace),
+            )
+        }
     }
 }
 
@@ -95,6 +103,19 @@ fn install_plugin(
     let source = source.trim();
     if source.is_empty() {
         bail!("Plugin source cannot be empty");
+    }
+    if let Some(spec) = source.strip_prefix("npm:") {
+        let (package, version) = match spec.rsplit_once('@') {
+            Some((package, version)) if !package.is_empty() => (package, Some(version)),
+            _ => (spec, None),
+        };
+        return super::compat::npm_archive::install(
+            package,
+            version,
+            None,
+            plugins_dir,
+            marketplace,
+        );
     }
     if let Some(spec) = source.strip_prefix("git+") {
         let (url, revision) =

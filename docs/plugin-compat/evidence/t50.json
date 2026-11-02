@@ -1,0 +1,61 @@
+{
+  "task": 50,
+  "status": "已完成",
+  "dependency": "907a59d5 / t49.json",
+  "platform": "macOS arm64",
+  "implementation": [
+    "npm_archive::install_archive: bounded private extraction, checksum revalidation, package identity/version check, original-package transaction installation",
+    "install_plugin_from_source: npm:package@version; install_plugin_marketplace_entry: normalized npm source"
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true,
+    "cache_retained": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t50_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "All three target assertions fail with npm archive extraction unavailable; panic runtime aborts afterward"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t50_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugin_install_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 15,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "assertions": [
+    "traversal, absolute path, wrong root, symlink, hardlink, FIFO and duplicate file rejected before destination mutation",
+    "declared-size bomb rejected before extraction",
+    "package metadata mismatch and tampered archive rejected",
+    "invalid npm: source goes through download validation without touching install root",
+    "original manifest preserved byte-for-byte, npm lifecycle script never executed",
+    "marketplace identity and npm resolved-version/hash provenance kept outside package"
+  ],
+  "reference": "baseline.json marketplace.npm.archive/unpack; Codex npm_source::validate_npm_package_metadata and plugin_bundle_archive::unpack_plugin_bundle_tar",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t50/README.md",
+  "dependencies": "flate2 already transitive, tar 0.4 added for actual archive parsing; no npm subprocess",
+  "limitations": "Version/tag selector restrictions and public HTTPS network policy from task 49 remain explicit."
+}

@@ -1,0 +1,11 @@
+   Compiling vw-agent v0.5.17 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 09s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-2467a0c23b8f21db)
+
+running 3 tests
+test plugins::compat::t62_tests::codex_plugin_compat_t62_rejects_invalid_input ... ok
+test plugins::compat::t62_tests::codex_plugin_compat_t62_preserves_isolation ... ok
+test plugins::compat::t62_tests::codex_plugin_compat_t62_calls_actual_public_readonly_service ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10942 filtered out; finished in 7.32s
+

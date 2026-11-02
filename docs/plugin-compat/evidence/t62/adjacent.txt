@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.55s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-2467a0c23b8f21db)
+
+running 1 test
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_sources_match_locked_hashes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10944 filtered out; finished in 0.08s
+

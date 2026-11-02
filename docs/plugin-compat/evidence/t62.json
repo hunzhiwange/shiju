@@ -1,0 +1,54 @@
+{
+  "task": 62,
+  "status": "completed",
+  "production_red": null,
+  "production_red_reason": "Authorized existing-behavior acceptance; no production change or manufactured defect.",
+  "dependency": "t61 completed; evidence/t61.json",
+  "source_lock": "crates/vw-agent/testdata/plugin_compat/t61/public/sources.json",
+  "endpoint": "https://mcp.context7.com/mcp",
+  "transport": "Streamable HTTP",
+  "credentials": "none; original package headers unchanged",
+  "platform": "macOS",
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t62_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 3,
+      "record": "t62/tests.txt"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "record": "t62/clippy.txt"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t61_public_sources_match_locked_hashes -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "record": "t62/adjacent.txt"
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
+    "lease_released": true
+  },
+  "assertions": [
+    "Original Context7 archive installed and discovered through real plugin merge; public resolver returns Tokio",
+    "Unreachable loopback port 0 rejected without mock",
+    "Removing alpha source leaves beta package and original hashes unchanged"
+  ],
+  "limitations": [
+    "Public service version is not pinned; original plugin bytes pinned by t61 source lock",
+    "No UI or other-platform acceptance claimed"
+  ]
+}

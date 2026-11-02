@@ -23,8 +23,9 @@ pub(crate) struct TeamMessage {
 
 #[derive(Debug, Default)]
 pub(super) struct Mailbox {
-    pending: VecDeque<TeamMessage>,
-    cursor: u64,
+    pub(super) pending: VecDeque<TeamMessage>,
+    pub(super) cursor: u64,
+    pub(super) result_cursor: u64,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -129,7 +130,7 @@ impl ChildAgentCoordinator {
         loop {
             {
                 let state = self.lock_state();
-                let root = team_root(&state, receiver)?;
+                team_root(&state, receiver)?;
                 if cancellation.is_cancelled()
                     || state.tasks.get(receiver).is_some_and(|e| e.cancellation.is_cancelled())
                 {
@@ -138,11 +139,11 @@ impl ChildAgentCoordinator {
                 if state.mailboxes.get(receiver).is_some_and(|m| !m.pending.is_empty()) {
                     return Ok(TeamActivity::Message);
                 }
-                let cursor = state.mailboxes.get(receiver).map_or(0, |m| m.cursor);
+                let cursor = state.mailboxes.get(receiver).map_or(0, |m| m.result_cursor);
                 if state.tasks.values().any(|e| {
                     e.snapshot.state.is_terminal()
                         && e.sequence > cursor
-                        && team_root(&state, &e.snapshot.child_session_id).is_ok_and(|r| r == root)
+                        && e.snapshot.parent_session_id == receiver
                 }) {
                     return Ok(TeamActivity::Result);
                 }

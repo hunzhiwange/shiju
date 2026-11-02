@@ -1719,3 +1719,119 @@ fn agcollab_gateway_keeps_inherited_skill_ceiling() {
         assert_eq!(options["delegate_default_allowed_skills"], expected);
     }
 }
+
+#[test]
+fn agcollab_delivery_reaches_next_model_request() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let source = workspace.path().join("skills/review/SKILL.md");
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    std::fs::write(
+        &source,
+        "---\nname: review\ndescription: Review fixture\n---\nDEFAULT_REVIEW_BODY\n",
+    )
+    .unwrap();
+    runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+        "agents": {
+            "main": {"provider":"model-recovery","model":"original","allowed_tools":["file_read"],"allowed_skills":["review"],"skill_policy":"strict"},
+            "reviewer": {"provider":"model-recovery","model":"original","allowed_tools":["skill","file_read"],"allowed_skills":["review"],"skill_policy":"strict"}
+        }
+    }))).unwrap();
+    for name in ["main"] {
+        let session_id = format!("ses_defaults_{}", uuid::Uuid::new_v4());
+        let coordinator =
+            crate::session::child_agent::coordinator::global_child_agent_coordinator();
+        let child = format!("child_{}", uuid::Uuid::new_v4());
+        coordinator.register(&session_id, &child, "reviewer", "review").unwrap();
+        let boundary = std::sync::Arc::new(
+            agent_session::processor::llm_runner::ChannelCancelStream::default(),
+        );
+        agent_session::processor::llm_runner::register_channel_cancel_stream(
+            &session_id,
+            boundary.clone(),
+        );
+        agent_session::processor::enqueue_test_llm_stream(vec![
+            agent_session::llm::StreamEvent::Delta("ready".into()),
+            agent_session::llm::StreamEvent::Done {
+                usage: Default::default(),
+                finish_reason: Some("stop".into()),
+            },
+        ]);
+        let request = GatewayChatStreamRequest {
+            session_id: Some(session_id.clone().into()),
+            messages: vec![
+                serde_json::json!({"role":"user","content":"inspect the requested change"}),
+            ],
+            model: Some("model-recovery/original".into()),
+            agent: Some(name.into()),
+            allowed_tools: Some(vec!["skill".into(), "file_read".into()]),
+            options: Some(serde_json::json!({"full_access":true})),
+            ..Default::default()
+        };
+        let directory = workspace.path().to_string_lossy().to_string();
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        runtime.block_on(async {
+            let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
+                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+            })
+            .await
+            .unwrap();
+            tokio::time::timeout(std::time::Duration::from_secs(20), async {
+                while !boundary.started.load(std::sync::atomic::Ordering::Acquire) {
+                    tokio::task::yield_now().await;
+                }
+            })
+            .await
+            .unwrap();
+            coordinator.mark_succeeded(&session_id, &child, "TEAM_RESULT_BODY").unwrap();
+            boundary.release.store(true, std::sync::atomic::Ordering::Release);
+            loop {
+                let payload =
+                    tokio::time::timeout(std::time::Duration::from_secs(20), receiver.recv())
+                        .await
+                        .unwrap()
+                        .expect("terminal gateway event");
+                assert_ne!(payload["type"], "chat.error", "{payload}");
+                if payload["type"] == "chat.done" {
+                    break;
+                }
+            }
+        });
+        let captured = agent_session::processor::take_test_llm_messages(&session_id);
+        assert_eq!(captured.len(), 2, "{name} request capture");
+        assert!(
+            !captured[0]
+                .messages
+                .iter()
+                .any(|m| m["content"].as_str().is_some_and(|s| s.contains("TEAM_RESULT_BODY")))
+        );
+        assert!(captured[1].messages.iter().any(|m| {
+            m["role"] == "user"
+                && m["content"]
+                    .as_str()
+                    .is_some_and(|s| s.contains("TEAM_RESULT_BODY") && s.contains(&child))
+        }));
+        let bodies = captured[0]
+            .messages
+            .iter()
+            .filter(|message| {
+                message["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("DEFAULT_REVIEW_BODY"))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 1, "{name} must preload configured default once");
+        assert_eq!(bodies[0]["role"], "user");
+        let tool_ids = agent_session::processor::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(tool_ids.len(), 1);
+        assert!(tool_ids[0].contains(&"skill".to_string()), "{name} must keep requested tools");
+        assert!(tool_ids[0].contains(&"file_read".to_string()));
+    }
+}

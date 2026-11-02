@@ -857,6 +857,13 @@ fn run_in_project(
     let mut internal_compaction_attempted = false;
 
     loop {
+        if let Err(error) =
+            crate::session::child_agent::coordinator::global_child_agent_coordinator()
+                .deliver_model_events(ctx.tool_use_context().as_ref(), &mut llm_messages)
+        {
+            on_event(StreamEvent::Error(error.to_string()));
+            return;
+        }
         let is_last_step = step >= turn_policy.max_iterations;
         let empty_tools = HashSet::<String>::new();
         let system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
@@ -1604,6 +1611,20 @@ fn handle_assistant_text_branch(
     *empty_response_retries = 0;
     session.push(Role::Assistant, text.to_string());
     llm_messages.push(utils::assistant_message_with_reasoning(text, &step_out.reasoning_content));
+
+    match crate::session::child_agent::coordinator::global_child_agent_coordinator()
+        .deliver_model_events(ctx.tool_use_context().as_ref(), llm_messages)
+    {
+        Ok(true) => {
+            *step += 1;
+            return true;
+        }
+        Ok(false) => {}
+        Err(error) => {
+            on_event(StreamEvent::Error(error.to_string()));
+            return false;
+        }
+    }
 
     if is_last_step {
         tracing::info!(

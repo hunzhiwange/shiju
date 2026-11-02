@@ -5,6 +5,8 @@ pub(crate) mod mailbox;
 use mailbox::Mailbox;
 #[path = "continuation.rs"]
 mod continuation;
+#[path = "delivery.rs"]
+mod delivery;
 
 use anyhow::{Result, bail};
 use serde::Serialize;

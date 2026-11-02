@@ -226,9 +226,10 @@ impl AgentTool {
         cancellation: tokio_util::sync::CancellationToken,
         execution_guard: ChildExecutionGuard,
     ) -> anyhow::Result<()> {
-        let PreparedChildRun { parent_session_id, agent: _, task: _, created } = prepared;
+        let PreparedChildRun { parent_session_id, agent: _, task: _, mut created } = prepared;
         let child_session_id = created.child_session_id.clone();
         let coordinator = self.coordinator.clone();
+        let mut followups = coordinator.attach_continuation(&child_session_id);
         #[cfg(test)]
         let execute_stream = self.child_agent_stream_executor.clone();
         let parent_abort = current_tool_use_context()
@@ -246,22 +247,25 @@ impl AgentTool {
                     .build()
                     .expect("failed to build child agent runtime");
                 runtime.block_on(async move {
+                    loop {
                     let _ =
                         coordinator.mark_running(&thread_parent_session_id, &thread_child_session_id);
+                    let turn = coordinator.snapshots(&thread_parent_session_id, std::slice::from_ref(&thread_child_session_id)).expect("registered child")[0].turn;
+                    let turn_cancellation = coordinator.turn_cancellation(&thread_child_session_id).expect("registered child");
                     let run_created = created.clone();
                     #[cfg(test)]
                     let execution = tokio::select! {
-                        _ = async { tokio::select! { _ = cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => {
-                            child_agent::cancel_created(created, "cancelled by parent agent").await
+                        _ = async { tokio::select! { _ = turn_cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => {
+                            child_agent::cancel_created(created.clone(), "cancelled by parent agent").await
                         }
-                        result = run_created_with_optional_executor(run_created, execute_stream) => {
+                        result = run_created_with_optional_executor(run_created, execute_stream.clone()) => {
                             result
                         }
                     };
                     #[cfg(not(test))]
                     let execution = tokio::select! {
-                        _ = async { tokio::select! { _ = cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => {
-                            child_agent::cancel_created(created, "cancelled by parent agent").await
+                        _ = async { tokio::select! { _ = turn_cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => {
+                            child_agent::cancel_created(created.clone(), "cancelled by parent agent").await
                         }
                         result = child_agent::run_created(run_created) => {
                             result
@@ -271,19 +275,15 @@ impl AgentTool {
                     match execution {
                         Ok(result) => match result.terminal_state {
                             ChildAgentTerminalState::Succeeded => {
-                                let _ = coordinator.mark_succeeded(
-                                    &thread_parent_session_id,
-                                    &thread_child_session_id,
-                                    result.output.unwrap_or_default(),
+                                let _ = coordinator.finish_turn(
+                                    &thread_parent_session_id, &thread_child_session_id, turn,
+                                    Some(result.output.unwrap_or_default()), None,
                                 );
                             }
                             ChildAgentTerminalState::Failed => {
-                                let _ = coordinator.mark_failed(
-                                    &thread_parent_session_id,
-                                    &thread_child_session_id,
-                                    result.error.unwrap_or_else(|| {
-                                        "child agent execution failed".to_string()
-                                    }),
+                                let _ = coordinator.finish_turn(
+                                    &thread_parent_session_id, &thread_child_session_id, turn,
+                                    None, Some(result.error.unwrap_or_else(|| "child agent execution failed".to_string())),
                                 );
                             }
                             ChildAgentTerminalState::Cancelled => {}
@@ -295,6 +295,23 @@ impl AgentTool {
                                 error.to_string(),
                             );
                         }
+                    }
+                    coordinator.pause_execution(&thread_child_session_id);
+                    let prompt = tokio::select! {
+                        _ = cancellation.cancelled() => break,
+                        _ = parent_abort.cancelled() => break,
+                        prompt = followups.recv() => match prompt { Some(prompt) => prompt, None => break },
+                    };
+                    if coordinator.begin_followup(&thread_parent_session_id, &thread_child_session_id, &prompt).is_err() { break; }
+                    if let Err(error) = created.prepare_followup(prompt).await {
+                        let _ = coordinator.mark_failed(&thread_parent_session_id, &thread_child_session_id, error.to_string());
+                        break;
+                    }
+                    tokio::select! {
+                        _ = cancellation.cancelled() => break,
+                        _ = parent_abort.cancelled() => break,
+                        result = coordinator.resume_execution(&thread_child_session_id) => if result.is_err() { break; },
+                    }
                     }
                 });
             });

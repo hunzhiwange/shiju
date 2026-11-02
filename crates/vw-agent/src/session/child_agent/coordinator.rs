@@ -3,6 +3,8 @@
 #[path = "mailbox.rs"]
 pub(crate) mod mailbox;
 use mailbox::Mailbox;
+#[path = "continuation.rs"]
+mod continuation;
 
 use anyhow::{Result, bail};
 use serde::Serialize;
@@ -36,6 +38,7 @@ pub(crate) struct ChildAgentTaskSnapshot {
     pub(crate) child_session_id: String,
     pub(crate) agent: String,
     pub(crate) task: String,
+    pub(crate) turn: u64,
     pub(crate) state: ChildAgentTaskState,
     pub(crate) output: Option<String>,
     pub(crate) error: Option<String>,
@@ -61,12 +64,14 @@ pub(crate) struct ChildAgentWaitOutcome {
 struct TaskEntry {
     snapshot: ChildAgentTaskSnapshot,
     cancellation: CancellationToken,
+    turn_cancellation: CancellationToken,
     sequence: u64,
 }
 
 #[derive(Debug, Default)]
 struct CoordinatorState {
     tasks: HashMap<String, TaskEntry>,
+    continuations: HashMap<String, tokio::sync::mpsc::Sender<String>>,
     version: u64,
     mailboxes: HashMap<String, Mailbox>,
     teams: HashMap<String, Arc<Semaphore>>,
@@ -205,6 +210,7 @@ impl ChildAgentCoordinator {
                         child_session_id: child_session_id.to_string(),
                         agent: agent.to_string(),
                         task: task.to_string(),
+                        turn: 1,
                         state: ChildAgentTaskState::Queued,
                         output: None,
                         error: None,
@@ -212,6 +218,7 @@ impl ChildAgentCoordinator {
                         updated_ms: now,
                     },
                     cancellation: cancellation.clone(),
+                    turn_cancellation: cancellation.child_token(),
                     sequence,
                 },
             );
@@ -232,6 +239,7 @@ impl ChildAgentCoordinator {
             ChildAgentTaskState::Running,
             None,
             None,
+            None,
         )
     }
 
@@ -245,6 +253,7 @@ impl ChildAgentCoordinator {
             parent_session_id,
             child_session_id,
             ChildAgentTaskState::Succeeded,
+            None,
             Some(output.into()),
             None,
         )
@@ -261,15 +270,32 @@ impl ChildAgentCoordinator {
             child_session_id,
             ChildAgentTaskState::Failed,
             None,
+            None,
             Some(error.into()),
         )
+    }
+
+    pub(crate) fn finish_turn(
+        &self,
+        parent: &str,
+        child: &str,
+        turn: u64,
+        output: Option<String>,
+        error: Option<String>,
+    ) -> Result<bool> {
+        let next = if error.is_some() {
+            ChildAgentTaskState::Failed
+        } else {
+            ChildAgentTaskState::Succeeded
+        };
+        self.transition(parent, child, next, Some(turn), output, error)
     }
 
     pub(crate) fn cancel(&self, parent_session_id: &str, child_session_id: &str) -> Result<bool> {
         let (changed, cancellation, version) = {
             let mut state = self.lock_state();
             let entry = task_for_parent_mut(&mut state, parent_session_id, child_session_id)?;
-            if entry.snapshot.state.is_terminal() {
+            if entry.cancellation.is_cancelled() {
                 return Ok(false);
             }
             entry.snapshot.state = ChildAgentTaskState::Cancelled;
@@ -536,12 +562,16 @@ impl ChildAgentCoordinator {
         parent_session_id: &str,
         child_session_id: &str,
         next: ChildAgentTaskState,
+        turn: Option<u64>,
         output: Option<String>,
         error: Option<String>,
     ) -> Result<bool> {
         let version = {
             let mut state = self.lock_state();
             let entry = task_for_parent_mut(&mut state, parent_session_id, child_session_id)?;
+            if turn.is_some_and(|turn| turn != entry.snapshot.turn) {
+                return Ok(false);
+            }
             if entry.snapshot.state.is_terminal() || entry.snapshot.state == next {
                 return Ok(false);
             }
@@ -817,6 +847,7 @@ fn remove_task_subtree(
     }
     state.tasks.remove(child_session_id);
     state.mailboxes.remove(child_session_id);
+    state.continuations.remove(child_session_id);
 }
 
 fn current_time_ms() -> u64 {
@@ -827,3 +858,7 @@ fn current_time_ms() -> u64 {
         .try_into()
         .unwrap_or(u64::MAX)
 }
+
+#[cfg(test)]
+#[path = "continuation_tests.rs"]
+mod continuation_tests;

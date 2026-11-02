@@ -1298,3 +1298,49 @@ async fn agcollab_parent_abort_cancels_background_execution() {
     let body: Value = serde_json::from_str(&waited.output).unwrap();
     assert_eq!(body["tasks"][0]["state"], "cancelled");
 }
+
+#[tokio::test]
+async fn agcollab_followup_background_runtime_reuses_child() {
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let count = Arc::new(AtomicUsize::new(0));
+    let observed = count.clone();
+    let second_started = Arc::new(tokio::sync::Notify::new());
+    let notify = second_started.clone();
+    let tool = build_persistent_tool(parent.id.clone(), directory, move |_request| {
+        let observed = observed.clone();
+        let notify = notify.clone();
+        Box::pin(async move {
+            let turn = observed.fetch_add(1, Ordering::SeqCst) + 1;
+            if turn == 2 {
+                notify.notify_one();
+            }
+            Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                output: format!("result {turn}"),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+    });
+    let launched =
+        tool.execute(json!({"action":"launch","agent":"writer","prompt":"first"})).await.unwrap();
+    let body: Value = serde_json::from_str(&launched.output).unwrap();
+    let child = body["child_session_id"].as_str().unwrap().to_string();
+    tool.coordinator
+        .wait(&parent.id, std::slice::from_ref(&child), WaitCondition::All, Duration::from_secs(10))
+        .await
+        .unwrap();
+    tool.coordinator.followup_task(&parent.id, &child, "second".into()).unwrap();
+    tokio::time::timeout(Duration::from_secs(10), second_started.notified()).await.unwrap();
+    let outcome = tool
+        .coordinator
+        .wait(&parent.id, std::slice::from_ref(&child), WaitCondition::All, Duration::from_secs(10))
+        .await
+        .unwrap();
+    assert!(!outcome.timed_out);
+    assert_eq!(outcome.tasks[0].turn, 2);
+    assert_eq!(outcome.tasks[0].output.as_deref(), Some("result 2"));
+    assert_eq!(count.load(Ordering::SeqCst), 2);
+    tool.coordinator.cancel(&parent.id, &child).unwrap();
+}

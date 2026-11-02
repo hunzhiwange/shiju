@@ -98,6 +98,22 @@ pub(crate) struct CreatedChildAgentRun {
     pub child_session_id: String,
 }
 
+impl CreatedChildAgentRun {
+    pub(crate) async fn prepare_followup(&mut self, prompt: String) -> Result<()> {
+        let id = self.child_session_id.clone();
+        self.input.context =
+            project::instance::provide(self.input.directory.clone(), None, move || {
+                Box::pin(async move { history::stored_snapshot(&id).await })
+            })
+            .await??;
+        self.input.prompt = prompt;
+        self.hook_started = Default::default();
+        self.hook_continuations = Default::default();
+        self.stop_hook_active = false;
+        Ok(())
+    }
+}
+
 /// 返回当前会话相对根会话的委托深度。
 ///
 /// 根会话深度为 0；每经过一个 `parent_id` 增加 1。循环父链会被显式拒绝，
@@ -292,11 +308,12 @@ async fn ensure_turn_history(
     agent_key: &str,
     output: Option<&str>,
     error: Option<&str>,
+    baseline: usize,
 ) -> Result<()> {
     let stored = message::messages(child_session_id, None)
         .await
         .context("load child agent session history")?;
-    match stored.len() {
+    match stored.len().saturating_sub(baseline) {
         0 => {
             let assistant_text = output.or(error).unwrap_or_default();
             persist_child_agent_turn(child_session_id, prompt, assistant_text, agent_key, error)
@@ -536,7 +553,7 @@ pub(crate) async fn cancel_created(
     let project_directory = directory.clone();
     let result = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
-            ensure_turn_history(&child_session_id, &prompt, &agent_key, None, Some(&reason))
+            ensure_turn_history(&child_session_id, &prompt, &agent_key, None, Some(&reason), 0)
                 .await?;
             Ok::<_, anyhow::Error>(ChildAgentRunResult {
                 child_session_id,
@@ -650,6 +667,7 @@ where
                 trusted_user_selected_skills,
             );
 
+            let baseline = message::messages(&child_session_id, None).await?.len();
             let execution = async move { execute_stream(request).await };
             let execution_result = match execution_context {
                 Some(context) => crate::tools::scope_tool_use_context(context, execution).await,
@@ -663,6 +681,7 @@ where
                         &agent_key,
                         Some(&collected.output),
                         None,
+                        baseline,
                     )
                     .await?;
                     let handoff = child_agent_handoff_from_output(&collected.output);
@@ -675,8 +694,15 @@ where
                 }
                 Err(stream_error) => {
                     let error = stream_error.to_string();
-                    ensure_turn_history(&child_session_id, &prompt, &agent_key, None, Some(&error))
-                        .await?;
+                    ensure_turn_history(
+                        &child_session_id,
+                        &prompt,
+                        &agent_key,
+                        None,
+                        Some(&error),
+                        baseline,
+                    )
+                    .await?;
                     ChildAgentRunResult {
                         child_session_id,
                         terminal_state: ChildAgentTerminalState::Failed,

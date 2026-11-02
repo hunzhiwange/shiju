@@ -76,7 +76,11 @@ impl ChildAgentCoordinator {
                 bail!("team message crosses team boundary");
             }
             for session in [sender, target] {
-                if state.tasks.get(session).is_some_and(|e| e.snapshot.state.is_terminal()) {
+                if state.tasks.get(session).is_some_and(|e| {
+                    e.cancellation.is_cancelled()
+                        || (e.snapshot.state.is_terminal()
+                            && !state.continuations.contains_key(session))
+                }) {
                     bail!("team session is closed");
                 }
             }

@@ -85,6 +85,29 @@ pub struct DesktopPluginPathDto {
     pub path: String,
 }
 
+/// Locked package provenance without credentials or raw registry responses.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginSourceDto {
+    pub kind: String,
+    pub resolved_version: Option<String>,
+    pub revision: Option<String>,
+    pub sha256: Option<String>,
+}
+
+/// Audited package preview awaiting explicit, single-use activation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginPreviewDto {
+    pub token: String,
+    pub plugin_id: String,
+    pub source: String,
+    pub old_version: Option<String>,
+    pub version: Option<String>,
+    pub capabilities: DesktopPluginCapabilitiesDto,
+    pub audit_status: String,
+    pub dependency_status: String,
+    pub origin: DesktopPluginSourceDto,
+}
+
 /// One statically audited hook declaration from an installed plugin.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct HookCatalogEntryDto {
@@ -413,6 +436,54 @@ impl GatewayClient {
     ) -> Result<DesktopPluginDetailDto, String> {
         self.get_json("/v1/plugins/detail", &[("plugin_id".to_string(), plugin_id.to_string())])
             .await
+    }
+
+    /// Prepare and audit a source without publishing it to the plugin store.
+    pub async fn plugin_prepare_install(
+        &self,
+        source: &str,
+    ) -> Result<DesktopPluginPreviewDto, String> {
+        self.post_json("/v1/plugins/prepare-install", &[], &serde_json::json!({"source":source}))
+            .await
+    }
+    pub async fn plugin_install(&self, token: &str, approved: bool) -> Result<String, String> {
+        let response: DesktopPluginPathDto = self
+            .post_json(
+                "/v1/plugins/install",
+                &[],
+                &serde_json::json!({"token":token,"approved":approved}),
+            )
+            .await?;
+        Ok(response.path)
+    }
+    pub async fn plugin_prepare_update(
+        &self,
+        plugin_id: &str,
+        source: Option<&str>,
+    ) -> Result<DesktopPluginPreviewDto, String> {
+        self.post_json(
+            "/v1/plugins/prepare-update",
+            &[],
+            &serde_json::json!({"plugin_id":plugin_id,"source":source}),
+        )
+        .await
+    }
+    pub async fn plugin_update(&self, token: &str, approved: bool) -> Result<String, String> {
+        let response: DesktopPluginPathDto = self
+            .post_json(
+                "/v1/plugins/update",
+                &[],
+                &serde_json::json!({"token":token,"approved":approved}),
+            )
+            .await?;
+        Ok(response.path)
+    }
+
+    /// Discard a pending preview and release its private staging files.
+    pub async fn plugin_cancel(&self, token: &str) -> Result<(), String> {
+        let _: Value =
+            self.post_json("/v1/plugins/cancel", &[], &serde_json::json!({"token":token})).await?;
+        Ok(())
     }
 
     /// 设置本地插件启用状态。

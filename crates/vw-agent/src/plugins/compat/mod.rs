@@ -230,3 +230,6 @@ pub(crate) mod installed_state;
 
 #[cfg(test)]
 mod t53_tests;
+
+#[cfg(test)]
+mod t54_tests;

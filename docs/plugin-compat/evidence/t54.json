@@ -1,0 +1,69 @@
+{
+  "task": 54,
+  "status": "已完成",
+  "dependency": "4d8164a1 / t53.json",
+  "platform": "macOS arm64",
+  "implementation": [
+    "stateful authenticated prepare-install/install, prepare-update/update and cancellation routes mounted in gateway bootstrap",
+    "configuration-bound random single-use preview tokens with bounded pending storage and ten-minute validity",
+    "source factory materializes once; explicit approval publishes unchanged staged package and original provenance",
+    "GatewayClient preview/activation/cancellation methods and source/version/hash DTOs"
+  ],
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t54_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "Three compiled HTTP acceptance tests receive 404 instead of expected authenticated operation responses before route implementation"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t54_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins_tests -- --nocapture",
+      "exit_code": 0,
+      "passed": 5,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true,
+    "cache_retained": true
+  },
+  "assertions": [
+    "unauthorized requests cannot prepare or publish packages",
+    "explicit approval required before publication",
+    "unknown/replayed/cancelled tokens rejected",
+    "wrong configuration root cannot consume another preview",
+    "source metadata contains resolved version and locked provenance",
+    "real GatewayClient HTTP round trip succeeds with paired authentication",
+    "real upgrade changes only the selected installed package"
+  ],
+  "reference": "baseline.json gateway plugin operations; Codex app-server/request_processors/plugins/local.rs",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t54/README.md",
+  "limits": "Capability counts are declarations and audit status is package/path audit only. Dependency status remains unchecked; no runtime dependency availability, public-service or UI acceptance is claimed."
+}

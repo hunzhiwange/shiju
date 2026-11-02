@@ -369,3 +369,22 @@ pub(super) fn copy_dir_recursive_secure(src: &Path, dest: &Path) -> Result<()> {
 pub(super) fn copy_dir_recursive_secure_for_test(src: &Path, dest: &Path) -> Result<()> {
     copy_dir_recursive_secure(src, dest)
 }
+
+/// Publish a previously audited package while retaining its original external provenance.
+pub(crate) fn publish_materialized_install(
+    prepared: &PluginInstallResult,
+    destination: &Path,
+) -> Result<PluginInstallResult> {
+    let manifest = load_plugin_manifest(&prepared.installed_dir)?;
+    let metadata = read_install_metadata(&prepared.installed_dir, &manifest)?
+        .context("prepared plugin metadata missing")?;
+    if metadata.identity != prepared.identity {
+        bail!("prepared plugin identity changed");
+    }
+    super::compat::transaction_install::install_package_with_source(
+        &manifest,
+        metadata.identity,
+        destination,
+        Some(&metadata.source),
+    )
+}

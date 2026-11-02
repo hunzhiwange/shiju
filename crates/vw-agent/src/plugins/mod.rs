@@ -148,3 +148,8 @@ pub use compat::marketplace::{
     read_registered_marketplace, registered_plugin_entry,
 };
 pub use compat::upgrade::prepare_plugin_marketplace_upgrade;
+
+pub(crate) use compat::hook_trust_content::plugin_content_hash as plugin_package_content_hash;
+pub(crate) use install::publish_materialized_install;
+
+pub(crate) use compat::identity::read_install_metadata as plugin_install_metadata;

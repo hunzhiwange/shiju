@@ -807,6 +807,7 @@ pub(super) fn stateful_handler_router() -> Router<AppState> {
         .merge(api::handlers::skill_market::router())
         .merge(api::handlers::desktop_skills::router())
         .merge(api::handlers::plugins::router())
+        .merge(api::handlers::plugins::stateful_router())
         .merge(api::handlers::hooks::router())
         .merge(api::handlers::desktop::router())
 }

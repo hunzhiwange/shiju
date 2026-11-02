@@ -47,9 +47,9 @@ pub use client::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 /// 该结构会把原始 JSON 响应规整为更适合 UI 层消费的字段。
 pub use client::{
     DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
-    DesktopPluginPathDto, DesktopServiceCommand, DesktopSkillCatalogEntryDto,
-    DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto, HookAuditEntryDto,
-    HookCatalogEntryDto, HookMutationRequestDto, HookMutationResponseDto,
+    DesktopPluginPathDto, DesktopPluginPreviewDto, DesktopPluginSourceDto, DesktopServiceCommand,
+    DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto,
+    HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto, HookMutationResponseDto,
     PendingPermissionReplyDto, PendingPermissionRequestDto, PendingPermissionToolDto,
     PtyCreateRequest, PtyInfoDto, PtySizeDto, PtyStatusDto, PtyUpdateRequest,
 };

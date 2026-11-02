@@ -255,3 +255,11 @@ fn path_string(path: &Path) -> String {
 #[cfg(test)]
 #[path = "plugins_tests.rs"]
 mod plugins_tests;
+
+#[path = "plugins_operations.rs"]
+mod operations;
+
+/// Mutations use the authenticated running gateway state, never a client-supplied install root.
+pub(crate) fn stateful_router() -> Router<crate::gateway::AppState> {
+    operations::router()
+}

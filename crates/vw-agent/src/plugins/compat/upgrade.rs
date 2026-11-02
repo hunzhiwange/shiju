@@ -22,6 +22,7 @@ pub struct PluginUpgradePreview {
     expected_hash: String,
     expected_metadata: Vec<u8>,
     new_hash: String,
+    manifest: crate::plugins::PluginManifest,
     staging: tempfile::TempDir,
 }
 #[cfg(test)]
@@ -90,7 +91,8 @@ fn prepare_with(
     state::sync_tree(staging.path())?;
     Ok(PluginUpgradePreview {
         old_version,
-        new_version: installed.manifest.version,
+        new_version: installed.manifest.version.clone(),
+        manifest: installed.manifest,
         root,
         identity,
         expected_hash,
@@ -159,5 +161,14 @@ pub fn activate_plugin_upgrade(preview: PluginUpgradePreview) -> Result<()> {
                 .with_context(|| format!("{error:#}; upgrade rollback failed"))?;
             Err(error)
         }
+    }
+}
+
+impl PluginUpgradePreview {
+    pub(crate) fn manifest(&self) -> &crate::plugins::PluginManifest {
+        &self.manifest
+    }
+    pub(crate) fn identity_key(&self) -> String {
+        self.identity.as_key()
     }
 }

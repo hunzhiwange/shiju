@@ -1,0 +1,7 @@
+# Task 54 authenticated gateway operations
+
+Repository-authored fixture under the repository license: a temporary unchanged `.codex-plugin/plugin.json` with name `fixture`, versions `1` and `2`. Provider is an explicit unused external boundary stub; all HTTP, package materialization, filesystem publication and update transactions are real. The fixed gateway token is test-only data.
+
+Reference: frozen app-server/request_processors/plugins/local.rs, existing gateway PairingGuard/auth boundary and tasks 49–53 package factories. New stateful routes are mounted by gateway bootstrap. Prepare-install/update returns declared capabilities, audited source provenance, versions and a single-use configuration-bound token. Explicit authenticated approval activates the staged original bytes; cancellation drops the owned staging files. Sources resolve once at preparation, so activation does not re-resolve a mutable npm tag.
+
+Tests: unauthorized preparation/activation, unapproved activation, invalid source/token, wrong configuration root without consuming the original preview, real local upgrade, actual GatewayClient HTTP request/response, replay rejection and cancellation. Dependency status is deliberately `unchecked`; static path audit and declared component counts do not claim runtime dependency availability or complete compatibility. No UI or public-service acceptance is claimed by this backend task.

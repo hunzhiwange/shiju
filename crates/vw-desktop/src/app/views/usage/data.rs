@@ -78,8 +78,12 @@ impl UsageData {
         });
         let call_count = session.as_ref().map(|session| session.calls.len()).unwrap_or_default();
 
-        let last_step_usage =
-            session.as_ref().and_then(|session| session.steps.last()).map(|s| s.usage.clone());
+        let last_step_usage = session
+            .as_ref()
+            .and_then(|session| {
+                crate::app::components::input_panel::usage::latest_reported_usage(&session.steps)
+            })
+            .cloned();
         let last_step_input_tokens = last_step_usage.as_ref().map(|u| u.input_tokens).unwrap_or(0);
         let last_step_output_tokens =
             last_step_usage.as_ref().map(|u| u.output_tokens).unwrap_or(0);

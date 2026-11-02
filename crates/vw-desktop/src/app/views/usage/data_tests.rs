@@ -158,3 +158,25 @@ fn from_app_uses_active_view_updated_time_when_metadata_is_missing() {
     assert_eq!(usage.last_step_reasoning_tokens, 7);
     assert_eq!(usage.last_step_total_tokens, 22);
 }
+
+#[test]
+fn from_app_preserves_reported_usage_while_next_step_is_pending() {
+    let (mut app, _task) = App::new();
+    app.active_session_id = Some("session".to_string());
+    app.active_session_view_state.steps = vec![
+        step(
+            1,
+            TokenUsage {
+                input_tokens: 300,
+                output_tokens: 20,
+                cached_tokens: 0,
+                reasoning_tokens: 0,
+            },
+        ),
+        step(2, TokenUsage::default()),
+    ];
+    app.active_session_view_state.steps[1].finished_ms = None;
+    let usage = super::UsageData::from_app(&app);
+    assert_eq!(usage.last_step_input_tokens, 300);
+    assert_eq!(usage.last_step_total_tokens, 320);
+}

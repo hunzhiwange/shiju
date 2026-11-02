@@ -212,3 +212,25 @@ async fn usage_ring_draws_empty_bounds_and_all_percent_color_ranges() {
         assert_eq!(geometries.len(), 1, "percent {percent} should draw one geometry");
     }
 }
+
+#[test]
+fn usage_preserves_latest_report_until_new_usage_arrives() {
+    let mut app = test_app();
+    app.usage_model_info = Some(model_info(1_000));
+    app.active_session_view_state.steps.push(step(300));
+    let mut pending = step(0);
+    pending.finished_ms = None;
+    pending.usage = TokenUsage::default();
+    app.active_session_view_state.steps.push(pending);
+    assert_eq!(get_usage_rate_percent(&app), 30.0);
+    assert_eq!(get_usage_details(&app).0, 300);
+
+    let latest = app.active_session_view_state.steps.last_mut().unwrap();
+    latest.usage.input_tokens = 350;
+    assert_eq!(get_usage_rate_percent(&app), 35.0);
+
+    app.active_session_view_state.steps.push(step(150));
+    assert_eq!(get_usage_rate_percent(&app), 15.0);
+    app.active_session_view_state.steps.clear();
+    assert_eq!(get_usage_rate_percent(&app), 0.0);
+}

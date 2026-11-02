@@ -7,4 +7,3 @@ test plugins::compat::t51_tests::codex_plugin_compat_t51_restores_exact_installe
 test plugins::compat::t51_tests::codex_plugin_compat_t51_preserves_isolation ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10939 filtered out; finished in 0.04s
-

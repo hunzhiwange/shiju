@@ -20,4 +20,3 @@ test plugins::compat::t61_tests::codex_plugin_compat_t61_public_marketplace_cli_
 test plugins::compat::t61_tests::codex_plugin_compat_t61_public_skill_lifecycle_and_upgrade ... ok
 
 test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 10931 filtered out; finished in 0.61s
-

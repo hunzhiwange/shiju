@@ -21,4 +21,3 @@ test plugins::compat::t61_tests::codex_plugin_compat_t61_public_skill_lifecycle_
 test plugins::compat::t61_tests::codex_plugin_compat_t61_public_http_original ... ok
 
 test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 10932 filtered out; finished in 4.75s
-

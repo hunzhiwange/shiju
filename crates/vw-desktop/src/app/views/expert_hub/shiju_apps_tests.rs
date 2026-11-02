@@ -296,7 +296,7 @@ async fn assert_draws(app: &App, theme: Theme) {
     assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn shiju_apps_dark_chinese_render_path_is_safe() {
     let mut app = app_with_lists();
     for detail in [None, Some(ShijuAppDetailTarget::Store(0)), Some(ShijuAppDetailTarget::Mine(0))]
@@ -306,7 +306,7 @@ async fn shiju_apps_dark_chinese_render_path_is_safe() {
     }
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn api_key_binding_dark_and_light_render_paths_are_safe() {
     let mut app = app_with_lists();
     let states = [

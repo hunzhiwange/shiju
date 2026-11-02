@@ -20,18 +20,54 @@ pub(crate) struct SkillCacheSyncReport {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// CLI 解析、执行或结构化输出校验失败。
 pub(crate) struct SkillCacheSyncError {
-    message: String,
+    source: String,
+    label: Option<String>,
+    value: Option<String>,
 }
 
 impl SkillCacheSyncError {
-    fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+    pub(crate) fn new(source: impl Into<String>) -> Self {
+        Self { source: source.into(), label: None, value: None }
+    }
+
+    fn labeled(source: &str, label: &str, value: Option<String>) -> Self {
+        Self { source: source.into(), label: Some(label.into()), value }
+    }
+
+    pub(crate) fn message(&self) -> crate::app::i18n::format::Message {
+        use crate::app::i18n::format::Message;
+        if let Some(label) = &self.label {
+            let mut arguments = vec![Message::new(label.clone(), vec![])];
+            if let Some(value) = &self.value {
+                arguments.push(Message::literal(value.clone()));
+            }
+            Message::nested(self.source.clone(), arguments)
+        } else {
+            Message::new(self.source.clone(), vec![])
+        }
     }
 }
 
 impl fmt::Display for SkillCacheSyncError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.message)
+        let text = self
+            .message()
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .map_err(|_| fmt::Error)?;
+        formatter.write_str(&text)
+    }
+}
+
+impl From<String> for SkillCacheSyncError {
+    fn from(source: String) -> Self {
+        Self::new(source)
+    }
+}
+impl From<&str> for SkillCacheSyncError {
+    fn from(source: &str) -> Self {
+        Self::new(source)
     }
 }
 
@@ -76,16 +112,16 @@ pub(super) fn resolve_shiju_cli(installation_root: &Path) -> Result<PathBuf, Ski
 fn validate_directory(path: &Path, label: &str) -> Result<(), SkillCacheSyncError> {
     let metadata = fs::symlink_metadata(path).map_err(|error| {
         if error.kind() == std::io::ErrorKind::NotFound {
-            SkillCacheSyncError::new(format!("{label}不存在"))
+            SkillCacheSyncError::labeled("%s不存在", label, None)
         } else {
-            SkillCacheSyncError::new(format!("无法检查{label}"))
+            SkillCacheSyncError::labeled("无法检查%s", label, None)
         }
     })?;
     if metadata.file_type().is_symlink() {
-        return Err(SkillCacheSyncError::new(format!("{label}不能包含符号链接")));
+        return Err(SkillCacheSyncError::labeled("%s不能包含符号链接", label, None));
     }
     if !metadata.is_dir() {
-        return Err(SkillCacheSyncError::new(format!("{label}不是目录")));
+        return Err(SkillCacheSyncError::labeled("%s不是目录", label, None));
     }
     Ok(())
 }
@@ -142,11 +178,15 @@ async fn run_step(
         build_cache_sync_command(&executable, &installation_root, &arguments).output()
     })
     .await
-    .map_err(|_| SkillCacheSyncError::new(format!("{label}任务异常终止")))?
-    .map_err(|_| SkillCacheSyncError::new(format!("无法启动{label}")))?;
+    .map_err(|_| SkillCacheSyncError::labeled("%s任务异常终止", label, None))?
+    .map_err(|_| SkillCacheSyncError::labeled("无法启动%s", label, None))?;
     let exit_code = output.status.code().unwrap_or(-1);
     if !output.status.success() {
-        return Err(SkillCacheSyncError::new(format!("{label}退出码为 {exit_code}")));
+        return Err(SkillCacheSyncError::labeled(
+            "%s退出码为 %s",
+            label,
+            Some(exit_code.to_string()),
+        ));
     }
     validate_success_json(&output.stdout, label)?;
     Ok(exit_code)
@@ -154,10 +194,10 @@ async fn run_step(
 
 fn validate_success_json(stdout: &[u8], label: &str) -> Result<(), SkillCacheSyncError> {
     let value: Value = serde_json::from_slice(stdout)
-        .map_err(|_| SkillCacheSyncError::new(format!("{label}未返回有效 JSON")))?;
+        .map_err(|_| SkillCacheSyncError::labeled("%s未返回有效 JSON", label, None))?;
     let object = value
         .as_object()
-        .ok_or_else(|| SkillCacheSyncError::new(format!("{label}返回的 JSON 不是对象")))?;
+        .ok_or_else(|| SkillCacheSyncError::labeled("%s返回的 JSON 不是对象", label, None))?;
     let explicit_failure = object.get("success").is_some_and(|value| value == false)
         || object.get("ok").is_some_and(|value| value == false)
         || object
@@ -166,7 +206,7 @@ fn validate_success_json(stdout: &[u8], label: &str) -> Result<(), SkillCacheSyn
             .is_some_and(|status| matches!(status, "error" | "failed"))
         || object.get("error").is_some_and(|error| !error.is_null());
     if explicit_failure {
-        return Err(SkillCacheSyncError::new(format!("{label}报告业务失败")));
+        return Err(SkillCacheSyncError::labeled("%s报告业务失败", label, None));
     }
     Ok(())
 }

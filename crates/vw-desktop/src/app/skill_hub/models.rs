@@ -263,12 +263,12 @@ pub(crate) struct SkillVersion {
 }
 
 impl TryFrom<vw_gateway_client::ShijuSkillVersionContentDto> for SkillVersionContent {
-    type Error = String;
+    type Error = super::SkillHubError;
 
     fn try_from(dto: vw_gateway_client::ShijuSkillVersionContentDto) -> Result<Self, Self::Error> {
         let download_url = dto
             .download_url
-            .ok_or_else(|| "技能下载地址不可用".to_string())
+            .ok_or_else(|| super::SkillHubError::localized("技能下载地址不可用", vec![]))
             .and_then(|url| SkillDownloadUrl::parse(&url))?;
         Ok(Self {
             checksum: dto.checksum,
@@ -281,7 +281,7 @@ impl TryFrom<vw_gateway_client::ShijuSkillVersionContentDto> for SkillVersionCon
 }
 
 impl TryFrom<vw_gateway_client::ShijuSkillDetailDto> for SkillDetail {
-    type Error = String;
+    type Error = super::SkillHubError;
 
     fn try_from(dto: vw_gateway_client::ShijuSkillDetailDto) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -416,15 +416,16 @@ pub(crate) struct SkillDownloadUrl(reqwest::Url);
 
 impl SkillDownloadUrl {
     /// 校验协议、主机、端口和用户信息后构造下载地址。
-    pub(crate) fn parse(value: &str) -> Result<Self, String> {
-        let url = reqwest::Url::parse(value).map_err(|_| "技能下载地址格式无效".to_string())?;
+    pub(crate) fn parse(value: &str) -> Result<Self, super::SkillHubError> {
+        let url = reqwest::Url::parse(value)
+            .map_err(|_| super::SkillHubError::localized("技能下载地址格式无效", vec![]))?;
         if url.scheme() != "https"
             || url.host_str() != Some("skill.shiju.cloud")
             || !url.username().is_empty()
             || url.password().is_some()
             || url.port_or_known_default() != Some(443)
         {
-            return Err("技能下载地址不受信任".to_string());
+            return Err(super::SkillHubError::localized("技能下载地址不受信任", vec![]));
         }
         Ok(Self(url))
     }

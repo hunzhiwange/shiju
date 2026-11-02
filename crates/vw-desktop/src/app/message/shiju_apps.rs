@@ -152,7 +152,7 @@ fn open_shiju_apps_tab(app: &mut App) {
     if !app.open_tabs.iter().any(|tab| tab.id == SHIJU_APPS_TAB_ID) {
         app.open_tabs.push(AppTab {
             id: SHIJU_APPS_TAB_ID.to_string(),
-            title: SHIJU_APPS_TITLE.to_string(),
+            title: crate::app::i18n::I18n::new(app.desktop_locale).__(SHIJU_APPS_TITLE).to_string(),
             screen: Screen::ShijuApps,
             project_path: None,
         });
@@ -182,14 +182,26 @@ fn begin_binding_check(app: &mut App, installation_id: String) -> Task<Message> 
             })
     );
     if !ready {
-        return app.show_error_toast("识矩应用尚未运行就绪");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "识矩应用尚未运行就绪",
+            vec![],
+        );
     }
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后打开应用");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后打开应用",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
-        return app.show_error_toast("识矩应用账户已变化，请刷新后重试");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "识矩应用账户已变化，请刷新后重试",
+            vec![],
+        );
     }
     let credential = account.skill_hub_credential();
     let generation = app.expert_hub.shiju_apps.next_generation();
@@ -233,7 +245,11 @@ fn finish_binding_check(
         Ok(binding) => binding,
         Err(error) => {
             set_launch_error(app, generation, installation_id, error.clone());
-            return app.show_error_toast(format!("识矩应用密钥绑定检查失败：{error}"));
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "识矩应用密钥绑定检查失败：%s",
+                vec![error.to_string().into()],
+            );
         }
     };
     if binding.personal.configured {
@@ -255,7 +271,12 @@ fn finish_binding_check(
             selected_api_key_id: None,
             error: Some(message.clone()),
         };
-        return app.show_error_toast(message);
+        app.expert_hub.shiju_apps.launch_feedback = Some((
+            generation,
+            message.clone(),
+            crate::app::skill_hub::SkillHubError::localized(&message, vec![]),
+        ));
+        return app.show_localized_toast(crate::app::state::ToastKind::Error, &message, vec![]);
     }
 
     load_api_keys(app, generation, account_id.to_string(), installation_id.to_string(), true)
@@ -269,7 +290,11 @@ fn load_api_keys(
     can_edit: bool,
 ) -> Task<Message> {
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后选择 API 密钥");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后选择 API 密钥",
+            vec![],
+        );
     };
     if account.id() != account_id {
         return Task::none();
@@ -318,6 +343,7 @@ fn finish_api_key_load(
         return Task::none();
     }
 
+    let failed = result.is_err();
     let (api_keys, selected_api_key_id, error, toast_message) = match result {
         Ok(keys) => {
             let selected =
@@ -345,8 +371,22 @@ fn finish_api_key_load(
         selected_api_key_id,
         error: error.clone(),
     };
+    app.expert_hub.shiju_apps.launch_feedback = error.as_ref().filter(|_| !failed).map(|source| {
+        (
+            generation,
+            source.clone(),
+            crate::app::skill_hub::SkillHubError::localized(source, vec![]),
+        )
+    });
     match toast_message {
-        Some(message) => app.show_error_toast(message),
+        Some(_) if failed => app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "识矩 IAM API 密钥加载失败：%s",
+            vec![error.unwrap_or_default().into()],
+        ),
+        Some(message) => {
+            app.show_localized_toast(crate::app::state::ToastKind::Error, &message, vec![])
+        }
         None => Task::none(),
     }
 }
@@ -404,11 +444,19 @@ fn save_api_key_binding(app: &mut App) -> Task<Message> {
     }
 
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后保存 API 密钥绑定");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后保存 API 密钥绑定",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     if app.expert_hub.shiju_apps.account_id.as_deref() != Some(account_id.as_str()) {
-        return app.show_error_toast("识矩应用账户已变化，请刷新后重试");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "识矩应用账户已变化，请刷新后重试",
+            vec![],
+        );
     }
     if !launch_result_is_current(app, generation, &account_id, &installation_id) {
         return reject_api_key_save(app, "识矩应用授权状态已失效，请刷新后重试");
@@ -445,12 +493,17 @@ fn save_api_key_binding(app: &mut App) -> Task<Message> {
 }
 
 fn reject_api_key_save(app: &mut App, message: &str) -> Task<Message> {
-    if let ShijuAppLaunchState::SelectingApiKey { error, .. } =
+    if let ShijuAppLaunchState::SelectingApiKey { generation, error, .. } =
         &mut app.expert_hub.shiju_apps.launch
     {
         *error = Some(message.to_string());
+        app.expert_hub.shiju_apps.launch_feedback = Some((
+            *generation,
+            message.to_string(),
+            crate::app::skill_hub::SkillHubError::localized(message, vec![]),
+        ));
     }
-    app.show_error_toast(message)
+    app.show_localized_toast(crate::app::state::ToastKind::Error, message, vec![])
 }
 
 fn finish_api_key_binding_save(
@@ -492,7 +545,11 @@ fn finish_api_key_binding_save(
                 selected_api_key_id: Some(selected_api_key_id),
                 error: Some(error.clone()),
             };
-            app.show_error_toast(format!("识矩应用 API 密钥绑定保存失败：{error}"))
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "识矩应用 API 密钥绑定保存失败：%s",
+                vec![error.to_string().into()],
+            )
         }
     }
 }
@@ -507,7 +564,11 @@ fn continue_installed_launch(
         return Task::none();
     }
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后打开应用");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后打开应用",
+            vec![],
+        );
     };
     let credential = account.skill_hub_credential();
     app.expert_hub.shiju_apps.launch =
@@ -542,6 +603,7 @@ fn launch_result_is_current(
 }
 
 fn set_launch_error(app: &mut App, generation: u64, installation_id: &str, message: String) {
+    app.expert_hub.shiju_apps.launch_feedback = None;
     app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Error {
         generation,
         installation_id: installation_id.to_string(),
@@ -579,7 +641,11 @@ fn finish_installed_launch(
         Ok(target) => target,
         Err(error) => {
             set_launch_error(app, generation, installation_id, error.clone());
-            return app.show_error_toast(format!("识矩应用启动预检失败：{error}"));
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "识矩应用启动预检失败：%s",
+                vec![error.to_string().into()],
+            );
         }
     };
     #[cfg(not(target_arch = "wasm32"))]
@@ -587,11 +653,22 @@ fn finish_installed_launch(
         Ok(child) => {
             app.independent_webview_children.push(child);
             app.expert_hub.shiju_apps.launch = ShijuAppLaunchState::Idle;
-            app.show_success_toast("识矩应用已安全打开")
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "识矩应用已安全打开",
+                vec![],
+            )
         }
         Err(error) => {
-            set_launch_error(app, generation, installation_id, error.clone());
-            app.show_error_toast(error)
+            let original = error.to_string();
+            set_launch_error(app, generation, installation_id, original.clone());
+            app.expert_hub.shiju_apps.launch_feedback =
+                Some((generation, original.clone(), error.clone()));
+            let task = app.show_error_toast(original);
+            if let Some(toast) = &mut app.active_toast {
+                toast.localized_message = Some(error.message());
+            }
+            task
         }
     }
     #[cfg(target_arch = "wasm32")]
@@ -603,7 +680,11 @@ fn finish_installed_launch(
             installation_id,
             "当前平台不支持识矩应用 WebView".to_string(),
         );
-        app.show_error_toast("当前平台不支持识矩应用 WebView")
+        app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "当前平台不支持识矩应用 WebView",
+            vec![],
+        )
     }
 }
 

@@ -540,3 +540,28 @@ fn target_operations_reject_symlinks_and_deduplicate_paths() {
         assert!(!outside.join("skills/shiju/.env").exists());
     }
 }
+
+#[test]
+fn desktop_gettext_area_14_installer_error_retains_context_for_language_switch() {
+    use crate::app::i18n::{I18n, format::Message};
+    use vw_config_types::ui::DesktopLocale;
+    let home = tempfile::tempdir().unwrap();
+    let error = install_shiju_archive_at_home(&home.path().join("missing-%s-%n.zip"), home.path())
+        .unwrap_err();
+    let missing_home = home.path().join("用户-%s-%n");
+    let base_error =
+        install_shiju_archive_at_home(&home.path().join("missing.zip"), &missing_home).unwrap_err();
+    let base_error = super::SkillHubError::from(base_error);
+    let rendered = base_error.render(I18n::new(DesktopLocale::English));
+    assert_eq!(rendered, format!("Cannot read user home directory {}", missing_home.display()));
+    let error = super::SkillHubError::from(error);
+    let feedback = Message::nested("识矩技能安装失败：%s".into(), vec![error.message()]);
+    assert_eq!(
+        feedback.render(I18n::new(DesktopLocale::English)).unwrap(),
+        "Shiju skill installation failed: Cannot read Shiju skill installation package"
+    );
+    assert_eq!(
+        feedback.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
+        "識矩技能安裝失敗：無法讀取識矩技能安裝包"
+    );
+}

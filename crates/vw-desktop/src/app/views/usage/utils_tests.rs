@@ -95,10 +95,34 @@ fn section_title_kv_icon_svg_and_icon_button_build_expected_structure() {
 
 #[test]
 fn fmt_ms_formats_epoch_minutes_truncates_subseconds_and_rejects_overflow() {
-    assert_eq!(super::fmt_ms(0), "1970-01-01 00:00");
-    assert_eq!(super::fmt_ms(1_234), "1970-01-01 00:00");
-    assert_eq!(super::fmt_ms(65_000), "1970-01-01 00:01");
-    assert_eq!(super::fmt_ms(u64::MAX), "暂无");
+    assert_eq!(
+        super::fmt_ms(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            0
+        ),
+        "1970-01-01 00:00"
+    );
+    assert_eq!(
+        super::fmt_ms(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            1_234
+        ),
+        "1970-01-01 00:00"
+    );
+    assert_eq!(
+        super::fmt_ms(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            65_000
+        ),
+        "1970-01-01 00:01"
+    );
+    assert_eq!(
+        super::fmt_ms(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            u64::MAX
+        ),
+        "暂无"
+    );
 }
 
 #[test]

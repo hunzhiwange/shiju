@@ -80,3 +80,11 @@ pub mod workflow;
 
 #[cfg(test)]
 mod workflow_tests;
+
+#[cfg(test)]
+mod gettext_area_14_tests;
+
+pub mod apps;
+
+#[cfg(test)]
+mod apps_tests;

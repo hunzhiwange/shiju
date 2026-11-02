@@ -26,9 +26,9 @@ fn public_message(message: PublicSkillMessage) -> Message {
     Message::SkillHub(SkillHubMessage::Public(message))
 }
 
-fn back_button(experts: bool) -> Element<'static, Message> {
-    let label = if experts { "← 返回专家" } else { "← 返回技能" };
-    button(text(label).size(13))
+fn back_button(i18n: crate::app::i18n::I18n, experts: bool) -> Element<'static, Message> {
+    let label = if experts { i18n.__("← 返回专家") } else { i18n.__("← 返回技能") };
+    button(text(i18n.__(label)).size(13))
         .on_press(public_message(PublicSkillMessage::CloseDetail))
         .padding([7, 11])
         .style(styles::quiet_button_style)
@@ -36,11 +36,12 @@ fn back_button(experts: bool) -> Element<'static, Message> {
 }
 
 fn mode_button(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     mode: PublicDetailMode,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(text(label).size(12))
+    button(text(i18n.__(label)).size(12))
         .on_press(public_message(PublicSkillMessage::SetDetailMode(mode)))
         .padding([7, 12])
         .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
@@ -121,6 +122,7 @@ pub(super) fn detail_project_action_message(
 }
 
 fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let expert = app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts
         && matches!(detail.target, PublicDetailTarget::Suite { .. });
     let catalog_installed = selected_catalog_install(detail)
@@ -128,10 +130,18 @@ fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Mes
     let project_required = matches!(detail.target, PublicDetailTarget::Suite { .. })
         || detail.install_scope == SkillInstallScope::Project;
     let (label, enabled) = match &detail.install {
-        PublicInstallState::Installing { .. } => ("安装中…", false),
-        PublicInstallState::Installed { paths } if paths.len() > 1 => ("多平台安装完成", false),
-        PublicInstallState::Installed { .. } => ("安装完成", false),
-        PublicInstallState::Idle if catalog_installed => ("已安装", false),
+        PublicInstallState::Installing { .. } => {
+            (crate::app::i18n::I18n::new(app.desktop_locale).__("安装中…"), false)
+        }
+        PublicInstallState::Installed { paths } if paths.len() > 1 => {
+            (crate::app::i18n::I18n::new(app.desktop_locale).__("多平台安装完成"), false)
+        }
+        PublicInstallState::Installed { .. } => {
+            (crate::app::i18n::I18n::new(app.desktop_locale).__("安装完成"), false)
+        }
+        PublicInstallState::Idle if catalog_installed => {
+            (crate::app::i18n::I18n::new(app.desktop_locale).__("已安装"), false)
+        }
         PublicInstallState::Idle
             if project_required
                 && !expert
@@ -140,11 +150,14 @@ fn install_button(app: &App, detail: &PublicDetailState) -> Element<'static, Mes
                     .as_deref()
                     .is_none_or(|path| path.trim().is_empty()) =>
         {
-            ("请先选择项目", false)
+            (crate::app::i18n::I18n::new(app.desktop_locale).__("请先选择项目"), false)
         }
-        PublicInstallState::Idle => ("安装", true),
+        PublicInstallState::Idle => {
+            (crate::app::i18n::I18n::new(app.desktop_locale).__("安装"), true)
+        }
     };
-    let mut action = button(text(label).size(13)).padding([9, 18]).style(styles::pill_button_style);
+    let mut action =
+        button(text(i18n.__(label)).size(13)).padding([9, 18]).style(styles::pill_button_style);
     if enabled {
         action = action.on_press(public_message(if expert {
             PublicSkillMessage::OpenExpertInstall
@@ -160,6 +173,7 @@ fn with_expert_install_confirmation<'a>(
     detail: &'a PublicDetailState,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     if app.expert_hub.section != crate::app::skill_hub::ExpertHubSection::Experts
         || !detail.install_confirmation_open
     {
@@ -172,10 +186,13 @@ fn with_expert_install_confirmation<'a>(
     });
     let title = row![
         column![
-            text("安装专家包").size(20),
-            text("选择项目后安装；安装器会校验每个成员和主工作流。")
-                .size(12)
-                .style(styles::muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装专家包")).size(20),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("选择项目后安装；安装器会校验每个成员和主工作流。")
+            )
+            .size(12)
+            .style(styles::muted_text_style),
         ]
         .spacing(5)
         .width(Length::Fill),
@@ -183,18 +200,25 @@ fn with_expert_install_confirmation<'a>(
     ]
     .align_y(Alignment::Center);
     let mut install =
-        button(text("安装到项目").size(13)).padding([9, 16]).style(primary_action_btn_style);
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装到项目")).size(13))
+            .padding([9, 16])
+            .style(primary_action_btn_style);
     if has_project && !detail.install_is_busy() {
         install = install.on_press(public_message(PublicSkillMessage::InstallCurrent));
     }
     let card = settings_modal_card(
         column![
             title,
-            project_selector(detail, install_project_options(app)),
-            text("全局安装和第三方 Agent 目标暂不支持。").size(12).style(styles::muted_text_style),
+            project_selector(i18n, detail, install_project_options(app)),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("全局安装和第三方 Agent 目标暂不支持。")
+            )
+            .size(12)
+            .style(styles::muted_text_style),
             row![
                 Space::new().width(Length::Fill),
-                button(text("取消").size(13))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
                     .on_press(cancel.clone())
                     .padding([9, 16])
                     .style(rounded_action_btn_style),
@@ -210,11 +234,15 @@ fn with_expert_install_confirmation<'a>(
     settings_modal_overlay(Some(base), cancel, card)
 }
 
-fn project_selector(detail: &PublicDetailState, options: Vec<String>) -> Element<'static, Message> {
+fn project_selector(
+    i18n: crate::app::i18n::I18n,
+    detail: &PublicDetailState,
+    options: Vec<String>,
+) -> Element<'static, Message> {
     let install_busy = detail.install_is_busy();
     let selected_project_path = detail.selected_install_project_path.clone();
     row![
-        text("目标项目").size(12),
+        text(i18n.__("目标项目")).size(12),
         pick_list(options, detail.selected_install_project_path.clone(), move |project_path| {
             detail_project_action_message(
                 selected_project_path.as_deref(),
@@ -223,7 +251,7 @@ fn project_selector(detail: &PublicDetailState, options: Vec<String>) -> Element
             )
             .unwrap_or(Message::None)
         })
-        .placeholder("选择项目")
+        .placeholder(i18n.__("选择项目"))
         .padding([8, 12])
         .text_size(12)
         .width(Length::Fill)
@@ -236,13 +264,14 @@ fn project_selector(detail: &PublicDetailState, options: Vec<String>) -> Element
 }
 
 fn scope_button(
+    i18n: crate::app::i18n::I18n,
     detail: &PublicDetailState,
     label: &'static str,
     scope: SkillInstallScope,
     project_available: bool,
 ) -> Element<'static, Message> {
     let selected = detail.install_scope == scope;
-    let mut action = button(text(label).size(12))
+    let mut action = button(text(i18n.__(label)).size(12))
         .padding([7, 13])
         .style(move |theme, status| styles::selected_tab_style(theme, status, selected));
     if let Some(message) = detail_scope_action_message(detail, scope, project_available) {
@@ -252,6 +281,7 @@ fn scope_button(
 }
 
 fn install_target_card(
+    i18n: crate::app::i18n::I18n,
     detail: &PublicDetailState,
     presentation: InstallTargetPresentation,
     directory_name: &str,
@@ -267,10 +297,13 @@ fn install_target_card(
         path_text = path_text.font(Font::MONOSPACE);
     }
     let content = column![
-        row![text(if selected { "✓" } else { "○" }).size(14), text(presentation.name).size(13),]
-            .spacing(7)
-            .align_y(Alignment::Center),
-        text(presentation.compatibility).size(11).style(styles::muted_text_style),
+        row![
+            text(if selected { "✓" } else { "○" }).size(14),
+            text(i18n.__(presentation.name)).size(13),
+        ]
+        .spacing(7)
+        .align_y(Alignment::Center),
+        text(i18n.__(presentation.compatibility)).size(11).style(styles::muted_text_style),
         path_text.style(styles::muted_text_style),
     ]
     .spacing(6);
@@ -284,8 +317,8 @@ fn install_target_card(
     container(action).width(Length::Fixed(340.0)).padding(2).style(styles::inset_panel_style).into()
 }
 
-fn installed_paths(paths: &[String]) -> Element<'static, Message> {
-    let mut items = column![text("安装位置").size(12)].spacing(6);
+fn installed_paths(i18n: crate::app::i18n::I18n, paths: &[String]) -> Element<'static, Message> {
+    let mut items = column![text(i18n.__("安装位置")).size(12)].spacing(6);
     for path in paths {
         let mut value = text(path.clone()).size(11);
         if path.is_ascii() {
@@ -300,6 +333,7 @@ fn skill_install_options(
     app: &App,
     detail: &PublicDetailState,
 ) -> Option<Element<'static, Message>> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let PublicDetailTarget::Skill(locator) = &detail.target else {
         return None;
     };
@@ -307,17 +341,24 @@ fn skill_install_options(
     let directory_name = installed_id(&detail.target);
     let target_cards = install_target_presentations(detail.install_scope)
         .into_iter()
-        .map(|presentation| install_target_card(detail, presentation, &directory_name))
+        .map(|presentation| install_target_card(i18n, detail, presentation, &directory_name))
         .collect::<Vec<_>>();
     let mut content = column![
         row![
             column![
-                text("安装到 Agent")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装到 Agent"))
                     .size(18)
                     .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
-                text(format!("为 {} 选择安装范围和一个或多个 Agent 目标。", locator.slug))
-                    .size(12)
-                    .style(styles::muted_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format(
+                            "为 %s 选择安装范围和一个或多个 Agent 目标。",
+                            &[(locator.slug).to_string().into()]
+                        )
+                        .expect("valid display template")
+                )
+                .size(12)
+                .style(styles::muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),
@@ -326,76 +367,96 @@ fn skill_install_options(
         .spacing(12)
         .align_y(Alignment::Center),
         row![
-            text("安装范围").size(12),
-            scope_button(detail, "全局", SkillInstallScope::Global, true),
-            scope_button(detail, "项目", SkillInstallScope::Project, !project_options.is_empty(),),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装范围")).size(12),
+            scope_button(
+                i18n,
+                detail,
+                crate::app::i18n::I18n::new(app.desktop_locale).__("全局"),
+                SkillInstallScope::Global,
+                true
+            ),
+            scope_button(
+                i18n,
+                detail,
+                crate::app::i18n::I18n::new(app.desktop_locale).__("项目"),
+                SkillInstallScope::Project,
+                !project_options.is_empty(),
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
     ]
     .spacing(14);
     if detail.install_scope == SkillInstallScope::Project {
-        content = content.push(project_selector(detail, project_options));
+        content = content.push(project_selector(i18n, detail, project_options));
     }
     content = content.push(row(target_cards).spacing(10).wrap());
     if let PublicInstallState::Installed { paths } = &detail.install {
-        content = content.push(installed_paths(paths));
+        content = content.push(installed_paths(i18n, paths));
     }
     Some(
         container(content).padding(20).width(Length::Fill).style(styles::detail_panel_style).into(),
     )
 }
 
-fn field(label: &'static str, value: String) -> Element<'static, Message> {
+fn field(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    value: String,
+) -> Element<'static, Message> {
     column![
-        text(label).size(11).style(styles::muted_text_style),
-        text(if value.trim().is_empty() { "暂无".to_string() } else { value }).size(13),
+        text(i18n.__(label)).size(11).style(styles::muted_text_style),
+        text(if value.trim().is_empty() { i18n.__("暂无").to_string() } else { value }).size(13),
     ]
     .spacing(4)
     .width(Length::Fixed(190.0))
     .into()
 }
 
-fn skill_information(detail: &SkillMarketSkillDetailDto) -> Element<'static, Message> {
+fn skill_information(
+    i18n: crate::app::i18n::I18n,
+    detail: &SkillMarketSkillDetailDto,
+) -> Element<'static, Message> {
     let skill = &detail.skill;
     let security = detail
         .security
         .as_ref()
         .map(|security| security.summary.clone().unwrap_or_else(|| security.status.clone()))
-        .unwrap_or_else(|| "未提供".to_string());
+        .unwrap_or_else(|| i18n.__("未提供").to_string());
     container(
         column![
-            text("技能信息")
+            text(i18n.__("技能信息"))
                 .size(18)
                 .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
             row![
-                field("作者", skill.author.clone()),
-                field("分类", skill.category.clone()),
-                field("版本", skill.coordinate.version.clone()),
-                field("来源", skill.coordinate.locator.source.clone()),
+                field(i18n, i18n.__("作者"), skill.author.clone()),
+                field(i18n, i18n.__("分类"), skill.category.clone()),
+                field(i18n, i18n.__("版本"), skill.coordinate.version.clone()),
+                field(i18n, i18n.__("来源"), skill.coordinate.locator.source.clone()),
             ]
             .spacing(16)
             .wrap(),
             row![
-                field("评分", format!("{:.1}", skill.rating)),
-                field("下载", skill.downloads.to_string()),
-                field("安装", skill.installs.to_string()),
-                field("安全", security),
+                field(i18n, i18n.__("评分"), format!("{:.1}", skill.rating)),
+                field(i18n, i18n.__("下载"), skill.downloads.to_string()),
+                field(i18n, i18n.__("安装"), skill.installs.to_string()),
+                field(i18n, i18n.__("安全"), security),
             ]
             .spacing(16)
             .wrap(),
             row![
-                field("许可证", detail.license.clone().unwrap_or_default()),
+                field(i18n, i18n.__("许可证"), detail.license.clone().unwrap_or_default()),
                 field(
+                    i18n,
                     "API Key",
                     if detail.requires_api_key {
-                        "需要".to_string()
+                        i18n.__("需要").to_string()
                     } else {
-                        "不需要".to_string()
+                        i18n.__("不需要").to_string()
                     },
                 ),
-                field("命名空间", skill.coordinate.locator.namespace.clone()),
-                field("标识", skill.coordinate.locator.slug.clone()),
+                field(i18n, i18n.__("命名空间"), skill.coordinate.locator.namespace.clone()),
+                field(i18n, i18n.__("标识"), skill.coordinate.locator.slug.clone()),
             ]
             .spacing(16)
             .wrap(),
@@ -408,7 +469,10 @@ fn skill_information(detail: &SkillMarketSkillDetailDto) -> Element<'static, Mes
     .into()
 }
 
-fn suite_information(detail: &SkillMarketSkillSetDetailDto) -> Element<'static, Message> {
+fn suite_information(
+    i18n: crate::app::i18n::I18n,
+    detail: &SkillMarketSkillSetDetailDto,
+) -> Element<'static, Message> {
     let mut members = column![].spacing(7);
     for coordinate in &detail.members {
         members = members.push(
@@ -418,7 +482,7 @@ fn suite_information(detail: &SkillMarketSkillSetDetailDto) -> Element<'static, 
                         .size(13)
                         .width(Length::Fill),
                     text(if coordinate.version.is_empty() {
-                        "最新".to_string()
+                        i18n.__("最新").to_string()
                     } else {
                         coordinate.version.clone()
                     })
@@ -433,12 +497,13 @@ fn suite_information(detail: &SkillMarketSkillSetDetailDto) -> Element<'static, 
         );
     }
     if detail.members.is_empty() {
-        members = members.push(text("套件未声明成员").size(13).style(styles::muted_text_style));
+        members =
+            members.push(text(i18n.__("套件未声明成员")).size(13).style(styles::muted_text_style));
     }
     container(
         column![
             row![
-                text("套件成员")
+                text(i18n.__("套件成员"))
                     .size(18)
                     .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
                 container(text(detail.members.len().to_string()).size(11))
@@ -488,23 +553,26 @@ fn content_text(detail: &PublicDetailState) -> Option<&str> {
 }
 
 fn content_panel<'a>(app: &'a App, detail: &'a PublicDetailState) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let body = match content_text(detail) {
         Some(content) if detail.mode == PublicDetailMode::Markdown => raw_markdown(content),
         Some(_) => rendered_markdown(app, detail),
-        None => status_panel("内容正在加载…"),
+        None => status_panel(crate::app::i18n::I18n::new(app.desktop_locale).__("内容正在加载…")),
     };
     column![
         row![
-            text("技能内容")
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("技能内容"))
                 .size(18)
                 .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
                 .width(Length::Fill),
             mode_button(
-                "可视化",
+                i18n,
+                crate::app::i18n::I18n::new(app.desktop_locale).__("可视化"),
                 PublicDetailMode::Visual,
                 detail.mode == PublicDetailMode::Visual,
             ),
             mode_button(
+                i18n,
                 "Markdown",
                 PublicDetailMode::Markdown,
                 detail.mode == PublicDetailMode::Markdown,
@@ -518,8 +586,8 @@ fn content_panel<'a>(app: &'a App, detail: &'a PublicDetailState) -> Element<'a,
     .into()
 }
 
-fn status_panel(message: &str) -> Element<'_, Message> {
-    container(text(message).size(13).style(styles::muted_text_style))
+fn status_panel(message: &str) -> Element<'static, Message> {
+    container(text(message.to_string()).size(13).style(styles::muted_text_style))
         .padding(20)
         .width(Length::Fill)
         .style(styles::detail_panel_style)
@@ -544,7 +612,13 @@ fn loaded_header(app: &App, detail: &PublicDetailState) -> Option<Element<'stati
         column![
             text(name).size(25).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
             text(description).size(13).style(styles::muted_text_style),
-            text(format!("来源：{source}")).size(11).style(styles::muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("来源：%s", &[(source).to_string().into()])
+                    .expect("valid display template")
+            )
+            .size(11)
+            .style(styles::muted_text_style),
         ]
         .spacing(6)
         .width(Length::Fill),
@@ -555,8 +629,11 @@ fn loaded_header(app: &App, detail: &PublicDetailState) -> Option<Element<'stati
         header = header.push(install_button(app, detail));
         if app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts {
             let availability = crate::app::message::skill_hub::selectable_expert_skill(app);
-            let mut select =
-                button(text("本次使用").size(13)).padding([9, 16]).style(primary_action_btn_style);
+            let mut select = button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("本次使用")).size(13),
+            )
+            .padding([9, 16])
+            .style(primary_action_btn_style);
             if availability.is_ok() {
                 select = select.on_press(public_message(PublicSkillMessage::SelectExpertForChat));
             }
@@ -571,18 +648,28 @@ fn loaded_header(app: &App, detail: &PublicDetailState) -> Option<Element<'stati
 
 /// 按目标类型和加载状态展示公共技能或套件详情。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let Some(detail) = &app.expert_hub.public_market.detail else {
-        return status_panel("请从公开技能列表选择技能或套件");
+        return status_panel(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("请从公开技能列表选择技能或套件"),
+        );
     };
-    let header = loaded_header(app, detail).unwrap_or_else(|| status_panel("详情正在加载…"));
+    let header = loaded_header(app, detail).unwrap_or_else(|| {
+        status_panel(crate::app::i18n::I18n::new(app.desktop_locale).__("详情正在加载…"))
+    });
     let information = match (&detail.skill_detail, &detail.suite_detail) {
-        (LoadState::Loaded(skill), _) => skill_information(skill),
-        (_, LoadState::Loaded(suite)) => suite_information(suite),
-        (LoadState::Error(error), _) | (_, LoadState::Error(error)) => status_panel(error),
-        _ => status_panel("正在同步详情信息…"),
+        (LoadState::Loaded(skill), _) => skill_information(i18n, skill),
+        (_, LoadState::Loaded(suite)) => suite_information(i18n, suite),
+        (LoadState::Error(error), _) | (_, LoadState::Error(error)) => {
+            status_panel(&error.render(i18n))
+        }
+        _ => status_panel(crate::app::i18n::I18n::new(app.desktop_locale).__("正在同步详情信息…")),
     };
     let mut page = column![
-        back_button(app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts),
+        back_button(
+            i18n,
+            app.expert_hub.section == crate::app::skill_hub::ExpertHubSection::Experts
+        ),
         header,
         container(Space::new())
             .height(Length::Fixed(1.0))

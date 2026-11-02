@@ -1,5 +1,6 @@
 //! 处理公共技能市场的检索、详情、安装与批量操作消息。
 
+use crate::app::skill_hub::SkillHubError;
 use iced::Task;
 use vw_gateway_client::{
     DesktopSkillCatalogEntryDto, SkillMarketCategoryDto, SkillMarketCoordinateDto,
@@ -206,7 +207,13 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
     if matches!(message, PublicSkillMessage::SelectExpertForChat) {
         let skill_id = match selectable_expert_skill(app) {
             Ok(id) => id,
-            Err(reason) => return app.show_warning_toast(reason),
+            Err(reason) => {
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    reason,
+                    vec![],
+                );
+            }
         };
         app.current_session_runtime_mut().tool_selector.select_manual_skill(&skill_id);
         if let Some(tab) = app.open_tabs.iter().find(|tab| {
@@ -221,13 +228,21 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
     if let PublicSkillMessage::SelectDetailInstallProject(project_path) = &message {
         let project_path = project_path.trim();
         if project_path.is_empty() || !known_install_project(app, project_path) {
-            return app.show_warning_toast("请选择当前或最近使用的项目");
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "请选择当前或最近使用的项目",
+                vec![],
+            );
         }
         let Some(detail) = app.expert_hub.public_market.detail.as_mut() else {
             return Task::none();
         };
         if detail.install_is_busy() {
-            return app.show_warning_toast("安装进行中，暂时无法切换项目");
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "安装进行中，暂时无法切换项目",
+                vec![],
+            );
         }
         if !detail.select_install_project_path(project_path.to_string()) {
             return Task::none();
@@ -251,7 +266,11 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
                     })
             });
             if !valid {
-                return app.show_warning_toast("请在安装弹窗选择当前或最近使用的项目");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "请在安装弹窗选择当前或最近使用的项目",
+                    vec![],
+                );
             }
         }
         let project_path = app
@@ -267,7 +286,9 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
                 }
                 dispatch(request)
             }
-            Err(error) => app.show_warning_toast(error),
+            Err(error) => {
+                super::show_skill_error(app, crate::app::state::ToastKind::Warning, None, error)
+            }
         };
     }
     if let PublicSkillMessage::StartBatchEnabled(enabled) = &message {
@@ -277,7 +298,9 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
             if *enabled { PublicBatchActionKind::Enable } else { PublicBatchActionKind::Disable },
         ) {
             Ok(requests) => Task::batch(requests.into_iter().map(dispatch)),
-            Err(error) => app.show_warning_toast(error),
+            Err(error) => {
+                super::show_skill_error(app, crate::app::state::ToastKind::Warning, None, error)
+            }
         };
     }
     if let PublicSkillMessage::ToggleInstalled { skill_id, enabled } = &message {
@@ -288,7 +311,9 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
             vec![skill_id.clone()],
         ) {
             Ok(requests) => Task::batch(requests.into_iter().map(dispatch)),
-            Err(error) => app.show_warning_toast(error),
+            Err(error) => {
+                super::show_skill_error(app, crate::app::state::ToastKind::Warning, None, error)
+            }
         };
     }
     if matches!(message, PublicSkillMessage::ConfirmBatchDelete) {
@@ -302,7 +327,9 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
             PublicBatchActionKind::Delete,
         ) {
             Ok(requests) => Task::batch(requests.into_iter().map(dispatch)),
-            Err(error) => app.show_warning_toast(error),
+            Err(error) => {
+                super::show_skill_error(app, crate::app::state::ToastKind::Warning, None, error)
+            }
         };
     }
     let install_feedback = match &message {
@@ -374,25 +401,48 @@ pub(crate) fn update(app: &mut App, message: PublicSkillMessage) -> Task<Message
     let mut tasks = requests.into_iter().map(dispatch).collect::<Vec<_>>();
     if let Some((expert, result)) = install_feedback {
         tasks.push(match result {
-            Ok(()) if expert => app.show_success_toast("专家包安装成功"),
-            Ok(()) => app.show_success_toast("技能安装成功"),
-            Err(error) if expert => app.show_error_toast(format!("专家包安装失败：{error}")),
-            Err(error) => app.show_error_toast(format!("技能安装失败：{error}")),
+            Ok(()) if expert => app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "专家包安装成功",
+                vec![],
+            ),
+            Ok(()) => app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "技能安装成功",
+                vec![],
+            ),
+            Err(error) if expert => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "专家包安装失败：%s",
+                vec![error.to_string().into()],
+            ),
+            Err(error) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "技能安装失败：%s",
+                vec![error.to_string().into()],
+            ),
         });
     }
     if let Some(error) = refresh_error {
-        tasks.push(app.show_warning_toast(format!("技能已安装，但刷新本地目录失败：{error}")));
+        tasks.push(app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "技能已安装，但刷新本地目录失败：%s",
+            vec![error.to_string().into()],
+        ));
     }
     if let Some(summary) = batch_feedback {
-        let message = if summary.failed == 0 {
-            format!("批量操作完成：成功 {} 项", summary.succeeded)
-        } else {
-            format!("批量操作完成：成功 {} 项，失败 {} 项", summary.succeeded, summary.failed)
-        };
         tasks.push(if summary.failed == 0 {
-            app.show_success_toast(message)
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "批量操作完成：成功 %u 项",
+                vec![summary.succeeded.into()],
+            )
         } else {
-            app.show_warning_toast(message)
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "批量操作完成：成功 %u 项，失败 %u 项",
+                vec![summary.succeeded.into(), summary.failed.into()],
+            )
         });
     }
     Task::batch(tasks)
@@ -473,7 +523,7 @@ pub(crate) fn reduce(
                     }
                 }
                 Err(error) => {
-                    state.sources = LoadState::Error(error);
+                    state.sources = LoadState::Error(error.into());
                     Vec::new()
                 }
             }
@@ -630,8 +680,9 @@ pub(crate) fn reduce(
         }
         PublicSkillMessage::SkillDetailLoaded { locator, generation, result } => {
             if let Some(detail) = current_skill_detail(state, &locator, generation) {
-                detail.skill_detail =
-                    result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
+                detail.skill_detail = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.into()));
             }
             Vec::new()
         }
@@ -642,7 +693,7 @@ pub(crate) fn reduce(
                         detail.markdown_items = parse_public_markdown(&file.content);
                         detail.skill_file = LoadState::Loaded(file);
                     }
-                    Err(error) => detail.skill_file = LoadState::Error(error),
+                    Err(error) => detail.skill_file = LoadState::Error(error.into()),
                 }
             }
             Vec::new()
@@ -654,7 +705,7 @@ pub(crate) fn reduce(
                         detail.markdown_items = parse_public_markdown(&suite.content);
                         detail.suite_detail = LoadState::Loaded(suite);
                     }
-                    Err(error) => detail.suite_detail = LoadState::Error(error),
+                    Err(error) => detail.suite_detail = LoadState::Error(error.into()),
                 }
             }
             Vec::new()
@@ -695,7 +746,7 @@ pub(crate) fn reduce(
                             .retain(|skill_id| manageable.contains(skill_id.as_str()));
                         state.installed = LoadState::Loaded(items);
                     }
-                    Err(error) => state.installed = LoadState::Error(error),
+                    Err(error) => state.installed = LoadState::Error(error.into()),
                 }
             }
             Vec::new()
@@ -706,25 +757,33 @@ pub(crate) fn reduce(
         PublicSkillMessage::RecommendedLoaded { source, generation, result } => {
             if response_is_current(state, &source, generation, state.recommended_generation) {
                 state.featured_offset = 0;
-                state.recommended = result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
+                state.recommended = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.into()));
             }
             Vec::new()
         }
         PublicSkillMessage::CategoriesLoaded { source, generation, result } => {
             if response_is_current(state, &source, generation, state.categories_generation) {
-                state.categories = result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
+                state.categories = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.into()));
             }
             Vec::new()
         }
         PublicSkillMessage::MarketLoaded { source, generation, result } => {
             if response_is_current(state, &source, generation, state.market_generation) {
-                state.market = result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
+                state.market = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.into()));
             }
             Vec::new()
         }
         PublicSkillMessage::SuitesLoaded { source, generation, result } => {
             if response_is_current(state, &source, generation, state.suites_generation) {
-                state.suites = result.map(LoadState::Loaded).unwrap_or_else(LoadState::Error);
+                state.suites = result
+                    .map(LoadState::Loaded)
+                    .unwrap_or_else(|error| LoadState::Error(error.into()));
             }
             Vec::new()
         }
@@ -912,35 +971,38 @@ fn known_install_project(app: &App, project_path: &str) -> bool {
 pub(crate) fn begin_install(
     state: &mut PublicSkillMarketState,
     project_path: Option<&str>,
-) -> Result<PublicRequest, String> {
-    let detail = state.detail.as_ref().ok_or_else(|| "请先打开技能或套件详情".to_string())?;
+) -> Result<PublicRequest, SkillHubError> {
+    let detail = state
+        .detail
+        .as_ref()
+        .ok_or_else(|| SkillHubError::localized("请先打开技能或套件详情", vec![]))?;
     let project_missing = PublicSkillMarketState::install_availability(project_path)
         == PublicInstallAvailability::NoProject;
     match &detail.target {
         PublicDetailTarget::Skill(_) if detail.install_scope == SkillInstallScope::Project => {
             if project_missing {
-                return Err("项目级安装需要先选择项目".to_string());
+                return Err(SkillHubError::localized("项目级安装需要先选择项目", vec![]));
             }
         }
         PublicDetailTarget::Suite { .. } if project_missing => {
-            return Err("请先选择项目再安装技能".to_string());
+            return Err(SkillHubError::localized("请先选择项目再安装技能", vec![]));
         }
         _ => {}
     }
     if matches!(detail.install, PublicInstallState::Installing { .. }) {
-        return Err("安装正在进行中".to_string());
+        return Err(SkillHubError::localized("安装正在进行中", vec![]));
     }
     if matches!(detail.install, PublicInstallState::Installed { .. }) {
-        return Err("所选目标已完成安装，请调整选择后重试".to_string());
+        return Err(SkillHubError::localized("所选目标已完成安装，请调整选择后重试", vec![]));
     }
     let target = detail.target.clone();
     let install_target = match &target {
         PublicDetailTarget::Skill(locator) => {
             let LoadState::Loaded(skill_detail) = &detail.skill_detail else {
-                return Err("技能详情尚未加载完成".to_string());
+                return Err(SkillHubError::localized("技能详情尚未加载完成", vec![]));
             };
             if skill_detail.skill.coordinate.locator != *locator {
-                return Err("技能详情坐标与当前请求不一致".to_string());
+                return Err(SkillHubError::localized("技能详情坐标与当前请求不一致", vec![]));
             }
             let installations = detail
                 .selected_install_targets
@@ -949,13 +1011,13 @@ pub(crate) fn begin_install(
                 .map(|target| install_selection(target, detail.install_scope))
                 .collect::<Vec<_>>();
             if installations.is_empty() {
-                return Err("请至少选择一个安装目标".to_string());
+                return Err(SkillHubError::localized("请至少选择一个安装目标", vec![]));
             }
             Some((skill_detail.skill.coordinate.clone(), installations))
         }
         PublicDetailTarget::Suite { .. } => {
             if !matches!(detail.suite_detail, LoadState::Loaded(_)) {
-                return Err("套件详情尚未加载完成".to_string());
+                return Err(SkillHubError::localized("套件详情尚未加载完成", vec![]));
             }
             None
         }
@@ -980,7 +1042,7 @@ pub(crate) fn begin_install(
         (PublicDetailTarget::Suite { source, slug }, None) => {
             Ok(PublicRequest::InstallSuite { project_path, source, slug, target, generation })
         }
-        _ => Err("详情安装状态无效".to_string()),
+        _ => Err(SkillHubError::localized("详情安装状态无效", vec![])),
     }
 }
 
@@ -1012,9 +1074,10 @@ pub(crate) fn begin_batch_action(
     state: &mut PublicSkillMarketState,
     project_path: Option<&str>,
     kind: PublicBatchActionKind,
-) -> Result<Vec<PublicRequest>, String> {
-    let snapshot =
-        state.start_batch_action(kind).ok_or_else(|| "请先选择可管理的已安装技能".to_string())?;
+) -> Result<Vec<PublicRequest>, SkillHubError> {
+    let snapshot = state
+        .start_batch_action(kind)
+        .ok_or_else(|| SkillHubError::localized("请先选择可管理的已安装技能", vec![]))?;
     Ok(batch_requests(
         project_path.unwrap_or_default(),
         snapshot.generation,
@@ -1028,9 +1091,9 @@ fn begin_action_for_ids(
     project_path: Option<&str>,
     kind: PublicBatchActionKind,
     skill_ids: Vec<String>,
-) -> Result<Vec<PublicRequest>, String> {
+) -> Result<Vec<PublicRequest>, SkillHubError> {
     if state.batch_action.is_some() {
-        return Err("已有批量操作正在进行".to_string());
+        return Err(SkillHubError::localized("已有批量操作正在进行", vec![]));
     }
     let manageable = match &state.installed {
         LoadState::Loaded(items) => skill_ids.iter().all(|skill_id| {
@@ -1041,7 +1104,7 @@ fn begin_action_for_ids(
         _ => false,
     };
     if skill_ids.is_empty() || !manageable {
-        return Err("只能操作 gateway 判定可管理的本地技能".to_string());
+        return Err(SkillHubError::localized("只能操作 gateway 判定可管理的本地技能", vec![]));
     }
     state.batch_generation = state.batch_generation.wrapping_add(1);
     let generation = state.batch_generation;

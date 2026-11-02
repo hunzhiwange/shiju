@@ -32,7 +32,7 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
                     next_cursor: None,
                     has_more: false,
                 }),
-                2 => LoadState::Error("network error".to_string()),
+                2 => LoadState::Error(("network error".to_string()).into()),
                 _ => LoadState::NeedsLogin,
             };
         }
@@ -40,7 +40,7 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
             app.expert_hub.installed = match state {
                 0 => LoadState::Loading { generation: 1 },
                 1 => LoadState::Loaded(Vec::new()),
-                2 => LoadState::Error("network error".to_string()),
+                2 => LoadState::Error(("network error".to_string()).into()),
                 _ => LoadState::NeedsLogin,
             };
         }
@@ -50,7 +50,7 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
                 1 => {
                     LoadState::Loaded(Page { items: Vec::new(), page: 1, page_size: 20, total: 0 })
                 }
-                2 => LoadState::Error("network error".to_string()),
+                2 => LoadState::Error(("network error".to_string()).into()),
                 _ => LoadState::NeedsLogin,
             };
         }
@@ -60,7 +60,7 @@ fn set_state(app: &mut App, tab: SkillTab, state: usize) {
                 1 => {
                     LoadState::Loaded(Page { items: Vec::new(), page: 1, page_size: 20, total: 0 })
                 }
-                2 => LoadState::Error("network error".to_string()),
+                2 => LoadState::Error(("network error".to_string()).into()),
                 _ => LoadState::NeedsLogin,
             };
         }
@@ -81,8 +81,14 @@ fn market_tag_rows_show_full_catalogs() {
         SkillTag { id: 7, name: "公司七".to_string(), sort_order: 10 },
     ]);
 
-    let (platform_options, platform_feedback) = market_catalog_filter_options(&platform);
-    let (company_options, company_feedback) = market_catalog_filter_options(&company);
+    let (platform_options, platform_feedback) = market_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &platform,
+    );
+    let (company_options, company_feedback) = market_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &company,
+    );
     assert_eq!(
         platform_options
             .iter()
@@ -97,11 +103,16 @@ fn market_tag_rows_show_full_catalogs() {
     assert_eq!(platform_feedback, None);
     assert_eq!(company_feedback, None);
 
-    let (empty, empty_feedback) = market_catalog_filter_options(&LoadState::Loaded(Vec::new()));
+    let (empty, empty_feedback) = market_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &LoadState::Loaded(Vec::new()),
+    );
     assert_eq!(empty.len(), 1);
     assert_eq!(empty_feedback, Some("暂无可选标签"));
-    let (_, failed_feedback) =
-        market_catalog_filter_options(&LoadState::Error("目录不可用".to_string()));
+    let (_, failed_feedback) = market_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &LoadState::Error(("目录不可用".to_string()).into()),
+    );
     assert_eq!(failed_feedback, Some("标签目录加载失败"));
 
     for theme in [Theme::Light, Theme::Dark] {
@@ -199,7 +210,11 @@ fn mine_multi_select_labels_and_tag_fallbacks_are_stable() {
         SkillTag { id: 2, name: "开发".to_string(), sort_order: 1 },
         SkillTag { id: 9, name: "重复名称".to_string(), sort_order: 0 },
     ];
-    let options = mine_tag_filter_options(tags.iter(), &[2, 7]);
+    let options = mine_tag_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        tags.iter(),
+        &[2, 7],
+    );
 
     assert_eq!(options.iter().map(|option| option.id).collect::<Vec<_>>(), vec![2, 9, 7]);
     assert_eq!(
@@ -208,7 +223,13 @@ fn mine_multi_select_labels_and_tag_fallbacks_are_stable() {
     );
     assert_eq!(mine_named_tag_filter_label("平台标签", &[]), "平台标签");
     assert_eq!(mine_named_tag_filter_label("公司标签", &[2, 7]), "公司标签 2");
-    assert_eq!(mine_status_filter_label(&MineSkillStatus::DEFAULT), "已选 3 个状态");
+    assert_eq!(
+        mine_status_filter_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &MineSkillStatus::DEFAULT
+        ),
+        "已选 3 个状态"
+    );
     assert!(!MineSkillStatus::DEFAULT.contains(&MineSkillStatus::Unpublished));
 }
 
@@ -223,8 +244,16 @@ fn mine_tag_catalogs_are_independent_sorted_and_keep_selected_fallbacks() {
         SkillTag { id: 7, name: "公司七".to_string(), sort_order: 10 },
     ]);
 
-    let (platform_options, platform_empty) = mine_catalog_filter_options(&platform, &[9]);
-    let (company_options, company_empty) = mine_catalog_filter_options(&company, &[]);
+    let (platform_options, platform_empty) = mine_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &platform,
+        &[9],
+    );
+    let (company_options, company_empty) = mine_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &company,
+        &[],
+    );
     assert_eq!(
         platform_options.iter().map(|option| option.label.as_str()).collect::<Vec<_>>(),
         vec!["平台一", "平台三", "标签 9"]
@@ -236,13 +265,19 @@ fn mine_tag_catalogs_are_independent_sorted_and_keep_selected_fallbacks() {
     assert_eq!(platform_empty, None);
     assert_eq!(company_empty, None);
 
-    let (failed_options, failed_empty) =
-        mine_catalog_filter_options(&LoadState::Error("目录不可用".to_string()), &[12]);
+    let (failed_options, failed_empty) = mine_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &LoadState::Error(("目录不可用".to_string()).into()),
+        &[12],
+    );
     assert_eq!(failed_options[0].label, "标签 12");
     assert_eq!(failed_empty, Some("标签目录加载失败"));
 
-    let (empty_options, empty_label) =
-        mine_catalog_filter_options(&LoadState::Loaded(Vec::new()), &[]);
+    let (empty_options, empty_label) = mine_catalog_filter_options(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &LoadState::Loaded(Vec::new()),
+        &[],
+    );
     assert!(empty_options.is_empty());
     assert_eq!(empty_label, Some("暂无可选标签"));
 }

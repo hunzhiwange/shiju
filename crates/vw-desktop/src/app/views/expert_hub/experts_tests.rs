@@ -85,7 +85,8 @@ async fn expert_package_view_renders_loading_empty_error_and_detail() {
             page_size: 24,
         });
         assert_draws(&app, &theme).await;
-        app.expert_hub.public_market.suites = LoadState::Error("网络异常，请重试".to_string());
+        app.expert_hub.public_market.suites =
+            LoadState::Error(("网络异常，请重试".to_string()).into());
         assert_draws(&app, &theme).await;
         app.expert_hub.public_market.suites = LoadState::Loaded(SkillMarketSkillSetPageDto {
             skillsets: vec![suite()],
@@ -123,4 +124,26 @@ async fn expert_package_view_renders_loading_empty_error_and_detail() {
     let _ = update(&mut app, SkillHubMessage::Public(PublicSkillMessage::CloseDetail));
     assert!(app.expert_hub.public_market.detail.is_none());
     assert_draws(&app, &Theme::Dark).await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_14_expert_hub_renders_all_locales() {
+    use vw_config_types::ui::DesktopLocale;
+    let mut app = app();
+    app.expert_hub.public_market.suites = LoadState::Loaded(SkillMarketSkillSetPageDto {
+        skillsets: vec![suite()],
+        total: 1,
+        page: 1,
+        page_size: 24,
+    });
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        app.desktop_locale = locale;
+        for theme in [Theme::Light, Theme::Dark] {
+            assert_draws(&app, &theme).await;
+        }
+    }
 }

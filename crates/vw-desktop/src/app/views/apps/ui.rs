@@ -416,6 +416,7 @@ pub(super) fn figma_text_editor_style(
 /// - 内边距：14px
 /// - 元素间距：12px
 pub(super) fn tile(
+    i18n: crate::app::i18n::I18n,
     icon: Icon,
     title: String,
     accent: Color,
@@ -475,7 +476,7 @@ pub(super) fn tile(
         .height(Length::Fixed(btn_size));
 
         // 为按钮添加顶部工具提示
-        let btn = Tooltip::new(btn, tooltip_bubble(label), TooltipPosition::Top).gap(8.0);
+        let btn = Tooltip::new(btn, tooltip_bubble(i18n.__(label)), TooltipPosition::Top).gap(8.0);
         actions_row = actions_row.push(btn);
     }
 

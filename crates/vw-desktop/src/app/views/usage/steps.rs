@@ -247,7 +247,7 @@ pub fn legend_item<'a>(
     .into()
 }
 
-fn raw_payload_summary(value: &serde_json::Value) -> String {
+fn raw_payload_summary(i18n: crate::app::i18n::I18n, value: &serde_json::Value) -> String {
     let message_count =
         value.get("messages").and_then(serde_json::Value::as_array).map_or(0, Vec::len);
     let tool_call_count = value
@@ -255,7 +255,8 @@ fn raw_payload_summary(value: &serde_json::Value) -> String {
         .and_then(|output| output.get("tool_calls"))
         .and_then(serde_json::Value::as_array)
         .map_or(0, Vec::len);
-    format!("历史消息 {message_count} 条 · 工具调用 {tool_call_count} 条")
+    i18n.format("历史消息 %u 条 · 工具调用 %u 条", &[message_count.into(), tool_call_count.into()])
+        .expect("valid raw summary")
 }
 
 fn vertical_scrollbar() -> iced::widget::scrollable::Direction {
@@ -272,16 +273,38 @@ fn raw_payload_status_for_turn(
 ) -> String {
     let key = (session_id.to_string(), turn_id.to_string(), step_index);
     if app.usage_step_raw_loading.contains(&key) {
-        return "原始记录：加载中...".to_string();
+        return crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("原始记录：加载中...")
+            .to_string();
     }
     if let Some(value) = app.active_session_view_state.step_llm_raw.get(&key) {
-        return format!("原始记录：{}", raw_payload_summary(value));
+        return crate::app::i18n::I18n::new(app.desktop_locale)
+            .format(
+                "原始记录：%s",
+                &[(raw_payload_summary(crate::app::i18n::I18n::new(app.desktop_locale), value))
+                    .to_string()
+                    .into()],
+            )
+            .expect("valid display template");
     }
     match app.usage_step_raw_payloads.get(&key) {
-        Some(Ok(Some(value))) => format!("原始记录：{}", raw_payload_summary(value)),
-        Some(Ok(None)) => "原始记录：暂无记录".to_string(),
-        Some(Err(err)) => format!("原始记录：加载失败（{err}）"),
-        None => "原始记录：点击后按需加载".to_string(),
+        Some(Ok(Some(value))) => crate::app::i18n::I18n::new(app.desktop_locale)
+            .format(
+                "原始记录：%s",
+                &[(raw_payload_summary(crate::app::i18n::I18n::new(app.desktop_locale), value))
+                    .to_string()
+                    .into()],
+            )
+            .expect("valid display template"),
+        Some(Ok(None)) => {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("原始记录：暂无记录").to_string()
+        }
+        Some(Err(err)) => crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("原始记录：加载失败（%s）", &[(err).to_string().into()])
+            .expect("valid display template"),
+        None => crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("原始记录：点击后按需加载")
+            .to_string(),
     }
 }
 
@@ -296,13 +319,13 @@ fn raw_payload_panel_for_turn(
     let unavailable = matches!(app.usage_step_raw_payloads.get(&key), Some(Ok(None)));
     let loading = app.usage_step_raw_loading.contains(&key);
     let label = if loading {
-        "加载中..."
+        crate::app::i18n::I18n::new(app.desktop_locale).__("加载中...")
     } else if unavailable {
-        "暂无原始记录"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("暂无原始记录")
     } else if matches!(app.usage_step_raw_payloads.get(&key), Some(Err(_))) {
-        "重试加载"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("重试加载")
     } else {
-        "查看原始记录"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("查看原始记录")
     };
     let mut open_btn =
         button(text(label).size(12)).padding([6, 12]).style(rounded_action_btn_style);
@@ -396,7 +419,9 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
     // 构建步骤列表主体
     let steps_body: Element<'_, Message> = if steps.is_empty() {
         // 无步骤时显示提示文本
-        container(text("暂无步骤记录").size(12)).padding(10).into()
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无步骤记录")).size(12))
+            .padding(10)
+            .into()
     } else {
         // 有步骤时构建可滚动列表
         let mut col = column![].spacing(12);
@@ -415,27 +440,44 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
 
             // 格式化时间范围
             let time_range = match s.finished_ms {
-                Some(end) => format!("{} → {}", fmt_ms(s.started_ms), fmt_ms(end)),
-                None => format!("{} → …", fmt_ms(s.started_ms)),
+                Some(end) => format!(
+                    "{} → {}",
+                    fmt_ms(crate::app::i18n::I18n::new(app.desktop_locale), s.started_ms),
+                    fmt_ms(crate::app::i18n::I18n::new(app.desktop_locale), end)
+                ),
+                None => format!(
+                    "{} → …",
+                    fmt_ms(crate::app::i18n::I18n::new(app.desktop_locale), s.started_ms)
+                ),
             };
 
             // 格式化成本，保留 4 位小数
-            let cost =
-                s.cost_usd.map(|c| format!("US${:.4}", c)).unwrap_or_else(|| "暂无".to_string());
+            let cost = s.cost_usd.map(|c| format!("US${:.4}", c)).unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+            });
 
             // 根据展开状态选择图标
             let toggle_icon = if expanded { Icon::ChevronUp } else { Icon::ChevronDown };
 
             // 构建步骤头部：索引、时间范围、展开按钮
             let header = row![
-                text(format!("步骤 {}", s.index)).size(12),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("步骤 %u", &[s.index.into()])
+                        .expect("valid step index")
+                )
+                .size(12),
                 Space::new().width(Length::Fill),
                 text(time_range).size(12).style(|theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
                 }),
                 icon_btn(
                     toggle_icon,
-                    if expanded { "折叠" } else { "展开" },
+                    if expanded {
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("折叠")
+                    } else {
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("展开")
+                    },
                     Message::View(ViewMessage::UsageTurnStepToggled(turn_id.clone(), s.index)),
                 ),
             ]
@@ -445,14 +487,43 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
             let info: Element<'_, Message> = if expanded {
                 let session_id = usage_data.session_id.clone();
                 column![
-                    kv("模型", s.model.clone().unwrap_or_else(|| "暂无".to_string())),
-                    kv("输入 token", s.usage.input_tokens.to_string()),
-                    kv("输出 token", s.usage.output_tokens.to_string()),
-                    kv("缓存 token", s.usage.cached_tokens.to_string()),
-                    kv("推理 token", s.usage.reasoning_tokens.to_string()),
-                    kv("总 token", total.to_string()),
-                    kv("成本(估算)", cost),
-                    kv("完成原因", s.finish_reason.clone().unwrap_or_else(|| "暂无".to_string())),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("模型"),
+                        s.model.clone().unwrap_or_else(|| crate::app::i18n::I18n::new(
+                            app.desktop_locale
+                        )
+                        .__("暂无")
+                        .to_string())
+                    ),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("输入 token"),
+                        s.usage.input_tokens.to_string()
+                    ),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("输出 token"),
+                        s.usage.output_tokens.to_string()
+                    ),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("缓存 token"),
+                        s.usage.cached_tokens.to_string()
+                    ),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("推理 token"),
+                        s.usage.reasoning_tokens.to_string()
+                    ),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("总 token"),
+                        total.to_string()
+                    ),
+                    kv(crate::app::i18n::I18n::new(app.desktop_locale).__("成本(估算)"), cost),
+                    kv(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("完成原因"),
+                        s.finish_reason.clone().unwrap_or_else(|| crate::app::i18n::I18n::new(
+                            app.desktop_locale
+                        )
+                        .__("暂无")
+                        .to_string())
+                    ),
                     raw_payload_panel_for_turn(app, &session_id, &turn_id, s.index),
                 ]
                 .spacing(8)
@@ -469,12 +540,12 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
                 if let Some(p) = s.start_snapshot_path.as_ref() {
                     actions = actions.push(icon_btn(
                         Icon::ArrowRepeat,
-                        "回放(开始)",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("回放(开始)"),
                         Message::View(ViewMessage::ReplaySessionFromSnapshot(p.clone())),
                     ));
                     actions = actions.push(icon_btn(
                         Icon::FolderOpen,
-                        "打开(开始)",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("打开(开始)"),
                         Message::View(ViewMessage::OpenPathInFinder(p.clone())),
                     ));
                 }
@@ -483,12 +554,12 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
                 if let Some(p) = s.finish_snapshot_path.as_ref() {
                     actions = actions.push(icon_btn(
                         Icon::ArrowRepeat,
-                        "回放(结束)",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("回放(结束)"),
                         Message::View(ViewMessage::ReplaySessionFromSnapshot(p.clone())),
                     ));
                     actions = actions.push(icon_btn(
                         Icon::FolderOpen,
-                        "打开(结束)",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("打开(结束)"),
                         Message::View(ViewMessage::OpenPathInFinder(p.clone())),
                     ));
                 }
@@ -542,7 +613,7 @@ pub fn build_steps_panel(app: &App, usage_data: &UsageData) -> Element<'static, 
     // 包装整个面板，应用卡片样式
     container(
         column![
-            super::utils::section_title("步骤"),
+            super::utils::section_title(crate::app::i18n::I18n::new(app.desktop_locale).__("步骤")),
             Space::new().height(Length::Fixed(8.0)),
             steps_body
         ]

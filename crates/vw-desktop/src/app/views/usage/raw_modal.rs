@@ -64,7 +64,12 @@ pub fn view<'a>(app: &'a App) -> Option<Element<'a, Message>> {
         column![
             row![
                 column![
-                    text(format!("原始记录 · 步骤 {}", modal.step_index)).size(18),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .format("原始记录 · 步骤 %u", &[modal.step_index.into()])
+                            .expect("valid raw step")
+                    )
+                    .size(18),
                     text("完整 LLM 原始载荷，可复制。").size(12).style(settings_muted_text_style),
                 ]
                 .spacing(4)

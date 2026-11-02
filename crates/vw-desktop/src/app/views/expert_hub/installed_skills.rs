@@ -30,27 +30,40 @@ fn badge(label: String) -> Element<'static, Message> {
     container(text(label).size(11)).padding([4, 8]).style(styles::meta_badge_style).into()
 }
 
-fn source_badges(item: &DesktopSkillCatalogEntryDto) -> Element<'static, Message> {
+fn source_badges(
+    i18n: crate::app::i18n::I18n,
+    item: &DesktopSkillCatalogEntryDto,
+) -> Element<'static, Message> {
     let mut badges = row![].spacing(6);
     if item.origin.is_some() {
-        badges = badges.push(badge(format!("来源 {}", item.source)));
+        badges = badges.push(badge(
+            i18n.format("来源 %s", &[(item.source).to_string().into()])
+                .expect("valid display template"),
+        ));
     } else {
-        badges = badges.push(badge(format!("本地 {}", item.source)));
+        badges = badges.push(badge(
+            i18n.format("本地 %s", &[(item.source).to_string().into()])
+                .expect("valid display template"),
+        ));
     }
     if let Some(package_type) = &item.package_type {
         badges = badges.push(badge(if package_type == "meta-skill" {
-            "套件".to_string()
+            i18n.__("套件").to_string()
         } else {
-            "技能".to_string()
+            i18n.__("技能").to_string()
         }));
     }
     if let Some(source_pack) = &item.source_pack {
-        badges = badges.push(badge(format!("套件 {source_pack}")));
+        badges = badges.push(badge(
+            i18n.format("套件 %s", &[(source_pack).to_string().into()])
+                .expect("valid display template"),
+        ));
     }
     badges.wrap().into()
 }
 
 fn card_grid(app: &App, items: Vec<DesktopSkillCatalogEntryDto>) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected = app.expert_hub.public_market.installed_selection.clone();
     let busy = app.expert_hub.public_market.batch_action.is_some();
     responsive(move |size| {
@@ -61,7 +74,7 @@ fn card_grid(app: &App, items: Vec<DesktopSkillCatalogEntryDto>) -> Element<'sta
             for item in chunk {
                 let fixture_app =
                     InstalledCardContext { selected: selected.contains(&item.id), busy };
-                cards = cards.push(installed_card_from_context(&fixture_app, item));
+                cards = cards.push(installed_card_from_context(i18n, &fixture_app, item));
             }
             for _ in chunk.len()..columns {
                 cards = cards.push(Space::new().width(Length::FillPortion(1)));
@@ -80,6 +93,7 @@ struct InstalledCardContext {
 }
 
 fn installed_card_from_context(
+    i18n: crate::app::i18n::I18n,
     context: &InstalledCardContext,
     item: &DesktopSkillCatalogEntryDto,
 ) -> Element<'static, Message> {
@@ -115,17 +129,28 @@ fn installed_card_from_context(
                 ]
                 .spacing(4)
                 .width(Length::Fill),
-                row![text(if item.enabled { "已启用" } else { "已关闭" }).size(12), toggle,]
-                    .spacing(7)
-                    .align_y(Alignment::Center),
+                row![
+                    text(i18n.__(if item.enabled {
+                        i18n.__("已启用")
+                    } else {
+                        i18n.__("已关闭")
+                    }))
+                    .size(12),
+                    toggle,
+                ]
+                .spacing(7)
+                .align_y(Alignment::Center),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
             text(item.description.clone()).size(13).height(Length::Fixed(42.0)),
-            source_badges(item),
-            text(format!("资源 {} 项", item.resource_count))
-                .size(11)
-                .style(styles::muted_text_style),
+            source_badges(i18n, item),
+            text(
+                i18n.format("资源 %s 项", &[(item.resource_count).to_string().into()])
+                    .expect("valid display template")
+            )
+            .size(11)
+            .style(styles::muted_text_style),
         ]
         .spacing(11),
     )
@@ -137,12 +162,13 @@ fn installed_card_from_context(
 }
 
 fn batch_button(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     message: PublicSkillMessage,
     enabled: bool,
 ) -> Element<'static, Message> {
     let mut action =
-        button(text(label).size(12)).padding([8, 12]).style(styles::quiet_button_style);
+        button(text(i18n.__(label)).size(12)).padding([8, 12]).style(styles::quiet_button_style);
     if enabled {
         action = action.on_press(public_message(message));
     }
@@ -150,27 +176,52 @@ fn batch_button(
 }
 
 fn toolbar(app: &App, count: usize) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
     let selected = state.installed_selection.len();
     let enabled = selected > 0 && state.batch_action.is_none();
     row![
-        text(format!("已安装 {count} 项 · 已选择 {selected} 项"))
-            .size(12)
-            .style(styles::muted_text_style),
+        text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format(
+                    "已安装 %s 项 · 已选择 %s 项",
+                    &[(count).to_string().into(), (selected).to_string().into()]
+                )
+                .expect("valid display template")
+        )
+        .size(12)
+        .style(styles::muted_text_style),
         Space::new().width(Length::Fill),
         batch_button(
-            "全选",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全选"),
             PublicSkillMessage::SelectAllInstalled,
             state.batch_action.is_none() && count > 0,
         ),
         batch_button(
-            "清空",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("清空"),
             PublicSkillMessage::ClearInstalledSelection,
             state.batch_action.is_none() && selected > 0,
         ),
-        batch_button("启用", PublicSkillMessage::StartBatchEnabled(true), enabled,),
-        batch_button("关闭", PublicSkillMessage::StartBatchEnabled(false), enabled,),
-        batch_button("卸载", PublicSkillMessage::RequestBatchDelete, enabled,),
+        batch_button(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
+            PublicSkillMessage::StartBatchEnabled(true),
+            enabled,
+        ),
+        batch_button(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("关闭"),
+            PublicSkillMessage::StartBatchEnabled(false),
+            enabled,
+        ),
+        batch_button(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("卸载"),
+            PublicSkillMessage::RequestBatchDelete,
+            enabled,
+        ),
     ]
     .spacing(8)
     .align_y(Alignment::Center)
@@ -190,47 +241,64 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         _ => Vec::new(),
     };
     let content = match &state.installed {
-        LoadState::Idle | LoadState::Loading { .. } => {
-            container(text("正在读取本地技能目录…").size(13))
-                .height(Length::Fixed(180.0))
-                .width(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fixed(180.0))
-                .into()
-        }
+        LoadState::Idle | LoadState::Loading { .. } => container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("正在读取本地技能目录…"))
+                .size(13),
+        )
+        .height(Length::Fixed(180.0))
+        .width(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fixed(180.0))
+        .into(),
         LoadState::Error(error) => column![
-            text(format!("读取已安装技能失败：{error}")).size(13),
-            button(text("重试").size(12))
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format(
+                        "读取已安装技能失败：%s",
+                        &[error.render(crate::app::i18n::I18n::new(app.desktop_locale)).into()]
+                    )
+                    .expect("valid display template")
+            )
+            .size(13),
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("重试")).size(12))
                 .on_press(public_message(PublicSkillMessage::OpenInstalled))
                 .padding([8, 12])
                 .style(styles::action_button_style),
         ]
         .spacing(10)
         .into(),
-        LoadState::NeedsLogin => container(text("本地技能目录无需登录").size(13)).into(),
-        LoadState::Loaded(_) if installed.is_empty() => {
-            container(text("当前范围尚未安装可管理技能").size(13))
-                .height(Length::Fixed(180.0))
-                .width(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fixed(180.0))
-                .into()
-        }
+        LoadState::NeedsLogin => container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("本地技能目录无需登录"))
+                .size(13),
+        )
+        .into(),
+        LoadState::Loaded(_) if installed.is_empty() => container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("当前范围尚未安装可管理技能"))
+                .size(13),
+        )
+        .height(Length::Fixed(180.0))
+        .width(Length::Fill)
+        .center_x(Length::Fill)
+        .center_y(Length::Fixed(180.0))
+        .into(),
         LoadState::Loaded(_) => card_grid(app, installed.clone()),
     };
     let page = column![
         row![
             column![
-                text("我安装的技能")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("我安装的技能"))
                     .size(25)
                     .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
-                text("管理当前目录范围内可启用、关闭或卸载的本地技能")
-                    .size(13)
-                    .style(styles::muted_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("管理当前目录范围内可启用、关闭或卸载的本地技能")
+                )
+                .size(13)
+                .style(styles::muted_text_style),
             ]
             .spacing(5)
             .width(Length::Fill),
-            button(text("返回市场").size(12))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("返回市场")).size(12))
                 .on_press(public_message(PublicSkillMessage::CloseInstalled))
                 .padding([8, 13])
                 .style(styles::quiet_button_style),
@@ -268,10 +336,18 @@ pub(super) fn with_delete_confirmation<'a>(
         column![
             row![
                 column![
-                    text("确认批量卸载").size(22),
-                    text(format!("将卸载当前选择的 {count} 个本地技能。"))
-                        .size(12)
-                        .style(settings_muted_text_style),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认批量卸载"))
+                        .size(22),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .format(
+                                "将卸载当前选择的 %s 个本地技能。",
+                                &[(count).to_string().into()]
+                            )
+                            .expect("valid display template")
+                    )
+                    .size(12)
+                    .style(settings_muted_text_style),
                 ]
                 .spacing(6)
                 .width(Length::Fill),
@@ -280,22 +356,28 @@ pub(super) fn with_delete_confirmation<'a>(
             .spacing(12)
             .align_y(Alignment::Center),
             container(
-                text("只会删除 gateway 判定可管理的本地技能目录；失败项会保留选择，便于重试。")
-                    .size(13),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__(
+                        "只会删除 gateway 判定可管理的本地技能目录；失败项会保留选择，便于重试。"
+                    )
+                )
+                .size(13),
             )
             .padding([14, 16])
             .width(Length::Fill)
             .style(styles::inset_panel_style),
             row![
                 Space::new().width(Length::Fill),
-                button(text("取消").size(13))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
                     .on_press(cancel.clone())
                     .padding([9, 14])
                     .style(rounded_action_btn_style),
-                button(text("确认卸载").size(13))
-                    .on_press(public_message(PublicSkillMessage::ConfirmBatchDelete))
-                    .padding([9, 14])
-                    .style(danger_action_btn_style),
+                button(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认卸载")).size(13)
+                )
+                .on_press(public_message(PublicSkillMessage::ConfirmBatchDelete))
+                .padding([9, 14])
+                .style(danger_action_btn_style),
             ]
             .spacing(10)
             .align_y(Alignment::Center),

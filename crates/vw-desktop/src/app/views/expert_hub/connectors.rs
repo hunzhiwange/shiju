@@ -31,26 +31,44 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     let state = &app.expert_hub.connectors;
     let header = row![
         column![
-            text("连接器账号").size(22),
-            text("查看并授权你自己的连接器账号。").size(14).style(settings_muted_text_style)
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("连接器账号")).size(22),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("查看并授权你自己的连接器账号。")
+            )
+            .size(14)
+            .style(settings_muted_text_style)
         ]
         .spacing(6),
         Space::new().width(Length::Fill),
-        button(text(if state.list_loading { "刷新中…" } else { "刷新" }).size(13))
-            .padding([8, 16])
-            .style(rounded_action_btn_style)
-            .on_press_maybe((!state.list_loading).then(|| message(ConnectorMessage::Refresh))),
+        button(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(if state.list_loading {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("刷新中…")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("刷新")
+            }))
+            .size(13)
+        )
+        .padding([8, 16])
+        .style(rounded_action_btn_style)
+        .on_press_maybe((!state.list_loading).then(|| message(ConnectorMessage::Refresh))),
     ]
     .align_y(Alignment::Center)
     .spacing(12);
     let body: Element<'_, Message> = match &state.list {
-        LoadState::Idle | LoadState::Loading { .. } => status("正在加载连接器账号…"),
-        LoadState::NeedsLogin => status("请先登录识矩账户，再刷新连接器账号"),
+        LoadState::Idle | LoadState::Loading { .. } => {
+            status(crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载连接器账号…"))
+        }
+        LoadState::NeedsLogin => status(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("请先登录识矩账户，再刷新连接器账号"),
+        ),
         LoadState::Error(error) => container(
             column![
-                text("连接器账号加载失败").size(16),
-                text(error).size(14),
-                button("重试")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("连接器账号加载失败"))
+                    .size(16),
+                text(error.render(crate::app::i18n::I18n::new(app.desktop_locale))).size(14),
+                button(crate::app::i18n::I18n::new(app.desktop_locale).__("重试"))
                     .style(primary_action_btn_style)
                     .padding([8, 16])
                     .on_press(message(ConnectorMessage::Refresh))
@@ -60,7 +78,9 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
         .center_x(Length::Fill)
         .center_y(Length::Fill)
         .into(),
-        LoadState::Loaded(connectors) if connectors.is_empty() => status("暂无可绑定连接器"),
+        LoadState::Loaded(connectors) if connectors.is_empty() => {
+            status(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无可绑定连接器"))
+        }
         LoadState::Loaded(connectors) => scrollable(card_grid(app, connectors))
             .direction(scrollbar())
             .width(Length::Fill)
@@ -88,13 +108,16 @@ pub(super) fn card_grid<'a>(
     container(grid).padding([4, SCROLLABLE_SIDE_PADDING]).width(Length::Fill).into()
 }
 fn connector_card<'a>(app: &'a App, connector: &'a ShijuConnector) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let id = connector.company_platform_id;
     let operation = app.expert_hub.connectors.work.get(&id);
     let idle = operation.is_none();
     let binding_status = match &connector.binding {
-        Some(binding) if binding.status == "enabled" => "已绑定",
-        Some(_) => "已停用",
-        None => "未绑定",
+        Some(binding) if binding.status == "enabled" => {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("已绑定")
+        }
+        Some(_) => crate::app::i18n::I18n::new(app.desktop_locale).__("已停用"),
+        None => crate::app::i18n::I18n::new(app.desktop_locale).__("未绑定"),
     };
     let identity = column![
         text(&connector.platform_name).size(17),
@@ -124,14 +147,14 @@ fn connector_card<'a>(app: &'a App, connector: &'a ShijuConnector) -> Element<'a
     let mut actions = row![].spacing(8);
     if connector.authorization_available {
         actions = actions.push(
-            button(text("账号授权").size(13))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("账号授权")).size(13))
                 .padding([8, 12])
                 .style(primary_action_btn_style)
                 .on_press_maybe(idle.then(|| message(ConnectorMessage::Authorize(id)))),
         );
     } else {
         actions = actions.push(
-            button(text("手动绑定").size(13))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("手动绑定")).size(13))
                 .padding([8, 12])
                 .style(rounded_action_btn_style)
                 .on_press_maybe(idle.then(|| message(ConnectorMessage::Edit(id)))),
@@ -140,19 +163,27 @@ fn connector_card<'a>(app: &'a App, connector: &'a ShijuConnector) -> Element<'a
     content = content.push(actions);
     if let Some(operation) = operation {
         let label = match operation.work {
-            ConnectorWork::Starting => "正在发起授权…",
-            ConnectorWork::Authorizing { .. } => "等待浏览器授权…",
-            ConnectorWork::Saving => "正在保存绑定…",
+            ConnectorWork::Starting => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("正在发起授权…")
+            }
+            ConnectorWork::Authorizing { .. } => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("等待浏览器授权…")
+            }
+            ConnectorWork::Saving => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("正在保存绑定…")
+            }
         };
-        let mut waiting = row![text(label).size(12).style(settings_muted_text_style)]
+        let mut waiting = row![text(i18n.__(label)).size(12).style(settings_muted_text_style)]
             .spacing(8)
             .align_y(Alignment::Center);
         if !matches!(operation.work, ConnectorWork::Saving) {
             waiting = waiting.push(
-                button(text("取消等待").size(12))
-                    .padding([6, 10])
-                    .style(rounded_action_btn_style)
-                    .on_press(message(ConnectorMessage::CancelAuthorization(id))),
+                button(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消等待")).size(12),
+                )
+                .padding([6, 10])
+                .style(rounded_action_btn_style)
+                .on_press(message(ConnectorMessage::CancelAuthorization(id))),
             );
         }
         content = content.push(waiting);
@@ -167,6 +198,7 @@ pub(super) fn with_binding_modal<'a>(
     app: &'a App,
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     if app.expert_hub.section != ExpertHubSection::Connectors {
         return base;
     }
@@ -177,10 +209,18 @@ pub(super) fn with_binding_modal<'a>(
     let close = message(ConnectorMessage::Cancel);
     let mut header = row![
         column![
-            text(format!("绑定 {}", form.connector.platform_name)).size(20),
-            text("配置仅属于当前用户，密码和密钥不会回显。")
-                .size(12)
-                .style(settings_muted_text_style)
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("绑定 %s", &[(form.connector.platform_name).to_string().into()])
+                    .expect("valid display template")
+            )
+            .size(20),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("配置仅属于当前用户，密码和密钥不会回显。")
+            )
+            .size(12)
+            .style(settings_muted_text_style)
         ]
         .spacing(6)
         .width(Length::Fill)
@@ -191,19 +231,23 @@ pub(super) fn with_binding_modal<'a>(
     }
     let footer = row![
         Space::new().width(Length::Fill),
-        button("取消")
+        button(crate::app::i18n::I18n::new(app.desktop_locale).__("取消"))
             .padding([8, 16])
             .style(rounded_action_btn_style)
             .on_press_maybe((!saving).then_some(close.clone())),
-        button(if saving { "保存中…" } else { "保存绑定" })
-            .padding([8, 16])
-            .style(primary_action_btn_style)
-            .on_press_maybe((!saving).then(|| message(ConnectorMessage::Save)))
+        button(if saving {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("保存中…")
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("保存绑定")
+        })
+        .padding([8, 16])
+        .style(primary_action_btn_style)
+        .on_press_maybe((!saving).then(|| message(ConnectorMessage::Save)))
     ]
     .spacing(10)
     .align_y(Alignment::Center);
     let body = scrollable(
-        container(binding_form(form, !saving))
+        container(binding_form(i18n, form, !saving))
             .padding([0, SCROLLABLE_SIDE_PADDING])
             .width(Length::Fill),
     )
@@ -235,12 +279,16 @@ fn field<'a>(
     .padding([12, 0])
     .into()
 }
-fn binding_form(form: &ConnectorForm, editable: bool) -> Element<'_, Message> {
+fn binding_form(
+    i18n: crate::app::i18n::I18n,
+    form: &ConnectorForm,
+    editable: bool,
+) -> Element<'_, Message> {
     let account_fields = column![
         field(
-            "第三方账号 ID".into(),
-            "连接器平台中的账号标识",
-            text_input("填写第三方账号 ID", &form.account_id)
+            i18n.__("第三方账号 ID").into(),
+            i18n.__("连接器平台中的账号标识"),
+            text_input(i18n.__("填写第三方账号 ID"), &form.account_id)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style)
@@ -252,9 +300,9 @@ fn binding_form(form: &ConnectorForm, editable: bool) -> Element<'_, Message> {
         ),
         settings_divider(),
         field(
-            "第三方账号名称".into(),
-            "便于识别的账号名称",
-            text_input("填写账号名称", &form.account_name)
+            i18n.__("第三方账号名称").into(),
+            i18n.__("便于识别的账号名称"),
+            text_input(i18n.__("填写账号名称"), &form.account_name)
                 .padding(SETTINGS_CONTROL_PADDING)
                 .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style)
@@ -266,7 +314,7 @@ fn binding_form(form: &ConnectorForm, editable: bool) -> Element<'_, Message> {
         ),
     ];
     let mut sections = column![
-        settings_section_card("账号信息", "填写需要绑定的第三方账号"),
+        settings_section_card(i18n.__("账号信息"), i18n.__("填写需要绑定的第三方账号")),
         settings_section_content(account_fields)
     ]
     .spacing(12);
@@ -284,11 +332,15 @@ fn binding_form(form: &ConnectorForm, editable: bool) -> Element<'_, Message> {
             let name = variable.name.clone();
             let value = form.values.get(&name).map(String::as_str).unwrap_or_default();
             let secret = variable.kind == "password";
-            let placeholder = if secret { "输入密码或密钥" } else { "填写绑定变量" };
-            let hint = if secret {
-                "已有密钥不回显；选填项留空保留原值"
+            let placeholder = if secret {
+                i18n.__("输入密码或密钥")
             } else {
-                "仅用于此账号的连接器配置"
+                i18n.__("填写绑定变量")
+            };
+            let hint = if secret {
+                i18n.__("已有密钥不回显；选填项留空保留原值")
+            } else {
+                i18n.__("仅用于此账号的连接器配置")
             };
             let input = text_input(placeholder, value)
                 .secure(secret)
@@ -306,7 +358,7 @@ fn binding_form(form: &ConnectorForm, editable: bool) -> Element<'_, Message> {
             ));
         }
         sections = sections
-            .push(settings_section_card("绑定配置", "带 * 的字段为必填项"))
+            .push(settings_section_card(i18n.__("绑定配置"), i18n.__("带 * 的字段为必填项")))
             .push(settings_section_content(variables));
     }
     sections.into()

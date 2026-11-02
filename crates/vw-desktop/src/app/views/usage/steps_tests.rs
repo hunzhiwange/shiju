@@ -191,8 +191,20 @@ fn raw_payload_summary_counts_missing_and_present_fields() {
         "output": {"tool_calls": [{"id": "call-1"}, {"id": "call-2"}]}
     });
 
-    assert_eq!(super::raw_payload_summary(&empty), "历史消息 0 条 · 工具调用 0 条");
-    assert_eq!(super::raw_payload_summary(&populated), "历史消息 2 条 · 工具调用 2 条");
+    assert_eq!(
+        super::raw_payload_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &empty
+        ),
+        "历史消息 0 条 · 工具调用 0 条"
+    );
+    assert_eq!(
+        super::raw_payload_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &populated
+        ),
+        "历史消息 2 条 · 工具调用 2 条"
+    );
 }
 
 #[test]

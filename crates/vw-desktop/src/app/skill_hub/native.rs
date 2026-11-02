@@ -85,7 +85,7 @@ where
     let inspect_home = home.clone();
     let installation = tokio::task::spawn_blocking(move || native_installation(&inspect_home))
         .await
-        .context("识矩技能检测任务异常终止")??;
+        .context(super::SkillHubError::localized("识矩技能检测任务异常终止", vec![]))??;
     if installation.is_none() {
         let (credential, revision) = {
             let account = state.account.lock();
@@ -104,7 +104,7 @@ where
             Ok(())
         })
         .await
-        .context("识矩技能安装任务异常终止")??;
+        .context(super::SkillHubError::localized("识矩技能安装任务异常终止", vec![]))??;
     }
 
     tokio::task::spawn_blocking(move || {
@@ -119,15 +119,19 @@ where
         })
     })
     .await
-    .context("识矩登录信息同步任务异常终止")?
+    .context(super::SkillHubError::localized("识矩登录信息同步任务异常终止", vec![]))?
 }
 
 pub(crate) async fn download_native_shiju_skill(credential: SecretSkey) -> Result<NamedTempFile> {
-    let package_id = ShijuPackageId::current().context("当前平台不支持识矩技能自动安装")?;
+    let package_id = ShijuPackageId::current()
+        .context(super::SkillHubError::localized("当前平台不支持识矩技能自动安装", vec![]))?;
     let release = SkillHubClient::new(credential)?.latest_shiju_package(package_id).await?;
-    let mut archive = NamedTempFile::new().context("无法创建识矩技能临时下载文件")?;
+    let mut archive = NamedTempFile::new()
+        .context(super::SkillHubError::localized("无法创建识矩技能临时下载文件", vec![]))?;
     download_package(&release.download_url, archive.as_file_mut()).await?;
-    archive.flush().context("无法写完识矩技能临时下载文件")?;
+    archive
+        .flush()
+        .context(super::SkillHubError::localized("无法写完识矩技能临时下载文件", vec![]))?;
     Ok(archive)
 }
 

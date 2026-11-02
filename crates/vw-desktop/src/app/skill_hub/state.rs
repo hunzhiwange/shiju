@@ -1365,7 +1365,7 @@ impl ShijuPackageStatus {
     pub(crate) fn finish_refresh(
         &mut self,
         generation: u64,
-        result: Result<super::PackageVersionCacheEntry, String>,
+        result: Result<super::PackageVersionCacheEntry, super::SkillHubError>,
     ) -> bool {
         if !self.is_refreshing(generation) {
             return false;
@@ -1399,7 +1399,7 @@ pub(crate) enum LoadState<T> {
         generation: u64,
     },
     Loaded(T),
-    Error(String),
+    Error(super::SkillHubError),
 }
 use std::collections::{BTreeMap, BTreeSet};
 use vw_gateway_client::{

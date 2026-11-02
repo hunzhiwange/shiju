@@ -92,3 +92,30 @@ async fn latest_shiju_package_errors_remain_redacted() {
     assert!(!format!("{error:?}").contains("fixture-package-secret"));
     request.join().expect("join fixture");
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_14_client_error_keeps_template_in_load_state() {
+    use crate::app::i18n::I18n;
+    use vw_config_types::ui::DesktopLocale;
+    let (base_url, request) =
+        fixture("503 Service Unavailable", serde_json::json!({"error":"raw secret %n"}));
+    let error = client(&base_url)
+        .latest_shiju_package(ShijuPackageId::DarwinArm64)
+        .await
+        .err()
+        .expect("HTTP error");
+    request.join().unwrap();
+    let state: LoadState<()> = LoadState::Error(error);
+    let LoadState::Error(error) = state else { panic!("error state") };
+    assert_eq!(
+        error.render(I18n::new(DesktopLocale::English)),
+        "Skill center request failed: HTTP 503"
+    );
+    assert_eq!(
+        error.render(I18n::new(DesktopLocale::TraditionalChinese)),
+        "技能中心請求失敗：HTTP 503"
+    );
+    assert!(!error.to_string().contains("raw secret"));
+    let raw = SkillHubError::from("服务错误/%n/%s".to_string());
+    assert_eq!(raw.render(I18n::new(DesktopLocale::English)), "服务错误/%n/%s");
+}

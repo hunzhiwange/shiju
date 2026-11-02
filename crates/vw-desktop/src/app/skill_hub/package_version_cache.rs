@@ -26,10 +26,10 @@ pub(crate) struct PackageVersionCacheEntry {
 impl PackageVersionCacheEntry {
     pub(crate) fn new(server_version: String, checked_at_unix: u64) -> Result<Self> {
         if !valid_version(&server_version) {
-            bail!("识矩版本缓存包含无效版本");
+            bail!(super::SkillHubError::localized("识矩版本缓存包含无效版本", vec![]));
         }
         if checked_at_unix == 0 {
-            bail!("识矩版本缓存包含无效检测时间");
+            bail!(super::SkillHubError::localized("识矩版本缓存包含无效检测时间", vec![]));
         }
         Ok(Self { server_version, checked_at_unix })
     }
@@ -40,8 +40,9 @@ impl PackageVersionCacheEntry {
 }
 
 pub(crate) fn package_version_cache_path() -> Result<PathBuf> {
-    let home =
-        BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf()).context("无法确定用户主目录")?;
+    let home = BaseDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context(super::SkillHubError::localized("无法确定用户主目录", vec![]))?;
     Ok(home_config_dir(home).join(CACHE_FILE_NAME))
 }
 
@@ -50,14 +51,20 @@ pub(crate) fn load_package_version_cache(path: &Path) -> Result<Option<PackageVe
     let metadata = match fs::metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error).with_context(|| format!("无法检查 {}", path.display())),
+        Err(error) => {
+            return Err(error).with_context(|| {
+                super::SkillHubError::localized("无法检查 %s", vec![(path.display()).to_string()])
+            });
+        }
     };
     if !metadata.is_file() || metadata.len() > MAX_CACHE_BYTES {
-        bail!("识矩版本缓存不是有效的小型文件");
+        bail!(super::SkillHubError::localized("识矩版本缓存不是有效的小型文件", vec![]));
     }
-    let bytes = fs::read(path).with_context(|| format!("无法读取 {}", path.display()))?;
+    let bytes = fs::read(path).with_context(|| {
+        super::SkillHubError::localized("无法读取 %s", vec![(path.display()).to_string()])
+    })?;
     let entry = serde_json::from_slice::<PackageVersionCacheEntry>(&bytes)
-        .context("识矩版本缓存格式无效")?
+        .context(super::SkillHubError::localized("识矩版本缓存格式无效", vec![]))?
         .validate()?;
     Ok(Some(entry))
 }
@@ -68,19 +75,23 @@ pub(crate) fn write_package_version_cache(
     entry: &PackageVersionCacheEntry,
 ) -> Result<()> {
     PackageVersionCacheEntry::new(entry.server_version.clone(), entry.checked_at_unix)?;
-    let parent = path.parent().context("识矩版本缓存路径缺少父目录")?;
-    fs::create_dir_all(parent).with_context(|| format!("无法创建 {}", parent.display()))?;
-    let payload = serde_json::to_vec(entry).context("无法序列化识矩版本缓存")?;
-    let mut temporary =
-        NamedTempFile::new_in(parent).with_context(|| format!("无法暂存 {}", path.display()))?;
-    temporary
-        .write_all(&payload)
-        .and_then(|_| temporary.as_file().sync_all())
-        .with_context(|| format!("无法写入 {}", path.display()))?;
-    temporary
-        .persist(path)
-        .map_err(|error| error.error)
-        .with_context(|| format!("无法原子更新 {}", path.display()))?;
+    let parent = path
+        .parent()
+        .context(super::SkillHubError::localized("识矩版本缓存路径缺少父目录", vec![]))?;
+    fs::create_dir_all(parent).with_context(|| {
+        super::SkillHubError::localized("无法创建 %s", vec![(parent.display()).to_string()])
+    })?;
+    let payload = serde_json::to_vec(entry)
+        .context(super::SkillHubError::localized("无法序列化识矩版本缓存", vec![]))?;
+    let mut temporary = NamedTempFile::new_in(parent).with_context(|| {
+        super::SkillHubError::localized("无法暂存 %s", vec![(path.display()).to_string()])
+    })?;
+    temporary.write_all(&payload).and_then(|_| temporary.as_file().sync_all()).with_context(
+        || super::SkillHubError::localized("无法写入 %s", vec![(path.display()).to_string()]),
+    )?;
+    temporary.persist(path).map_err(|error| error.error).with_context(|| {
+        super::SkillHubError::localized("无法原子更新 %s", vec![(path.display()).to_string()])
+    })?;
     Ok(())
 }
 

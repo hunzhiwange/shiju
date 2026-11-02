@@ -37,8 +37,16 @@ type Result<T> = std::result::Result<T, FormatError>;
 pub enum Message {
     Template { source: String, arguments: Vec<Argument> },
     Lines(Vec<Message>),
+    Literal(String),
+    Nested { source: String, arguments: Vec<Message> },
 }
 impl Message {
+    pub fn literal(value: String) -> Self {
+        Self::Literal(value)
+    }
+    pub fn nested(source: String, arguments: Vec<Message>) -> Self {
+        Self::Nested { source, arguments }
+    }
     pub fn new(source: impl Into<String>, arguments: Vec<Argument>) -> Self {
         Self::Template { source: source.into(), arguments }
     }
@@ -47,6 +55,14 @@ impl Message {
     }
     pub fn render(&self, i18n: I18n) -> Result<String> {
         match self {
+            Self::Literal(value) => Ok(value.clone()),
+            Self::Nested { source, arguments } => {
+                let arguments = arguments
+                    .iter()
+                    .map(|argument| argument.render(i18n).map(Argument::Text))
+                    .collect::<Result<Vec<_>>>()?;
+                i18n.format(source, &arguments)
+            }
             Self::Template { source, arguments } => i18n.format(source, arguments),
             Self::Lines(messages) => messages
                 .iter()

@@ -192,26 +192,26 @@ pub fn icon_btn<'a>(icon: Icon, tip: &'a str, msg: Message) -> iced::Element<'a,
 /// # 示例
 ///
 /// ```ignore
-/// let time_str = fmt_ms(1710844800000);
+/// let time_str = fmt_ms(i18n, 1710844800000);
 /// // 返回类似 "2024-03-19 12:00"
 ///
-/// let time_str = fmt_ms(0);
+/// let time_str = fmt_ms(i18n, 0);
 /// // 返回 "1970-01-01 08:00"（取决于时区）
 /// ```
-pub fn fmt_ms(ms: u64) -> String {
+pub fn fmt_ms(i18n: crate::app::i18n::I18n, ms: u64) -> String {
     // 将毫秒转换为秒级时间戳
     let ts = (ms / 1000) as i64;
     // 从 Unix 时间戳创建日期时间对象
     let Ok(dt) = time::OffsetDateTime::from_unix_timestamp(ts) else {
-        return "暂无".to_string();
+        return i18n.__("暂无").to_string();
     };
     // 定义日期时间格式：年-月-日 时:分
     let Ok(fmt) =
         time::format_description::parse_borrowed::<2>("[year]-[month]-[day] [hour]:[minute]")
     else {
-        return "暂无".to_string();
+        return i18n.__("暂无").to_string();
     };
-    dt.format(&fmt).unwrap_or_else(|_| "暂无".to_string())
+    dt.format(&fmt).unwrap_or_else(|_| i18n.__("暂无").to_string())
 }
 
 /// 将金额格式化为美元字符串

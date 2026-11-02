@@ -26,12 +26,27 @@ pub(crate) fn open_action_message(app: &ShijuInstalledAppDto) -> Option<Message>
         .then(|| Message::ShijuApps(ShijuAppsMessage::OpenInstalled(app.installation_id.clone())))
 }
 
-fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, Message> {
+fn installed_card(
+    i18n: crate::app::i18n::I18n,
+    index: usize,
+    app: &ShijuInstalledAppDto,
+) -> Element<'static, Message> {
     let ready = runtime_readiness(app).is_ok();
-    let readiness = runtime_readiness(app)
-        .map(str::to_string)
-        .unwrap_or_else(|reason| format!("尚未就绪 · {reason}"));
-    let initial = app.name.chars().next().unwrap_or('应').to_string();
+    let readiness = if ready {
+        i18n.__("运行就绪").to_string()
+    } else {
+        i18n.format(
+            "尚未就绪 · 协调状态：%s；运行状态：%s",
+            &[app.reconcile_status.clone().into(), app.runtime_status.clone().into()],
+        )
+        .expect("valid readiness")
+    };
+    let initial = app
+        .name
+        .chars()
+        .next()
+        .unwrap_or_else(|| i18n.__("应用").chars().next().unwrap_or('A'))
+        .to_string();
     let title = row![
         container(text(initial).size(18))
             .width(Length::Fixed(44.0))
@@ -43,11 +58,15 @@ fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, 
                 .size(16)
                 .width(Length::Fill)
                 .wrapping(iced::widget::text::Wrapping::None),
-            text(app.installation_id.clone()).size(11).font(Font::MONOSPACE),
+            text(app.installation_id.clone()).size(11).font(if app.installation_id.is_ascii() {
+                Font::MONOSPACE
+            } else {
+                Font::default()
+            }),
         ]
         .spacing(3)
         .width(Length::Fill),
-        container(text(if ready { "就绪" } else { "未就绪" }).size(11))
+        container(text(i18n.__(if ready { i18n.__("就绪") } else { i18n.__("未就绪") })).size(11))
             .padding([4, 8])
             .style(move |theme| styles::status_style(theme, ready)),
     ]
@@ -56,15 +75,18 @@ fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, 
     let mut actions = row![
         text(readiness).size(11).style(styles::muted_text_style),
         iced::widget::Space::new().width(Length::Fill),
-        button(text("查看").size(12)).padding([6, 12]).style(styles::quiet_button_style).on_press(
-            Message::ShijuApps(ShijuAppsMessage::OpenDetail(ShijuAppDetailTarget::Mine(index),))
-        ),
+        button(text(i18n.__("查看")).size(12))
+            .padding([6, 12])
+            .style(styles::quiet_button_style)
+            .on_press(Message::ShijuApps(ShijuAppsMessage::OpenDetail(
+                ShijuAppDetailTarget::Mine(index),
+            ))),
     ]
     .spacing(6)
     .align_y(Alignment::Center);
     if let Some(message) = open_action_message(app) {
         actions = actions.push(
-            button(text("打开").size(12))
+            button(text(i18n.__("打开")).size(12))
                 .padding([6, 12])
                 .style(styles::quiet_button_style)
                 .on_press(message),
@@ -72,12 +94,18 @@ fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, 
     }
     let card = column![
         title,
-        text(app.description.clone().unwrap_or_else(|| "暂无应用说明".to_string()))
+        text(app.description.clone().unwrap_or_else(|| i18n.__("暂无应用说明").to_string()))
             .size(13)
             .height(Length::Fixed(42.0)),
-        text(format!("来源 {} · 版本 {}", app.source, app.version))
-            .size(11)
-            .style(styles::muted_text_style),
+        text(
+            i18n.format(
+                "来源 %s · 版本 %s",
+                &[app.source.clone().into(), app.version.clone().into()]
+            )
+            .expect("valid app metadata")
+        )
+        .size(11)
+        .style(styles::muted_text_style),
         actions,
     ]
     .spacing(10);
@@ -89,11 +117,15 @@ fn installed_card(index: usize, app: &ShijuInstalledAppDto) -> Element<'static, 
         .into()
 }
 
-fn feedback(message: String, action: Option<(&'static str, Message)>) -> Element<'static, Message> {
+fn feedback(
+    i18n: crate::app::i18n::I18n,
+    message: String,
+    action: Option<(&'static str, Message)>,
+) -> Element<'static, Message> {
     let mut content = column![text(message).size(14)].spacing(12).align_x(Alignment::Center);
     if let Some((label, message)) = action {
         content = content.push(
-            button(text(label).size(13))
+            button(text(i18n.__(label)).size(13))
                 .padding([7, 12])
                 .style(styles::quiet_button_style)
                 .on_press(message),
@@ -103,27 +135,34 @@ fn feedback(message: String, action: Option<(&'static str, Message)>) -> Element
 }
 
 /// 按登录、加载、错误或成功状态展示“我的应用”。
-pub(super) fn view(state: &ShijuAppsLoadState<ShijuAppListDto>) -> Element<'static, Message> {
+pub(super) fn view(
+    i18n: crate::app::i18n::I18n,
+    state: &ShijuAppsLoadState<ShijuAppListDto>,
+) -> Element<'static, Message> {
     match state {
-        ShijuAppsLoadState::Idle => feedback("我的应用尚未加载".to_string(), None),
+        ShijuAppsLoadState::Idle => feedback(i18n, i18n.__("我的应用尚未加载").to_string(), None),
         ShijuAppsLoadState::NeedsLogin => feedback(
-            "登录识矩账户后可查看我的应用".to_string(),
-            Some(("登录", Message::Account(AccountMessage::StartBrowserLogin))),
+            i18n,
+            i18n.__("登录识矩账户后可查看我的应用").to_string(),
+            Some((i18n.__("登录"), Message::Account(AccountMessage::StartBrowserLogin))),
         ),
-        ShijuAppsLoadState::Loading { .. } => feedback("正在加载我的应用…".to_string(), None),
+        ShijuAppsLoadState::Loading { .. } => {
+            feedback(i18n, i18n.__("正在加载我的应用…").to_string(), None)
+        }
         ShijuAppsLoadState::Error(error) => feedback(
-            format!("我的应用加载失败：{error}"),
-            Some(("重试", Message::ShijuApps(ShijuAppsMessage::Retry))),
+            i18n,
+            i18n.format("我的应用加载失败：%s", &[error.clone().into()]).expect("valid apps error"),
+            Some((i18n.__("重试"), Message::ShijuApps(ShijuAppsMessage::Retry))),
         ),
         ShijuAppsLoadState::Loaded(apps) if apps.apps.is_empty() => {
-            feedback("当前账户尚未安装应用".to_string(), None)
+            feedback(i18n, i18n.__("当前账户尚未安装应用").to_string(), None)
         }
         ShijuAppsLoadState::Loaded(apps) => {
             let cards = apps
                 .apps
                 .iter()
                 .enumerate()
-                .map(|(index, app)| installed_card(index, app))
+                .map(|(index, app)| installed_card(i18n, index, app))
                 .collect::<Vec<_>>();
             scrollable(
                 container(card_grid(cards))

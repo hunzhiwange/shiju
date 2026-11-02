@@ -142,11 +142,14 @@ pub(crate) fn resolve_skill_destinations(
     project_root: Option<&Path>,
     selections: &[SkillInstallSelection],
 ) -> Result<Vec<ResolvedSkillDestination>> {
-    ensure_base_directory(home, "用户主目录")?;
+    ensure_base_directory(home, BaseDirectoryKind::Home)?;
     if selections.iter().any(|selection| selection.scope == SkillInstallScope::Project) {
         ensure_base_directory(
-            project_root.context("项目级技能安装需要已打开的项目")?,
-            "项目根目录",
+            project_root.context(super::SkillHubError::localized(
+                "项目级技能安装需要已打开的项目",
+                vec![],
+            ))?,
+            BaseDirectoryKind::Project,
         )?;
     }
 
@@ -155,7 +158,10 @@ pub(crate) fn resolve_skill_destinations(
     for selection in selections {
         let base_dir = match selection.scope {
             SkillInstallScope::Global => home,
-            SkillInstallScope::Project => project_root.context("项目级技能安装需要已打开的项目")?,
+            SkillInstallScope::Project => project_root.context(super::SkillHubError::localized(
+                "项目级技能安装需要已打开的项目",
+                vec![],
+            ))?,
         };
         let relative_skills_root = relative_skills_root(selection.target, selection.scope);
         let skills_root = base_dir.join(&relative_skills_root);
@@ -197,8 +203,9 @@ fn relative_skills_root(target: SkillInstallTarget, scope: SkillInstallScope) ->
 }
 
 pub(crate) fn shiju_install_dir() -> Result<PathBuf> {
-    let home =
-        BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf()).context("无法确定用户主目录")?;
+    let home = BaseDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context(super::SkillHubError::localized("无法确定用户主目录", vec![]))?;
     Ok(home_config_dir(home).join("skills").join(SKILL_DIR_NAME))
 }
 
@@ -207,17 +214,19 @@ pub(crate) fn shiju_install_path_label() -> String {
 }
 
 pub(crate) fn shiju_installation() -> Result<Option<ShijuInstallation>> {
-    let home =
-        BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf()).context("无法确定用户主目录")?;
+    let home = BaseDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context(super::SkillHubError::localized("无法确定用户主目录", vec![]))?;
     shiju_installation_at_home(&home)
 }
 
 pub(crate) async fn uninstall_shiju_package() -> Result<bool> {
-    let home =
-        BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf()).context("无法确定用户主目录")?;
+    let home = BaseDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context(super::SkillHubError::localized("无法确定用户主目录", vec![]))?;
     tokio::task::spawn_blocking(move || uninstall_shiju_at_home(&home))
         .await
-        .context("识矩技能卸载任务异常终止")?
+        .context(super::SkillHubError::localized("识矩技能卸载任务异常终止", vec![]))?
 }
 
 /// 比较纯数字点分版本；格式无效时保守地判定为不可升级。
@@ -256,15 +265,19 @@ fn numeric_version(version: &str) -> Option<Vec<u64>> {
 pub(crate) async fn install_shiju_package(
     download_url: SkillDownloadUrl,
 ) -> Result<ShijuInstallReport> {
-    let home =
-        BaseDirs::new().map(|dirs| dirs.home_dir().to_path_buf()).context("无法确定用户主目录")?;
-    let mut archive = NamedTempFile::new().context("无法创建识矩技能临时下载文件")?;
+    let home = BaseDirs::new()
+        .map(|dirs| dirs.home_dir().to_path_buf())
+        .context(super::SkillHubError::localized("无法确定用户主目录", vec![]))?;
+    let mut archive = NamedTempFile::new()
+        .context(super::SkillHubError::localized("无法创建识矩技能临时下载文件", vec![]))?;
     download_package(&download_url, archive.as_file_mut()).await?;
-    archive.flush().context("无法写完识矩技能临时下载文件")?;
+    archive
+        .flush()
+        .context(super::SkillHubError::localized("无法写完识矩技能临时下载文件", vec![]))?;
 
     tokio::task::spawn_blocking(move || install_shiju_archive_at_home(archive.path(), &home))
         .await
-        .context("识矩技能安装任务异常终止")?
+        .context(super::SkillHubError::localized("识矩技能安装任务异常终止", vec![]))?
 }
 
 pub(super) async fn download_package(
@@ -275,29 +288,35 @@ pub(super) async fn download_package(
         .redirect(Policy::none())
         .timeout(Duration::from_secs(120))
         .build()
-        .context("无法创建识矩技能下载客户端")?;
-    let mut response = client
-        .get(download_url.as_str())
-        .send()
-        .await
-        .map_err(|_| anyhow::anyhow!("识矩技能安装包下载失败"))?;
+        .context(super::SkillHubError::localized("无法创建识矩技能下载客户端", vec![]))?;
+    let mut response = client.get(download_url.as_str()).send().await.map_err(|_| {
+        anyhow::anyhow!(super::SkillHubError::localized("识矩技能安装包下载失败", vec![]))
+    })?;
     if !response.status().is_success() {
-        bail!("识矩技能安装包下载失败: HTTP {}", response.status().as_u16());
+        bail!(super::SkillHubError::localized(
+            "识矩技能安装包下载失败: HTTP %s",
+            vec![(response.status().as_u16()).to_string()]
+        ));
     }
     if response.content_length().is_some_and(|length| length > MAX_ARCHIVE_BYTES) {
-        bail!("识矩技能安装包超过 100 MiB 限制");
+        bail!(super::SkillHubError::localized("识矩技能安装包超过 100 MiB 限制", vec![]));
     }
 
     let mut written = 0u64;
-    while let Some(chunk) =
-        response.chunk().await.map_err(|_| anyhow::anyhow!("识矩技能安装包下载中断"))?
-    {
-        let chunk_len = u64::try_from(chunk.len()).context("识矩技能安装包大小溢出")?;
-        written = written.checked_add(chunk_len).context("识矩技能安装包大小溢出")?;
+    while let Some(chunk) = response.chunk().await.map_err(|_| {
+        anyhow::anyhow!(super::SkillHubError::localized("识矩技能安装包下载中断", vec![]))
+    })? {
+        let chunk_len = u64::try_from(chunk.len())
+            .context(super::SkillHubError::localized("识矩技能安装包大小溢出", vec![]))?;
+        written = written
+            .checked_add(chunk_len)
+            .context(super::SkillHubError::localized("识矩技能安装包大小溢出", vec![]))?;
         if written > MAX_ARCHIVE_BYTES {
-            bail!("识矩技能安装包超过 100 MiB 限制");
+            bail!(super::SkillHubError::localized("识矩技能安装包超过 100 MiB 限制", vec![]));
         }
-        destination.write_all(&chunk).context("无法写入识矩技能临时下载文件")?;
+        destination
+            .write_all(&chunk)
+            .context(super::SkillHubError::localized("无法写入识矩技能临时下载文件", vec![]))?;
     }
     Ok(())
 }
@@ -315,7 +334,11 @@ pub(super) fn install_shiju_archive_at_home(
             scope: SkillInstallScope::Global,
         }],
     )?;
-    let install = report.installs.into_iter().next().context("识矩技能安装未生成目标报告")?;
+    let install = report
+        .installs
+        .into_iter()
+        .next()
+        .context(super::SkillHubError::localized("识矩技能安装未生成目标报告", vec![]))?;
     Ok(ShijuInstallReport {
         installed_dir: install.destination.installed_dir,
         version: install.version,
@@ -331,7 +354,7 @@ pub(crate) fn install_shiju_archive_for_targets(
 ) -> Result<ShijuMultiInstallReport> {
     let destinations = resolve_skill_destinations(home, project_root, selections)?;
     if destinations.is_empty() {
-        bail!("未选择识矩技能安装目标");
+        bail!(super::SkillHubError::localized("未选择识矩技能安装目标", vec![]));
     }
     for destination in &destinations {
         if existing_destination_root(destination)?.is_some() {
@@ -339,7 +362,8 @@ pub(crate) fn install_shiju_archive_for_targets(
         }
     }
 
-    let extracted = tempfile::tempdir().context("无法创建识矩技能临时解压目录")?;
+    let extracted = tempfile::tempdir()
+        .context(super::SkillHubError::localized("无法创建识矩技能临时解压目录", vec![]))?;
     extract_archive(archive_path, extracted.path())?;
     let package_root = find_package_root(extracted.path())?;
     let version = read_manifest_version(&package_root.join(SKILL_MANIFEST))?;
@@ -351,7 +375,12 @@ pub(crate) fn install_shiju_archive_for_targets(
         let staging = Builder::new()
             .prefix(".shiju-installing-")
             .tempdir_in(&skills_root)
-            .with_context(|| format!("无法在 {} 创建安装暂存目录", skills_root.display()))?;
+            .with_context(|| {
+                super::SkillHubError::localized(
+                    "无法在 %s 创建安装暂存目录",
+                    vec![(skills_root.display()).to_string()],
+                )
+            })?;
         let staged_package = staging.path().join("package");
         copy_directory_secure(&package_root, &staged_package)?;
         installs.push(PreparedInstall {
@@ -411,15 +440,25 @@ fn installation_at_destination(
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
-            return Err(error)
-                .with_context(|| format!("无法检查 {}", destination.installed_dir.display()));
+            return Err(error).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法检查 %s",
+                    vec![(destination.installed_dir.display()).to_string()],
+                )
+            });
         }
     };
     if metadata.file_type().is_symlink() {
-        bail!("已安装识矩技能不能是符号链接: {}", destination.installed_dir.display());
+        bail!(super::SkillHubError::localized(
+            "已安装识矩技能不能是符号链接: %s",
+            vec![(destination.installed_dir.display()).to_string()]
+        ));
     }
     if !metadata.is_dir() {
-        bail!("已安装识矩技能路径不是目录: {}", destination.installed_dir.display());
+        bail!(super::SkillHubError::localized(
+            "已安装识矩技能路径不是目录: %s",
+            vec![(destination.installed_dir.display()).to_string()]
+        ));
     }
     let version = read_manifest_version(&destination.installed_dir.join(SKILL_MANIFEST))?;
     Ok(Some(ShijuInstallation { installed_dir: destination.installed_dir.clone(), version }))
@@ -498,7 +537,7 @@ pub(crate) fn sync_shiju_key_for_targets(
 ) -> Result<ShijuKeySyncReport> {
     let exposed = skey.expose();
     if exposed.bytes().any(|byte| byte == b'\r' || byte == b'\n') {
-        bail!("识矩登录信息包含不安全的换行符");
+        bail!(super::SkillHubError::localized("识矩登录信息包含不安全的换行符", vec![]));
     }
 
     let destinations = resolve_skill_destinations(home, project_root, selections)?;
@@ -519,17 +558,24 @@ pub(crate) fn sync_shiju_key_for_targets(
             .with_context(|| {
                 format!("无法在 {} 创建环境临时文件", destination.installed_dir.display())
             })?;
-        temporary.write_all(updated.as_bytes()).context("无法写入识矩环境临时文件")?;
-        temporary.flush().context("无法写完识矩环境临时文件")?;
+        temporary
+            .write_all(updated.as_bytes())
+            .context(super::SkillHubError::localized("无法写入识矩环境临时文件", vec![]))?;
+        temporary
+            .flush()
+            .context(super::SkillHubError::localized("无法写完识矩环境临时文件", vec![]))?;
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
             temporary
                 .as_file()
                 .set_permissions(fs::Permissions::from_mode(0o600))
-                .context("无法限制识矩环境临时文件权限")?;
+                .context(super::SkillHubError::localized("无法限制识矩环境临时文件权限", vec![]))?;
         }
-        temporary.as_file().sync_all().context("无法同步识矩环境临时文件")?;
+        temporary
+            .as_file()
+            .sync_all()
+            .context(super::SkillHubError::localized("无法同步识矩环境临时文件", vec![]))?;
         let backup = if existing.existed {
             Some(
                 Builder::new()
@@ -571,20 +617,34 @@ fn read_existing_shiju_env(
     let existing = match fs::symlink_metadata(&env_path) {
         Ok(metadata) => {
             if metadata.file_type().is_symlink() {
-                bail!("识矩环境文件不能是符号链接: {}", env_path.display());
+                bail!(super::SkillHubError::localized(
+                    "识矩环境文件不能是符号链接: %s",
+                    vec![(env_path.display()).to_string()]
+                ));
             }
             if !metadata.is_file() {
-                bail!("识矩环境文件不是普通文件: {}", env_path.display());
+                bail!(super::SkillHubError::localized(
+                    "识矩环境文件不是普通文件: %s",
+                    vec![(env_path.display()).to_string()]
+                ));
             }
-            fs::read_to_string(&env_path)
-                .with_context(|| format!("无法读取识矩环境文件 {}", env_path.display()))?
+            fs::read_to_string(&env_path).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法读取识矩环境文件 %s",
+                    vec![(env_path.display()).to_string()],
+                )
+            })?
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
             return Ok(Some(ExistingShijuEnv { contents: String::new(), existed: false }));
         }
         Err(error) => {
-            return Err(error)
-                .with_context(|| format!("无法检查识矩环境文件 {}", env_path.display()));
+            return Err(error).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法检查识矩环境文件 %s",
+                    vec![(env_path.display()).to_string()],
+                )
+            });
         }
     };
     Ok(Some(ExistingShijuEnv { contents: existing, existed: true }))
@@ -627,22 +687,32 @@ fn existing_destination_root(destination: &ResolvedSkillDestination) -> Result<O
     let mut current = destination.base_dir.clone();
     for component in destination.relative_skills_root.components() {
         let Component::Normal(name) = component else {
-            bail!("技能安装目录包含不安全路径");
+            bail!(super::SkillHubError::localized("技能安装目录包含不安全路径", vec![]));
         };
         current.push(name);
         match fs::symlink_metadata(&current) {
             Ok(metadata) => {
                 if metadata.file_type().is_symlink() {
-                    bail!("技能安装目录不能包含符号链接: {}", current.display());
+                    bail!(super::SkillHubError::localized(
+                        "技能安装目录不能包含符号链接: %s",
+                        vec![(current.display()).to_string()]
+                    ));
                 }
                 if !metadata.is_dir() {
-                    bail!("技能安装路径不是目录: {}", current.display());
+                    bail!(super::SkillHubError::localized(
+                        "技能安装路径不是目录: %s",
+                        vec![(current.display()).to_string()]
+                    ));
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(error) => {
-                return Err(error)
-                    .with_context(|| format!("无法检查技能安装目录 {}", current.display()));
+                return Err(error).with_context(|| {
+                    super::SkillHubError::localized(
+                        "无法检查技能安装目录 %s",
+                        vec![(current.display()).to_string()],
+                    )
+                });
             }
         }
     }
@@ -654,17 +724,23 @@ fn read_manifest_version(manifest: &Path) -> Result<Option<String>> {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => {
-            return Err(error).with_context(|| format!("无法检查 {}", manifest.display()));
+            return Err(error).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法检查 %s",
+                    vec![(manifest.display()).to_string()],
+                )
+            });
         }
     };
     if metadata.file_type().is_symlink() || !metadata.is_file() {
-        bail!("识矩技能清单不是安全的普通文件");
+        bail!(super::SkillHubError::localized("识矩技能清单不是安全的普通文件", vec![]));
     }
     if metadata.len() > MAX_MANIFEST_BYTES {
-        bail!("识矩技能清单超过 64 KiB 限制");
+        bail!(super::SkillHubError::localized("识矩技能清单超过 64 KiB 限制", vec![]));
     }
-    let contents =
-        fs::read_to_string(manifest).with_context(|| format!("无法读取 {}", manifest.display()))?;
+    let contents = fs::read_to_string(manifest).with_context(|| {
+        super::SkillHubError::localized("无法读取 %s", vec![(manifest.display()).to_string()])
+    })?;
     let mut lines = contents.lines();
     if lines.next().map(str::trim) != Some("---") {
         return Ok(None);
@@ -700,14 +776,33 @@ struct PreparedKeySync {
     backup: Option<TempDir>,
 }
 
-fn ensure_base_directory(path: &Path, label: &str) -> Result<()> {
-    let metadata = fs::symlink_metadata(path)
-        .with_context(|| format!("无法读取{label} {}", path.display()))?;
+#[derive(Clone, Copy)]
+enum BaseDirectoryKind {
+    Home,
+    Project,
+}
+
+fn ensure_base_directory(path: &Path, kind: BaseDirectoryKind) -> Result<()> {
+    let read_source = match kind {
+        BaseDirectoryKind::Home => "无法读取用户主目录 %s",
+        BaseDirectoryKind::Project => "无法读取项目根目录 %s",
+    };
+    let metadata = fs::symlink_metadata(path).with_context(|| {
+        super::SkillHubError::localized(read_source, vec![path.display().to_string()])
+    })?;
     if metadata.file_type().is_symlink() {
-        bail!("{label}不能是符号链接");
+        let source = match kind {
+            BaseDirectoryKind::Home => "用户主目录不能是符号链接",
+            BaseDirectoryKind::Project => "项目根目录不能是符号链接",
+        };
+        bail!(super::SkillHubError::localized(source, vec![]));
     }
     if !metadata.is_dir() {
-        bail!("{label}不是目录");
+        let source = match kind {
+            BaseDirectoryKind::Home => "用户主目录不是目录",
+            BaseDirectoryKind::Project => "项目根目录不是目录",
+        };
+        bail!(super::SkillHubError::localized(source, vec![]));
     }
     Ok(())
 }
@@ -716,25 +811,39 @@ fn ensure_destination_root(destination: &ResolvedSkillDestination) -> Result<Pat
     let mut current = destination.base_dir.clone();
     for component in destination.relative_skills_root.components() {
         let Component::Normal(name) = component else {
-            bail!("技能安装目录包含不安全路径");
+            bail!(super::SkillHubError::localized("技能安装目录包含不安全路径", vec![]));
         };
         current.push(name);
         match fs::symlink_metadata(&current) {
             Ok(metadata) => {
                 if metadata.file_type().is_symlink() {
-                    bail!("技能安装目录不能包含符号链接: {}", current.display());
+                    bail!(super::SkillHubError::localized(
+                        "技能安装目录不能包含符号链接: %s",
+                        vec![(current.display()).to_string()]
+                    ));
                 }
                 if !metadata.is_dir() {
-                    bail!("技能安装路径不是目录: {}", current.display());
+                    bail!(super::SkillHubError::localized(
+                        "技能安装路径不是目录: %s",
+                        vec![(current.display()).to_string()]
+                    ));
                 }
             }
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                fs::create_dir(&current)
-                    .with_context(|| format!("无法创建技能安装目录 {}", current.display()))?;
+                fs::create_dir(&current).with_context(|| {
+                    super::SkillHubError::localized(
+                        "无法创建技能安装目录 %s",
+                        vec![(current.display()).to_string()],
+                    )
+                })?;
             }
             Err(error) => {
-                return Err(error)
-                    .with_context(|| format!("无法检查技能安装目录 {}", current.display()));
+                return Err(error).with_context(|| {
+                    super::SkillHubError::localized(
+                        "无法检查技能安装目录 %s",
+                        vec![(current.display()).to_string()],
+                    )
+                });
             }
         }
     }
@@ -745,15 +854,23 @@ fn ensure_replaceable_target(target: &Path) -> Result<()> {
     match fs::symlink_metadata(target) {
         Ok(metadata) => {
             if metadata.file_type().is_symlink() {
-                bail!("已安装识矩技能不能是符号链接: {}", target.display());
+                bail!(super::SkillHubError::localized(
+                    "已安装识矩技能不能是符号链接: %s",
+                    vec![(target.display()).to_string()]
+                ));
             }
             if !metadata.is_dir() {
-                bail!("已安装识矩技能路径不是目录: {}", target.display());
+                bail!(super::SkillHubError::localized(
+                    "已安装识矩技能路径不是目录: %s",
+                    vec![(target.display()).to_string()]
+                ));
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(error) => {
-            return Err(error).with_context(|| format!("无法检查 {}", target.display()));
+            return Err(error).with_context(|| {
+                super::SkillHubError::localized("无法检查 %s", vec![(target.display()).to_string()])
+            });
         }
     }
     Ok(())
@@ -761,74 +878,104 @@ fn ensure_replaceable_target(target: &Path) -> Result<()> {
 
 fn extract_archive(archive_path: &Path, destination: &Path) -> Result<()> {
     // 解压同时限制条目数、路径与累计体积，避免路径穿越和压缩炸弹。
-    let metadata = fs::metadata(archive_path).context("无法读取识矩技能安装包")?;
+    let metadata = fs::metadata(archive_path)
+        .context(super::SkillHubError::localized("无法读取识矩技能安装包", vec![]))?;
     if metadata.len() > MAX_ARCHIVE_BYTES {
-        bail!("识矩技能安装包超过 100 MiB 限制");
+        bail!(super::SkillHubError::localized("识矩技能安装包超过 100 MiB 限制", vec![]));
     }
-    let file = fs::File::open(archive_path).context("无法打开识矩技能安装包")?;
-    let mut archive = ZipArchive::new(file).context("识矩技能安装包不是有效 ZIP")?;
+    let file = fs::File::open(archive_path)
+        .context(super::SkillHubError::localized("无法打开识矩技能安装包", vec![]))?;
+    let mut archive = ZipArchive::new(file)
+        .context(super::SkillHubError::localized("识矩技能安装包不是有效 ZIP", vec![]))?;
     if archive.len() > MAX_ARCHIVE_ENTRIES {
-        bail!("识矩技能安装包文件数量超过限制");
+        bail!(super::SkillHubError::localized("识矩技能安装包文件数量超过限制", vec![]));
     }
 
     let mut seen = HashSet::with_capacity(archive.len());
     let mut declared_size = 0u64;
     let mut extracted_size = 0u64;
     for index in 0..archive.len() {
-        let mut entry = archive
-            .by_index(index)
-            .with_context(|| format!("无法读取识矩技能安装包第 {} 项", index + 1))?;
+        let mut entry = archive.by_index(index).with_context(|| {
+            super::SkillHubError::localized(
+                "无法读取识矩技能安装包第 %s 项",
+                vec![(index + 1).to_string()],
+            )
+        })?;
         let entry_name = entry.name().to_string();
         if entry_name.contains('\\') {
-            bail!("识矩技能安装包包含不安全路径");
+            bail!(super::SkillHubError::localized("识矩技能安装包包含不安全路径", vec![]));
         }
-        let relative = entry.enclosed_name().context("识矩技能安装包包含不安全路径")?;
+        let relative = entry
+            .enclosed_name()
+            .context(super::SkillHubError::localized("识矩技能安装包包含不安全路径", vec![]))?;
         if relative.as_os_str().is_empty() || !seen.insert(relative.clone()) {
-            bail!("识矩技能安装包包含无效或重复路径");
+            bail!(super::SkillHubError::localized("识矩技能安装包包含无效或重复路径", vec![]));
         }
         let unix_mode = entry.unix_mode();
         if unix_mode.is_some_and(|mode| mode & 0o170000 == 0o120000) {
-            bail!("识矩技能安装包不能包含符号链接");
+            bail!(super::SkillHubError::localized("识矩技能安装包不能包含符号链接", vec![]));
         }
         if unix_mode.is_some_and(|mode| {
             let kind = mode & 0o170000;
             kind != 0 && kind != 0o040000 && kind != 0o100000
         }) {
-            bail!("识矩技能安装包包含不支持的文件类型");
+            bail!(super::SkillHubError::localized("识矩技能安装包包含不支持的文件类型", vec![]));
         }
-        declared_size =
-            declared_size.checked_add(entry.size()).context("识矩技能安装包解压大小溢出")?;
+        declared_size = declared_size
+            .checked_add(entry.size())
+            .context(super::SkillHubError::localized("识矩技能安装包解压大小溢出", vec![]))?;
         if declared_size > MAX_EXTRACTED_BYTES {
-            bail!("识矩技能安装包解压后超过 512 MiB 限制");
+            bail!(super::SkillHubError::localized("识矩技能安装包解压后超过 512 MiB 限制", vec![]));
         }
 
         let output = destination.join(&relative);
         if entry.is_dir() {
-            fs::create_dir_all(&output)
-                .with_context(|| format!("无法创建解压目录 {}", output.display()))?;
+            fs::create_dir_all(&output).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法创建解压目录 %s",
+                    vec![(output.display()).to_string()],
+                )
+            })?;
             continue;
         }
         if let Some(parent) = output.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("无法创建解压目录 {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法创建解压目录 %s",
+                    vec![(parent.display()).to_string()],
+                )
+            })?;
         }
-        let mut file =
-            fs::File::create(&output).with_context(|| format!("无法创建 {}", output.display()))?;
+        let mut file = fs::File::create(&output).with_context(|| {
+            super::SkillHubError::localized("无法创建 %s", vec![(output.display()).to_string()])
+        })?;
         let remaining = MAX_EXTRACTED_BYTES
             .checked_sub(extracted_size)
-            .context("识矩技能安装包解压大小溢出")?;
+            .context(super::SkillHubError::localized("识矩技能安装包解压大小溢出", vec![]))?;
         let copied = std::io::copy(&mut entry.by_ref().take(remaining + 1), &mut file)
-            .with_context(|| format!("无法解压 {}", relative.display()))?;
+            .with_context(|| {
+                super::SkillHubError::localized(
+                    "无法解压 %s",
+                    vec![(relative.display()).to_string()],
+                )
+            })?;
         if copied > remaining {
-            bail!("识矩技能安装包解压后超过 512 MiB 限制");
+            bail!(super::SkillHubError::localized("识矩技能安装包解压后超过 512 MiB 限制", vec![]));
         }
-        extracted_size =
-            extracted_size.checked_add(copied).context("识矩技能安装包解压大小溢出")?;
+        extracted_size = extracted_size
+            .checked_add(copied)
+            .context(super::SkillHubError::localized("识矩技能安装包解压大小溢出", vec![]))?;
         #[cfg(unix)]
         if let Some(mode) = unix_mode {
             use std::os::unix::fs::PermissionsExt;
-            fs::set_permissions(&output, fs::Permissions::from_mode(mode & 0o777))
-                .with_context(|| format!("无法设置 {} 的权限", output.display()))?;
+            fs::set_permissions(&output, fs::Permissions::from_mode(mode & 0o777)).with_context(
+                || {
+                    super::SkillHubError::localized(
+                        "无法设置 %s 的权限",
+                        vec![(output.display()).to_string()],
+                    )
+                },
+            )?;
         }
     }
     Ok(())
@@ -839,39 +986,55 @@ fn find_package_root(extracted: &Path) -> Result<PathBuf> {
         return Ok(extracted.to_path_buf());
     }
     let mut candidates = Vec::new();
-    for entry in fs::read_dir(extracted).context("无法检查识矩技能包根目录")? {
-        let entry = entry.context("无法读取识矩技能包根目录")?;
+    for entry in fs::read_dir(extracted)
+        .context(super::SkillHubError::localized("无法检查识矩技能包根目录", vec![]))?
+    {
+        let entry =
+            entry.context(super::SkillHubError::localized("无法读取识矩技能包根目录", vec![]))?;
         let path = entry.path();
-        let metadata =
-            fs::symlink_metadata(&path).with_context(|| format!("无法检查 {}", path.display()))?;
+        let metadata = fs::symlink_metadata(&path).with_context(|| {
+            super::SkillHubError::localized("无法检查 %s", vec![(path.display()).to_string()])
+        })?;
         if metadata.is_dir() && path.join(SKILL_MANIFEST).is_file() {
             candidates.push(path);
         }
     }
     match candidates.as_slice() {
         [root] => Ok(root.clone()),
-        [] => bail!("识矩技能安装包缺少 SKILL.md"),
-        _ => bail!("识矩技能安装包包含多个技能根目录"),
+        [] => bail!(super::SkillHubError::localized("识矩技能安装包缺少 SKILL.md", vec![])),
+        _ => bail!(super::SkillHubError::localized("识矩技能安装包包含多个技能根目录", vec![])),
     }
 }
 
 fn copy_directory_secure(source: &Path, destination: &Path) -> Result<()> {
-    let metadata =
-        fs::symlink_metadata(source).with_context(|| format!("无法读取 {}", source.display()))?;
+    let metadata = fs::symlink_metadata(source).with_context(|| {
+        super::SkillHubError::localized("无法读取 %s", vec![(source.display()).to_string()])
+    })?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
-        bail!("识矩技能源目录不安全");
+        bail!(super::SkillHubError::localized("识矩技能源目录不安全", vec![]));
     }
-    fs::create_dir(destination)
-        .with_context(|| format!("无法创建暂存目录 {}", destination.display()))?;
-    for entry in fs::read_dir(source).with_context(|| format!("无法读取 {}", source.display()))?
-    {
-        let entry = entry.with_context(|| format!("无法读取 {}", source.display()))?;
+    fs::create_dir(destination).with_context(|| {
+        super::SkillHubError::localized(
+            "无法创建暂存目录 %s",
+            vec![(destination.display()).to_string()],
+        )
+    })?;
+    for entry in fs::read_dir(source).with_context(|| {
+        super::SkillHubError::localized("无法读取 %s", vec![(source.display()).to_string()])
+    })? {
+        let entry = entry.with_context(|| {
+            super::SkillHubError::localized("无法读取 %s", vec![(source.display()).to_string()])
+        })?;
         let source_path = entry.path();
         let target_path = destination.join(entry.file_name());
-        let metadata = fs::symlink_metadata(&source_path)
-            .with_context(|| format!("无法读取 {}", source_path.display()))?;
+        let metadata = fs::symlink_metadata(&source_path).with_context(|| {
+            super::SkillHubError::localized(
+                "无法读取 %s",
+                vec![(source_path.display()).to_string()],
+            )
+        })?;
         if metadata.file_type().is_symlink() {
-            bail!("识矩技能包不能包含符号链接");
+            bail!(super::SkillHubError::localized("识矩技能包不能包含符号链接", vec![]));
         }
         if metadata.is_dir() {
             copy_directory_secure(&source_path, &target_path)?;
@@ -879,10 +1042,14 @@ fn copy_directory_secure(source: &Path, destination: &Path) -> Result<()> {
             fs::copy(&source_path, &target_path).with_context(|| {
                 format!("无法复制 {} 到 {}", source_path.display(), target_path.display())
             })?;
-            fs::set_permissions(&target_path, metadata.permissions())
-                .with_context(|| format!("无法设置 {} 的权限", target_path.display()))?;
+            fs::set_permissions(&target_path, metadata.permissions()).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法设置 %s 的权限",
+                    vec![(target_path.display()).to_string()],
+                )
+            })?;
         } else {
-            bail!("识矩技能包包含不支持的文件类型");
+            bail!(super::SkillHubError::localized("识矩技能包包含不支持的文件类型", vec![]));
         }
     }
     Ok(())
@@ -911,9 +1078,12 @@ fn backup_existing_installs(installs: &mut [PreparedInstall]) -> Result<()> {
             }
         };
         let previous = backup.path().join("previous");
-        if let Err(error) = fs::rename(&installs[index].target, &previous)
-            .with_context(|| format!("无法备份已有识矩技能 {}", installs[index].target.display()))
-        {
+        if let Err(error) = fs::rename(&installs[index].target, &previous).with_context(|| {
+            super::SkillHubError::localized(
+                "无法备份已有识矩技能 %s",
+                vec![(installs[index].target.display()).to_string()],
+            )
+        }) {
             return match restore_backups(installs) {
                 Ok(()) => Err(error),
                 Err(rollback_error) => {
@@ -930,8 +1100,13 @@ fn commit_installs(installs: &mut [PreparedInstall]) -> Result<()> {
     let mut committed = 0usize;
     for index in 0..installs.len() {
         let staged_package = installs[index].staging.path().join("package");
-        if let Err(error) = fs::rename(&staged_package, &installs[index].target)
-            .with_context(|| format!("无法安装识矩技能到 {}", installs[index].target.display()))
+        if let Err(error) =
+            fs::rename(&staged_package, &installs[index].target).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法安装识矩技能到 %s",
+                    vec![(installs[index].target.display()).to_string()],
+                )
+            })
         {
             let rollback_error = rollback_commits(installs, committed).err();
             return match rollback_error {
@@ -949,8 +1124,12 @@ fn commit_installs(installs: &mut [PreparedInstall]) -> Result<()> {
 fn rollback_commits(installs: &mut [PreparedInstall], committed: usize) -> Result<()> {
     for install in installs.iter().take(committed) {
         if install.target.exists() {
-            fs::remove_dir_all(&install.target)
-                .with_context(|| format!("无法清理 {}", install.target.display()))?;
+            fs::remove_dir_all(&install.target).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法清理 %s",
+                    vec![(install.target.display()).to_string()],
+                )
+            })?;
         }
     }
     restore_backups(installs)
@@ -963,8 +1142,12 @@ fn restore_backups(installs: &mut [PreparedInstall]) -> Result<()> {
         };
         let previous = backup.path().join("previous");
         if previous.exists() {
-            fs::rename(&previous, &install.target)
-                .with_context(|| format!("无法恢复 {}", install.target.display()))?;
+            fs::rename(&previous, &install.target).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法恢复 %s",
+                    vec![(install.target.display()).to_string()],
+                )
+            })?;
         }
     }
     Ok(())
@@ -973,9 +1156,12 @@ fn restore_backups(installs: &mut [PreparedInstall]) -> Result<()> {
 fn move_installs_to_removal_backups(removals: &mut [PreparedRemoval]) -> Result<()> {
     for index in 0..removals.len() {
         let previous = removals[index].backup.path().join("previous");
-        if let Err(error) = fs::rename(&removals[index].target, &previous)
-            .with_context(|| format!("无法暂存待卸载识矩技能 {}", removals[index].target.display()))
-        {
+        if let Err(error) = fs::rename(&removals[index].target, &previous).with_context(|| {
+            super::SkillHubError::localized(
+                "无法暂存待卸载识矩技能 %s",
+                vec![(removals[index].target.display()).to_string()],
+            )
+        }) {
             return match restore_removal_backups(removals) {
                 Ok(()) => Err(error),
                 Err(rollback_error) => {
@@ -991,8 +1177,12 @@ fn restore_removal_backups(removals: &mut [PreparedRemoval]) -> Result<()> {
     for removal in removals.iter_mut().rev() {
         let previous = removal.backup.path().join("previous");
         if previous.exists() {
-            fs::rename(&previous, &removal.target)
-                .with_context(|| format!("无法恢复 {}", removal.target.display()))?;
+            fs::rename(&previous, &removal.target).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法恢复 %s",
+                    vec![(removal.target.display()).to_string()],
+                )
+            })?;
         }
     }
     Ok(())
@@ -1004,9 +1194,12 @@ fn backup_existing_env_files(syncs: &mut [PreparedKeySync]) -> Result<()> {
             continue;
         };
         let previous = backup.path().join("previous");
-        if let Err(error) = fs::rename(&syncs[index].env_path, &previous)
-            .with_context(|| format!("无法备份识矩环境文件 {}", syncs[index].env_path.display()))
-        {
+        if let Err(error) = fs::rename(&syncs[index].env_path, &previous).with_context(|| {
+            super::SkillHubError::localized(
+                "无法备份识矩环境文件 %s",
+                vec![(syncs[index].env_path.display()).to_string()],
+            )
+        }) {
             return match restore_env_backups(syncs) {
                 Ok(()) => Err(error),
                 Err(rollback_error) => {
@@ -1020,11 +1213,19 @@ fn backup_existing_env_files(syncs: &mut [PreparedKeySync]) -> Result<()> {
 
 fn commit_key_syncs(syncs: &mut [PreparedKeySync]) -> Result<()> {
     for index in 0..syncs.len() {
-        let temporary = syncs[index].temporary.take().context("识矩环境临时文件缺失")?;
+        let temporary = syncs[index]
+            .temporary
+            .take()
+            .context(super::SkillHubError::localized("识矩环境临时文件缺失", vec![]))?;
         if let Err(error) = temporary
             .persist(&syncs[index].env_path)
             .map_err(|error| error.error)
-            .with_context(|| format!("无法替换识矩环境文件 {}", syncs[index].env_path.display()))
+            .with_context(|| {
+                super::SkillHubError::localized(
+                    "无法替换识矩环境文件 %s",
+                    vec![(syncs[index].env_path.display()).to_string()],
+                )
+            })
         {
             let rollback_error = rollback_key_syncs(syncs, index).err();
             return match rollback_error {
@@ -1044,7 +1245,12 @@ fn rollback_key_syncs(syncs: &mut [PreparedKeySync], committed: usize) -> Result
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => {
-                return Err(error).with_context(|| format!("无法清理 {}", sync.env_path.display()));
+                return Err(error).with_context(|| {
+                    super::SkillHubError::localized(
+                        "无法清理 %s",
+                        vec![(sync.env_path.display()).to_string()],
+                    )
+                });
             }
         }
     }
@@ -1058,8 +1264,12 @@ fn restore_env_backups(syncs: &mut [PreparedKeySync]) -> Result<()> {
         };
         let previous = backup.path().join("previous");
         if previous.exists() {
-            fs::rename(&previous, &sync.env_path)
-                .with_context(|| format!("无法恢复 {}", sync.env_path.display()))?;
+            fs::rename(&previous, &sync.env_path).with_context(|| {
+                super::SkillHubError::localized(
+                    "无法恢复 %s",
+                    vec![(sync.env_path.display()).to_string()],
+                )
+            })?;
         }
     }
     Ok(())

@@ -58,15 +58,28 @@ struct FilteredDocumentsPage<'a> {
     start_index: usize,
 }
 
-fn document_status_filter_options() -> [DocumentStatusFilterOption; 5] {
+fn document_status_filter_options(i18n: crate::app::i18n::I18n) -> [DocumentStatusFilterOption; 5] {
     [
-        DocumentStatusFilterOption { label: "可用", status: KnowledgeDocumentStatus::Completed },
         DocumentStatusFilterOption {
-            label: "索引中", status: KnowledgeDocumentStatus::Processing
+            label: i18n.__("可用"),
+            status: KnowledgeDocumentStatus::Completed,
         },
-        DocumentStatusFilterOption { label: "入队", status: KnowledgeDocumentStatus::Pending },
-        DocumentStatusFilterOption { label: "停用", status: KnowledgeDocumentStatus::Disabled },
-        DocumentStatusFilterOption { label: "归档", status: KnowledgeDocumentStatus::Archived },
+        DocumentStatusFilterOption {
+            label: i18n.__("索引中"),
+            status: KnowledgeDocumentStatus::Processing,
+        },
+        DocumentStatusFilterOption {
+            label: i18n.__("入队"),
+            status: KnowledgeDocumentStatus::Pending,
+        },
+        DocumentStatusFilterOption {
+            label: i18n.__("停用"),
+            status: KnowledgeDocumentStatus::Disabled,
+        },
+        DocumentStatusFilterOption {
+            label: i18n.__("归档"),
+            status: KnowledgeDocumentStatus::Archived,
+        },
     ]
 }
 
@@ -127,13 +140,17 @@ fn build_dataset_catalog_view(app: &App) -> Element<'_, Message> {
 
 fn build_dataset_catalog_header(app: &App) -> Element<'_, Message> {
     let clear_notification: Element<'_, Message> = if app.knowledge.notification.is_some() {
-        button(text("清除提示").size(12).line_height(1.0))
-            .on_press(Message::Knowledge(KnowledgeToolMessage::ClearNotification))
-            .padding(0)
-            .width(Length::Fixed(82.0))
-            .height(Length::Fixed(38.0))
-            .style(knowledge_toolbar_button_style)
-            .into()
+        button(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("清除提示"))
+                .size(12)
+                .line_height(1.0),
+        )
+        .on_press(Message::Knowledge(KnowledgeToolMessage::ClearNotification))
+        .padding(0)
+        .width(Length::Fixed(82.0))
+        .height(Length::Fixed(38.0))
+        .style(knowledge_toolbar_button_style)
+        .into()
     } else {
         Space::new().width(Length::Shrink).into()
     };
@@ -141,11 +158,11 @@ fn build_dataset_catalog_header(app: &App) -> Element<'_, Message> {
     row![
         build_dataset_search_input(app),
         knowledge_header_button(
-            "刷新",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("刷新"),
             (!app.knowledge.is_busy()).then_some(KnowledgeToolMessage::Refresh),
         ),
         knowledge_header_button(
-            "创建知识库",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("创建知识库"),
             (!app.knowledge.creating_dataset)
                 .then_some(KnowledgeToolMessage::OpenCreateDatasetModal),
         ),
@@ -159,13 +176,16 @@ fn build_dataset_catalog_header(app: &App) -> Element<'_, Message> {
 
 fn build_dataset_search_input(app: &App) -> Element<'_, Message> {
     container(
-        text_input("搜索", &app.knowledge.dataset_search_query)
-            .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetSearchChanged(value)))
-            .padding([9, 12])
-            .size(13)
-            .line_height(iced::Pixels(20.0))
-            .width(Length::Fill)
-            .style(settings_text_input_style),
+        text_input(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("搜索"),
+            &app.knowledge.dataset_search_query,
+        )
+        .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetSearchChanged(value)))
+        .padding([9, 12])
+        .size(13)
+        .line_height(iced::Pixels(20.0))
+        .width(Length::Fill)
+        .style(settings_text_input_style),
     )
     .height(Length::Fixed(38.0))
     .width(Length::Fixed(260.0))
@@ -193,12 +213,20 @@ fn knowledge_header_button(
 }
 
 fn build_dataset_list_panel(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     if app.knowledge.loading_datasets && app.knowledge.datasets.is_empty() {
-        return build_dataset_notice("正在加载知识库...");
+        return build_dataset_notice(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载知识库..."),
+        );
     }
 
     if app.knowledge.datasets.is_empty() {
-        return build_dataset_notice("暂无知识库，请创建知识库后添加文档入库。");
+        return build_dataset_notice(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("暂无知识库，请创建知识库后添加文档入库。"),
+        );
     }
 
     let query = app.knowledge.dataset_search_query.trim().to_lowercase();
@@ -214,12 +242,12 @@ fn build_dataset_list_panel(app: &App) -> Element<'_, Message> {
         })
         .collect::<Vec<_>>();
 
-    let mut cards = row![build_create_dataset_card()].spacing(18);
+    let mut cards = row![build_create_dataset_card(i18n)].spacing(18);
     for dataset in &filtered_datasets {
         cards = cards.push(dataset_item(app, dataset));
     }
     if filtered_datasets.is_empty() {
-        cards = cards.push(build_no_dataset_result_card());
+        cards = cards.push(build_no_dataset_result_card(i18n));
     }
 
     knowledge_scrollable(container(cards.wrap()).width(Length::Fill))
@@ -228,11 +256,14 @@ fn build_dataset_list_panel(app: &App) -> Element<'_, Message> {
         .into()
 }
 
-fn build_dataset_notice(message: &'static str) -> Element<'static, Message> {
+fn build_dataset_notice(
+    i18n: crate::app::i18n::I18n,
+    message: &'static str,
+) -> Element<'static, Message> {
     container(
         column![
             text(message).size(15).style(settings_muted_text_style),
-            button(text("创建知识库").size(13))
+            button(text(i18n.__("创建知识库")).size(13))
                 .style(primary_action_btn_style)
                 .padding([10, 16])
                 .on_press(Message::Knowledge(KnowledgeToolMessage::OpenCreateDatasetModal)),
@@ -247,11 +278,11 @@ fn build_dataset_notice(message: &'static str) -> Element<'static, Message> {
     .into()
 }
 
-fn build_create_dataset_card() -> Element<'static, Message> {
+fn build_create_dataset_card(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     container(
         column![
-            text("创建知识库").size(14).style(settings_muted_text_style),
-            create_dataset_action_button(Icon::FileEarmarkPlus, "新建空白知识库"),
+            text(i18n.__("创建知识库")).size(14).style(settings_muted_text_style),
+            create_dataset_action_button(Icon::FileEarmarkPlus, i18n.__("新建空白知识库")),
         ]
         .spacing(12)
         .width(Length::Fill),
@@ -283,11 +314,11 @@ fn create_dataset_action_button(icon: Icon, label: &'static str) -> Element<'sta
     .into()
 }
 
-fn build_no_dataset_result_card() -> Element<'static, Message> {
+fn build_no_dataset_result_card(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     container(
         column![
-            text("没有匹配的知识库").size(15),
-            text("换个搜索词再试。").size(12).style(settings_muted_text_style),
+            text(i18n.__("没有匹配的知识库")).size(15),
+            text(i18n.__("换个搜索词再试。")).size(12).style(settings_muted_text_style),
         ]
         .spacing(8)
         .align_x(Alignment::Center),
@@ -306,8 +337,13 @@ fn build_create_dataset_modal<'a>(
 ) -> Element<'a, Message> {
     let title = row![
         column![
-            text("创建知识库").size(24),
-            text("按模块完成基础信息、索引与检索配置。").size(12).style(settings_muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("创建知识库")).size(24),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("按模块完成基础信息、索引与检索配置。")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         ]
         .spacing(4)
         .width(Length::Fill),
@@ -316,10 +352,14 @@ fn build_create_dataset_modal<'a>(
     .spacing(12)
     .align_y(Alignment::Center);
 
-    let submit_label = if app.knowledge.creating_dataset { "创建中" } else { "创建知识库" };
+    let submit_label = if app.knowledge.creating_dataset {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("创建中")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("创建知识库")
+    };
     let actions = row![
         Space::new().width(Length::Fill),
-        button(text("取消").size(13))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
             .on_press(Message::Knowledge(KnowledgeToolMessage::CloseCreateDatasetModal))
             .padding([9, 14])
             .style(rounded_action_btn_style),
@@ -375,30 +415,55 @@ fn build_create_dataset_panel(app: &App) -> Element<'_, Message> {
 
 fn build_create_dataset_basic_tab(app: &App) -> Element<'_, Message> {
     let fields = column![
-        section_header("基础信息", "名称用于识别知识库，描述用于说明内容范围。"),
-        text("名称").size(12),
-        text_input("例如：产品文档", &app.knowledge.dataset_name_input)
-            .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetNameChanged(value)))
-            .padding([11, 12])
-            .size(13)
-            .style(settings_text_input_style),
-        text("描述").size(12),
-        text_input("简要说明知识库包含的内容", &app.knowledge.dataset_description_input)
-            .on_input(|value| {
-                Message::Knowledge(KnowledgeToolMessage::DatasetDescriptionChanged(value))
-            })
-            .padding([11, 12])
-            .size(13)
-            .style(settings_text_input_style),
+        section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("基础信息"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("名称用于识别知识库，描述用于说明内容范围。")
+        ),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("名称")).size(12),
+        text_input(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("例如：产品文档"),
+            &app.knowledge.dataset_name_input
+        )
+        .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DatasetNameChanged(value)))
+        .padding([11, 12])
+        .size(13)
+        .style(settings_text_input_style),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("描述")).size(12),
+        text_input(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("简要说明知识库包含的内容"),
+            &app.knowledge.dataset_description_input
+        )
+        .on_input(|value| {
+            Message::Knowledge(KnowledgeToolMessage::DatasetDescriptionChanged(value))
+        })
+        .padding([11, 12])
+        .size(13)
+        .style(settings_text_input_style),
     ]
     .spacing(10)
     .width(Length::Fill);
 
     let overview = column![
-        section_header("配置流程", "创建前可随时切换页签检查配置。"),
-        create_dataset_step("1", "基础信息", "填写名称与用途"),
-        create_dataset_step("2", "分段与索引", "决定文档如何入库"),
-        create_dataset_step("3", "检索设置", "配置召回策略与参数"),
+        section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("配置流程"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("创建前可随时切换页签检查配置。")
+        ),
+        create_dataset_step(
+            "1",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("基础信息"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("填写名称与用途")
+        ),
+        create_dataset_step(
+            "2",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("分段与索引"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("决定文档如何入库")
+        ),
+        create_dataset_step(
+            "3",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("检索设置"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("配置召回策略与参数")
+        ),
     ]
     .spacing(12)
     .width(Length::Fill);
@@ -465,11 +530,16 @@ fn build_create_dataset_retrieval_tab(app: &App) -> Element<'_, Message> {
 }
 
 fn build_chunking_mode_section(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     column![
-        section_header("分段模式", "选择文档入库结构。"),
+        section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("分段模式"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择文档入库结构。")
+        ),
         option_card(
+            i18n,
             "General",
-            "通用文本分块。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("通用文本分块。"),
             Icon::ListUl,
             app.knowledge.dataset_chunking_mode == KnowledgeChunkingMode::General,
             true,
@@ -479,8 +549,9 @@ fn build_chunking_mode_section(app: &App) -> Element<'_, Message> {
             )),
         ),
         option_card(
+            i18n,
             "Parent-Child",
-            "子块检索，父块返回。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("子块检索，父块返回。"),
             Icon::Columns,
             app.knowledge.dataset_chunking_mode == KnowledgeChunkingMode::ParentChild,
             true,
@@ -490,8 +561,9 @@ fn build_chunking_mode_section(app: &App) -> Element<'_, Message> {
             )),
         ),
         option_card(
+            i18n,
             "Q&A",
-            "问题检索，答案返回。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("问题检索，答案返回。"),
             Icon::ChatTextFill,
             app.knowledge.dataset_chunking_mode == KnowledgeChunkingMode::Qa,
             true,
@@ -506,12 +578,17 @@ fn build_chunking_mode_section(app: &App) -> Element<'_, Message> {
 }
 
 fn build_indexing_mode_section(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let vector_available = embedding_vector_available(app);
     column![
-        section_header("索引模式", "高质量需要嵌入能力。"),
+        section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("索引模式"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("高质量需要嵌入能力。")
+        ),
         option_card(
-            "高质量",
-            "生成向量索引。",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("高质量"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("生成向量索引。"),
             Icon::Speedometer2,
             app.knowledge.dataset_indexing_mode == KnowledgeIndexingMode::HighQuality,
             vector_available,
@@ -521,8 +598,9 @@ fn build_indexing_mode_section(app: &App) -> Element<'_, Message> {
             )),
         ),
         option_card(
-            "经济",
-            "关键词检索。",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("经济"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("关键词检索。"),
             Icon::HddNetwork,
             app.knowledge.dataset_indexing_mode == KnowledgeIndexingMode::Economy,
             true,
@@ -537,32 +615,62 @@ fn build_indexing_mode_section(app: &App) -> Element<'_, Message> {
 }
 
 fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let status = app.knowledge.embedding_status.as_ref();
-    let test_label = if app.knowledge.testing_embedding { "测试中" } else { "测试连接" };
+    let test_label = if app.knowledge.testing_embedding {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("测试中")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("测试连接")
+    };
     let test_enabled = !app.knowledge.testing_embedding && !app.knowledge.loading_embedding_status;
 
     let summary = row![
-        embedding_summary_item("Provider", embedding_status_provider_label(status)),
-        embedding_summary_item("模型", embedding_status_model_label(status)),
-        embedding_summary_item("维度", embedding_status_dimensions_label(status)),
-        embedding_summary_item("路由", embedding_status_route_label(status)),
+        embedding_summary_item("Provider", embedding_status_provider_label(i18n, status)),
+        embedding_summary_item(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("模型"),
+            embedding_status_model_label(i18n, status)
+        ),
+        embedding_summary_item(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("维度"),
+            embedding_status_dimensions_label(i18n, status)
+        ),
+        embedding_summary_item(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("路由"),
+            embedding_status_route_label(i18n, status)
+        ),
     ]
     .spacing(8)
     .width(Length::Fill);
 
     let mut content = column![
-        section_header("嵌入模型", "跟随全局配置，或锁定当前已生效模型。"),
+        section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("嵌入模型"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("跟随全局配置，或锁定当前已生效模型。")
+        ),
         build_embedding_model_picker(app),
         summary,
         row![
-            settings_value_badge(format!(
-                "向量 {}",
-                support_label(embedding_vector_available(app))
-            )),
-            settings_value_badge(format!(
-                "混合 {}",
-                support_label(embedding_hybrid_available(app))
-            )),
+            settings_value_badge(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format(
+                        "向量 %s",
+                        &[(support_label(i18n, embedding_vector_available(app)))
+                            .to_string()
+                            .into()]
+                    )
+                    .expect("valid display template")
+            ),
+            settings_value_badge(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format(
+                        "混合 %s",
+                        &[(support_label(i18n, embedding_hybrid_available(app)))
+                            .to_string()
+                            .into()]
+                    )
+                    .expect("valid display template")
+            ),
         ]
         .spacing(6),
         row![
@@ -574,10 +682,16 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
             )
             .padding([8, 10])
             .style(primary_action_btn_style),
-            button(row![icon_svg(Icon::Gear, 13.0), text("记忆配置").size(12)].spacing(6))
-                .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Memory)))
-                .padding([8, 10])
-                .style(knowledge_toolbar_button_style),
+            button(
+                row![
+                    icon_svg(Icon::Gear, 13.0),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("记忆配置")).size(12)
+                ]
+                .spacing(6)
+            )
+            .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Memory)))
+            .padding([8, 10])
+            .style(knowledge_toolbar_button_style),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -586,8 +700,8 @@ fn build_embedding_model_section(app: &App) -> Element<'_, Message> {
 
     if app.knowledge.embedding_test_result.is_some() {
         content = content.push(embedding_kv_row(
-            "测试结果",
-            embedding_test_result_label(app.knowledge.embedding_test_result.as_ref()),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("测试结果"),
+            embedding_test_result_label(i18n, app.knowledge.embedding_test_result.as_ref()),
         ));
     }
 
@@ -606,13 +720,18 @@ fn embedding_summary_item<'a>(label: &'a str, value: String) -> Element<'a, Mess
 }
 
 fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let vector_available = embedding_vector_available(app);
     let hybrid_available = embedding_hybrid_available(app);
     column![
-        section_header("检索设置", "选择召回策略。"),
+        section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("检索设置"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择召回策略。")
+        ),
         option_card(
-            "向量检索",
-            "语义相似召回。",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("向量检索"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("语义相似召回。"),
             Icon::Grid1x2,
             app.knowledge.dataset_retrieval_mode == KnowledgeRetrievalMode::Vector,
             vector_available,
@@ -622,8 +741,9 @@ fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
             )),
         ),
         option_card(
-            "全文检索",
-            "按词汇召回。",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全文检索"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("按词汇召回。"),
             Icon::FileText,
             app.knowledge.dataset_retrieval_mode == KnowledgeRetrievalMode::FullText,
             true,
@@ -633,8 +753,9 @@ fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
             )),
         ),
         option_card(
-            "混合检索",
-            "全文和向量合并。",
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("混合检索"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全文和向量合并。"),
             Icon::Grid1x2,
             app.knowledge.dataset_retrieval_mode == KnowledgeRetrievalMode::Hybrid,
             hybrid_available,
@@ -649,10 +770,14 @@ fn build_retrieval_mode_section(app: &App) -> Element<'_, Message> {
 }
 
 fn build_dataset_param_section(app: &App) -> Element<'_, Message> {
-    let mut content = column![section_header("参数", "默认召回参数。")].spacing(8);
+    let mut content = column![section_header(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("参数"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("默认召回参数。")
+    )]
+    .spacing(8);
     if app.knowledge.dataset_indexing_mode == KnowledgeIndexingMode::Economy {
         content = content.push(compact_input_row(
-            "关键词数量",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("关键词数量"),
             &app.knowledge.dataset_keyword_count_input,
             |value| Message::Knowledge(KnowledgeToolMessage::DatasetKeywordCountChanged(value)),
         ));
@@ -663,27 +788,30 @@ fn build_dataset_param_section(app: &App) -> Element<'_, Message> {
         }));
     content = content.push(
         checkbox(app.knowledge.dataset_score_threshold_enabled)
-            .label("Score 阈值")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("Score 阈值"))
             .on_toggle(|value| {
                 Message::Knowledge(KnowledgeToolMessage::DatasetScoreThresholdEnabledChanged(value))
             })
             .style(settings_checkbox_style),
     );
     content = content.push(compact_input_row(
-        "阈值",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("阈值"),
         &app.knowledge.dataset_score_threshold_input,
         |value| Message::Knowledge(KnowledgeToolMessage::DatasetScoreThresholdChanged(value)),
     ));
     content = content.push(build_rerank_toggle(app));
     if app.knowledge.dataset_rerank_enabled {
         content = content.push(
-            text_input("rerank 模型", &app.knowledge.dataset_rerank_model_input)
-                .on_input(|value| {
-                    Message::Knowledge(KnowledgeToolMessage::DatasetRerankModelChanged(value))
-                })
-                .padding([9, 10])
-                .size(13)
-                .style(settings_text_input_style),
+            text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("rerank 模型"),
+                &app.knowledge.dataset_rerank_model_input,
+            )
+            .on_input(|value| {
+                Message::Knowledge(KnowledgeToolMessage::DatasetRerankModelChanged(value))
+            })
+            .padding([9, 10])
+            .size(13)
+            .style(settings_text_input_style),
         );
     }
     content.into()
@@ -692,9 +820,13 @@ fn build_dataset_param_section(app: &App) -> Element<'_, Message> {
 fn build_rerank_toggle(app: &App) -> Element<'_, Message> {
     let rerank_available =
         app.knowledge.runtime_status.as_ref().is_some_and(|status| status.rerank);
-    let label = if rerank_available { "Rerank 模型" } else { "Rerank 模型（未配置）" };
+    let label = if rerank_available {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Rerank 模型")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Rerank 模型（未配置）")
+    };
     let toggle = checkbox(app.knowledge.dataset_rerank_enabled && rerank_available)
-        .label(label)
+        .label(crate::app::i18n::I18n::new(app.desktop_locale).__(label))
         .style(settings_checkbox_style);
     if rerank_available {
         toggle
@@ -733,6 +865,7 @@ fn compact_input_row<'a>(
 }
 
 fn option_card<'a>(
+    i18n: crate::app::i18n::I18n,
     title: &'a str,
     description: &'a str,
     icon: Icon,
@@ -743,7 +876,7 @@ fn option_card<'a>(
 ) -> Element<'a, Message> {
     let mut title_row = row![text(title).size(13)].spacing(6).align_y(Alignment::Center);
     if recommended {
-        title_row = title_row.push(settings_value_badge("推荐"));
+        title_row = title_row.push(settings_value_badge(i18n.__("推荐")));
     }
     let content = row![
         icon_badge(icon, active),
@@ -768,11 +901,14 @@ fn option_card<'a>(
 }
 
 fn dataset_item<'a>(app: &'a App, dataset: &'a KnowledgeDatasetDto) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected = app.knowledge.selected_dataset_id.as_deref() == Some(dataset.id.as_str());
     let dataset_id = dataset.id.clone();
-    let title = dataset_title(&dataset.name);
-    let description = dataset_description(&dataset.description);
-    let updated_label = format!("更新于 {}", format_dataset_time(dataset.updated_at_ms));
+    let title = dataset_title(i18n, &dataset.name);
+    let description = dataset_description(i18n, &dataset.description);
+    let updated_label = crate::app::i18n::I18n::new(app.desktop_locale)
+        .format("更新于 %s", &[(format_dataset_time(dataset.updated_at_ms)).to_string().into()])
+        .expect("valid display template");
 
     let open_area = button(
         column![
@@ -802,12 +938,16 @@ fn dataset_item<'a>(app: &'a App, dataset: &'a KnowledgeDatasetDto) -> Element<'
     container(
         column![
             row![open_area, menu].spacing(8).align_y(Alignment::Start),
-            dataset_id_row(dataset),
+            dataset_id_row(i18n, dataset),
             row![
                 dataset_tag(chunking_label(&dataset.chunking_mode)),
-                dataset_tag(indexing_label(&dataset.indexing_mode)),
-                dataset_tag(retrieval_label(&dataset.retrieval_mode)),
-                dataset_tag_static(if selected { "当前选择" } else { "知识库" }),
+                dataset_tag(indexing_label(i18n, &dataset.indexing_mode)),
+                dataset_tag(retrieval_label(i18n, &dataset.retrieval_mode)),
+                dataset_tag_static(if selected {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("当前选择")
+                } else {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("知识库")
+                }),
             ]
             .spacing(6)
             .wrap(),
@@ -823,18 +963,26 @@ fn dataset_item<'a>(app: &'a App, dataset: &'a KnowledgeDatasetDto) -> Element<'
 }
 
 /// 卡片中部一行：左侧展示知识库 ID，右侧为紧凑的“复制”按钮。
-fn dataset_id_row(dataset: &KnowledgeDatasetDto) -> Element<'_, Message> {
-    let copy_content =
-        row![themed_inline_icon(Icon::Copy, 13.0), text("复制").size(11).line_height(1.0),]
-            .spacing(5)
-            .align_y(Alignment::Center);
+fn dataset_id_row(
+    i18n: crate::app::i18n::I18n,
+    dataset: &KnowledgeDatasetDto,
+) -> Element<'_, Message> {
+    let copy_content = row![
+        themed_inline_icon(Icon::Copy, 13.0),
+        text(i18n.__("复制")).size(11).line_height(1.0),
+    ]
+    .spacing(5)
+    .align_y(Alignment::Center);
 
     row![
         text(format!("ID: {}", dataset.id))
             .size(11)
             .style(settings_muted_text_style)
             .width(Length::Fill),
-        settings_value_badge(format!("{} 文档", dataset.document_count)),
+        settings_value_badge(
+            i18n.format("%s 文档", &[(dataset.document_count).to_string().into()])
+                .expect("valid display template")
+        ),
         button(
             container(copy_content)
                 .width(Length::Fill)
@@ -876,7 +1024,9 @@ fn dataset_actions_menu<'a>(
     let delete = button(
         row![
             themed_inline_icon(Icon::Trash, 14.0),
-            text("删除知识库").size(13).width(Length::Fill)
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除知识库"))
+                .size(13)
+                .width(Length::Fill)
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -921,13 +1071,17 @@ fn knowledge_danger_menu_entry_style(
     }
 }
 
-fn dataset_title(name: &str) -> String {
-    if name.trim().is_empty() { "未命名知识库".to_string() } else { name.trim().to_string() }
+fn dataset_title(i18n: crate::app::i18n::I18n, name: &str) -> String {
+    if name.trim().is_empty() {
+        i18n.__("未命名知识库").to_string()
+    } else {
+        name.trim().to_string()
+    }
 }
 
-fn dataset_description(description: &str) -> String {
+fn dataset_description(i18n: crate::app::i18n::I18n, description: &str) -> String {
     if description.trim().is_empty() {
-        "暂无描述".to_string()
+        i18n.__("暂无描述").to_string()
     } else {
         description.trim().to_string()
     }
@@ -1018,11 +1172,18 @@ fn dataset_title_text_style(theme: &Theme) -> iced::widget::text::Style {
 }
 
 fn build_detail<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let Some(dataset) = app.knowledge.selected_dataset() else {
         return settings_panel(
             column![
-                text("选择或创建一个知识库").size(18),
-                text("左侧列表会显示全部知识库。").size(13).style(settings_muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("选择或创建一个知识库"))
+                    .size(18),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("左侧列表会显示全部知识库。")
+                )
+                .size(13)
+                .style(settings_muted_text_style),
             ]
             .spacing(8)
             .width(Length::Fill)
@@ -1037,30 +1198,44 @@ fn build_detail<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
             text(&dataset.name).size(18),
             row![
                 settings_value_badge(chunking_label(&dataset.chunking_mode)),
-                settings_value_badge(indexing_label(&dataset.indexing_mode)),
-                settings_value_badge(retrieval_label(&dataset.retrieval_mode)),
-                settings_value_badge(format!("{} 文档", dataset.document_count)),
-                settings_value_badge(format!("{} 分段", dataset.chunk_count)),
+                settings_value_badge(indexing_label(i18n, &dataset.indexing_mode)),
+                settings_value_badge(retrieval_label(i18n, &dataset.retrieval_mode)),
+                settings_value_badge(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("%s 文档", &[(dataset.document_count).to_string().into()])
+                        .expect("valid display template")
+                ),
+                settings_value_badge(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("%s 分段", &[(dataset.chunk_count).to_string().into()])
+                        .expect("valid display template")
+                ),
             ]
             .spacing(6),
         ]
         .spacing(8)
         .width(Length::Fill),
-        button(centered_header_action_content(Icon::Back, "返回列表"))
-            .on_press(Message::Knowledge(KnowledgeToolMessage::ShowDatasetList))
-            .padding(0)
-            .width(Length::Fixed(124.0))
-            .height(Length::Fixed(40.0))
-            .style(rounded_action_btn_style),
-        button(centered_header_action_content(Icon::Trash, "删除"))
-            .on_press_maybe(
-                (!app.knowledge.deleting)
-                    .then_some(Message::Knowledge(KnowledgeToolMessage::OpenDeleteDatasetConfirm))
-            )
-            .padding(0)
-            .width(Length::Fixed(96.0))
-            .height(Length::Fixed(40.0))
-            .style(danger_action_btn_style),
+        button(centered_header_action_content(
+            Icon::Back,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("返回列表")
+        ))
+        .on_press(Message::Knowledge(KnowledgeToolMessage::ShowDatasetList))
+        .padding(0)
+        .width(Length::Fixed(124.0))
+        .height(Length::Fixed(40.0))
+        .style(rounded_action_btn_style),
+        button(centered_header_action_content(
+            Icon::Trash,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("删除")
+        ))
+        .on_press_maybe(
+            (!app.knowledge.deleting)
+                .then_some(Message::Knowledge(KnowledgeToolMessage::OpenDeleteDatasetConfirm))
+        )
+        .padding(0)
+        .width(Length::Fixed(96.0))
+        .height(Length::Fixed(40.0))
+        .style(danger_action_btn_style),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
@@ -1121,7 +1296,9 @@ fn build_upload_panel(app: &App) -> Element<'_, Message> {
         knowledge_scrollable(
             column![
                 row![
-                    text("添加文档").size(14).width(Length::Fill),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加文档"))
+                        .size(14)
+                        .width(Length::Fill),
                     settings_value_badge("TXT"),
                     settings_value_badge("MD"),
                     settings_value_badge("MDX"),
@@ -1129,9 +1306,12 @@ fn build_upload_panel(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(6)
                 .align_y(Alignment::Center),
-                text("支持拖拽文件上传，或直接粘贴长文本入库。")
-                    .size(12)
-                    .style(settings_muted_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("支持拖拽文件上传，或直接粘贴长文本入库。")
+                )
+                .size(12)
+                .style(settings_muted_text_style),
                 build_document_input_tabs(app),
                 body,
             ]
@@ -1156,6 +1336,7 @@ fn build_document_input_tabs(app: &App) -> Element<'_, Message> {
 }
 
 fn build_file_import_panel(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected = app.knowledge.file_imports.as_slice();
     let selected_count = selected.len();
     let has_selection = selected_count > 0;
@@ -1163,29 +1344,46 @@ fn build_file_import_panel(app: &App) -> Element<'_, Message> {
         !app.dragging_file_paths.is_empty() || !app.pending_drop_file_paths.is_empty();
     let drop_hovered = app.knowledge.file_drop_hovered && dragging_any_file;
     let drop_title = match selected {
-        [] if drop_hovered => "释放鼠标，开始准备上传".to_string(),
-        [] => "拖拽文件到这里上传".to_string(),
+        [] if drop_hovered => {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("释放鼠标，开始准备上传").to_string()
+        }
+        [] => crate::app::i18n::I18n::new(app.desktop_locale).__("拖拽文件到这里上传").to_string(),
         [file] => file.filename.clone(),
-        _ => format!("已选择 {selected_count} 个文件"),
+        _ => crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("已选择 %s 个文件", &[(selected_count).to_string().into()])
+            .expect("valid display template"),
     };
     let drop_meta = match selected {
-        [] if drop_hovered => "支持批量拖入 TXT / MD / MDX / PDF".to_string(),
-        [] => "支持批量拖拽或点击选择 TXT / MD / MDX / PDF 文件".to_string(),
-        _ => file_imports_summary(selected),
+        [] if drop_hovered => crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("支持批量拖入 TXT / MD / MDX / PDF")
+            .to_string(),
+        [] => crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("支持批量拖拽或点击选择 TXT / MD / MDX / PDF 文件")
+            .to_string(),
+        _ => file_imports_summary(i18n, selected),
     };
     let can_pick = !app.knowledge.selecting_import_file && !app.knowledge.importing_file;
     let can_import = has_selection
         && app.knowledge.selected_dataset_id.is_some()
         && !app.knowledge.importing_file;
-    let pick_label = if app.knowledge.selecting_import_file { "选择中" } else { "选择文件" };
-    let manual_pick_label =
-        if app.knowledge.selecting_import_file { "选择中" } else { "手动选择文件" };
-    let import_label = if app.knowledge.importing_file {
-        "上传中".to_string()
-    } else if selected_count > 1 {
-        format!("上传 {selected_count} 个文件")
+    let pick_label = if app.knowledge.selecting_import_file {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("选择中")
     } else {
-        "上传入库".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("选择文件")
+    };
+    let manual_pick_label = if app.knowledge.selecting_import_file {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("选择中")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("手动选择文件")
+    };
+    let import_label = if app.knowledge.importing_file {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("上传中").to_string()
+    } else if selected_count > 1 {
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("上传 %s 个文件", &[(selected_count).to_string().into()])
+            .expect("valid display template")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("上传入库").to_string()
     };
 
     let mut actions = row![
@@ -1266,8 +1464,12 @@ fn build_file_import_panel(app: &App) -> Element<'_, Message> {
     ));
 
     let import_header = row![
-        container(section_header("文件入库", "可以手动选择文件，也可以拖到下方区域。"))
-            .width(Length::Fill),
+        container(section_header(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("文件入库"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("可以手动选择文件，也可以拖到下方区域。")
+        ))
+        .width(Length::Fill),
         button(
             row![primary_action_icon(Icon::FileText, 14.0), text(manual_pick_label).size(13)]
                 .spacing(8)
@@ -1286,7 +1488,9 @@ fn build_file_import_panel(app: &App) -> Element<'_, Message> {
 
     if has_selection {
         let selected_header = row![
-            text("已选文件").size(12).width(Length::Fill),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选文件"))
+                .size(12)
+                .width(Length::Fill),
             button(
                 row![primary_action_icon(Icon::CloudUpload, 14.0), text(import_label).size(13)]
                     .spacing(8)
@@ -1302,27 +1506,33 @@ fn build_file_import_panel(app: &App) -> Element<'_, Message> {
         .align_y(Alignment::Center);
 
         content = content.push(
-            container(column![selected_header, build_file_import_list(selected),].spacing(10))
-                .padding([14, 14])
-                .width(Length::Fill)
-                .style(chrome_style),
+            container(
+                column![selected_header, build_file_import_list(i18n, selected),].spacing(10),
+            )
+            .padding([14, 14])
+            .width(Length::Fill)
+            .style(chrome_style),
         );
     }
 
     if !app.knowledge.import_polling_jobs.is_empty() {
-        content = content.push(build_import_polling_panel(&app.knowledge.import_polling_jobs));
+        content =
+            content.push(build_import_polling_panel(i18n, &app.knowledge.import_polling_jobs));
     }
 
     container(content).padding([16, 16]).width(Length::Fill).style(chrome_style).into()
 }
 
-fn build_import_polling_panel(jobs: &[KnowledgeImportPollingJob]) -> Element<'_, Message> {
+fn build_import_polling_panel(
+    i18n: crate::app::i18n::I18n,
+    jobs: &[KnowledgeImportPollingJob],
+) -> Element<'_, Message> {
     let mut rows = column![].spacing(6);
     for job in jobs.iter().take(8) {
         rows = rows.push(
             row![
                 text(job.filename.as_str()).size(12).width(Length::Fill),
-                settings_value_badge(import_job_status_label(&job.status)),
+                settings_value_badge(import_job_status_label(i18n, &job.status)),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -1330,12 +1540,15 @@ fn build_import_polling_panel(jobs: &[KnowledgeImportPollingJob]) -> Element<'_,
     }
     if jobs.len() > 8 {
         rows = rows.push(
-            text(format!("还有 {} 个后台入库任务", jobs.len() - 8))
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                i18n.format("还有 %s 个后台入库任务", &[(jobs.len() - 8).to_string().into()])
+                    .expect("valid display template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     }
-    container(column![text("后台入库").size(12), rows].spacing(10))
+    container(column![text(i18n.__("后台入库")).size(12), rows].spacing(10))
         .padding([14, 14])
         .width(Length::Fill)
         .style(chrome_style)
@@ -1343,6 +1556,7 @@ fn build_import_polling_panel(jobs: &[KnowledgeImportPollingJob]) -> Element<'_,
 }
 
 fn build_file_import_list(
+    i18n: crate::app::i18n::I18n,
     files: &[crate::app::state::KnowledgeFileImportDraft],
 ) -> Element<'_, Message> {
     let mut rows = column![].spacing(6);
@@ -1350,8 +1564,8 @@ fn build_file_import_list(
         rows = rows.push(
             row![
                 text(file.filename.as_str()).size(12).width(Length::Fill),
-                text(file_import_summary(file)).size(11).style(settings_muted_text_style),
-                settings_value_badge("待入队"),
+                text(file_import_summary(i18n, file)).size(11).style(settings_muted_text_style),
+                settings_value_badge(i18n.__("待入队")),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -1359,9 +1573,12 @@ fn build_file_import_list(
     }
     if files.len() > 8 {
         rows = rows.push(
-            text(format!("还有 {} 个文件", files.len() - 8))
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                i18n.format("还有 %s 个文件", &[(files.len() - 8).to_string().into()])
+                    .expect("valid display template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     }
     let height = (files.len().min(6) as f32 * 28.0).max(84.0);
@@ -1371,27 +1588,41 @@ fn build_file_import_list(
 fn build_text_document_panel(app: &App) -> Element<'_, Message> {
     let editor = text_editor(&app.knowledge.document_content_editor)
         .on_action(|action| Message::Knowledge(KnowledgeToolMessage::DocumentContentAction(action)))
-        .placeholder("粘贴文本、Markdown 或说明文档内容")
+        .placeholder(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("粘贴文本、Markdown 或说明文档内容"),
+        )
         .height(Length::Fixed(320.0))
         .style(settings_text_editor_style);
 
     container(
         column![
-            section_header("文本入库", "适合长说明、Markdown、提示词、知识笔记直接粘贴入库。"),
-            text_input("文档名称", &app.knowledge.document_name_input)
-                .on_input(|value| {
-                    Message::Knowledge(KnowledgeToolMessage::DocumentNameChanged(value))
-                })
-                .padding([13, 14])
-                .size(14)
-                .style(settings_text_input_style),
-            text("内容输入区").size(12).style(settings_muted_text_style),
+            section_header(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("文本入库"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("适合长说明、Markdown、提示词、知识笔记直接粘贴入库。")
+            ),
+            text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("文档名称"),
+                &app.knowledge.document_name_input
+            )
+            .on_input(|value| {
+                Message::Knowledge(KnowledgeToolMessage::DocumentNameChanged(value))
+            })
+            .padding([13, 14])
+            .size(14)
+            .style(settings_text_input_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("内容输入区"))
+                .size(12)
+                .style(settings_muted_text_style),
             container(editor).height(Length::Fixed(320.0)).width(Length::Fill),
             row![
                 button(
-                    row![primary_action_icon(Icon::CloudUpload, 14.0), text("入库").size(13)]
-                        .spacing(8)
-                        .align_y(Alignment::Center),
+                    row![
+                        primary_action_icon(Icon::CloudUpload, 14.0),
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("入库")).size(13)
+                    ]
+                    .spacing(8)
+                    .align_y(Alignment::Center),
                 )
                 .on_press_maybe(
                     (!app.knowledge.creating_document)
@@ -1399,7 +1630,7 @@ fn build_text_document_panel(app: &App) -> Element<'_, Message> {
                 )
                 .padding([12, 18])
                 .style(primary_action_btn_style),
-                button(text("清空").size(13))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("清空")).size(13))
                     .on_press(Message::Knowledge(KnowledgeToolMessage::ClearDocumentDraft))
                     .padding([12, 18])
                     .style(rounded_action_btn_style),
@@ -1415,19 +1646,32 @@ fn build_text_document_panel(app: &App) -> Element<'_, Message> {
     .into()
 }
 
-fn file_import_summary(file: &crate::app::state::KnowledgeFileImportDraft) -> String {
-    let mime = file.mime_type.as_deref().unwrap_or("未知类型");
+fn file_import_summary(
+    i18n: crate::app::i18n::I18n,
+    file: &crate::app::state::KnowledgeFileImportDraft,
+) -> String {
+    let mime = file.mime_type.as_deref().unwrap_or(i18n.__("未知类型"));
     format!("{} · {mime}", format_file_size(file.byte_len))
 }
 
-fn file_imports_summary(files: &[crate::app::state::KnowledgeFileImportDraft]) -> String {
+fn file_imports_summary(
+    i18n: crate::app::i18n::I18n,
+    files: &[crate::app::state::KnowledgeFileImportDraft],
+) -> String {
     match files {
-        [] => "等待选择".to_string(),
-        [file] => file_import_summary(file),
+        [] => i18n.__("等待选择").to_string(),
+        [file] => file_import_summary(i18n, file),
         _ => {
             let total_bytes =
                 files.iter().fold(0_u64, |total, file| total.saturating_add(file.byte_len));
-            format!("{} · {} 个文件", format_file_size(total_bytes), files.len())
+            i18n.format(
+                "%s · %s 个文件",
+                &[
+                    (format_file_size(total_bytes)).to_string().into(),
+                    (files.len()).to_string().into(),
+                ],
+            )
+            .expect("valid display template")
         }
     }
 }
@@ -1445,6 +1689,7 @@ fn format_file_size(bytes: u64) -> String {
 }
 
 fn build_documents_table(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let filtered_page = filtered_documents_page(app);
     let all_visible_selected = !filtered_page.documents.is_empty()
         && filtered_page
@@ -1459,18 +1704,34 @@ fn build_documents_table(app: &App) -> Element<'_, Message> {
     let header = row![
         container(document_selection_button(
             all_visible_selected,
-            "全选",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全选"),
             Some(Message::Knowledge(KnowledgeToolMessage::ToggleSelectAllVisibleDocuments)),
         ))
         .center_x(Length::Fixed(28.0)),
-        text("序号").size(12).width(Length::Fixed(42.0)),
-        text("名称").size(12).width(Length::Fill),
-        text("分段模式").size(12).width(Length::Fixed(86.0)),
-        text("字符数").size(12).width(Length::Fixed(76.0)),
-        text("召回次数").size(12).width(Length::Fixed(76.0)),
-        text("更新时间").size(12).width(Length::Fixed(150.0)),
-        text("状态").size(12).width(Length::Fixed(74.0)),
-        text("操作").size(12).width(Length::Fixed(DOCUMENT_ACTIONS_WIDTH)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("序号"))
+            .size(12)
+            .width(Length::Fixed(42.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("名称"))
+            .size(12)
+            .width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("分段模式"))
+            .size(12)
+            .width(Length::Fixed(86.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("字符数"))
+            .size(12)
+            .width(Length::Fixed(76.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("召回次数"))
+            .size(12)
+            .width(Length::Fixed(76.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("更新时间"))
+            .size(12)
+            .width(Length::Fixed(150.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("状态"))
+            .size(12)
+            .width(Length::Fixed(74.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("操作"))
+            .size(12)
+            .width(Length::Fixed(DOCUMENT_ACTIONS_WIDTH)),
     ]
     .spacing(10)
     .align_y(Alignment::Center);
@@ -1485,11 +1746,14 @@ fn build_documents_table(app: &App) -> Element<'_, Message> {
         ));
     }
     if app.knowledge.loading_documents {
-        rows = rows.push(empty_hint("正在加载文档"));
+        rows = rows
+            .push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载文档")));
     } else if app.knowledge.documents.is_empty() {
-        rows = rows.push(empty_hint("暂无文档"));
+        rows =
+            rows.push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无文档")));
     } else if filtered_page.total_matches == 0 {
-        rows = rows.push(empty_hint("没有匹配文档"));
+        rows = rows
+            .push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配文档")));
     }
 
     let mut content = column![
@@ -1504,6 +1768,7 @@ fn build_documents_table(app: &App) -> Element<'_, Message> {
     }
     if !app.knowledge.loading_documents && filtered_page.total_matches > 0 {
         content = content.push(build_document_pagination(
+            i18n,
             filtered_page.current_page,
             filtered_page.total_pages,
             filtered_page.total_matches,
@@ -1530,8 +1795,9 @@ fn build_documents_table(app: &App) -> Element<'_, Message> {
 }
 
 fn build_document_status_menu(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let mut list = column![].spacing(2);
-    for option in document_status_filter_options() {
+    for option in document_status_filter_options(i18n) {
         let checked = app.knowledge.document_status_filter.contains(&option.status);
         let mark = if checked { Icon::CheckSquare } else { Icon::Square };
         let entry = button(
@@ -1548,11 +1814,15 @@ fn build_document_status_menu(app: &App) -> Element<'_, Message> {
         list = list.push(entry);
     }
 
-    let clear = button(text("清除筛选").size(12).width(Length::Fill))
-        .on_press(Message::Knowledge(KnowledgeToolMessage::ClearDocumentStatusFilter))
-        .padding([8, 10])
-        .width(Length::Fill)
-        .style(knowledge_status_menu_entry_style);
+    let clear = button(
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("清除筛选"))
+            .size(12)
+            .width(Length::Fill),
+    )
+    .on_press(Message::Knowledge(KnowledgeToolMessage::ClearDocumentStatusFilter))
+    .padding([8, 10])
+    .width(Length::Fill)
+    .style(knowledge_status_menu_entry_style);
 
     container(column![list, clear].spacing(4))
         .padding(8)
@@ -1606,15 +1876,20 @@ fn knowledge_status_menu_entry_style(
 }
 
 fn build_documents_toolbar(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected_count = app.knowledge.document_status_filter.len();
     let summary = match selected_count {
-        0 => "全部状态".to_string(),
-        1 => document_status_filter_options()
+        0 => crate::app::i18n::I18n::new(app.desktop_locale).__("全部状态").to_string(),
+        1 => document_status_filter_options(i18n)
             .into_iter()
             .find(|option| app.knowledge.document_status_filter.contains(&option.status))
             .map(|option| option.label.to_string())
-            .unwrap_or_else(|| "全部状态".to_string()),
-        count => format!("已选 {count} 项"),
+            .unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("全部状态").to_string()
+            }),
+        count => crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("已选 %s 项", &[(count).to_string().into()])
+            .expect("valid display template"),
     };
     let menu_open = app.knowledge.document_status_menu_open;
     let status_filter = button(
@@ -1629,12 +1904,15 @@ fn build_documents_toolbar(app: &App) -> Element<'_, Message> {
     .padding([7, 10])
     .style(knowledge_toolbar_button_style);
 
-    let search = text_input("搜索文档", &app.knowledge.document_search_query)
-        .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DocumentSearchChanged(value)))
-        .padding([9, 10])
-        .size(13)
-        .style(settings_text_input_style)
-        .width(Length::Fill);
+    let search = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索文档"),
+        &app.knowledge.document_search_query,
+    )
+    .on_input(|value| Message::Knowledge(KnowledgeToolMessage::DocumentSearchChanged(value)))
+    .padding([9, 10])
+    .size(13)
+    .style(settings_text_input_style)
+    .width(Length::Fill);
 
     container(
         row![
@@ -1646,13 +1924,21 @@ fn build_documents_toolbar(app: &App) -> Element<'_, Message> {
             .padding([0, 2]),
             container(search).width(Length::Fill),
             button(
-                row![themed_inline_icon(Icon::SquareHalf, 13.0), text("反选").size(13)].spacing(8)
+                row![
+                    themed_inline_icon(Icon::SquareHalf, 13.0),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("反选")).size(13)
+                ]
+                .spacing(8)
             )
             .on_press(Message::Knowledge(KnowledgeToolMessage::InvertVisibleDocumentSelection))
             .padding([9, 12])
             .style(knowledge_toolbar_button_style),
             button(
-                row![themed_inline_icon(Icon::ArrowRepeat, 13.0), text("刷新").size(13)].spacing(8)
+                row![
+                    themed_inline_icon(Icon::ArrowRepeat, 13.0),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("刷新")).size(13)
+                ]
+                .spacing(8)
             )
             .on_press_maybe(
                 (!app.knowledge.is_busy())
@@ -1661,8 +1947,11 @@ fn build_documents_toolbar(app: &App) -> Element<'_, Message> {
             .padding([9, 12])
             .style(knowledge_toolbar_button_style),
             button(
-                row![primary_action_icon(Icon::FileEarmarkPlus, 13.0), text("新增文件").size(13)]
-                    .spacing(8)
+                row![
+                    primary_action_icon(Icon::FileEarmarkPlus, 13.0),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增文件")).size(13)
+                ]
+                .spacing(8)
             )
             .on_press(Message::Knowledge(KnowledgeToolMessage::SelectTab(
                 KnowledgeDetailTab::AddDocument,
@@ -1761,12 +2050,13 @@ fn document_pagination_items(current_page: usize, total_pages: usize) -> Vec<Doc
 }
 
 fn build_document_pagination(
+    i18n: crate::app::i18n::I18n,
     current_page: usize,
     total_pages: usize,
     total_matches: usize,
     page_size: usize,
 ) -> Element<'static, Message> {
-    let mut pages = row![document_page_nav_button("上一页", current_page.checked_sub(1)),]
+    let mut pages = row![document_page_nav_button(i18n.__("上一页"), current_page.checked_sub(1)),]
         .spacing(6)
         .align_y(Alignment::Center);
 
@@ -1785,15 +2075,18 @@ fn build_document_pagination(
     }
 
     let next_page = (current_page < total_pages).then_some(current_page + 1);
-    pages = pages.push(document_page_nav_button("下一页", next_page));
+    pages = pages.push(document_page_nav_button(i18n.__("下一页"), next_page));
 
     container(
         row![
             row![
-                text(format!("共 {total_matches} 个文档"))
-                    .size(12)
-                    .style(settings_muted_text_style),
-                text("每页").size(12).style(settings_muted_text_style),
+                text(
+                    i18n.format("共 %s 个文档", &[(total_matches).to_string().into()])
+                        .expect("valid display template")
+                )
+                .size(12)
+                .style(settings_muted_text_style),
+                text(i18n.__("每页")).size(12).style(settings_muted_text_style),
                 document_page_size_selector(page_size),
             ]
             .spacing(8)
@@ -1874,6 +2167,7 @@ fn document_row_with_index<'a>(
     row_number: usize,
     chunking_mode: &'a KnowledgeChunkingMode,
 ) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected = app.knowledge.document_preview_open
         && app.knowledge.selected_document_id.as_deref() == Some(document.id.as_str());
     let reindex_enabled = !app.knowledge.is_busy();
@@ -1884,7 +2178,7 @@ fn document_row_with_index<'a>(
     let updating_this = app.knowledge.updating_document_id.as_deref() == Some(document.id.as_str());
     let status = effective_document_status(document);
     let archived = status == KnowledgeDocumentStatus::Archived;
-    let status_label = document_status_label(&status);
+    let status_label = document_status_label(i18n, &status);
     let open_detail_message = (!loading_this).then_some(Message::Knowledge(
         KnowledgeToolMessage::LoadDocumentChunks(document.id.clone()),
     ));
@@ -1918,9 +2212,9 @@ fn document_row_with_index<'a>(
         document.id.clone(),
     )));
     let selection_tooltip = if app.knowledge.selected_document_ids.contains(&document.id) {
-        "取消选择"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("取消选择")
     } else {
-        "选择文档"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("选择文档")
     };
     let content = row![
         container(document_selection_button(
@@ -1955,24 +2249,24 @@ fn document_row_with_index<'a>(
                     10.0,
                 ),
                 if archived {
-                    "恢复文档"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("恢复文档")
                 } else if document.enabled {
-                    "停用文档"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("停用文档")
                 } else {
-                    "启用文档"
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("启用文档")
                 },
                 toggle_message,
                 false,
             ),
             document_icon_action_button(
                 centered_knowledge_icon(Icon::Eye, 10.0),
-                "查看详情",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("查看详情"),
                 open_detail_message,
                 false,
             ),
             document_icon_action_button(
                 centered_knowledge_icon(Icon::ArrowRepeat, 10.0),
-                "重新入库",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("重新入库"),
                 (reindex_enabled && !reindexing_this).then_some(Message::Knowledge(
                     KnowledgeToolMessage::ReindexDocument(document.id.clone())
                 )),
@@ -1980,7 +2274,7 @@ fn document_row_with_index<'a>(
             ),
             document_icon_action_button(
                 centered_knowledge_icon(Icon::Pencil, 10.0),
-                "重命名",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("重命名"),
                 (!updating_this).then_some(Message::Knowledge(
                     KnowledgeToolMessage::OpenRenameDocument(document.id.clone()),
                 )),
@@ -1988,13 +2282,13 @@ fn document_row_with_index<'a>(
             ),
             document_icon_action_button(
                 centered_knowledge_icon(Icon::Box, 10.0),
-                "归档文档",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("归档文档"),
                 archive_message,
                 false,
             ),
             document_icon_action_button(
                 centered_danger_icon(Icon::Trash, 10.0),
-                "删除文档",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("删除文档"),
                 (!app.knowledge.deleting).then_some(Message::Knowledge(
                     KnowledgeToolMessage::OpenDeleteDocumentConfirm(document.id.clone())
                 )),
@@ -2054,27 +2348,31 @@ fn build_document_bulk_toolbar<'a>(
     let pending_action = app.knowledge.pending_batch_document_action.as_ref();
     let busy = app.knowledge.batch_updating_documents;
     let enable_label = if busy && pending_action == Some(&KnowledgeDocumentsBatchAction::Enable) {
-        "启用中"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用中")
     } else {
-        "批量启用"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("批量启用")
     };
     let disable_label = if busy && pending_action == Some(&KnowledgeDocumentsBatchAction::Disable) {
-        "停用中"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("停用中")
     } else {
-        "批量停用"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("批量停用")
     };
     let archive_label = if busy && pending_action == Some(&KnowledgeDocumentsBatchAction::Archive) {
-        "归档中"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("归档中")
     } else {
-        "批量归档"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("批量归档")
     };
 
     container(
         row![
-            text(format!("已选择 {selected_count} 篇文档"))
-                .size(12)
-                .width(Length::Fill)
-                .style(settings_muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("已选择 %s 篇文档", &[(selected_count).to_string().into()])
+                    .expect("valid display template")
+            )
+            .size(12)
+            .width(Length::Fill)
+            .style(settings_muted_text_style),
             button(text(enable_label).size(12))
                 .on_press_maybe((!busy).then_some(Message::Knowledge(
                     KnowledgeToolMessage::SubmitBatchDocumentAction {
@@ -2099,7 +2397,7 @@ fn build_document_bulk_toolbar<'a>(
                 )))
                 .padding([8, 12])
                 .style(rounded_action_btn_style),
-            button(text("取消").size(12))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(12))
                 .on_press(Message::Knowledge(KnowledgeToolMessage::ClearDocumentSelection))
                 .padding([8, 12])
                 .style(knowledge_toolbar_button_style),
@@ -2126,14 +2424,24 @@ fn build_document_rename_modal<'a>(
         .iter()
         .find(|document| document.id == document_id)
         .map(|document| document.name.as_str())
-        .unwrap_or("当前文档");
+        .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("当前文档"));
     let submitting = app.knowledge.updating_document_id.as_deref() == Some(document_id);
     let can_submit = !submitting && !app.knowledge.rename_document_name_input.trim().is_empty();
-    let submit_label = if submitting { "保存中" } else { "保存" };
+    let submit_label = if submitting {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("保存中")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("保存")
+    };
     let title_row = row![
         column![
-            text("重命名文档").size(22),
-            text(format!("当前名称：{current_name}")).size(12).style(settings_muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("重命名文档")).size(22),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("当前名称：%s", &[(current_name).to_string().into()])
+                    .expect("valid display template")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         ]
         .spacing(6)
         .width(Length::Fill),
@@ -2143,7 +2451,7 @@ fn build_document_rename_modal<'a>(
     .align_y(Alignment::Center);
     let actions = row![
         Space::new().width(Length::Fill),
-        button(text("取消").size(13))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
             .on_press(Message::Knowledge(KnowledgeToolMessage::CloseRenameDocument))
             .padding([9, 14])
             .style(rounded_action_btn_style),
@@ -2162,13 +2470,16 @@ fn build_document_rename_modal<'a>(
     let card = settings_modal_card(
         column![
             title_row,
-            text_input("输入新的文档名称", &app.knowledge.rename_document_name_input)
-                .on_input(|value| {
-                    Message::Knowledge(KnowledgeToolMessage::RenameDocumentDraftChanged(value))
-                })
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style),
+            text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("输入新的文档名称"),
+                &app.knowledge.rename_document_name_input
+            )
+            .on_input(|value| {
+                Message::Knowledge(KnowledgeToolMessage::RenameDocumentDraftChanged(value))
+            })
+            .padding([10, 12])
+            .size(13)
+            .style(settings_text_input_style),
             actions,
         ]
         .spacing(16)
@@ -2230,27 +2541,38 @@ fn document_status_badge<'a>(
 
 #[cfg(test)]
 fn build_chunks_panel(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected_document = app.knowledge.selected_document();
     let title = selected_document
-        .map(|document| format!("分段预览 · {}", document.name))
-        .unwrap_or_else(|| "分段预览".to_string());
+        .map(|document| {
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("分段预览 · %s", &[(document.name).to_string().into()])
+                .expect("valid display template")
+        })
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("分段预览").to_string()
+        });
     let mut content = column![text(title).size(14)].spacing(10).height(Length::Fill);
 
     if selected_document.is_none() {
-        content = content.push(empty_hint("选择文档查看分段"));
+        content = content.push(empty_hint(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择文档查看分段"),
+        ));
     } else if app.knowledge.loading_chunks {
-        content = content.push(empty_hint("正在加载分段"));
+        content = content
+            .push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载分段")));
     } else if app.knowledge.loaded_chunks.is_empty() {
-        content = content.push(empty_hint("暂无分段"));
+        content = content
+            .push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无分段")));
     } else {
         let mut list = column![].spacing(8);
         for chunk in &app.knowledge.loaded_chunks {
             let selected = app.knowledge.selected_chunk_id.as_deref() == Some(chunk.id.as_str());
-            list = list.push(chunk_preview_card(chunk, selected));
+            list = list.push(chunk_preview_card(i18n, chunk, selected));
         }
         content = content.push(knowledge_scrollable(list).height(Length::Fill));
         if let Some(chunk) = app.knowledge.selected_chunk() {
-            content = content.push(chunk_content_panel(chunk, app.last_copied_code_hash));
+            content = content.push(chunk_content_panel(i18n, chunk, app.last_copied_code_hash));
         }
     }
 
@@ -2258,13 +2580,16 @@ fn build_chunks_panel(app: &App) -> Element<'_, Message> {
 }
 
 fn build_document_preview_drawer(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let selected_document = app.knowledge.selected_document();
-    let title = selected_document.map(|document| document.name.as_str()).unwrap_or("文档预览");
+    let title = selected_document
+        .map(|document| document.name.as_str())
+        .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("文档预览"));
 
     let mut body = column![
         row![
             column![
-                text("文档预览").size(16),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("文档预览")).size(16),
                 text(title).size(12).style(settings_muted_text_style),
             ]
             .spacing(4)
@@ -2278,21 +2603,25 @@ fn build_document_preview_drawer(app: &App) -> Element<'_, Message> {
     .height(Length::Fill);
 
     if selected_document.is_none() {
-        body = body.push(empty_hint("选择文档查看分段"));
+        body = body.push(empty_hint(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择文档查看分段"),
+        ));
     } else if app.knowledge.loading_chunks {
-        body = body.push(empty_hint("正在加载分段"));
+        body = body
+            .push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载分段")));
     } else if app.knowledge.loaded_chunks.is_empty() {
-        body = body.push(empty_hint("暂无分段"));
+        body =
+            body.push(empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无分段")));
     } else {
         let mut list = column![].spacing(8);
         for chunk in &app.knowledge.loaded_chunks {
             let selected = app.knowledge.selected_chunk_id.as_deref() == Some(chunk.id.as_str());
-            list = list.push(chunk_preview_card(chunk, selected));
+            list = list.push(chunk_preview_card(i18n, chunk, selected));
         }
         body = body.push(knowledge_scrollable(list).height(Length::FillPortion(3)));
         if let Some(chunk) = app.knowledge.selected_chunk() {
             body = body.push(
-                container(chunk_content_panel(chunk, app.last_copied_code_hash))
+                container(chunk_content_panel(i18n, chunk, app.last_copied_code_hash))
                     .height(Length::FillPortion(2)),
             );
         }
@@ -2339,12 +2668,13 @@ fn document_preview_drawer_style(theme: &Theme) -> iced::widget::container::Styl
 }
 
 fn build_retrieval_tab(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let results = if app.knowledge.retrieve_results.is_empty() {
-        empty_hint("召回结果会显示在这里")
+        empty_hint(crate::app::i18n::I18n::new(app.desktop_locale).__("召回结果会显示在这里"))
     } else {
         let mut list = column![].spacing(10);
         for chunk in &app.knowledge.retrieve_results {
-            list = list.push(chunk_card(chunk));
+            list = list.push(chunk_card(i18n, chunk));
         }
         knowledge_scrollable(list).height(Length::Fill).into()
     };
@@ -2352,14 +2682,17 @@ fn build_retrieval_tab(app: &App) -> Element<'_, Message> {
     settings_panel(
         column![
             row![
-                text_input("输入查询文本", &app.knowledge.retrieve_query_input)
-                    .on_input(|value| {
-                        Message::Knowledge(KnowledgeToolMessage::RetrieveQueryChanged(value))
-                    })
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
+                text_input(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("输入查询文本"),
+                    &app.knowledge.retrieve_query_input
+                )
+                .on_input(|value| {
+                    Message::Knowledge(KnowledgeToolMessage::RetrieveQueryChanged(value))
+                })
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
                 text_input("Top K", &app.knowledge.retrieve_top_k_input)
                     .on_input(|value| {
                         Message::Knowledge(KnowledgeToolMessage::RetrieveTopKChanged(value))
@@ -2369,7 +2702,11 @@ fn build_retrieval_tab(app: &App) -> Element<'_, Message> {
                     .style(settings_text_input_style)
                     .width(Length::Fixed(90.0)),
                 button(
-                    row![primary_action_icon(Icon::Search, 14.0), text("测试").size(13)].spacing(8)
+                    row![
+                        primary_action_icon(Icon::Search, 14.0),
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("测试")).size(13)
+                    ]
+                    .spacing(8)
                 )
                 .on_press_maybe(
                     (!app.knowledge.retrieving)
@@ -2382,7 +2719,7 @@ fn build_retrieval_tab(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
             row![
                 checkbox(app.knowledge.retrieve_score_threshold_enabled)
-                    .label("Score 阈值")
+                    .label(crate::app::i18n::I18n::new(app.desktop_locale).__("Score 阈值"))
                     .on_toggle(|value| {
                         Message::Knowledge(
                             KnowledgeToolMessage::RetrieveScoreThresholdEnabledChanged(value),
@@ -2400,7 +2737,7 @@ fn build_retrieval_tab(app: &App) -> Element<'_, Message> {
                     .style(settings_text_input_style)
                     .width(Length::Fixed(110.0)),
                 checkbox(app.knowledge.retrieve_include_context)
-                    .label("包含上下文")
+                    .label(crate::app::i18n::I18n::new(app.desktop_locale).__("包含上下文"))
                     .on_toggle(|value| {
                         Message::Knowledge(KnowledgeToolMessage::RetrieveIncludeContextChanged(
                             value,
@@ -2419,33 +2756,70 @@ fn build_retrieval_tab(app: &App) -> Element<'_, Message> {
 }
 
 fn build_settings_tab<'a>(app: &'a App, dataset: &'a KnowledgeDatasetDto) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let mut status_items = column![].spacing(10);
     if let Some(status) = &app.knowledge.runtime_status {
         status_items = status_items
-            .push(kv_row("全文检索", support_label(status.full_text)))
-            .push(kv_row("向量检索", support_label(status.vector)))
-            .push(kv_row("混合检索", support_label(status.hybrid)))
-            .push(kv_row("Rerank", support_label(status.rerank)));
+            .push(kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("全文检索"),
+                support_label(i18n, status.full_text),
+            ))
+            .push(kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("向量检索"),
+                support_label(i18n, status.vector),
+            ))
+            .push(kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("混合检索"),
+                support_label(i18n, status.hybrid),
+            ))
+            .push(kv_row("Rerank", support_label(i18n, status.rerank)));
         for (key, value) in &status.notes {
             status_items = status_items.push(kv_row(key, value));
         }
     } else {
-        status_items = status_items.push(kv_row("运行状态", "检测中"));
+        status_items = status_items.push(kv_row(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("运行状态"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("检测中"),
+        ));
     }
 
     settings_panel(
         column![
             build_embedding_model_section(app),
-            kv_row("知识库 ID", &dataset.id),
-            kv_row("分段模式", chunking_label(&dataset.chunking_mode)),
-            kv_row("索引模式", indexing_label(&dataset.indexing_mode)),
-            kv_row("检索模式", retrieval_label(&dataset.retrieval_mode)),
-            kv_row("关键词数量", dataset.keyword_count.to_string()),
+            kv_row(crate::app::i18n::I18n::new(app.desktop_locale).__("知识库 ID"), &dataset.id),
+            kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("分段模式"),
+                chunking_label(&dataset.chunking_mode)
+            ),
+            kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("索引模式"),
+                indexing_label(i18n, &dataset.indexing_mode)
+            ),
+            kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("检索模式"),
+                retrieval_label(i18n, &dataset.retrieval_mode)
+            ),
+            kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("关键词数量"),
+                dataset.keyword_count.to_string()
+            ),
             kv_row("Top K", dataset.top_k.to_string()),
-            kv_row("Score 阈值", score_threshold_label(dataset)),
-            kv_row("Rerank 开关", enabled_label(dataset.rerank_enabled)),
+            kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("Score 阈值"),
+                score_threshold_label(i18n, dataset)
+            ),
+            kv_row(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("Rerank 开关"),
+                enabled_label(i18n, dataset.rerank_enabled)
+            ),
             kv_row("Embedding", dataset_embedding_model_label(app, dataset)),
-            kv_row("Rerank", dataset.rerank_model.as_deref().unwrap_or("未启用")),
+            kv_row(
+                "Rerank",
+                dataset
+                    .rerank_model
+                    .as_deref()
+                    .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("未启用"))
+            ),
             container(status_items).padding([8, 0]),
         ]
         .spacing(12),
@@ -2453,14 +2827,14 @@ fn build_settings_tab<'a>(app: &'a App, dataset: &'a KnowledgeDatasetDto) -> Ele
     .into()
 }
 
-fn chunk_card(chunk: &KnowledgeChunkDto) -> Element<'_, Message> {
+fn chunk_card(i18n: crate::app::i18n::I18n, chunk: &KnowledgeChunkDto) -> Element<'_, Message> {
     let score = chunk.score.map(|value| format!("{value:.3}")).unwrap_or_else(|| "-".to_string());
     let mut details = column![text(&chunk.content).size(13)].spacing(8);
     if let Some(matched) = chunk.matched_content.as_deref().filter(|value| !value.trim().is_empty())
     {
         details = details.push(
             column![
-                text("匹配内容").size(11).style(settings_muted_text_style),
+                text(i18n.__("匹配内容")).size(11).style(settings_muted_text_style),
                 text(matched).size(12),
             ]
             .spacing(3),
@@ -2469,7 +2843,7 @@ fn chunk_card(chunk: &KnowledgeChunkDto) -> Element<'_, Message> {
     if let Some(context) = chunk.context.as_deref().filter(|value| !value.trim().is_empty()) {
         details = details.push(
             column![
-                text("上下文").size(11).style(settings_muted_text_style),
+                text(i18n.__("上下文")).size(11).style(settings_muted_text_style),
                 text(context).size(12),
             ]
             .spacing(3),
@@ -2480,7 +2854,7 @@ fn chunk_card(chunk: &KnowledgeChunkDto) -> Element<'_, Message> {
         column![
             row![
                 text(&chunk.title).size(14).width(Length::Fill),
-                settings_value_badge(match_type_label(&chunk.match_type)),
+                settings_value_badge(match_type_label(i18n, &chunk.match_type)),
                 settings_value_badge(format!("score {score}")),
             ]
             .spacing(8)
@@ -2495,10 +2869,14 @@ fn chunk_card(chunk: &KnowledgeChunkDto) -> Element<'_, Message> {
     .into()
 }
 
-fn chunk_preview_card(chunk: &KnowledgeChunkDto, selected: bool) -> Element<'_, Message> {
+fn chunk_preview_card(
+    i18n: crate::app::i18n::I18n,
+    chunk: &KnowledgeChunkDto,
+    selected: bool,
+) -> Element<'_, Message> {
     let mut badges = row![
         settings_value_badge(format!("#{}", chunk.ordinal)),
-        settings_value_badge(chunk_type_label(&chunk.chunk_type)),
+        settings_value_badge(chunk_type_label(i18n, &chunk.chunk_type)),
         settings_value_badge(format!("{}..{}", chunk.start_at, chunk.end_at)),
     ]
     .spacing(6)
@@ -2513,12 +2891,12 @@ fn chunk_preview_card(chunk: &KnowledgeChunkDto, selected: bool) -> Element<'_, 
         badges = badges.push(settings_value_badge("next"));
     }
 
-    let title = chunk_preview_title(chunk);
+    let title = chunk_preview_title(i18n, chunk);
     let preview = chunk.content.lines().next().unwrap_or("").trim();
     let body = column![
         row![
             text(title).size(13).width(Length::Fill),
-            settings_value_badge(match_type_label(&chunk.match_type)),
+            settings_value_badge(match_type_label(i18n, &chunk.match_type)),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -2540,13 +2918,18 @@ fn chunk_preview_card(chunk: &KnowledgeChunkDto, selected: bool) -> Element<'_, 
     .into()
 }
 
-fn chunk_preview_title(chunk: &KnowledgeChunkDto) -> String {
+fn chunk_preview_title(i18n: crate::app::i18n::I18n, chunk: &KnowledgeChunkDto) -> String {
     let title = chunk.title.trim();
     if !title.is_empty() {
         return title.to_string();
     }
     let first_line = chunk.content.lines().next().unwrap_or("").trim();
-    if first_line.is_empty() { format!("分段 {}", chunk.ordinal) } else { first_line.to_string() }
+    if first_line.is_empty() {
+        i18n.format("分段 %s", &[(chunk.ordinal).to_string().into()])
+            .expect("valid display template")
+    } else {
+        first_line.to_string()
+    }
 }
 
 fn hash_copy_text(content: &str) -> u64 {
@@ -2557,16 +2940,20 @@ fn hash_copy_text(content: &str) -> u64 {
 }
 
 fn chunk_content_panel<'a>(
+    i18n: crate::app::i18n::I18n,
     chunk: &'a KnowledgeChunkDto,
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     let copied = last_copied_code_hash == Some(hash_copy_text(&chunk.content));
     let copy_icon = if copied { Icon::Check } else { Icon::Copy };
-    let copy_label = if copied { "已复制" } else { "复制" };
+    let copy_label = if copied { i18n.__("已复制") } else { i18n.__("复制") };
     container(
         column![
             row![
-                text("完整内容").size(12).style(settings_muted_text_style).width(Length::Fill),
+                text(i18n.__("完整内容"))
+                    .size(12)
+                    .style(settings_muted_text_style)
+                    .width(Length::Fill),
                 button(
                     row![
                         icon_svg(copy_icon, 12.0).style(|theme: &Theme, _status| {
@@ -2803,35 +3190,43 @@ fn build_delete_confirm_modal<'a>(
     app: &'a App,
     base: Option<Element<'a, Message>>,
 ) -> Element<'a, Message> {
-    let (title, description, confirm_message) =
-        if let Some(document_id) = app.knowledge.pending_delete_document_id.as_deref() {
-            let document_name = app
-                .knowledge
-                .documents
-                .iter()
-                .find(|document| document.id == document_id)
-                .map(|document| document.name.as_str())
-                .unwrap_or("当前文档");
-            (
-                "确认删除文档",
-                format!("将删除文档「{document_name}」。此操作不可撤销。"),
-                Message::Knowledge(KnowledgeToolMessage::DeleteDocument(document_id.to_string())),
-            )
-        } else {
-            let dataset_name = app
-                .knowledge
-                .pending_delete_dataset_id
-                .as_deref()
-                .and_then(|dataset_id| app.knowledge.dataset_by_id(dataset_id))
-                .or_else(|| app.knowledge.selected_dataset())
-                .map(|dataset| dataset.name.as_str())
-                .unwrap_or("当前知识库");
-            (
-                "确认删除知识库",
-                format!("将删除知识库「{dataset_name}」及其内容。此操作不可撤销。"),
-                Message::Knowledge(KnowledgeToolMessage::DeleteSelectedDataset),
-            )
-        };
+    let (title, description, confirm_message) = if let Some(document_id) =
+        app.knowledge.pending_delete_document_id.as_deref()
+    {
+        let document_name = app
+            .knowledge
+            .documents
+            .iter()
+            .find(|document| document.id == document_id)
+            .map(|document| document.name.as_str())
+            .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("当前文档"));
+        (
+            crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除文档"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("将删除文档「%s」。此操作不可撤销。", &[(document_name).to_string().into()])
+                .expect("valid display template"),
+            Message::Knowledge(KnowledgeToolMessage::DeleteDocument(document_id.to_string())),
+        )
+    } else {
+        let dataset_name = app
+            .knowledge
+            .pending_delete_dataset_id
+            .as_deref()
+            .and_then(|dataset_id| app.knowledge.dataset_by_id(dataset_id))
+            .or_else(|| app.knowledge.selected_dataset())
+            .map(|dataset| dataset.name.as_str())
+            .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("当前知识库"));
+        (
+            crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除知识库"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format(
+                    "将删除知识库「%s」及其内容。此操作不可撤销。",
+                    &[(dataset_name).to_string().into()],
+                )
+                .expect("valid display template"),
+            Message::Knowledge(KnowledgeToolMessage::DeleteSelectedDataset),
+        )
+    };
 
     let title_row = row![
         column![text(title).size(22), text(description).size(12).style(settings_muted_text_style),]
@@ -2844,11 +3239,11 @@ fn build_delete_confirm_modal<'a>(
 
     let actions = row![
         Space::new().width(Length::Fill),
-        button(text("取消").size(13))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
             .on_press(Message::Knowledge(KnowledgeToolMessage::CloseDeleteConfirm))
             .padding([9, 14])
             .style(rounded_action_btn_style),
-        button(text("确认删除").size(13))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除")).size(13))
             .on_press_maybe((!app.knowledge.deleting).then_some(confirm_message))
             .padding([9, 14])
             .style(danger_action_btn_style),
@@ -2860,9 +3255,12 @@ fn build_delete_confirm_modal<'a>(
         column![
             title_row,
             container(
-                text("删除后无法恢复，请确认当前选择无误。")
-                    .size(13)
-                    .style(settings_muted_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("删除后无法恢复，请确认当前选择无误。")
+                )
+                .size(13)
+                .style(settings_muted_text_style),
             )
             .padding([14, 16])
             .width(Length::Fill),
@@ -3006,10 +3404,10 @@ fn is_dark_palette(theme: &Theme) -> bool {
     bg.r + bg.g + bg.b < 1.5
 }
 
-fn indexing_label(mode: &KnowledgeIndexingMode) -> &'static str {
+fn indexing_label(i18n: crate::app::i18n::I18n, mode: &KnowledgeIndexingMode) -> &'static str {
     match mode {
-        KnowledgeIndexingMode::Economy => "经济",
-        KnowledgeIndexingMode::HighQuality => "高质量",
+        KnowledgeIndexingMode::Economy => i18n.__("经济"),
+        KnowledgeIndexingMode::HighQuality => i18n.__("高质量"),
     }
 }
 
@@ -3021,22 +3419,25 @@ fn chunking_label(mode: &KnowledgeChunkingMode) -> &'static str {
     }
 }
 
-fn retrieval_label(mode: &KnowledgeRetrievalMode) -> &'static str {
+fn retrieval_label(i18n: crate::app::i18n::I18n, mode: &KnowledgeRetrievalMode) -> &'static str {
     match mode {
-        KnowledgeRetrievalMode::FullText => "全文检索",
-        KnowledgeRetrievalMode::Vector => "向量检索",
-        KnowledgeRetrievalMode::Hybrid => "混合检索",
+        KnowledgeRetrievalMode::FullText => i18n.__("全文检索"),
+        KnowledgeRetrievalMode::Vector => i18n.__("向量检索"),
+        KnowledgeRetrievalMode::Hybrid => i18n.__("混合检索"),
     }
 }
 
-fn document_status_label(status: &KnowledgeDocumentStatus) -> &'static str {
+fn document_status_label(
+    i18n: crate::app::i18n::I18n,
+    status: &KnowledgeDocumentStatus,
+) -> &'static str {
     match status {
-        KnowledgeDocumentStatus::Pending => "入队",
-        KnowledgeDocumentStatus::Processing => "索引中",
-        KnowledgeDocumentStatus::Completed => "成功",
-        KnowledgeDocumentStatus::Failed => "失败",
-        KnowledgeDocumentStatus::Disabled => "停用",
-        KnowledgeDocumentStatus::Archived => "归档",
+        KnowledgeDocumentStatus::Pending => i18n.__("入队"),
+        KnowledgeDocumentStatus::Processing => i18n.__("索引中"),
+        KnowledgeDocumentStatus::Completed => i18n.__("成功"),
+        KnowledgeDocumentStatus::Failed => i18n.__("失败"),
+        KnowledgeDocumentStatus::Disabled => i18n.__("停用"),
+        KnowledgeDocumentStatus::Archived => i18n.__("归档"),
     }
 }
 
@@ -3070,39 +3471,42 @@ fn compact_decimal(value: u64, base: u64, suffix: &str) -> String {
     if decimal == 0 { format!("{whole}{suffix}") } else { format!("{whole}.{decimal}{suffix}") }
 }
 
-fn import_job_status_label(status: &vw_gateway_client::KnowledgeIndexJobStatus) -> &'static str {
+fn import_job_status_label(
+    i18n: crate::app::i18n::I18n,
+    status: &vw_gateway_client::KnowledgeIndexJobStatus,
+) -> &'static str {
     match status {
-        vw_gateway_client::KnowledgeIndexJobStatus::Queued => "入队",
-        vw_gateway_client::KnowledgeIndexJobStatus::Processing => "索引中",
-        vw_gateway_client::KnowledgeIndexJobStatus::Completed => "成功",
-        vw_gateway_client::KnowledgeIndexJobStatus::Failed => "失败",
+        vw_gateway_client::KnowledgeIndexJobStatus::Queued => i18n.__("入队"),
+        vw_gateway_client::KnowledgeIndexJobStatus::Processing => i18n.__("索引中"),
+        vw_gateway_client::KnowledgeIndexJobStatus::Completed => i18n.__("成功"),
+        vw_gateway_client::KnowledgeIndexJobStatus::Failed => i18n.__("失败"),
     }
 }
 
-fn chunk_type_label(chunk_type: &KnowledgeChunkType) -> &'static str {
+fn chunk_type_label(i18n: crate::app::i18n::I18n, chunk_type: &KnowledgeChunkType) -> &'static str {
     match chunk_type {
-        KnowledgeChunkType::Text => "文本",
-        KnowledgeChunkType::ParentText => "父块",
+        KnowledgeChunkType::Text => i18n.__("文本"),
+        KnowledgeChunkType::ParentText => i18n.__("父块"),
         KnowledgeChunkType::Qa => "Q&A",
     }
 }
 
-fn match_type_label(match_type: &KnowledgeMatchType) -> &'static str {
+fn match_type_label(i18n: crate::app::i18n::I18n, match_type: &KnowledgeMatchType) -> &'static str {
     match match_type {
-        KnowledgeMatchType::FullText => "全文",
-        KnowledgeMatchType::Vector => "向量",
-        KnowledgeMatchType::Hybrid => "混合",
-        KnowledgeMatchType::Parent => "父块",
-        KnowledgeMatchType::Nearby => "邻近",
+        KnowledgeMatchType::FullText => i18n.__("全文"),
+        KnowledgeMatchType::Vector => i18n.__("向量"),
+        KnowledgeMatchType::Hybrid => i18n.__("混合"),
+        KnowledgeMatchType::Parent => i18n.__("父块"),
+        KnowledgeMatchType::Nearby => i18n.__("邻近"),
     }
 }
 
-fn support_label(value: bool) -> &'static str {
-    if value { "可用" } else { "不可用" }
+fn support_label(i18n: crate::app::i18n::I18n, value: bool) -> &'static str {
+    if value { i18n.__("可用") } else { i18n.__("不可用") }
 }
 
-fn enabled_label(value: bool) -> &'static str {
-    if value { "启用" } else { "关闭" }
+fn enabled_label(i18n: crate::app::i18n::I18n, value: bool) -> &'static str {
+    if value { i18n.__("启用") } else { i18n.__("关闭") }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -3137,9 +3541,12 @@ fn build_embedding_model_picker(app: &App) -> Element<'_, Message> {
 }
 
 fn dataset_embedding_options(app: &App) -> Vec<DatasetEmbeddingOption> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let mut options = vec![DatasetEmbeddingOption {
         selection: KnowledgeDatasetEmbeddingSelection::FollowGlobal,
-        label: "跟随全局配置（推荐）".to_string(),
+        label: crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("跟随全局配置（推荐）")
+            .to_string(),
     }];
     let Some(status) = app.knowledge.embedding_status.as_ref() else {
         return options;
@@ -3153,18 +3560,26 @@ fn dataset_embedding_options(app: &App) -> Vec<DatasetEmbeddingOption> {
         .embedding_presets
         .iter()
         .find(|preset| preset.provider_id == status.provider_id && preset.model == status.model)
-        .map(embedding_preset_label)
+        .map(|preset| {
+            embedding_preset_label(crate::app::i18n::I18n::new(app.desktop_locale), preset)
+        })
         .unwrap_or_else(|| {
-            format!(
-                "{} · {} / {}维",
-                embedding_status_provider_label(Some(status)),
-                model,
-                status.dimensions
-            )
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format(
+                    "%s · %s / %s维",
+                    &[
+                        (embedding_status_provider_label(i18n, Some(status))).to_string().into(),
+                        (model).to_string().into(),
+                        (status.dimensions).to_string().into(),
+                    ],
+                )
+                .expect("valid display template")
         });
     options.push(DatasetEmbeddingOption {
         selection: KnowledgeDatasetEmbeddingSelection::LockCurrent,
-        label: format!("锁定当前 · {current_label}"),
+        label: crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("锁定当前 · %s", &[(current_label).to_string().into()])
+            .expect("valid display template"),
     });
     options
 }
@@ -3187,69 +3602,105 @@ fn embedding_hybrid_available(app: &App) -> bool {
         .unwrap_or(false)
 }
 
-fn embedding_status_provider_label(status: Option<&KnowledgeEmbeddingStatusDto>) -> String {
+fn embedding_status_provider_label(
+    i18n: crate::app::i18n::I18n,
+    status: Option<&KnowledgeEmbeddingStatusDto>,
+) -> String {
     status
         .map(|status| status.provider_id.trim())
         .filter(|provider| !provider.is_empty())
-        .unwrap_or("检测中")
+        .unwrap_or(i18n.__("检测中"))
         .to_string()
 }
 
-fn embedding_status_model_label(status: Option<&KnowledgeEmbeddingStatusDto>) -> String {
+fn embedding_status_model_label(
+    i18n: crate::app::i18n::I18n,
+    status: Option<&KnowledgeEmbeddingStatusDto>,
+) -> String {
     status
         .map(|status| status.model.trim())
         .filter(|model| !model.is_empty())
-        .unwrap_or("检测中")
+        .unwrap_or(i18n.__("检测中"))
         .to_string()
 }
 
-fn embedding_status_dimensions_label(status: Option<&KnowledgeEmbeddingStatusDto>) -> String {
-    status.map(|status| format!("{} 维", status.dimensions)).unwrap_or_else(|| "检测中".to_string())
+fn embedding_status_dimensions_label(
+    i18n: crate::app::i18n::I18n,
+    status: Option<&KnowledgeEmbeddingStatusDto>,
+) -> String {
+    status
+        .map(|status| {
+            i18n.format("%s 维", &[(status.dimensions).to_string().into()])
+                .expect("valid display template")
+        })
+        .unwrap_or_else(|| i18n.__("检测中").to_string())
 }
 
-fn embedding_status_route_label(status: Option<&KnowledgeEmbeddingStatusDto>) -> String {
+fn embedding_status_route_label(
+    i18n: crate::app::i18n::I18n,
+    status: Option<&KnowledgeEmbeddingStatusDto>,
+) -> String {
     status
         .and_then(|status| status.route_hint.as_deref())
         .map(str::trim)
         .filter(|hint| !hint.is_empty())
-        .unwrap_or("默认")
+        .unwrap_or(i18n.__("默认"))
         .to_string()
 }
 
-fn embedding_preset_label(preset: &KnowledgeEmbeddingPresetDto) -> String {
+fn embedding_preset_label(
+    i18n: crate::app::i18n::I18n,
+    preset: &KnowledgeEmbeddingPresetDto,
+) -> String {
     let provider = preset.provider_id.to_ascii_lowercase();
     let label = preset.label.to_ascii_lowercase();
     let family = if preset.id.starts_with("alibaba")
         || provider.contains("alibaba")
         || label.contains("dashscope")
     {
-        "阿里百炼/DashScope"
+        i18n.__("阿里百炼/DashScope")
     } else if preset.id.contains("doubao")
         || preset.id.contains("volcengine")
         || provider.contains("volces")
         || label.contains("doubao")
         || label.contains("volcengine")
     {
-        "豆包/火山方舟"
+        i18n.__("豆包/火山方舟")
     } else {
         preset.label.trim()
     };
-    format!("{family} · {} / {}维", preset.model.trim(), preset.dimensions)
+    i18n.format(
+        "%s · %s / %s维",
+        &[
+            (family).to_string().into(),
+            (preset.model.trim()).to_string().into(),
+            (preset.dimensions).to_string().into(),
+        ],
+    )
+    .expect("valid display template")
 }
 
-fn embedding_test_result_label(result: Option<&KnowledgeEmbeddingTestResponse>) -> String {
+fn embedding_test_result_label(
+    i18n: crate::app::i18n::I18n,
+    result: Option<&KnowledgeEmbeddingTestResponse>,
+) -> String {
     let Some(result) = result else {
-        return "尚未测试".to_string();
+        return i18n.__("尚未测试").to_string();
     };
-    let status = if result.ok { "通过" } else { "失败" };
+    let status = if result.ok { i18n.__("通过") } else { i18n.__("失败") };
     let dimensions = result
         .observed_dimensions
-        .map(|value| format!("{value} 维"))
-        .unwrap_or_else(|| format!("配置 {} 维", result.configured_dimensions));
+        .map(|value| {
+            i18n.format("%s 维", &[(value).to_string().into()]).expect("valid display template")
+        })
+        .unwrap_or_else(|| {
+            i18n.format("配置 %s 维", &[(result.configured_dimensions).to_string().into()])
+                .expect("valid display template")
+        });
     let latency = result
         .latency_ms
         .map(|value| format!("{value} ms"))
-        .unwrap_or_else(|| "耗时未知".to_string());
+        .unwrap_or_else(|| i18n.__("耗时未知").to_string());
     if result.ok {
         format!("{status} · {dimensions} · {latency}")
     } else {
@@ -3261,15 +3712,24 @@ fn dataset_embedding_model_label(app: &App, _dataset: &KnowledgeDatasetDto) -> S
     app.knowledge
         .embedding_status
         .as_ref()
-        .map(|status| format!("{} / {}维", status.model, status.dimensions))
-        .unwrap_or_else(|| "跟随记忆配置/嵌入路由".to_string())
+        .map(|status| {
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format(
+                    "%s / %s维",
+                    &[(status.model).to_string().into(), (status.dimensions).to_string().into()],
+                )
+                .expect("valid display template")
+        })
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("跟随记忆配置/嵌入路由").to_string()
+        })
 }
 
-fn score_threshold_label(dataset: &KnowledgeDatasetDto) -> String {
+fn score_threshold_label(i18n: crate::app::i18n::I18n, dataset: &KnowledgeDatasetDto) -> String {
     if dataset.score_threshold_enabled {
         format!("{:.2}", dataset.score_threshold)
     } else {
-        "关闭".to_string()
+        i18n.__("关闭").to_string()
     }
 }
 

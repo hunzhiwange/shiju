@@ -1,5 +1,6 @@
 //! 在受限进程边界内校验并启动识矩应用 WebView。
 
+use crate::app::skill_hub::SkillHubError;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -13,8 +14,8 @@ const RUNTIME_HOST: &str = "app.shiju.cloud";
 pub(super) trait LaunchProcess {
     type Child;
 
-    fn spawn(&mut self, program: &Path, args: &[String]) -> Result<Self::Child, String>;
-    fn write_stdin(&mut self, child: &mut Self::Child, input: &[u8]) -> Result<(), String>;
+    fn spawn(&mut self, program: &Path, args: &[String]) -> Result<Self::Child, SkillHubError>;
+    fn write_stdin(&mut self, child: &mut Self::Child, input: &[u8]) -> Result<(), SkillHubError>;
     fn terminate(&mut self, child: &mut Self::Child);
 }
 
@@ -23,23 +24,25 @@ struct SystemProcess;
 impl LaunchProcess for SystemProcess {
     type Child = Child;
 
-    fn spawn(&mut self, program: &Path, args: &[String]) -> Result<Self::Child, String> {
+    fn spawn(&mut self, program: &Path, args: &[String]) -> Result<Self::Child, SkillHubError> {
         Command::new(program)
             .args(args)
             .stdin(Stdio::piped())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()
-            .map_err(|error| error.to_string())
+            .map_err(|error| SkillHubError::from(error.to_string()))
     }
 
-    fn write_stdin(&mut self, child: &mut Self::Child, input: &[u8]) -> Result<(), String> {
-        let mut stdin =
-            child.stdin.take().ok_or_else(|| "无法获取 WebView 标准输入".to_string())?;
+    fn write_stdin(&mut self, child: &mut Self::Child, input: &[u8]) -> Result<(), SkillHubError> {
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| SkillHubError::localized("无法获取 WebView 标准输入", vec![]))?;
         stdin
             .write_all(input)
             .and_then(|_| stdin.flush())
-            .map_err(|_| "无法写入 WebView 标准输入".to_string())
+            .map_err(|_| SkillHubError::localized("无法写入 WebView 标准输入", vec![]))
     }
 
     fn terminate(&mut self, child: &mut Self::Child) {
@@ -51,12 +54,12 @@ impl LaunchProcess for SystemProcess {
 fn validate_target(
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,
-) -> Result<(), String> {
+) -> Result<(), SkillHubError> {
     if target.installation_id != expected_installation_id {
-        return Err("识矩应用运行地址不受信任：安装实例不匹配".to_string());
+        return Err(SkillHubError::localized("识矩应用运行地址不受信任：安装实例不匹配", vec![]));
     }
-    let url =
-        Url::parse(&target.runtime_url).map_err(|_| "识矩应用运行地址不受信任".to_string())?;
+    let url = Url::parse(&target.runtime_url)
+        .map_err(|_| SkillHubError::localized("识矩应用运行地址不受信任", vec![]))?;
     let expected_path = format!("/app/{expected_installation_id}/");
     let trusted = url.scheme() == "https"
         && url.host_str() == Some(RUNTIME_HOST)
@@ -67,7 +70,7 @@ fn validate_target(
         && url.query().is_none()
         && url.fragment().is_none();
     if !trusted {
-        return Err("识矩应用运行地址不受信任".to_string());
+        return Err(SkillHubError::localized("识矩应用运行地址不受信任", vec![]));
     }
     Ok(())
 }
@@ -78,12 +81,12 @@ pub(super) fn launch_with<P: LaunchProcess>(
     candidates: &[PathBuf],
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,
-) -> Result<P::Child, String> {
+) -> Result<P::Child, SkillHubError> {
     validate_target(target, expected_installation_id)?;
     if target.runtime_set_cookie.is_empty()
         || target.runtime_set_cookie.chars().any(char::is_control)
     {
-        return Err("识矩应用浏览器会话格式无效".to_string());
+        return Err(SkillHubError::localized("识矩应用浏览器会话格式无效", vec![]));
     }
 
     let args = vec![
@@ -102,27 +105,24 @@ pub(super) fn launch_with<P: LaunchProcess>(
         };
         let mut input = target.runtime_set_cookie.as_bytes().to_vec();
         input.push(b'\n');
-        if let Err(error) = process.write_stdin(&mut child, &input) {
+        if process.write_stdin(&mut child, &input).is_err() {
             process.terminate(&mut child);
-            return Err(error);
+            return Err(SkillHubError::localized("无法写入 WebView 标准输入", vec![]));
         }
         return Ok(child);
     }
-    Err(format!(
-        "无法启动 vw-webview 辅助程序：{}",
-        if failures.is_empty() {
-            "未找到可用程序".to_string()
-        } else {
-            failures.join("；")
-        }
-    ))
+    if failures.is_empty() {
+        Err(SkillHubError::localized("无法启动 vw-webview 辅助程序：未找到可用程序", vec![]))
+    } else {
+        Err(SkillHubError::localized("无法启动 vw-webview 辅助程序：%s", vec![failures.join("；")]))
+    }
 }
 
 /// 使用系统进程实现启动识矩应用 WebView。
 pub(crate) fn launch_shiju_app(
     target: &ShijuAppLaunchDto,
     expected_installation_id: &str,
-) -> Result<Child, String> {
+) -> Result<Child, SkillHubError> {
     launch_with(
         &mut SystemProcess,
         &crate::app::webview_runtime::webview_helper_candidates(),

@@ -131,17 +131,77 @@ fn runtime_status(vector: bool, rerank: bool) -> KnowledgeRuntimeStatus {
 
 #[test]
 fn knowledge_labels_match_ui_copy() {
-    assert_eq!(indexing_label(&KnowledgeIndexingMode::Economy), "经济");
-    assert_eq!(indexing_label(&KnowledgeIndexingMode::HighQuality), "高质量");
+    assert_eq!(
+        indexing_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeIndexingMode::Economy
+        ),
+        "经济"
+    );
+    assert_eq!(
+        indexing_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeIndexingMode::HighQuality
+        ),
+        "高质量"
+    );
     assert_eq!(chunking_label(&KnowledgeChunkingMode::General), "General");
-    assert_eq!(chunk_type_label(&KnowledgeChunkType::ParentText), "父块");
-    assert_eq!(retrieval_label(&KnowledgeRetrievalMode::Hybrid), "混合检索");
-    assert_eq!(document_status_label(&KnowledgeDocumentStatus::Failed), "失败");
-    assert_eq!(match_type_label(&KnowledgeMatchType::Hybrid), "混合");
-    assert_eq!(support_label(true), "可用");
-    assert_eq!(support_label(false), "不可用");
-    assert_eq!(enabled_label(true), "启用");
-    assert_eq!(enabled_label(false), "关闭");
+    assert_eq!(
+        chunk_type_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeChunkType::ParentText
+        ),
+        "父块"
+    );
+    assert_eq!(
+        retrieval_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeRetrievalMode::Hybrid
+        ),
+        "混合检索"
+    );
+    assert_eq!(
+        document_status_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeDocumentStatus::Failed
+        ),
+        "失败"
+    );
+    assert_eq!(
+        match_type_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeMatchType::Hybrid
+        ),
+        "混合"
+    );
+    assert_eq!(
+        support_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            true
+        ),
+        "可用"
+    );
+    assert_eq!(
+        support_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            false
+        ),
+        "不可用"
+    );
+    assert_eq!(
+        enabled_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            true
+        ),
+        "启用"
+    );
+    assert_eq!(
+        enabled_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            false
+        ),
+        "关闭"
+    );
 }
 
 #[test]
@@ -185,7 +245,13 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
         retrieval_modes: vec![KnowledgeRetrievalMode::FullText, KnowledgeRetrievalMode::Hybrid],
         notes: BTreeMap::new(),
     };
-    assert_eq!(embedding_status_provider_label(Some(&status)), "alibaba-cn");
+    assert_eq!(
+        embedding_status_provider_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&status)
+        ),
+        "alibaba-cn"
+    );
 
     let alibaba = KnowledgeEmbeddingPresetDto {
         id: "alibaba-cn".to_string(),
@@ -209,9 +275,18 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
         api_key_env_vars: vec!["ARK_API_KEY".to_string()],
         description: "Volcengine Ark embeddings through the gateway.".to_string(),
     };
-    assert_eq!(embedding_preset_label(&alibaba), "阿里百炼/DashScope · text-embedding-v4 / 1024维");
     assert_eq!(
-        embedding_preset_label(&doubao),
+        embedding_preset_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &alibaba
+        ),
+        "阿里百炼/DashScope · text-embedding-v4 / 1024维"
+    );
+    assert_eq!(
+        embedding_preset_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &doubao
+        ),
         "豆包/火山方舟 · doubao-embedding-text-240715 / 2048维"
     );
 
@@ -224,7 +299,13 @@ fn knowledge_embedding_config_state_labels_report_gateway_values() {
         latency_ms: Some(50),
         message: "embedding test succeeded".to_string(),
     };
-    assert_eq!(embedding_test_result_label(Some(&result)), "通过 · 1024 维 · 50 ms");
+    assert_eq!(
+        embedding_test_result_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&result)
+        ),
+        "通过 · 1024 维 · 50 ms"
+    );
 }
 
 #[test]
@@ -232,15 +313,39 @@ fn score_threshold_and_time_labels_cover_enabled_disabled_and_zero() {
     let mut enabled = dataset("enabled");
     enabled.score_threshold_enabled = true;
     enabled.score_threshold = 0.2;
-    assert_eq!(score_threshold_label(&enabled), "0.20");
+    assert_eq!(
+        score_threshold_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &enabled
+        ),
+        "0.20"
+    );
 
     let disabled = dataset("disabled");
-    assert_eq!(score_threshold_label(&disabled), "关闭");
+    assert_eq!(
+        score_threshold_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &disabled
+        ),
+        "关闭"
+    );
     assert_eq!(format_time(0), "-");
     assert_ne!(format_time(42), "-");
     assert_ne!(format_dataset_time(42), "--");
-    assert_eq!(dataset_title("  "), "未命名知识库");
-    assert_eq!(dataset_description("  "), "暂无描述");
+    assert_eq!(
+        dataset_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "  "
+        ),
+        "未命名知识库"
+    );
+    assert_eq!(
+        dataset_description(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "  "
+        ),
+        "暂无描述"
+    );
 }
 
 #[test]
@@ -327,7 +432,9 @@ fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
     keep_element(build_dataset_catalog_view(&app));
     keep_element(build_dataset_list_panel(&app));
     keep_element(build_create_dataset_panel(&app));
-    keep_element(build_create_dataset_card());
+    keep_element(build_create_dataset_card(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    )));
     keep_element(knowledge_header_button(
         "刷新",
         Some(crate::app::message::KnowledgeToolMessage::Refresh),
@@ -339,7 +446,9 @@ fn dataset_catalog_builds_loading_empty_filtered_and_populated_states() {
     app.knowledge.dataset_search_query = "missing".to_string();
     keep_element(build_dataset_catalog_view(&app));
     keep_element(build_dataset_list_panel(&app));
-    keep_element(build_no_dataset_result_card());
+    keep_element(build_no_dataset_result_card(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    )));
 
     app.knowledge.dataset_search_query = "DATASET".to_string();
     app.knowledge.selected_dataset_id = Some("dataset-a".to_string());
@@ -430,17 +539,32 @@ fn upload_panel_builds_file_import_states() {
     }];
 
     assert_eq!(
-        file_import_summary(app.knowledge.file_imports.first().unwrap()),
+        file_import_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            app.knowledge.file_imports.first().unwrap()
+        ),
         "1.5 KB · text/markdown"
     );
-    assert_eq!(file_imports_summary(&app.knowledge.file_imports), "1.5 KB · text/markdown");
+    assert_eq!(
+        file_imports_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &app.knowledge.file_imports
+        ),
+        "1.5 KB · text/markdown"
+    );
     app.knowledge.file_imports.push(KnowledgeFileImportDraft {
         filename: "guide.pdf".to_string(),
         mime_type: Some("application/pdf".to_string()),
         byte_len: 2048,
         content_base64: "cGRm".to_string(),
     });
-    assert_eq!(file_imports_summary(&app.knowledge.file_imports), "3.5 KB · 2 个文件");
+    assert_eq!(
+        file_imports_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &app.knowledge.file_imports
+        ),
+        "3.5 KB · 2 个文件"
+    );
     assert_eq!(format_file_size(12), "12 B");
     assert_eq!(format_file_size(1_048_576), "1.0 MB");
     keep_element(build_file_import_panel(&app));
@@ -457,10 +581,31 @@ fn upload_panel_builds_file_import_states() {
         filename: "guide.md".to_string(),
         status: KnowledgeIndexJobStatus::Queued,
     }];
-    assert_eq!(import_job_status_label(&KnowledgeIndexJobStatus::Queued), "入队");
-    assert_eq!(import_job_status_label(&KnowledgeIndexJobStatus::Processing), "索引中");
-    assert_eq!(import_job_status_label(&KnowledgeIndexJobStatus::Failed), "失败");
-    keep_element(build_import_polling_panel(&app.knowledge.import_polling_jobs));
+    assert_eq!(
+        import_job_status_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeIndexJobStatus::Queued
+        ),
+        "入队"
+    );
+    assert_eq!(
+        import_job_status_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeIndexJobStatus::Processing
+        ),
+        "索引中"
+    );
+    assert_eq!(
+        import_job_status_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &KnowledgeIndexJobStatus::Failed
+        ),
+        "失败"
+    );
+    keep_element(build_import_polling_panel(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &app.knowledge.import_polling_jobs,
+    ));
     keep_element(build_file_import_panel(&app));
 }
 
@@ -493,7 +638,11 @@ fn documents_table_builds_loading_empty_filtered_and_row_states() {
     app.knowledge.loading_chunks = false;
     keep_element(super::build_chunks_panel(&app));
     keep_element(build_document_preview_drawer(&app));
-    keep_element(chunk_preview_card(&app.knowledge.loaded_chunks[0], true));
+    keep_element(chunk_preview_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &app.knowledge.loaded_chunks[0],
+        true,
+    ));
 
     app.knowledge.documents =
         (0..25).map(|index| document(&format!("document-{index:02}"))).collect();
@@ -501,7 +650,13 @@ fn documents_table_builds_loading_empty_filtered_and_row_states() {
     app.knowledge.document_page = 2;
     app.knowledge.document_page_size = 10;
     keep_element(build_documents_table(&app));
-    keep_element(build_document_pagination(2, 3, 25, 10));
+    keep_element(build_document_pagination(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        2,
+        3,
+        25,
+        10,
+    ));
     keep_element(document_page_button(2, true));
 }
 
@@ -693,7 +848,9 @@ fn document_page_size_accepts_supported_values_and_rejects_others() {
 
 #[test]
 fn document_status_helpers_preserve_archives_and_override_disabled_documents() {
-    let options = document_status_filter_options();
+    let options = document_status_filter_options(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     assert_eq!(
         options.map(|option| (option.label, option.status)),
         [
@@ -779,7 +936,13 @@ fn document_styles_and_badges_cover_status_and_interaction_states() {
         let style = document_status_badge_style(&Theme::Light, &value);
         assert!(style.background.is_some());
         assert_eq!(style.border.width, 1.0);
-        keep_element(document_status_badge(&value, document_status_label(&status)));
+        keep_element(document_status_badge(
+            &value,
+            document_status_label(
+                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                &status,
+            ),
+        ));
     }
 }
 
@@ -796,14 +959,32 @@ fn chunk_preview_title_uses_title_content_then_ordinal_fallback() {
     let mut value = chunk("preview", None);
     value.title = "  Explicit title  ".to_string();
     value.content = "first line\nsecond line".to_string();
-    assert_eq!(chunk_preview_title(&value), "Explicit title");
+    assert_eq!(
+        chunk_preview_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value
+        ),
+        "Explicit title"
+    );
 
     value.title = "  ".to_string();
-    assert_eq!(chunk_preview_title(&value), "first line");
+    assert_eq!(
+        chunk_preview_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value
+        ),
+        "first line"
+    );
 
     value.content = " \nsecond line".to_string();
     value.ordinal = 7;
-    assert_eq!(chunk_preview_title(&value), "分段 7");
+    assert_eq!(
+        chunk_preview_title(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value
+        ),
+        "分段 7"
+    );
 }
 
 #[test]
@@ -836,12 +1017,48 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
     app.knowledge.embedding_status = Some(status.clone());
     assert!(!embedding_vector_available(&app));
     assert!(!embedding_hybrid_available(&app));
-    assert_eq!(embedding_status_provider_label(Some(&status)), "检测中");
-    assert_eq!(embedding_status_model_label(Some(&status)), "检测中");
-    assert_eq!(embedding_status_dimensions_label(Some(&status)), "768 维");
-    assert_eq!(embedding_status_route_label(Some(&status)), "默认");
-    assert_eq!(embedding_status_dimensions_label(None), "检测中");
-    assert_eq!(embedding_status_route_label(None), "默认");
+    assert_eq!(
+        embedding_status_provider_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&status)
+        ),
+        "检测中"
+    );
+    assert_eq!(
+        embedding_status_model_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&status)
+        ),
+        "检测中"
+    );
+    assert_eq!(
+        embedding_status_dimensions_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&status)
+        ),
+        "768 维"
+    );
+    assert_eq!(
+        embedding_status_route_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&status)
+        ),
+        "默认"
+    );
+    assert_eq!(
+        embedding_status_dimensions_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            None
+        ),
+        "检测中"
+    );
+    assert_eq!(
+        embedding_status_route_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            None
+        ),
+        "默认"
+    );
 
     app.knowledge.embedding_presets = vec![KnowledgeEmbeddingPresetDto {
         id: "custom".to_string(),
@@ -880,20 +1097,44 @@ fn embedding_availability_and_labels_cover_fallback_and_empty_values() {
         latency_ms: None,
         message: "missing API key".to_string(),
     };
-    assert_eq!(embedding_test_result_label(Some(&failed)), "失败 · missing API key · 耗时未知");
+    assert_eq!(
+        embedding_test_result_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            Some(&failed)
+        ),
+        "失败 · missing API key · 耗时未知"
+    );
 }
 
 #[test]
 fn file_import_summary_covers_empty_and_unknown_mime_states() {
-    assert_eq!(file_imports_summary(&[]), "等待选择");
+    assert_eq!(
+        file_imports_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[]
+        ),
+        "等待选择"
+    );
     let file = KnowledgeFileImportDraft {
         filename: "unknown.bin".to_string(),
         mime_type: None,
         byte_len: 1024,
         content_base64: String::new(),
     };
-    assert_eq!(file_import_summary(&file), "1.0 KB · 未知类型");
-    assert_eq!(file_imports_summary(&[file]), "1.0 KB · 未知类型");
+    assert_eq!(
+        file_import_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &file
+        ),
+        "1.0 KB · 未知类型"
+    );
+    assert_eq!(
+        file_imports_summary(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &[file]
+        ),
+        "1.0 KB · 未知类型"
+    );
 }
 
 #[test]
@@ -908,8 +1149,14 @@ fn retrieval_tab_builds_empty_and_result_states() {
     app.knowledge.retrieve_include_context = true;
     app.knowledge.retrieve_results = vec![debug, chunk("unscored", None)];
     keep_element(build_retrieval_tab(&app));
-    keep_element(chunk_card(&app.knowledge.retrieve_results[0]));
-    keep_element(chunk_card(&app.knowledge.retrieve_results[1]));
+    keep_element(chunk_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &app.knowledge.retrieve_results[0],
+    ));
+    keep_element(chunk_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &app.knowledge.retrieve_results[1],
+    ));
 
     app.knowledge.retrieving = true;
     keep_element(build_retrieval_tab(&app));
@@ -931,6 +1178,7 @@ fn small_element_helpers_build_without_panicking() {
         ))
     }));
     keep_element(option_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "高质量",
         "生成向量索引。",
         crate::app::assets::Icon::Speedometer2,

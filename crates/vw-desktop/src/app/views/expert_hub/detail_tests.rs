@@ -31,7 +31,8 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
     });
     let loading: iced::Element<'_, Message> = super::view(&app);
     std::hint::black_box(loading);
-    app.expert_hub.detail.as_mut().unwrap().detail = LoadState::Error("fixture error".to_string());
+    app.expert_hub.detail.as_mut().unwrap().detail =
+        LoadState::Error(("fixture error".to_string()).into());
     let error: iced::Element<'_, Message> = super::view(&app);
     std::hint::black_box(error);
 
@@ -91,12 +92,12 @@ fn expert_hub_detail_view_binds_only_close_download_and_skill_actions() {
     std::hint::black_box(readme_empty);
 
     app.expert_hub.detail.as_mut().unwrap().readme =
-        LoadState::Error("fixture README error".to_string());
+        LoadState::Error(("fixture README error".to_string()).into());
     let readme_error: iced::Element<'_, Message> = super::view(&app);
     std::hint::black_box(readme_error);
 
     app.expert_hub.detail.as_mut().unwrap().versions =
-        LoadState::Error("fixture versions error".to_string());
+        LoadState::Error(("fixture versions error".to_string()).into());
     let detail_with_versions_error: iced::Element<'_, Message> = super::view(&app);
     std::hint::black_box(detail_with_versions_error);
 }

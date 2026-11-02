@@ -84,18 +84,22 @@ fn public_message(message: PublicSkillMessage) -> Message {
 }
 
 fn tab_button(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     tab: PublicSkillTab,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(text(label).size(14))
+    button(text(i18n.__(label)).size(14))
         .on_press(public_message(PublicSkillMessage::SelectTab(tab)))
         .padding([8, 16])
         .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
         .into()
 }
 
-pub(super) fn source_selector(state: &PublicSkillMarketState) -> Element<'static, Message> {
+pub(super) fn source_selector(
+    i18n: crate::app::i18n::I18n,
+    state: &PublicSkillMarketState,
+) -> Element<'static, Message> {
     if !source_selector_visible(&state.sources) {
         return Space::new().width(Length::Shrink).into();
     }
@@ -116,7 +120,7 @@ pub(super) fn source_selector(state: &PublicSkillMarketState) -> Element<'static
     pick_list(options, selected, |option| {
         public_message(PublicSkillMessage::SelectSource(option.source))
     })
-    .placeholder("选择来源")
+    .placeholder(i18n.__("选择来源"))
     .padding([8, 12])
     .text_size(13)
     .style(settings_pick_list_style)
@@ -126,41 +130,50 @@ pub(super) fn source_selector(state: &PublicSkillMarketState) -> Element<'static
 }
 
 fn search_header(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
     let tabs = row(public_tab_specs()
         .iter()
-        .map(|(label, tab)| tab_button(label, *tab, state.tab == *tab))
+        .map(|(label, tab)| tab_button(i18n, label, *tab, state.tab == *tab))
         .collect::<Vec<_>>())
     .spacing(6)
     .wrap();
-    let search = text_input("搜索技能或套件", &state.query.keyword_draft)
-        .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
-        .on_submit(public_message(PublicSkillMessage::SubmitQuery))
-        .padding([10, 14])
-        .style(styles::search_input_style)
-        .width(Length::Fixed(340.0));
+    let search = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索技能或套件"),
+        &state.query.keyword_draft,
+    )
+    .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
+    .on_submit(public_message(PublicSkillMessage::SubmitQuery))
+    .padding([10, 14])
+    .style(styles::search_input_style)
+    .width(Length::Fixed(340.0));
     column![
         row![
             column![
-                text("技能")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("技能"))
                     .size(26)
                     .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
-                text("发现适合当前工作的公开技能与套件").size(13).style(styles::muted_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("发现适合当前工作的公开技能与套件")
+                )
+                .size(13)
+                .style(styles::muted_text_style),
             ]
             .spacing(5)
             .width(Length::Fill),
-            button(text("我安装的").size(13))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("我安装的")).size(13))
                 .on_press(public_message(PublicSkillMessage::OpenInstalled))
                 .padding([9, 14])
                 .style(styles::quiet_button_style),
         ]
         .align_y(Alignment::Center),
-        row![tabs, Space::new().width(Length::Fill), source_selector(state),]
+        row![tabs, Space::new().width(Length::Fill), source_selector(i18n, state),]
             .spacing(10)
             .align_y(Alignment::Center),
         row![
             search,
-            button(text("搜索").size(13))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索")).size(13))
                 .on_press(public_message(PublicSkillMessage::SubmitQuery))
                 .padding([10, 18])
                 .style(styles::action_button_style),
@@ -179,8 +192,12 @@ fn truncate(value: &str, limit: usize) -> String {
     if characters.next().is_some() { format!("{text}…") } else { text }
 }
 
-fn initial_badge(name: &str) -> Element<'static, Message> {
-    let initial = name.chars().next().unwrap_or('技').to_string();
+fn initial_badge(i18n: crate::app::i18n::I18n, name: &str) -> Element<'static, Message> {
+    let initial = name
+        .chars()
+        .next()
+        .unwrap_or_else(|| i18n.__("技能").chars().next().unwrap_or('S'))
+        .to_string();
     container(
         text(initial).size(17).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
     )
@@ -221,7 +238,11 @@ fn skill_coordinate_line(namespace: &str, slug: &str, version: &str) -> Element<
     .into()
 }
 
-fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, Message> {
+fn skill_card(
+    i18n: crate::app::i18n::I18n,
+    skill: &SkillMarketSkillDto,
+    featured: bool,
+) -> Element<'static, Message> {
     let locator = skill.coordinate.locator.clone();
     let metadata = format!(
         "{} · 下载 {} · 安装 {} · {:.1} 分",
@@ -238,7 +259,7 @@ fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, M
     container(
         column![
             row![
-                initial_badge(&skill.name),
+                initial_badge(i18n, &skill.name),
                 column![
                     text(truncate(&skill.name, 34))
                         .size(16)
@@ -261,7 +282,7 @@ fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, M
                     .size(11)
                     .style(styles::muted_text_style)
                     .width(Length::Fill),
-                button(text("详情").size(12))
+                button(text(i18n.__("详情")).size(12))
                     .on_press(skill_detail_message(locator))
                     .padding([6, 11])
                     .style(styles::quiet_button_style),
@@ -281,20 +302,32 @@ fn skill_card(skill: &SkillMarketSkillDto, featured: bool) -> Element<'static, M
     .into()
 }
 
-fn suite_card(suite: &SkillMarketSkillSetDto) -> Element<'static, Message> {
+fn suite_card(
+    i18n: crate::app::i18n::I18n,
+    suite: &SkillMarketSkillSetDto,
+) -> Element<'static, Message> {
     let source = suite.source.clone();
     let slug = suite.slug.clone();
     container(
         column![
             row![
-                initial_badge(&suite.name),
+                initial_badge(i18n, &suite.name),
                 column![
                     text(truncate(&suite.name, 34))
                         .size(16)
                         .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
-                    text(format!("{} 个成员 · {}", suite.member_count, suite.author))
-                        .size(11)
-                        .style(styles::muted_text_style),
+                    text(
+                        i18n.format(
+                            "%s 个成员 · %s",
+                            &[
+                                (suite.member_count).to_string().into(),
+                                (suite.author).to_string().into()
+                            ]
+                        )
+                        .expect("valid display template")
+                    )
+                    .size(11)
+                    .style(styles::muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fill),
@@ -309,7 +342,7 @@ fn suite_card(suite: &SkillMarketSkillSetDto) -> Element<'static, Message> {
                     .size(11)
                     .style(styles::muted_text_style)
                     .width(Length::Fill),
-                button(text("查看套件").size(12))
+                button(text(i18n.__("查看套件")).size(12))
                     .on_press(public_message(PublicSkillMessage::OpenSuiteDetail { source, slug }))
                     .padding([6, 11])
                     .style(styles::quiet_button_style),
@@ -364,8 +397,8 @@ pub(super) fn loading_view() -> Element<'static, Message> {
     .into()
 }
 
-fn empty_view(label: &'static str) -> Element<'static, Message> {
-    container(text(label).size(14).style(styles::muted_text_style))
+fn empty_view(i18n: crate::app::i18n::I18n, label: &'static str) -> Element<'static, Message> {
+    container(text(i18n.__(label)).size(14).style(styles::muted_text_style))
         .width(Length::Fill)
         .height(Length::Fixed(180.0))
         .center_x(Length::Fill)
@@ -373,12 +406,12 @@ fn empty_view(label: &'static str) -> Element<'static, Message> {
         .into()
 }
 
-pub(super) fn error_view(error: &str) -> Element<'static, Message> {
+pub(super) fn error_view(i18n: crate::app::i18n::I18n, error: &str) -> Element<'static, Message> {
     container(
         column![
-            text("加载失败").size(16),
+            text(i18n.__("加载失败")).size(16),
             text(truncate(error, 100)).size(12).style(styles::muted_text_style),
-            button(text("重试").size(12))
+            button(text(i18n.__("重试")).size(12))
                 .on_press(public_message(PublicSkillMessage::Retry))
                 .padding([8, 14])
                 .style(styles::action_button_style),
@@ -394,25 +427,29 @@ pub(super) fn error_view(error: &str) -> Element<'static, Message> {
 }
 
 fn skill_state_content(
+    i18n: crate::app::i18n::I18n,
     state: &LoadState<Vec<SkillMarketSkillDto>>,
     featured: bool,
     empty: &'static str,
 ) -> Element<'static, Message> {
     match state {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
-        LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
-        LoadState::Error(error) => error_view(error),
-        LoadState::Loaded(skills) if skills.is_empty() => empty_view(empty),
+        LoadState::NeedsLogin => error_view(i18n, i18n.__("公开市场不需要登录，请重试")),
+        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
+        LoadState::Loaded(skills) if skills.is_empty() => empty_view(i18n, empty),
         LoadState::Loaded(skills) => {
-            card_grid(skills.clone(), move |skill| skill_card(skill, featured))
+            card_grid(skills.clone(), move |skill| skill_card(i18n, skill, featured))
         }
     }
 }
 
-fn recommended_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
-    let all_content = skill_state_content(&state.recommended, false, "暂无推荐技能");
+fn recommended_content(
+    i18n: crate::app::i18n::I18n,
+    state: &PublicSkillMarketState,
+) -> Element<'static, Message> {
+    let all_content = skill_state_content(i18n, &state.recommended, false, i18n.__("暂无推荐技能"));
     column![
-        text("推荐技能")
+        text(i18n.__("推荐技能"))
             .size(19)
             .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
         all_content,
@@ -421,10 +458,13 @@ fn recommended_content(state: &PublicSkillMarketState) -> Element<'static, Messa
     .into()
 }
 
-fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message> {
+fn category_controls(
+    i18n: crate::app::i18n::I18n,
+    state: &PublicSkillMarketState,
+) -> Element<'static, Message> {
     let all_selected = state.query.category.is_none();
     let mut categories = row![
-        button(text("全部").size(12))
+        button(text(i18n.__("全部")).size(12))
             .on_press(public_message(PublicSkillMessage::SelectCategory(None)))
             .padding([7, 12])
             .style(move |theme, status| styles::selected_tab_style(theme, status, all_selected)),
@@ -444,11 +484,13 @@ fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message
             );
         }
     }
-    let selected_sort = SORT_OPTIONS.iter().copied().find(|option| option.sort == state.query.sort);
+    let sort_options =
+        SORT_OPTIONS.map(|option| SortOption { label: i18n.__(option.label), ..option });
+    let selected_sort = sort_options.iter().copied().find(|option| option.sort == state.query.sort);
     row![
         categories.wrap(),
         Space::new().width(Length::Fill),
-        pick_list(SORT_OPTIONS, selected_sort, |option| {
+        pick_list(sort_options, selected_sort, |option| {
             public_message(PublicSkillMessage::SelectSort(option.sort))
         })
         .padding([8, 12])
@@ -462,75 +504,97 @@ fn category_controls(state: &PublicSkillMarketState) -> Element<'static, Message
     .into()
 }
 
-fn pagination(page: u32, page_size: u32, total: u64) -> Element<'static, Message> {
+fn pagination(
+    i18n: crate::app::i18n::I18n,
+    page: u32,
+    page_size: u32,
+    total: u64,
+) -> Element<'static, Message> {
     let mut previous =
-        button(text("上一页").size(12)).padding([7, 12]).style(styles::quiet_button_style);
+        button(text(i18n.__("上一页")).size(12)).padding([7, 12]).style(styles::quiet_button_style);
     if page > 1 {
         previous = previous.on_press(public_message(PublicSkillMessage::PreviousPage));
     }
     let mut next =
-        button(text("下一页").size(12)).padding([7, 12]).style(styles::quiet_button_style);
+        button(text(i18n.__("下一页")).size(12)).padding([7, 12]).style(styles::quiet_button_style);
     if u64::from(page) * u64::from(page_size) < total {
         next = next.on_press(public_message(PublicSkillMessage::NextPage));
     }
-    row![previous, text(format!("第 {page} 页")).size(12), next]
-        .spacing(10)
-        .align_y(Alignment::Center)
-        .into()
+    row![
+        previous,
+        text(i18n.format("第 %u 页", &[page.into()]).expect("valid page number")).size(12),
+        next
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center)
+    .into()
 }
 
-fn market_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
+fn market_content(
+    i18n: crate::app::i18n::I18n,
+    state: &PublicSkillMarketState,
+) -> Element<'static, Message> {
     let content = match &state.market {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
-        LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
-        LoadState::Error(error) => error_view(error),
-        LoadState::Loaded(page) if page.skills.is_empty() => empty_view("未找到匹配的技能"),
+        LoadState::NeedsLogin => error_view(i18n, i18n.__("公开市场不需要登录，请重试")),
+        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
+        LoadState::Loaded(page) if page.skills.is_empty() => {
+            empty_view(i18n, i18n.__("未找到匹配的技能"))
+        }
         LoadState::Loaded(page) => column![
-            card_grid(page.skills.clone(), |skill| skill_card(skill, false)),
-            pagination(page.page, page.page_size, page.total),
+            card_grid(page.skills.clone(), move |skill| skill_card(i18n, skill, false)),
+            pagination(i18n, page.page, page.page_size, page.total),
         ]
         .spacing(12)
         .into(),
     };
-    column![category_controls(state), content].spacing(12).into()
+    column![category_controls(i18n, state), content].spacing(12).into()
 }
 
-pub(super) fn suites_content(state: &PublicSkillMarketState) -> Element<'static, Message> {
+pub(super) fn suites_content(
+    i18n: crate::app::i18n::I18n,
+    state: &PublicSkillMarketState,
+) -> Element<'static, Message> {
     let content = match &state.suites {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
-        LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
-        LoadState::Error(error) => error_view(error),
-        LoadState::Loaded(page) if page.skillsets.is_empty() => empty_view("未找到匹配的套件"),
+        LoadState::NeedsLogin => error_view(i18n, i18n.__("公开市场不需要登录，请重试")),
+        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
+        LoadState::Loaded(page) if page.skillsets.is_empty() => {
+            empty_view(i18n, i18n.__("未找到匹配的套件"))
+        }
         LoadState::Loaded(page) => column![
-            card_grid(page.skillsets.clone(), suite_card),
-            pagination(page.page, page.page_size, page.total),
+            card_grid(page.skillsets.clone(), move |suite| suite_card(i18n, suite)),
+            pagination(i18n, page.page, page.page_size, page.total),
         ]
         .spacing(12)
         .into(),
     };
-    column![suite_category_controls(state), content].spacing(12).into()
+    column![suite_category_controls(i18n, state), content].spacing(12).into()
 }
 
-fn suite_category_controls(state: &PublicSkillMarketState) -> Element<'static, Message> {
+fn suite_category_controls(
+    i18n: crate::app::i18n::I18n,
+    state: &PublicSkillMarketState,
+) -> Element<'static, Message> {
     // SkillHub expert-package scenes differ from individual skill categories.
     let categories = [
-        (None, "全部"),
-        (Some("finance"), "金融"),
-        (Some("tech"), "科技"),
-        (Some("design"), "设计"),
-        (Some("marketing"), "营销"),
-        (Some("legal"), "法律"),
-        (Some("academic"), "学术"),
-        (Some("education"), "教育"),
-        (Some("hr"), "人力"),
-        (Some("ecommerce"), "电商"),
-        (Some("media"), "媒体"),
-        (Some("healthcare"), "医疗"),
-        (Some("mysticism"), "玄学"),
+        (None, i18n.__("全部")),
+        (Some("finance"), i18n.__("金融")),
+        (Some("tech"), i18n.__("科技")),
+        (Some("design"), i18n.__("设计")),
+        (Some("marketing"), i18n.__("营销")),
+        (Some("legal"), i18n.__("法律")),
+        (Some("academic"), i18n.__("学术")),
+        (Some("education"), i18n.__("教育")),
+        (Some("hr"), i18n.__("人力")),
+        (Some("ecommerce"), i18n.__("电商")),
+        (Some("media"), i18n.__("媒体")),
+        (Some("healthcare"), i18n.__("医疗")),
+        (Some("mysticism"), i18n.__("玄学")),
     ];
     row(categories.into_iter().map(|(category, label)| {
         let selected = state.suites_category.as_deref() == category;
-        button(text(label).size(12))
+        button(text(i18n.__(label)).size(12))
             .on_press(public_message(PublicSkillMessage::SelectSuiteCategory(
                 category.map(str::to_string),
             )))
@@ -545,15 +609,19 @@ fn suite_category_controls(state: &PublicSkillMarketState) -> Element<'static, M
 
 /// 构建公共市场页签、来源、搜索、列表与分页界面。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.public_market;
     let content = match &state.sources {
         LoadState::Idle | LoadState::Loading { .. } => loading_view(),
-        LoadState::Error(error) => error_view(error),
-        LoadState::NeedsLogin => error_view("公开市场不需要登录，请重试"),
+        LoadState::Error(error) => error_view(i18n, &error.render(i18n)),
+        LoadState::NeedsLogin => error_view(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("公开市场不需要登录，请重试"),
+        ),
         LoadState::Loaded(_) => match state.tab {
-            PublicSkillTab::Recommended => recommended_content(state),
-            PublicSkillTab::SkillHub => market_content(state),
-            PublicSkillTab::Suites => suites_content(state),
+            PublicSkillTab::Recommended => recommended_content(i18n, state),
+            PublicSkillTab::SkillHub => market_content(i18n, state),
+            PublicSkillTab::Suites => suites_content(i18n, state),
         },
     };
     let body = column![search_header(app), content].spacing(18).width(Length::Fill);

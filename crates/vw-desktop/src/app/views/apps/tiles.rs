@@ -90,7 +90,8 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
     let q = app.apps_search_query.trim().to_lowercase();
 
     // 定义匹配函数：如果查询为空或字符串包含查询内容则匹配
-    let matches = |s: &str| q.is_empty() || s.to_lowercase().contains(&q);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let matches = |s: &str| crate::app::i18n::apps::matches_navigation(i18n, s, &q);
 
     // 如果处于阻塞状态，将所有消息替换为 None
     let msg = |m: Message| if blocked { Message::None } else { m };
@@ -101,8 +102,9 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
     // 项目管理瓦片
     if matches("项目管理") {
         tiles.push(ui::tile(
+            i18n,
             Icon::FolderOpen,
-            "项目管理".to_string(),
+            i18n.__("项目管理").to_string(),
             Color::from_rgb8(0x94, 0x5B, 0xFF), // 紫色主题色
             vec![
                 ("打开最近", msg(Message::View(ViewMessage::AppsOpenMostRecent))),
@@ -119,8 +121,9 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
     // 添加网址瓦片
     if matches("添加网址") {
         tiles.push(ui::tile(
+            i18n,
             Icon::LayoutTextWindow,
-            "添加网址".to_string(),
+            i18n.__("添加网址").to_string(),
             Color::from_rgb8(0xFF, 0x72, 0xB6), // 粉色主题色
             vec![("添加", msg(Message::View(ViewMessage::ToggleWebLinksMenu)))],
             msg(Message::View(ViewMessage::ToggleWebLinksMenu)),
@@ -133,7 +136,10 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
         let title = if bm.title.trim().is_empty() { bm.url.clone() } else { bm.title.clone() };
 
         // 如果标题和 URL 都不匹配搜索条件，跳过此书签
-        if !matches(&title) && !matches(&bm.url) {
+        if !q.is_empty()
+            && !title.to_lowercase().contains(&q)
+            && !bm.url.to_lowercase().contains(&q)
+        {
             continue;
         }
 
@@ -153,6 +159,7 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
         ];
 
         tiles.push(ui::tile(
+            i18n,
             Icon::LayoutTextWindow,
             title.clone(),
             Color::from_rgb8(0x0D, 0x99, 0xFF),
@@ -163,8 +170,9 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
 
     if matches("知识库") || matches("Knowledge") {
         tiles.push(ui::tile(
+            i18n,
             Icon::Journals,
-            "知识库".to_string(),
+            i18n.__("知识库").to_string(),
             Color::from_rgb8(0x35, 0x85, 0xD6),
             vec![("打开", msg(Message::View(ViewMessage::OpenKnowledge)))],
             msg(Message::View(ViewMessage::OpenKnowledge)),
@@ -174,8 +182,9 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
     // Dify 工作流瓦片
     if matches("工作流") {
         tiles.push(ui::tile(
+            i18n,
             Icon::GitBranch,
-            "工作流".to_string(),
+            i18n.__("工作流").to_string(),
             Color::from_rgb8(0x15, 0x8E, 0xA5),
             vec![("打开", msg(Message::View(ViewMessage::OpenWorkflowTool)))],
             msg(Message::View(ViewMessage::OpenWorkflowTool)),
@@ -184,8 +193,9 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
 
     if matches("任务编排") {
         tiles.push(ui::tile(
+            i18n,
             Icon::GearWideConnected,
-            "任务编排".to_string(),
+            i18n.__("任务编排").to_string(),
             Color::from_rgb8(0x28, 0x8F, 0x61),
             vec![("打开", msg(Message::View(ViewMessage::OpenWorkflowManager)))],
             msg(Message::View(ViewMessage::OpenWorkflowManager)),
@@ -251,15 +261,18 @@ pub(super) fn render_tiles_grid(app: &App, blocked: bool) -> Element<'_, Message
 /// ```
 pub(super) fn render_header(app: &App, blocked: bool) -> Element<'static, Message> {
     // 搜索输入框
-    let search_input = text_input("搜索工具、网址或动作", &app.apps_search_query)
-        .on_input(move |s| {
-            // 阻塞状态下不响应输入
-            if blocked { Message::None } else { Message::View(ViewMessage::AppsSearchChanged(s)) }
-        })
-        .width(Length::Fill)
-        .padding(iced::Padding { top: 10.0, right: 40.0, bottom: 10.0, left: 14.0 })
-        .size(14)
-        .style(ui::figma_text_input_style);
+    let search_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索工具、网址或动作"),
+        &app.apps_search_query,
+    )
+    .on_input(move |s| {
+        // 阻塞状态下不响应输入
+        if blocked { Message::None } else { Message::View(ViewMessage::AppsSearchChanged(s)) }
+    })
+    .width(Length::Fill)
+    .padding(iced::Padding { top: 10.0, right: 40.0, bottom: 10.0, left: 14.0 })
+    .size(14)
+    .style(ui::figma_text_input_style);
 
     // 清除按钮尺寸
     let clear_btn_size = 26.0;
@@ -301,10 +314,15 @@ pub(super) fn render_header(app: &App, blocked: bool) -> Element<'static, Messag
     // 头部布局：标题 | 占位 | 搜索框
     row![
         column![
-            text("应用中心")
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用中心"))
                 .size(20)
                 .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-            text("统一浏览内置工具、网址书签与常用动作入口。").size(12).style(|theme: &Theme| {
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("统一浏览内置工具、网址书签与常用动作入口。")
+            )
+            .size(12)
+            .style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.66)) }
             }),
         ]

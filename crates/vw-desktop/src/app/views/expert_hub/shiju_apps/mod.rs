@@ -58,8 +58,13 @@ pub(super) fn tab_specs() -> &'static [(&'static str, ShijuAppsTab)] {
     &[("我的应用", ShijuAppsTab::Mine), ("应用商店", ShijuAppsTab::Store)]
 }
 
-fn tab_button(label: &'static str, tab: ShijuAppsTab, selected: bool) -> Element<'static, Message> {
-    button(text(label).size(14))
+fn tab_button(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    tab: ShijuAppsTab,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(i18n.__(label)).size(14))
         .on_press(Message::ShijuApps(ShijuAppsMessage::SelectTab(tab)))
         .padding([8, 14])
         .style(move |theme, status| styles::tab_style(theme, status, selected))
@@ -72,18 +77,32 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         detail::view(app, target)
     } else {
         let tabs = tab_specs().iter().fold(row!().spacing(8), |tabs, (label, tab)| {
-            tabs.push(tab_button(label, *tab, app.expert_hub.shiju_apps.tab == *tab))
+            tabs.push(tab_button(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                label,
+                *tab,
+                app.expert_hub.shiju_apps.tab == *tab,
+            ))
         });
         let body = match app.expert_hub.shiju_apps.tab {
-            ShijuAppsTab::Store => store::view(&app.expert_hub.shiju_apps.store),
-            ShijuAppsTab::Mine => mine::view(&app.expert_hub.shiju_apps.mine),
+            ShijuAppsTab::Store => store::view(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &app.expert_hub.shiju_apps.store,
+            ),
+            ShijuAppsTab::Mine => mine::view(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &app.expert_hub.shiju_apps.mine,
+            ),
         };
 
         column![
-            text("识矩应用").size(24),
-            text("浏览平台应用，或查看当前账户已经安装的应用。")
-                .size(13)
-                .style(styles::muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("识矩应用")).size(24),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("浏览平台应用，或查看当前账户已经安装的应用。")
+            )
+            .size(13)
+            .style(styles::muted_text_style),
             tabs,
             body,
         ]

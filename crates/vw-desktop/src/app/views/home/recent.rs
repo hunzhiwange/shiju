@@ -25,14 +25,15 @@ use super::common::{
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub(super) fn render_body(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     if app.recent_projects.is_empty() {
-        render_empty_state().into()
+        render_empty_state(i18n).into()
     } else {
         render_recent_projects_body(app)
     }
 }
 
-fn render_empty_state<'a>() -> iced::widget::Container<'a, Message> {
+fn render_empty_state<'a>(i18n: crate::app::i18n::I18n) -> iced::widget::Container<'a, Message> {
     let logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(180.0))
@@ -51,7 +52,7 @@ fn render_empty_state<'a>() -> iced::widget::Container<'a, Message> {
         column![
             container(logo).width(Length::Fill).center_x(Length::Fill),
             Space::new().height(Length::Fixed(16.0)),
-            text("暂无最近项目").size(16).style(|theme: &Theme| {
+            text(i18n.__("暂无最近项目")).size(16).style(|theme: &Theme| {
                 let color = if is_dark_theme(theme) {
                     theme.extended_palette().background.base.text
                 } else {
@@ -60,7 +61,7 @@ fn render_empty_state<'a>() -> iced::widget::Container<'a, Message> {
                 text::Style { color: Some(color) }
             }),
             Space::new().height(Length::Fixed(6.0)),
-            text("点击右上角\"选择文件夹\"开始").size(12).style(|theme: &Theme| {
+            text(i18n.__("点击右上角\"选择文件夹\"开始")).size(12).style(|theme: &Theme| {
                 let color = if is_dark_theme(theme) {
                     theme.extended_palette().background.base.text
                 } else {
@@ -80,6 +81,7 @@ fn render_empty_state<'a>() -> iced::widget::Container<'a, Message> {
 }
 
 fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let hero_logo = container(
         Image::new(assets::get_image(Icon::Logo))
             .width(Length::Fixed(140.0))
@@ -101,15 +103,18 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
         row![
             hero_logo,
             column![
-                text("识矩").size(22).font(home_cjk_emphasis_font()).style(|theme: &Theme| {
-                    let color = if is_dark_theme(theme) {
-                        theme.extended_palette().background.base.text
-                    } else {
-                        theme.palette().text
-                    };
-                    text::Style { color: Some(color) }
-                }),
-                text("选择文件夹开始一个项目，或从下方最近项目继续。").size(12).style(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("识矩"))
+                    .size(22)
+                    .font(home_cjk_emphasis_font())
+                    .style(|theme: &Theme| {
+                        let color = if is_dark_theme(theme) {
+                            theme.extended_palette().background.base.text
+                        } else {
+                            theme.palette().text
+                        };
+                        text::Style { color: Some(color) }
+                    }),
+                text(i18n.__("选择文件夹开始一个项目，或从下方最近项目继续。")).size(12).style(
                     |theme: &Theme| {
                         let color = if is_dark_theme(theme) {
                             theme.extended_palette().background.base.text
@@ -123,7 +128,7 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
             .spacing(4),
             container(Space::new()).width(Length::Fill),
             primary_button(
-                "选择文件夹",
+                i18n.__("选择文件夹"),
                 Message::Project(message::ProjectMessage::OpenFolderPressed),
             ),
         ]
@@ -143,25 +148,32 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
         style
     });
 
-    let recent_count = container(text(format!("{} 个项目", app.recent_projects.len())).size(11))
-        .padding([5, 10])
-        .style(|theme: &Theme| {
-            let palette = theme.extended_palette();
-            iced::widget::container::Style {
-                background: Some(Background::Color(if is_dark_theme(theme) {
-                    palette.background.weak.color.scale_alpha(0.48)
-                } else {
-                    Color::WHITE.scale_alpha(0.78)
-                })),
-                border: Border {
-                    width: 1.0,
-                    color: palette.background.strong.color.scale_alpha(0.68),
-                    radius: 999.0.into(),
-                },
-                text_color: Some(theme.palette().text.scale_alpha(0.72)),
-                ..Default::default()
-            }
-        });
+    let recent_count = container(
+        text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("%u 个项目", &[app.recent_projects.len().into()])
+                .expect("valid project count"),
+        )
+        .size(11),
+    )
+    .padding([5, 10])
+    .style(|theme: &Theme| {
+        let palette = theme.extended_palette();
+        iced::widget::container::Style {
+            background: Some(Background::Color(if is_dark_theme(theme) {
+                palette.background.weak.color.scale_alpha(0.48)
+            } else {
+                Color::WHITE.scale_alpha(0.78)
+            })),
+            border: Border {
+                width: 1.0,
+                color: palette.background.strong.color.scale_alpha(0.68),
+                radius: 999.0.into(),
+            },
+            text_color: Some(theme.palette().text.scale_alpha(0.72)),
+            ..Default::default()
+        }
+    });
 
     let mut recent_list = column![].spacing(10).width(Length::Fill);
     for (index, path) in app.recent_projects.iter().enumerate() {
@@ -172,8 +184,8 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
         hero,
         row![
             column![
-                text("最近项目").size(15).font(home_cjk_emphasis_font()),
-                text("继续最近的工作区入口，并直接处理常用操作。").size(12).style(
+                text(i18n.__("最近项目")).size(15).font(home_cjk_emphasis_font()),
+                text(i18n.__("继续最近的工作区入口，并直接处理常用操作。")).size(12).style(
                     |theme: &Theme| iced::widget::text::Style {
                         color: Some(theme.palette().text.scale_alpha(0.62)),
                     }
@@ -194,6 +206,7 @@ fn render_recent_projects_body(app: &App) -> Element<'_, Message> {
 }
 
 fn recent_project_row<'a>(app: &App, index: usize, path: &str) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let name = recent_project_name(app, index, path);
     let project_meta = app.recent_projects_meta.iter().find(|meta| meta.path == path);
     let custom_icon = project_meta.and_then(|meta| meta.icon.as_deref());
@@ -202,22 +215,24 @@ fn recent_project_row<'a>(app: &App, index: usize, path: &str) -> Element<'a, Me
     let accent = custom_color.unwrap_or_else(|| project_accent_color(path));
     let selected = app.project_path.as_ref().is_some_and(|current| current == path);
 
-    let status_badge = container(text(if selected { "当前工作区" } else { "最近项目" }).size(11))
-        .padding([4, 10])
-        .style(move |theme: &Theme| iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark_theme(theme) {
-                accent.scale_alpha(if selected { 0.28 } else { 0.16 })
-            } else {
-                accent.scale_alpha(if selected { 0.14 } else { 0.10 })
-            })),
-            border: Border {
-                width: 1.0,
-                color: accent.scale_alpha(if is_dark_theme(theme) { 0.34 } else { 0.22 }),
-                radius: 999.0.into(),
-            },
-            text_color: Some(if selected { accent } else { accent.scale_alpha(0.92) }),
-            ..Default::default()
-        });
+    let status_badge = container(
+        text(if selected { i18n.__("当前工作区") } else { i18n.__("最近项目") }).size(11),
+    )
+    .padding([4, 10])
+    .style(move |theme: &Theme| iced::widget::container::Style {
+        background: Some(Background::Color(if is_dark_theme(theme) {
+            accent.scale_alpha(if selected { 0.28 } else { 0.16 })
+        } else {
+            accent.scale_alpha(if selected { 0.14 } else { 0.10 })
+        })),
+        border: Border {
+            width: 1.0,
+            color: accent.scale_alpha(if is_dark_theme(theme) { 0.34 } else { 0.22 }),
+            radius: 999.0.into(),
+        },
+        text_color: Some(if selected { accent } else { accent.scale_alpha(0.92) }),
+        ..Default::default()
+    });
 
     let meta = column![
         row![
@@ -245,22 +260,23 @@ fn recent_project_row<'a>(app: &App, index: usize, path: &str) -> Element<'a, Me
     .spacing(6)
     .width(Length::Fill);
 
-    let open_tag = container(text(if selected { "继续处理" } else { "打开" }).size(11))
-        .padding([6, 12])
-        .style(move |theme: &Theme| iced::widget::container::Style {
-            background: Some(Background::Color(if is_dark_theme(theme) {
-                accent.scale_alpha(0.18)
-            } else {
-                accent.scale_alpha(0.10)
-            })),
-            border: Border {
-                width: 1.0,
-                color: accent.scale_alpha(if is_dark_theme(theme) { 0.38 } else { 0.22 }),
-                radius: 999.0.into(),
-            },
-            text_color: Some(accent),
-            ..Default::default()
-        });
+    let open_tag =
+        container(text(if selected { i18n.__("继续处理") } else { i18n.__("打开") }).size(11))
+            .padding([6, 12])
+            .style(move |theme: &Theme| iced::widget::container::Style {
+                background: Some(Background::Color(if is_dark_theme(theme) {
+                    accent.scale_alpha(0.18)
+                } else {
+                    accent.scale_alpha(0.10)
+                })),
+                border: Border {
+                    width: 1.0,
+                    color: accent.scale_alpha(if is_dark_theme(theme) { 0.38 } else { 0.22 }),
+                    radius: 999.0.into(),
+                },
+                text_color: Some(accent),
+                ..Default::default()
+            });
 
     button(
         container(
@@ -341,13 +357,13 @@ fn recent_project_name(app: &App, index: usize, path: &str) -> String {
         }
     }
 
-    project_name_from_path(path)
+    project_name_from_path(crate::app::i18n::I18n::new(app.desktop_locale), path)
 }
 
-fn project_name_from_path(path: &str) -> String {
+fn project_name_from_path(i18n: crate::app::i18n::I18n, path: &str) -> String {
     let trimmed = path.trim();
     if trimmed.is_empty() {
-        return "未命名项目".to_string();
+        return i18n.__("未命名项目").to_string();
     }
     let without_trailing_separator = trimmed.trim_end_matches(|ch| ch == '/' || ch == '\\');
     let display_path =

@@ -10,48 +10,96 @@ fn test_module_is_wired() {
 
 #[test]
 fn project_name_from_path_trims_trailing_separator() {
-    assert_eq!(super::project_name_from_path(""), "未命名项目");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            ""
+        ),
+        "未命名项目"
+    );
 }
 
 #[test]
 fn project_name_from_path_keeps_last_segment_without_trailing_separator() {
-    assert_eq!(super::project_name_from_path("/Users/Shared/work/dir/data/codes/rue"), "rue");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "/Users/Shared/work/dir/data/codes/rue"
+        ),
+        "rue"
+    );
 }
 
 #[test]
 fn project_name_from_path_normal_path_returns_last_segment() {
-    assert_eq!(super::project_name_from_path("/home/user/project"), "project");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "/home/user/project"
+        ),
+        "project"
+    );
 }
 
 #[test]
 fn project_name_from_path_trailing_slash_returns_last_segment() {
-    assert_eq!(super::project_name_from_path("/a/b/c/"), "c");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "/a/b/c/"
+        ),
+        "c"
+    );
 }
 
 #[test]
 fn project_name_from_path_trailing_backslash_returns_last_segment() {
-    assert_eq!(super::project_name_from_path("C:\\a\\b\\c\\"), "c");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "C:\\a\\b\\c\\"
+        ),
+        "c"
+    );
 }
 
 #[test]
 fn project_name_from_path_single_segment() {
-    assert_eq!(super::project_name_from_path("my-project"), "my-project");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "my-project"
+        ),
+        "my-project"
+    );
 }
 
 #[test]
 fn project_name_from_path_single_dot_dir() {
-    assert_eq!(super::project_name_from_path("."), ".");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "."
+        ),
+        "."
+    );
 }
 
 #[test]
 fn project_name_from_path_root_slash() {
-    let name = super::project_name_from_path("/");
+    let name = super::project_name_from_path(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "/",
+    );
     assert!(!name.is_empty());
 }
 
 #[test]
 fn project_name_from_path_whitespace_only() {
-    let name = super::project_name_from_path("   ");
+    let name = super::project_name_from_path(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "   ",
+    );
     assert!(!name.is_empty());
 }
 
@@ -241,7 +289,13 @@ fn render_body_with_custom_icon_and_color_does_not_panic() {
 
 #[test]
 fn project_name_from_path_trims_surrounding_whitespace_before_extracting_name() {
-    assert_eq!(super::project_name_from_path("  /tmp/trimmed-project/  "), "trimmed-project");
+    assert_eq!(
+        super::project_name_from_path(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "  /tmp/trimmed-project/  "
+        ),
+        "trimmed-project"
+    );
 }
 
 #[test]

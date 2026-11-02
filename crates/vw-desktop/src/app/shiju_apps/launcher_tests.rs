@@ -18,15 +18,23 @@ struct MemoryProcess {
 impl LaunchProcess for MemoryProcess {
     type Child = ();
 
-    fn spawn(&mut self, program: &Path, args: &[String]) -> Result<Self::Child, String> {
+    fn spawn(
+        &mut self,
+        program: &Path,
+        args: &[String],
+    ) -> Result<Self::Child, crate::app::skill_hub::SkillHubError> {
         self.argv =
             std::iter::once(program.display().to_string()).chain(args.iter().cloned()).collect();
-        if let Some(error) = &self.spawn_error { Err(error.clone()) } else { Ok(()) }
+        if let Some(error) = &self.spawn_error { Err(error.clone().into()) } else { Ok(()) }
     }
 
-    fn write_stdin(&mut self, _child: &mut Self::Child, input: &[u8]) -> Result<(), String> {
+    fn write_stdin(
+        &mut self,
+        _child: &mut Self::Child,
+        input: &[u8],
+    ) -> Result<(), crate::app::skill_hub::SkillHubError> {
         self.stdin.extend_from_slice(input);
-        if let Some(error) = &self.write_error { Err(error.clone()) } else { Ok(()) }
+        if let Some(error) = &self.write_error { Err(error.clone().into()) } else { Ok(()) }
     }
 
     fn terminate(&mut self, _child: &mut Self::Child) {

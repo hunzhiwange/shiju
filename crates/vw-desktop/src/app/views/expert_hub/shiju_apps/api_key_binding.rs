@@ -81,13 +81,15 @@ fn option_label(key: &ShijuIamApiKeyDto) -> String {
 
 fn application_name(app: &App, installation_id: &str) -> String {
     let ShijuAppsLoadState::Loaded(apps) = &app.expert_hub.shiju_apps.mine else {
-        return "识矩应用".to_string();
+        return crate::app::i18n::I18n::new(app.desktop_locale).__("识矩应用").to_string();
     };
     apps.apps
         .iter()
         .find(|item| item.installation_id == installation_id)
         .map(|item| item.name.clone())
-        .unwrap_or_else(|| "识矩应用".to_string())
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("识矩应用").to_string()
+        })
 }
 
 fn installation_id(state: &ShijuAppLaunchState) -> Option<&str> {
@@ -119,34 +121,43 @@ fn ascii_value(value: String, size: u32) -> iced::widget::Text<'static> {
     if is_ascii { value.font(Font::MONOSPACE) } else { value }
 }
 
-fn detail_field(label: &'static str, value: String, monospace: bool) -> Element<'static, Message> {
+fn detail_field(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    value: String,
+    monospace: bool,
+) -> Element<'static, Message> {
     let value = if monospace && value.is_ascii() {
         text(value).size(12).font(Font::MONOSPACE)
     } else {
         text(value).size(13)
     };
-    column![text(label).size(11).style(settings_muted_text_style), value].spacing(4).into()
+    column![text(i18n.__(label)).size(11).style(settings_muted_text_style), value].spacing(4).into()
 }
 
-fn selected_key_details(key: &ShijuIamApiKeyDto) -> Element<'static, Message> {
+fn selected_key_details(
+    i18n: crate::app::i18n::I18n,
+    key: &ShijuIamApiKeyDto,
+) -> Element<'static, Message> {
     let enabled = key.status == "enabled";
-    let status = if enabled { "已启用" } else { "未启用" };
+    let status = if enabled { i18n.__("已启用") } else { i18n.__("未启用") };
     container(
         column![
             row![
-                text("所选密钥详情").size(14),
+                text(i18n.__("所选密钥详情")).size(14),
                 Space::new().width(Length::Fill),
                 container(text(status).size(11))
                     .padding([4, 9])
                     .style(move |theme| styles::status_style(theme, enabled)),
             ]
             .align_y(Alignment::Center),
-            detail_field("名称", key.key_name.clone(), false),
-            detail_field("掩码", key.api_key_mask.clone(), true),
-            detail_field("密钥 ID", key.api_key_id.to_string(), true),
+            detail_field(i18n, i18n.__("名称"), key.key_name.clone(), false),
+            detail_field(i18n, i18n.__("掩码"), key.api_key_mask.clone(), true),
+            detail_field(i18n, i18n.__("密钥 ID"), key.api_key_id.to_string(), true),
             detail_field(
-                "有效期",
-                key.expires_at.clone().unwrap_or_else(|| "长期有效".to_string()),
+                i18n,
+                i18n.__("有效期"),
+                key.expires_at.clone().unwrap_or_else(|| i18n.__("长期有效").to_string()),
                 true,
             ),
         ]
@@ -174,8 +185,11 @@ fn disabled_selection(label: String) -> Element<'static, Message> {
         .into()
 }
 
-fn loading_feedback(label: &'static str) -> Element<'static, Message> {
-    container(text(label).size(13).style(settings_muted_text_style))
+fn loading_feedback(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+) -> Element<'static, Message> {
+    container(text(i18n.__(label)).size(13).style(settings_muted_text_style))
         .width(Length::Fill)
         .height(Length::Fixed(96.0))
         .center_x(Length::Fill)
@@ -184,7 +198,10 @@ fn loading_feedback(label: &'static str) -> Element<'static, Message> {
         .into()
 }
 
-fn selection_control(state: &ShijuAppLaunchState) -> Element<'static, Message> {
+fn selection_control(
+    i18n: crate::app::i18n::I18n,
+    state: &ShijuAppLaunchState,
+) -> Element<'static, Message> {
     match state {
         ShijuAppLaunchState::SelectingApiKey { can_edit: true, api_keys, .. }
             if !api_keys.is_empty() =>
@@ -199,7 +216,7 @@ fn selection_control(state: &ShijuAppLaunchState) -> Element<'static, Message> {
             pick_list(options, selected, |option| {
                 Message::ShijuApps(select_action(option.api_key_id))
             })
-            .placeholder("请选择 IAM API 密钥")
+            .placeholder(i18n.__("请选择 IAM API 密钥"))
             .padding([10, 12])
             .text_size(13)
             .width(Length::Fill)
@@ -208,37 +225,40 @@ fn selection_control(state: &ShijuAppLaunchState) -> Element<'static, Message> {
             .into()
         }
         ShijuAppLaunchState::SavingApiKeyBinding { .. } => disabled_selection(
-            selected_label(state).unwrap_or_else(|| "正在保存所选密钥".to_string()),
+            selected_label(state).unwrap_or_else(|| i18n.__("正在保存所选密钥").to_string()),
         ),
         ShijuAppLaunchState::SelectingApiKey { can_edit: false, .. } => {
-            disabled_selection("此应用不允许修改个人 API 密钥绑定".to_string())
+            disabled_selection(i18n.__("此应用不允许修改个人 API 密钥绑定").to_string())
         }
         ShijuAppLaunchState::SelectingApiKey { .. } => {
-            disabled_selection("当前账户没有可选择的 IAM API 密钥".to_string())
+            disabled_selection(i18n.__("当前账户没有可选择的 IAM API 密钥").to_string())
         }
         ShijuAppLaunchState::CheckingBinding { .. } => {
-            disabled_selection("正在检查应用 API 密钥绑定…".to_string())
+            disabled_selection(i18n.__("正在检查应用 API 密钥绑定…").to_string())
         }
         ShijuAppLaunchState::LoadingApiKeys { .. } => {
-            disabled_selection("正在加载 IAM API 密钥…".to_string())
+            disabled_selection(i18n.__("正在加载 IAM API 密钥…").to_string())
         }
         ShijuAppLaunchState::Error { .. } => {
-            disabled_selection("加载失败，请刷新后重试".to_string())
+            disabled_selection(i18n.__("加载失败，请刷新后重试").to_string())
         }
         ShijuAppLaunchState::Idle | ShijuAppLaunchState::Preparing { .. } => {
-            disabled_selection("暂无可选择的密钥".to_string())
+            disabled_selection(i18n.__("暂无可选择的密钥").to_string())
         }
     }
 }
 
 fn body(app: &App) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.expert_hub.shiju_apps.launch;
     let current_installation_id = installation_id(state).unwrap_or_default();
     let app_name = application_name(app, current_installation_id);
     let status_error = matches!(state, ShijuAppLaunchState::Error { .. });
     let close_message = Message::ShijuApps(cancel_action());
     let mut refresh_button =
-        button(text("刷新").size(12)).padding([7, 12]).style(rounded_action_btn_style);
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("刷新")).size(12))
+            .padding([7, 12])
+            .style(rounded_action_btn_style);
     if matches!(
         state,
         ShijuAppLaunchState::SelectingApiKey { .. } | ShijuAppLaunchState::Error { .. }
@@ -248,10 +268,13 @@ fn body(app: &App) -> Element<'static, Message> {
 
     let header = row![
         column![
-            text("应用 API 密钥").size(22),
-            text("仅绑定当前账户启用的 IAM API 密钥；不会展示或保存原始密钥。")
-                .size(12)
-                .style(settings_muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用 API 密钥")).size(22),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("仅绑定当前账户启用的 IAM API 密钥；不会展示或保存原始密钥。")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         ]
         .spacing(5)
         .width(Length::Fill),
@@ -268,10 +291,14 @@ fn body(app: &App) -> Element<'static, Message> {
         ]
         .spacing(4)
         .width(Length::Fill),
-        container(text("个人使用").size(11)).padding([4, 9]).style(styles::badge_style),
-        container(text(status_label(state)).size(11))
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("个人使用")).size(11))
             .padding([4, 9])
-            .style(move |theme| styles::binding_state_style(theme, status_error)),
+            .style(styles::badge_style),
+        container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(status_label(state))).size(11)
+        )
+        .padding([4, 9])
+        .style(move |theme| styles::binding_state_style(theme, status_error)),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -279,11 +306,14 @@ fn body(app: &App) -> Element<'static, Message> {
     let mut content = column![
         summary,
         column![
-            text("IAM API 密钥").size(12),
-            selection_control(state),
-            text("列表包含当前账户返回的启用与非启用项；只有启用项可以保存。")
-                .size(11)
-                .style(settings_muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("IAM API 密钥")).size(12),
+            selection_control(i18n, state),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("列表包含当前账户返回的启用与非启用项；只有启用项可以保存。")
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         ]
         .spacing(7),
     ]
@@ -291,40 +321,59 @@ fn body(app: &App) -> Element<'static, Message> {
 
     match state {
         ShijuAppLaunchState::SelectingApiKey { error: Some(error), .. } => {
-            content = content.push(error_banner(error.clone()));
+            content = content.push(error_banner(
+                app.expert_hub
+                    .shiju_apps
+                    .render_launch_error(error, crate::app::i18n::I18n::new(app.desktop_locale)),
+            ));
         }
         ShijuAppLaunchState::Error { message, .. } => {
-            content = content.push(error_banner(message.clone()));
+            content = content.push(error_banner(
+                app.expert_hub
+                    .shiju_apps
+                    .render_launch_error(message, crate::app::i18n::I18n::new(app.desktop_locale)),
+            ));
         }
         _ => {}
     }
     if let Some(key) = selected_key(state) {
-        content = content.push(selected_key_details(key));
+        content = content.push(selected_key_details(i18n, key));
     } else {
         match state {
             ShijuAppLaunchState::CheckingBinding { .. } => {
-                content = content.push(loading_feedback("正在检查当前绑定状态…"));
+                content = content.push(loading_feedback(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("正在检查当前绑定状态…"),
+                ));
             }
             ShijuAppLaunchState::LoadingApiKeys { .. } => {
-                content = content.push(loading_feedback("正在安全加载 IAM API 密钥…"));
+                content = content.push(loading_feedback(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("正在安全加载 IAM API 密钥…"),
+                ));
             }
             ShijuAppLaunchState::SelectingApiKey { error: None, .. } => {
-                content = content
-                    .push(error_banner("尚未绑定 IAM API 密钥，请选择一个已启用项。".to_string()));
+                content = content.push(error_banner(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("尚未绑定 IAM API 密钥，请选择一个已启用项。")
+                        .to_string(),
+                ));
             }
             _ => {}
         }
     }
 
-    let mut save_button =
-        button(text(if matches!(state, ShijuAppLaunchState::SavingApiKeyBinding { .. }) {
-            "正在保存 API 密钥…"
+    let mut save_button = button(text(i18n.__(
+        if matches!(state, ShijuAppLaunchState::SavingApiKeyBinding { .. }) {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("正在保存 API 密钥…")
         } else {
-            "保存 API 密钥"
-        }))
-        .padding([11, 16])
-        .width(Length::Fill)
-        .style(styles::binding_primary_action_style);
+            crate::app::i18n::I18n::new(app.desktop_locale).__("保存 API 密钥")
+        },
+    )))
+    .padding([11, 16])
+    .width(Length::Fill)
+    .style(styles::binding_primary_action_style);
     if save_enabled(state) {
         save_button = save_button.on_press(Message::ShijuApps(save_action()));
     }

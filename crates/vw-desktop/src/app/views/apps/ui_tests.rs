@@ -232,6 +232,7 @@ fn tooltip_helpers_wrap_exactly_one_content_widget() {
 #[test]
 fn tile_keeps_empty_and_multiple_action_rows_in_its_component_tree() {
     let empty = super::tile(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         crate::app::assets::Icon::LayoutTextWindow,
         "Empty actions".to_string(),
         Color::from_rgb8(1, 2, 3),
@@ -239,6 +240,7 @@ fn tile_keeps_empty_and_multiple_action_rows_in_its_component_tree() {
         crate::app::Message::None,
     );
     let populated = super::tile(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         crate::app::assets::Icon::LayoutTextWindow,
         "Two actions".to_string(),
         Color::from_rgb8(3, 2, 1),

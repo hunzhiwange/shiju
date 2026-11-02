@@ -43,11 +43,14 @@ impl ConnectorForm {
             values,
         }
     }
-    pub fn request(&self) -> Result<ShijuConnectorSaveRequest, String> {
+    pub fn request(&self) -> Result<ShijuConnectorSaveRequest, super::SkillHubError> {
         let mut binding_config = serde_json::Map::new();
         for variable in &self.connector.account_binding_variables {
             if !matches!(variable.kind.as_str(), "password" | "string") {
-                return Err(format!("暂不支持变量类型：{}", variable.kind));
+                return Err(super::SkillHubError::localized(
+                    "暂不支持变量类型：%s",
+                    vec![variable.kind.clone()],
+                ));
             }
             let value = self.values.get(&variable.name).cloned().unwrap_or_default();
             if variable.required && value.trim().is_empty() {
@@ -56,7 +59,7 @@ impl ConnectorForm {
                 } else {
                     &variable.description
                 };
-                return Err(format!("请填写{label}"));
+                return Err(super::SkillHubError::localized("请填写%s", vec![label.clone()]));
             }
             if variable.kind != "password" || !value.is_empty() {
                 binding_config.insert(variable.name.clone(), value.into());

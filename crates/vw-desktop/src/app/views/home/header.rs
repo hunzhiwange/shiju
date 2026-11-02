@@ -24,16 +24,19 @@ use super::common::{icon_svg, is_dark_theme, primary_button, secondary_button};
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub(super) fn render(app: &App) -> Element<'_, Message> {
-    let choose =
-        primary_button("选择文件夹", Message::Project(message::ProjectMessage::OpenFolderPressed));
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let choose = primary_button(
+        i18n.__("选择文件夹"),
+        Message::Project(message::ProjectMessage::OpenFolderPressed),
+    );
     let open = secondary_button(
-        "打开最近的项目",
+        i18n.__("打开最近的项目"),
         Message::Project(message::ProjectMessage::OpenProjectPressed),
     );
 
     let switches_row = row![app_chip(
         Icon::Grid1x2,
-        "应用中心",
+        i18n.__("应用中心"),
         Color::from_rgb8(0x35, 0x85, 0xD6),
         Message::View(message::ViewMessage::OpenApps),
     ),]
@@ -51,7 +54,7 @@ pub(super) fn render(app: &App) -> Element<'_, Message> {
 
     container(
         row![
-            row![text("应用").size(18)].spacing(4).align_y(Alignment::Center),
+            row![text(i18n.__("应用")).size(18)].spacing(4).align_y(Alignment::Center),
             container(switches).width(Length::Fill).center_x(Length::Fill),
             row![open, choose].spacing(10).align_y(Alignment::Center),
         ]

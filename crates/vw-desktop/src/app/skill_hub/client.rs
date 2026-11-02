@@ -35,12 +35,12 @@ impl SkillHubClient {
     }
 
     fn build(credential: SecretSkey, base_url: &str) -> Result<Self, SkillHubError> {
-        let base_url = Url::parse(base_url)
-            .map_err(|error| SkillHubError::new(format!("技能中心地址无效: {error}")))?;
-        let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(20))
-            .build()
-            .map_err(|error| SkillHubError::new(format!("无法创建技能中心客户端: {error}")))?;
+        let base_url = Url::parse(base_url).map_err(|error| {
+            SkillHubError::localized("技能中心地址无效: %s", vec![error.to_string()])
+        })?;
+        let http = reqwest::Client::builder().timeout(Duration::from_secs(20)).build().map_err(
+            |error| SkillHubError::localized("无法创建技能中心客户端: %s", vec![error.to_string()]),
+        )?;
         Ok(Self { http, base_url, credential })
     }
 
@@ -56,10 +56,9 @@ impl SkillHubClient {
     where
         T: DeserializeOwned,
     {
-        let url = self
-            .base_url
-            .join(path)
-            .map_err(|error| SkillHubError::new(format!("技能中心请求地址无效: {error}")))?;
+        let url = self.base_url.join(path).map_err(|error| {
+            SkillHubError::localized("技能中心请求地址无效: %s", vec![error.to_string()])
+        })?;
         let response = self
             .http
             .get(url)
@@ -67,19 +66,20 @@ impl SkillHubClient {
             .query(query)
             .send()
             .await
-            .map_err(|error| SkillHubError::new(format!("技能中心请求失败: {error}")))?;
+            .map_err(|error| {
+                SkillHubError::localized("技能中心请求失败: %s", vec![error.to_string()])
+            })?;
         let status = response.status();
         if !status.is_success() {
             return Err(SkillHubError::http_status(status));
         }
-        let envelope = response
-            .json::<ApiEnvelope<T>>()
-            .await
-            .map_err(|error| SkillHubError::new(format!("技能中心响应无法解析: {error}")))?;
+        let envelope = response.json::<ApiEnvelope<T>>().await.map_err(|error| {
+            SkillHubError::localized("技能中心响应无法解析: %s", vec![error.to_string()])
+        })?;
         if envelope.code != 200 {
             return Err(SkillHubError::business(envelope.code));
         }
-        envelope.data.ok_or_else(|| SkillHubError::new("技能中心响应缺少 data"))
+        envelope.data.ok_or_else(|| SkillHubError::localized("技能中心响应缺少 data", vec![]))
     }
 }
 
@@ -93,19 +93,47 @@ struct ApiEnvelope<T> {
 /// 技能中心地址、HTTP 状态、业务码或响应解码错误。
 pub(crate) struct SkillHubError {
     message: String,
+    localized: Option<(String, Vec<String>)>,
 }
 
 impl SkillHubError {
     fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+        Self { message: message.into(), localized: None }
+    }
+
+    pub(crate) fn localized(source: &str, arguments: Vec<String>) -> Self {
+        let message =
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+                .format(source, &arguments.iter().cloned().map(Into::into).collect::<Vec<_>>())
+                .expect("valid client error");
+        Self { message, localized: Some((source.into(), arguments)) }
+    }
+
+    pub(crate) fn message(&self) -> crate::app::i18n::format::Message {
+        match &self.localized {
+            Some((source, arguments)) => crate::app::i18n::format::Message::new(
+                source.clone(),
+                arguments.iter().cloned().map(Into::into).collect(),
+            ),
+            None => crate::app::i18n::format::Message::literal(self.message.clone()),
+        }
+    }
+
+    pub(crate) fn render(&self, i18n: crate::app::i18n::I18n) -> String {
+        match &self.localized {
+            Some((source, arguments)) => i18n
+                .format(source, &arguments.iter().cloned().map(Into::into).collect::<Vec<_>>())
+                .expect("valid client error"),
+            None => self.message.clone(),
+        }
     }
 
     fn http_status(status: StatusCode) -> Self {
-        Self::new(format!("技能中心请求失败: HTTP {}", status.as_u16()))
+        Self::localized("技能中心请求失败: HTTP %s", vec![status.as_u16().to_string()])
     }
 
     fn business(code: i64) -> Self {
-        Self::new(format!("技能中心接口返回业务错误 {code}"))
+        Self::localized("技能中心接口返回业务错误 %s", vec![code.to_string()])
     }
 }
 
@@ -128,3 +156,31 @@ impl fmt::Display for SkillHubError {
 }
 
 impl Error for SkillHubError {}
+
+impl std::ops::Deref for SkillHubError {
+    type Target = str;
+    fn deref(&self) -> &str {
+        &self.message
+    }
+}
+impl From<&str> for SkillHubError {
+    fn from(message: &str) -> Self {
+        Self::new(message)
+    }
+}
+impl PartialEq<str> for SkillHubError {
+    fn eq(&self, other: &str) -> bool {
+        self.message == other
+    }
+}
+impl PartialEq<&str> for SkillHubError {
+    fn eq(&self, other: &&str) -> bool {
+        self.message == *other
+    }
+}
+
+impl From<anyhow::Error> for SkillHubError {
+    fn from(error: anyhow::Error) -> Self {
+        error.downcast_ref::<Self>().cloned().unwrap_or_else(|| Self::new(error.to_string()))
+    }
+}

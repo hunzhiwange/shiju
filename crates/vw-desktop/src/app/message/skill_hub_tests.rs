@@ -97,7 +97,7 @@ fn shiju_package_refresh_message_ignores_late_result_and_preserves_cache_on_fail
     }));
     let _ = app.update(Message::SkillHub(SkillHubMessage::ShijuPackageVersionRefreshed {
         generation: current_generation,
-        result: Err("signed-url-secret".to_string()),
+        result: Err("signed-url-secret".into()),
     }));
 
     assert_eq!(app.expert_hub.package_status.server_version.as_deref(), Some("3.0.3"));
@@ -268,7 +268,7 @@ fn business_skill_version_actions_ignore_late_results_and_preserve_loaded_state_
         account_id,
         skill_id: 7,
         action: SkillActionKind::Version(second),
-        result: Err("fixture failure".to_string()),
+        result: Err("fixture failure".into()),
     }));
     assert_eq!(failed.units(), 1);
     assert!(app.expert_hub.action.is_none());
@@ -374,7 +374,7 @@ fn version_switch_preserves_server_success_when_cache_sync_fails() {
         generation: sync_generation,
         account_id,
         skill_id: 7,
-        result: Err("fixture cache failure".to_string()),
+        result: Err("fixture cache failure".into()),
     }));
     assert_eq!(warning.units(), 1);
     assert_eq!(app.expert_hub.cache_sync.pending_retry_skill_id(), Some(7));
@@ -928,7 +928,7 @@ fn skill_detail_install_uninstall_and_download_complete_user_flow() {
         account_id,
         skill_id: 7,
         action: SkillActionKind::Uninstall,
-        result: Err("fixture failure".to_string()),
+        result: Err("fixture failure".into()),
     }));
     assert!(matches!(app.expert_hub.marketplace, LoadState::Loaded(_)));
     assert_eq!(app.active_toast.as_ref().map(|toast| toast.kind), Some(ToastKind::Error));
@@ -941,7 +941,8 @@ fn skill_detail_install_uninstall_and_download_complete_user_flow() {
     .unwrap();
     assert_eq!(opened.len(), 1);
     assert!(dispatch_download_with(&app, 99, |_| Ok(())).is_err());
-    let open_error = dispatch_download_with(&app, 17, |url| Err(url.to_string())).unwrap_err();
+    let open_error =
+        dispatch_download_with(&app, 17, |url| Err(url.to_string().into())).unwrap_err();
     assert_eq!(open_error, "无法打开技能下载地址");
     assert!(!open_error.contains("signature"));
     assert!(!format!("{:?}", SkillHubMessage::DownloadVersion(17)).contains("signature"));
@@ -1076,7 +1077,10 @@ fn install_guide_routes_current_package_copy_download_and_direct_install() {
         result: Ok(shiju_release()),
     }));
     assert!(matches!(app.expert_hub.install_guide.agent_package, LoadState::Loaded(_)));
-    let install_text = agent_install_text(&app.expert_hub.install_guide);
+    let install_text = agent_install_text(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &app.expert_hub.install_guide,
+    );
     assert!(install_text.contains("请帮我安装识矩技能"));
     assert!(install_text.contains("guide-secret"));
 
@@ -1264,7 +1268,7 @@ fn manual_shiju_key_sync_requires_active_account() {
         account_id: "missing".to_string(),
         selections: selections.to_vec(),
         requested_by_user: true,
-        result: Err("credential-secret".to_string()),
+        result: Err("credential-secret".into()),
     }));
     let warning = app.active_toast.as_ref().expect("stale sync result should be ignored");
     assert_eq!(warning.kind, ToastKind::Warning);
@@ -1517,9 +1521,7 @@ fn shiju_download_writer_preserves_chunk_order_and_propagates_errors() {
     let archive = NamedTempFile::new().expect("error archive fixture");
     let (sender, receiver) = tokio::sync::mpsc::channel(2);
     sender.try_send(ShijuDownloadChunk::Data(b"partial".to_vec())).expect("queue partial chunk");
-    sender
-        .try_send(ShijuDownloadChunk::Failed("下载中断".to_string()))
-        .expect("queue download error");
+    sender.try_send(ShijuDownloadChunk::Failed("下载中断".into())).expect("queue download error");
     drop(sender);
 
     let error = write_shiju_download_chunks(archive, receiver)

@@ -10,7 +10,7 @@ mod package_version_cache;
 mod state;
 
 // 缓存同步和客户端只导出消息层实际需要的最小能力。
-pub(crate) use cache_sync::{SkillCacheSyncReport, sync_business_skill_cache};
+pub(crate) use cache_sync::{SkillCacheSyncError, SkillCacheSyncReport, sync_business_skill_cache};
 pub(crate) use client::{SkillHubClient, SkillHubError};
 pub(crate) use native::{
     NativeShijuSkillPrepared, NativeShijuSkillState, download_native_shiju_skill,

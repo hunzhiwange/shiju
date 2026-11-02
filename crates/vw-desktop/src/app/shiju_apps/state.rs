@@ -96,9 +96,21 @@ pub(crate) struct ShijuAppsState {
     pub(crate) generation: u64,
     pub(crate) detail: Option<ShijuAppDetailTarget>,
     pub(crate) launch: ShijuAppLaunchState,
+    pub(crate) launch_feedback: Option<(u64, String, crate::app::skill_hub::SkillHubError)>,
 }
 
 impl ShijuAppsState {
+    pub(crate) fn render_launch_error(&self, source: &str, i18n: crate::app::i18n::I18n) -> String {
+        if let Some((generation, original, error)) = &self.launch_feedback {
+            if original == source
+                && self.launch.request_identity().is_some_and(|(active, _)| active == *generation)
+            {
+                return error.render(i18n);
+            }
+        }
+        source.to_string()
+    }
+
     /// 切换账号时使全部在途结果失效并清空目录、详情和启动状态。
     pub(crate) fn clear_for_account(&mut self, account_id: Option<String>) {
         self.generation = self.generation.wrapping_add(1);
@@ -107,6 +119,7 @@ impl ShijuAppsState {
         self.mine = ShijuAppsLoadState::Idle;
         self.detail = None;
         self.launch = ShijuAppLaunchState::Idle;
+        self.launch_feedback = None;
     }
 
     pub(crate) fn next_generation(&mut self) -> u64 {
@@ -141,6 +154,7 @@ impl Default for ShijuAppsState {
             generation: 0,
             detail: None,
             launch: ShijuAppLaunchState::Idle,
+            launch_feedback: None,
         }
     }
 }

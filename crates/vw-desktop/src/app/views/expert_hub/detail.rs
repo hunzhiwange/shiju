@@ -30,9 +30,9 @@ fn icon(icon: Icon, size: f32) -> Svg<'static> {
     )
 }
 
-fn back_button() -> Element<'static, Message> {
+fn back_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     button(
-        row![icon(Icon::ChevronLeft, 14.0), text("技能").size(13)]
+        row![icon(Icon::ChevronLeft, 14.0), text(i18n.__("技能")).size(13)]
             .spacing(5)
             .align_y(Alignment::Center),
     )
@@ -69,8 +69,12 @@ fn action_message(skill_id: u64, installed: bool) -> Message {
     })
 }
 
-fn field(label: &'static str, value: String) -> Element<'static, Message> {
-    column![text(label).size(11).style(styles::muted_text_style), text(value).size(14),]
+fn field(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    value: String,
+) -> Element<'static, Message> {
+    column![text(i18n.__(label)).size(11).style(styles::muted_text_style), text(value).size(14),]
         .spacing(5)
         .width(Length::Fixed(210.0))
         .into()
@@ -146,16 +150,22 @@ pub(super) fn version_action_spec(
 }
 
 fn version_row(
+    i18n: crate::app::i18n::I18n,
     version: &SkillVersion,
     installed_version: Option<&str>,
     busy: bool,
 ) -> Element<'static, Message> {
-    let changelog = version.changelog.as_deref().unwrap_or("无更新说明");
+    let changelog = version.changelog.as_deref().unwrap_or(i18n.__("无更新说明"));
     let download_available = version.download_url.is_some();
     let mut download_button = button(
         row![
             icon(Icon::CloudDownload, 14.0),
-            text(if download_available { "下载" } else { "不可下载" }).size(12),
+            text(i18n.__(if download_available {
+                i18n.__("下载")
+            } else {
+                i18n.__("不可下载")
+            }))
+            .size(12),
         ]
         .spacing(6)
         .align_y(Alignment::Center),
@@ -170,16 +180,16 @@ fn version_row(
         match version_action_spec(installed_version, version) {
             VersionRowAction::Current => {
                 actions = actions.push(
-                    button(text("当前版本").size(12))
+                    button(text(i18n.__("当前版本")).size(12))
                         .padding([8, 12])
                         .style(styles::quiet_button_style),
                 );
             }
             VersionRowAction::Change { label, action } => {
                 let action_label = if busy {
-                    "处理中…".to_string()
+                    i18n.__("处理中…").to_string()
                 } else {
-                    format!("{label} v{}", version.version)
+                    format!("{} v{}", i18n.__(label), version.version)
                 };
                 let mut action_button = button(text(action_label).size(12))
                     .padding([8, 12])
@@ -217,11 +227,12 @@ fn version_row(
 }
 
 fn readme_mode_button(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     mode: PublicDetailMode,
     selected: bool,
 ) -> Element<'static, Message> {
-    button(text(label).size(12))
+    button(text(i18n.__(label)).size(12))
         .on_press(Message::SkillHub(SkillHubMessage::SetSkillReadmeMode(mode)))
         .padding([7, 12])
         .style(move |theme, status| styles::selected_tab_style(theme, status, selected))
@@ -229,9 +240,13 @@ fn readme_mode_button(
 }
 
 fn readme_panel<'a>(app: &'a App, state: &'a SkillDetailState) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let body: Element<'a, Message> = match &state.readme {
         LoadState::Loaded(content) if content.trim().is_empty() => {
-            text("当前版本暂无 README。").size(13).style(styles::muted_text_style).into()
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("当前版本暂无 README。"))
+                .size(13)
+                .style(styles::muted_text_style)
+                .into()
         }
         LoadState::Loaded(content) if state.readme_mode == PublicDetailMode::Markdown => {
             text(content).size(13).font(Font::default()).width(Length::Fill).into()
@@ -243,15 +258,28 @@ fn readme_panel<'a>(app: &'a App, state: &'a SkillDetailState) -> Element<'a, Me
             let settings = markdown::Settings::with_text_size(14, markdown_style);
             markdown::view(state.readme_items.iter(), settings).map(|_| Message::None).into()
         }
-        LoadState::Error(error) => text(format!("README 加载失败：{error}"))
-            .size(13)
-            .style(styles::muted_text_style)
-            .into(),
+        LoadState::Error(error) => text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format(
+                    "README 加载失败：%s",
+                    &[error.render(crate::app::i18n::I18n::new(app.desktop_locale)).into()],
+                )
+                .expect("valid display template"),
+        )
+        .size(13)
+        .style(styles::muted_text_style)
+        .into(),
         LoadState::NeedsLogin => {
-            text("登录识矩账户后查看 README").size(13).style(styles::muted_text_style).into()
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("登录识矩账户后查看 README"))
+                .size(13)
+                .style(styles::muted_text_style)
+                .into()
         }
         LoadState::Idle | LoadState::Loading { .. } => {
-            text("README 正在加载…").size(13).style(styles::muted_text_style).into()
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("README 正在加载…"))
+                .size(13)
+                .style(styles::muted_text_style)
+                .into()
         }
     };
 
@@ -263,11 +291,13 @@ fn readme_panel<'a>(app: &'a App, state: &'a SkillDetailState) -> Element<'a, Me
                     .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() })
                     .width(Length::Fill),
                 readme_mode_button(
-                    "可视化",
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("可视化"),
                     PublicDetailMode::Visual,
                     state.readme_mode == PublicDetailMode::Visual,
                 ),
                 readme_mode_button(
+                    i18n,
                     "Markdown",
                     PublicDetailMode::Markdown,
                     state.readme_mode == PublicDetailMode::Markdown,
@@ -292,6 +322,7 @@ fn loaded_view<'a>(
     versions: &[SkillVersion],
     versions_notice: Option<String>,
 ) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let installed = is_installed(app, detail.id);
     let installed_version =
         installed_skill(app, detail.id).map(|skill| skill.installed_version.as_str());
@@ -302,13 +333,13 @@ fn loaded_view<'a>(
         .as_ref()
         .is_some_and(|action| action.skill_id == detail.id);
     let action_label = if pending {
-        "处理中…"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("处理中…")
     } else if confirming_rollback {
-        "等待确认…"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("等待确认…")
     } else if installed {
-        "卸载"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("卸载")
     } else {
-        "安装"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("安装")
     };
     let mut action_button =
         button(text(action_label).size(13)).padding([9, 18]).style(styles::pill_button_style);
@@ -326,7 +357,7 @@ fn loaded_view<'a>(
     let information = container(
         column![
             row![
-                text("技能信息")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("技能信息"))
                     .size(18)
                     .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
                 Space::new().width(Length::Fill),
@@ -340,30 +371,65 @@ fn loaded_view<'a>(
                 .width(Length::Fill)
                 .style(styles::divider_style),
             row![
-                field("名称", detail.name.clone()),
-                field("当前版本", current_version),
-                field("格式", detail.format.clone()),
-                field("标识", detail.slug.clone()),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("名称"),
+                    detail.name.clone()
+                ),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("当前版本"),
+                    current_version
+                ),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("格式"),
+                    detail.format.clone()
+                ),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("标识"),
+                    detail.slug.clone()
+                ),
             ]
             .spacing(18)
             .wrap(),
             row![
-                field("层级", detail.level.clone()),
-                field("模态", detail.modality.clone()),
                 field(
-                    "访问范围",
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("层级"),
+                    detail.level.clone()
+                ),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("模态"),
+                    detail.modality.clone()
+                ),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("访问范围"),
                     if detail.is_all_company_accessible == 1 {
-                        "全公司".to_string()
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("全公司").to_string()
                     } else {
-                        "受限".to_string()
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("受限").to_string()
                     },
                 ),
-                field("标签", if tags.is_empty() { "暂无".to_string() } else { tags },),
+                field(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("标签"),
+                    if tags.is_empty() {
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                    } else {
+                        tags
+                    },
+                ),
             ]
             .spacing(18)
             .wrap(),
             column![
-                text("介绍").size(11).style(styles::muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("介绍"))
+                    .size(11)
+                    .style(styles::muted_text_style),
                 text(detail.description.clone()).size(14).width(Length::Fill),
             ]
             .spacing(6),
@@ -376,7 +442,7 @@ fn loaded_view<'a>(
 
     let mut versions_content = column![
         row![
-            text("版本")
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("版本"))
                 .size(18)
                 .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
             container(text(versions.len().to_string()).size(11))
@@ -393,20 +459,29 @@ fn loaded_view<'a>(
         versions_content = versions_content.push(
             container(
                 row![
-                    text(format!(
-                        "确认回退到 v{}？服务端安装版本将被切换。",
-                        action.target_version
-                    ))
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .format(
+                                "确认回退到 v%s？服务端安装版本将被切换。",
+                                &[(action.target_version).to_string().into()]
+                            )
+                            .expect("valid display template")
+                    )
                     .size(13)
                     .width(Length::Fill),
-                    button(text("取消").size(12))
-                        .on_press(Message::SkillHub(SkillHubMessage::CancelSkillVersionChange))
-                        .padding([7, 12])
-                        .style(styles::quiet_button_style),
-                    button(text("确认回退").size(12))
-                        .on_press(Message::SkillHub(SkillHubMessage::ConfirmSkillVersionChange))
-                        .padding([7, 12])
-                        .style(styles::pill_button_style),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(12)
+                    )
+                    .on_press(Message::SkillHub(SkillHubMessage::CancelSkillVersionChange))
+                    .padding([7, 12])
+                    .style(styles::quiet_button_style),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认回退"))
+                            .size(12)
+                    )
+                    .on_press(Message::SkillHub(SkillHubMessage::ConfirmSkillVersionChange))
+                    .padding([7, 12])
+                    .style(styles::pill_button_style),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(8),
@@ -419,11 +494,15 @@ fn loaded_view<'a>(
         versions_content =
             versions_content.push(text(notice).size(13).style(styles::muted_text_style));
     } else if versions.is_empty() {
-        versions_content =
-            versions_content.push(text("暂无可下载版本").size(13).style(styles::muted_text_style));
+        versions_content = versions_content.push(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无可下载版本"))
+                .size(13)
+                .style(styles::muted_text_style),
+        );
     } else {
         for version in versions {
             versions_content = versions_content.push(version_row(
+                i18n,
                 version,
                 installed_version,
                 pending || confirming_rollback,
@@ -432,7 +511,7 @@ fn loaded_view<'a>(
     }
 
     let page = column![
-        back_button(),
+        back_button(i18n),
         row![
             column![
                 text(detail.name.clone())
@@ -466,13 +545,17 @@ fn loaded_view<'a>(
         .into()
 }
 
-fn status_view(title: &'static str, detail: String) -> Element<'static, Message> {
+fn status_view(
+    i18n: crate::app::i18n::I18n,
+    title: &'static str,
+    detail: String,
+) -> Element<'static, Message> {
     container(
         column![
-            back_button(),
+            back_button(i18n),
             container(
                 column![
-                    text(title)
+                    text(i18n.__(title))
                         .size(18)
                         .font(Font { weight: iced::font::Weight::Semibold, ..Font::default() }),
                     text(detail).size(13).style(styles::muted_text_style),
@@ -493,23 +576,65 @@ fn status_view(title: &'static str, detail: String) -> Element<'static, Message>
 
 /// 按详情加载状态构建技能详情、错误或登录提示界面。
 pub(super) fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let Some(state) = &app.expert_hub.detail else {
-        return status_view("未选择技能", "请返回技能列表选择一个技能".to_string());
+        return status_view(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("未选择技能"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("请返回技能列表选择一个技能")
+                .to_string(),
+        );
     };
     match (&state.detail, &state.versions) {
         (LoadState::Loaded(detail), LoadState::Loaded(versions)) => {
             loaded_view(app, state, detail, versions, None)
         }
-        (LoadState::Loaded(detail), LoadState::Error(error)) => {
-            loaded_view(app, state, detail, &[], Some(format!("版本列表加载失败：{error}")))
-        }
-        (LoadState::Loaded(detail), LoadState::NeedsLogin) => {
-            loaded_view(app, state, detail, &[], Some("登录识矩账户后查看版本列表".to_string()))
-        }
-        (LoadState::Loaded(detail), LoadState::Idle | LoadState::Loading { .. }) => {
-            loaded_view(app, state, detail, &[], Some("版本列表正在加载…".to_string()))
-        }
-        (LoadState::Error(error), _) => status_view("技能详情加载失败", error.clone()),
-        _ => status_view("正在加载技能详情", "正在同步技能信息与可下载版本…".to_string()),
+        (LoadState::Loaded(detail), LoadState::Error(error)) => loaded_view(
+            app,
+            state,
+            detail,
+            &[],
+            Some(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format(
+                        "版本列表加载失败：%s",
+                        &[error.render(crate::app::i18n::I18n::new(app.desktop_locale)).into()],
+                    )
+                    .expect("valid display template"),
+            ),
+        ),
+        (LoadState::Loaded(detail), LoadState::NeedsLogin) => loaded_view(
+            app,
+            state,
+            detail,
+            &[],
+            Some(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("登录识矩账户后查看版本列表")
+                    .to_string(),
+            ),
+        ),
+        (LoadState::Loaded(detail), LoadState::Idle | LoadState::Loading { .. }) => loaded_view(
+            app,
+            state,
+            detail,
+            &[],
+            Some(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("版本列表正在加载…").to_string(),
+            ),
+        ),
+        (LoadState::Error(error), _) => status_view(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("技能详情加载失败"),
+            error.render(i18n),
+        ),
+        _ => status_view(
+            i18n,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("正在加载技能详情"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("正在同步技能信息与可下载版本…")
+                .to_string(),
+        ),
     }
 }

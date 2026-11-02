@@ -111,7 +111,7 @@ fn shiju_package_status_ignores_late_refresh_results() {
             if generation == current_generation
     ));
 
-    assert!(status.finish_refresh(current_generation, Err("network-secret".to_string())));
+    assert!(status.finish_refresh(current_generation, Err("network-secret".into())));
     assert_eq!(status.server_version.as_deref(), Some("3.0.3"));
     assert_eq!(status.checked_at_unix, Some(1_785_830_400));
     assert!(matches!(status.refresh, ShijuPackageRefreshState::Failed));

@@ -150,9 +150,13 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                 Ok(items) => app.expert_hub.connectors.list = LoadState::Loaded(items),
                 Err(error) => {
                     if matches!(app.expert_hub.connectors.list, LoadState::Loaded(_)) {
-                        return app.show_error_toast(format!("连接器刷新失败：{error}"));
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "连接器刷新失败：%s",
+                            vec![error.to_string().into()],
+                        );
                     }
-                    app.expert_hub.connectors.list = LoadState::Error(error);
+                    app.expert_hub.connectors.list = LoadState::Error(error.into());
                 }
             }
         }
@@ -167,7 +171,14 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
             }
             let request = match form.request() {
                 Ok(request) => request,
-                Err(error) => return app.show_error_toast(error),
+                Err(error) => {
+                    return super::show_skill_error(
+                        app,
+                        crate::app::state::ToastKind::Error,
+                        None,
+                        error.into(),
+                    );
+                }
             };
             let Some(account) = app.account.active_account() else {
                 return load(app);
@@ -203,10 +214,18 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                     {
                         app.expert_hub.connectors.form = None;
                     }
-                    let toast = app.show_success_toast("账号绑定已保存");
+                    let toast = app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "账号绑定已保存",
+                        vec![],
+                    );
                     Task::batch([toast, load(app)])
                 }
-                Err(error) => app.show_error_toast(format!("绑定保存失败：{error}")),
+                Err(error) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "绑定保存失败：%s",
+                    vec![error.to_string().into()],
+                ),
             };
         }
         ConnectorMessage::Authorize(id) => {
@@ -244,7 +263,11 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                 Ok(challenge) => challenge,
                 Err(error) => {
                     app.expert_hub.connectors.work.remove(&id);
-                    return app.show_error_toast(format!("授权发起失败：{error}"));
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "授权发起失败：%s",
+                        vec![error.to_string().into()],
+                    );
                 }
             };
             let valid_url = reqwest::Url::parse(&challenge.authorization_url).is_ok_and(|url| {
@@ -255,7 +278,11 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
             });
             if !valid_url || open::that(&challenge.authorization_url).is_err() {
                 app.expert_hub.connectors.work.remove(&id);
-                return app.show_error_toast("无法打开连接器授权页面，请重试");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "无法打开连接器授权页面，请重试",
+                    vec![],
+                );
             }
             let deadline =
                 Instant::now() + Duration::from_secs(challenge.expires_in_seconds.min(3600));
@@ -276,7 +303,11 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
             };
             if Instant::now() >= *deadline {
                 app.expert_hub.connectors.work.remove(&id);
-                return app.show_error_toast("授权已过期，请重新授权");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "授权已过期，请重新授权",
+                    vec![],
+                );
             }
             let flow_id = challenge.flow_id.clone();
             let Some(account) = app.account.active_account() else {
@@ -307,18 +338,34 @@ pub(crate) fn update(app: &mut App, msg: ConnectorMessage) -> Task<Message> {
                     }
                     ShijuConnectorAuthorizationStatus::Approved => {
                         app.expert_hub.connectors.work.remove(&id);
-                        let toast = app.show_success_toast("账号授权成功");
+                        let toast = app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "账号授权成功",
+                            vec![],
+                        );
                         return Task::batch([toast, load(app)]);
                     }
-                    ShijuConnectorAuthorizationStatus::Denied => "授权已取消".to_string(),
+                    ShijuConnectorAuthorizationStatus::Denied => {
+                        crate::app::skill_hub::SkillHubError::localized("授权已取消", vec![])
+                    }
                     ShijuConnectorAuthorizationStatus::Expired => {
-                        "授权已过期，请重新授权".to_string()
+                        crate::app::skill_hub::SkillHubError::localized(
+                            "授权已过期，请重新授权",
+                            vec![],
+                        )
                     }
                 },
-                Err(error) => format!("授权查询失败：{error}"),
+                Err(error) => {
+                    crate::app::skill_hub::SkillHubError::localized("授权查询失败：%s", vec![error])
+                }
             };
             app.expert_hub.connectors.work.remove(&id);
-            return app.show_error_toast(outcome);
+            return super::show_skill_error(
+                app,
+                crate::app::state::ToastKind::Error,
+                None,
+                outcome,
+            );
         }
     }
     Task::none()

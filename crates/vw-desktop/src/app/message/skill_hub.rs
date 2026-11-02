@@ -100,7 +100,7 @@ pub(crate) enum SkillHubMessage {
     ShijuInstallationsLoaded {
         generation: u64,
         selections: Vec<SkillInstallSelection>,
-        result: Result<ShijuInstallationsReport, String>,
+        result: Result<ShijuInstallationsReport, SkillHubError>,
     },
     DirectPackageLoaded {
         generation: u64,
@@ -115,23 +115,23 @@ pub(crate) enum SkillHubMessage {
         account_id: String,
         package_id: ShijuPackageId,
         selections: Vec<SkillInstallSelection>,
-        result: Result<ShijuMultiInstallReport, String>,
+        result: Result<ShijuMultiInstallReport, SkillHubError>,
     },
     ShijuKeySyncFinished {
         generation: u64,
         account_id: String,
         selections: Vec<SkillInstallSelection>,
         requested_by_user: bool,
-        result: Result<ShijuKeySyncReport, String>,
+        result: Result<ShijuKeySyncReport, SkillHubError>,
     },
     ShijuUninstallFinished {
         generation: u64,
         selections: Vec<SkillInstallSelection>,
-        result: Result<ShijuUninstallReport, String>,
+        result: Result<ShijuUninstallReport, SkillHubError>,
     },
     ShijuPackageVersionRefreshed {
         generation: u64,
-        result: Result<PackageVersionCacheEntry, String>,
+        result: Result<PackageVersionCacheEntry, SkillHubError>,
     },
     SelectSection(ExpertHubSection),
     SelectSkillTab(SkillTab),
@@ -187,20 +187,20 @@ pub(crate) enum SkillHubMessage {
         generation: u64,
         account_id: String,
         skill_id: u64,
-        result: Result<SkillDetail, String>,
+        result: Result<SkillDetail, SkillHubError>,
     },
     SkillActionFinished {
         generation: u64,
         account_id: String,
         skill_id: u64,
         action: SkillActionKind,
-        result: Result<(), String>,
+        result: Result<(), SkillHubError>,
     },
     SkillCacheSyncFinished {
         generation: u64,
         account_id: String,
         skill_id: u64,
-        result: Result<SkillCacheSyncReport, String>,
+        result: Result<SkillCacheSyncReport, crate::app::skill_hub::SkillCacheSyncError>,
     },
     RetrySkillCacheSync,
     DownloadVersion(u64),
@@ -597,7 +597,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                 }
                 Err(error) => {
                     if let Some(detail) = app.expert_hub.detail.as_mut() {
-                        detail.detail = LoadState::Error(error.to_string());
+                        detail.detail = LoadState::Error(error);
                     }
                     Task::none()
                 }
@@ -614,7 +614,7 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
                     }
                     Err(error) => {
                         detail.readme_items.clear();
-                        detail.readme = LoadState::Error(error.to_string());
+                        detail.readme = LoadState::Error(error);
                     }
                 }
             }
@@ -624,9 +624,8 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             if detail_response_is_current(app, generation, &account_id, skill_id)
                 && let Some(detail) = app.expert_hub.detail.as_mut()
             {
-                detail.versions = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                detail.versions =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
@@ -659,57 +658,58 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
         SkillHubMessage::RetrySkillCacheSync => retry_skill_cache_sync(app),
         SkillHubMessage::DownloadVersion(version_id) => {
             match dispatch_download_with(app, version_id, |url| {
-                open::that(url).map_err(|_| "无法打开技能下载地址".to_string())
+                open::that(url)
+                    .map_err(|_| SkillHubError::localized("无法打开技能下载地址", vec![]))
             }) {
-                Ok(()) => app.show_info_toast("已在系统浏览器中打开技能下载"),
-                Err(error) => app.show_error_toast(error),
+                Ok(()) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "已在系统浏览器中打开技能下载",
+                    vec![],
+                ),
+                Err(error) => {
+                    show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into())
+                }
             }
         }
         SkillHubMessage::MarketplaceLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
-                app.expert_hub.marketplace = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                app.expert_hub.marketplace =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
         SkillHubMessage::InstalledLoaded { generation, account_id, result } => {
             if installed_response_is_current(app, generation, &account_id) {
-                app.expert_hub.installed = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                app.expert_hub.installed =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
         SkillHubMessage::SystemLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
-                app.expert_hub.system = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                app.expert_hub.system =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
         SkillHubMessage::MineLoaded { generation, account_id, result } => {
             if response_is_current(app, generation, &account_id) {
-                app.expert_hub.mine = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                app.expert_hub.mine =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
         SkillHubMessage::PlatformTagCatalogLoaded { generation, account_id, result } => {
             if tag_catalog_response_is_current(app, generation, &account_id) {
-                app.expert_hub.platform_tag_catalog = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                app.expert_hub.platform_tag_catalog =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
         SkillHubMessage::CompanyTagCatalogLoaded { generation, account_id, result } => {
             if tag_catalog_response_is_current(app, generation, &account_id) {
-                app.expert_hub.company_tag_catalog = result
-                    .map(LoadState::Loaded)
-                    .unwrap_or_else(|error| LoadState::Error(error.to_string()));
+                app.expert_hub.company_tag_catalog =
+                    result.map(LoadState::Loaded).unwrap_or_else(|error| LoadState::Error(error));
             }
             Task::none()
         }
@@ -721,7 +721,7 @@ pub(crate) fn open_expert_hub_tab(app: &mut App) {
     if !app.open_tabs.iter().any(|tab| tab.id == EXPERT_HUB_TAB_ID) {
         app.open_tabs.push(AppTab {
             id: EXPERT_HUB_TAB_ID.to_string(),
-            title: EXPERT_HUB_TITLE.to_string(),
+            title: crate::app::i18n::I18n::new(app.desktop_locale).__(EXPERT_HUB_TITLE).to_string(),
             screen: Screen::ExpertHub,
             project_path: None,
         });
@@ -734,7 +734,9 @@ fn open_shiju_skills_tab(app: &mut App) {
     if !app.open_tabs.iter().any(|tab| tab.id == SHIJU_SKILLS_TAB_ID) {
         app.open_tabs.push(AppTab {
             id: SHIJU_SKILLS_TAB_ID.to_string(),
-            title: SHIJU_SKILLS_TITLE.to_string(),
+            title: crate::app::i18n::I18n::new(app.desktop_locale)
+                .__(SHIJU_SKILLS_TITLE)
+                .to_string(),
             screen: Screen::ShijuSkills,
             project_path: None,
         });
@@ -772,10 +774,10 @@ fn start_installation_load(app: &mut App) -> Task<Message> {
             let home = home_directory()?;
             tokio::task::spawn_blocking(move || {
                 shiju_installations_for_targets(&home, project_root.as_deref(), &selections)
-                    .map_err(|error| error.to_string())
+                    .map_err(SkillHubError::from)
             })
             .await
-            .map_err(|_| "识矩技能安装状态检查任务异常终止".to_string())?
+            .map_err(|_| SkillHubError::localized("识矩技能安装状态检查任务异常终止", vec![]))?
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::ShijuInstallationsLoaded {
@@ -791,7 +793,7 @@ fn finish_installation_load(
     app: &mut App,
     generation: u64,
     _selections: &[SkillInstallSelection],
-    result: Result<ShijuInstallationsReport, String>,
+    result: Result<ShijuInstallationsReport, SkillHubError>,
 ) -> Task<Message> {
     if !app.expert_hub.install_guide.open
         || app.expert_hub.install_guide.installation_generation != generation
@@ -807,7 +809,12 @@ fn finish_installation_load(
             app.expert_hub
                 .install_guide
                 .set_installations(ShijuInstallationsReport { targets: Vec::new() });
-            app.show_error_toast(format!("无法检查识矩技能安装状态：{error}"))
+            show_skill_error(
+                app,
+                crate::app::state::ToastKind::Error,
+                Some("无法检查识矩技能安装状态：%s"),
+                error.into(),
+            )
         }
     }
 }
@@ -827,16 +834,16 @@ fn all_install_selections(include_project: bool) -> Vec<SkillInstallSelection> {
     selections
 }
 
-fn home_directory() -> Result<PathBuf, String> {
+fn home_directory() -> Result<PathBuf, SkillHubError> {
     BaseDirs::new()
         .map(|directories| directories.home_dir().to_path_buf())
-        .ok_or_else(|| "无法确定用户主目录".to_string())
+        .ok_or_else(|| SkillHubError::localized("无法确定用户主目录", vec![]))
 }
 
 fn selected_project_root(
     app: &App,
     selections: &[SkillInstallSelection],
-) -> Result<Option<PathBuf>, String> {
+) -> Result<Option<PathBuf>, SkillHubError> {
     if selections.iter().any(|selection| selection.scope == SkillInstallScope::Project) {
         let project = app
             .expert_hub
@@ -844,7 +851,7 @@ fn selected_project_root(
             .selected_project_path
             .as_deref()
             .filter(|path| !path.trim().is_empty())
-            .ok_or_else(|| "项目级技能安装需要选择项目".to_string())?;
+            .ok_or_else(|| SkillHubError::localized("项目级技能安装需要选择项目", vec![]))?;
         return Ok(Some(PathBuf::from(project)));
     }
     Ok(None)
@@ -862,14 +869,22 @@ fn select_shiju_install_scope(app: &mut App, scope: SkillInstallScope) -> Task<M
             .find(|path| !path.is_empty())
             .map(str::to_string);
         if app.expert_hub.install_guide.selected_project_path.as_deref().is_none_or(str::is_empty) {
-            return app.show_error_toast("项目级技能安装需要选择项目");
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "项目级技能安装需要选择项目",
+                vec![],
+            );
         }
     }
     if app.expert_hub.install_guide.install_scope == scope {
         return Task::none();
     }
     if app.expert_hub.install_guide.is_busy() {
-        return app.show_warning_toast("请等待当前安装、卸载或同步操作完成");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待当前安装、卸载或同步操作完成",
+            vec![],
+        );
     }
     app.expert_hub.install_guide.select_scope(scope);
     Task::none()
@@ -877,7 +892,11 @@ fn select_shiju_install_scope(app: &mut App, scope: SkillInstallScope) -> Task<M
 
 fn select_shiju_install_project(app: &mut App, project_path: String) -> Task<Message> {
     if app.expert_hub.install_guide.is_busy() {
-        return app.show_warning_toast("请等待当前安装、卸载或同步操作完成");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待当前安装、卸载或同步操作完成",
+            vec![],
+        );
     }
     let project_path = project_path.trim();
     if project_path.is_empty()
@@ -887,7 +906,11 @@ fn select_shiju_install_project(app: &mut App, project_path: String) -> Task<Mes
             .chain(app.recent_projects.iter())
             .any(|candidate| candidate.trim() == project_path)
     {
-        return app.show_error_toast("请选择已打开或最近使用的项目");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "请选择已打开或最近使用的项目",
+            vec![],
+        );
     }
     if app.expert_hub.install_guide.selected_project_path.as_deref() == Some(project_path) {
         return Task::none();
@@ -901,11 +924,19 @@ fn select_shiju_install_project(app: &mut App, project_path: String) -> Task<Mes
 
 fn toggle_shiju_install_target(app: &mut App, target: SkillInstallTarget) -> Task<Message> {
     if app.expert_hub.install_guide.is_busy() {
-        return app.show_warning_toast("请等待当前安装、卸载或同步操作完成");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待当前安装、卸载或同步操作完成",
+            vec![],
+        );
     }
     let is_selected = app.expert_hub.install_guide.selected_targets.contains(&target);
     if is_selected && app.expert_hub.install_guide.selected_targets.len() == 1 {
-        return app.show_warning_toast("至少选择一个技能安装目标");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "至少选择一个技能安装目标",
+            vec![],
+        );
     }
     app.expert_hub.install_guide.toggle_target(target);
     Task::none()
@@ -919,7 +950,11 @@ fn open_selected_shiju_install_dir(app: &mut App) -> Task<Message> {
             .is_some()
     });
     let Some(target) = target else {
-        return app.show_warning_toast("所选目标尚未安装识矩技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "所选目标尚未安装识矩技能",
+            vec![],
+        );
     };
     open_shiju_install_dir_for(app, target)
 }
@@ -931,13 +966,23 @@ fn open_shiju_install_dir_for(app: &mut App, target: SkillInstallTarget) -> Task
         .installation(app.expert_hub.install_guide.install_scope, target)
         .map(|installation| installation.installed_dir.clone())
     else {
-        return app.show_warning_toast("指定目标尚未安装识矩技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "指定目标尚未安装识矩技能",
+            vec![],
+        );
     };
     match open_shiju_install_dir_with(&directory, |path| {
-        open::that(path).map_err(|_| "无法打开识矩技能目录".to_string())
+        open::that(path).map_err(|_| SkillHubError::localized("无法打开识矩技能目录", vec![]))
     }) {
-        Ok(()) => app.show_info_toast("已打开识矩技能目录"),
-        Err(error) => app.show_error_toast(error),
+        Ok(()) => app.show_localized_toast(
+            crate::app::state::ToastKind::Info,
+            "已打开识矩技能目录",
+            vec![],
+        ),
+        Err(error) => {
+            show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into())
+        }
     }
 }
 
@@ -959,7 +1004,7 @@ fn active_shiju_account(app: &mut App) -> Option<(String, crate::app::account::S
 fn load_agent_package(app: &mut App, copy_after_load: bool) -> Task<Message> {
     let Some(package_id) = app.expert_hub.install_guide.current_package else {
         app.expert_hub.install_guide.agent_package =
-            LoadState::Error("当前系统或架构暂不支持自动安装".to_string());
+            LoadState::Error(SkillHubError::localized("当前系统或架构暂不支持自动安装", vec![]));
         return Task::none();
     };
     let Some((account_id, credential)) = active_shiju_account(app) else {
@@ -998,20 +1043,31 @@ fn finish_agent_package_load(
     match result {
         Ok(release) => {
             app.expert_hub.install_guide.agent_package = LoadState::Loaded(release);
-            let text = agent_install_text(&app.expert_hub.install_guide);
+            let text = agent_install_text(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &app.expert_hub.install_guide,
+            );
             if copy_after_load {
                 Task::batch([
                     Task::done(Message::CopyCode(text)),
-                    app.show_success_toast("安装文字已复制"),
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "安装文字已复制",
+                        vec![],
+                    ),
                 ])
             } else {
                 Task::none()
             }
         }
         Err(error) => {
-            app.expert_hub.install_guide.agent_package = LoadState::Error(error.to_string());
+            app.expert_hub.install_guide.agent_package = LoadState::Error(error);
             if copy_after_load {
-                app.show_error_toast("安装文字准备失败，请稍后重试")
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "安装文字准备失败，请稍后重试",
+                    vec![],
+                )
             } else {
                 Task::none()
             }
@@ -1020,26 +1076,33 @@ fn finish_agent_package_load(
 }
 
 /// 返回适合复制给代理的安装命令；尚未加载包信息时返回空文本。
-pub(crate) fn agent_install_text(state: &ShijuInstallGuideState) -> String {
+pub(crate) fn agent_install_text(
+    i18n: crate::app::i18n::I18n,
+    state: &ShijuInstallGuideState,
+) -> String {
     match &state.agent_package {
-        LoadState::Loaded(release) => agent_install_text_for_release(release),
-        LoadState::Loading { .. } => "正在生成当前设备的安装地址…".to_string(),
-        LoadState::NeedsLogin => "登录识矩账户后即可生成安装文字。".to_string(),
-        LoadState::Error(_) => "安装地址生成失败，请稍后重试。".to_string(),
-        LoadState::Idle => "正在准备安装文字…".to_string(),
+        LoadState::Loaded(release) => agent_install_text_for_release(i18n, release),
+        LoadState::Loading { .. } => i18n.__("正在生成当前设备的安装地址…").to_string(),
+        LoadState::NeedsLogin => i18n.__("登录识矩账户后即可生成安装文字。").to_string(),
+        LoadState::Error(_) => i18n.__("安装地址生成失败，请稍后重试。").to_string(),
+        LoadState::Idle => i18n.__("正在准备安装文字…").to_string(),
     }
 }
 
-fn agent_install_text_for_release(release: &ShijuPackageRelease) -> String {
-    format!(
-        "请帮我安装识矩技能。\n\n下载地址：{}\n\n请下载该 zip，将解压后的技能包放入当前 Agent 的技能目录。",
-        release.download_url.as_str()
-    )
+fn agent_install_text_for_release(
+    i18n: crate::app::i18n::I18n,
+    release: &ShijuPackageRelease,
+) -> String {
+    i18n.format("请帮我安装识矩技能。\n\n下载地址：%s\n\n请下载该 zip，将解压后的技能包放入当前 Agent 的技能目录。", &[release.download_url.as_str().into()]).expect("valid installation text")
 }
 
 fn start_manual_download(app: &mut App, package_id: ShijuPackageId) -> Task<Message> {
     let Some((account_id, credential)) = active_shiju_account(app) else {
-        return app.show_warning_toast("登录识矩账户后下载安装包");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "登录识矩账户后下载安装包",
+            vec![],
+        );
     };
     let Some(generation) = app.expert_hub.install_guide.start_manual_download(package_id) else {
         return Task::none();
@@ -1078,51 +1141,76 @@ fn finish_manual_download(
     app.expert_hub.install_guide.manual_download = None;
     match result {
         Ok(release) => match dispatch_shiju_download_with(&release, |url| {
-            open::that(url).map_err(|_| "无法打开识矩技能下载地址".to_string())
+            open::that(url)
+                .map_err(|_| SkillHubError::localized("无法打开识矩技能下载地址", vec![]))
         }) {
-            Ok(()) => app.show_info_toast("已在系统浏览器中打开安装包"),
-            Err(error) => app.show_error_toast(error),
+            Ok(()) => app.show_localized_toast(
+                crate::app::state::ToastKind::Info,
+                "已在系统浏览器中打开安装包",
+                vec![],
+            ),
+            Err(error) => {
+                show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into())
+            }
         },
-        Err(error) => app.show_error_toast(format!("安装包地址生成失败：{error}")),
+        Err(error) => show_skill_error(
+            app,
+            crate::app::state::ToastKind::Error,
+            Some("安装包地址生成失败：%s"),
+            error.into(),
+        ),
     }
 }
 
 /// 将识矩包流式传给受限写盘任务，并限制累计下载大小。
 pub(super) fn dispatch_shiju_download_with(
     release: &ShijuPackageRelease,
-    opener: impl FnOnce(&str) -> Result<(), String>,
-) -> Result<(), String> {
-    opener(release.download_url.as_str()).map_err(|_| "无法打开识矩技能下载地址".to_string())
+    opener: impl FnOnce(&str) -> Result<(), SkillHubError>,
+) -> Result<(), SkillHubError> {
+    opener(release.download_url.as_str())
+        .map_err(|_| SkillHubError::localized("无法打开识矩技能下载地址", vec![]))
 }
 
 pub(super) fn open_shiju_install_dir_with(
     directory: &Path,
-    opener: impl FnOnce(&Path) -> Result<(), String>,
-) -> Result<(), String> {
+    opener: impl FnOnce(&Path) -> Result<(), SkillHubError>,
+) -> Result<(), SkillHubError> {
     if !directory.is_dir() {
-        return Err("识矩技能安装目录不存在".to_string());
+        return Err(SkillHubError::localized("识矩技能安装目录不存在", vec![]));
     }
-    opener(directory).map_err(|_| "无法打开识矩技能目录".to_string())
+    opener(directory).map_err(|_| SkillHubError::localized("无法打开识矩技能目录", vec![]))
 }
 
 fn start_direct_install(app: &mut App) -> Task<Message> {
     let Some(package_id) = app.expert_hub.install_guide.current_package else {
-        return app.show_error_toast("当前系统或架构暂不支持直接安装");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "当前系统或架构暂不支持直接安装",
+            vec![],
+        );
     };
     let Some((account_id, credential)) = active_shiju_account(app) else {
-        return app.show_warning_toast("登录识矩账户后直接安装");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "登录识矩账户后直接安装",
+            vec![],
+        );
     };
     let selections = app.expert_hub.install_guide.selected_install_selections();
     let project_root = match selected_project_root(app, &selections) {
         Ok(project_root) => project_root,
-        Err(error) => return app.show_error_toast(error),
+        Err(error) => {
+            return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
+        }
     };
     let home = match home_directory() {
         Ok(home) => home,
-        Err(error) => return app.show_error_toast(error),
+        Err(error) => {
+            return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
+        }
     };
     if let Err(error) = resolve_skill_destinations(&home, project_root.as_deref(), &selections) {
-        return app.show_error_toast(error.to_string());
+        return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
     }
     let Some(generation) = app.expert_hub.install_guide.start_direct_install(package_id) else {
         return Task::none();
@@ -1173,7 +1261,12 @@ fn finish_direct_package_load(
         Ok(release) => release,
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Idle;
-            return app.show_error_toast(format!("直接安装准备失败：{error}"));
+            return show_skill_error(
+                app,
+                crate::app::state::ToastKind::Error,
+                Some("直接安装准备失败：%s"),
+                error.into(),
+            );
         }
     };
     app.expert_hub.install_guide.direct_install =
@@ -1200,7 +1293,7 @@ fn finish_direct_install(
     account_id: &str,
     package_id: ShijuPackageId,
     selections: &[SkillInstallSelection],
-    result: Result<ShijuMultiInstallReport, String>,
+    result: Result<ShijuMultiInstallReport, SkillHubError>,
 ) -> Task<Message> {
     let is_current = app.expert_hub.install_guide.open
         && app.expert_hub.account_id.as_deref() == Some(account_id)
@@ -1222,17 +1315,30 @@ fn finish_direct_install(
             reload_local_shiju_package_version(app);
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
             Task::batch([
-                app.show_success_toast(format!("识矩技能已安装到 {installed_count} 个目标")),
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "识矩技能已安装到 %s 个目标",
+                    vec![installed_count.to_string().into()],
+                ),
                 start_shiju_key_sync(app, false),
             ])
         }
         Ok(_) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Idle;
-            app.show_error_toast("识矩技能安装结果不完整")
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "识矩技能安装结果不完整",
+                vec![],
+            )
         }
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Idle;
-            app.show_error_toast(format!("识矩技能安装失败：{error}"))
+            show_skill_error(
+                app,
+                crate::app::state::ToastKind::Error,
+                Some("识矩技能安装失败：%s"),
+                error.into(),
+            )
         }
     }
 }
@@ -1241,29 +1347,32 @@ async fn install_shiju_package_for_targets(
     release: ShijuPackageRelease,
     project_root: Option<PathBuf>,
     selections: Vec<SkillInstallSelection>,
-) -> Result<ShijuMultiInstallReport, String> {
+) -> Result<ShijuMultiInstallReport, SkillHubError> {
     let client = reqwest::Client::builder()
         .redirect(Policy::none())
         .timeout(Duration::from_secs(120))
         .build()
-        .map_err(|_| "无法创建识矩技能下载客户端".to_string())?;
+        .map_err(|_| SkillHubError::localized("无法创建识矩技能下载客户端", vec![]))?;
     let mut response = client
         .get(release.download_url.as_str())
         .send()
         .await
-        .map_err(|_| "识矩技能安装包下载失败".to_string())?;
+        .map_err(|_| SkillHubError::localized("识矩技能安装包下载失败", vec![]))?;
     if !response.status().is_success() {
-        return Err(format!("识矩技能安装包下载失败: HTTP {}", response.status().as_u16()));
+        return Err(SkillHubError::localized(
+            "识矩技能安装包下载失败: HTTP %s",
+            vec![response.status().as_u16().to_string()],
+        ));
     }
     if response.content_length().is_some_and(|length| length > MAX_SHIJU_ARCHIVE_BYTES) {
-        return Err("识矩技能安装包超过 100 MiB 限制".to_string());
+        return Err(SkillHubError::localized("识矩技能安装包超过 100 MiB 限制", vec![]));
     }
 
     let home = home_directory()?;
     let (chunk_sender, chunk_receiver) = tokio::sync::mpsc::channel(4);
     let install_task = tokio::task::spawn_blocking(move || {
-        let archive =
-            NamedTempFile::new().map_err(|_| "无法创建识矩技能临时下载文件".to_string())?;
+        let archive = NamedTempFile::new()
+            .map_err(|_| SkillHubError::localized("无法创建识矩技能临时下载文件", vec![]))?;
         let archive = write_shiju_download_chunks(archive, chunk_receiver)?;
         install_shiju_archive_for_targets(
             archive.path(),
@@ -1271,7 +1380,7 @@ async fn install_shiju_package_for_targets(
             project_root.as_deref(),
             &selections,
         )
-        .map_err(|error| error.to_string())
+        .map_err(SkillHubError::from)
     });
 
     let mut written = 0u64;
@@ -1281,12 +1390,12 @@ async fn install_shiju_package_for_targets(
             Ok(Some(chunk)) => chunk,
             Ok(None) => break,
             Err(_) => {
-                download_error = Some("识矩技能安装包下载中断".to_string());
+                download_error = Some(SkillHubError::localized("识矩技能安装包下载中断", vec![]));
                 break;
             }
         };
         let chunk_len = match u64::try_from(chunk.len())
-            .map_err(|_| "识矩技能安装包大小溢出".to_string())
+            .map_err(|_| SkillHubError::localized("识矩技能安装包大小溢出", vec![]))
         {
             Ok(chunk_len) => chunk_len,
             Err(error) => {
@@ -1297,16 +1406,17 @@ async fn install_shiju_package_for_targets(
         written = match written.checked_add(chunk_len) {
             Some(written) => written,
             None => {
-                download_error = Some("识矩技能安装包大小溢出".to_string());
+                download_error = Some(SkillHubError::localized("识矩技能安装包大小溢出", vec![]));
                 break;
             }
         };
         if written > MAX_SHIJU_ARCHIVE_BYTES {
-            download_error = Some("识矩技能安装包超过 100 MiB 限制".to_string());
+            download_error =
+                Some(SkillHubError::localized("识矩技能安装包超过 100 MiB 限制", vec![]));
             break;
         }
         if chunk_sender.send(ShijuDownloadChunk::Data(chunk.to_vec())).await.is_err() {
-            download_error = Some("识矩技能安装写盘任务异常终止".to_string());
+            download_error = Some(SkillHubError::localized("识矩技能安装写盘任务异常终止", vec![]));
             break;
         }
     }
@@ -1317,7 +1427,7 @@ async fn install_shiju_package_for_targets(
     };
     let _ = chunk_sender.send(completion).await;
     drop(chunk_sender);
-    install_task.await.map_err(|_| "识矩技能安装任务异常终止".to_string())?
+    install_task.await.map_err(|_| SkillHubError::localized("识矩技能安装任务异常终止", vec![]))?
 }
 
 #[derive(Debug)]
@@ -1325,27 +1435,29 @@ async fn install_shiju_package_for_targets(
 pub(super) enum ShijuDownloadChunk {
     Data(Vec<u8>),
     Complete,
-    Failed(String),
+    Failed(SkillHubError),
 }
 
 /// 顺序写入下载数据块；超过上限或读取失败时停止并返回错误。
 pub(super) fn write_shiju_download_chunks(
     mut archive: NamedTempFile,
     mut chunks: tokio::sync::mpsc::Receiver<ShijuDownloadChunk>,
-) -> Result<NamedTempFile, String> {
+) -> Result<NamedTempFile, SkillHubError> {
     loop {
         match chunks.blocking_recv() {
             Some(ShijuDownloadChunk::Data(chunk)) => {
-                archive
-                    .write_all(&chunk)
-                    .map_err(|_| "无法写入识矩技能临时下载文件".to_string())?;
+                archive.write_all(&chunk).map_err(|_| {
+                    SkillHubError::localized("无法写入识矩技能临时下载文件", vec![])
+                })?;
             }
             Some(ShijuDownloadChunk::Complete) => {
-                archive.flush().map_err(|_| "无法写完识矩技能临时下载文件".to_string())?;
+                archive.flush().map_err(|_| {
+                    SkillHubError::localized("无法写完识矩技能临时下载文件", vec![])
+                })?;
                 return Ok(archive);
             }
             Some(ShijuDownloadChunk::Failed(error)) => return Err(error),
-            None => return Err("识矩技能安装包下载未完成".to_string()),
+            None => return Err(SkillHubError::localized("识矩技能安装包下载未完成", vec![])),
         }
     }
 }
@@ -1365,13 +1477,21 @@ fn install_report_matches_selections(
 
 fn start_manual_shiju_key_sync(app: &mut App) -> Task<Message> {
     if app.expert_hub.install_guide.installed_selection_count() == 0 {
-        return app.show_error_toast("识矩技能尚未安装，无法同步登录信息");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "识矩技能尚未安装，无法同步登录信息",
+            vec![],
+        );
     }
     if !matches!(
         &app.expert_hub.install_guide.direct_install,
         ShijuDirectInstallState::Idle | ShijuDirectInstallState::Installed
     ) {
-        return app.show_warning_toast("请等待识矩技能安装或卸载完成后再同步");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待识矩技能安装或卸载完成后再同步",
+            vec![],
+        );
     }
     start_shiju_key_sync(app, true)
 }
@@ -1383,7 +1503,11 @@ fn start_shiju_key_sync(app: &mut App, requested_by_user: bool) -> Task<Message>
         .map(|account| (account.id().to_string(), account.skill_hub_credential()));
     let Some((account_id, credential)) = account else {
         return if requested_by_user {
-            app.show_warning_toast("登录识矩账户后同步登录信息")
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "登录识矩账户后同步登录信息",
+                vec![],
+            )
         } else {
             Task::none()
         };
@@ -1391,11 +1515,15 @@ fn start_shiju_key_sync(app: &mut App, requested_by_user: bool) -> Task<Message>
     let selections = app.expert_hub.install_guide.selected_install_selections();
     let project_root = match selected_project_root(app, &selections) {
         Ok(project_root) => project_root,
-        Err(error) => return app.show_error_toast(error),
+        Err(error) => {
+            return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
+        }
     };
     let home = match home_directory() {
         Ok(home) => home,
-        Err(error) => return app.show_error_toast(error),
+        Err(error) => {
+            return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
+        }
     };
     let Some(operation) = app.expert_hub.install_guide.start_login_sync() else {
         return Task::none();
@@ -1405,10 +1533,10 @@ fn start_shiju_key_sync(app: &mut App, requested_by_user: bool) -> Task<Message>
         async move {
             tokio::task::spawn_blocking(move || {
                 sync_shiju_key_for_targets(&home, project_root.as_deref(), &selections, &credential)
-                    .map_err(|error| error.to_string())
+                    .map_err(SkillHubError::from)
             })
             .await
-            .map_err(|_| "识矩登录信息同步任务异常终止".to_string())?
+            .map_err(|_| SkillHubError::localized("识矩登录信息同步任务异常终止", vec![]))?
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::ShijuKeySyncFinished {
@@ -1428,7 +1556,7 @@ fn finish_shiju_key_sync(
     account_id: &str,
     selections: &[SkillInstallSelection],
     requested_by_user: bool,
-    result: Result<ShijuKeySyncReport, String>,
+    result: Result<ShijuKeySyncReport, SkillHubError>,
 ) -> Task<Message> {
     let is_current = app.expert_hub.install_guide.open
         && app.account.active_account().is_some_and(|account| account.id() == account_id)
@@ -1449,22 +1577,42 @@ fn finish_shiju_key_sync(
                 .count();
             if updated == 0 {
                 return if requested_by_user {
-                    app.show_error_toast("所选目标尚未安装识矩技能，无法同步登录信息")
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "所选目标尚未安装识矩技能，无法同步登录信息",
+                        vec![],
+                    )
                 } else {
                     Task::none()
                 };
             }
             if requested_by_user {
-                app.show_success_toast(format!("识矩登录信息已同步到 {updated} 个目标"))
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "识矩登录信息已同步到 %s 个目标",
+                    vec![updated.to_string().into()],
+                )
             } else {
-                app.show_success_toast(format!("识矩登录信息已自动同步到 {updated} 个目标"))
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "识矩登录信息已自动同步到 %s 个目标",
+                    vec![updated.to_string().into()],
+                )
             }
         }
         Err(_) => {
             if requested_by_user {
-                app.show_error_toast("识矩登录信息同步失败，请检查文件权限后重试")
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "识矩登录信息同步失败，请检查文件权限后重试",
+                    vec![],
+                )
             } else {
-                app.show_error_toast("识矩登录信息自动同步失败，请检查文件权限后手动重试")
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "识矩登录信息自动同步失败，请检查文件权限后手动重试",
+                    vec![],
+                )
             }
         }
     }
@@ -1479,14 +1627,14 @@ fn start_shiju_uninstall(app: &mut App) -> Task<Message> {
         Ok(project_root) => project_root,
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
-            return app.show_error_toast(error);
+            return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
         }
     };
     let home = match home_directory() {
         Ok(home) => home,
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
-            return app.show_error_toast(error);
+            return show_skill_error(app, crate::app::state::ToastKind::Error, None, error.into());
         }
     };
     let result_selections = selections.clone();
@@ -1494,10 +1642,10 @@ fn start_shiju_uninstall(app: &mut App) -> Task<Message> {
         async move {
             tokio::task::spawn_blocking(move || {
                 uninstall_shiju_for_targets(&home, project_root.as_deref(), &selections)
-                    .map_err(|error| error.to_string())
+                    .map_err(SkillHubError::from)
             })
             .await
-            .map_err(|_| "识矩技能卸载任务异常终止".to_string())?
+            .map_err(|_| SkillHubError::localized("识矩技能卸载任务异常终止", vec![]))?
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::ShijuUninstallFinished {
@@ -1513,7 +1661,7 @@ fn finish_shiju_uninstall(
     app: &mut App,
     generation: u64,
     selections: &[SkillInstallSelection],
-    result: Result<ShijuUninstallReport, String>,
+    result: Result<ShijuUninstallReport, SkillHubError>,
 ) -> Task<Message> {
     if !app.expert_hub.install_guide.open
         || app.expert_hub.install_guide.direct_selections != selections
@@ -1537,18 +1685,31 @@ fn finish_shiju_uninstall(
                 } else {
                     ShijuDirectInstallState::Installed
                 };
-            app.show_success_toast(format!("已从 {removed} 个目标卸载识矩技能"))
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "已从 %s 个目标卸载识矩技能",
+                vec![removed.to_string().into()],
+            )
         }
         Err(error) => {
             app.expert_hub.install_guide.direct_install = ShijuDirectInstallState::Installed;
-            app.show_error_toast(format!("识矩技能卸载失败：{error}"))
+            show_skill_error(
+                app,
+                crate::app::state::ToastKind::Error,
+                Some("识矩技能卸载失败：%s"),
+                error.into(),
+            )
         }
     }
 }
 
 fn open_skill_detail(app: &mut App, skill_id: u64) -> Task<Message> {
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后查看技能详情");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后查看技能详情",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     let credential = account.skill_hub_credential();
@@ -1574,7 +1735,7 @@ fn open_skill_detail(app: &mut App, skill_id: u64) -> Task<Message> {
             let dto = gateway_shiju_skill_detail_async(&credential, skill_id)
                 .await
                 .map_err(SkillHubError::from)?;
-            SkillDetail::try_from(dto).map_err(SkillHubError::from)
+            SkillDetail::try_from(dto)
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::SkillDetailLoaded {
@@ -1654,7 +1815,11 @@ fn detail_response_is_current(app: &App, generation: u64, account_id: &str, skil
 
 fn start_skill_action(app: &mut App, skill_id: u64, action: SkillActionKind) -> Task<Message> {
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后管理技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后管理技能",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
@@ -1670,13 +1835,17 @@ fn start_skill_action(app: &mut App, skill_id: u64, action: SkillActionKind) -> 
             let credential = credential.gateway_credential().map_err(|error| error.to_string())?;
             match request_action {
                 SkillActionKind::Install => {
-                    gateway_shiju_skill_remote_install_async(&credential, skill_id).await
+                    gateway_shiju_skill_remote_install_async(&credential, skill_id)
+                        .await
+                        .map_err(SkillHubError::from)
                 }
                 SkillActionKind::Uninstall => {
-                    gateway_shiju_skill_remote_uninstall_async(&credential, skill_id).await
+                    gateway_shiju_skill_remote_uninstall_async(&credential, skill_id)
+                        .await
+                        .map_err(SkillHubError::from)
                 }
                 SkillActionKind::ResolveUpgrade { .. } | SkillActionKind::Version(_) => {
-                    Err("无效的技能操作".to_string())
+                    Err(SkillHubError::localized("无效的技能操作", vec![]))
                 }
             }
         },
@@ -1686,7 +1855,7 @@ fn start_skill_action(app: &mut App, skill_id: u64, action: SkillActionKind) -> 
                 account_id,
                 skill_id,
                 action,
-                result,
+                result: result.map_err(SkillHubError::from),
             })
         },
     )
@@ -1704,7 +1873,11 @@ fn start_quick_upgrade(app: &mut App, skill_id: u64) -> Task<Message> {
         return Task::none();
     };
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后管理技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后管理技能",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
@@ -1721,14 +1894,14 @@ fn start_quick_upgrade(app: &mut App, skill_id: u64) -> Task<Message> {
         async move {
             let credential = credential.gateway_credential().map_err(|error| error.to_string())?;
             let dto = gateway_shiju_skill_detail_async(&credential, skill_id).await?;
-            SkillDetail::try_from(dto).map_err(|error| error.to_string())
+            SkillDetail::try_from(dto)
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::SkillUpgradeResolved {
                 generation,
                 account_id,
                 skill_id,
-                result,
+                result: result.map_err(SkillHubError::from),
             })
         },
     )
@@ -1739,7 +1912,7 @@ fn finish_quick_upgrade_resolution(
     generation: u64,
     account_id: &str,
     skill_id: u64,
-    result: Result<SkillDetail, String>,
+    result: Result<SkillDetail, SkillHubError>,
 ) -> Task<Message> {
     let target_version = app.expert_hub.action.as_ref().and_then(|active| {
         if active.generation != generation || active.skill_id != skill_id {
@@ -1757,11 +1930,20 @@ fn finish_quick_upgrade_resolution(
         Ok(detail) if detail.id == skill_id => detail,
         Ok(_) => {
             app.expert_hub.action = None;
-            return app.show_error_toast("技能升级失败：详情响应与目标技能不匹配");
+            return app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "技能升级失败：详情响应与目标技能不匹配",
+                vec![],
+            );
         }
         Err(error) => {
             app.expert_hub.action = None;
-            return app.show_error_toast(format!("技能升级失败：{error}"));
+            return show_skill_error(
+                app,
+                crate::app::state::ToastKind::Error,
+                Some("技能升级失败：%s"),
+                error.into(),
+            );
         }
     };
     let action = SkillVersionAction {
@@ -1776,7 +1958,11 @@ fn finish_quick_upgrade_resolution(
     active.kind = SkillActionKind::Version(action.clone());
     let Some(account) = app.account.active_account() else {
         app.expert_hub.action = None;
-        return app.show_error_toast("登录识矩账户后管理技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后管理技能",
+            vec![],
+        );
     };
     dispatch_version_action(
         account.skill_hub_credential(),
@@ -1788,7 +1974,11 @@ fn finish_quick_upgrade_resolution(
 
 fn start_version_action(app: &mut App, action: SkillVersionAction) -> Task<Message> {
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后管理技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后管理技能",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
@@ -1810,7 +2000,11 @@ fn confirm_version_action(app: &mut App) -> Task<Message> {
         return Task::none();
     };
     let Some(account) = app.account.active_account() else {
-        return app.show_error_toast("登录识矩账户后管理技能");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "登录识矩账户后管理技能",
+            vec![],
+        );
     };
     let account_id = account.id().to_string();
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
@@ -1848,7 +2042,7 @@ fn dispatch_version_action(
                 account_id,
                 skill_id,
                 action: SkillActionKind::Version(action),
-                result,
+                result: result.map_err(SkillHubError::from),
             })
         },
     )
@@ -1860,7 +2054,7 @@ fn finish_skill_action(
     account_id: &str,
     skill_id: u64,
     action: SkillActionKind,
-    result: Result<(), String>,
+    result: Result<(), SkillHubError>,
 ) -> Task<Message> {
     let is_current = app.expert_hub.account_id.as_deref() == Some(account_id)
         && app.expert_hub.action.as_ref().is_some_and(|active| {
@@ -1873,7 +2067,11 @@ fn finish_skill_action(
     match result {
         Ok(()) if matches!(action, SkillActionKind::Install | SkillActionKind::Version(_)) => {
             Task::batch([
-                app.show_info_toast("服务端已更新，正在同步本地缓存"),
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "服务端已更新，正在同步本地缓存",
+                    vec![],
+                ),
                 start_skill_cache_sync(
                     app,
                     skill_id,
@@ -1881,19 +2079,22 @@ fn finish_skill_action(
                 ),
             ])
         }
-        Ok(()) => Task::batch([app.show_success_toast("技能卸载成功"), load_current_tab(app)]),
+        Ok(()) => Task::batch([
+            app.show_localized_toast(crate::app::state::ToastKind::Success, "技能卸载成功", vec![]),
+            load_current_tab(app),
+        ]),
         Err(error) => {
             let label = match &action {
-                SkillActionKind::Install => "技能安装失败",
-                SkillActionKind::Uninstall => "技能卸载失败",
-                SkillActionKind::ResolveUpgrade { .. } => "技能升级失败",
+                SkillActionKind::Install => "技能安装失败：%s",
+                SkillActionKind::Uninstall => "技能卸载失败：%s",
+                SkillActionKind::ResolveUpgrade { .. } => "技能升级失败：%s",
                 SkillActionKind::Version(version) => match version.direction {
-                    SkillVersionDirection::Upgrade => "技能升级失败",
-                    SkillVersionDirection::Rollback => "技能回退失败",
-                    SkillVersionDirection::Switch => "技能版本切换失败",
+                    SkillVersionDirection::Upgrade => "技能升级失败：%s",
+                    SkillVersionDirection::Rollback => "技能回退失败：%s",
+                    SkillVersionDirection::Switch => "技能版本切换失败：%s",
                 },
             };
-            app.show_error_toast(format!("{label}：{error}"))
+            show_skill_error(app, crate::app::state::ToastKind::Error, Some(label), error)
         }
     }
 }
@@ -1901,7 +2102,11 @@ fn finish_skill_action(
 fn start_skill_cache_sync(app: &mut App, skill_id: u64, refresh_detail: bool) -> Task<Message> {
     let Some(account_id) = app.account.active_account().map(|account| account.id().to_string())
     else {
-        return app.show_warning_toast("登录识矩账户后重试本地缓存同步");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "登录识矩账户后重试本地缓存同步",
+            vec![],
+        );
     };
     if app.expert_hub.account_id.as_deref() != Some(account_id.as_str()) {
         app.expert_hub.clear_for_account(Some(account_id));
@@ -1914,12 +2119,20 @@ fn start_skill_cache_sync(app: &mut App, skill_id: u64, refresh_detail: bool) ->
         async move {
             let installation = tokio::task::spawn_blocking(shiju_installation)
                 .await
-                .map_err(|_| "主识矩技能安装状态检查异常终止".to_string())?
-                .map_err(|_| "无法验证主识矩技能安装状态".to_string())?
-                .ok_or_else(|| "未安装主识矩技能，请前往识矩技能页安装后重试".to_string())?;
-            sync_business_skill_cache(&installation.installed_dir, skill_id)
-                .await
-                .map_err(|error| error.to_string())
+                .map_err(|_| {
+                    crate::app::skill_hub::SkillCacheSyncError::new(
+                        "主识矩技能安装状态检查异常终止",
+                    )
+                })?
+                .map_err(|_| {
+                    crate::app::skill_hub::SkillCacheSyncError::new("无法验证主识矩技能安装状态")
+                })?
+                .ok_or_else(|| {
+                    crate::app::skill_hub::SkillCacheSyncError::new(
+                        "未安装主识矩技能，请前往识矩技能页安装后重试",
+                    )
+                })?;
+            sync_business_skill_cache(&installation.installed_dir, skill_id).await
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::SkillCacheSyncFinished {
@@ -1937,7 +2150,11 @@ fn retry_skill_cache_sync(app: &mut App) -> Task<Message> {
         return Task::none();
     };
     Task::batch([
-        app.show_info_toast("正在重试本地缓存同步"),
+        app.show_localized_toast(
+            crate::app::state::ToastKind::Info,
+            "正在重试本地缓存同步",
+            vec![],
+        ),
         start_skill_cache_sync(app, skill_id, refresh_detail),
     ])
 }
@@ -1947,7 +2164,7 @@ fn finish_skill_cache_sync(
     generation: u64,
     account_id: &str,
     skill_id: u64,
-    result: Result<SkillCacheSyncReport, String>,
+    result: Result<SkillCacheSyncReport, crate::app::skill_hub::SkillCacheSyncError>,
 ) -> Task<Message> {
     let refresh_detail = app.expert_hub.cache_sync.syncing_refreshes_detail(generation, skill_id);
     if app.expert_hub.account_id.as_deref() != Some(account_id)
@@ -1958,11 +2175,26 @@ fn finish_skill_cache_sync(
     }
     match result {
         Ok(_) => Task::batch([
-            app.show_success_toast("技能与本地缓存同步成功"),
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "技能与本地缓存同步成功",
+                vec![],
+            ),
             refresh_skill_cache_views(app, skill_id, refresh_detail.unwrap_or(false)),
         ]),
         Err(error) => {
-            app.show_warning_toast(format!("服务端已更新，本地缓存待同步：{error}，请重试"))
+            let message = crate::app::i18n::format::Message::nested(
+                "服务端已更新，本地缓存待同步：%s，请重试".into(),
+                vec![error.message()],
+            );
+            let fallback = message
+                .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                .expect("valid cache feedback");
+            let task = app.show_warning_toast(fallback);
+            if let Some(toast) = &mut app.active_toast {
+                toast.localized_message = Some(message);
+            }
+            task
         }
     }
 }
@@ -1988,8 +2220,8 @@ fn refresh_version_action_views(app: &mut App, skill_id: u64) -> Task<Message> {
 pub(super) fn dispatch_download_with(
     app: &App,
     version_id: u64,
-    opener: impl FnOnce(&str) -> Result<(), String>,
-) -> Result<(), String> {
+    opener: impl FnOnce(&str) -> Result<(), SkillHubError>,
+) -> Result<(), SkillHubError> {
     let version = app
         .expert_hub
         .detail
@@ -1998,10 +2230,13 @@ pub(super) fn dispatch_download_with(
             LoadState::Loaded(versions) => versions.iter().find(|version| version.id == version_id),
             _ => None,
         })
-        .ok_or_else(|| "技能版本下载地址不可用".to_string())?;
-    let download_url =
-        version.download_url.as_ref().ok_or_else(|| "技能版本下载地址不可用".to_string())?;
-    opener(download_url.as_str()).map_err(|_| "无法打开技能下载地址".to_string())
+        .ok_or_else(|| SkillHubError::localized("技能版本下载地址不可用", vec![]))?;
+    let download_url = version
+        .download_url
+        .as_ref()
+        .ok_or_else(|| SkillHubError::localized("技能版本下载地址不可用", vec![]))?;
+    opener(download_url.as_str())
+        .map_err(|_| SkillHubError::localized("无法打开技能下载地址", vec![]))
 }
 
 /// 账号切换后清除账号范围内的技能状态，并按当前页面重新加载。
@@ -2042,19 +2277,21 @@ fn refresh_shiju_package_version(app: &mut App) -> Task<Message> {
     Task::perform(
         async move {
             let client = SkillHubClient::new(credential)
-                .map_err(|_| "无法创建识矩版本刷新客户端".to_string())?;
+                .map_err(|_| SkillHubError::localized("无法创建识矩版本刷新客户端", vec![]))?;
             let release = client
                 .latest_shiju_package(package_id)
                 .await
-                .map_err(|_| "无法刷新识矩服务端版本".to_string())?;
-            let version =
-                release.version().ok_or_else(|| "识矩服务端版本格式无效".to_string())?.to_string();
+                .map_err(|_| SkillHubError::localized("无法刷新识矩服务端版本", vec![]))?;
+            let version = release
+                .version()
+                .ok_or_else(|| SkillHubError::localized("识矩服务端版本格式无效", vec![]))?
+                .to_string();
             let checked_at_unix = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map_err(|_| "无法记录识矩版本检测时间".to_string())?
+                .map_err(|_| SkillHubError::localized("无法记录识矩版本检测时间", vec![]))?
                 .as_secs();
             PackageVersionCacheEntry::new(version, checked_at_unix)
-                .map_err(|_| "识矩服务端版本格式无效".to_string())
+                .map_err(|_| SkillHubError::localized("识矩服务端版本格式无效", vec![]))
         },
         move |result| {
             Message::SkillHub(SkillHubMessage::ShijuPackageVersionRefreshed { generation, result })
@@ -2065,16 +2302,16 @@ fn refresh_shiju_package_version(app: &mut App) -> Task<Message> {
 fn finish_shiju_package_version_refresh(
     app: &mut App,
     generation: u64,
-    result: Result<PackageVersionCacheEntry, String>,
+    result: Result<PackageVersionCacheEntry, SkillHubError>,
 ) -> Task<Message> {
     if !app.expert_hub.package_status.is_refreshing(generation) {
         return Task::none();
     }
     let result = result.and_then(|entry| {
-        let path =
-            package_version_cache_path().map_err(|_| "无法确定识矩版本缓存路径".to_string())?;
+        let path = package_version_cache_path()
+            .map_err(|_| SkillHubError::localized("无法确定识矩版本缓存路径", vec![]))?;
         write_package_version_cache(&path, &entry)
-            .map_err(|_| "无法更新识矩版本缓存".to_string())?;
+            .map_err(|_| SkillHubError::localized("无法更新识矩版本缓存", vec![]))?;
         Ok(entry)
     });
     app.expert_hub.package_status.finish_refresh(generation, result);
@@ -2406,4 +2643,26 @@ fn load_installed_skills(app: &mut App, force: bool) -> Task<Message> {
             Message::SkillHub(SkillHubMessage::InstalledLoaded { generation, account_id, result })
         },
     )
+}
+
+fn show_skill_error(
+    app: &mut App,
+    kind: crate::app::state::ToastKind,
+    source: Option<&str>,
+    error: SkillHubError,
+) -> Task<Message> {
+    let message = match source {
+        Some(source) => {
+            crate::app::i18n::format::Message::nested(source.to_string(), vec![error.message()])
+        }
+        None => error.message(),
+    };
+    let fallback = message
+        .render(crate::app::i18n::I18n::new(app.desktop_locale))
+        .expect("valid error feedback");
+    let task = app.show_toast(kind, fallback);
+    if let Some(toast) = &mut app.active_toast {
+        toast.localized_message = Some(message);
+    }
+    task
 }

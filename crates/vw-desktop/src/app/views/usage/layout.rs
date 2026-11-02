@@ -53,32 +53,71 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     // ===== 概览卡片：左侧统计信息 =====
     // 显示会话的基本统计，包括标题、消息数、原始记录数和 token 总数
     let stats_left = column![
-        kv("会话", usage_data.session_title.clone()),
-        kv("消息数", usage_data.message_count.to_string()),
-        kv("原始记录", usage_data.call_count.to_string()),
-        kv("总 token", usage_data.total_tokens.to_string()),
-        kv("最近总 token", usage_data.last_step_total_tokens.to_string()),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("会话"),
+            usage_data.session_title.clone()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("消息数"),
+            usage_data.message_count.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("原始记录"),
+            usage_data.call_count.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("总 token"),
+            usage_data.total_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近总 token"),
+            usage_data.last_step_total_tokens.to_string()
+        ),
     ]
     .spacing(10);
 
     // ===== 概览卡片：右侧统计信息 =====
     // 显示 token 的详细分类统计，包括累计值和最近步骤的值
     let stats_right = column![
-        kv("总输入 token", app.usage.input_tokens.to_string()),
-        kv("总输出 token", app.usage.output_tokens.to_string()),
-        kv("总缓存 token", app.usage.cached_tokens.to_string()),
-        kv("总推理 token", app.usage.reasoning_tokens.to_string()),
-        kv("最近输入 token", usage_data.last_step_input_tokens.to_string()),
-        kv("最近输出 token", usage_data.last_step_output_tokens.to_string()),
-        kv("最近缓存 token", usage_data.last_step_cached_tokens.to_string()),
-        kv("最近推理 token", usage_data.last_step_reasoning_tokens.to_string()),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("总输入 token"),
+            app.usage.input_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("总输出 token"),
+            app.usage.output_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("总缓存 token"),
+            app.usage.cached_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("总推理 token"),
+            app.usage.reasoning_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近输入 token"),
+            usage_data.last_step_input_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近输出 token"),
+            usage_data.last_step_output_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近缓存 token"),
+            usage_data.last_step_cached_tokens.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近推理 token"),
+            usage_data.last_step_reasoning_tokens.to_string()
+        ),
     ]
     .spacing(10);
 
     // 组装概览卡片：包含标题和左右两列统计信息
     let stats = container(
         column![
-            section_title("概览"),
+            section_title(crate::app::i18n::I18n::new(app.desktop_locale).__("概览")),
             Space::new().height(Length::Fixed(8.0)),
             row![stats_left.width(Length::Fill), stats_right.width(Length::Fill)].spacing(24)
         ]
@@ -96,7 +135,7 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     let model_line = if let Some(info) = app.usage_model_info.as_ref() {
         format!("{} · {}", info.provider_name, info.model_name)
     } else if runtime.auto_model {
-        "自动模型".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型").to_string()
     } else {
         runtime.model.clone()
     };
@@ -105,7 +144,7 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     let model_ref = if let Some(info) = app.usage_model_info.as_ref() {
         format!("{}/{}", info.provider_id, info.model_id)
     } else if runtime.auto_model {
-        "自动".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("自动").to_string()
     } else {
         runtime.model.clone()
     };
@@ -124,17 +163,21 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
                 )
             }
         })
-        .unwrap_or_else(|| "暂无".to_string());
+        .unwrap_or_else(|| crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string());
 
     // 构建成本价格字符串：显示每百万 token 的成本
     let cost_price = app.usage_model_info.as_ref().map(|info| {
-        format!(
-            "输入 {}/M · 输出 {}/M · 缓存读 {}/M · 缓存写 {}/M",
-            fmt_usd(info.cost_input_per_million),
-            fmt_usd(info.cost_output_per_million),
-            fmt_usd(info.cost_cache_read_per_million),
-            fmt_usd(info.cost_cache_write_per_million),
-        )
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .format(
+                "输入 %s/M · 输出 %s/M · 缓存读 %s/M · 缓存写 %s/M",
+                &[
+                    (fmt_usd(info.cost_input_per_million)).to_string().into(),
+                    (fmt_usd(info.cost_output_per_million)).to_string().into(),
+                    (fmt_usd(info.cost_cache_read_per_million)).to_string().into(),
+                    (fmt_usd(info.cost_cache_write_per_million)).to_string().into(),
+                ],
+            )
+            .expect("valid display template")
     });
 
     // 估算成本的内部闭包
@@ -185,72 +228,104 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     // ===== 会话细节卡片：左侧信息 =====
     // 显示会话的基本信息，包括标题、创建时间、最后活动时间和模型
     let session_detail_left = column![
-        kv_with_menu(app, "标题", usage_data.session_title.clone(), app.active_session_id.clone(),),
+        kv_with_menu(
+            app,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("标题"),
+            usage_data.session_title.clone(),
+            app.active_session_id.clone(),
+        ),
         kv(
-            "创建时间",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("创建时间"),
             usage_data
                 .session
                 .as_ref()
-                .map(|s| fmt_ms(s.created_ms))
-                .unwrap_or_else(|| "暂无".to_string()),
+                .map(|s| fmt_ms(crate::app::i18n::I18n::new(app.desktop_locale), s.created_ms))
+                .unwrap_or_else(|| {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                }),
         ),
         kv(
-            "最后活动",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最后活动"),
             usage_data
                 .session
                 .as_ref()
-                .map(|s| fmt_ms(s.updated_ms))
-                .unwrap_or_else(|| "暂无".to_string()),
+                .map(|s| fmt_ms(crate::app::i18n::I18n::new(app.desktop_locale), s.updated_ms))
+                .unwrap_or_else(|| {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                }),
         ),
-        kv("模型", model_line),
+        kv(crate::app::i18n::I18n::new(app.desktop_locale).__("模型"), model_line),
     ]
     .spacing(10);
 
     // ===== 会话细节卡片：右侧信息 =====
     // 显示模型的详细配置、限制和成本信息
     let session_detail_right = column![
-        kv("模型引用", model_ref),
+        kv(crate::app::i18n::I18n::new(app.desktop_locale).__("模型引用"), model_ref),
         kv(
-            "上下文限制",
-            app.usage_model_info
-                .as_ref()
-                .map(|i| i.context_limit.to_string())
-                .unwrap_or_else(|| "暂无".to_string()),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("上下文限制"),
+            app.usage_model_info.as_ref().map(|i| i.context_limit.to_string()).unwrap_or_else(
+                || crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+            ),
         ),
         kv(
-            "输出上限",
-            app.usage_model_info
-                .as_ref()
-                .map(|i| i.output_limit.to_string())
-                .unwrap_or_else(|| "暂无".to_string()),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输出上限"),
+            app.usage_model_info.as_ref().map(|i| i.output_limit.to_string()).unwrap_or_else(
+                || crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+            ),
         ),
         kv(
-            "输入窗口",
-            app.usage_model_info
-                .as_ref()
-                .map(|i| i.input_limit.to_string())
-                .unwrap_or_else(|| "暂无".to_string()),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输入窗口"),
+            app.usage_model_info.as_ref().map(|i| i.input_limit.to_string()).unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+            }),
         ),
         kv(
-            "限制说明",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("限制说明"),
             app.usage_model_info
                 .as_ref()
                 .filter(|i| i.limit_is_default)
-                .map(|_| "使用保守默认值".to_string())
-                .unwrap_or_else(|| "模型配置".to_string()),
+                .map(|_| crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("使用保守默认值")
+                    .to_string())
+                .unwrap_or_else(|| crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("模型配置")
+                    .to_string()),
         ),
-        kv("输入 token", usage_data.last_step_input_tokens.to_string()),
-        kv("使用率", usage_rate),
-        kv("成本价", cost_price.unwrap_or_else(|| "暂无".to_string())),
-        kv("最近成本(估算)", last_cost.map(fmt_usd).unwrap_or_else(|| "暂无".to_string()),),
-        kv("总成本(估算)", total_cost.map(fmt_usd).unwrap_or_else(|| "暂无".to_string()),),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输入 token"),
+            usage_data.last_step_input_tokens.to_string()
+        ),
+        kv(crate::app::i18n::I18n::new(app.desktop_locale).__("使用率"), usage_rate),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("成本价"),
+            cost_price.unwrap_or_else(|| crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("暂无")
+                .to_string())
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近成本(估算)"),
+            last_cost.map(fmt_usd).unwrap_or_else(|| crate::app::i18n::I18n::new(
+                app.desktop_locale
+            )
+            .__("暂无")
+            .to_string()),
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("总成本(估算)"),
+            total_cost.map(fmt_usd).unwrap_or_else(|| crate::app::i18n::I18n::new(
+                app.desktop_locale
+            )
+            .__("暂无")
+            .to_string()),
+        ),
     ]
     .spacing(10);
 
     // 组装会话细节卡片：包含标题和左右两列详细信息
     let session_details = container(
         column![
-            section_title("会话细节"),
+            section_title(crate::app::i18n::I18n::new(app.desktop_locale).__("会话细节")),
             Space::new().height(Length::Fixed(8.0)),
             row![session_detail_left.width(Length::Fill), session_detail_right.width(Length::Fill)]
                 .spacing(24)
@@ -264,10 +339,22 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     // ===== 占比卡片：左侧 - 消息类型统计 =====
     // 显示用户、助手、系统和工具消息的数量
     let breakdown_left = column![
-        kv("用户消息", usage_data.user_msgs.to_string()),
-        kv("助手消息", usage_data.assistant_msgs.to_string()),
-        kv("系统消息", usage_data.system_msgs.to_string()),
-        kv("工具消息", usage_data.tool_msgs.to_string()),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("用户消息"),
+            usage_data.user_msgs.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("助手消息"),
+            usage_data.assistant_msgs.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("系统消息"),
+            usage_data.system_msgs.to_string()
+        ),
+        kv(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("工具消息"),
+            usage_data.tool_msgs.to_string()
+        ),
     ]
     .spacing(10);
 
@@ -282,7 +369,13 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
 
         column![
             // 标题：显示 token 总数
-            text(format!("Token 占比 · {}", token_total)).size(12).style(|theme: &iced::Theme| {
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("Token 占比 · %s", &[token_total.to_string().into()])
+                    .expect("valid token distribution")
+            )
+            .size(12)
+            .style(|theme: &iced::Theme| {
                 iced::widget::text::Style {
                     color: Some(theme.extended_palette().background.weak.text.scale_alpha(0.9)),
                 }
@@ -297,25 +390,25 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
             // 图例：显示各类 token 的具体数值和占比
             column![
                 super::steps::legend_item(
-                    "输入",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("输入"),
                     usage_data.last_step_input_tokens as usize,
                     token_total as usize,
                     super::steps::BarSeg::Prompt
                 ),
                 super::steps::legend_item(
-                    "输出",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("输出"),
                     usage_data.last_step_output_tokens as usize,
                     token_total as usize,
                     super::steps::BarSeg::Answer
                 ),
                 super::steps::legend_item(
-                    "缓存",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("缓存"),
                     usage_data.last_step_cached_tokens as usize,
                     token_total as usize,
                     super::steps::BarSeg::Tool
                 ),
                 super::steps::legend_item(
-                    "推理",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("推理"),
                     usage_data.last_step_reasoning_tokens as usize,
                     token_total as usize,
                     super::steps::BarSeg::Other
@@ -329,7 +422,7 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     // 组装占比卡片：包含标题和左右两列
     let breakdown = container(
         column![
-            section_title("占比"),
+            section_title(crate::app::i18n::I18n::new(app.desktop_locale).__("占比")),
             Space::new().height(Length::Fixed(8.0)),
             row![breakdown_left.width(Length::Fill), breakdown_right.width(Length::Fill)]
                 .spacing(24)
@@ -347,7 +440,8 @@ pub fn build_usage_view(app: &App, usage_data: &UsageData) -> Element<'static, M
     // ===== 组装完整视图 =====
     // 将所有卡片按垂直方向排列，并设置最大宽度
     let root = column![
-        container(text("用量").size(18)).padding([4, 2]),
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("用量")).size(18))
+            .padding([4, 2]),
         Space::new().height(Length::Fixed(6.0)),
         stats,
         Space::new().height(Length::Fixed(12.0)),

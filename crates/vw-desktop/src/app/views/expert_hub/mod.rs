@@ -33,23 +33,26 @@ fn section_button(
 fn section_tabs(app: &App) -> Element<'static, Message> {
     let mut tabs = row![].spacing(8);
     for (label, section) in [
-        ("专家", ExpertHubSection::Experts),
-        ("连接器", ExpertHubSection::Connectors),
-        ("技能", ExpertHubSection::Skills),
+        (crate::app::i18n::I18n::new(app.desktop_locale).__("专家"), ExpertHubSection::Experts),
+        (
+            crate::app::i18n::I18n::new(app.desktop_locale).__("连接器"),
+            ExpertHubSection::Connectors,
+        ),
+        (crate::app::i18n::I18n::new(app.desktop_locale).__("技能"), ExpertHubSection::Skills),
     ] {
         tabs = tabs.push(section_button(
-            label,
+            crate::app::i18n::I18n::new(app.desktop_locale).__(label),
             Message::SkillHub(SkillHubMessage::SelectSection(section)),
             app.screen == Screen::ExpertHub && app.expert_hub.section == section,
         ));
     }
     tabs.push(section_button(
-        "识矩技能",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("识矩技能"),
         Message::SkillHub(SkillHubMessage::OpenShijuSkills),
         app.screen == Screen::ShijuSkills,
     ))
     .push(section_button(
-        "识矩应用",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("识矩应用"),
         Message::ShijuApps(ShijuAppsMessage::Open),
         app.screen == Screen::ShijuApps,
     ))

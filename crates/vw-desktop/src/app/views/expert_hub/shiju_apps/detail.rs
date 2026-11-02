@@ -9,23 +9,29 @@ use crate::app::message::ShijuAppsMessage;
 use crate::app::shiju_apps::{ShijuAppDetailTarget, ShijuAppsLoadState};
 use crate::app::{App, Message};
 
-fn field(label: &'static str, value: String, monospace: bool) -> Element<'static, Message> {
+fn field(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    value: String,
+    monospace: bool,
+) -> Element<'static, Message> {
     let value = if monospace && value.is_ascii() {
         text(value).size(12).font(Font::MONOSPACE)
     } else {
         text(value).size(13)
     };
-    column![text(label).size(11).style(styles::muted_text_style), value,].spacing(4).into()
+    column![text(i18n.__(label)).size(11).style(styles::muted_text_style), value,].spacing(4).into()
 }
 
 fn shell(
+    i18n: crate::app::i18n::I18n,
     title: String,
     description: String,
     fields: Vec<Element<'static, Message>>,
 ) -> Element<'static, Message> {
     let mut content = column![
         row![
-            button(text("返回").size(13))
+            button(text(i18n.__("返回")).size(13))
                 .padding([7, 12])
                 .style(styles::quiet_button_style)
                 .on_press(Message::ShijuApps(ShijuAppsMessage::CloseDetail)),
@@ -49,44 +55,88 @@ fn shell(
 
 /// 从目标列表索引读取应用；索引失效时展示可返回的错误状态。
 pub(super) fn view(app: &App, target: ShijuAppDetailTarget) -> Element<'static, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     match target {
         ShijuAppDetailTarget::Store(index) => {
             let ShijuAppsLoadState::Loaded(catalog) = &app.expert_hub.shiju_apps.store else {
-                return shell("应用详情".to_string(), "目录数据不可用".to_string(), Vec::new());
+                return shell(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("应用详情").to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("目录数据不可用")
+                        .to_string(),
+                    Vec::new(),
+                );
             };
             let Some(item) = catalog.apps.get(index) else {
-                return shell("应用详情".to_string(), "应用条目不存在".to_string(), Vec::new());
+                return shell(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("应用详情").to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("应用条目不存在")
+                        .to_string(),
+                    Vec::new(),
+                );
             };
             shell(
+                i18n,
                 item.name.clone(),
-                item.description.clone().unwrap_or_else(|| "暂无应用说明".to_string()),
+                item.description.clone().unwrap_or_else(|| {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("暂无应用说明").to_string()
+                }),
                 vec![
-                    field("应用 ID", item.app_id.clone(), true),
-                    field("版本", item.version.clone(), true),
                     field(
-                        "安装状态",
-                        if item.installed { "已安装" } else { "未安装" }.to_string(),
-                        false,
-                    ),
-                    field(
-                        "用户 ID",
-                        item.user_id.clone().unwrap_or_else(|| "暂无".to_string()),
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("应用 ID"),
+                        item.app_id.clone(),
                         true,
                     ),
                     field(
-                        "安装实例 ID",
-                        item.installation_id.clone().unwrap_or_else(|| "暂无".to_string()),
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("版本"),
+                        item.version.clone(),
                         true,
                     ),
                     field(
-                        "安装时间",
-                        item.installed_at.clone().unwrap_or_else(|| "暂无".to_string()),
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("安装状态"),
+                        if item.installed {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("已安装")
+                        } else {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("未安装")
+                        }
+                        .to_string(),
                         false,
                     ),
                     field(
-                        "权限",
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("用户 ID"),
+                        item.user_id.clone().unwrap_or_else(|| {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                        }),
+                        true,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("安装实例 ID"),
+                        item.installation_id.clone().unwrap_or_else(|| {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                        }),
+                        true,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("安装时间"),
+                        item.installed_at.clone().unwrap_or_else(|| {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                        }),
+                        false,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("权限"),
                         if item.permissions.is_empty() {
-                            "无".to_string()
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("无").to_string()
                         } else {
                             item.permissions.join(" · ")
                         },
@@ -97,31 +147,85 @@ pub(super) fn view(app: &App, target: ShijuAppDetailTarget) -> Element<'static, 
         }
         ShijuAppDetailTarget::Mine(index) => {
             let ShijuAppsLoadState::Loaded(apps) = &app.expert_hub.shiju_apps.mine else {
-                return shell("我的应用详情".to_string(), "应用数据不可用".to_string(), Vec::new());
+                return shell(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("我的应用详情").to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("应用数据不可用")
+                        .to_string(),
+                    Vec::new(),
+                );
             };
             let Some(item) = apps.apps.get(index) else {
-                return shell("我的应用详情".to_string(), "应用条目不存在".to_string(), Vec::new());
+                return shell(
+                    i18n,
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("我的应用详情").to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("应用条目不存在")
+                        .to_string(),
+                    Vec::new(),
+                );
             };
-            let readiness = mine::runtime_readiness(item)
-                .map(str::to_string)
-                .unwrap_or_else(|reason| format!("尚未就绪：{reason}"));
+            let readiness = if mine::runtime_readiness(item).is_ok() {
+                i18n.__("运行就绪").to_string()
+            } else {
+                i18n.format(
+                    "尚未就绪 · 协调状态：%s；运行状态：%s",
+                    &[item.reconcile_status.clone().into(), item.runtime_status.clone().into()],
+                )
+                .expect("valid readiness")
+            };
             shell(
+                i18n,
                 item.name.clone(),
-                item.description.clone().unwrap_or_else(|| "暂无应用说明".to_string()),
+                item.description.clone().unwrap_or_else(|| {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("暂无应用说明").to_string()
+                }),
                 vec![
-                    field("应用 ID", item.app_id.clone(), true),
-                    field("安装实例 ID", item.installation_id.clone(), true),
-                    field("版本", item.version.clone(), true),
-                    field("来源", item.source.clone(), false),
-                    field("运行状态", readiness, false),
                     field(
-                        "创建时间",
-                        item.created_at.clone().unwrap_or_else(|| "暂无".to_string()),
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("应用 ID"),
+                        item.app_id.clone(),
+                        true,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("安装实例 ID"),
+                        item.installation_id.clone(),
+                        true,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("版本"),
+                        item.version.clone(),
+                        true,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("来源"),
+                        item.source.clone(),
                         false,
                     ),
                     field(
-                        "更新时间",
-                        item.updated_at.clone().unwrap_or_else(|| "暂无".to_string()),
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("运行状态"),
+                        readiness,
+                        false,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("创建时间"),
+                        item.created_at.clone().unwrap_or_else(|| {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                        }),
+                        false,
+                    ),
+                    field(
+                        i18n,
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("更新时间"),
+                        item.updated_at.clone().unwrap_or_else(|| {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()
+                        }),
                         false,
                     ),
                 ],

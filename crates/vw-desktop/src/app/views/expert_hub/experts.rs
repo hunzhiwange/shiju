@@ -24,28 +24,48 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
 
     let content = match &state.sources {
         LoadState::Idle | LoadState::Loading { .. } => public_skills::loading_view(),
-        LoadState::Error(error) => public_skills::error_view(error),
-        LoadState::NeedsLogin => public_skills::error_view("公开市场不需要登录，请重试"),
-        LoadState::Loaded(_) => public_skills::suites_content(state),
+        LoadState::Error(error) => public_skills::error_view(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            &error.render(crate::app::i18n::I18n::new(app.desktop_locale)),
+        ),
+        LoadState::NeedsLogin => public_skills::error_view(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("公开市场不需要登录，请重试"),
+        ),
+        LoadState::Loaded(_) => {
+            public_skills::suites_content(crate::app::i18n::I18n::new(app.desktop_locale), state)
+        }
     };
     let heading = column![
-        text("专家").size(26).font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
-        text("浏览 SkillHub 专家包").size(13).style(styles::muted_text_style),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("专家"))
+            .size(26)
+            .font(Font { weight: iced::font::Weight::Bold, ..Font::default() }),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("浏览 SkillHub 专家包"))
+            .size(13)
+            .style(styles::muted_text_style),
     ]
     .spacing(5)
     .width(Length::Fill);
-    let search = text_input("搜索专家包", &state.query.keyword_draft)
-        .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
-        .on_submit(public_message(PublicSkillMessage::SubmitQuery))
-        .padding(SETTINGS_CONTROL_PADDING)
-        .size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_text_input_style)
-        .width(Length::Fixed(340.0));
+    let search = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索专家包"),
+        &state.query.keyword_draft,
+    )
+    .on_input(|query| public_message(PublicSkillMessage::QueryDraftChanged(query)))
+    .on_submit(public_message(PublicSkillMessage::SubmitQuery))
+    .padding(SETTINGS_CONTROL_PADDING)
+    .size(SETTINGS_CONTROL_TEXT_SIZE)
+    .style(settings_text_input_style)
+    .width(Length::Fixed(340.0));
     let header = column![
-        row![heading, public_skills::source_selector(state)].spacing(12).align_y(Alignment::Center),
+        row![
+            heading,
+            public_skills::source_selector(crate::app::i18n::I18n::new(app.desktop_locale), state)
+        ]
+        .spacing(12)
+        .align_y(Alignment::Center),
         row![
             search,
-            button(text("搜索").size(13))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索")).size(13))
                 .on_press(public_message(PublicSkillMessage::SubmitQuery))
                 .padding([10, 18])
                 .style(styles::action_button_style),

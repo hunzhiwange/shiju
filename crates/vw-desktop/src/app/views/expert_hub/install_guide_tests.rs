@@ -35,7 +35,7 @@ fn install_guide_builds_all_methods_and_platform_actions() {
     let (mut app, _) = App::new();
     app.expert_hub.install_guide.open = true;
     app.expert_hub.install_guide.current_package = Some(ShijuPackageId::DarwinArm64);
-    app.expert_hub.install_guide.agent_package = LoadState::Error("retry".to_string());
+    app.expert_hub.install_guide.agent_package = LoadState::Error(("retry".to_string()).into());
 
     let element: iced::Element<'_, Message> = super::install_guide::view(&app);
     std::hint::black_box(element);
@@ -137,9 +137,21 @@ fn scope_and_target_actions_follow_busy_and_project_state() {
             SkillInstallTarget::ClaudeCode
         )))
     ));
-    assert_eq!(direct_install_button_label(&state), "直接安装到 1 个目标");
+    assert_eq!(
+        direct_install_button_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        "直接安装到 1 个目标"
+    );
     state.selected_targets.push(SkillInstallTarget::ClaudeCode);
-    assert_eq!(direct_install_button_label(&state), "直接安装到 2 个目标");
+    assert_eq!(
+        direct_install_button_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &state
+        ),
+        "直接安装到 2 个目标"
+    );
 
     state.direct_install = ShijuDirectInstallState::Installing {
         generation: 1,

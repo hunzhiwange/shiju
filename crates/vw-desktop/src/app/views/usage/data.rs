@@ -42,11 +42,13 @@ impl UsageData {
     ///
     /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
     pub fn from_app(app: &App) -> Self {
+        let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
         let total_tokens = app.usage.input_tokens
             + app.usage.output_tokens
             + app.usage.cached_tokens
             + app.usage.reasoning_tokens;
-        let session_id = app.active_session_id.clone().unwrap_or_else(|| "暂无".to_string());
+        let session_id =
+            app.active_session_id.clone().unwrap_or_else(|| i18n.__("暂无").to_string());
         let message_count = app.chat.len();
 
         let session_info = app
@@ -63,7 +65,7 @@ impl UsageData {
             });
 
         let session_title =
-            session_info.map(|info| info.title.as_str()).unwrap_or("暂无").to_string();
+            session_info.map(|info| info.title.as_str()).unwrap_or(i18n.__("暂无")).to_string();
         let session = app.active_session_id.as_ref().map(|id| models::ChatSession {
             id: id.clone(),
             title: session_title.clone(),

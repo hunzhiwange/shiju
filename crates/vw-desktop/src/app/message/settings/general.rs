@@ -39,9 +39,14 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.desktop_locale_saving = false;
             let feedback = match result {
                 Ok(()) => Task::none(),
-                Err(error) => {
-                    app.show_error_toast(crate::app::i18n::save_error(app.desktop_locale, &error))
-                }
+                Err(error) => app.show_error_toast(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "保存失败：%s",
+                        error
+                    )
+                    .expect("embedded save failure template has one string argument"),
+                ),
             };
             if locale != app.desktop_locale {
                 app.desktop_locale_saving = true;

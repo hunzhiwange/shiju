@@ -1,5 +1,6 @@
 {
   "语言": "Language",
   "保存失败：": "Failed to save: ",
-  "保存失败：%s": "Failed to save: %s"
+  "保存失败：%s": "Failed to save: %s",
+  "当前桌面端使用的界面语言。": "The interface language used by the desktop app."
 }

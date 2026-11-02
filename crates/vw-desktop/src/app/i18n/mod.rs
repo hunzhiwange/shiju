@@ -2,26 +2,6 @@
 #[cfg(test)]
 mod tests;
 
-use vw_config_types::ui::DesktopLocale;
-
-/// Text owned by the settings domain.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SettingsText {
-    Language,
-}
-
-pub fn settings_text(locale: DesktopLocale, key: SettingsText) -> &'static str {
-    match key {
-        SettingsText::Language => I18n::new(locale).__("语言"),
-    }
-}
-
-/// Localize the application prefix while retaining the service error verbatim.
-pub fn save_error(locale: DesktopLocale, raw_error: &str) -> String {
-    let prefix = I18n::new(locale).__("保存失败：");
-    format!("{prefix}{raw_error}")
-}
-
 pub mod settings_models;
 #[cfg(test)]
 mod settings_models_tests;
@@ -40,3 +20,6 @@ mod gettext_catalog_tests;
 pub mod format;
 #[cfg(test)]
 mod gettext_sprintf_tests;
+
+#[cfg(test)]
+mod gettext_selection_tests;

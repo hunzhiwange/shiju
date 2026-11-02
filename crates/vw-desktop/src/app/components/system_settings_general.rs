@@ -259,11 +259,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             settings_section_content(
                 column![
                     setting_row(
-                        crate::app::i18n::settings_text(
-                            app.desktop_locale,
-                            crate::app::i18n::SettingsText::Language
-                        ),
-                        "当前桌面端使用的界面语言。",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("语言"),
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("当前桌面端使用的界面语言。"),
                         locale_pick,
                     ),
                     settings_divider(),

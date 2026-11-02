@@ -47,6 +47,15 @@ pub struct DesktopSkillPathDto {
     pub path: String,
 }
 
+/// A read-only dependency observation; presence does not imply successful execution.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DesktopPluginDependencyDto {
+    pub component: String,
+    pub dependency: String,
+    pub status: String,
+    pub detail: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DesktopPluginCatalogEntryDto {
     pub id: String,
@@ -56,6 +65,8 @@ pub struct DesktopPluginCatalogEntryDto {
     pub enabled: bool,
     pub component_count: usize,
     pub source_path: Option<String>,
+    #[serde(default)]
+    pub dependency_checks: Vec<DesktopPluginDependencyDto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -78,6 +89,8 @@ pub struct DesktopPluginDetailDto {
     pub capabilities: DesktopPluginCapabilitiesDto,
     pub can_toggle: bool,
     pub can_delete: bool,
+    #[serde(default)]
+    pub dependency_checks: Vec<DesktopPluginDependencyDto>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -106,6 +119,8 @@ pub struct DesktopPluginPreviewDto {
     pub audit_status: String,
     pub dependency_status: String,
     pub origin: DesktopPluginSourceDto,
+    #[serde(default)]
+    pub dependency_checks: Vec<DesktopPluginDependencyDto>,
 }
 
 /// One statically audited hook declaration from an installed plugin.

@@ -95,3 +95,15 @@ fn summarize_error_uses_the_outer_context() {
 
     assert_eq!(summarize_error(&error), "failed to inspect server");
 }
+
+#[tokio::test]
+async fn codex_plugin_compat_t58_inspection_preflights_missing_executable() {
+    let server = McpServer::Stdio(McpServerStdio::new(
+        "fixture",
+        std::path::PathBuf::from("shiju-fixture-missing-runtime-662a"),
+    ));
+    let result = inspect_mcp_servers(&resolved_config(vec![server])).await;
+    assert_eq!(result.servers.len(), 1);
+    assert_eq!(result.servers[0].connection_status, McpConnectionStatusDto::Error);
+    assert!(result.servers[0].error.as_ref().unwrap().contains("PATH"));
+}

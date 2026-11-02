@@ -190,6 +190,7 @@ fn catalog_entry(plugin: &DiscoveredPlugin, _install_dir: &Path) -> DesktopPlugi
         description: plugin_description(manifest),
         enabled: plugin.disabled_marker.is_none(),
         component_count: component_count(manifest),
+        dependency_checks: dependency_checks(manifest),
         source_path: Some(path_string(&manifest.root)),
     }
 }
@@ -206,6 +207,7 @@ fn detail_entry(plugin: &DiscoveredPlugin, install_dir: &Path) -> DesktopPluginD
         source_path: Some(path_string(&manifest.root)),
         manifest_path: path_string(&manifest.manifest_path),
         capabilities: plugin_capabilities(manifest),
+        dependency_checks: dependency_checks(manifest),
         can_toggle: manageable,
         can_delete: manageable,
     }
@@ -262,4 +264,39 @@ mod operations;
 /// Mutations use the authenticated running gateway state, never a client-supplied install root.
 pub(crate) fn stateful_router() -> Router<crate::gateway::AppState> {
     operations::router()
+}
+
+fn dependency_checks(
+    manifest: &PluginManifest,
+) -> Vec<vw_gateway_client::DesktopPluginDependencyDto> {
+    match crate::plugins::inspect_plugin_dependencies(&manifest.root) {
+        Ok(checks) => checks
+            .into_iter()
+            .map(|check| vw_gateway_client::DesktopPluginDependencyDto {
+                status: check.state.as_str().into(),
+                component: check.component,
+                dependency: check.dependency,
+                detail: check.detail,
+            })
+            .collect(),
+        Err(_) => vec![vw_gateway_client::DesktopPluginDependencyDto {
+            component: "package".into(),
+            dependency: "声明与路径".into(),
+            status: "invalid".into(),
+            detail: "依赖声明未通过安全解析；请检查原始包与诊断".into(),
+        }],
+    }
+}
+fn dependency_status(checks: &[vw_gateway_client::DesktopPluginDependencyDto]) -> String {
+    if checks.is_empty() {
+        "no_declared_dependencies"
+    } else if checks.iter().any(|c| matches!(c.status.as_str(), "missing_host" | "missing_package"))
+    {
+        "missing"
+    } else if checks.iter().any(|c| matches!(c.status.as_str(), "unverified" | "invalid")) {
+        "unverified"
+    } else {
+        "checked_presence"
+    }
+    .into()
 }

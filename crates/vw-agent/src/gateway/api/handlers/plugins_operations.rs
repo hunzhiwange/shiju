@@ -105,6 +105,7 @@ fn preview(
     installed: &crate::plugins::PluginInstallResult,
     old_version: Option<String>,
 ) -> Result<DesktopPluginPreviewDto> {
+    let dependency_checks = super::dependency_checks(&installed.manifest);
     Ok(DesktopPluginPreviewDto {
         token,
         plugin_id: installed.identity.as_key(),
@@ -113,7 +114,8 @@ fn preview(
         version: installed.manifest.version.clone(),
         capabilities: super::plugin_capabilities(&installed.manifest),
         audit_status: "passed".into(),
-        dependency_status: "unchecked".into(),
+        dependency_status: super::dependency_status(&dependency_checks),
+        dependency_checks,
         origin: origin(&installed.manifest)?,
     })
 }
@@ -174,6 +176,7 @@ async fn prepare_update(
             crate::plugins::prepare_plugin_marketplace_upgrade(&entry, &root)?
         };
         let capabilities = super::plugin_capabilities(prepared.manifest());
+        let dependency_checks = super::dependency_checks(prepared.manifest());
         let response = DesktopPluginPreviewDto {
             token: String::new(),
             plugin_id: body.plugin_id,
@@ -182,7 +185,8 @@ async fn prepare_update(
             version: prepared.new_version.clone(),
             capabilities,
             audit_status: "passed".into(),
-            dependency_status: "unchecked".into(),
+            dependency_status: super::dependency_status(&dependency_checks),
+            dependency_checks,
             origin: origin(prepared.manifest())?,
         };
         let token = store(root, Operation::Update(prepared))?;

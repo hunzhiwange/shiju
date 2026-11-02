@@ -74,10 +74,11 @@ pub use self::channel_qr_api::{
 };
 pub use self::cron_api::{CronAddRequest, CronJobDto, CronRunDto, CronUpdateRequest};
 pub use self::desktop_settings_api::{
-    DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDetailDto,
-    DesktopPluginPathDto, DesktopPluginPreviewDto, DesktopPluginSourceDto, DesktopServiceCommand,
-    DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto, ExternalAppsStateDto,
-    HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto, HookMutationResponseDto,
+    DesktopPluginCapabilitiesDto, DesktopPluginCatalogEntryDto, DesktopPluginDependencyDto,
+    DesktopPluginDetailDto, DesktopPluginPathDto, DesktopPluginPreviewDto, DesktopPluginSourceDto,
+    DesktopServiceCommand, DesktopSkillCatalogEntryDto, DesktopSkillDetailDto, DesktopSkillPathDto,
+    ExternalAppsStateDto, HookAuditEntryDto, HookCatalogEntryDto, HookMutationRequestDto,
+    HookMutationResponseDto,
 };
 #[cfg(not(target_arch = "wasm32"))]
 pub use self::inference_api::GatewayChatWebSocket;

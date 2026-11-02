@@ -153,3 +153,9 @@ pub(crate) use compat::hook_trust_content::plugin_content_hash as plugin_package
 pub(crate) use install::publish_materialized_install;
 
 pub(crate) use compat::identity::read_install_metadata as plugin_install_metadata;
+
+pub use compat::dependencies::{
+    DependencyState, PluginDependencyCheck, inspect_plugin_dependencies,
+};
+
+pub(crate) use compat::dependencies::missing_mcp_executable as plugin_missing_mcp_executable;

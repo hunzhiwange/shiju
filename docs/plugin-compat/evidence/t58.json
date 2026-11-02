@@ -1,0 +1,77 @@
+{
+  "task": 58,
+  "status": "已完成",
+  "authorization": "2026-11-02 user explicitly authorized task 58 before tasks 55–57; static dependency probes do not require session snapshot work from 57",
+  "platform": "macOS arm64",
+  "implementation": [
+    "inspect_plugin_dependencies: read-only executable/package/module/tool/service observations",
+    "MCP inspection preflights resolved executable before launching connections",
+    "Gateway catalog/detail/previews return structured dependency checks and presence-only status"
+  ],
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t58_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "slot": 1,
+    "failure": "Callable skeleton reports dependency diagnostics unavailable in two behavior assertions; no compilation failure"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t58_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0,
+      "slot": 2
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t54_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features mcp_inspect_tests -- --nocapture",
+      "exit_code": 0,
+      "passed": 5,
+      "failed": 0,
+      "slot": 1
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 2
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slots": [
+      1,
+      2
+    ],
+    "final_slot": 2,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "initial_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true,
+    "cache_retained": true
+  },
+  "assertions": [
+    "missing host command diagnosed before execution",
+    "missing bundled script distinguished from missing interpreter",
+    "bundled Python module found without import",
+    "parent traversal and dependency symlinks rejected",
+    "package roots and sentinel source bytes preserved, no package script executed",
+    "unverified launch parameters/modules/remote services and host-tool mappings remain explicitly unverified"
+  ],
+  "reference": "baseline.json skill-dependency.*; frozen loader.rs, plugins/render.rs and skills/metadata.rs",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t58/README.md",
+  "limits": "Presence is not service readiness or complete compatibility. Dynamic module discovery, unknown/custom working directories, host tool mappings and remote service/authentication validation remain explicitly unverified; hosted connectors remain excluded."
+}

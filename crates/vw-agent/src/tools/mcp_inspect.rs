@@ -59,6 +59,21 @@ pub async fn inspect_mcp_servers(config: &vw_acp::ResolvedAcpxConfig) -> McpInsp
         };
 
         if management.enabled {
+            match crate::plugins::plugin_missing_mcp_executable(server) {
+                Ok(Some(diagnostic)) => {
+                    entry.connection_status = McpConnectionStatusDto::Error;
+                    entry.error = Some(format!("{}: {}", diagnostic.dependency, diagnostic.detail));
+                    servers.push(entry);
+                    continue;
+                }
+                Err(_) => {
+                    entry.connection_status = McpConnectionStatusDto::Error;
+                    entry.error = Some("plugin MCP dependency context is invalid".into());
+                    servers.push(entry);
+                    continue;
+                }
+                Ok(None) => {}
+            }
             match inspect_server(server, &management).await {
                 Ok(payload) => {
                     entry.connection_status = McpConnectionStatusDto::Connected;

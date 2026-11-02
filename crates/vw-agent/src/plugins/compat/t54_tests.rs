@@ -182,7 +182,7 @@ async fn codex_plugin_compat_t54_gateway_client_activates_audited_package() {
     let preview = client.plugin_prepare_install(source.to_str().unwrap()).await.unwrap();
     assert_eq!(preview.origin.kind, "local");
     assert_eq!(preview.origin.resolved_version.as_deref(), Some("1"));
-    assert_eq!(preview.dependency_status, "unchecked");
+    assert_eq!(preview.dependency_status, "no_declared_dependencies");
     let path = client.plugin_install(&preview.token, true).await.unwrap();
     assert!(Path::new(&path).is_dir());
     assert!(client.plugin_install(&preview.token, true).await.is_err());

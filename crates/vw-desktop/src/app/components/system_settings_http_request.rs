@@ -10,6 +10,7 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_section_content, settings_text_input_style,
     settings_value_badge,
 };
+use crate::app::i18n::settings_extensions::{domain_label, text as tr};
 use crate::app::message::settings::{HttpRequestMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, text, text_input};
@@ -124,8 +125,8 @@ fn number_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
         settings_page_intro(
-            "网络请求配置",
-            "配置网络请求工具的开关、超时、响应大小限制和域名白名单。",
+            tr(app.desktop_locale, "网络请求配置"),
+            tr(app.desktop_locale, "配置网络请求工具的开关、超时、响应大小限制和域名白名单。"),
         ),
         content(app),
     ]
@@ -138,10 +139,10 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.http_request_settings;
 
     let enabled_row = bool_row(
-        "启用",
-        "控制是否启用网络请求工具。",
+        tr(app.desktop_locale, "启用"),
+        tr(app.desktop_locale, "控制是否启用网络请求工具。"),
         s.enabled,
-        "启用网络请求工具",
+        tr(app.desktop_locale, "启用网络请求工具"),
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::EnabledToggled(
                 value,
@@ -150,13 +151,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let max_response_size_row = number_row(
-        "响应大小上限",
-        "限制单次请求可读取的最大响应体大小。",
+        tr(app.desktop_locale, "响应大小上限"),
+        tr(app.desktop_locale, "限制单次请求可读取的最大响应体大小。"),
         s.max_response_size,
         0,
         u32::MAX,
-        "字节",
-        Some("`0` 表示不限制响应体大小；较大的响应会增加内存占用与模型上下文成本。"),
+        tr(app.desktop_locale, "字节"),
+        Some(tr(
+            app.desktop_locale,
+            "`0` 表示不限制响应体大小；较大的响应会增加内存占用与模型上下文成本。",
+        )),
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(
                 HttpRequestMessage::MaxResponseSizeChanged(value),
@@ -165,13 +169,13 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let timeout_secs_row = number_row(
-        "超时时间",
-        "单次请求的超时时间。",
+        tr(app.desktop_locale, "超时时间"),
+        tr(app.desktop_locale, "单次请求的超时时间。"),
         s.timeout_secs,
         0,
         86_400,
-        "秒",
-        Some("`0` 会在运行时回退到安全默认值 30 秒。"),
+        tr(app.desktop_locale, "秒"),
+        Some(tr(app.desktop_locale, "`0` 会在运行时回退到安全默认值 30 秒。")),
         |value| {
             Message::Settings(SettingsMessage::HttpRequest(HttpRequestMessage::TimeoutSecsChanged(
                 value,
@@ -181,7 +185,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let user_agent_row = text_row(
         "User-Agent",
-        "请求默认携带的 User-Agent。",
+        tr(app.desktop_locale, "请求默认携带的 User-Agent。"),
         vw_config_types::tools::DEFAULT_USER_AGENT,
         &s.user_agent,
         |value| {
@@ -193,19 +197,22 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let allowed_domains_section = settings_panel(
         column![field_row(
-            "新增域名",
-            "支持精确域名、子域模式或 *。",
+            tr(app.desktop_locale, "新增域名"),
+            tr(app.desktop_locale, "支持精确域名、子域模式或 *。"),
             settings_control_with_hint(
                 row![
-                    text_input("example.com 或 *.example.org 或 *", &s.new_allowed_domain_input)
-                        .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
-                            HttpRequestMessage::NewAllowedDomainChanged(value),
-                        )))
-                        .padding([10, 12])
-                        .size(13)
-                        .style(settings_text_input_style)
-                        .width(Length::Fill),
-                    button(text("添加"))
+                    text_input(
+                        tr(app.desktop_locale, "例如：example.com 或 *.example.org 或 *"),
+                        &s.new_allowed_domain_input
+                    )
+                    .on_input(|value| Message::Settings(SettingsMessage::HttpRequest(
+                        HttpRequestMessage::NewAllowedDomainChanged(value),
+                    )))
+                    .padding([10, 12])
+                    .size(13)
+                    .style(settings_text_input_style)
+                    .width(Length::Fill),
+                    button(text(tr(app.desktop_locale, "添加")))
                         .padding([6, 12])
                         .on_press(Message::Settings(SettingsMessage::HttpRequest(
                             HttpRequestMessage::AddAllowedDomain,
@@ -214,7 +221,7 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(12)
                 .align_y(Alignment::Center),
-                "支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。",
+                tr(app.desktop_locale, "支持精确域名、子域模式或 `*`；建议只放行业务 API 域名。"),
             ),
         )]
         .spacing(0),
@@ -223,9 +230,12 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let allowed_domains_list: Element<'_, Message> = if s.allowed_domains.is_empty() {
         settings_panel(
             column![
-                text("当前未配置允许域名；启用工具后仍会因为白名单为空而拒绝所有请求。")
-                    .size(12)
-                    .style(settings_muted_text_style)
+                text(tr(
+                    app.desktop_locale,
+                    "当前未配置允许域名；启用工具后仍会因为白名单为空而拒绝所有请求。"
+                ))
+                .size(12)
+                .style(settings_muted_text_style)
             ]
             .spacing(0),
         )
@@ -236,10 +246,10 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
             |column, (index, domain)| {
                 column.push(
                     row![
-                        text(format!("域名 {}", index + 1))
+                        text(domain_label(app.desktop_locale, index + 1))
                             .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
                         text(domain).width(Length::Fill),
-                        button(text("删除"))
+                        button(text(tr(app.desktop_locale, "删除")))
                             .padding([6, 12])
                             .on_press(Message::Settings(SettingsMessage::HttpRequest(
                                 HttpRequestMessage::RemoveAllowedDomain(index),
@@ -257,16 +267,22 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let content = column![
         settings_section_card(
-            "基础行为",
-            "控制 http_request 工具的启用状态、超时、最大响应体大小和默认 User-Agent。",
+            tr(app.desktop_locale, "基础行为"),
+            tr(
+                app.desktop_locale,
+                "控制 http_request 工具的启用状态、超时、最大响应体大小和默认 User-Agent。"
+            ),
         ),
         settings_section_content(
             column![enabled_row, max_response_size_row, timeout_secs_row, user_agent_row]
                 .spacing(0)
         ),
         settings_section_card(
-            "允许域名",
-            "维护 http_request.allowed_domains 白名单。列表为空时默认拒绝所有外部请求。",
+            tr(app.desktop_locale, "允许域名"),
+            tr(
+                app.desktop_locale,
+                "维护 http_request.allowed_domains 白名单。列表为空时默认拒绝所有外部请求。"
+            ),
         ),
         allowed_domains_section,
         allowed_domains_list,

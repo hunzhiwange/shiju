@@ -9,11 +9,13 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_section_content, settings_segment_button_style,
     settings_value_badge,
 };
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::HooksMessage;
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, checkbox, column, container, row, scrollable, text};
 use iced::{Alignment, Element, Length};
+use vw_config_types::ui::DesktopLocale;
 
 fn field_row<'a>(
     label: &'static str,
@@ -73,11 +75,12 @@ fn revoke_requested(entry: &vw_gateway_client::HookCatalogEntryDto) -> Message {
 }
 
 fn refresh_button<'a>(
+    locale: DesktopLocale,
     label: &'static str,
     loading: bool,
     message: Message,
 ) -> Element<'a, Message> {
-    let mut control = button(text(if loading { "加载中…" } else { label }).size(12))
+    let mut control = button(text(if loading { tr(locale, "加载中…") } else { label }).size(12))
         .padding([7, 12])
         .style(|theme, status| settings_segment_button_style(theme, status, false));
     if !loading {
@@ -87,14 +90,20 @@ fn refresh_button<'a>(
 }
 
 fn hook_catalog_card<'a>(
+    locale: DesktopLocale,
     entry: &'a vw_gateway_client::HookCatalogEntryDto,
     mutation_loading: bool,
 ) -> Element<'a, Message> {
-    let status = if entry.trusted { "已信任" } else { "待审核" };
-    let args = if entry.args.is_empty() { "（无）".to_string() } else { entry.args.join(" ") };
+    let status = if entry.trusted { tr(locale, "已信任") } else { tr(locale, "待审核") };
+    let args = if entry.args.is_empty() {
+        tr(locale, "（无）").to_string()
+    } else {
+        entry.args.join(" ")
+    };
     let action_message =
         if entry.trusted { revoke_requested(entry) } else { trust_requested(entry) };
-    let action_label = if entry.trusted { "撤销信任" } else { "信任" };
+    let action_label =
+        if entry.trusted { tr(locale, "撤销信任") } else { tr(locale, "信任") };
     let mut action = button(text(action_label).size(12))
         .padding([7, 12])
         .style(|theme, status| settings_segment_button_style(theme, status, false));
@@ -112,24 +121,27 @@ fn hook_catalog_card<'a>(
             .spacing(10)
             .align_y(Alignment::Center),
             row![
-                text("事件").size(11).style(settings_muted_text_style),
+                text(tr(locale, "事件")).size(11).style(settings_muted_text_style),
                 text(&entry.event).size(12),
-                text("模式").size(11).style(settings_muted_text_style),
+                text(tr(locale, "模式")).size(11).style(settings_muted_text_style),
                 text(&entry.mode).size(12),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
             row![
-                text("命令").size(11).style(settings_muted_text_style),
+                text(tr(locale, "命令")).size(11).style(settings_muted_text_style),
                 text(&entry.command).size(12),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
-            row![text("参数").size(11).style(settings_muted_text_style), text(args).size(12),]
-                .spacing(8)
-                .align_y(Alignment::Center),
             row![
-                text("工作目录").size(11).style(settings_muted_text_style),
+                text(tr(locale, "参数")).size(11).style(settings_muted_text_style),
+                text(args).size(12),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center),
+            row![
+                text(tr(locale, "工作目录")).size(11).style(settings_muted_text_style),
                 text(&entry.working_dir).size(12),
             ]
             .spacing(8)
@@ -142,11 +154,15 @@ fn hook_catalog_card<'a>(
 }
 
 fn hook_catalog_panel(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
     let s = &app.hooks_settings;
     let mut rows = column![].spacing(10).width(Length::Fill);
     if s.catalog.is_empty() {
-        let message =
-            if s.catalog_loading { "正在加载插件 hooks…" } else { "未发现插件 hooks" };
+        let message = if s.catalog_loading {
+            tr(locale, "正在加载插件 hooks…")
+        } else {
+            tr(locale, "未发现插件 hooks")
+        };
         rows = rows.push(
             container(text(message).size(12).style(settings_muted_text_style))
                 .center_x(Length::Fill)
@@ -154,7 +170,7 @@ fn hook_catalog_panel(app: &App) -> Element<'_, Message> {
         );
     } else {
         for entry in &s.catalog {
-            rows = rows.push(hook_catalog_card(entry, s.mutation_loading));
+            rows = rows.push(hook_catalog_card(locale, entry, s.mutation_loading));
         }
     }
 
@@ -165,11 +181,15 @@ fn hook_catalog_panel(app: &App) -> Element<'_, Message> {
 }
 
 fn audit_panel(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
     let s = &app.hooks_settings;
     let mut rows = column![].spacing(8).width(Length::Fill);
     if s.audit.is_empty() {
-        let message =
-            if s.audit_loading { "正在加载审计记录…" } else { "暂无审计记录" };
+        let message = if s.audit_loading {
+            tr(locale, "正在加载审计记录…")
+        } else {
+            tr(locale, "暂无审计记录")
+        };
         rows = rows.push(
             container(text(message).size(12).style(settings_muted_text_style))
                 .center_x(Length::Fill)
@@ -177,7 +197,7 @@ fn audit_panel(app: &App) -> Element<'_, Message> {
         );
     } else {
         for entry in &s.audit {
-            let status = if entry.success { "成功" } else { "失败" };
+            let status = if entry.success { tr(locale, "成功") } else { tr(locale, "失败") };
             rows = rows.push(settings_panel(
                 row![
                     text(&entry.timestamp).size(12),
@@ -198,69 +218,87 @@ fn audit_panel(app: &App) -> Element<'_, Message> {
 }
 
 pub fn view(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
     let s = &app.hooks_settings;
 
     let enabled_row = field_row(
-        "启用",
-        "控制是否开启运行时 hooks 执行。",
+        tr(locale, "启用"),
+        tr(locale, "控制是否开启运行时 hooks 执行。"),
         settings_control_with_hint(
             checkbox(s.enabled)
-                .label("开启运行时 hooks 执行")
+                .label(tr(locale, "开启运行时 hooks 执行"))
                 .on_toggle(enabled_toggled)
                 .style(settings_checkbox_style),
-            "关闭总开关后将暂停 hooks 执行，但会保留内置钩子的具体启用状态。",
+            tr(locale, "关闭总开关后将暂停 hooks 执行，但会保留内置钩子的具体启用状态。"),
         ),
     );
 
     let builtin_header = settings_section_card(
-        "内置钩子",
-        "当前提供审计类内置 hooks。后续新增内置项时会继续在这里扩展。",
+        tr(locale, "内置钩子"),
+        tr(locale, "当前提供审计类内置 hooks。后续新增内置项时会继续在这里扩展。"),
     );
 
     let command_logger_row = field_row(
         "command_logger",
-        "记录命令调用信息，便于审计与问题回溯。",
+        tr(locale, "记录命令调用信息，便于审计与问题回溯。"),
         checkbox(s.command_logger).on_toggle(command_logger_toggled).style(settings_checkbox_style),
     );
 
     let plugin_hooks_row = field_row(
-        "插件 hooks",
-        "仅加载已发现且已信任的插件 hook 声明。",
+        tr(locale, "插件 hooks"),
+        tr(locale, "仅加载已发现且已信任的插件 hook 声明。"),
         settings_control_with_hint(
             checkbox(s.plugins_enabled)
-                .label("允许执行可信插件 hooks")
+                .label(tr(locale, "允许执行可信插件 hooks"))
                 .on_toggle(plugin_hooks_toggled)
                 .style(settings_checkbox_style),
-            "待审核声明不会执行；信任与撤销均由服务端按当前稳定哈希校验。",
+            tr(locale, "待审核声明不会执行；信任与撤销均由服务端按当前稳定哈希校验。"),
         ),
     );
 
     let catalog_header = row![
-        settings_section_card("插件 hook 审核", "查看插件声明并管理当前哈希对应的信任状态。")
-            .width(Length::Fill),
-        refresh_button("刷新清单", s.catalog_loading, catalog_refresh_requested()),
+        settings_section_card(
+            tr(locale, "插件 hook 审核"),
+            tr(locale, "查看插件声明并管理当前哈希对应的信任状态。")
+        )
+        .width(Length::Fill),
+        refresh_button(
+            locale,
+            tr(locale, "刷新清单"),
+            s.catalog_loading,
+            catalog_refresh_requested()
+        ),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
 
     let audit_header = row![
         settings_section_card(
-            "审计记录",
-            "仅显示时间、工具名、耗时和成功状态，不包含参数或结果正文。",
+            tr(locale, "审计记录"),
+            tr(locale, "仅显示时间、工具名、耗时和成功状态，不包含参数或结果正文。"),
         )
         .width(Length::Fill),
-        refresh_button("刷新审计", s.audit_loading, audit_refresh_requested()),
+        refresh_button(locale, tr(locale, "刷新审计"), s.audit_loading, audit_refresh_requested()),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
 
     let mut content = column![
-        settings_page_intro("钩子配置", "配置运行时 hooks 总开关与内置钩子的启用状态。"),
-        settings_section_card("基础行为", "关闭总开关后将暂停 hooks 执行。"),
+        settings_page_intro(
+            tr(locale, "钩子配置"),
+            tr(locale, "配置运行时 hooks 总开关与内置钩子的启用状态。")
+        ),
+        settings_section_card(
+            tr(locale, "基础行为"),
+            tr(locale, "关闭总开关后将暂停 hooks 执行。")
+        ),
         settings_section_content(column![enabled_row].spacing(0)),
         builtin_header,
         settings_section_content(column![command_logger_row].spacing(0)),
-        settings_section_card("插件 hooks", "控制可信插件 hooks 的执行并审核当前声明。"),
+        settings_section_card(
+            tr(locale, "插件 hooks"),
+            tr(locale, "控制可信插件 hooks 的执行并审核当前声明。")
+        ),
         settings_section_content(column![plugin_hooks_row].spacing(0)),
         catalog_header,
         hook_catalog_panel(app),

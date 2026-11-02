@@ -636,3 +636,47 @@ fn set_servers_preserves_existing_when_no_match() {
     assert_eq!(gateway.host, "alpha.local");
     assert_eq!(gateway.servers, vec![server]);
 }
+
+#[test]
+fn desktop_locale_round_trips_three_values() {
+    use super::DesktopLocale;
+    for (locale, value) in [
+        (DesktopLocale::SimplifiedChinese, "zh-CN"),
+        (DesktopLocale::TraditionalChinese, "zh-TW"),
+        (DesktopLocale::English, "en"),
+    ] {
+        let settings = AppSystemSettingsConfig { desktop_locale: locale, ..Default::default() };
+        let json = serde_json::to_value(&settings).unwrap();
+        assert_eq!(json["desktop_locale"], value);
+        assert_eq!(
+            serde_json::from_value::<AppSystemSettingsConfig>(json).unwrap().desktop_locale,
+            locale
+        );
+    }
+}
+
+#[test]
+fn desktop_locale_defaults_and_rejects_invalid_values() {
+    use super::DesktopLocale;
+    assert_eq!(AppSystemSettingsConfig::default().desktop_locale, DesktopLocale::SimplifiedChinese);
+    assert_eq!(
+        serde_json::from_value::<AppSystemSettingsConfig>(serde_json::json!({}))
+            .unwrap()
+            .desktop_locale,
+        DesktopLocale::SimplifiedChinese
+    );
+    for value in [
+        serde_json::json!("fr"),
+        serde_json::json!("zh"),
+        serde_json::json!(""),
+        serde_json::Value::Null,
+        serde_json::json!(1),
+    ] {
+        assert!(
+            serde_json::from_value::<AppSystemSettingsConfig>(
+                serde_json::json!({"desktop_locale": value})
+            )
+            .is_err()
+        );
+    }
+}

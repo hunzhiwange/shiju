@@ -5,6 +5,18 @@ use std::collections::HashMap;
 
 pub const DEFAULT_TIMEZONE: &str = "Asia/Shanghai";
 
+/// Desktop interface language, independent of the editor language.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, Default, PartialEq, Eq)]
+pub enum DesktopLocale {
+    #[default]
+    #[serde(rename = "zh-CN")]
+    SimplifiedChinese,
+    #[serde(rename = "zh-TW")]
+    TraditionalChinese,
+    #[serde(rename = "en")]
+    English,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[derive(Default)]
@@ -168,6 +180,9 @@ pub struct AppUiConfig {
 /// Desktop system settings persisted in agent config (`[app_ui.system_settings]`).
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 pub struct AppSystemSettingsConfig {
+    /// Language used by the desktop interface.
+    #[serde(default)]
+    pub desktop_locale: DesktopLocale,
     /// Desktop gateway client connection settings.
     #[serde(default)]
     pub gateway_client: GatewayClientSystemSettingsConfig,
@@ -538,6 +553,7 @@ impl Default for AppSystemSettingsConfig {
     fn default() -> Self {
         Self {
             gateway_client: GatewayClientSystemSettingsConfig::default(),
+            desktop_locale: DesktopLocale::default(),
             app_theme: default_app_theme_name(),
             timezone: default_timezone(),
             terminal_shell: default_terminal_shell(),

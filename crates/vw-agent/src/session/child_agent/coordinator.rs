@@ -1,5 +1,9 @@
 //! 子智能体后台任务的会话级生命周期协调器。
 
+#[path = "mailbox.rs"]
+pub(crate) mod mailbox;
+use mailbox::Mailbox;
+
 use anyhow::{Result, bail};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
@@ -64,6 +68,7 @@ struct TaskEntry {
 struct CoordinatorState {
     tasks: HashMap<String, TaskEntry>,
     version: u64,
+    mailboxes: HashMap<String, Mailbox>,
     teams: HashMap<String, Arc<Semaphore>>,
     execution: HashMap<String, Arc<Mutex<Option<OwnedSemaphorePermit>>>>,
 }
@@ -811,6 +816,7 @@ fn remove_task_subtree(
         remove_task_subtree(state, &child, visited);
     }
     state.tasks.remove(child_session_id);
+    state.mailboxes.remove(child_session_id);
 }
 
 fn current_time_ms() -> u64 {

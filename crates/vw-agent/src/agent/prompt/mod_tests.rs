@@ -200,10 +200,8 @@ fn action_section_adds_default_multi_agent_policy_only_when_agent_tool_available
         };
         let action = ActionSection.build(&with_agent_ctx).unwrap();
         for expected in [
-            "not genuinely simple and single-step",
-            "Complex, multi-part, exploratory, implementation, review",
             "independent workstreams",
-            "When uncertain whether a task is simple, delegate",
+            "parallelism has clear benefit",
             "Never delegate the whole task you were assigned",
             "clearly narrower, non-overlapping subtask",
             "same turn",

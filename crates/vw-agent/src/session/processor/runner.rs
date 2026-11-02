@@ -866,7 +866,14 @@ fn run_in_project(
         }
         let is_last_step = step >= turn_policy.max_iterations;
         let empty_tools = HashSet::<String>::new();
-        let system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
+        let mut system = base_system.runtime_parts(primary_system_prompt.as_deref(), is_last_step);
+        let team = prompt::block_on(crate::session::system::team_runtime_instructions(
+            &req.session,
+            !is_last_step && allowed_tools.contains("AgentTool"),
+        ));
+        if !team.is_empty() {
+            system.push(team);
+        }
         let tool_specs_for_context =
             if is_last_step { Vec::new() } else { discovery.exposed_specs() };
         let exposed_tools =

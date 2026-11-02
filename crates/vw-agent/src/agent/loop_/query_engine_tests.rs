@@ -1010,3 +1010,29 @@ fn build_tool_descriptions_includes_browser_open_when_enabled() {
 
 #[path = "query_engine_skills_tests.rs"]
 mod skills_tests;
+
+#[tokio::test]
+async fn agcollab_channel_request_contains_only_enabled_team_runtime() {
+    for enabled in [true, false] {
+        let provider =
+            ScriptedProvider::with_steps(vec![ProviderStep::Response(chat_text("done", None))]);
+        let handle = provider.clone();
+        let mut engine = test_engine(provider, Arc::new(FakeMemory::default()));
+        if enabled {
+            engine.tools_registry.push(Box::new(crate::tools::agent_tool::AgentTool::new(
+                Default::default(),
+                Some(engine.session_id.clone()),
+                std::env::temp_dir(),
+            )));
+        }
+        engine.submit_message("inspect").await.unwrap();
+        let requests = handle.seen_messages();
+        assert_eq!(
+            requests[0][0].content.contains("Remaining shared child execution slots:"),
+            enabled
+        );
+        if enabled {
+            assert!(requests[0][0].content.contains(&engine.session_id));
+        }
+    }
+}

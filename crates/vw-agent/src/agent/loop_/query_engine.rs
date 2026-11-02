@@ -376,10 +376,15 @@ impl QueryEngine {
                 return Err(error);
             }
         };
+        let team = crate::session::system::team_runtime_instructions(
+            &self.session_id,
+            self.tools_registry.iter().any(|tool| tool.name() == "AgentTool"),
+        )
+        .await;
         let persistent_len = context.len();
         let mut request_history = vec![ChatMessage::user(format!(
             "<system-reminder>\n{}\n</system-reminder>",
-            self.request_system_prompt
+            format_args!("{}\n{}", self.request_system_prompt, team)
         ))];
         let transient_len = request_history.len();
         request_history.extend(context);
@@ -412,10 +417,15 @@ impl QueryEngine {
                         ));
                     }
                 };
+                let team = crate::session::system::team_runtime_instructions(
+                    &self.session_id,
+                    self.tools_registry.iter().any(|tool| tool.name() == "AgentTool"),
+                )
+                .await;
                 let persistent_len = context.len();
                 let mut retry_history = vec![ChatMessage::user(format!(
                     "<system-reminder>\n{}\n</system-reminder>",
-                    self.request_system_prompt
+                    format_args!("{}\n{}", self.request_system_prompt, team)
                 ))];
                 let transient_len = retry_history.len();
                 retry_history.extend(context);

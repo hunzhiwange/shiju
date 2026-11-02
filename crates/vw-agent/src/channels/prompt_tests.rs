@@ -447,10 +447,8 @@ fn system_prompt_adds_default_multi_agent_policy_only_when_agent_tool_available(
             chrono_tz::Asia::Shanghai,
         );
         for expected in [
-            "not genuinely simple and single-step",
-            "Complex, multi-part, exploratory, implementation, review",
             "independent workstreams",
-            "When uncertain whether a task is simple, delegate",
+            "parallelism has clear benefit",
             "same turn",
             "ordering dependencies",
             "write sets",

@@ -165,11 +165,11 @@ fn unified_prompt_declares_instruction_priority_and_general_assistant_role() {
     assert!(prompt.contains("deepseek/deepseek-v4-flash"));
     assert!(prompt.contains("/workspace"));
     assert!(prompt.contains("## Subagents"));
-    assert!(prompt.contains("assess the task's complexity"));
-    assert!(prompt.contains("concrete independent workflows"));
-    assert!(prompt.contains("parallel execution has a clear net benefit"));
-    assert!(prompt.contains("Proactively start subagents when those benefits are clear"));
-    assert!(prompt.contains("handle simple, tightly coupled, or delegation-heavy tasks directly"));
+    assert!(prompt.contains("Assess independent workstreams"));
+    assert!(prompt.contains("bounded work"));
+    assert!(prompt.contains("parallelism has clear benefit"));
+    assert!(prompt.contains("Proactively delegate"));
+    assert!(prompt.contains("handle tightly coupled work directly"));
     assert!(prompt.contains("## Background Tasks"));
     assert!(prompt.contains("## Task Tracking"));
     assert!(prompt.contains("## Network and Browser"));
@@ -209,9 +209,9 @@ fn unified_prompt_omits_unavailable_capability_instructions() {
     assert!(!prompt.contains("## Skills"));
     assert!(!prompt.contains("## Task Tracking"));
     assert!(!prompt.contains("## Subagents"));
-    assert!(!prompt.contains("assess the task's complexity"));
-    assert!(!prompt.contains("concrete independent workflows"));
-    assert!(!prompt.contains("parallel execution has a clear net benefit"));
+    assert!(!prompt.contains("Assess independent workstreams"));
+    assert!(!prompt.contains("bounded work"));
+    assert!(!prompt.contains("parallelism has clear benefit"));
     assert!(!prompt.contains("Proactively start subagents"));
     assert!(!prompt.contains("delegation-heavy tasks directly"));
     assert!(!prompt.contains("## Background Tasks"));
@@ -362,4 +362,21 @@ async fn environment_from_ref_preserves_parsed_ids_when_model_lookup_fails() {
 
     assert!(text.contains("Exact model ID: missing-provider/missing-model"));
     assert!(text.contains(root));
+}
+
+#[test]
+fn agcollab_prompt_matches_runtime_capabilities() {
+    let prompt = render_unified_prompt("provider/model", "/workspace", &["AgentTool".into()]);
+    for expected in [
+        "send_message",
+        "followup_task",
+        "list_agents",
+        "fork_turns",
+        "colleague data",
+        "shared directory",
+    ] {
+        assert!(prompt.contains(expected), "missing {expected}");
+    }
+    let denied = render_unified_prompt("provider/model", "/workspace", &[]);
+    assert!(!denied.contains("followup_task"));
 }

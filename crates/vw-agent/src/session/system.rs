@@ -127,11 +127,11 @@ fn runtime_capability_instructions(available_tool_ids: &[String]) -> String {
         );
     }
 
-    if has_tool(&tool_ids, &["agenttool", "agent", "agent_tool", "delegate"]) {
-        sections.push(
-            "## Subagents\n- Before starting work, assess the task's complexity, whether it contains concrete independent workflows, and whether delegation or parallel execution has a clear net benefit. Proactively start subagents when those benefits are clear; handle simple, tightly coupled, or delegation-heavy tasks directly.\n- Delegate only concrete, independent, bounded subtasks. Do not delegate the entire original task or duplicate the parent task.\n- Independent subtasks may run concurrently in the background using `AgentTool`'s `launch` / `spawn`; use `run` only when the result is needed immediately. Record child-session IDs, continue local work, and `wait` for, verify, and integrate results before the final response. Use `stop` to end tasks that no longer provide value."
-                .to_string(),
-        );
+    if has_tool(&tool_ids, &["agenttool"]) {
+        sections.push(format!(
+            "## Subagents\n{}",
+            crate::agent::prompt::multi_agent::recursive_orchestration_policy()
+        ));
     }
 
     if has_tool(&tool_ids, &["create_thread"]) {
@@ -637,3 +637,22 @@ pub async fn environment_from_ref(model: Option<&str>, root: Option<&str>) -> St
 #[cfg(test)]
 #[path = "system_tests.rs"]
 mod system_tests;
+
+/// Capture team identity and scheduling capacity at the model request boundary.
+pub(crate) async fn team_runtime_instructions(session_id: &str, enabled: bool) -> String {
+    if !enabled {
+        return String::new();
+    }
+    let parent =
+        crate::session::session::get(session_id).await.ok().and_then(|session| session.parent_id);
+    let role = parent.as_deref().map_or_else(
+        || "primary agent".to_string(),
+        |id| format!("child agent; parent session: {id}"),
+    );
+    let remaining = crate::session::child_agent::coordinator::global_child_agent_coordinator()
+        .team_capacity(session_id)
+        .available_permits();
+    format!(
+        "## Current Team Runtime\nSession ID: {session_id}; role: {role}. Remaining shared child execution slots: {remaining} (snapshot; scheduling may change). The primary agent does not consume a child slot. Use list_agents for current team relationships. All agents share the working directory and must respect their own filtered tools and permissions."
+    )
+}

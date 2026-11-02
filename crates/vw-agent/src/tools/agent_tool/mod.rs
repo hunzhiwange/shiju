@@ -910,3 +910,7 @@ mod tests;
 mod communication_tests;
 
 mod communication;
+
+#[cfg(test)]
+#[path = "../../session/child_agent/collaboration_tests.rs"]
+mod collaboration_tests;

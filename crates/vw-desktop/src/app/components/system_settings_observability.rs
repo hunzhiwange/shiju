@@ -26,7 +26,7 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_section_content, settings_segment_button_style,
     settings_text_input_style, settings_value_badge,
 };
-use crate::app::i18n::settings_runtime::{Text, text as runtime_text};
+use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, slider, text, text_input};
 use iced::{Alignment, Element, Length};
@@ -110,10 +110,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.observability_settings;
     let help_btn = crate::app::components::system_settings_common::icon_btn(
         crate::app::assets::Icon::QuestionCircle,
-        crate::app::i18n::settings_runtime::text(
-            locale,
-            crate::app::i18n::settings_runtime::Text::Help,
-        ),
+        crate::app::i18n::settings_runtime::text(locale, "帮助"),
         Some(Message::Settings(message::SettingsMessage::ObservabilityHelpOpen)),
     );
 
@@ -130,11 +127,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let backend_row = field_row(
-        runtime_text(locale, Text::Backend),
-        runtime_text(locale, Text::BackendHelp),
+        runtime_text(locale, "后端"),
+        runtime_text(locale, "选择运行时观测后端。"),
         row![
-            backend_btn(runtime_text(locale, Text::None), "none"),
-            backend_btn(runtime_text(locale, Text::Log), "log"),
+            backend_btn(runtime_text(locale, "无"), "none"),
+            backend_btn(runtime_text(locale, "日志"), "log"),
             backend_btn("Prometheus", "prometheus"),
             backend_btn("OTel", "otel"),
         ]
@@ -142,16 +139,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let otel_endpoint_row = text_row(
-        runtime_text(locale, Text::OtelEndpoint),
-        runtime_text(locale, Text::OtelEndpointHelp),
+        runtime_text(locale, "OTEL 端点"),
+        runtime_text(locale, "仅 backend=otel 时生效。"),
         "http://localhost:4318",
         &s.otel_endpoint_input,
         |v| Message::Settings(message::SettingsMessage::ObservabilityOtelEndpointChanged(v)),
     );
 
     let otel_service_row = text_row(
-        runtime_text(locale, Text::OtelService),
-        runtime_text(locale, Text::OtelServiceHelp),
+        runtime_text(locale, "OTEL 服务名"),
+        runtime_text(locale, "OTel 上报时使用的 service.name。"),
         "vibewindow",
         &s.otel_service_name_input,
         |v| Message::Settings(message::SettingsMessage::ObservabilityOtelServiceNameChanged(v)),
@@ -170,19 +167,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let trace_mode_row = field_row(
-        runtime_text(locale, Text::Trace),
-        runtime_text(locale, Text::TraceHelp),
+        runtime_text(locale, "运行时追踪"),
+        runtime_text(locale, "选择 none、rolling 或 full 模式。"),
         row![
-            trace_mode_btn(runtime_text(locale, Text::None), "none"),
-            trace_mode_btn(runtime_text(locale, Text::Rolling), "rolling"),
-            trace_mode_btn(runtime_text(locale, Text::Full), "full"),
+            trace_mode_btn(runtime_text(locale, "无"), "none"),
+            trace_mode_btn(runtime_text(locale, "滚动"), "rolling"),
+            trace_mode_btn(runtime_text(locale, "完整"), "full"),
         ]
         .spacing(8),
     );
 
     let trace_path_row = text_row(
-        runtime_text(locale, Text::TraceFile),
-        runtime_text(locale, Text::TraceFileHelp),
+        runtime_text(locale, "追踪文件"),
+        runtime_text(locale, "运行时追踪文件路径。"),
         "state/runtime-trace.jsonl",
         &s.runtime_trace_path_input,
         |v| Message::Settings(message::SettingsMessage::ObservabilityRuntimeTracePathChanged(v)),
@@ -196,8 +193,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(280.0));
 
     let max_entries_row = field_row(
-        runtime_text(locale, Text::RollingEntries),
-        runtime_text(locale, Text::RollingHelp),
+        runtime_text(locale, "rolling 条数"),
+        runtime_text(locale, "rolling 模式下保留的最大条目数。"),
         row![max_entries_slider, settings_value_badge(format!("{}", s.runtime_trace_max_entries))]
             .spacing(16)
             .align_y(Alignment::Center),
@@ -206,16 +203,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let col = column![
         row![
             container(settings_page_intro(
-                runtime_text(locale, Text::ObservabilityConfig),
-                runtime_text(locale, Text::ObservabilityIntro)
+                runtime_text(locale, "可观测性配置"),
+                runtime_text(locale, "配置运行时观测后端、OTEL 上报和追踪存储策略。")
             ))
             .width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
         settings_section_card(
-            runtime_text(locale, Text::ObservabilityBackend),
-            runtime_text(locale, Text::ObservabilityBackendHelp)
+            runtime_text(locale, "观测后端"),
+            runtime_text(locale, "选择观测后端并配置 OTel 端点。")
         ),
         settings_section_content(
             column![
@@ -228,8 +225,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0),
         ),
         settings_section_card(
-            runtime_text(locale, Text::Trace),
-            runtime_text(locale, Text::TraceStorageHelp)
+            runtime_text(locale, "运行时追踪"),
+            runtime_text(locale, "控制 trace 模式、文件路径和 rolling 保留量。")
         ),
         settings_section_content(
             column![
@@ -260,7 +257,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
-        runtime_text(locale, Text::ObservabilityHelpTitle),
+        runtime_text(locale, "可观测性配置帮助"),
         help_text,
         Message::Settings(message::SettingsMessage::ObservabilityHelpClose),
     )

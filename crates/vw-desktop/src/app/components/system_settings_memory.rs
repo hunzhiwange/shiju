@@ -12,7 +12,7 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_runtime::{Text, text as runtime_text};
+use crate::app::i18n::settings_runtime::text as runtime_text;
 use crate::app::message::settings::{MemoryMessage, SettingsMessage};
 use crate::app::state::MemorySettingsTab;
 use crate::app::{App, Message};
@@ -193,25 +193,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(280.0));
 
     let backend_row: Element<'_, Message> = field_row(
-        runtime_text(locale, Text::StorageBackend),
-        runtime_text(locale, Text::MemoryBackendHelp),
+        runtime_text(locale, "存储后端"),
+        runtime_text(locale, "选择记忆系统使用的持久化后端。"),
         backend_pick,
     );
 
     let general_section = column![
         settings_section_card(
-            runtime_text(locale, Text::Basic),
-            runtime_text(locale, Text::MemoryBasicHelp)
+            runtime_text(locale, "基础行为"),
+            runtime_text(locale, "控制持久化、清理、快照和自动恢复等核心记忆行为。")
         ),
         settings_section_content(
             column![
                 backend_row,
                 settings_divider(),
                 bool_row(
-                    runtime_text(locale, Text::AutoSave),
-                    runtime_text(locale, Text::AutoSaveHelp),
+                    runtime_text(locale, "自动保存"),
+                    runtime_text(locale, "自动保存用户输入到记忆。"),
                     s.auto_save,
-                    runtime_text(locale, Text::AutoSaveLabel),
+                    runtime_text(locale, "自动保存用户输入到记忆"),
                     |value| {
                         Message::Settings(SettingsMessage::Memory(MemoryMessage::AutoSaveToggled(
                             value,
@@ -220,10 +220,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
-                    runtime_text(locale, Text::Hygiene),
-                    runtime_text(locale, Text::HygieneHelp),
+                    runtime_text(locale, "记忆卫生清理"),
+                    runtime_text(locale, "定期清理低价值或陈旧记忆。"),
                     s.hygiene_enabled,
-                    runtime_text(locale, Text::EnableHygiene),
+                    runtime_text(locale, "启用记忆卫生清理"),
                     |value| {
                         Message::Settings(SettingsMessage::Memory(
                             MemoryMessage::HygieneEnabledToggled(value),
@@ -232,10 +232,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
-                    runtime_text(locale, Text::ResponseCache),
-                    runtime_text(locale, Text::ResponseCacheHelp),
+                    runtime_text(locale, "响应缓存"),
+                    runtime_text(locale, "缓存部分响应结果以减少重复开销。"),
                     s.response_cache_enabled,
-                    runtime_text(locale, Text::EnableResponseCache),
+                    runtime_text(locale, "启用响应缓存"),
                     |value| {
                         Message::Settings(SettingsMessage::Memory(
                             MemoryMessage::ResponseCacheEnabledToggled(value),
@@ -244,10 +244,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
-                    runtime_text(locale, Text::Snapshot),
-                    runtime_text(locale, Text::SnapshotHelp),
+                    runtime_text(locale, "记忆快照"),
+                    runtime_text(locale, "启用记忆快照导出。"),
                     s.snapshot_enabled,
-                    runtime_text(locale, Text::EnableSnapshot),
+                    runtime_text(locale, "启用记忆快照导出"),
                     |value| {
                         Message::Settings(SettingsMessage::Memory(
                             MemoryMessage::SnapshotEnabledToggled(value),
@@ -256,10 +256,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
-                    runtime_text(locale, Text::HygieneSnapshot),
-                    runtime_text(locale, Text::HygieneSnapshotHelp),
+                    runtime_text(locale, "清理时快照"),
+                    runtime_text(locale, "执行卫生清理时同步生成快照。"),
                     s.snapshot_on_hygiene,
-                    runtime_text(locale, Text::HygieneSnapshotLabel),
+                    runtime_text(locale, "清理时同步生成快照"),
                     |value| {
                         Message::Settings(SettingsMessage::Memory(
                             MemoryMessage::SnapshotOnHygieneToggled(value),
@@ -268,10 +268,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
-                    runtime_text(locale, Text::AutoRecover),
-                    runtime_text(locale, Text::AutoRecoverHelp),
+                    runtime_text(locale, "自动恢复"),
+                    runtime_text(locale, "数据库缺失时自动从快照恢复。"),
                     s.auto_hydrate,
-                    runtime_text(locale, Text::AutoRecoverLabel),
+                    runtime_text(locale, "数据库缺失时自动从快照恢复"),
                     |value| {
                         Message::Settings(SettingsMessage::Memory(
                             MemoryMessage::AutoHydrateToggled(value),
@@ -286,15 +286,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let retention_section = column![
         settings_section_card(
-            runtime_text(locale, Text::Retention),
-            runtime_text(locale, Text::RetentionHelp)
+            runtime_text(locale, "保留与缓存"),
+            runtime_text(locale, "配置归档、清理、SQLite 打开超时与缓存容量。")
         ),
         settings_section_content(
             column![
                 number_row(
-                    runtime_text(locale, Text::ArchiveDays),
+                    runtime_text(locale, "归档天数"),
                     s.archive_after_days.to_string(),
-                    runtime_text(locale, Text::ArchiveSuffix),
+                    runtime_text(locale, "天后归档"),
                     0.0,
                     3650.0,
                     1.0,
@@ -307,9 +307,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::PurgeDays),
+                    runtime_text(locale, "清除天数"),
                     s.purge_after_days.to_string(),
-                    runtime_text(locale, Text::PurgeSuffix),
+                    runtime_text(locale, "天后清除"),
                     0.0,
                     3650.0,
                     1.0,
@@ -322,9 +322,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::ConversationDays),
+                    runtime_text(locale, "对话保留天数"),
                     s.conversation_retention_days.to_string(),
-                    runtime_text(locale, Text::Days),
+                    runtime_text(locale, "天"),
                     0.0,
                     3650.0,
                     1.0,
@@ -337,9 +337,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::EmbeddingCache),
+                    runtime_text(locale, "嵌入缓存大小"),
                     s.embedding_cache_size.to_string(),
-                    runtime_text(locale, Text::Entries),
+                    runtime_text(locale, "条"),
                     0.0,
                     1_000_000.0,
                     100.0,
@@ -352,7 +352,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::ChunkTokens),
+                    runtime_text(locale, "分块最大 Token"),
                     s.chunk_max_tokens.to_string(),
                     "token",
                     1.0,
@@ -367,9 +367,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::CacheTtl),
+                    runtime_text(locale, "缓存有效期"),
                     s.response_cache_ttl_minutes.to_string(),
-                    runtime_text(locale, Text::Minutes),
+                    runtime_text(locale, "分钟"),
                     0.0,
                     525_600.0,
                     5.0,
@@ -382,9 +382,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::CacheEntries),
+                    runtime_text(locale, "缓存最大条目"),
                     s.response_cache_max_entries.to_string(),
-                    runtime_text(locale, Text::Entries),
+                    runtime_text(locale, "条"),
                     0.0,
                     1_000_000.0,
                     100.0,
@@ -397,9 +397,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::SqliteTimeout),
+                    runtime_text(locale, "SQLite 超时"),
                     s.sqlite_open_timeout_secs.to_string(),
-                    runtime_text(locale, Text::SecondsUnlimited),
+                    runtime_text(locale, "秒（0 表示无限等待）"),
                     0.0,
                     3600.0,
                     1.0,
@@ -418,14 +418,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let embedding_section = column![
         settings_section_card(
-            runtime_text(locale, Text::Embedding),
-            runtime_text(locale, Text::EmbeddingHelp)
+            runtime_text(locale, "嵌入与检索"),
+            runtime_text(locale, "配置 embedding provider/model、维度和混合检索权重。")
         ),
         settings_section_content(
             column![
                 text_row(
-                    runtime_text(locale, Text::EmbeddingProvider),
-                    runtime_text(locale, Text::AlibabaEmbeddingHelp),
+                    runtime_text(locale, "嵌入提供者"),
+                    runtime_text(locale, "阿里建议在嵌入路由里配置 alibaba-cn、text-embedding-v4 和 DashScope API Key。"),
                     "none / openai / alibaba-cn / custom:URL",
                     &s.embedding_provider,
                     |value| {
@@ -438,12 +438,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 container(
                     row![
                         column![
-                            text(runtime_text(locale, Text::EmbeddingModel)).size(13),
+                            text(runtime_text(locale, "嵌入模型")).size(13),
                             row![
-                                text(runtime_text(locale, Text::ModelNamePrefix))
+                                text(runtime_text(locale, "模型名称，可用"))
                                     .size(11)
                                     .style(settings_muted_text_style),
-                                button(text(runtime_text(locale, Text::RouteHint)).size(11))
+                                button(text(runtime_text(locale, "hint:模式名")).size(11))
                                     .on_press(Message::Settings(SettingsMessage::Memory(
                                         MemoryMessage::TabSelected(
                                             MemorySettingsTab::EmbeddingRoutes
@@ -463,7 +463,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                             ..Default::default()
                                         }
                                     }),
-                                text(runtime_text(locale, Text::RouteReference))
+                                text(runtime_text(locale, "引用路由。"))
                                     .size(11)
                                     .style(settings_muted_text_style),
                             ]
@@ -493,9 +493,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .width(Length::Fill),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::Dimensions),
+                    runtime_text(locale, "嵌入维度"),
                     s.embedding_dimensions.to_string(),
-                    runtime_text(locale, Text::DimensionsSuffix),
+                    runtime_text(locale, "维"),
                     1.0,
                     65_536.0,
                     1.0,
@@ -508,7 +508,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::VectorWeight),
+                    runtime_text(locale, "向量权重"),
                     format!("{:.2}", s.vector_weight),
                     "0.0 - 1.0",
                     0.0,
@@ -523,7 +523,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::KeywordWeight),
+                    runtime_text(locale, "关键词权重"),
                     format!("{:.2}", s.keyword_weight),
                     "0.0 - 1.0",
                     0.0,
@@ -538,7 +538,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 number_row(
-                    runtime_text(locale, Text::MinRelevance),
+                    runtime_text(locale, "最小相关度"),
                     format!("{:.2}", s.min_relevance_score),
                     "0.0 - 1.0",
                     0.0,
@@ -561,14 +561,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(
             column![
                 settings_section_card(
-                    runtime_text(locale, Text::QdrantConnection),
-                    runtime_text(locale, Text::QdrantHelp),
+                    runtime_text(locale, "Qdrant 连接"),
+                    runtime_text(
+                        locale,
+                        "仅在 backend=qdrant 时显示，用于配置向量数据库地址、集合和 API Key。"
+                    ),
                 ),
                 settings_section_content(
                     column![
                         text_row(
-                            runtime_text(locale, Text::QdrantUrl),
-                            runtime_text(locale, Text::QdrantUrlHelp),
+                            runtime_text(locale, "Qdrant 地址"),
+                            runtime_text(locale, "Qdrant 服务的 HTTP 地址。"),
                             "http://localhost:6333",
                             &s.qdrant_url_input,
                             |value| {
@@ -579,8 +582,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ),
                         settings_divider(),
                         text_row(
-                            runtime_text(locale, Text::QdrantCollection),
-                            runtime_text(locale, Text::QdrantCollectionHelp),
+                            runtime_text(locale, "Qdrant 集合"),
+                            runtime_text(locale, "记忆向量集合名称。"),
                             "vibewindow_memories",
                             &s.qdrant_collection,
                             |value| {
@@ -591,9 +594,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         ),
                         settings_divider(),
                         text_row(
-                            runtime_text(locale, Text::QdrantKey),
-                            runtime_text(locale, Text::QdrantKeyHelp),
-                            runtime_text(locale, Text::Optional),
+                            runtime_text(locale, "Qdrant API 密钥"),
+                            runtime_text(locale, "可选的鉴权密钥。"),
+                            runtime_text(locale, "可选"),
                             &s.qdrant_api_key_input,
                             |value| {
                                 Message::Settings(SettingsMessage::Memory(
@@ -646,8 +649,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut sections = column![
         settings_page_intro(
-            runtime_text(locale, Text::MemoryConfig),
-            runtime_text(locale, Text::MemoryIntro)
+            runtime_text(locale, "记忆系统配置"),
+            runtime_text(locale, "统一配置后端、保留策略、缓存和向量检索参数。")
         ),
         tabs,
     ]
@@ -680,12 +683,12 @@ pub(super) fn memory_tab_label(
     runtime_text(
         locale,
         match tab {
-            MemorySettingsTab::General => Text::Basic,
-            MemorySettingsTab::RetentionAndCache => Text::Retention,
-            MemorySettingsTab::Embedding => Text::Embedding,
-            MemorySettingsTab::EmbeddingRoutes => Text::EmbeddingRoutes,
-            MemorySettingsTab::Storage => Text::MemoryStorage,
-            MemorySettingsTab::Qdrant => Text::QdrantConnection,
+            MemorySettingsTab::General => "基础行为",
+            MemorySettingsTab::RetentionAndCache => "保留与缓存",
+            MemorySettingsTab::Embedding => "嵌入与检索",
+            MemorySettingsTab::EmbeddingRoutes => "嵌入路由",
+            MemorySettingsTab::Storage => "记忆存储",
+            MemorySettingsTab::Qdrant => "Qdrant 连接",
         },
     )
 }

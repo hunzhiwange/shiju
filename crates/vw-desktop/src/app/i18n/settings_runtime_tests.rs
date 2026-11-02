@@ -1,18 +1,18 @@
-use super::settings_runtime::{Text, text};
+use super::settings_runtime::text;
 use vw_config_types::ui::DesktopLocale;
 #[test]
 fn desktop_i18n_settings_runtime_switches_visible_text() {
-    assert_eq!(text(DesktopLocale::SimplifiedChinese, Text::RuntimeKind), "运行时类型");
-    assert_eq!(text(DesktopLocale::TraditionalChinese, Text::RuntimeKind), "執行環境類型");
-    assert_eq!(text(DesktopLocale::English, Text::RuntimeKind), "Runtime type");
+    assert_eq!(text(DesktopLocale::SimplifiedChinese, "运行时类型"), "运行时类型");
+    assert_eq!(text(DesktopLocale::TraditionalChinese, "运行时类型"), "執行環境類型");
+    assert_eq!(text(DesktopLocale::English, "运行时类型"), "Runtime type");
 }
 
 #[test]
 fn desktop_i18n_settings_runtime_memory_storage_and_observability() {
     for (key, zh, tw, en) in [
-        (Text::MemoryConfig, "记忆系统配置", "記憶系統設定", "Memory system configuration"),
-        (Text::StorageKind, "存储类型", "儲存類型", "Storage type"),
-        (Text::ObservabilityConfig, "可观测性配置", "可觀測性設定", "Observability configuration"),
+        ("记忆系统配置", "记忆系统配置", "記憶系統設定", "Memory system configuration"),
+        ("存储类型", "存储类型", "儲存類型", "Storage type"),
+        ("可观测性配置", "可观测性配置", "可觀測性設定", "Observability configuration"),
     ] {
         assert_eq!(text(DesktopLocale::SimplifiedChinese, key), zh);
         assert_eq!(text(DesktopLocale::TraditionalChinese, key), tw);
@@ -23,7 +23,7 @@ fn desktop_i18n_settings_runtime_memory_storage_and_observability() {
 #[test]
 fn desktop_i18n_settings_runtime_dynamic_errors_preserve_raw_content() {
     use super::settings_runtime::validation_error;
-    use super::settings_security::{Text as SecurityText, text as security_text};
+    use super::settings_security::text as security_text;
     let raw = "用户/admin.example.com:外部错误😀";
     for locale in [
         DesktopLocale::SimplifiedChinese,
@@ -33,7 +33,7 @@ fn desktop_i18n_settings_runtime_dynamic_errors_preserve_raw_content() {
         assert_eq!(validation_error(locale, raw), raw);
         let duplicate = validation_error(locale, &format!("列表项已存在：{raw}"));
         assert!(duplicate.ends_with(raw));
-        assert!(!security_text(locale, SecurityText::BashSecurity).is_empty());
+        assert!(!security_text(locale, "Bash 安全检查").is_empty());
     }
     assert_eq!(
         validation_error(DesktopLocale::English, "Docker CPU 限制 必须大于 0"),
@@ -104,7 +104,7 @@ fn desktop_i18n_settings_runtime_views_and_search_follow_locale() {
                     )
             })
             .unwrap();
-        assert!(entry.matches(text(locale, Text::Retention)));
+        assert!(entry.matches(text(locale, "保留与缓存")));
         assert!(entry.matches("保留与缓存"));
         assert!(super::settings_security::help(locale).contains("\"security\""));
         assert!(super::settings_runtime::observability_help(locale).contains("\"observability\""));

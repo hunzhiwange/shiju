@@ -26,3 +26,6 @@ mod gettext_selection_tests;
 
 #[cfg(test)]
 mod gettext_area_4_tests;
+
+#[cfg(test)]
+mod gettext_area_5_tests;

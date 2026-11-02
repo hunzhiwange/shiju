@@ -345,7 +345,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
         allowed_tools: MAIN_TOOLS,
         permission: MAIN_PERMISSION,
         default_temperature: Some(0.7),
-        max_iterations: 64,
+        max_iterations: DEFAULT_MAX_ITERATIONS,
     },
     BuiltinAgentSpec {
         key: "researcher",
@@ -360,7 +360,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
         allowed_tools: RESEARCHER_TOOLS,
         permission: RESEARCHER_PERMISSION,
         default_temperature: Some(0.1),
-        max_iterations: 32,
+        max_iterations: DEFAULT_MAX_ITERATIONS,
     },
     BuiltinAgentSpec {
         key: "coder",
@@ -375,7 +375,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
         allowed_tools: CODER_TOOLS,
         permission: CODER_PERMISSION,
         default_temperature: Some(0.2),
-        max_iterations: 64,
+        max_iterations: DEFAULT_MAX_ITERATIONS,
     },
     BuiltinAgentSpec {
         key: "reviewer",
@@ -390,7 +390,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
         allowed_tools: READONLY_CODE_TOOLS,
         permission: READONLY_PERMISSION,
         default_temperature: Some(0.1),
-        max_iterations: 32,
+        max_iterations: DEFAULT_MAX_ITERATIONS,
     },
     BuiltinAgentSpec {
         key: "explore",
@@ -405,7 +405,7 @@ pub const BUILTIN_AGENT_SPECS: [BuiltinAgentSpec; 5] = [
         allowed_tools: READONLY_CODE_TOOLS,
         permission: READONLY_PERMISSION,
         default_temperature: Some(0.1),
-        max_iterations: 32,
+        max_iterations: DEFAULT_MAX_ITERATIONS,
     },
 ];
 

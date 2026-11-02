@@ -359,6 +359,7 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
         let is_delegate_role = expected_delegate_roles.contains(key);
         assert_eq!(config.allow_as_subagent, is_delegate_role);
         assert_eq!(config.max_depth, u32::from(is_delegate_role));
+        assert_eq!(config.max_iterations, 50_000);
         if is_delegate_role {
             assert!(!config.allowed_tools.iter().any(|tool| tool == "AgentTool"));
         }
@@ -367,11 +368,11 @@ fn builtin_agent_catalog_uses_chinese_metadata_and_safe_delegate_roles() {
     for key in ["researcher", "reviewer", "explore"] {
         let config = super::builtin_agent_config(key).expect("readonly delegate config");
         assert_eq!(config.temperature, Some(0.1));
-        assert_eq!(config.max_iterations, 32);
+        assert_eq!(config.max_iterations, 50_000);
     }
     let coder = super::builtin_agent_config("coder").expect("coder config");
     assert_eq!(coder.temperature, Some(0.2));
-    assert_eq!(coder.max_iterations, 64);
+    assert_eq!(coder.max_iterations, 50_000);
     assert!(super::builtin_agent_config("compaction").is_none());
 }
 

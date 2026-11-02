@@ -307,7 +307,7 @@ fn fresh_agents_settings_patch_preserves_builtin_role_boundaries() {
         assert!(researcher.get(field).is_none(), "unexpected fixed boundary: {field}");
     }
     // 最大迭代次数是所有角色均可编辑的运行参数，角色资格与递归边界仍固定。
-    assert_eq!(researcher["max_iterations"], 32);
+    assert_eq!(researcher["max_iterations"], 50_000);
     assert_eq!(
         researcher["allowed_tools"],
         serde_json::json!([

@@ -45,7 +45,7 @@ fn delegate_agent_entry_uses_builtin_worker_defaults() {
     assert!(entry.allow_as_subagent);
     assert_eq!(entry.temperature, 0.2);
     assert_eq!(entry.max_depth, 1);
-    assert_eq!(entry.max_iterations, 64);
+    assert_eq!(entry.max_iterations, 50_000);
 }
 
 #[test]

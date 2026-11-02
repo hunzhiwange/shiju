@@ -1,6 +1,6 @@
 {
   "task": 60,
-  "status": "已完成，待回归",
+  "status": "已完成",
   "platform": "macOS arm64",
   "source": {
     "source": "/Users/xiangmin/worker/code/codex-main/codex-rs/core/src/tools/handlers/apply_patch.rs",
@@ -55,5 +55,36 @@
     "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
     "locks_released": true
   },
-  "limits": "Context mismatch checked before any write, no claim of transactional rollback on runtime I/O failure. Host output and file policy retained. Existing file_read/file_write remain host-native; no unsupported Codex read_file alias invented. REPL/browser/media dependencies are not provided; no complete-package compatibility claim."
+  "limits": "Context mismatch checked before any write, no claim of transactional rollback on runtime I/O failure. Host output and file policy retained. Existing file_read/file_write remain host-native; no unsupported Codex read_file alias invented. REPL/browser/media dependencies are not provided; no complete-package compatibility claim.",
+  "regression": {
+    "date": "2026-11-02",
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t60_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 3,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features tools::apply_patch::tests -- --nocapture",
+        "exit_code": 0,
+        "passed": 8,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "cargo": {
+      "slot": 2,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+      "locks_released": true
+    }
+  }
 }

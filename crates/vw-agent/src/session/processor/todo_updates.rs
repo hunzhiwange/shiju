@@ -97,7 +97,7 @@ pub(crate) fn maybe_update_todos_after_work(
     // 构造系统提示词：基础提示 + todo 更新指令
     let system = [
         base_system.to_string(),
-        "请根据刚刚的执行进展，仅通过 TodoWrite 更新 todo 状态；不要输出普通文本。".to_string(),
+        "请根据刚刚的实际执行结果，仅通过 TodoWrite 增量更新已有任务状态，不要输出普通文本。使用 merge:true，todos 只传已知任务的 id 和发生变化的 status；不要重传整份列表、未变字段或猜测 id。可在一次调用中完成已验证的任务并将下一项设为 in_progress，最多一项进行中。失败、阻塞或未验证完成的任务不能标为 completed。没有状态变化或无法确认任务 id 时，不调用工具。".to_string(),
     ];
 
     // 调用 LLM 分析执行进展并生成工具调用，最多重试 2 次

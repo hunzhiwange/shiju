@@ -122,7 +122,7 @@ fn runtime_capability_instructions(available_tool_ids: &[String]) -> String {
 
     if has_tool(&tool_ids, &["todoread"]) && has_tool(&tool_ids, &["todowrite"]) {
         sections.push(
-            "## Task Tracking\n- For non-trivial tasks, first use `TodoWrite` to create a concise task list and keep its state synchronized with `TodoRead`. Do not create a task list for simple questions and answers.\n- Update each item immediately upon completion and continue. Do not claim the task is complete while unfinished items remain. When the user asks you to continue, resume from the next unfinished item."
+            "## Task Tracking\n- Use `TodoWrite` for complex, multi-step work or when the user requests a plan. Skip task lists for simple questions and single-step work; do not add filler steps. Keep each step short, concrete, and verifiable.\n- Create the list once, then prefer `merge:true` with existing ids and only changed fields. Keep at most one item in_progress. In one call, mark finished steps completed and the next step in_progress; batch genuinely completed steps when appropriate. Do not repeatedly read a known list with `TodoRead`.\n- Base completion on actual results and required verification. Leave blocked work unfinished and explain the blocker; never invent completion to clear the list. Resume from unfinished work when asked to continue, and synchronize statuses before reporting completion.\n- The tool displays the list; do not repeat the entire plan in ordinary text. Briefly explain meaningful plan changes or blockers."
                 .to_string(),
         );
     }

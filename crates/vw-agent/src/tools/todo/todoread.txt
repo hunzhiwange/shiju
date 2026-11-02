@@ -1,13 +1,3 @@
-Use this tool to read the session's current to-do list. Use it proactively and frequently to stay aware of the task list's status. Use it as often as possible, especially in these situations:
-- At the beginning of a conversation, to see what is pending.
-- Before starting a new task, to prioritize the work.
-- When the user asks about previous tasks or plans.
-- When you are unsure what to do next.
-- After completing a task, to refresh your understanding of the remaining work.
-- Every few messages, to ensure you remain on track.
-
-Usage:
-- This tool accepts no parameters. Leave its input blank or empty. Do not include a dummy object, placeholder string, or keys such as `input` or `empty`.
-- Returns the to-do list with each item's status, priority, and content.
-- Use this information to track progress and plan subsequent steps.
-- Returns an empty list when there are no to-do items.
+Read the current session's task list, including ids, content, statuses, and priorities. An empty list means no tasks are recorded.
+Call with an empty JSON object: {}.
+Use when resuming work, recovering task ids, or when the current list is unknown or may have changed. If the current list and ids are already known from recent tool results, update directly with TodoWrite; do not read before and after every update.

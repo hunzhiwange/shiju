@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio_util::sync::CancellationToken;
 
 struct StaticProvider {
+    completion: Option<(String, String)>,
     responses: Mutex<VecDeque<crate::app::agent::providers::ChatResponse>>,
     calls: Arc<AtomicUsize>,
     requested_tools: Arc<Mutex<Vec<Vec<String>>>>,
@@ -34,6 +35,7 @@ impl StaticProvider {
         calls: Arc<AtomicUsize>,
     ) -> Self {
         Self {
+            completion: None,
             responses: Mutex::new(responses.into()),
             calls,
             requested_tools: Arc::new(Mutex::new(Vec::new())),
@@ -68,7 +70,16 @@ impl Provider for StaticProvider {
         _model: &str,
         _temperature: f64,
     ) -> anyhow::Result<crate::app::agent::providers::ChatResponse> {
-        self.calls.fetch_add(1, Ordering::SeqCst);
+        let call = self.calls.fetch_add(1, Ordering::SeqCst);
+        if let Some((root, child)) = &self.completion {
+            if call == 0 {
+                crate::session::child_agent::coordinator::global_child_agent_coordinator()
+                    .mark_succeeded(root, child, "channel_fact_alpha")
+                    .unwrap();
+            } else {
+                assert!(request.messages.iter().any(|m| m.content.contains("channel_fact_alpha")));
+            }
+        }
         let tool_ids =
             request.tools.unwrap_or_default().iter().map(|spec| spec.id.clone()).collect();
         self.requested_tools.lock().expect("requested tools mutex poisoned").push(tool_ids);
@@ -562,4 +573,89 @@ async fn run_tool_call_loop_errors_when_completion_claim_repeats_without_tool_ca
 
     assert_eq!(calls.load(Ordering::SeqCst), 2);
     assert!(err.to_string().contains("deferred action without emitting a tool call"));
+}
+
+#[tokio::test]
+async fn agcollab_channel_integrates_child_results() {
+    let root = format!("channel-{}", uuid::Uuid::new_v4());
+    let coordinator = crate::session::child_agent::coordinator::global_child_agent_coordinator();
+    let child = format!("{root}-child");
+    coordinator.register(&root, &child, "worker", "research").unwrap();
+    let mut provider = StaticProvider::from_responses(
+        ["premature answer", "integrated answer"]
+            .into_iter()
+            .map(|text| crate::providers::ChatResponse {
+                text: Some(text.into()),
+                tool_calls: vec![],
+                usage: None,
+                reasoning_content: None,
+            })
+            .collect(),
+        Arc::new(AtomicUsize::new(0)),
+    );
+    provider.completion = Some((root.clone(), child));
+    let mut history = vec![ChatMessage::user("research")];
+    let (tx, mut rx) = tokio::sync::mpsc::channel(64);
+    let result = crate::tools::scope_tool_use_context(
+        Arc::new(ToolUseContext::new(&root, None)),
+        run_tool_call_loop(
+            &provider,
+            &mut history,
+            &[],
+            &crate::observability::NoopObserver,
+            "static",
+            "model",
+            0.0,
+            true,
+            None,
+            "channel",
+            &crate::config::MultimodalConfig::default(),
+            3,
+            None,
+            Some(tx),
+            None,
+            None,
+            &[],
+        ),
+    )
+    .await
+    .unwrap();
+    assert!(history.iter().any(|m| m.role == "user" && m.content.contains("channel_fact_alpha")));
+    assert_eq!(result, "integrated answer");
+    let mut streamed = String::new();
+    while let Ok(delta) = rx.try_recv() {
+        streamed.push_str(&delta);
+    }
+    assert!(streamed.contains("integrated answer"));
+    assert!(!streamed.contains("premature answer"));
+    assert!(!history.iter().any(|m| m.content == "premature answer"));
+}
+
+#[tokio::test]
+async fn agcollab_channel_cancellation_and_budget_reject_unfinished_children() {
+    for cancelled in [false, true] {
+        let root = format!("channel-negative-{}", uuid::Uuid::new_v4());
+        let coordinator =
+            crate::session::child_agent::coordinator::global_child_agent_coordinator();
+        let child = format!("{root}-child");
+        coordinator.register(&root, &child, "worker", "research").unwrap();
+        let token = CancellationToken::new();
+        if cancelled {
+            token.cancel();
+        }
+        let error = collaboration::integrate(
+            &ToolUseContext::new(&root, None),
+            &mut Vec::new(),
+            Some(&token),
+            true,
+        )
+        .await
+        .unwrap_err();
+        if cancelled {
+            assert!(error.is::<ToolLoopCancelled>());
+        } else {
+            assert!(error.to_string().contains("unfinished"));
+        }
+        coordinator.cancel_descendants(&root, &[]).unwrap();
+    }
 }

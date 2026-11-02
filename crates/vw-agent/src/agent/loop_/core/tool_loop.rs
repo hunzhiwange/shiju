@@ -3,6 +3,7 @@
 //! 本模块保留工具循环的对外入口，并将 LLM 轮次处理、进度输出、
 //! 工具执行和完成声明检测拆分到 `tool_loop/` 子模块，降低单文件职责密度。
 
+mod collaboration;
 mod detection;
 mod llm_round;
 mod output;
@@ -149,13 +150,29 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         );
     }
 
-    let mut tool_use_context = ToolUseContext::new(format!("tool-loop-{turn_id}"), None)
+    let inherited = crate::tools::current_tool_use_context();
+    let session_id = skills
+        .as_ref()
+        .and_then(|skills| skills.session_id.clone())
+        .or_else(|| inherited.as_ref().map(|context| context.session().to_string()))
+        .unwrap_or_else(|| format!("tool-loop-{turn_id}"));
+    let mut tool_use_context = ToolUseContext::new(session_id, None)
+        .inherit_delegated_authority()
         .with_channel(channel_name.to_string())
         .with_provider(provider_name.to_string())
         .with_model(model.to_string())
         .with_turn_id(turn_id.clone())
         .with_bypass_non_cli_approval_for_turn(bypass_non_cli_approval_for_turn);
     let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
+    let security = security.or_else(|| {
+        skills.as_ref().and_then(|skills| skills.config.as_ref()).map(|config| {
+            Arc::new(SecurityPolicy::from_configs(
+                &config.autonomy,
+                &config.security,
+                &config.workspace_dir,
+            ))
+        })
+    });
     if let Some(security) = security.clone() {
         tool_use_context = tool_use_context.with_security(security);
     }
@@ -198,6 +215,7 @@ pub(crate) async fn run_tool_call_loop_with_skills(
             history.push(ChatMessage::user(retry_prompt));
         }
 
+        collaboration::consume(&tool_use_context, history)?;
         update_thinking_progress(on_delta.as_ref(), iteration).await;
 
         // Search can change the next request, never another call in this round.
@@ -274,6 +292,12 @@ pub(crate) async fn run_tool_call_loop_with_skills(
             .await;
 
         if round.tool_calls.is_empty() {
+            if collaboration::integrate(&tool_use_context, history, cancellation_token.as_ref(), iteration + 1 == max_iterations).await? {
+                if iteration + 1 == max_iterations {
+                    anyhow::bail!("Maximum tool iterations reached: child results remain unintegrated");
+                }
+                continue;
+            }
             if round.display_text.trim().is_empty() {
                 runtime_trace::record_event(
                     "empty_final_response_retry",
@@ -413,6 +437,7 @@ pub(crate) async fn run_tool_call_loop_with_skills(
             use_native_tools,
         )
         .await?;
+        collaboration::consume(&tool_use_context, history)?;
         if let Some(skills) = skills.as_deref_mut() {
             Box::pin(skills.consume(tool_use_context.as_ref(), history, initial_history_len))
                 .await?;
@@ -433,6 +458,10 @@ pub(crate) async fn run_tool_call_loop_with_skills(
     );
     anyhow::bail!("Agent exceeded maximum tool iterations ({max_iterations})")
     }.await;
+    if result.is_err() {
+        crate::session::child_agent::coordinator::global_child_agent_coordinator()
+            .cancel_descendants(tool_use_context.session(), &[])?;
+    }
     if cancellation_token.as_ref().is_some_and(CancellationToken::is_cancelled) {
         crate::plugins::hook_stop::emit(tool_use_context, true, false, None).await?;
     }

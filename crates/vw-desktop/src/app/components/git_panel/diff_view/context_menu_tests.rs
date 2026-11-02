@@ -184,7 +184,7 @@ fn context_menu_match_requires_same_file_line_and_side() {
 fn selection_menu_and_context_wrapper_build_for_absent_mismatched_and_matching_states() {
     let mut app = app();
 
-    let _menu = diff_selection_menu();
+    let _menu = diff_selection_menu(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
     let _absent = wrap_diff_row_with_context_menu(
         &app,
         "src/lib.rs",

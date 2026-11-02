@@ -128,7 +128,9 @@ pub(super) fn diff_context_menu_matches(
 /// # 错误处理
 ///
 /// 本函数不吞掉底层错误；没有显式错误通道时，会用空集合、`None` 或现有 UI 状态表达不可用结果。
-pub(super) fn diff_selection_menu<'a>() -> Element<'a, Message> {
+pub(super) fn diff_selection_menu<'a>(
+    locale: vw_config_types::ui::DesktopLocale,
+) -> Element<'a, Message> {
     let menu_item = |label: &'static str, message: Message| {
         button(
             container(text(label).size(12))
@@ -144,12 +146,30 @@ pub(super) fn diff_selection_menu<'a>() -> Element<'a, Message> {
 
     container(
         column![
-            menu_item("添加评论", Message::Git(message::GitMessage::OpenDiffCommentDraft)),
-            menu_item("选择行", Message::Git(message::GitMessage::SelectDiffContextStageLines)),
-            menu_item("取消行", Message::Git(message::GitMessage::ClearDiffContextStageLines)),
-            menu_item("丢弃更改", Message::Git(message::GitMessage::DiscardDiffSelection)),
-            menu_item("复制", Message::Git(message::GitMessage::CopyDiffSelection)),
-            menu_item("添加到会话", Message::Git(message::GitMessage::InsertDiffSelectionToChat)),
+            menu_item(
+                crate::app::i18n::I18n::new(locale).__("添加评论"),
+                Message::Git(message::GitMessage::OpenDiffCommentDraft)
+            ),
+            menu_item(
+                crate::app::i18n::I18n::new(locale).__("选择行"),
+                Message::Git(message::GitMessage::SelectDiffContextStageLines)
+            ),
+            menu_item(
+                crate::app::i18n::I18n::new(locale).__("取消行"),
+                Message::Git(message::GitMessage::ClearDiffContextStageLines)
+            ),
+            menu_item(
+                crate::app::i18n::I18n::new(locale).__("丢弃更改"),
+                Message::Git(message::GitMessage::DiscardDiffSelection)
+            ),
+            menu_item(
+                crate::app::i18n::I18n::new(locale).__("复制"),
+                Message::Git(message::GitMessage::CopyDiffSelection)
+            ),
+            menu_item(
+                crate::app::i18n::I18n::new(locale).__("添加到会话"),
+                Message::Git(message::GitMessage::InsertDiffSelectionToChat)
+            ),
         ]
         .spacing(0)
         .width(Length::Fixed(138.0)),
@@ -215,7 +235,7 @@ pub(in crate::app::components::git_panel) fn wrap_diff_row_with_context_menu<'a>
         .filter(|menu| diff_context_menu_matches(menu, &file_for_overlay, event_line, event_is_old))
     {
         // PointBelowOverlay 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-        PointBelowOverlay::new(right_click, diff_selection_menu())
+        PointBelowOverlay::new(right_click, diff_selection_menu(app.desktop_locale))
             .show(is_open)
             .anchor(iced::Point::new(menu.x, menu.y))
             .gap(2.0)

@@ -208,7 +208,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let commit_type_pick = pick_list(ConventionalCommitType::all(), app.git_commit_type, |t| {
             Message::Git(message::GitMessage::CommitTypeSelected(t))
         })
-        .placeholder("类型（必选）")
+        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("类型（必选）"))
         .text_size(13)
         .padding([10, 12])
         .style(settings_pick_list_style)
@@ -217,18 +217,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
         Some(
             row![
                 commit_type_pick,
-                text_input("scope（可选）", &app.git_commit_scope)
-                    .on_input(|v| Message::Git(message::GitMessage::CommitScopeChanged(v)))
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
-                    .width(Length::Fixed(120.0)),
-                text_input("摘要（Summary）", &app.git_commit_message)
-                    .on_input(|v| Message::Git(message::GitMessage::CommitMessageChanged(v)))
-                    .padding([10, 12])
-                    .size(13)
-                    .style(settings_text_input_style)
-                    .width(Length::Fill),
+                text_input(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("scope（可选）"),
+                    &app.git_commit_scope
+                )
+                .on_input(|v| Message::Git(message::GitMessage::CommitScopeChanged(v)))
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fixed(120.0)),
+                text_input(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("摘要（Summary）"),
+                    &app.git_commit_message
+                )
+                .on_input(|v| Message::Git(message::GitMessage::CommitMessageChanged(v)))
+                .padding([10, 12])
+                .size(13)
+                .style(settings_text_input_style)
+                .width(Length::Fill),
             ]
             .spacing(8)
             .align_y(Alignment::Center)
@@ -237,19 +243,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
     } else {
         // 简化模式：仅显示摘要输入框
         Some(
-            text_input("摘要（Summary）", &app.git_commit_message)
-                .on_input(|v| Message::Git(message::GitMessage::CommitMessageChanged(v)))
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill)
-                .into(),
+            text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("摘要（Summary）"),
+                &app.git_commit_message,
+            )
+            .on_input(|v| Message::Git(message::GitMessage::CommitMessageChanged(v)))
+            .padding([10, 12])
+            .size(13)
+            .style(settings_text_input_style)
+            .width(Length::Fill)
+            .into(),
         )
     };
     // 构建描述编辑器，支持多行文本输入
     // 固定高度为 2 行（每行约 22 像素），提供简洁的描述输入体验
     let desc_input = text_editor(&app.git_commit_description_editor)
-        .placeholder("描述（可选）")
+        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("描述（可选）"))
         .on_action(|a| Message::Git(message::GitMessage::CommitDescriptionEditorAction(a)))
         .padding([10, 12])
         .size(13.0)
@@ -266,20 +275,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .height(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
-            "正在提交…".to_string(),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("正在提交…").to_owned(),
         ),
-        CommitButtonState::NoSelection => {
-            disabled_square_icon_button_tiny(Icon::Save, "选择变更后可提交".to_string())
-        }
-        CommitButtonState::MissingSummary => {
-            disabled_square_icon_button_tiny(Icon::Save, "填写摘要后可提交".to_string())
-        }
-        CommitButtonState::MissingType => {
-            disabled_square_icon_button_tiny(Icon::Save, "请选择类型".to_string())
-        }
+        CommitButtonState::NoSelection => disabled_square_icon_button_tiny(
+            Icon::Save,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择变更后可提交").to_owned(),
+        ),
+        CommitButtonState::MissingSummary => disabled_square_icon_button_tiny(
+            Icon::Save,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("填写摘要后可提交").to_owned(),
+        ),
+        CommitButtonState::MissingType => disabled_square_icon_button_tiny(
+            Icon::Save,
+            crate::app::i18n::I18n::new(app.desktop_locale).__("请选择类型").to_owned(),
+        ),
         CommitButtonState::Ready => square_icon_button_tiny(
             Icon::Save,
-            "提交所选".to_string(),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("提交所选").to_owned(),
             Message::Git(message::GitMessage::CommitSelected),
         ),
     };
@@ -303,12 +315,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
             container(
                 column![
                     row![
-                        text("提交所选变更").size(14),
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("提交所选变更"))
+                            .size(14),
                         container(help_btn).center_x(Length::Shrink).center_y(Length::Shrink),
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center),
-                    text(mode_description).size(11).style(settings_muted_text_style),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(mode_description))
+                        .size(11)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(4),
             )
@@ -325,15 +340,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
         form_col = form_col.push(summary_input);
     }
     form_col = form_col.push(
-        column![text("详细描述").size(11).style(settings_muted_text_style), desc_input,].spacing(6),
+        column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("详细描述"))
+                .size(11)
+                .style(settings_muted_text_style),
+            desc_input,
+        ]
+        .spacing(6),
     );
 
     let col = column![
         form_col,
         row![
-            container(text(commit_state.hint).size(11).style(settings_muted_text_style))
-                .width(Length::Fill)
-                .center_y(Length::Shrink),
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(commit_state.hint))
+                    .size(11)
+                    .style(settings_muted_text_style)
+            )
+            .width(Length::Fill)
+            .center_y(Length::Shrink),
             container(commit_btn).center_x(Length::Shrink).center_y(Length::Shrink),
         ]
         .spacing(8)

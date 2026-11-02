@@ -71,7 +71,7 @@ pub(crate) fn diff_comment_modal<'a>(app: &'a App) -> Option<Element<'a, Message
 pub(crate) fn discard_file_modal<'a>(app: &'a App) -> Option<Element<'a, Message>> {
     let file = app.file_to_discard.as_ref()?.clone();
 
-    let cancel_button = button(text("取消"))
+    let cancel_button = button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")))
         .on_press(Message::Git(message::GitMessage::CancelDiscardFile))
         .padding([6, 12])
         .style(|theme: &iced::Theme, status| {
@@ -97,29 +97,43 @@ pub(crate) fn discard_file_modal<'a>(app: &'a App) -> Option<Element<'a, Message
             }
         });
 
-    let confirm_button = button(text("确认回滚"))
-        .on_press(Message::Git(message::GitMessage::DiscardFile(file.clone())))
-        .padding([6, 12])
-        .style(|theme: &iced::Theme, status| {
-            let ext = theme.extended_palette();
-            let bg = match status {
-                iced::widget::button::Status::Hovered => ext.danger.base.color.scale_alpha(0.92),
-                iced::widget::button::Status::Pressed => ext.danger.base.color.scale_alpha(0.82),
-                _ => ext.danger.base.color,
-            };
-            iced::widget::button::Style {
-                background: Some(Background::Color(bg)),
-                border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 10.0.into() },
-                text_color: Color::WHITE,
-                ..Default::default()
-            }
-        });
+    let confirm_button =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认回滚")))
+            .on_press(Message::Git(message::GitMessage::DiscardFile(file.clone())))
+            .padding([6, 12])
+            .style(|theme: &iced::Theme, status| {
+                let ext = theme.extended_palette();
+                let bg = match status {
+                    iced::widget::button::Status::Hovered => {
+                        ext.danger.base.color.scale_alpha(0.92)
+                    }
+                    iced::widget::button::Status::Pressed => {
+                        ext.danger.base.color.scale_alpha(0.82)
+                    }
+                    _ => ext.danger.base.color,
+                };
+                iced::widget::button::Style {
+                    background: Some(Background::Color(bg)),
+                    border: Border { width: 0.0, color: Color::TRANSPARENT, radius: 10.0.into() },
+                    text_color: Color::WHITE,
+                    ..Default::default()
+                }
+            });
 
     let modal_actions =
         row![cancel_button, confirm_button].spacing(10).align_y(iced::Alignment::Center);
 
     let modal = container(
-        column![text(format!("确认回滚文件：{file}？")).size(16), modal_actions].spacing(12),
+        column![
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("确认回滚文件：%s？", &[file.into()])
+                    .expect("valid revert confirmation")
+            )
+            .size(16),
+            modal_actions
+        ]
+        .spacing(12),
     )
     .padding(16)
     .width(Length::Fixed(420.0))
@@ -562,31 +576,40 @@ pub fn view(app: &App) -> Element<'_, Message> {
             (header, None)
         } else {
             // 显示输入模式：包含标题输入框、交换按钮、关闭按钮
-            let title_input = text_input("标题", &app.git_custom_diff_title)
-                .on_input(|v| Message::Git(message::GitMessage::CustomDiffTitleChanged(v)))
-                .padding([6, 8])
-                .size(13)
-                .width(Length::Fill)
-                .style(settings_text_input_style);
+            let title_input = text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("标题"),
+                &app.git_custom_diff_title,
+            )
+            .on_input(|v| Message::Git(message::GitMessage::CustomDiffTitleChanged(v)))
+            .padding([6, 8])
+            .size(13)
+            .width(Length::Fill)
+            .style(settings_text_input_style);
 
             let header = row![
-                text("自定义对比")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("自定义对比"))
                     .size(16)
                     .line_height(iced::widget::text::LineHeight::Relative(1.0)),
                 title_input,
-                button(text("交换").line_height(iced::widget::text::LineHeight::Relative(1.0)))
-                    .on_press(Message::Git(message::GitMessage::CustomDiffSwap))
-                    .padding([6, 10]),
-                button(text("关闭").line_height(iced::widget::text::LineHeight::Relative(1.0)))
-                    .on_press(Message::Git(message::GitMessage::CloseCustomDiffModal))
-                    .padding([6, 10]),
+                button(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("交换"))
+                        .line_height(iced::widget::text::LineHeight::Relative(1.0))
+                )
+                .on_press(Message::Git(message::GitMessage::CustomDiffSwap))
+                .padding([6, 10]),
+                button(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭"))
+                        .line_height(iced::widget::text::LineHeight::Relative(1.0))
+                )
+                .on_press(Message::Git(message::GitMessage::CloseCustomDiffModal))
+                .padding([6, 10]),
             ]
             .align_y(iced::Alignment::Center)
             .spacing(10);
 
             // 左侧旧文本编辑器
             let before_editor = text_editor(&app.git_custom_diff_before_editor)
-                .placeholder("旧文本…")
+                .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("旧文本…"))
                 .on_action(|a| Message::Git(message::GitMessage::CustomDiffBeforeEditorAction(a)))
                 .height(Length::Fixed(140.0))
                 .padding(10)
@@ -595,7 +618,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
             // 右侧新文本编辑器
             let after_editor = text_editor(&app.git_custom_diff_after_editor)
-                .placeholder("新文本…")
+                .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("新文本…"))
                 .on_action(|a| Message::Git(message::GitMessage::CustomDiffAfterEditorAction(a)))
                 .height(Length::Fixed(140.0))
                 .padding(10)
@@ -641,7 +664,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         diff_files.iter().filter(|m| m.insertions > 0 || m.deletions > 0).collect();
 
     if renderable_diff_files.is_empty() && app.chat_text_diff.is_none() {
-        list = list.push(text("无变更"));
+        list = list.push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("无变更")));
     }
 
     if !renderable_diff_files.is_empty() {
@@ -769,7 +792,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         base = with_settings_help_modal(
             app,
             base,
-            left_panel::COMMIT_HELP_TITLE,
+            crate::app::i18n::I18n::new(app.desktop_locale).__(left_panel::COMMIT_HELP_TITLE),
             left_panel::COMMIT_HELP_TEXT,
             Message::Git(message::GitMessage::CommitHelpClose),
         );
@@ -778,7 +801,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         base = with_settings_help_modal(
             app,
             base,
-            filter_options::FILTER_HELP_TITLE,
+            crate::app::i18n::I18n::new(app.desktop_locale).__(filter_options::FILTER_HELP_TITLE),
             filter_options::FILTER_HELP_TEXT,
             Message::Git(message::GitMessage::FilterHelpClose),
         );
@@ -797,21 +820,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
         // 彩色/纯文本切换开关
         let colored_toggle = iced::widget::toggler(app.git_copy_modal_use_color)
-            .label("彩色")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("彩色"))
             .on_toggle(|v| Message::Git(message::GitMessage::ToggleCopyModalColored(v)));
 
         // 模态框头部：标题、开关、操作按钮
         let modal_header = iced::widget::row![
-            text("复制 / 编辑").size(16),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("复制 / 编辑")).size(16),
             colored_toggle,
             Space::new().width(Length::Fill),
-            button(text("插入到Chat"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("插入到Chat")))
                 .on_press(Message::Git(message::GitMessage::InsertCopyModalToChatCurrent))
                 .padding([6, 10]),
-            button(text("复制"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("复制")))
                 .on_press(Message::Git(message::GitMessage::CopyModalCopyCurrent))
                 .padding([6, 10]),
-            button(text("关闭"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭")))
                 .on_press(Message::Git(message::GitMessage::CloseCopyModal))
                 .padding([6, 10]),
         ]
@@ -834,7 +857,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         } else {
             // 纯文本模式：使用普通文本编辑器
             text_editor(&app.git_copy_modal_editor)
-                .placeholder("可编辑文本；支持鼠标选择后 ⌘C 直接复制")
+                .placeholder(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("可编辑文本；支持鼠标选择后 ⌘C 直接复制"),
+                )
                 .on_action(|a| Message::Git(message::GitMessage::CopyModalEditorAction(a)))
                 .height(Length::Fixed(420.0))
                 .padding(12)

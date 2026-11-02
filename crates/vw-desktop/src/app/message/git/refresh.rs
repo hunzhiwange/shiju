@@ -96,7 +96,11 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                     app.git_worktree_options.clear();
                     app.selected_git_worktree_directory = None;
                     app.git_worktree_menu_open = false;
-                    app.error_message = Some(format!("读取 Git worktree 失败: {}", error));
+                    app.set_localized_input_error(
+                        crate::app::i18n::input::ErrorField::General,
+                        "读取 Git worktree 失败: %s",
+                        vec![error.into()],
+                    );
                 }
             }
             Task::none()
@@ -215,7 +219,11 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             }
 
             if was_manual_refresh {
-                app.show_success_toast("Git 更改已刷新")
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "Git 更改已刷新",
+                    vec![],
+                )
             } else {
                 Task::none()
             }

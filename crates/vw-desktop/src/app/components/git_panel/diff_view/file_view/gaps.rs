@@ -73,10 +73,21 @@ pub(super) fn gap_expand_container_style(theme: &iced::Theme) -> iced::widget::c
     }
 }
 
-fn gap_summary_chip(hidden_count: usize) -> Element<'static, Message> {
-    container(text(format!("{} 行未修改", hidden_count)).size(12).style(gap_summary_text_style))
-        .padding([1, 4])
-        .into()
+fn gap_summary_chip(
+    hidden_count: usize,
+    locale: vw_config_types::ui::DesktopLocale,
+) -> Element<'static, Message> {
+    container(
+        text(
+            crate::app::i18n::I18n::new(locale)
+                .format("%u 行未修改", &[hidden_count.into()])
+                .expect("valid gap count"),
+        )
+        .size(12)
+        .style(gap_summary_text_style),
+    )
+    .padding([1, 4])
+    .into()
 }
 
 /// 渲染 Git diff 中的间隙区域
@@ -412,11 +423,11 @@ pub fn render_gap(
         let hidden_count = gap_len.saturating_sub(total);
         let expand_content = container(
             row![
-                gap_summary_chip(hidden_count),
+                gap_summary_chip(hidden_count, app.desktop_locale),
                 iced::widget::Space::new().width(Length::Fill).height(Length::Shrink),
                 small_plain_icon_button(
                     Some(Icon::ChevronUp),
-                    "展开上方".to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("展开上方").to_owned(),
                     Message::Git(message::GitMessage::ExpandContext(
                         file.to_string(),
                         range.gap_id,
@@ -425,7 +436,7 @@ pub fn render_gap(
                 ),
                 small_plain_icon_button(
                     Some(Icon::ChevronDown),
-                    "展开下方".to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("展开下方").to_owned(),
                     Message::Git(message::GitMessage::ExpandContext(
                         file.to_string(),
                         range.gap_id,
@@ -434,7 +445,7 @@ pub fn render_gap(
                 ),
                 small_plain_icon_button(
                     Some(Icon::ArrowsFullscreen),
-                    "全部展开".to_string(),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("全部展开").to_owned(),
                     Message::Git(message::GitMessage::ExpandContext(
                         file.to_string(),
                         range.gap_id,

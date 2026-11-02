@@ -217,7 +217,7 @@ pub fn view(
     // 标题栏：包含"筛选选项"文本、帮助入口和关闭按钮
     let title_text = container(
         row![
-            text("筛选选项").size(14),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("筛选选项")).size(14),
             container(help_btn).center_x(Length::Shrink).center_y(Length::Shrink),
         ]
         .spacing(8)
@@ -250,12 +250,15 @@ pub fn view(
     .align_y(iced::Alignment::Center);
 
     // 筛选文本输入框：用于输入文件路径查询关键字
-    let filter_input = text_input("筛选", &app.git_filter_query)
-        .on_input(filter_query_changed)
-        .padding([10, 12])
-        .size(13)
-        .style(settings_text_input_style)
-        .width(Length::Fill);
+    let filter_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("筛选"),
+        &app.git_filter_query,
+    )
+    .on_input(filter_query_changed)
+    .padding([10, 12])
+    .size(13)
+    .style(settings_text_input_style)
+    .width(Length::Fill);
 
     // 各状态筛选开关
     // 已包含到提交的文件筛选开关
@@ -274,10 +277,11 @@ pub fn view(
     let deletedf = toggler(app.git_filter_deleted).on_toggle(filter_toggle_deleted);
 
     // 清除所有筛选条件的按钮
-    let clear = button(text("清除筛选").size(12))
-        .padding([8, 12])
-        .on_press(Message::Git(message::GitMessage::ClearFilters))
-        .style(rounded_action_btn_style);
+    let clear =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("清除筛选")).size(12))
+            .padding([8, 12])
+            .on_press(Message::Git(message::GitMessage::ClearFilters))
+            .style(rounded_action_btn_style);
 
     // 组装完整的筛选选项面板
     container(
@@ -286,11 +290,31 @@ pub fn view(
             filter_input,
             // 各筛选选项行：开关 + 标签（含数量）
             column![
-                filter_toggle_row("已包含到提交", included_count, included,),
-                filter_toggle_row("已排除出提交", excluded_count, excluded,),
-                filter_toggle_row("新增文件", new_count, newf),
-                filter_toggle_row("修改文件", modified_count, modifiedf,),
-                filter_toggle_row("删除文件", deleted_count, deletedf),
+                filter_toggle_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("已包含到提交"),
+                    included_count,
+                    included,
+                ),
+                filter_toggle_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("已排除出提交"),
+                    excluded_count,
+                    excluded,
+                ),
+                filter_toggle_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("新增文件"),
+                    new_count,
+                    newf
+                ),
+                filter_toggle_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("修改文件"),
+                    modified_count,
+                    modifiedf,
+                ),
+                filter_toggle_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("删除文件"),
+                    deleted_count,
+                    deletedf
+                ),
             ]
             .spacing(6),
             row![

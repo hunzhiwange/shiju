@@ -153,5 +153,9 @@ fn view_file_handles_empty_added_and_deleted_files() {
 
 #[test]
 fn diff_file_actions_menu_supports_files_without_deleted_content() {
-    let _menu = super::diff_file_actions_menu("src/new.rs", None);
+    let _menu = super::diff_file_actions_menu(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "src/new.rs",
+        None,
+    );
 }

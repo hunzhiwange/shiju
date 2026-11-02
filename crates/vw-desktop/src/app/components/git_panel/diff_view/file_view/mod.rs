@@ -152,6 +152,7 @@ fn file_line_selection_state(
 }
 
 fn diff_file_actions_menu(
+    locale: vw_config_types::ui::DesktopLocale,
     file: &str,
     deleted_content: Option<String>,
 ) -> Element<'static, Message> {
@@ -193,18 +194,18 @@ fn diff_file_actions_menu(
     container(
         column![
             menu_item(
-                "查看",
+                crate::app::i18n::I18n::new(locale).__("查看"),
                 Message::Git(message::GitMessage::PreviewDiffFile(file.to_string())),
             ),
             menu_item(
-                "复制",
+                crate::app::i18n::I18n::new(locale).__("复制"),
                 Message::Git(message::GitMessage::CopyDiffFile {
                     file: file.to_string(),
                     deleted_content: deleted_content.clone(),
                 }),
             ),
             menu_item(
-                "回滚",
+                crate::app::i18n::I18n::new(locale).__("回滚"),
                 Message::Git(message::GitMessage::RevertDiffFile(file.to_string())),
             ),
         ]
@@ -353,24 +354,26 @@ pub fn view_file(
             matches!(status, FileStatus::Deleted).then(|| old_content.to_string());
         let file_menu_button = small_plain_icon_button(
             Some(Icon::DotsThreeVertical),
-            "文件操作".to_string(),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("文件操作").to_owned(),
             Message::Git(message::GitMessage::OpenDiffFileMenu(file.to_string())),
         );
 
         let (line_select_icon, line_select_tip, line_select_message) = match line_selection_state {
             FileLineSelectionState::None => (
                 Some(Icon::Square),
-                "选中所有行".to_string(),
+                crate::app::i18n::I18n::new(app.desktop_locale).__("选中所有行").to_owned(),
                 Message::Git(message::GitMessage::SelectAllFileLines(file.to_string())),
             ),
             FileLineSelectionState::Partial => (
                 Some(Icon::SquareHalf),
-                "部分选中，点击选中所有行".to_string(),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("部分选中，点击选中所有行")
+                    .to_owned(),
                 Message::Git(message::GitMessage::SelectAllFileLines(file.to_string())),
             ),
             FileLineSelectionState::All => (
                 Some(Icon::CheckSquare),
-                "取消所有行".to_string(),
+                crate::app::i18n::I18n::new(app.desktop_locale).__("取消所有行").to_owned(),
                 Message::Git(message::GitMessage::ClearAllFileLines(file.to_string())),
             ),
         };
@@ -444,7 +447,7 @@ pub fn view_file(
 
         let file_menu = crate::app::components::overlays::PointBelowOverlay::new(
             menu_trigger,
-            diff_file_actions_menu(file, deleted_copy_content),
+            diff_file_actions_menu(app.desktop_locale, file, deleted_copy_content),
         )
         .show(file_menu_open)
         .anchor(Point::new(menu_anchor_x, menu_anchor_y))
@@ -522,7 +525,12 @@ pub fn view_file(
             let placeholder =
                 if loading { "正在加载文件内容..." } else { "文件内容暂不可用" };
             list.push(
-                container(text(placeholder).size(12)).width(Length::Fill).padding([10, 12]).into(),
+                container(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(placeholder)).size(12),
+                )
+                .width(Length::Fill)
+                .padding([10, 12])
+                .into(),
             );
             return container(
                 iced::widget::Column::with_children(list).spacing(0).width(Length::Fill),
@@ -692,13 +700,19 @@ pub fn view_file(
             if !hunk_expanded {
                 col = col.push(
                     container(
-                        text(format!("已折叠 {} 行差异", group_line_estimate)).size(12).style(
-                            |theme: &iced::Theme| iced::widget::text::Style {
+                        text(
+                            crate::app::i18n::I18n::new(app.desktop_locale)
+                                .format("已折叠 %u 行差异", &[group_line_estimate.into()])
+                                .expect("valid folded count"),
+                        )
+                        .size(12)
+                        .style(|theme: &iced::Theme| {
+                            iced::widget::text::Style {
                                 color: Some(
                                     theme.extended_palette().secondary.base.text.scale_alpha(0.80),
                                 ),
-                            },
-                        ),
+                            }
+                        }),
                     )
                     .width(Length::Fill)
                     .padding([6, 10])

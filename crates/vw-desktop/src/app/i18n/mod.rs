@@ -59,3 +59,8 @@ mod gettext_area_10_tests;
 pub mod project;
 #[cfg(test)]
 mod project_tests;
+
+#[cfg(test)]
+mod gettext_area_11_tests;
+
+pub mod git;

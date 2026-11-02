@@ -115,7 +115,11 @@ fn diff_line_select_controls_and_file_menu_build() {
         )),
     );
     let _spacer = super::diff_line_select_spacer();
-    let _menu = super::diff_file_actions_menu("src/lib.rs", Some("deleted".to_string()));
+    let _menu = super::diff_file_actions_menu(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "src/lib.rs",
+        Some("deleted".to_string()),
+    );
 }
 
 #[test]

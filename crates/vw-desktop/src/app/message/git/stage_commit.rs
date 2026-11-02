@@ -225,9 +225,12 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 return Task::none();
             }
             let Some(path) = git_context_path_for_app(app) else {
-                let error = "未找到项目路径，无法通过网关暂存".to_string();
-                app.error_message = Some(error.clone());
-                app.push_notification(error);
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "未找到项目路径，无法通过网关暂存",
+                    vec![],
+                );
+                app.push_localized_notification("未找到项目路径，无法通过网关暂存", vec![]);
                 return Task::none();
             };
 
@@ -240,16 +243,24 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             app.git_commit_in_progress = false;
             match result {
                 Ok(()) => {
-                    app.push_notification("暂存完成".to_string());
+                    app.push_localized_notification("暂存完成", vec![]);
                     Task::batch(vec![
                         refresh_git_panel_data_after_repo_mutation_task(app),
-                        app.show_success_toast("Git 变更已暂存"),
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "Git 变更已暂存",
+                            vec![],
+                        ),
                     ])
                 }
                 Err(error) => {
                     app.error_message = Some(error.clone());
-                    app.push_notification(format!("暂存失败: {error}"));
-                    app.show_error_toast(format!("暂存 Git 变更失败：{error}"))
+                    app.push_localized_notification("暂存失败: %s", vec![error.clone().into()]);
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "暂存 Git 变更失败：%s",
+                        vec![error.into()],
+                    )
                 }
             }
         }
@@ -266,8 +277,17 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
             let request = match request {
                 Ok(request) => request,
                 Err(error) => {
-                    app.error_message = Some(error.clone());
-                    app.push_notification(error);
+                    if error == "提交消息不能为空" {
+                        app.set_localized_input_error(
+                            crate::app::i18n::input::ErrorField::General,
+                            "提交消息不能为空",
+                            vec![],
+                        );
+                        app.push_localized_notification("提交消息不能为空", vec![]);
+                    } else {
+                        app.error_message = Some(error.clone());
+                        app.push_notification(error);
+                    }
                     return Task::none();
                 }
             };
@@ -278,9 +298,12 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 .then(schedule_commit_button_animation_tick);
             let Some(path) = git_context_path_for_app(app) else {
                 app.git_commit_in_progress = false;
-                let error = "未找到项目路径，无法通过网关提交".to_string();
-                app.error_message = Some(error.clone());
-                app.push_notification(error);
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "未找到项目路径，无法通过网关提交",
+                    vec![],
+                );
+                app.push_localized_notification("未找到项目路径，无法通过网关提交", vec![]);
                 return Task::none();
             };
             let commit_task = Task::perform(
@@ -299,15 +322,19 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 Ok(()) => {
                     reset_commit_form_state(app);
                     app.refresh_branches();
-                    app.push_notification("提交完成".to_string());
+                    app.push_localized_notification("提交完成", vec![]);
                     Task::batch(vec![
                         refresh_git_panel_data_after_repo_mutation_task(app),
-                        app.show_success_toast("提交成功"),
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "提交成功",
+                            vec![],
+                        ),
                     ])
                 }
                 Err(error) => {
                     app.error_message = Some(error.clone());
-                    app.push_notification(format!("提交失败: {}", error));
+                    app.push_localized_notification("提交失败: %s", vec![error.clone().into()]);
                     Task::none()
                 }
             }

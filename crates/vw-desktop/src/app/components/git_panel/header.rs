@@ -62,6 +62,20 @@ pub(super) fn worktree_option_display_label(
     }
 }
 
+fn localized_worktree_label(app: &App, option: &crate::app::state::GitWorktreeOption) -> String {
+    let primary =
+        app.git_worktree_options.first().is_some_and(|first| first.directory == option.directory);
+    if primary {
+        let label = crate::app::i18n::I18n::new(app.desktop_locale).__("主工作区");
+        match option.branch.as_deref() {
+            Some(branch) => format!("{label} · {branch}"),
+            None => label.to_owned(),
+        }
+    } else {
+        worktree_option_display_label(option)
+    }
+}
+
 pub(super) fn selected_worktree_trigger_label(app: &App) -> String {
     app.selected_git_worktree_directory
         .as_ref()
@@ -70,8 +84,8 @@ pub(super) fn selected_worktree_trigger_label(app: &App) -> String {
                 .iter()
                 .find(|option| option.directory.as_str() == directory.as_str())
         })
-        .map(|option| trigger_label(&option.label))
-        .unwrap_or_else(|| "工作区".to_string())
+        .map(|option| trigger_label(&localized_worktree_label(app, option)))
+        .unwrap_or_else(|| crate::app::i18n::I18n::new(app.desktop_locale).__("工作区").to_owned())
 }
 
 pub(super) fn summary_toggle_icon_and_tip(show_summary: bool) -> (Icon, String) {
@@ -171,7 +185,7 @@ fn worktree_menu<'a>(app: &App) -> Element<'a, Message> {
         let selected =
             selected_directory.is_some_and(|directory| option.directory.as_str() == directory);
         let display_label =
-            truncate_label(&worktree_option_display_label(option), WORKTREE_MENU_LABEL_CHARS);
+            truncate_label(&localized_worktree_label(app, option), WORKTREE_MENU_LABEL_CHARS);
         let label = if selected { format!("✓ {}", display_label) } else { display_label };
         let row_button = button(
             container(
@@ -190,9 +204,12 @@ fn worktree_menu<'a>(app: &App) -> Element<'a, Message> {
         .padding(0)
         .style(item_style(selected))
         .on_press(Message::Git(message::GitMessage::SelectGitWorktree(option.clone())));
-        let row =
-            Tooltip::new(row_button, tooltip_content(option.label.clone()), TooltipPosition::Right)
-                .gap(8);
+        let row = Tooltip::new(
+            row_button,
+            tooltip_content(localized_worktree_label(app, option)),
+            TooltipPosition::Right,
+        )
+        .gap(8);
         items = items.push(row);
     }
 
@@ -313,13 +330,13 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
 
     let select_all_btn = small_plain_icon_button(
         Some(Icon::CheckSquare),
-        "全选当前列表的变更行".to_string(),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("全选当前列表的变更行").to_owned(),
         Message::Git(message::GitMessage::SelectAllVisibleFileLines(files_list.clone())),
     );
 
     let invert_select_btn = small_plain_icon_button(
         Some(Icon::Square),
-        "反选当前列表的变更行".to_string(),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("反选当前列表的变更行").to_owned(),
         Message::Git(message::GitMessage::InvertVisibleFileLines(files_list.clone())),
     );
 
@@ -330,7 +347,7 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
         let (icon, tip) = summary_toggle_icon_and_tip(app.show_git_diff_summary);
         small_plain_icon_button(
             Some(icon),
-            tip,
+            crate::app::i18n::I18n::new(app.desktop_locale).__(&tip).to_owned(),
             Message::View(message::ViewMessage::ToggleGitDiffSummary),
         )
     };
@@ -339,20 +356,20 @@ pub fn view(app: &App, files_list: Vec<String>) -> Element<'_, Message> {
     // 用于打开或关闭 Git 文件过滤选项面板
     let filter_btn = small_plain_icon_button(
         Some(Icon::Sliders),
-        "过滤选项".to_string(),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("过滤选项").to_owned(),
         filter_options_toggle_message(app.show_git_filter_options),
     );
 
     let half_fullscreen_btn = small_plain_icon_button(
         Some(Icon::LayoutTextWindow),
-        "半屏".to_string(),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("半屏").to_owned(),
         Message::Git(message::GitMessage::ToggleHalfFullscreen),
     );
 
     let (fullscreen_icon, fullscreen_tip) = fullscreen_icon_and_tip(app.git_diff_fullscreen);
     let fullscreen_btn = small_plain_icon_button(
         Some(fullscreen_icon),
-        fullscreen_tip,
+        crate::app::i18n::I18n::new(app.desktop_locale).__(&fullscreen_tip).to_owned(),
         Message::Git(message::GitMessage::ToggleFullscreen),
     );
 

@@ -39,6 +39,23 @@ pub(crate) enum TeamActivity {
 // 后续工具协议与模型安全边界连线使用这些运行时接口。
 #[allow(dead_code)]
 impl ChildAgentCoordinator {
+    pub(crate) async fn team_snapshots(
+        &self,
+        context: &ToolUseContext,
+    ) -> Result<Vec<ChildAgentTaskSnapshot>> {
+        self.authorize_mail(context, context.session()).await?;
+        let state = self.lock_state();
+        let root = team_root(&state, context.session())?;
+        let mut tasks = Vec::new();
+        for entry in state.tasks.values() {
+            if team_root(&state, &entry.snapshot.child_session_id)? == root {
+                tasks.push(entry.snapshot.clone());
+            }
+        }
+        tasks.sort_by(|a, b| a.child_session_id.cmp(&b.child_session_id));
+        Ok(tasks)
+    }
+
     async fn authorize_mail(&self, context: &ToolUseContext, target: &str) -> Result<()> {
         if context.tenant_scope() != crate::session::ui_store::current_tenant_scope() {
             bail!("team mailbox tenant mismatch");

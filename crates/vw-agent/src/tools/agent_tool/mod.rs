@@ -69,6 +69,9 @@ enum AgentToolAction {
     Status,
     Wait,
     Stop,
+    SendMessage,
+    FollowupTask,
+    ListAgents,
 }
 
 struct PreparedChildRun {
@@ -370,9 +373,12 @@ impl AgentTool {
             Some("run") => Ok(AgentToolAction::Run),
             Some("status") => Ok(AgentToolAction::Status),
             Some("wait") => Ok(AgentToolAction::Wait),
+            Some("send_message") => Ok(AgentToolAction::SendMessage),
+            Some("followup_task") => Ok(AgentToolAction::FollowupTask),
+            Some("list_agents") => Ok(AgentToolAction::ListAgents),
             Some("stop") => Ok(AgentToolAction::Stop),
             Some(other) => anyhow::bail!(
-                "Unknown AgentTool action '{other}'. Supported actions: launch, run, spawn, status, wait, stop"
+                "Unknown AgentTool action '{other}'. Supported actions: launch, run, spawn, status, wait, stop, send_message, followup_task, list_agents"
             ),
         }
     }
@@ -703,6 +709,9 @@ impl AgentTool {
     }
 
     async fn handle_wait(&self, args: &Value) -> anyhow::Result<ToolResult> {
+        if args.get("condition").and_then(Value::as_str) == Some("activity") {
+            return self.handle_activity(args).await;
+        }
         let parent_session_id = self.parent_session_id()?;
         let child_session_ids = self.child_session_ids_from_args(args)?;
         let tasks = self.coordinator.snapshots(parent_session_id, &child_session_ids)?;
@@ -761,7 +770,7 @@ impl Tool for AgentTool {
     }
 
     fn description(&self) -> &str {
-        "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Completed run/wait outputs contain each child's final handoff report, including evidence for research tasks and validation for execution tasks. Continue useful parent work after launch, then verify and synthesize required results before answering."
+        "Delegate complex work to persistent sub-agents; skip only genuinely simple single-step tasks. Use launch (or spawn) to start independent work in the background and in parallel, run when the result is an immediate dependency, status to inspect tasks, wait for event-driven any/all completion with a bounded timeout, and stop to cancel owned tasks. Use send_message with target/message to queue team data without starting a turn, followup_task with target/message to queue another task for an owned live child runtime, and list_agents to inspect addressable team sessions and turns. wait condition activity observes the current session mailbox, results, cancellation, or timeout. Completed run/wait outputs contain each child's final handoff report, including evidence for research tasks and validation for execution tasks. Continue useful parent work after launch, then verify and synthesize required results before answering."
     }
 
     fn parameters_schema(&self) -> Value {
@@ -772,9 +781,11 @@ impl Tool for AgentTool {
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["launch", "run", "spawn", "status", "wait", "stop"],
+                    "enum": ["launch", "run", "spawn", "status", "wait", "stop", "send_message", "followup_task", "list_agents"],
                     "description": "Operation to perform. Defaults to launch when omitted; launch/spawn starts a background task, while run waits in the foreground."
                 },
+                "target": {"type":"string","description":"Addressable session ID for send_message or followup_task."},
+                "message": {"type":"string","description":"Message body or follow-up task."},
                 "agent": {
                     "type": "string",
                     "enum": agent_names,
@@ -805,8 +816,8 @@ impl Tool for AgentTool {
                 },
                 "condition": {
                     "type": "string",
-                    "enum": ["any", "all"],
-                    "description": "Return condition for wait. Defaults to all."
+                    "enum": ["any", "all", "activity"],
+                    "description": "any/all wait for child terminal states; activity waits for current-session messages, results, cancellation, or timeout. Defaults to all."
                 },
                 "timeout_ms": {
                     "type": "integer",
@@ -831,6 +842,7 @@ impl Tool for AgentTool {
 
     async fn execute(&self, args: Value) -> anyhow::Result<ToolResult> {
         let action = self.action_from_args(&args)?;
+        self.validate_action_fields(&args, action)?;
         if matches!(action, AgentToolAction::Launch | AgentToolAction::Run) {
             let agent = self
                 .agent_name_from_args(&args)
@@ -855,6 +867,9 @@ impl Tool for AgentTool {
             AgentToolAction::Status => self.handle_status(&args),
             AgentToolAction::Wait => self.handle_wait(&args).await,
             AgentToolAction::Stop => self.handle_stop(&args),
+            AgentToolAction::SendMessage
+            | AgentToolAction::FollowupTask
+            | AgentToolAction::ListAgents => self.handle_communication(&args, action).await,
         };
         if paused {
             self.coordinator.resume_execution(session).await?;
@@ -890,3 +905,8 @@ impl Tool for AgentTool {
 }
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod communication_tests;
+
+mod communication;

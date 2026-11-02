@@ -548,7 +548,7 @@ fn run_in_project(
         }
     };
     let mut tool_use_context = with_request_model_context(
-        ToolUseContext::new(req.session.clone(), req.root.clone()),
+        ToolUseContext::new(req.session.clone(), req.root.clone()).inherit_delegated_authority(),
         selected_model.step_event_model(),
     )
     .with_auto_model_selection(model_selected_by_auto)
@@ -740,7 +740,10 @@ fn run_in_project(
     // AGENTS.md 和用户显式点名的技能必须先进入可信工具上下文，再生成工具目录。
     // 否则 deny 规则会提前从 skill 工具描述中移除这些技能，模型只能看到一个
     // 无法执行的协议要求。
-    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx);
+    let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx)
+        .into_iter()
+        .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
+        .collect::<Vec<_>>();
     let allowed_tools =
         allowed_tool_ids_for_request_from_specs(&available_tool_specs, &req.options);
     let discovery = std::sync::Arc::new(crate::tools::tool_search::ToolDiscoverySession::new(

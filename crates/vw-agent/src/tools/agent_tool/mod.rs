@@ -492,22 +492,31 @@ impl AgentTool {
             .and_then(Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .map(|value| vec![json!({"role": "system", "content": value})])
+            .map(|value| vec![json!({"role": "user", "content": value})])
             .unwrap_or_default();
-        let created = child_agent::create(ChildAgentRunInput {
-            parent_session_id: parent_session_id.to_string(),
-            directory: self.workspace_dir.to_string_lossy().to_string(),
-            agent_key: agent.to_string(),
-            model: Self::model_for_child_request(agent_config),
-            prompt: prompt.to_string(),
-            context,
-            allowed_tools: agent_config.allowed_tools.clone(),
-            default_allowed_skills: agent_config.allowed_skills.clone(),
-            skill_policy: agent_config.skill_policy,
-            trusted_user_selected_skills: current_tool_use_context()
-                .map(|context| context.trusted_user_selected_skills().iter().cloned().collect())
-                .unwrap_or_default(),
-        })
+        let fork_turns = args
+            .get("fork_turns")
+            .cloned()
+            .map(serde_json::from_value::<child_agent::ForkTurns>)
+            .transpose()?
+            .unwrap_or_default();
+        let created = child_agent::create_with_fork(
+            ChildAgentRunInput {
+                parent_session_id: parent_session_id.to_string(),
+                directory: self.workspace_dir.to_string_lossy().to_string(),
+                agent_key: agent.to_string(),
+                model: Self::model_for_child_request(agent_config),
+                prompt: prompt.to_string(),
+                context,
+                allowed_tools: agent_config.allowed_tools.clone(),
+                default_allowed_skills: agent_config.allowed_skills.clone(),
+                skill_policy: agent_config.skill_policy,
+                trusted_user_selected_skills: current_tool_use_context()
+                    .map(|context| context.trusted_user_selected_skills().iter().cloned().collect())
+                    .unwrap_or_default(),
+            },
+            fork_turns,
+        )
         .await?;
         Ok(Ok(PreparedChildRun {
             parent_session_id: parent_session_id.to_string(),
@@ -763,6 +772,7 @@ impl Tool for AgentTool {
                     "type": "string",
                     "description": "A bounded, self-contained task with the expected deliverable, relevant constraints, and validation requirements."
                 },
+                "fork_turns": {"type":"string","enum":["all","none"],"default":"all","description":"Inherit visible parent history (all) or only environment and permissions (none)."},
                 "context": {
                     "type": "string",
                     "description": "Optional task-specific context not already included in prompt."

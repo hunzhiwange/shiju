@@ -21,6 +21,8 @@ use vw_config_types::agent::DelegateCapabilityPolicy;
 use super::{message, session};
 
 pub(crate) mod coordinator;
+mod history;
+pub use history::ForkTurns;
 
 const CHILD_AGENT_HANDOFF_PROMPT: &str = "\
 This prompt is already a delegated task. Do not pass the full task, or an equivalent restatement, \
@@ -314,12 +316,19 @@ pub async fn run(input: ChildAgentRunInput) -> Result<ChildAgentRunResult> {
 }
 
 /// 创建持久化子会话，但不启动模型执行。
-pub(crate) async fn create(mut input: ChildAgentRunInput) -> Result<CreatedChildAgentRun> {
+pub(crate) async fn create(input: ChildAgentRunInput) -> Result<CreatedChildAgentRun> {
+    create_with_fork(input, ForkTurns::All).await
+}
+
+pub(crate) async fn create_with_fork(
+    mut input: ChildAgentRunInput,
+    fork_turns: ForkTurns,
+) -> Result<CreatedChildAgentRun> {
     input.directory = crate::app::agent::util::filesystem::normalize_path(&input.directory)
         .to_string_lossy()
         .to_string();
     validate_input(&input)?;
-    let hook_context = if let Some(context) = crate::tools::current_tool_use_context() {
+    let mut hook_context = if let Some(context) = crate::tools::current_tool_use_context() {
         anyhow::ensure!(
             context.session() == input.parent_session_id,
             "subagent parent session mismatch"
@@ -340,24 +349,99 @@ pub(crate) async fn create(mut input: ChildAgentRunInput) -> Result<CreatedChild
         }
         Some(std::sync::Arc::new(context))
     };
+    if let Some(context) = hook_context.as_ref() {
+        let agent = context.agent_name().unwrap_or("main");
+        if !context.full_access_enabled() {
+            let rules = crate::agent::permission_rules(agent).await.unwrap_or_default();
+            hook_context = Some(std::sync::Arc::new(
+                context.as_ref().clone().with_delegated_skill_rules(rules),
+            ));
+        }
+    }
+    if let Some(parent) = hook_context.as_ref() {
+        anyhow::ensure!(
+            parent.tenant_scope() == crate::session::ui_store::current_tenant_scope(),
+            "subagent parent tenant mismatch"
+        );
+        if let Some(root) = parent.workspace_root() {
+            anyhow::ensure!(
+                crate::app::agent::util::filesystem::normalize_path(root)
+                    == std::path::PathBuf::from(&input.directory),
+                "subagent workspace mismatch"
+            );
+        }
+        input.allowed_tools.retain(|tool| parent.tool_is_exposed(tool));
+        input.trusted_user_selected_skills =
+            parent.trusted_user_selected_skills().iter().cloned().collect();
+        if let Some((DelegateCapabilityPolicy::Strict, defaults)) = parent.delegate_skill_policy() {
+            let visible = |name: &String| {
+                defaults.contains(&name.to_lowercase())
+                    || parent.trusted_user_selected_skills().contains(&name.to_lowercase())
+            };
+            if input.skill_policy == DelegateCapabilityPolicy::Unrestricted {
+                input.default_allowed_skills = defaults.iter().cloned().collect();
+            } else {
+                input.default_allowed_skills.retain(visible);
+            }
+            input.skill_policy = DelegateCapabilityPolicy::Strict;
+        }
+    }
+    let explicit_context: Vec<Value> = input
+        .context
+        .iter()
+        .filter_map(|message| {
+            message
+                .get("content")
+                .and_then(Value::as_str)
+                .map(|content| serde_json::json!({"role":"user","content":content}))
+        })
+        .collect();
+    let effective_snapshot =
+        hook_context.as_ref().and_then(|parent| parent.messages_view()).map(|messages| {
+            history::snapshot(&messages.iter().map(|message|
+            serde_json::json!({"role":message.role,"content":message.content})
+        ).collect::<Vec<_>>())
+        });
     let directory = input.directory.clone();
     let parent_session_id = input.parent_session_id.clone();
     let project_directory = directory.clone();
     let child = project::instance::provide(project_directory, None, move || {
         Box::pin(async move {
-            session::create_next(session::CreateInput {
+            let parent =
+                session::get(&parent_session_id).await.context("load delegated parent session")?;
+            anyhow::ensure!(
+                crate::app::agent::util::filesystem::normalize_path(&parent.directory)
+                    == std::path::PathBuf::from(&directory),
+                "subagent parent workspace mismatch"
+            );
+            let history = match fork_turns {
+                ForkTurns::All => match effective_snapshot {
+                    Some(snapshot) => snapshot,
+                    None => history::stored_snapshot(&parent_session_id).await?,
+                },
+                ForkTurns::None => Vec::new(),
+            };
+            let inherited_rules = parent.permission.clone().unwrap_or_default();
+            let child = session::create_next(session::CreateInput {
                 parent_id: Some(parent_session_id),
                 title: None,
                 directory,
-                permission: None,
+                permission: parent.permission,
             })
             .await
-            .context("create persistent child agent session")
+            .context("create persistent child agent session")?;
+            Ok::<_, anyhow::Error>((child, history, inherited_rules))
         })
     })
     .await
     .context("initialize child agent project context")??;
 
+    let (child, mut inherited, inherited_rules) = child;
+    hook_context = hook_context.map(|context| {
+        std::sync::Arc::new(context.as_ref().clone().with_delegated_skill_rules(inherited_rules))
+    });
+    inherited.extend(explicit_context);
+    input.context = inherited;
     Ok(CreatedChildAgentRun {
         input,
         child_session_id: child.id.clone(),
@@ -420,6 +504,12 @@ pub(crate) async fn cancel_created(
     created: CreatedChildAgentRun,
     reason: impl Into<String>,
 ) -> Result<ChildAgentRunResult> {
+    if let Some(context) = created.hook_context.as_ref() {
+        anyhow::ensure!(
+            context.tenant_scope() == crate::session::ui_store::current_tenant_scope(),
+            "subagent execution tenant mismatch"
+        );
+    }
     let CreatedChildAgentRun {
         hook_context,
         hook_started: _,
@@ -497,6 +587,12 @@ where
     Fut:
         Future<Output = std::result::Result<GatewayChatStreamCollected, ApiError>> + Send + 'static,
 {
+    if let Some(context) = created.hook_context.as_ref() {
+        anyhow::ensure!(
+            context.tenant_scope() == crate::session::ui_store::current_tenant_scope(),
+            "subagent execution tenant mismatch"
+        );
+    }
     let CreatedChildAgentRun {
         hook_context,
         hook_started,
@@ -532,6 +628,11 @@ where
             context.push(serde_json::json!({"role":"system","content":text}));
         }
     }
+    let execution_context = hook_context.as_ref().map(|context| {
+        std::sync::Arc::new(
+            context.as_ref().clone().for_child(child_session_id.clone(), allowed_tools.clone()),
+        )
+    });
     let hook_child = child_session_id.clone();
     let hook_agent = agent_key.clone();
     let project_directory = directory.clone();
@@ -549,7 +650,12 @@ where
                 trusted_user_selected_skills,
             );
 
-            let result = match execute_stream(request).await {
+            let execution = async move { execute_stream(request).await };
+            let execution_result = match execution_context {
+                Some(context) => crate::tools::scope_tool_use_context(context, execution).await,
+                None => execution.await,
+            };
+            let result = match execution_result {
                 Ok(collected) => {
                     ensure_turn_history(
                         &child_session_id,

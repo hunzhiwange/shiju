@@ -106,3 +106,37 @@ fn full_access_context_preserves_and_allows_redirected_shell_command() {
     assert_eq!(security.apply_shell_redirect_policy(command), command);
     assert!(security.validate_command_execution(command, false).is_ok());
 }
+
+#[test]
+fn agcollab_delegated_security_intersects_parent_and_role() {
+    use crate::security::{AutonomyLevel, SecurityPolicy};
+    use std::sync::Arc;
+    let root = PathBuf::from("/tmp/agcollab-security");
+    let mut config = Config { workspace_dir: root.clone(), ..Config::default() };
+    config.autonomy.allowed_commands = vec!["git".into(), "ls".into()];
+    let baseline = security_for_tool_context(&config, &root, &ToolUseContext::new("parent", None));
+    let parent_security = SecurityPolicy {
+        autonomy: AutonomyLevel::ReadOnly,
+        workspace_only: true,
+        allowed_commands: vec!["git".into()],
+        forbidden_paths: vec!["private".into()],
+        max_actions_per_hour: 2,
+        ..baseline.as_ref().clone()
+    };
+    let parent = Arc::new(
+        ToolUseContext::new("parent", Some(root.to_string_lossy().into_owned()))
+            .with_security(Arc::new(parent_security))
+            .for_child("child".into(), vec!["file_read".into()]),
+    );
+    let child = crate::tools::scope_tool_use_context_sync(parent, || {
+        ToolUseContext::new("child", Some(root.to_string_lossy().into_owned()))
+            .inherit_delegated_authority()
+    });
+    let security = security_for_tool_context(&config, &root, &child);
+    assert_eq!(security.autonomy, AutonomyLevel::ReadOnly);
+    assert!(security.workspace_only);
+    assert_eq!(security.allowed_commands, vec!["git"]);
+    assert!(security.forbidden_paths.contains(&"private".into()));
+    assert_eq!(security.max_actions_per_hour, 2);
+    assert!(!child.full_access_enabled());
+}

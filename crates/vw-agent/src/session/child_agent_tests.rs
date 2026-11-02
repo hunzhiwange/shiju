@@ -491,3 +491,174 @@ async fn child_agent_failure_persists_child_history() {
         |part| matches!(part, message::Part::Text(text) if text.text == "find the failing path")
     ));
 }
+
+#[tokio::test(flavor = "current_thread")]
+async fn agcollab_child_snapshot_is_immutable_and_none_keeps_task_separate() {
+    use super::child_agent::{ForkTurns, create_with_fork, run_created_with_stream_executor};
+    use crate::providers::ChatMessage;
+    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    for fork in [ForkTurns::All, ForkTurns::None] {
+        let context = Arc::new(
+            ToolUseContext::new(&parent.id, Some(directory.clone()))
+                .with_messages_view(vec![
+                    ChatMessage::user("parent constraint"),
+                    ChatMessage::assistant(
+                        "<think>inherited-secret-reasoning</think>visible conclusion",
+                    ),
+                ])
+                .with_tool_exposure_snapshot(["file_read".to_string()])
+                .with_delegate_skill_policy(
+                    vw_config_types::agent::DelegateCapabilityPolicy::Strict,
+                    ["allowed"],
+                ),
+        );
+        let mut request_input = input(parent.id.clone(), directory.clone(), "separate task");
+        request_input.default_allowed_skills = vec!["forbidden".into()];
+        request_input.allowed_tools = vec!["file_read".into(), "shell".into()];
+        let created =
+            scope_tool_use_context(context, create_with_fork(request_input, fork)).await.unwrap();
+        let changed = Arc::new(
+            ToolUseContext::new(&parent.id, Some(directory.clone()))
+                .with_messages_view(vec![ChatMessage::user("later mutation")]),
+        );
+        let result = scope_tool_use_context(
+            changed,
+            run_created_with_stream_executor(created, move |request| async move {
+                assert_eq!(request.allowed_tools, Some(vec!["file_read".to_string()]));
+                let serialized = serde_json::to_string(&request.messages).unwrap();
+                assert_eq!(serialized.contains("parent constraint"), fork == ForkTurns::All);
+                assert_eq!(serialized.contains("visible conclusion"), fork == ForkTurns::All);
+                assert!(!serialized.contains("inherited-secret-reasoning"));
+                assert!(!serialized.contains("later mutation"));
+                assert_eq!(
+                    request.messages.last(),
+                    Some(&json!({"role":"user","content":"separate task"}))
+                );
+                assert!(
+                    request
+                        .messages
+                        .iter()
+                        .any(|message| message
+                            == &json!({"role":"user","content":"review carefully"}))
+                );
+                assert_eq!(request.options.as_ref().unwrap()["delegate_skill_policy"], "strict");
+                assert_eq!(
+                    request.options.as_ref().unwrap()["delegate_default_allowed_skills"],
+                    json!(["allowed"])
+                );
+                Ok(GatewayChatStreamCollected {
+                    output: "done".into(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            }),
+        )
+        .await
+        .unwrap();
+        let (child, messages) = load_child(directory.clone(), result.child_session_id).await;
+        assert_eq!(child.parent_id.as_deref(), Some(parent.id.as_str()));
+        assert_eq!(messages.len(), 2);
+    }
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn agcollab_child_rejects_cross_workspace_and_tenant() {
+    use crate::tools::{ToolUseContext, scope_tool_use_context};
+    let workspace = tempfile::tempdir().unwrap();
+    let other = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let context =
+        Arc::new(ToolUseContext::new(&parent.id, Some(other.path().to_string_lossy().to_string())));
+    let result = scope_tool_use_context(
+        context,
+        super::child_agent::create(input(parent.id.clone(), directory.clone(), "task")),
+    )
+    .await;
+    assert!(format!("{}", result.unwrap_err()).contains("workspace mismatch"));
+    let context = Arc::new(ToolUseContext::new(&parent.id, Some(directory.clone())));
+    let tenant = vw_api_types::id::TenantScope::new("other-platform", "other-company").unwrap();
+    let result = crate::session::ui_store::with_tenant_scope(
+        tenant,
+        scope_tool_use_context(
+            context,
+            super::child_agent::create(input(parent.id, directory, "task")),
+        ),
+    )
+    .await;
+    assert!(format!("{}", result.unwrap_err()).contains("tenant mismatch"));
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn agcollab_stored_history_and_permissions_are_snapshotted() {
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let parent_id = parent.id.clone();
+    project::instance::provide(directory.clone(), None, move || {
+        Box::pin(async move {
+            session::update(&parent_id, |info| {
+                info.permission = Some(vec![vw_shared::permission::Rule {
+                    permission: "edit".into(),
+                    pattern: "private/**".into(),
+                    action: vw_shared::permission::Action::Deny,
+                }]);
+            })
+            .await
+            .unwrap();
+            crate::gateway::api::handlers::session::stream::persist_child_agent_turn(
+                &parent_id,
+                "stored user constraint",
+                "stored visible conclusion",
+                "main",
+                None,
+            )
+            .await
+            .unwrap();
+        })
+    })
+    .await
+    .unwrap();
+    let created =
+        super::child_agent::create(input(parent.id.clone(), directory.clone(), "new task"))
+            .await
+            .unwrap();
+    let parent_id = parent.id.clone();
+    project::instance::provide(directory.clone(), None, move || {
+        Box::pin(async move {
+            crate::gateway::api::handlers::session::stream::persist_child_agent_turn(
+                &parent_id,
+                "later parent mutation",
+                "later answer",
+                "main",
+                None,
+            )
+            .await
+            .unwrap();
+        })
+    })
+    .await
+    .unwrap();
+    let result =
+        super::child_agent::run_created_with_stream_executor(created, |request| async move {
+            let serialized = serde_json::to_string(&request.messages).unwrap();
+            assert!(serialized.contains("stored user constraint"));
+            assert!(serialized.contains("stored visible conclusion"));
+            assert!(!serialized.contains("later parent mutation"));
+            Ok(GatewayChatStreamCollected {
+                output: "done".into(),
+                message_id: None,
+                parent_message_id: None,
+            })
+        })
+        .await
+        .unwrap();
+    let (child, _) = load_child(directory, result.child_session_id).await;
+    let rules = child.permission.unwrap();
+    assert_eq!(rules.len(), 1);
+    assert_eq!(rules[0].pattern, "private/**");
+    assert_eq!(rules[0].action, vw_shared::permission::Action::Deny);
+}

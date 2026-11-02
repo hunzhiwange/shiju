@@ -102,6 +102,7 @@ impl PendingImageReloadQueue {
 #[derive(Clone)]
 pub struct ToolUseContext {
     session: String,
+    tenant_scope: vw_api_types::id::TenantScope,
     hook_input: Option<serde_json::Value>,
     hook_contexts: Arc<Mutex<Vec<String>>>,
     pub(crate) async_hooks: Arc<crate::plugins::AsyncHooks>,
@@ -111,6 +112,9 @@ pub struct ToolUseContext {
     tool_call_id: Option<String>,
     full_access_enabled: bool,
     security: Option<Arc<SecurityPolicy>>,
+    delegated_security: Option<Arc<SecurityPolicy>>,
+    delegated_tools: Option<Arc<BTreeSet<String>>>,
+    delegated_skill_rules: Vec<vw_shared::permission::Ruleset>,
     approval: Option<Arc<ApprovalManager>>,
     messages_view: Option<Arc<Vec<ChatMessage>>>,
     explicitly_requested_skills: Arc<BTreeSet<String>>,
@@ -186,6 +190,7 @@ impl ToolUseContext {
     pub fn new(session: impl Into<String>, root: Option<String>) -> Self {
         Self {
             session: session.into(),
+            tenant_scope: crate::session::ui_store::current_tenant_scope(),
             hook_input: None,
             hook_contexts: Arc::new(Mutex::new(Vec::new())),
             async_hooks: Arc::default(),
@@ -195,6 +200,9 @@ impl ToolUseContext {
             tool_call_id: None,
             full_access_enabled: false,
             security: None,
+            delegated_security: None,
+            delegated_tools: None,
+            delegated_skill_rules: Vec::new(),
             approval: None,
             messages_view: None,
             explicitly_requested_skills: Arc::new(BTreeSet::new()),
@@ -245,6 +253,51 @@ impl ToolUseContext {
             .lock()
             .map(|mut pending| std::mem::take(&mut *pending))
             .unwrap_or_default()
+    }
+
+    pub(crate) fn for_child(mut self, session: String, tools: Vec<String>) -> Self {
+        self.session = session.clone();
+        self.delegated_tools = Some(Arc::new(tools.into_iter().collect()));
+        self.agent_name = None;
+        self.delegated_security = self.security.clone().or(self.delegated_security.clone());
+        self.messages_view = None;
+        self.with_turn_id(session)
+    }
+
+    pub(crate) fn inherit_delegated_authority(mut self) -> Self {
+        if let Some(parent) = current_tool_use_context()
+            && parent.session() == self.session()
+            && parent.tenant_scope == self.tenant_scope
+        {
+            self.delegated_security = parent.delegated_security.clone();
+            self.delegated_tools = parent.delegated_tools.clone();
+            self.delegated_skill_rules = parent.delegated_skill_rules.clone();
+        }
+        self
+    }
+
+    pub(crate) fn delegated_tool_is_allowed(&self, id: &str) -> bool {
+        self.delegated_tools.as_ref().is_none_or(|tools| tools.contains(id))
+    }
+
+    pub(crate) fn with_delegated_skill_rules(
+        mut self,
+        rules: vw_shared::permission::Ruleset,
+    ) -> Self {
+        self.delegated_skill_rules.push(rules);
+        self
+    }
+
+    pub(crate) fn delegated_skill_rules(&self) -> &[vw_shared::permission::Ruleset] {
+        &self.delegated_skill_rules
+    }
+
+    pub(crate) fn delegated_security(&self) -> Option<&SecurityPolicy> {
+        self.delegated_security.as_deref()
+    }
+
+    pub(crate) fn tenant_scope(&self) -> vw_api_types::id::TenantScope {
+        self.tenant_scope.clone()
     }
 
     /// 返回当前会话 ID。
@@ -305,7 +358,8 @@ impl ToolUseContext {
     }
 
     pub(crate) fn tool_is_exposed(&self, id: &str) -> bool {
-        self.tool_discovery.as_ref().is_none_or(|discovery| discovery.authorizes(id))
+        self.delegated_tool_is_allowed(id)
+            && self.tool_discovery.as_ref().is_none_or(|discovery| discovery.authorizes(id))
             && self.tool_exposure_snapshot.as_ref().is_none_or(|ids| ids.contains(id))
     }
 

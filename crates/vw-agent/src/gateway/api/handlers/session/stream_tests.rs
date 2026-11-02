@@ -1699,3 +1699,23 @@ fn recovery_event_preserves_status_without_assistant_content() {
         assert!(patches.parts.is_empty());
     }
 }
+
+#[test]
+fn agcollab_gateway_keeps_inherited_skill_ceiling() {
+    use vw_config_types::agent::DelegateCapabilityPolicy;
+    for role in [DelegateCapabilityPolicy::Strict, DelegateCapabilityPolicy::Unrestricted] {
+        let options = merge_delegate_capability_policy_options(
+            serde_json::json!({"delegate_skill_policy":"strict","delegate_default_allowed_skills":["shared","parent-only"]}),
+            Some(vec!["shared".into(), "role-only".into()]),
+            Some(role),
+            None,
+        );
+        assert_eq!(options["delegate_skill_policy"], "strict");
+        let expected = if role == DelegateCapabilityPolicy::Strict {
+            serde_json::json!(["shared"])
+        } else {
+            serde_json::json!(["shared", "parent-only"])
+        };
+        assert_eq!(options["delegate_default_allowed_skills"], expected);
+    }
+}

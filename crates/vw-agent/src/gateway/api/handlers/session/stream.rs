@@ -769,7 +769,8 @@ async fn resolve_delegate_request_overrides(
         let trimmed = value.trim();
         (!trimmed.is_empty()).then(|| trimmed.to_string())
     });
-    let explicit_allowed_tools = allowed_tools.and_then(normalize_tool_ids);
+    let explicit_allowed_tools =
+        allowed_tools.map(|tools| normalize_tool_ids(tools).unwrap_or_default());
 
     let Some(agent_name) = agent_name else {
         return Ok(DelegateRequestOverrides {
@@ -833,6 +834,34 @@ fn merge_delegate_capability_policy_options(
     trusted_user_selected_skills: Option<Vec<String>>,
 ) -> Value {
     if let Some(options) = options.as_object_mut() {
+        let inherited_strict =
+            options.get("delegate_skill_policy").and_then(Value::as_str) == Some("strict");
+        let inherited_skills = options
+            .get("delegate_default_allowed_skills")
+            .and_then(Value::as_array)
+            .cloned()
+            .unwrap_or_default();
+        let default_allowed_skills = if inherited_strict {
+            Some(match skill_policy {
+                Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict) => {
+                    default_allowed_skills
+                        .unwrap_or_default()
+                        .into_iter()
+                        .filter(|name| inherited_skills.contains(&Value::String(name.clone())))
+                        .collect()
+                }
+                _ => {
+                    inherited_skills.iter().filter_map(Value::as_str).map(str::to_string).collect()
+                }
+            })
+        } else {
+            default_allowed_skills
+        };
+        let skill_policy = if inherited_strict {
+            Some(vw_config_types::agent::DelegateCapabilityPolicy::Strict)
+        } else {
+            skill_policy
+        };
         if default_allowed_skills.is_some() || skill_policy.is_some() {
             options.insert(
                 "delegate_default_allowed_skills".to_string(),
@@ -986,6 +1015,7 @@ async fn start_gateway_chat_producer(
         .map_err(|error| ApiError::internal(error.to_string()))?;
     }
     let runtime_handle = tokio::runtime::Handle::current();
+    let delegated_context = crate::tools::current_tool_use_context();
 
     std::thread::spawn(move || {
         struct Sink<F> {
@@ -1015,30 +1045,38 @@ async fn start_gateway_chat_producer(
             let (approval_prompt_tx, _approval_prompt_rx) = tokio::sync::mpsc::unbounded_channel();
 
             let turn = agent_session::ui_store::with_tenant_scope_sync(tenant.clone(), || {
-                agent_session::runtime::start_prompt(agent_session::processor::Request {
-                    stream: 0,
-                    session: stream_session_id.clone(),
-                    query: query.clone(),
-                    root: Some(root_dir.clone()),
-                    model: model.clone(),
-                    reliability: reliability.clone(),
-                    options: options.clone(),
-                    approval: Some(approval_manager.clone()),
-                    channel_name: Some("desktop".to_string()),
-                    non_cli_approval_context: Some(crate::agent::loop_::NonCliApprovalContext {
-                        sender: "desktop".to_string(),
-                        reply_target: approval_reply_target,
-                        prompt_tx: approval_prompt_tx,
-                    }),
-                    assistant_message_id: stream_message_ids
-                        .as_ref()
-                        .map(|ids| ids.assistant_id.clone()),
-                    history,
-                    persist_app_session_artifacts: should_persist_app_session_artifacts,
-                    app_session_scope: app_session_scope.clone(),
-                    abort_token,
-                    session_tools: crate::session::runtime::SessionToolset::default(),
-                })
+                let start = || {
+                    agent_session::runtime::start_prompt(agent_session::processor::Request {
+                        stream: 0,
+                        session: stream_session_id.clone(),
+                        query: query.clone(),
+                        root: Some(root_dir.clone()),
+                        model: model.clone(),
+                        reliability: reliability.clone(),
+                        options: options.clone(),
+                        approval: Some(approval_manager.clone()),
+                        channel_name: Some("desktop".to_string()),
+                        non_cli_approval_context: Some(
+                            crate::agent::loop_::NonCliApprovalContext {
+                                sender: "desktop".to_string(),
+                                reply_target: approval_reply_target,
+                                prompt_tx: approval_prompt_tx,
+                            },
+                        ),
+                        assistant_message_id: stream_message_ids
+                            .as_ref()
+                            .map(|ids| ids.assistant_id.clone()),
+                        history,
+                        persist_app_session_artifacts: should_persist_app_session_artifacts,
+                        app_session_scope: app_session_scope.clone(),
+                        abort_token,
+                        session_tools: crate::session::runtime::SessionToolset::default(),
+                    })
+                };
+                match delegated_context {
+                    Some(context) => crate::tools::scope_tool_use_context_sync(context, start),
+                    None => start(),
+                }
             });
             let cancel = turn.cancel.clone();
             if let Some(handle) = prompt_cancel {
@@ -1292,7 +1330,7 @@ pub(crate) async fn collect_gateway_chat_stream_with_observer(
     body: GatewayChatStreamRequest,
     observe_payload: impl FnMut(&Value),
 ) -> Result<GatewayChatStreamCollected, ApiError> {
-    let tenant = TenantScope::default();
+    let tenant = crate::session::ui_store::current_tenant_scope();
     let rx = with_tenant_instance(tenant.clone(), dir.clone(), move || {
         Box::pin(async move { start_gateway_chat_stream(tenant, dir, body).await })
     })

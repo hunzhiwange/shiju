@@ -473,3 +473,28 @@ fn block_on_runs_without_an_existing_tokio_runtime() {
 async fn block_on_bridges_from_an_existing_tokio_runtime() {
     assert_eq!(block_on(async { "bridged".to_string() }), "bridged");
 }
+
+#[tokio::test]
+async fn agcollab_inherited_skill_denial_cannot_be_overridden_by_child() {
+    let (workspace, config) = expert_package_fixture();
+    let context =
+        Arc::new(ToolUseContext::new("child-skill-denial", None).with_delegated_skill_rules(vec![
+            vw_shared::permission::Rule {
+                permission: "skill".into(),
+                pattern: "expert-child".into(),
+                action: vw_shared::permission::Action::Deny,
+            },
+        ]));
+    let tool = SkillTool::new_with_runtime_config(
+        Arc::new(crate::security::SecurityPolicy::default()),
+        "child-skill-denial".into(),
+        false,
+        workspace.path().to_path_buf(),
+        config,
+    )
+    .with_skill_directory_context(&context);
+    let result =
+        scope_tool_use_context(context, tool.invoke(json!({"skill":"expert-child"}))).await;
+    assert_eq!(result.data["success"], false);
+    assert!(result.data.to_string().contains("Denied"), "{:?}", result.data);
+}

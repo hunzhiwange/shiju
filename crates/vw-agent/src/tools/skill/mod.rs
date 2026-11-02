@@ -258,6 +258,18 @@ impl SkillTool {
 
         // 评估权限规则
         let mut rule = skill_permission_rule(skill, &ruleset);
+        if let Some(context) = current_tool_use_context() {
+            for inherited in context.delegated_skill_rules() {
+                let parent_rule = skill_permission_rule(skill, inherited);
+                match (rule.action, parent_rule.action) {
+                    (_, permission_next::Action::Deny) => rule = parent_rule,
+                    (permission_next::Action::Allow, permission_next::Action::Ask) => {
+                        rule = parent_rule
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         // 如果启用了强制提示模式，且规则为通配符允许，则转为 Ask 模式
         // 这确保了即使有宽松的权限规则，也会让用户明确确认

@@ -94,43 +94,50 @@ where
         });
     }
     let cleanup = cancel.clone();
+    let delegated_context = crate::tools::current_tool_use_context();
     std::thread::spawn(move || {
         let callback_events = events_tx.clone();
         let callback_terminal = Arc::clone(&terminal);
         let callback_token = token.clone();
         let callback_cleanup = cleanup.clone();
         crate::session::ui_store::with_tenant_scope_sync(tenant, move || {
-            runner(
-                request,
-                Box::new(move |event| {
-                    if callback_token.is_cancelled() {
-                        return false;
-                    }
+            let run = || {
+                runner(
+                    request,
+                    Box::new(move |event| {
+                        if callback_token.is_cancelled() {
+                            return false;
+                        }
 
-                    match event {
-                        StreamEvent::Done(usage) => {
-                            callback_cleanup.finish_shell_range();
-                            send_terminal(
-                                &callback_events,
-                                callback_terminal.as_ref(),
-                                PromptTermination::Completed(usage),
-                            );
-                            false
+                        match event {
+                            StreamEvent::Done(usage) => {
+                                callback_cleanup.finish_shell_range();
+                                send_terminal(
+                                    &callback_events,
+                                    callback_terminal.as_ref(),
+                                    PromptTermination::Completed(usage),
+                                );
+                                false
+                            }
+                            StreamEvent::Error(error) => {
+                                callback_cleanup.finish_shell_range();
+                                send_terminal(
+                                    &callback_events,
+                                    callback_terminal.as_ref(),
+                                    PromptTermination::Failed(error),
+                                );
+                                false
+                            }
+                            event => map_non_terminal(event)
+                                .is_some_and(|event| callback_events.send(event).is_ok()),
                         }
-                        StreamEvent::Error(error) => {
-                            callback_cleanup.finish_shell_range();
-                            send_terminal(
-                                &callback_events,
-                                callback_terminal.as_ref(),
-                                PromptTermination::Failed(error),
-                            );
-                            false
-                        }
-                        event => map_non_terminal(event)
-                            .is_some_and(|event| callback_events.send(event).is_ok()),
-                    }
-                }),
-            );
+                    }),
+                )
+            };
+            match delegated_context {
+                Some(context) => crate::tools::scope_tool_use_context_sync(context, run),
+                None => run(),
+            }
         });
         // A tool may have crossed spawn just as explicit stop arrived.
         if cleanup.explicit.load(Ordering::Acquire)

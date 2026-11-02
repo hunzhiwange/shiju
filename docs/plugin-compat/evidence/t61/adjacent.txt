@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-2467a0c23b8f21db)
+
+running 3 tests
+test plugins::compat::t51_tests::codex_plugin_compat_t51_rejects_invalid_input ... ok
+test plugins::compat::t51_tests::codex_plugin_compat_t51_restores_exact_installed_identity ... ok
+test plugins::compat::t51_tests::codex_plugin_compat_t51_preserves_isolation ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10939 filtered out; finished in 0.04s
+

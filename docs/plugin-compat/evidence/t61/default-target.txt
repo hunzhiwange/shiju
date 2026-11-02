@@ -1,0 +1,23 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.39s
+     Running unittests src/lib.rs (target/rust-slot-1/build/debug/deps/vw_agent-2467a0c23b8f21db)
+
+running 11 tests
+test plugins::compat::t61_tests::codex_plugin_compat_t61_original_reports_missing_dependency ... ignored, run with PATH=/usr/bin:/bin so the unchanged original package lacks its npx dependency
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_hook_original ... ignored, requires dedicated XDG_CACHE_HOME and XDG_CONFIG_HOME to isolate original hook state
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_http_original ... ignored, real public Context7 network integration; no credential or mock
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_stdio_original ... ignored, live original npm dependency; set T61_EVERYTHING_DEPS to separately installed pinned dependencies
+test plugins::compat::t61_tests::codex_plugin_compat_t61_rejects_invalid_input ... ok
+test plugins::compat::t61_tests::codex_plugin_compat_t61_executes_original_package_without_mutation ... ok
+test plugins::compat::t61_tests::codex_plugin_compat_t61_preserves_isolation ... ok
+test plugins::compat::t61_tests::codex_plugin_compat_t61_runs_installed_mcp_side_effect ... ok
+Marketplace registered: superpowers-dev at /private/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/.tmpi206on/superpowers-7.0.1/.claude-plugin/marketplace.json
+Plugin installed: superpowers@superpowers-dev 7.0.1 at /var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/.tmpi206on/config/plugins/superpowers@superpowers-dev
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_sources_match_locked_hashes ... ok
+Plugin disabled: superpowers@superpowers-dev
+Plugin enabled: superpowers@superpowers-dev
+Plugin removed: superpowers@superpowers-dev
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_marketplace_cli_lifecycle ... ok
+test plugins::compat::t61_tests::codex_plugin_compat_t61_public_skill_lifecycle_and_upgrade ... ok
+
+test result: ok. 7 passed; 0 failed; 4 ignored; 0 measured; 10931 filtered out; finished in 0.61s
+

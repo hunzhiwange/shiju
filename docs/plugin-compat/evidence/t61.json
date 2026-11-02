@@ -1,20 +1,94 @@
 {
   "schema_version": 1,
   "task": 61,
-  "status": "in_progress",
-  "tests": {
-    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t61_ -- --nocapture",
-    "exit_code": 0,
-    "effective_tests": 4
+  "status": "completed",
+  "validation_mode": "existing-behavior acceptance; no production behavior changed",
+  "production_red": null,
+  "production_red_reason": "Source chat explicitly authorized pure acceptance on 2026-11-02: do not manufacture a production defect; record existing behavior passing and real rejection/missing-runtime scenarios. Test-authoring failures are not counted as production red evidence.",
+  "source_lock": "crates/vw-agent/testdata/plugin_compat/t61/public/sources.json",
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t61_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 7,
+      "ignored": 4,
+      "record": "t61/default-target.txt; this run alone is insufficient for live acceptance"
+    },
+    {
+      "command": "XDG_CACHE_HOME=/tmp/shiju-t61-hook-cache XDG_CONFIG_HOME=/tmp/shiju-t61-hook-config T61_EVERYTHING_DEPS=/tmp/shiju-t61-everything-deps cargo test -p vw-agent --lib --all-features codex_plugin_compat_t61_ -- --include-ignored --skip codex_plugin_compat_t61_original_reports_missing_dependency --nocapture",
+      "exit_code": 0,
+      "effective_tests": 10,
+      "ignored": 0,
+      "record": "t61/runtime.txt"
+    },
+    {
+      "command": "PATH=/usr/bin:/bin /Users/xiangmin/worker/code/shiju/target/rust-slot-1/build/debug/deps/vw_agent-2467a0c23b8f21db codex_plugin_compat_t61_original_reports_missing_dependency --ignored --nocapture",
+      "exit_code": 0,
+      "effective_tests": 1,
+      "ignored": 0,
+      "record": "t61/missing-runtime.txt"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "record": "t61/clippy.txt"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t51_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 3,
+      "record": "t61/adjacent.txt"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 0
+    }
+  ],
+  "classes": {
+    "skills": "Original MIT Superpowers 6.3.0 -> 7.0.1; SkillTool returns original instructions; disable/enable; upgrade matches next original file hashes",
+    "stdio": "Original MIT Pi smoke package; official Everything 2.1.0 installed outside package; real echo returns requested marker; unchanged package hashes",
+    "http": "Original MIT Context7 package; actual public resolve-library-id request returns Tokio, disable/remove, source unchanged",
+    "hooks": "Original MIT notify; trust gate; UserPromptSubmit creates isolated external state directory; removal preserves state; source and installed bytes unchanged",
+    "marketplace": "Original Superpowers development catalog; CLI registration/install/disable/enable/remove; unchanged source and installed bytes"
   },
-  "clippy": {
-    "command": "cargo clippy --all-targets --all-features -- -D warnings",
-    "exit_code": 0
+  "negative_scenarios": [
+    "invalid manifest installation rejected without payload mutation",
+    "original stdio package reports missing npx under restricted PATH",
+    "marketplace identity isolation",
+    "untrusted public hooks are not registered"
+  ],
+  "external_prerequisites": [
+    {
+      "name": "Context7 public MCP",
+      "status": "verified",
+      "mode": "real",
+      "record": "t61/runtime.txt; unauthenticated public tool resolution returned Tokio, no provider tokens used"
+    },
+    {
+      "name": "Official MCP Everything 2.1.0",
+      "status": "verified",
+      "mode": "real",
+      "record": "external npm install with ignore-scripts; package integrity and lock hash recorded in source_lock"
+    }
+  ],
+  "platforms": {
+    "verified": [
+      "macos"
+    ]
   },
+  "limitations": [
+    "No claim of desktop rendering or Linux/Windows verification; separate acceptance tasks remain.",
+    "notify verification runs UserPromptSubmit only; it does not exercise sending desktop notifications.",
+    "Local repository-authored writer fixture supplements public-original evidence and is labeled separately."
+  ],
   "cargo": {
     "slot": 1,
     "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
     "lease_released": true
-  },
-  "limitations": "Local repository-authored stdio package only. Ecosystem five-package acceptance and target red/green remain incomplete."
+  }
 }

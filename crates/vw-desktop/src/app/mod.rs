@@ -18,6 +18,7 @@ pub(crate) mod desktop_update;
 pub mod files;
 /// git 子模块，拆分当前领域的局部职责。
 pub mod git;
+pub mod i18n;
 mod impls;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod installer_update;

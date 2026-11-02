@@ -156,13 +156,25 @@ pub(crate) async fn run_tool_call_loop_with_skills(
         .and_then(|skills| skills.session_id.clone())
         .or_else(|| inherited.as_ref().map(|context| context.session().to_string()))
         .unwrap_or_else(|| format!("tool-loop-{turn_id}"));
-    let mut tool_use_context = ToolUseContext::new(session_id, None)
-        .inherit_delegated_authority()
-        .with_channel(channel_name.to_string())
-        .with_provider(provider_name.to_string())
-        .with_model(model.to_string())
-        .with_turn_id(turn_id.clone())
-        .with_bypass_non_cli_approval_for_turn(bypass_non_cli_approval_for_turn);
+    let workspace_dir = security
+        .as_ref()
+        .map(|policy| policy.workspace_dir.clone())
+        .or_else(|| {
+            skills
+                .as_ref()
+                .and_then(|skills| skills.config.as_ref())
+                .map(|config| config.workspace_dir.clone())
+        })
+        .or_else(|| inherited.as_ref().and_then(|context| context.workspace_root()))
+        .map_or_else(std::env::current_dir, Ok)?;
+    let mut tool_use_context =
+        ToolUseContext::new(session_id, Some(workspace_dir.to_string_lossy().into_owned()))
+            .inherit_delegated_authority()
+            .with_channel(channel_name.to_string())
+            .with_provider(provider_name.to_string())
+            .with_model(model.to_string())
+            .with_turn_id(turn_id.clone())
+            .with_bypass_non_cli_approval_for_turn(bypass_non_cli_approval_for_turn);
     let _async_hook_turn = tool_use_context.async_hooks.turn_guard();
     let security = security.or_else(|| {
         skills.as_ref().and_then(|skills| skills.config.as_ref()).map(|config| {

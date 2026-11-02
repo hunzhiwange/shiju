@@ -635,6 +635,7 @@ impl App {
             quick_message_handoff: None,
             chat_send_behavior: cfg_chat_send_behavior,
             dialogue_flow_settings_save_message: None,
+            dialogue_flow_settings_translation: None,
             recent_projects_meta: recent_meta,
             spinner_frame: 0,
             file_to_discard: None,

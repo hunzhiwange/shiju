@@ -908,6 +908,7 @@ pub struct App {
     pub(crate) quick_message_handoff: Option<QuickMessageHandoffState>,
     /// 对话流设置保存消息
     pub(crate) dialogue_flow_settings_save_message: Option<String>,
+    pub(crate) dialogue_flow_settings_translation: Option<crate::app::i18n::format::Message>,
     /// 最近项目元数据列表
     pub(crate) recent_projects_meta: Vec<RecentProjectMeta>,
     /// 展开的文件树路径列表

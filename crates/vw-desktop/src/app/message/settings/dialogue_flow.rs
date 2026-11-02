@@ -367,6 +367,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.dialogue_flow_expand_edit_tool_section = expand_edit_tool_section;
                 }
                 Err(e) => {
+                    app.dialogue_flow_settings_translation =
+                        Some(crate::app::i18n::format::Message::new(
+                            "读取配置失败: %s",
+                            vec![e.clone().into()],
+                        ));
                     app.dialogue_flow_settings_save_message = Some(format!("读取配置失败: {e}"));
                 }
             }
@@ -404,6 +409,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         // 对话流设置保存完成，显示成功或失败消息
         SettingsMessage::DialogueFlowUiSettingsSaved(res) => {
+            app.dialogue_flow_settings_translation = Some(match &res {
+                Ok(()) => crate::app::i18n::format::Message::new("已保存对话流配置", vec![]),
+                Err(e) => {
+                    crate::app::i18n::format::Message::new("保存失败: %s", vec![e.clone().into()])
+                }
+            });
             app.dialogue_flow_settings_save_message = Some(match res {
                 Ok(()) => "已保存对话流配置".to_string(),
                 Err(e) => format!("保存失败: {e}"),

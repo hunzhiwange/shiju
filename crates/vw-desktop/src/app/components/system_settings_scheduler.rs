@@ -93,22 +93,32 @@ fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
     app.scheduler_settings.show_help_modal.then(|| {
         let close_message = Message::Settings(message::SettingsMessage::SchedulerHelpClose);
         let close_btn = settings_close_button(close_message);
-        let (copy_icon, copy_tip) =
-            settings_help_copy_state(app.last_copied_code_hash, SCHEDULER_HELP);
-        let copy_btn =
-            icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(SCHEDULER_HELP.to_string())));
+        let (copy_icon, copy_tip) = settings_help_copy_state(
+            app.last_copied_code_hash,
+            crate::app::i18n::I18n::new(app.desktop_locale).__(SCHEDULER_HELP),
+        );
+        let copy_btn = icon_btn(
+            copy_icon,
+            copy_tip,
+            Some(Message::CopyCode(
+                crate::app::i18n::I18n::new(app.desktop_locale).__(SCHEDULER_HELP).to_string(),
+            )),
+        );
 
         settings_panel(
             column![
                 row![
-                    text("Scheduler 配置帮助").size(16),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("Scheduler 配置帮助"))
+                        .size(16),
                     Space::new().width(Length::Fill),
                     copy_btn,
                     close_btn
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
-                text(SCHEDULER_HELP).size(13).style(settings_muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(SCHEDULER_HELP))
+                    .size(13)
+                    .style(settings_muted_text_style),
             ]
             .spacing(12)
             .width(Length::Fill),
@@ -124,10 +134,10 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
         settings_help_button(Message::Settings(message::SettingsMessage::SchedulerHelpOpen));
 
     let enabled_row = field_row(
-        "启用",
-        "控制是否启用内置调度器主循环。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否启用内置调度器主循环。"),
         checkbox(s.enabled)
-            .label("开启内置调度器")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启内置调度器"))
             .on_toggle(enabled_toggled)
             .style(settings_checkbox_style),
     );
@@ -136,8 +146,8 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
         slider(1.0..=10_000.0, s.max_tasks as f32, max_tasks_changed).width(Length::Fixed(280.0));
 
     let max_tasks_row = field_row(
-        "最大任务",
-        "单次轮询最多处理的任务数量。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("最大任务"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("单次轮询最多处理的任务数量。"),
         row![max_tasks_slider, settings_value_badge(format!("{}", s.max_tasks))]
             .spacing(16)
             .align_y(Alignment::Center),
@@ -148,19 +158,24 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
             .width(Length::Fixed(280.0));
 
     let max_concurrent_row = field_row(
-        "并发上限",
-        "允许并行执行的任务数量上限。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("并发上限"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("允许并行执行的任务数量上限。"),
         settings_control_with_hint(
             row![max_concurrent_slider, settings_value_badge(format!("{}", s.max_concurrent))]
                 .spacing(16)
                 .align_y(Alignment::Center),
-            "建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。",
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("建议 max_tasks=64、max_concurrent=4；高并发场景可按资源逐步上调。"),
         ),
     );
 
     let mut col = column![
-        row![text("内置调度器").size(16), Space::new().width(Length::Fill), help_btn]
-            .align_y(Alignment::Start),
+        row![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("内置调度器")).size(16),
+            Space::new().width(Length::Fill),
+            help_btn
+        ]
+        .align_y(Alignment::Start),
     ]
     .spacing(16)
     .width(Length::Fill);
@@ -169,11 +184,15 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
         col = col.push(help_panel);
     }
 
-    col = col.push(settings_section_card("执行能力", "控制调度器处理任务的吞吐和并发上限。")).push(
-        settings_section_content(
+    col = col
+        .push(settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("执行能力"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("控制调度器处理任务的吞吐和并发上限。"),
+        ))
+        .push(settings_section_content(
             column![enabled_row, max_tasks_row, max_concurrent_row].spacing(0),
-        ),
-    );
+        ));
 
     col.into()
 }
@@ -183,7 +202,11 @@ pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
 /// 保留该入口供组件测试和嵌入前的调用方使用；系统设置导航会将内容展示在定时任务配置中。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro("调度配置", "配置内置调度器的开关、吞吐和并发能力。"),
+        settings_page_intro(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("调度配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置内置调度器的开关、吞吐和并发能力。")
+        ),
         embedded_view(app),
     ]
     .spacing(16)

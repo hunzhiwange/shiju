@@ -153,8 +153,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .width(Length::Fixed(280.0));
 
     let provider_retries_row = field_row(
-        "Provider 重试",
-        "请求失败时的最大重试次数。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Provider 重试"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("请求失败时的最大重试次数。"),
         row![provider_retries_slider, settings_value_badge(format!("{}", s.provider_retries)),]
             .spacing(16)
             .align_y(Alignment::Center),
@@ -165,8 +165,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .width(Length::Fixed(280.0));
 
     let provider_backoff_row = field_row(
-        "Provider 退避",
-        "重试之间的基础退避时间。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Provider 退避"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("重试之间的基础退避时间。"),
         row![
             provider_backoff_slider,
             settings_value_badge(format!("{} ms", s.provider_backoff_ms)),
@@ -183,8 +183,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(280.0));
 
     let channel_initial_row = field_row(
-        "频道初始退避",
-        "频道或守护进程重连时的初始退避秒数。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("频道初始退避"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("频道或守护进程重连时的初始退避秒数。"),
         row![
             channel_initial_slider,
             settings_value_badge(format!("{} s", s.channel_initial_backoff_secs)),
@@ -202,8 +202,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let channel_max_row =
         field_row(
-            "频道最大退避",
-            "退避算法允许增长到的最大等待时间。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("频道最大退避"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("退避算法允许增长到的最大等待时间。"),
             row![
                 channel_max_slider,
                 settings_value_badge(format!("{} s", s.channel_max_backoff_secs)),
@@ -217,8 +218,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .width(Length::Fixed(280.0));
 
     let scheduler_poll_row = field_row(
-        "调度轮询间隔",
-        "调度器检查任务的轮询频率。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("调度轮询间隔"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("调度器检查任务的轮询频率。"),
         row![scheduler_poll_slider, settings_value_badge(format!("{} s", s.scheduler_poll_secs)),]
             .spacing(16)
             .align_y(Alignment::Center),
@@ -229,8 +230,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .width(Length::Fixed(280.0));
 
     let scheduler_retries_row = field_row(
-        "调度重试次数",
-        "任务执行失败时允许的重试次数。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("调度重试次数"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("任务执行失败时允许的重试次数。"),
         row![scheduler_retries_slider, settings_value_badge(format!("{}", s.scheduler_retries)),]
             .spacing(16)
             .align_y(Alignment::Center),
@@ -239,16 +240,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let col = column![
         row![
             container(settings_page_intro(
-                "可靠性配置",
-                "统一配置 provider 重试、频道重连退避和调度重试策略。"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("可靠性配置"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("统一配置 provider 重试、频道重连退避和调度重试策略。")
             ))
             .width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_section_card("Provider", "控制模型请求失败时的重试次数和退避时间。"),
+        settings_section_card(
+            "Provider",
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("控制模型请求失败时的重试次数和退避时间。")
+        ),
         settings_section_content(column![provider_retries_row, provider_backoff_row].spacing(0)),
-        settings_section_card("频道与调度", "控制频道重连与调度器重试节奏。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("频道与调度"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("控制频道重连与调度器重试节奏。")
+        ),
         settings_section_content(
             column![
                 channel_initial_row,
@@ -274,7 +283,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
-        "Reliability 配置帮助",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Reliability 配置帮助"),
         RELIABILITY_HELP_TEXT,
         Message::Settings(message::SettingsMessage::ReliabilityHelpClose),
     )

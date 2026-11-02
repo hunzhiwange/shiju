@@ -54,25 +54,44 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
     let group = item.group;
     let kind = item.kind;
 
-    let text_control = text_input("输入快捷消息或动作名称", &item.text)
-        .on_input(move |value| settings_message(QuickMessagesMessage::TextChanged(index, value)))
-        .padding([9, 11])
-        .size(13)
-        .style(settings_text_input_style)
-        .width(Length::Fill);
+    let text_control = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("输入快捷消息或动作名称"),
+        &item.text,
+    )
+    .on_input(move |value| settings_message(QuickMessagesMessage::TextChanged(index, value)))
+    .padding([9, 11])
+    .size(13)
+    .style(settings_text_input_style)
+    .width(Length::Fill);
 
-    let group_control = pick_list(QuickMessageGroup::ALL, Some(group), move |value| {
-        settings_message(QuickMessagesMessage::GroupChanged(index, value))
-    })
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let group_control = pick_list(
+        QuickMessageGroup::ALL.map(|value| i18n.__(value.label())),
+        Some(i18n.__(group.label())),
+        move |label| {
+            let value = QuickMessageGroup::ALL
+                .into_iter()
+                .find(|value| i18n.__(value.label()) == label)
+                .expect("selected group belongs to supplied options");
+            settings_message(QuickMessagesMessage::GroupChanged(index, value))
+        },
+    )
     .padding([9, 11])
     .text_size(13)
     .style(settings_pick_list_style)
     .menu_style(settings_pick_list_menu_style)
     .width(Length::FillPortion(1));
-
-    let kind_control = pick_list(QuickMessageKind::ALL, Some(kind), move |value| {
-        settings_message(QuickMessagesMessage::KindChanged(index, value))
-    })
+    let kind_control = pick_list(
+        QuickMessageKind::ALL.map(|value| i18n.__(value.label())),
+        Some(i18n.__(kind.label())),
+        move |label| {
+            let value = QuickMessageKind::ALL
+                .into_iter()
+                .find(|value| i18n.__(value.label()) == label)
+                .expect("selected kind belongs to supplied options");
+            settings_message(QuickMessagesMessage::KindChanged(index, value))
+        },
+    )
     .padding([9, 11])
     .text_size(13)
     .style(settings_pick_list_style)
@@ -80,15 +99,15 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
     .width(Length::FillPortion(1));
 
     let actions = row![
-        button(text("上移").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("上移")).size(12))
             .on_press(move_up_message(index))
             .padding([7, 9])
             .style(rounded_action_btn_style),
-        button(text("下移").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("下移")).size(12))
             .on_press(move_down_message(index))
             .padding([7, 9])
             .style(rounded_action_btn_style),
-        button(text("删除").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")).size(12))
             .on_press(remove_message(index))
             .padding([7, 9])
             .style(rounded_action_btn_style),
@@ -99,7 +118,16 @@ fn item_view(app: &App, index: usize) -> Element<'_, Message> {
     container(
         column![
             row![
-                text(format!("快捷项 {}", index + 1)).size(12).style(settings_muted_text_style),
+                text(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "快捷项 %u",
+                        index + 1
+                    )
+                    .expect("valid quick item template")
+                )
+                .size(12)
+                .style(settings_muted_text_style),
                 container(actions).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
             ]
             .spacing(10)
@@ -122,9 +150,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if app.quick_messages.is_empty() {
         items = items.push(
             container(
-                text("暂无快捷消息；添加后会显示在聊天输入框上方。")
-                    .size(12)
-                    .style(settings_muted_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("暂无快捷消息；添加后会显示在聊天输入框上方。"),
+                )
+                .size(12)
+                .style(settings_muted_text_style),
             )
             .padding([14, 4])
             .center_x(Length::Fill),
@@ -136,15 +167,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     let footer = row![
-        button(text("添加快捷项").size(13))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加快捷项")).size(13))
             .on_press(add_message())
             .padding([9, 14])
             .style(rounded_action_btn_style),
         container(row![
-            button(text("保存快捷消息").size(13))
-                .on_press(save_message())
-                .padding([9, 14])
-                .style(primary_action_btn_style),
+            button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("保存快捷消息")).size(13)
+            )
+            .on_press(save_message())
+            .padding([9, 14])
+            .style(primary_action_btn_style),
         ])
         .width(Length::Fill)
         .align_x(iced::alignment::Horizontal::Right),
@@ -154,7 +187,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     column![
-        settings_section_card("快捷消息", "配置聊天输入框上方的常用消息、摘要接力与 Git 动作。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("快捷消息"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置聊天输入框上方的常用消息、摘要接力与 Git 动作。")
+        ),
         settings_section_content(column![items, footer].spacing(14).width(Length::Fill)),
     ]
     .spacing(10)

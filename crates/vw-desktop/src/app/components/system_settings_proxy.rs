@@ -63,7 +63,11 @@ fn field_row<'a>(
 
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro("代理配置", "配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。",),
+        settings_page_intro(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("代理配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置 HTTP、HTTPS、SOCKS5 代理以及生效范围。"),
+        ),
         content(app),
     ]
     .spacing(16)
@@ -77,28 +81,43 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let help_btn = settings_help_button(Message::Settings(message::SettingsMessage::ProxyHelpOpen));
 
     let enabled_row = field_row(
-        "启用",
-        "控制是否启用代理能力。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否启用代理能力。"),
         checkbox(s.enabled)
-            .label("启用代理")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用代理"))
             .on_toggle(|v| Message::Settings(message::SettingsMessage::ProxyEnabledToggled(v)))
             .style(settings_checkbox_style),
     );
 
-    let scope_pick = pick_list(PROXY_SCOPE_OPTIONS, Some(proxy_scope_label(s.scope)), |v| {
-        Message::Settings(message::SettingsMessage::ProxyScopeTextChanged(v.to_string()))
-    })
+    let scope_pick = pick_list(
+        PROXY_SCOPE_OPTIONS.map(|v| crate::app::i18n::I18n::new(app.desktop_locale).__(v)),
+        Some(crate::app::i18n::I18n::new(app.desktop_locale).__(proxy_scope_label(s.scope))),
+        move |v| {
+            Message::Settings(message::SettingsMessage::ProxyScopeTextChanged(
+                PROXY_SCOPE_OPTIONS
+                    .into_iter()
+                    .find(|source| crate::app::i18n::I18n::new(app.desktop_locale).__(source) == v)
+                    .expect("selected scope belongs to supplied options")
+                    .to_string(),
+            ))
+        },
+    )
     .padding([10, 14])
     .text_size(13)
     .style(settings_pick_list_style)
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
-    let scope_row = field_row("生效范围", "决定代理应用到环境、全局流量或指定服务。", scope_pick);
+    let scope_row = field_row(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("生效范围"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("决定代理应用到环境、全局流量或指定服务。"),
+        scope_pick,
+    );
 
     let http_row = field_row(
-        "HTTP 代理",
-        "HTTP 请求代理地址。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("HTTP 代理"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("HTTP 请求代理地址。"),
         text_input("http://127.0.0.1:7890", &s.http_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyHttpChanged(v)))
             .padding([10, 12])
@@ -108,8 +127,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let https_row = field_row(
-        "HTTPS 代理",
-        "HTTPS 请求代理地址。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("HTTPS 代理"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("HTTPS 请求代理地址。"),
         text_input("http://127.0.0.1:7890", &s.https_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyHttpsChanged(v)))
             .padding([10, 12])
@@ -119,8 +138,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let all_row = field_row(
-        "ALL 代理",
-        "当未命中 HTTP/HTTPS 时使用的兜底代理。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("ALL 代理"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("当未命中 HTTP/HTTPS 时使用的兜底代理。"),
         text_input("socks5://127.0.0.1:7891", &s.all_proxy)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyAllChanged(v)))
             .padding([10, 12])
@@ -130,8 +150,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let no_proxy_row = field_row(
-        "排除列表",
-        "支持逗号或换行分隔，格式与 NO_PROXY 一致。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("排除列表"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("支持逗号或换行分隔，格式与 NO_PROXY 一致。"),
         text_input("localhost, 127.0.0.1, *.internal", &s.no_proxy_input)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyNoProxyChanged(v)))
             .padding([10, 12])
@@ -141,8 +162,8 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let services_row = field_row(
-        "服务选择器",
-        "仅在范围为指定服务时生效。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("服务选择器"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("仅在范围为指定服务时生效。"),
         text_input("provider.openai, tool.http_request", &s.services_input)
             .on_input(|v| Message::Settings(message::SettingsMessage::ProxyServicesChanged(v)))
             .padding([10, 12])
@@ -152,16 +173,32 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     );
 
     let col = column![
-        row![container(text("代理设置").size(16)).width(Length::Fill), help_btn]
-            .align_y(Alignment::Center),
-        settings_section_card("基础行为", "控制代理开关与作用域选择。"),
+        row![
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("代理设置")).size(16)
+            )
+            .width(Length::Fill),
+            help_btn
+        ]
+        .align_y(Alignment::Center),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("控制代理开关与作用域选择。")
+        ),
         settings_section_content(column![enabled_row, settings_divider(), scope_row].spacing(0)),
-        settings_section_card("代理地址", "分别配置 HTTP、HTTPS 与兜底代理地址。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("代理地址"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("分别配置 HTTP、HTTPS 与兜底代理地址。")
+        ),
         settings_section_content(
             column![http_row, settings_divider(), https_row, settings_divider(), all_row]
                 .spacing(0),
         ),
-        settings_section_card("排除与路由", "配置 NO_PROXY 和指定服务选择器。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("排除与路由"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("配置 NO_PROXY 和指定服务选择器。")
+        ),
         settings_section_content(
             column![no_proxy_row, settings_divider(), services_row].spacing(0),
         ),

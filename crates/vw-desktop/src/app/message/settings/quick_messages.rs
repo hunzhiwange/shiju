@@ -62,7 +62,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         QuickMessagesMessage::Save => {
             if app.quick_messages.iter().any(|item| item.text.trim().is_empty()) {
-                return app.show_warning_toast("快捷消息内容不能为空");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "快捷消息内容不能为空",
+                    vec![],
+                );
             }
 
             let quick_messages = app.quick_messages.clone();
@@ -80,10 +84,16 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 },
             )
         }
-        QuickMessagesMessage::Saved(Ok(())) => app.show_success_toast("快捷消息已保存"),
-        QuickMessagesMessage::Saved(Err(error)) => {
-            app.show_error_toast(format!("保存快捷消息失败：{error}"))
-        }
+        QuickMessagesMessage::Saved(Ok(())) => app.show_localized_toast(
+            crate::app::state::ToastKind::Success,
+            "快捷消息已保存",
+            vec![],
+        ),
+        QuickMessagesMessage::Saved(Err(error)) => app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "保存快捷消息失败：%s",
+            vec![error.into()],
+        ),
     }
 }
 

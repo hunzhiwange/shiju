@@ -110,34 +110,39 @@ fn success_banner_style(theme: &iced::Theme) -> iced::widget::container::Style {
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
     let reasoning_row = field_row(
-        "显示推理摘要",
-        "在时间线中显示模型推理摘要。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("显示推理摘要"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("在时间线中显示模型推理摘要。"),
         checkbox(app.dialogue_flow_show_reasoning_summary)
-            .label("启用")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
             .on_toggle(show_reasoning_summary_toggled)
             .style(settings_checkbox_style),
     );
 
     let expand_shell_row = field_row(
-        "展开 shell 工具",
-        "默认在时间线中展开 shell 工具部分。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("展开 shell 工具"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("默认在时间线中展开 shell 工具部分。"),
         checkbox(app.dialogue_flow_expand_shell_tool_section)
-            .label("启用")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
             .on_toggle(expand_shell_tool_section_toggled)
             .style(settings_checkbox_style),
     );
 
     let expand_edit_row = field_row(
-        "展开编辑工具",
-        "默认在时间线中展开 edit、write、patch 工具部分。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("展开编辑工具"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("默认在时间线中展开 edit、write、patch 工具部分。"),
         checkbox(app.dialogue_flow_expand_edit_tool_section)
-            .label("启用")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
             .on_toggle(expand_edit_tool_section_toggled)
             .style(settings_checkbox_style),
     );
 
     let mut col = column![
-        settings_page_intro("对话流", "配置时间线中的推理摘要、工具展开和跟进行为。"),
+        settings_page_intro(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("对话流"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置时间线中的推理摘要、工具展开和跟进行为。")
+        ),
         settings_section_content(
             column![
                 reasoning_row,
@@ -152,8 +157,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    if let Some(msg) = &app.dialogue_flow_settings_save_message {
-        if is_success_save_message(msg) {
+    let translated = app.dialogue_flow_settings_translation.as_ref().map(|message| {
+        message
+            .render(crate::app::i18n::I18n::new(app.desktop_locale))
+            .expect("valid dialogue status template")
+    });
+    if let Some(original) = &app.dialogue_flow_settings_save_message {
+        let msg = translated.unwrap_or_else(|| original.clone());
+        if is_success_save_message(original) {
             let success_banner: Element<'_, Message> = container(text(msg).size(13))
                 .padding([10, 12])
                 .width(Length::Fill)

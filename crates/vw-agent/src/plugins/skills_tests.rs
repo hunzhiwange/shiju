@@ -140,7 +140,7 @@ fn plugin_skills_workspace_skill_overrides_plugin_skill() {
 
     let workspace_dir = dir.path().join("workspace");
     let config_dir = dir.path().join("config");
-    let local_skills = workspace_dir.join(".vibewindow/skills");
+    let local_skills = workspace_dir.join(".shiju/skills");
     write_skill(&local_skills, "shared-skill", "Workspace skill wins");
 
     let plugin_root = workspace_dir.join(".vibewindow/plugins/plugin-pack");

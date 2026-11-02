@@ -91,7 +91,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
         pick_list(SkillsDirectoryProvider::ALL, Some(s.directory_provider), |provider| {
             Message::Settings(message::SettingsMessage::SkillsDirectoryProviderChanged(provider))
         })
-        .placeholder("VibeWindow")
+        .placeholder("ShiJu")
         .padding([10, 12])
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style)
@@ -99,7 +99,7 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
 
     let provider_row = field_row(
         "Directory provider",
-        "切换技能目录兼容模式；配置缺失时使用 VibeWindow。",
+        "切换技能目录兼容模式；配置缺失时使用 ShiJu。",
         provider_pick,
     );
 

@@ -124,7 +124,7 @@ fn signed_artifact(entries: &[FixtureEntry]) -> SkillMarketArtifact {
 }
 
 fn skills_root(project: &Path) -> PathBuf {
-    project.join(".vibewindow").join("skills")
+    project.join(".shiju").join("skills")
 }
 
 fn default_security() -> vw_config_types::skills::SkillSecurityConfig {

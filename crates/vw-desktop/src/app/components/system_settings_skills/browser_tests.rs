@@ -133,7 +133,7 @@ fn provider_paths_match_directory_provider_contract() {
     let cases = [
         (
             SkillsDirectoryProvider::Vibewindow,
-            ".vibewindow/skills、skills 与 .agents/skills",
+            ".shiju/skills、skills 与 .agents/skills",
             vibewindow_global.as_str(),
         ),
         (

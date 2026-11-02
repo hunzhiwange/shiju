@@ -188,7 +188,7 @@ pub(crate) fn workspace_skills_dir(
 
 fn workspace_skill_source_paths(directory_provider: SkillsDirectoryProvider) -> Vec<&'static str> {
     match directory_provider {
-        SkillsDirectoryProvider::Vibewindow => vec![".vibewindow/skills", "skills"],
+        SkillsDirectoryProvider::Vibewindow => vec![".shiju/skills", "skills"],
         SkillsDirectoryProvider::Codex => vec![".codex/skills", ".agents/skills"],
         SkillsDirectoryProvider::Claude => vec![".claude/skills"],
         SkillsDirectoryProvider::Cursor => vec![".cursor/skills"],
@@ -197,7 +197,7 @@ fn workspace_skill_source_paths(directory_provider: SkillsDirectoryProvider) -> 
 
 fn ancestor_skill_source_paths(directory_provider: SkillsDirectoryProvider) -> Vec<&'static str> {
     match directory_provider {
-        SkillsDirectoryProvider::Vibewindow => vec![".vibewindow/skills"],
+        SkillsDirectoryProvider::Vibewindow => vec![".shiju/skills"],
         SkillsDirectoryProvider::Codex => vec![".codex/skills", ".agents/skills"],
         SkillsDirectoryProvider::Claude => vec![".claude/skills"],
         SkillsDirectoryProvider::Cursor => vec![".cursor/skills"],
@@ -207,7 +207,7 @@ fn ancestor_skill_source_paths(directory_provider: SkillsDirectoryProvider) -> V
 fn global_skill_source_paths(directory_provider: SkillsDirectoryProvider) -> Vec<&'static str> {
     match directory_provider {
         // `~/.skills` 是比 VibeWindow 配置目录更通用的用户级技能目录。
-        SkillsDirectoryProvider::Vibewindow => vec![".vibewindow/skills", ".skills"],
+        SkillsDirectoryProvider::Vibewindow => vec![".shiju/skills", ".skills"],
         SkillsDirectoryProvider::Codex => vec![".codex/skills", ".agents/skills"],
         SkillsDirectoryProvider::Claude => vec![".claude/skills"],
         SkillsDirectoryProvider::Cursor => vec![".cursor/skills"],
@@ -218,7 +218,7 @@ fn primary_workspace_skill_source_path(
     directory_provider: SkillsDirectoryProvider,
 ) -> &'static str {
     match directory_provider {
-        SkillsDirectoryProvider::Vibewindow => ".vibewindow/skills",
+        SkillsDirectoryProvider::Vibewindow => ".shiju/skills",
         SkillsDirectoryProvider::Codex => ".codex/skills",
         SkillsDirectoryProvider::Claude => ".claude/skills",
         SkillsDirectoryProvider::Cursor => ".cursor/skills",

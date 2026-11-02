@@ -423,7 +423,7 @@ fn local_install_success_and_failure_paths_are_audited_and_cleaned() {
 fn configured_skill_security_controls_loading_and_install_audit() {
     let dir = tempfile::tempdir().expect("temp dir");
     let workspace = dir.path().join("workspace");
-    let load_sources = workspace.join(".vibewindow/skills");
+    let load_sources = workspace.join(".shiju/skills");
     let install_sources = dir.path().join("install-sources");
     let installs = dir.path().join("installs");
     std::fs::create_dir_all(&load_sources).unwrap();

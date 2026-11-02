@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum SkillsDirectoryProvider {
-    /// 使用 VibeWindow 原生技能目录。
+    /// 使用 ShiJu 原生技能目录。
     #[default]
     Vibewindow,
     /// 使用 Codex/Codex 风格技能目录。
@@ -26,7 +26,7 @@ impl SkillsDirectoryProvider {
 
     pub fn label(self) -> &'static str {
         match self {
-            Self::Vibewindow => "VibeWindow",
+            Self::Vibewindow => "ShiJu",
             Self::Codex => "Codex",
             Self::Claude => "Claude",
             Self::Cursor => "Cursor",
@@ -107,7 +107,7 @@ pub struct SkillSecurityConfig {
 /// 用于控制开放技能目录是否启用，以及提示注入使用紧凑模式还是完整模式。
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillsConfig {
-    /// 技能目录提供方，缺省使用 VibeWindow 原生目录。
+    /// 技能目录提供方，缺省使用 ShiJu 原生目录。
     #[serde(default)]
     pub directory_provider: SkillsDirectoryProvider,
 

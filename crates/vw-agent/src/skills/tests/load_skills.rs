@@ -292,7 +292,7 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     fs::create_dir_all(&plain_global_skill).unwrap();
     fs::write(plain_global_skill.join("SKILL.md"), "# Plain Global\nPlain global skill\n").unwrap();
 
-    let parent_skill = repo_root.join(".vibewindow").join("skills").join("parent-skill");
+    let parent_skill = repo_root.join(".shiju").join("skills").join("parent-skill");
     fs::create_dir_all(&parent_skill).unwrap();
     fs::write(parent_skill.join("SKILL.md"), "# Parent\nParent skill\n").unwrap();
 
@@ -305,7 +305,7 @@ fn load_skills_discovers_workspace_ancestor_and_global_sources() {
     fs::write(parent_agents_skill.join("SKILL.md"), "# Parent Agents\nParent agents skill\n")
         .unwrap();
 
-    let hidden_skill = project_dir.join(".vibewindow").join("skills").join("hidden-skill");
+    let hidden_skill = project_dir.join(".shiju").join("skills").join("hidden-skill");
     fs::create_dir_all(&hidden_skill).unwrap();
     fs::write(hidden_skill.join("SKILL.md"), "# Hidden\nHidden skill\n").unwrap();
 
@@ -386,7 +386,7 @@ fn load_skills_uses_configured_directory_provider() {
     let project_dir = home.path().join("project");
     fs::create_dir_all(&project_dir).unwrap();
 
-    let vibewindow_skill = project_dir.join(".vibewindow").join("skills").join("vw-skill");
+    let vibewindow_skill = project_dir.join(".shiju").join("skills").join("vw-skill");
     fs::create_dir_all(&vibewindow_skill).unwrap();
     fs::write(vibewindow_skill.join("SKILL.md"), "# VibeWindow\nVibeWindow skill\n").unwrap();
 
@@ -410,7 +410,7 @@ fn workspace_skill_roots_follow_directory_provider_contract() {
 
     assert_eq!(
         workspace_skills_dir(workspace, SkillsDirectoryProvider::Vibewindow),
-        PathBuf::from("/workspace/.vibewindow/skills")
+        PathBuf::from("/workspace/.shiju/skills")
     );
     assert_eq!(
         workspace_skills_dir(workspace, SkillsDirectoryProvider::Codex),
@@ -431,7 +431,7 @@ fn configured_prompt_mode_controls_loaded_skill_detail() {
     let _lock = env_var_lock().lock().unwrap();
 
     let dir = tempfile::tempdir().unwrap();
-    let skill_dir = dir.path().join(".vibewindow").join("skills").join("detailed");
+    let skill_dir = dir.path().join(".shiju").join("skills").join("detailed");
     fs::create_dir_all(&skill_dir).unwrap();
     fs::write(
         skill_dir.join("SKILL.toml"),

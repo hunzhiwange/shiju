@@ -8,7 +8,7 @@ fn task_631_test_module_is_wired() {
     assert!(path.ends_with("skills_tests.rs"));
 }
 
-// 默认只读取 VibeWindow 技能目录，额外注入能力需显式开启。
+// 默认只读取 ShiJu 技能目录，额外注入能力需显式开启。
 #[test]
 fn skills_config_defaults_to_vibewindow_directory_provider() {
     let config = super::SkillsConfig::default();
@@ -112,13 +112,13 @@ fn skills_directory_provider_labels_match_display_and_all_order() {
     );
 
     let labels = providers.map(|provider| provider.label());
-    assert_eq!(labels, ["VibeWindow", "Codex", "Claude", "Cursor"]);
+    assert_eq!(labels, ["ShiJu", "Codex", "Claude", "Cursor"]);
 
     let display_labels = providers.map(|provider| provider.to_string());
     assert_eq!(
         display_labels,
         [
-            String::from("VibeWindow"),
+            String::from("ShiJu"),
             String::from("Codex"),
             String::from("Claude"),
             String::from("Cursor"),

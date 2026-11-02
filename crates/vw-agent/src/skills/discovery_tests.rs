@@ -109,17 +109,17 @@ fn skill_discovery_applies_source_precedence_and_dynamic_paths() {
     fs::create_dir_all(&workspace).unwrap();
 
     write_skill(
-        &repo.join(".vibewindow").join("skills").join("shared"),
+        &repo.join(".shiju").join("skills").join("shared"),
         "---\ndescription: Ancestor description\n---\n# Shared\n",
     );
     write_skill(
-        &workspace.join(".vibewindow").join("skills").join("shared"),
+        &workspace.join(".shiju").join("skills").join("shared"),
         "---\ndescription: Workspace description\n---\n# Shared\n",
     );
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(
-            workspace.join(".vibewindow").join("skills"),
+            workspace.join(".shiju").join("skills"),
             workspace.join("skills"),
         )
         .unwrap();
@@ -129,19 +129,12 @@ fn skill_discovery_applies_source_precedence_and_dynamic_paths() {
             .collect::<Vec<_>>();
         assert_eq!(workspace_sources.len(), 1, "real paths must only be discovered once");
     }
-    write_skill(&workspace.join(".vibewindow").join("skills").join("disabled"), "# Disabled\n");
-    fs::write(
-        workspace.join(".vibewindow").join("skills").join("disabled").join("SKILL.disabled"),
-        "",
-    )
-    .unwrap();
+    write_skill(&workspace.join(".shiju").join("skills").join("disabled"), "# Disabled\n");
+    fs::write(workspace.join(".shiju").join("skills").join("disabled").join("SKILL.disabled"), "")
+        .unwrap();
 
-    let nested = workspace
-        .join(".vibewindow")
-        .join("skills")
-        .join("collections")
-        .join("rust")
-        .join("nested");
+    let nested =
+        workspace.join(".shiju").join("skills").join("collections").join("rust").join("nested");
     write_skill(&nested, "---\ndescription: Nested skill\npaths: [\"src/*.rs\"]\n---\n# Nested\n");
 
     let initial = load_skills(&workspace);
@@ -154,7 +147,7 @@ fn skill_discovery_applies_source_precedence_and_dynamic_paths() {
     assert!(!nested.applies_to_path(Path::new("docs/readme.md")));
 
     write_skill(
-        &workspace.join(".vibewindow").join("skills").join("collections").join("newly-added"),
+        &workspace.join(".shiju").join("skills").join("collections").join("newly-added"),
         "---\ndescription: Added after first discovery\n---\n# New\n",
     );
     let rediscovered = load_skills(&workspace);

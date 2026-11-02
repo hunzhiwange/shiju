@@ -160,7 +160,7 @@ pub(super) fn scope_title(scope: SkillsDirectoryScope) -> &'static str {
 
 pub(super) fn provider_project_paths(provider: SkillsDirectoryProvider) -> &'static str {
     match provider {
-        SkillsDirectoryProvider::Vibewindow => ".vibewindow/skills、skills 与 .agents/skills",
+        SkillsDirectoryProvider::Vibewindow => ".shiju/skills、skills 与 .agents/skills",
         SkillsDirectoryProvider::Codex => ".codex/skills、.agents/skills 与 skills",
         SkillsDirectoryProvider::Claude => ".claude/skills、skills 与 .agents/skills",
         SkillsDirectoryProvider::Cursor => ".cursor/skills、skills 与 .agents/skills",

@@ -65,3 +65,48 @@ fn timezone_selection_updates_state_and_persists_config() {
     assert_eq!(app.chat_timezone, original);
     assert_eq!(last_persisted_timezone(), None);
 }
+
+#[test]
+fn desktop_language_selection_survives_reload() {
+    use vw_config_types::ui::{AppSystemSettingsConfig, DesktopLocale};
+    let mut app = App::new().0;
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let _ = update(
+            &mut app,
+            SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(locale)),
+        );
+        app.apply_bootstrap_system_settings(AppSystemSettingsConfig::default());
+        assert_eq!(app.desktop_locale, locale);
+    }
+}
+
+#[test]
+fn desktop_language_restores_and_reports_save_failure() {
+    use vw_config_types::ui::{AppSystemSettingsConfig, DesktopLocale};
+    let mut app = App::new().0;
+    app.apply_bootstrap_system_settings(AppSystemSettingsConfig {
+        desktop_locale: DesktopLocale::English,
+        ..Default::default()
+    });
+    assert_eq!(app.desktop_locale, DesktopLocale::English);
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(
+            DesktopLocale::TraditionalChinese,
+        )),
+    );
+    assert!(app.desktop_locale_saving);
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
+            DesktopLocale::TraditionalChinese,
+            Err("raw error".into()),
+        )),
+    );
+    assert!(!app.desktop_locale_saving);
+    assert!(app.active_toast.is_some());
+}

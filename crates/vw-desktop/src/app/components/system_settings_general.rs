@@ -2,7 +2,7 @@
 //!
 //! 本模块提供系统设置界面中通用配置项的视图渲染功能。
 //! 主要包括以下设置项：
-//! - 语言选择（当前固定为简体中文）
+//! - 桌面界面语言选择
 //! - 应用主题选择
 //! - 终端 Shell 选择
 //! - 终端主题选择
@@ -150,6 +150,27 @@ fn terminal_font_size_changed(font_size: f32) -> Message {
 /// // 返回的 Element 可直接用于 iced 应用的视图渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
+    let locales = ["简体中文", "繁體中文", "English"];
+    let locale_index = match app.desktop_locale {
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese => 0,
+        vw_config_types::ui::DesktopLocale::TraditionalChinese => 1,
+        vw_config_types::ui::DesktopLocale::English => 2,
+    };
+    let locale_pick = pick_list(locales, Some(locales[locale_index]), |label| {
+        let locale = match label {
+            "繁體中文" => vw_config_types::ui::DesktopLocale::TraditionalChinese,
+            "English" => vw_config_types::ui::DesktopLocale::English,
+            _ => vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        };
+        Message::Settings(message::SettingsMessage::General(
+            message::GeneralSettingsMessage::LocaleSelected(locale),
+        ))
+    })
+    .padding([10, 14])
+    .text_size(13)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style)
+    .width(Length::Fixed(280.0));
     let theme_pick =
         pick_list(app_theme_options(app), Some(app.app_theme.clone()), app_theme_selected)
             .padding([10, 14])
@@ -238,9 +259,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             settings_section_content(
                 column![
                     setting_row(
-                        "语言",
+                        crate::app::i18n::settings_text(
+                            app.desktop_locale,
+                            crate::app::i18n::SettingsText::Language
+                        ),
                         "当前桌面端使用的界面语言。",
-                        settings_value_badge("简体中文"),
+                        locale_pick,
                     ),
                     settings_divider(),
                     setting_row(

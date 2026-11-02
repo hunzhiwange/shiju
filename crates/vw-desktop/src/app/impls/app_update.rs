@@ -324,10 +324,13 @@ impl App {
         self.file_tree_expanded = file_tree_expanded;
     }
 
-    fn apply_bootstrap_system_settings(
+    pub(crate) fn apply_bootstrap_system_settings(
         &mut self,
         system: vw_config_types::ui::AppSystemSettingsConfig,
     ) {
+        if !self.desktop_locale_selected {
+            self.desktop_locale = system.desktop_locale;
+        }
         #[cfg(target_arch = "wasm32")]
         vw_provider_resolver::config::set_wasm_gateway_endpoint({
             let active = system.gateway_client.active_server();

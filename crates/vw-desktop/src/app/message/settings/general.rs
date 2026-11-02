@@ -27,6 +27,28 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     };
 
     match message {
+        GeneralSettingsMessage::LocaleSelected(locale) => {
+            app.desktop_locale = locale;
+            app.desktop_locale_selected = true;
+            if !app.desktop_locale_saving {
+                app.desktop_locale_saving = true;
+                return save_locale(locale);
+            }
+        }
+        GeneralSettingsMessage::LocaleSaved(locale, result) => {
+            app.desktop_locale_saving = false;
+            let feedback = match result {
+                Ok(()) => Task::none(),
+                Err(error) => {
+                    app.show_error_toast(crate::app::i18n::save_error(app.desktop_locale, &error))
+                }
+            };
+            if locale != app.desktop_locale {
+                app.desktop_locale_saving = true;
+                return Task::batch([feedback, save_locale(app.desktop_locale)]);
+            }
+            return feedback;
+        }
         GeneralSettingsMessage::TabSelected(tab) => {
             app.general_settings_tab = tab;
             if tab == crate::app::state::GeneralSettingsTab::Themes {
@@ -61,3 +83,16 @@ fn last_persisted_timezone() -> Option<String> {
 #[cfg(test)]
 #[path = "general_tests.rs"]
 mod general_tests;
+
+fn save_locale(locale: vw_config_types::ui::DesktopLocale) -> Task<Message> {
+    Task::perform(
+        crate::app::config::update_system_settings_config_result_async(move |system| {
+            system.desktop_locale = locale;
+        }),
+        move |result| {
+            Message::Settings(SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
+                locale, result,
+            )))
+        },
+    )
+}

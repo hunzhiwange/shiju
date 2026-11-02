@@ -628,6 +628,8 @@ pub enum QuickMessagesMessage {
 /// 系统设置页顶层消息。
 #[derive(Debug, Clone)]
 pub enum GeneralSettingsMessage {
+    LocaleSelected(vw_config_types::ui::DesktopLocale),
+    LocaleSaved(vw_config_types::ui::DesktopLocale, Result<(), String>),
     TabSelected(crate::app::state::GeneralSettingsTab),
     TimezoneSelected(String),
 }

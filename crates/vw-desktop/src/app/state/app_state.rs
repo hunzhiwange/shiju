@@ -626,6 +626,9 @@ pub struct App {
     /// 应用主题
     pub(crate) app_theme: Theme,
     /// 用于模型聊天时间上下文的 IANA 时区
+    pub(crate) desktop_locale: vw_config_types::ui::DesktopLocale,
+    pub(crate) desktop_locale_selected: bool,
+    pub(crate) desktop_locale_saving: bool,
     pub(crate) chat_timezone: String,
     /// 当前应用的自定义主题 id（配置键 `custom:<id>`）；内置主题时为 `None`
     pub(crate) active_custom_theme_id: Option<String>,

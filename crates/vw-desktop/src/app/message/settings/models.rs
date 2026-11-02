@@ -15,7 +15,7 @@ use super::messages::SettingsMessage;
 use super::types::ModelStatusChange;
 use super::util::{is_provider_connected, load_gateway_providers};
 
-fn summarize_models(
+pub(super) fn summarize_models(
     providers: std::collections::HashMap<String, Info>,
 ) -> Vec<ProviderModelsSummary> {
     let mut out = providers

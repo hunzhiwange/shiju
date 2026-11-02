@@ -119,6 +119,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::ProviderModelsSyncDone(res) => match res {
             Ok((providers, patterns, configured, catalog)) => {
+                app.model_settings.providers =
+                    super::super::models::summarize_models(providers.clone());
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(app, patterns);
@@ -140,6 +142,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::ProvidersRefreshed(res) => match res {
             Ok((providers, patterns, configured, catalog)) => {
                 app.provider_settings.loading = false;
+                app.model_settings.providers =
+                    super::super::models::summarize_models(providers.clone());
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(app, patterns);
@@ -227,6 +231,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::ProviderConnectDone(res) => match res {
             Ok((providers, patterns, configured, catalog)) => {
                 app.provider_settings.loading = false;
+                app.model_settings.providers =
+                    super::super::models::summarize_models(providers.clone());
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(app, patterns);
@@ -271,6 +277,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::ProviderDisconnectDone(res) => match res {
             Ok((providers, patterns, configured, catalog)) => {
                 app.provider_settings.loading = false;
+                app.model_settings.providers =
+                    super::super::models::summarize_models(providers.clone());
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(app, patterns);
@@ -652,6 +660,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Ok((providers, patterns, configured, catalog)) => {
                 app.provider_settings.loading = false;
                 app.provider_settings.custom_models_discovering = false;
+                app.model_settings.providers =
+                    super::super::models::summarize_models(providers.clone());
                 app.provider_settings.providers = summarize_providers(providers);
                 if configured {
                     replace_popular_patterns(app, patterns);

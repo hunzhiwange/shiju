@@ -640,3 +640,39 @@ fn model_detail_toggle_is_safe_without_modal_and_reversible_with_modal() {
     let _ = update(&mut app, SettingsMessage::ModelDetailClose);
     assert!(app.model_settings.detail_modal.is_none());
 }
+
+#[test]
+fn provider_changes_update_available_models_without_opening_model_settings() {
+    let mut app = app();
+    for message in [
+        SettingsMessage::CustomProviderSaveDone
+            as fn(super::super::types::ProvidersLoaded) -> SettingsMessage,
+        SettingsMessage::ProviderConnectDone,
+        SettingsMessage::ProvidersRefreshed,
+        SettingsMessage::ProviderModelsSyncDone,
+        SettingsMessage::ProviderDisconnectDone,
+    ] {
+        let providers = HashMap::from([(
+            "custom".to_string(),
+            provider(
+                "custom",
+                "Custom",
+                ProviderSource::Api,
+                None,
+                vec![model("custom", "latest", "Latest", "active")],
+            ),
+        )]);
+        let _ = super::super::providers::update(
+            &mut app,
+            message(Ok((providers, Vec::new(), false, Vec::new()))),
+        );
+        assert_eq!(app.model_settings.providers[0].models[0].id, "latest");
+        assert!(app.model_settings.providers[0].models[0].enabled);
+
+        let _ = super::super::providers::update(
+            &mut app,
+            message(Ok((HashMap::new(), Vec::new(), false, Vec::new()))),
+        );
+        assert!(app.model_settings.providers.is_empty());
+    }
+}

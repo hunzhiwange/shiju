@@ -58,7 +58,7 @@ fn rule_input_from_config(rule: ClassificationRule) -> QueryClassificationRuleIn
     }
 }
 
-fn validate(app: &App) -> Result<(), String> {
+fn validation_message(app: &App) -> Result<(), crate::app::i18n::format::Message> {
     for (idx, rule) in app.query_classification_settings.rules.iter().enumerate() {
         let pattern = rule.pattern.trim();
         let category = rule.category.trim();
@@ -68,13 +68,22 @@ fn validate(app: &App) -> Result<(), String> {
             continue;
         }
         if pattern.is_empty() {
-            return Err(format!("第 {} 条分类规则缺少 pattern", idx + 1));
+            return Err(crate::app::i18n::format::Message::new(
+                "第 %u 条分类规则缺少 pattern",
+                vec![(idx + 1).into()],
+            ));
         }
         if category.is_empty() {
-            return Err(format!("第 {} 条分类规则缺少 category", idx + 1));
+            return Err(crate::app::i18n::format::Message::new(
+                "第 %u 条分类规则缺少 category",
+                vec![(idx + 1).into()],
+            ));
         }
         if !priority.is_empty() && priority.parse::<i32>().is_err() {
-            return Err(format!("第 {} 条分类规则的 priority 不是有效数字", idx + 1));
+            return Err(crate::app::i18n::format::Message::new(
+                "第 %u 条分类规则的 priority 不是有效数字",
+                vec![(idx + 1).into()],
+            ));
         }
     }
     Ok(())
@@ -96,17 +105,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.query_classification_settings.rules =
                 cfg.rules.into_iter().map(rule_input_from_config).collect();
             app.query_classification_settings.save_error = None;
+            app.query_classification_settings.save_error_translation = None;
             Task::none()
         }
         QueryClassificationMessage::EnabledToggled(value) => {
             app.query_classification_settings.enabled = value;
             app.query_classification_settings.save_error = None;
+            app.query_classification_settings.save_error_translation = None;
             sync_to_config(app);
             Task::none()
         }
         QueryClassificationMessage::AddRule => {
             app.query_classification_settings.rules.push(Default::default());
             app.query_classification_settings.save_error = None;
+            app.query_classification_settings.save_error_translation = None;
             sync_to_config(app);
             Task::none()
         }
@@ -115,6 +127,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.query_classification_settings.rules.remove(idx);
             }
             app.query_classification_settings.save_error = None;
+            app.query_classification_settings.save_error_translation = None;
             sync_to_config(app);
             Task::none()
         }
@@ -122,12 +135,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if let Some(rule) = app.query_classification_settings.rules.get_mut(idx) {
                 rule.pattern = value;
             }
-            match validate(app) {
+            match validation_message(app) {
                 Ok(()) => {
                     app.query_classification_settings.save_error = None;
+                    app.query_classification_settings.save_error_translation = None;
                     sync_to_config(app);
                 }
-                Err(err) => app.query_classification_settings.save_error = Some(err),
+                Err(err) => {
+                    app.query_classification_settings.save_error = Some(
+                        err.render(crate::app::i18n::I18n::new(
+                            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        ))
+                        .expect("valid classification error template"),
+                    );
+                    app.query_classification_settings.save_error_translation = Some(err);
+                }
             }
             Task::none()
         }
@@ -135,12 +157,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if let Some(rule) = app.query_classification_settings.rules.get_mut(idx) {
                 rule.category = value;
             }
-            match validate(app) {
+            match validation_message(app) {
                 Ok(()) => {
                     app.query_classification_settings.save_error = None;
+                    app.query_classification_settings.save_error_translation = None;
                     sync_to_config(app);
                 }
-                Err(err) => app.query_classification_settings.save_error = Some(err),
+                Err(err) => {
+                    app.query_classification_settings.save_error = Some(
+                        err.render(crate::app::i18n::I18n::new(
+                            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        ))
+                        .expect("valid classification error template"),
+                    );
+                    app.query_classification_settings.save_error_translation = Some(err);
+                }
             }
             Task::none()
         }
@@ -148,12 +179,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if let Some(rule) = app.query_classification_settings.rules.get_mut(idx) {
                 rule.priority_input = value;
             }
-            match validate(app) {
+            match validation_message(app) {
                 Ok(()) => {
                     app.query_classification_settings.save_error = None;
+                    app.query_classification_settings.save_error_translation = None;
                     sync_to_config(app);
                 }
-                Err(err) => app.query_classification_settings.save_error = Some(err),
+                Err(err) => {
+                    app.query_classification_settings.save_error = Some(
+                        err.render(crate::app::i18n::I18n::new(
+                            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                        ))
+                        .expect("valid classification error template"),
+                    );
+                    app.query_classification_settings.save_error_translation = Some(err);
+                }
             }
             Task::none()
         }
@@ -162,3 +202,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "query_classification_tests.rs"]
 mod query_classification_tests;
+
+#[cfg(test)]
+fn validate(app: &App) -> Result<(), String> {
+    validation_message(app).map_err(|message| {
+        message
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .expect("valid classification error template")
+    })
+}

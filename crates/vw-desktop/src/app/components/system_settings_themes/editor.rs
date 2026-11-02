@@ -584,14 +584,27 @@ fn asset_picker_row<'a>(
     field_row(label, description, controls)
 }
 
-fn zone_image_fit_pick_list<'a>(value: &'a str, field: ThemeChromeField) -> Element<'a, Message> {
+fn zone_image_fit_pick_list<'a>(
+    locale: vw_config_types::ui::DesktopLocale,
+    value: &'a str,
+    field: ThemeChromeField,
+) -> Element<'a, Message> {
     let selected = PanelImageFit::parse(Some(value)).unwrap_or_default();
-    pick_list(PanelImageFit::ALL, Some(selected), move |fit| {
-        Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
-            field,
-            fit.as_str().to_string(),
-        )))
-    })
+    let i18n = crate::app::i18n::I18n::new(locale);
+    pick_list(
+        PanelImageFit::ALL.map(|fit| i18n.__(fit.label())),
+        Some(i18n.__(selected.label())),
+        move |label| {
+            let fit = PanelImageFit::ALL
+                .into_iter()
+                .find(|fit| i18n.__(fit.label()) == label)
+                .expect("selected image fit belongs to supplied options");
+            Message::Settings(SettingsMessage::Themes(ThemesMessage::DraftChromeChanged(
+                field,
+                fit.as_str().to_string(),
+            )))
+        },
+    )
     .padding([8, 12])
     .text_size(13)
     .width(Length::Fill)
@@ -662,7 +675,7 @@ fn zone_asset_card<'a>(
         field_row(
             crate::app::i18n::I18n::new(locale).__("图缩放"),
             crate::app::i18n::I18n::new(locale).__("本分区背景图 ContentFit；默认覆盖裁剪。"),
-            zone_image_fit_pick_list(fit_value, fit_field),
+            zone_image_fit_pick_list(locale, fit_value, fit_field),
         ),
     ]
     .spacing(4)

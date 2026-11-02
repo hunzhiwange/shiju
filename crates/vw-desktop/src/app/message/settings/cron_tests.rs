@@ -62,7 +62,7 @@ fn format_run_history_text_formats_multiple_runs_and_missing_values() {
     let runs = vec![run(1, Some("hello"), Some(12)), run(2, None, None)];
 
     assert_eq!(
-        format_run_history_text(&runs),
+        format_run_history_text(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &runs),
         concat!(
             "#1\n状态: ok\n开始: start-1\n结束: end-1\n",
             "耗时: 12 ms\n输出:\nhello\n\n",
@@ -70,7 +70,10 @@ fn format_run_history_text_formats_multiple_runs_and_missing_values() {
             "耗时: 无\n输出:\n无输出"
         )
     );
-    assert_eq!(format_run_history_text(&[]), "");
+    assert_eq!(
+        format_run_history_text(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &[]),
+        ""
+    );
 }
 
 #[test]

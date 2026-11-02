@@ -183,6 +183,8 @@ fn add_list_item(app: &mut App, kind: AutonomyListKind) -> Task<Message> {
     };
 
     if let Some(error) = error {
+        app.autonomy_settings.save_error_translation =
+            Some(crate::app::i18n::format::Message::new(error.clone(), vec![]));
         app.autonomy_settings.save_error = Some(error);
         return Task::none();
     }
@@ -190,6 +192,7 @@ fn add_list_item(app: &mut App, kind: AutonomyListKind) -> Task<Message> {
     app.autonomy_settings.list_mut(kind).push(value);
     app.autonomy_settings.list_editor.set_draft(kind, String::new());
     app.autonomy_settings.save_error = None;
+    app.autonomy_settings.save_error_translation = None;
     persist_autonomy_settings(app)
 }
 
@@ -199,12 +202,15 @@ fn remove_list_item(app: &mut App, kind: AutonomyListKind, index: usize) -> Task
     }
     app.autonomy_settings.list_editor.cancel_remove();
     if index >= app.autonomy_settings.list(kind).len() {
+        app.autonomy_settings.save_error_translation =
+            Some(crate::app::i18n::format::Message::new("要删除的列表项不存在", vec![]));
         app.autonomy_settings.save_error = Some("要删除的列表项不存在".to_string());
         return Task::none();
     }
 
     app.autonomy_settings.list_mut(kind).remove(index);
     app.autonomy_settings.save_error = None;
+    app.autonomy_settings.save_error_translation = None;
     persist_autonomy_settings(app)
 }
 
@@ -272,6 +278,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyLevelChanged(v) => {
             app.autonomy_settings.level = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -279,12 +286,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyWorkspaceOnlyToggled(v) => {
             app.autonomy_settings.workspace_only = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
         SettingsMessage::AutonomyListDraftChanged(kind, value) => {
             app.autonomy_settings.list_editor.set_draft(kind, value);
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             Task::none()
         }
 
@@ -310,6 +319,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyMaxActionsPerHourChanged(v) => {
             app.autonomy_settings.max_actions_per_hour = v.clamp(1, 1_000_000);
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -317,6 +327,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyMaxCostPerDayCentsChanged(v) => {
             app.autonomy_settings.max_cost_per_day_cents = v.clamp(1, 100_000_000);
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -324,6 +335,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(v) => {
             app.autonomy_settings.require_approval_for_medium_risk = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -331,6 +343,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyBlockHighRiskCommandsToggled(v) => {
             app.autonomy_settings.block_high_risk_commands = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -338,6 +351,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyShellRedirectPolicyChanged(v) => {
             app.autonomy_settings.shell_redirect_policy = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -345,6 +359,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyNonCliApprovalApproversChanged(v) => {
             app.autonomy_settings.non_cli_approval_approvers_input = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -352,6 +367,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeChanged(v) => {
             app.autonomy_settings.non_cli_natural_language_approval_mode = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
@@ -359,12 +375,14 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::AutonomyNonCliNaturalLanguageApprovalModeByChannelChanged(v) => {
             app.autonomy_settings.non_cli_natural_language_approval_mode_by_channel_input = v;
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 
         // 手动保存设置
         SettingsMessage::AutonomySave => {
             app.autonomy_settings.save_error = None;
+            app.autonomy_settings.save_error_translation = None;
             persist_autonomy_settings(app)
         }
 

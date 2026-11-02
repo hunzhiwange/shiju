@@ -144,8 +144,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     if let Some(error) = active_save_error(app) {
-        sections = sections
-            .push(settings_error_banner(crate::app::i18n::I18n::new(app.desktop_locale).__(error)));
+        sections = sections.push(settings_error_banner(
+            if app.system_settings_tab == SystemTab::Browser {
+                app.browser_settings
+                    .save_error_translation
+                    .as_ref()
+                    .map(|message| {
+                        message
+                            .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                            .expect("valid browser error template")
+                    })
+                    .unwrap_or_else(|| error.to_string())
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__(error).to_string()
+            },
+        ));
     }
 
     sections.push(content).into()

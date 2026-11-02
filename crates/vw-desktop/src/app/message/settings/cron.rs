@@ -43,7 +43,10 @@ fn cron_mutation_task(
     })
 }
 
-fn format_run_history_text(runs: &[vw_gateway_client::CronRunDto]) -> String {
+fn format_run_history_text(
+    locale: vw_config_types::ui::DesktopLocale,
+    runs: &[vw_gateway_client::CronRunDto],
+) -> String {
     let mut text = String::new();
 
     for (index, run) in runs.iter().enumerate() {
@@ -51,16 +54,39 @@ fn format_run_history_text(runs: &[vw_gateway_client::CronRunDto]) -> String {
             text.push_str("\n\n");
         }
 
-        let duration =
-            run.duration_ms.map(|value| format!("{value} ms")).unwrap_or_else(|| "无".to_string());
-        let output = run.output.as_deref().unwrap_or("无输出");
+        let duration = run
+            .duration_ms
+            .map(|value| format!("{value} ms"))
+            .unwrap_or_else(|| crate::app::i18n::I18n::new(locale).__("无").to_string());
+        let output =
+            run.output.as_deref().unwrap_or(crate::app::i18n::I18n::new(locale).__("无输出"));
 
         let _ = writeln!(text, "#{}", index + 1);
-        let _ = writeln!(text, "状态: {}", run.status);
-        let _ = writeln!(text, "开始: {}", run.started_at);
-        let _ = writeln!(text, "结束: {}", run.finished_at);
-        let _ = writeln!(text, "耗时: {duration}");
-        let _ = writeln!(text, "输出:");
+        let _ = writeln!(
+            text,
+            "{}",
+            crate::__!(crate::app::i18n::I18n::new(locale), "状态: %s", run.status.as_str())
+                .expect("valid history template")
+        );
+        let _ = writeln!(
+            text,
+            "{}",
+            crate::__!(crate::app::i18n::I18n::new(locale), "开始: %s", run.started_at.as_str())
+                .expect("valid history template")
+        );
+        let _ = writeln!(
+            text,
+            "{}",
+            crate::__!(crate::app::i18n::I18n::new(locale), "结束: %s", run.finished_at.as_str())
+                .expect("valid history template")
+        );
+        let _ = writeln!(
+            text,
+            "{}",
+            crate::__!(crate::app::i18n::I18n::new(locale), "耗时: %s", duration.as_str())
+                .expect("valid history duration template")
+        );
+        let _ = writeln!(text, "{}", crate::app::i18n::I18n::new(locale).__("输出:"));
         text.push_str(output);
     }
 
@@ -120,16 +146,19 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CronEnabledToggled(v) => {
             app.cron_settings.enabled = v;
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             persist_cron_settings(app)
         }
         SettingsMessage::CronMaxRunHistoryChanged(v) => {
             app.cron_settings.max_run_history = v.clamp(1, 10_000);
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             persist_cron_settings(app)
         }
         SettingsMessage::CronTabSelected(tab) => {
             app.cron_settings.active_tab = tab;
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             app.cron_settings.action_status = None;
             if tab == CronSettingsTab::Jobs {
                 app.cron_settings.jobs_loading = true;
@@ -141,6 +170,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::CronJobsRefresh => {
             app.cron_settings.jobs_loading = true;
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             app.cron_settings.action_status = None;
             refresh_cron_jobs_task()
         }
@@ -150,6 +180,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(jobs) => {
                     app.cron_settings.jobs = jobs;
                     app.cron_settings.save_error = None;
+                    app.cron_settings.save_error_translation = None;
                     app.cron_settings
                         .selected_job_ids
                         .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
@@ -158,6 +189,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         .retain(|id| app.cron_settings.jobs.iter().any(|job| job.id == *id));
                 }
                 Err(err) => {
+                    app.cron_settings.save_error_translation = None;
                     app.cron_settings.save_error = Some(err);
                 }
             }
@@ -208,7 +240,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.cron_settings.runs_modal_loading = false;
             match result {
                 Ok(runs) => {
-                    let history_text = format_run_history_text(&runs);
+                    let history_text = format_run_history_text(app.desktop_locale, &runs);
                     app.cron_settings.runs_modal = runs;
                     app.cron_settings.runs_modal_editor =
                         text_editor::Content::with_text(&history_text);
@@ -281,6 +313,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.cron_settings.edit_draft.delivery_best_effort = job.delivery_best_effort;
                 app.cron_settings.edit_draft.delete_after_run = job.delete_after_run;
                 app.cron_settings.save_error = None;
+                app.cron_settings.save_error_translation = None;
                 app.cron_settings.action_status = None;
             }
             Task::none()
@@ -420,10 +453,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobEditSave => {
             let Some(job_id) = app.cron_settings.editing_job_id.clone() else {
+                app.cron_settings.save_error_translation =
+                    Some(crate::app::i18n::format::Message::new("没有正在编辑的定时任务", vec![]));
                 app.cron_settings.save_error = Some("没有正在编辑的定时任务".to_string());
                 return Task::none();
             };
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task(
                 "定时任务已更新",
                 update_cron_job_async(
@@ -455,6 +491,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobEnabledChanged(job_id, enabled) => {
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task(
                 if enabled { "定时任务已启用" } else { "定时任务已禁用" },
                 set_cron_job_enabled_async(job_id, enabled),
@@ -462,33 +499,46 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronJobDelete(job_id) => {
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task("定时任务已删除", delete_cron_job_async(job_id))
         }
         SettingsMessage::CronSelectedJobsEnable => {
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
+                app.cron_settings.save_error_translation = Some(
+                    crate::app::i18n::format::Message::new("请先选择要启用的定时任务", vec![]),
+                );
                 app.cron_settings.save_error = Some("请先选择要启用的定时任务".to_string());
                 return Task::none();
             }
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task("选中的定时任务已启用", set_cron_jobs_enabled_async(job_ids, true))
         }
         SettingsMessage::CronSelectedJobsDisable => {
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
+                app.cron_settings.save_error_translation = Some(
+                    crate::app::i18n::format::Message::new("请先选择要禁用的定时任务", vec![]),
+                );
                 app.cron_settings.save_error = Some("请先选择要禁用的定时任务".to_string());
                 return Task::none();
             }
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task("选中的定时任务已禁用", set_cron_jobs_enabled_async(job_ids, false))
         }
         SettingsMessage::CronSelectedJobsDelete => {
             let job_ids = app.cron_settings.selected_job_ids.clone();
             if job_ids.is_empty() {
+                app.cron_settings.save_error_translation = Some(
+                    crate::app::i18n::format::Message::new("请先选择要删除的定时任务", vec![]),
+                );
                 app.cron_settings.save_error = Some("请先选择要删除的定时任务".to_string());
                 return Task::none();
             }
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task("选中的定时任务已删除", delete_cron_jobs_async(job_ids))
         }
         SettingsMessage::CronAddNameChanged(value) => {
@@ -624,6 +674,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::CronAddSubmit => {
             app.cron_settings.save_error = None;
+            app.cron_settings.save_error_translation = None;
             cron_mutation_task(
                 "定时任务已新增",
                 add_cron_job_async(
@@ -656,6 +707,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Ok(message) => {
                 app.cron_settings.action_status = Some(message);
                 app.cron_settings.save_error = None;
+                app.cron_settings.save_error_translation = None;
                 app.cron_settings.editing_job_id = None;
                 app.cron_settings.edit_draft = Default::default();
                 app.cron_settings.add_draft = Default::default();
@@ -663,6 +715,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 refresh_cron_jobs_task()
             }
             Err(err) => {
+                app.cron_settings.save_error_translation = None;
                 app.cron_settings.save_error = Some(err);
                 Task::none()
             }
@@ -678,4 +731,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         _ => Task::none(),
     }
+}
+
+pub(crate) fn refresh_run_history_locale(app: &mut App) {
+    let text = format_run_history_text(app.desktop_locale, &app.cron_settings.runs_modal);
+    app.cron_settings.runs_modal_editor = text_editor::Content::with_text(&text);
 }

@@ -510,6 +510,7 @@ pub(crate) struct QueryClassificationSettingsState {
     pub(crate) rules: Vec<QueryClassificationRuleInput>,
     /// 保存错误信息。
     pub(crate) save_error: Option<String>,
+    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
 }
 
 /// 心跳设置面板状态
@@ -707,6 +708,7 @@ pub(crate) struct CronSettingsState {
     pub(crate) show_help_modal: bool,
     /// 保存错误信息
     pub(crate) save_error: Option<String>,
+    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
     /// 最近一次任务操作提示。
     pub(crate) action_status: Option<String>,
 }
@@ -731,6 +733,7 @@ impl Default for CronSettingsState {
             runs_modal_editor: text_editor::Content::new(),
             show_help_modal: false,
             save_error: None,
+            save_error_translation: None,
             action_status: None,
         }
     }

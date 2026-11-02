@@ -29,6 +29,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         GeneralSettingsMessage::LocaleSelected(locale) => {
             app.desktop_locale = locale;
+            super::cron::refresh_run_history_locale(app);
             app.desktop_locale_selected = true;
             if !app.desktop_locale_saving {
                 app.desktop_locale_saving = true;

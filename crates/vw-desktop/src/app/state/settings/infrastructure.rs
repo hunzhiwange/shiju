@@ -553,6 +553,7 @@ pub(crate) struct AutonomySettingsState {
     pub(crate) show_help_modal: bool,
     /// 保存错误信息
     pub(crate) save_error: Option<String>,
+    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -611,6 +612,7 @@ impl AutonomySettingsState {
                 .join(", "),
             show_help_modal: false,
             save_error: None,
+            save_error_translation: None,
         }
     }
 

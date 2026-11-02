@@ -139,6 +139,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ModelConfigTab::ModelRoutes => {
                 app.model_routes_settings.save_error.as_ref().map(|e| e.display(app.desktop_locale))
             }
+            ModelConfigTab::QueryClassification => Some(
+                app.query_classification_settings
+                    .save_error_translation
+                    .as_ref()
+                    .map(|message| {
+                        message
+                            .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                            .expect("valid classification error template")
+                    })
+                    .unwrap_or_else(|| error.to_string()),
+            ),
             _ => Some(error.to_string()),
         };
         if let Some(message) = message {

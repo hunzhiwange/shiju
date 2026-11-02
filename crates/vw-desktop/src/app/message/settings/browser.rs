@@ -138,6 +138,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 
     if matches!(message, BrowserMessage::Refresh) {
         app.browser_settings.save_error = None;
+        app.browser_settings.save_error_translation = None;
         return Task::none();
     }
 
@@ -201,11 +202,39 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match persist_browser_settings(app) {
         Ok(task) => {
             app.browser_settings.save_error = None;
+            app.browser_settings.save_error_translation = None;
             task
         }
         Err(err) => {
+            app.browser_settings.save_error_translation = browser_validation_message(app);
             app.browser_settings.save_error = Some(err);
             Task::none()
         }
     }
+}
+
+fn browser_validation_message(app: &App) -> Option<crate::app::i18n::format::Message> {
+    let s = &app.browser_settings;
+    if parse_timeout_ms(&s.computer_use_timeout_ms_input).is_err() {
+        return Some(crate::app::i18n::format::Message::new(
+            if s.computer_use_timeout_ms_input.trim() == "0" {
+                "浏览器超时（computer_use.timeout_ms）必须大于 0"
+            } else {
+                "浏览器超时（computer_use.timeout_ms）必须是正整数"
+            },
+            vec![],
+        ));
+    }
+    for (input, field) in [
+        (&s.computer_use_max_coordinate_x_input, "computer_use.max_coordinate_x"),
+        (&s.computer_use_max_coordinate_y_input, "computer_use.max_coordinate_y"),
+    ] {
+        if parse_optional_i64(input, field).is_err() {
+            return Some(crate::app::i18n::format::Message::new(
+                "%s 必须是整数",
+                vec![field.into()],
+            ));
+        }
+    }
+    None
 }

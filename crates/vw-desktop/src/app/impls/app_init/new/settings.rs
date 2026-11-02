@@ -85,6 +85,7 @@ pub(super) fn build_query_classification_settings(
             })
             .collect(),
         save_error: None,
+        save_error_translation: None,
     }
 }
 
@@ -131,6 +132,7 @@ pub(super) fn build_cron_settings(
         runs_modal_editor: iced::widget::text_editor::Content::new(),
         show_help_modal: false,
         save_error: None,
+        save_error_translation: None,
         action_status: None,
     }
 }
@@ -330,6 +332,7 @@ pub(super) fn build_browser_settings(
             .map(|value| value.to_string())
             .unwrap_or_default(),
         save_error: None,
+        save_error_translation: None,
     }
 }
 

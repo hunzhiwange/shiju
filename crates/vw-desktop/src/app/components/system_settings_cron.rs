@@ -6,11 +6,11 @@ use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, SETTINGS_LABEL_WIDTH,
     danger_action_btn_style, primary_action_btn_style, rounded_action_btn_style,
     settings_checkbox_style, settings_close_button, settings_divider, settings_error_banner,
-    settings_help_button, settings_modal_card, settings_modal_overlay, settings_muted_text_style,
-    settings_page_intro, settings_panel, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_section_content, settings_segment_button_style,
-    settings_success_banner, settings_text_editor_style, settings_text_input_style,
-    settings_value_badge,
+    settings_help_button_with_locale as settings_help_button, settings_modal_card,
+    settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_section_content, settings_segment_button_style, settings_success_banner,
+    settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{CronAddJobType, CronAddScheduleKind, CronSettingsTab};
@@ -295,7 +295,9 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
         .as_deref()
         .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("未运行"));
     let next_run = format_cron_datetime(&job.next_run);
-    let last_run = format_optional_cron_datetime(job.last_run.as_deref());
+    let last_run = crate::app::i18n::I18n::new(app.desktop_locale)
+        .__(&format_optional_cron_datetime(job.last_run.as_deref()))
+        .to_string();
     let delivery_label = if job.delivery_mode == "announce" {
         crate::app::i18n::I18n::new(app.desktop_locale).__("投递")
     } else {
@@ -365,8 +367,8 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
         .spacing(10),
         row![
             text(crate::app::i18n::I18n::new(app.desktop_locale).__("执行选项")).size(12).style(settings_muted_text_style),
-            text(format!(
-                "agent: {} / acp: {} / model: {} / fallbacks: {} / full-access: {} / task-pool: {} / wake: {} / delete-after-run: {}",
+            text(crate::__!(crate::app::i18n::I18n::new(app.desktop_locale),
+                "代理：%s / ACP：%s / 模型：%s / 回退：%u / 完全访问：%s / 任务池：%s / 唤醒：%s / 执行后删除：%s",
                 job.agent.as_deref().unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("默认")),
                 job.acp_agent
                     .as_deref()
@@ -379,7 +381,7 @@ fn job_row<'a>(app: &'a App, job: &'a CronJobDto) -> Element<'a, Message> {
                 if job.task_pool { crate::app::i18n::I18n::new(app.desktop_locale).__("是") } else { crate::app::i18n::I18n::new(app.desktop_locale).__("否") },
                 if job.wake { crate::app::i18n::I18n::new(app.desktop_locale).__("是") } else { crate::app::i18n::I18n::new(app.desktop_locale).__("否") },
                 if job.delete_after_run { crate::app::i18n::I18n::new(app.desktop_locale).__("是") } else { crate::app::i18n::I18n::new(app.desktop_locale).__("否") },
-            ))
+            ).expect("valid cron execution summary template"))
             .size(12),
         ]
         .spacing(10),
@@ -1370,7 +1372,10 @@ fn add_tab(app: &App) -> Element<'_, Message> {
 
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.cron_settings;
-    let help_btn = settings_help_button(Message::Settings(message::SettingsMessage::CronHelpOpen));
+    let help_btn = settings_help_button(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::CronHelpOpen),
+    );
     let tabs = CRON_TABS.iter().fold(row![].spacing(8), |row, descriptor| {
         row.push(tab_button(
             descriptor.tab,
@@ -1405,12 +1410,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     if let Some(error) = active_save_error(app) {
-        col = col.push(settings_error_banner(error));
+        col = col.push(settings_error_banner(
+            app.cron_settings
+                .save_error_translation
+                .as_ref()
+                .map(|message| {
+                    message
+                        .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid cron error template")
+                })
+                .unwrap_or_else(|| error.to_string()),
+        ));
     }
     col = col.push(tab_content);
 
     if let Some(status) = &s.action_status {
-        col = col.push(settings_success_banner(status));
+        col = col.push(settings_success_banner(
+            crate::app::i18n::I18n::new(app.desktop_locale).__(status).to_string(),
+        ));
     }
 
     col.into()

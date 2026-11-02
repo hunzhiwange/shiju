@@ -99,7 +99,7 @@ fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
         );
         let copy_btn = icon_btn(
             copy_icon,
-            copy_tip,
+            crate::app::i18n::I18n::new(app.desktop_locale).__(copy_tip),
             Some(Message::CopyCode(
                 crate::app::i18n::I18n::new(app.desktop_locale).__(SCHEDULER_HELP).to_string(),
             )),

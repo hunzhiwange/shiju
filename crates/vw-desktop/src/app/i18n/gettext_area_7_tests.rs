@@ -143,3 +143,103 @@ async fn desktop_gettext_area_7_theme_delete_guard_retains_localized_feedback() 
         format!("內建主題 `{name}` 不可刪除")
     );
 }
+
+#[test]
+fn desktop_gettext_area_7_all_help_documents_have_complete_catalog_entries() {
+    let en = super::catalog::parse_catalog(include_str!("locales/en.json")).unwrap();
+    let tw = super::catalog::parse_catalog(include_str!("locales/zh-TW.json")).unwrap();
+    let mut count = 0;
+    for source in [
+        include_str!("../components/system_settings_help.rs"),
+        include_str!("../components/system_settings_autonomy.rs"),
+        include_str!("../components/system_settings_cron.rs"),
+        include_str!("../components/system_settings_heartbeat.rs"),
+        include_str!("../components/system_settings_proxy.rs"),
+        include_str!("../components/system_settings_reliability.rs"),
+        include_str!("../components/system_settings_scheduler.rs"),
+    ] {
+        for block in source.split("r#\"").skip(1) {
+            let key = block.split("\"#").next().unwrap();
+            assert!(en.contains_key(key), "missing English help: {key}");
+            assert!(tw.contains_key(key), "missing Traditional Chinese help: {key}");
+            assert_eq!(I18n::new(DesktopLocale::SimplifiedChinese).__(key), key);
+            assert_ne!(I18n::new(DesktopLocale::English).__(key), key);
+            count += 1;
+        }
+    }
+    assert_eq!(count, 20);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_7_local_validation_feedback_switches_language() {
+    use crate::app::message::settings::{
+        BrowserMessage, QueryClassificationMessage, SettingsMessage,
+    };
+    let (mut app, _) = crate::app::App::new();
+    let _ = crate::app::message::settings::update(
+        &mut app,
+        SettingsMessage::Browser(BrowserMessage::ComputerUseTimeoutMsChanged("0".into())),
+    );
+    assert_eq!(
+        app.browser_settings
+            .save_error_translation
+            .as_ref()
+            .unwrap()
+            .render(I18n::new(DesktopLocale::English))
+            .unwrap(),
+        "computer_use.timeout_ms must be greater than 0"
+    );
+    app.query_classification_settings.rules =
+        vec![crate::app::state::QueryClassificationRuleInput {
+            pattern: String::new(),
+            category: "raw/%s".into(),
+            priority_input: "1".into(),
+        }];
+    let _ = crate::app::message::settings::update(
+        &mut app,
+        SettingsMessage::QueryClassification(QueryClassificationMessage::PatternChanged(
+            0,
+            String::new(),
+        )),
+    );
+    assert_eq!(
+        app.query_classification_settings
+            .save_error_translation
+            .as_ref()
+            .unwrap()
+            .render(I18n::new(DesktopLocale::English))
+            .unwrap(),
+        "Classification rule 1 is missing a pattern"
+    );
+    assert_eq!(app.query_classification_settings.rules[0].category, "raw/%s");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_7_history_rebuilds_on_locale_selection_without_translating_output() {
+    use crate::app::message::settings::{GeneralSettingsMessage, SettingsMessage};
+    let (mut app, _) = crate::app::App::new();
+    let raw = "原始输出/%s/%n";
+    app.cron_settings.runs_modal = vec![vw_gateway_client::CronRunDto {
+        id: 1,
+        job_id: "job".into(),
+        started_at: "start".into(),
+        finished_at: "end".into(),
+        status: "raw-status".into(),
+        output: Some(raw.into()),
+        duration_ms: None,
+    }];
+    for (locale, label) in [
+        (DesktopLocale::English, "Status: raw-status"),
+        (DesktopLocale::TraditionalChinese, "狀態：raw-status"),
+        (DesktopLocale::SimplifiedChinese, "状态: raw-status"),
+    ] {
+        let _ = crate::app::message::settings::update(
+            &mut app,
+            SettingsMessage::General(GeneralSettingsMessage::LocaleSelected(locale)),
+        );
+        let text = app.cron_settings.runs_modal_editor.text();
+        assert!(text.contains(label), "{text}");
+        assert!(text.ends_with(raw));
+        assert_eq!(app.cron_settings.runs_modal[0].output.as_deref(), Some(raw));
+    }
+}

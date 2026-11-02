@@ -727,7 +727,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     if let Some(error) = s.save_error.as_deref() {
-        col = col.push(settings_error_banner(error));
+        col = col.push(settings_error_banner(
+            s.save_error_translation
+                .as_ref()
+                .map(|message| {
+                    message
+                        .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid autonomy error template")
+                })
+                .unwrap_or_else(|| error.to_string()),
+        ));
     }
 
     col.push(section).push(panel).into()

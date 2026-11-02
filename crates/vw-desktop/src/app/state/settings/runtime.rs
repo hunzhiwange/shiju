@@ -299,6 +299,7 @@ pub(crate) struct BrowserSettingsState {
     pub(crate) computer_use_max_coordinate_x_input: String,
     pub(crate) computer_use_max_coordinate_y_input: String,
     pub(crate) save_error: Option<String>,
+    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
 }
 
 impl Default for BrowserSettingsState {
@@ -321,6 +322,7 @@ impl Default for BrowserSettingsState {
             computer_use_max_coordinate_x_input: String::new(),
             computer_use_max_coordinate_y_input: String::new(),
             save_error: None,
+            save_error_translation: None,
         }
     }
 }

@@ -43,7 +43,11 @@ fn refresh(app: &mut App) -> Task<Message> {
                 error = %err,
                 "failed to seed bundled theme presets"
             );
-            toast = app.show_warning_toast(format!("内置预设主题同步失败: {err}"));
+            toast = app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "内置预设主题同步失败: %s",
+                vec![err.to_string().into()],
+            );
         }
     }
     refresh_gallery_state(app);
@@ -348,10 +352,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(installed) => {
                     refresh_gallery_state(app);
                     if let Some(error) = app.themes_settings.error.clone() {
-                        return app.show_error_toast(format!(
-                            "主题包已导入为 `{}`，但刷新画廊失败: {error}",
-                            installed.id
-                        ));
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "主题包已导入为 `%s`，但刷新画廊失败: %s",
+                            vec![installed.id.to_string().into(), error.into()],
+                        );
                     }
                     app.show_localized_toast(
                         crate::app::state::ToastKind::Success,
@@ -735,6 +740,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return theme_error(app, "没有可保存的主题草稿", vec![]);
             };
 
+            if draft.name.trim().is_empty() {
+                return theme_error(app, "主题名称不能为空", vec![]);
+            }
             if let Some(builtin_name) = draft.builtin_base.clone() {
                 let Some(root) = current_themes_root() else {
                     return theme_error(app, "无法定位主题仓库", vec![]);
@@ -743,9 +751,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 let definition = match try_definition_from_draft(&draft) {
                     Ok(definition) => definition,
                     Err(err) => {
-                        app.themes_settings.error_translation = None;
-                        app.themes_settings.error = Some(err.clone());
-                        return app.show_error_toast(err);
+                        return theme_error(app, "主题草稿无效：%s", vec![err.into()]);
                     }
                 };
                 let sources = asset_sources_from_draft(&draft);
@@ -807,9 +813,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let definition = match try_definition_from_draft(&draft) {
                 Ok(definition) => definition,
                 Err(err) => {
-                    app.themes_settings.error_translation = None;
-                    app.themes_settings.error = Some(err.clone());
-                    return app.show_error_toast(err);
+                    return theme_error(app, "主题草稿无效：%s", vec![err.into()]);
                 }
             };
 

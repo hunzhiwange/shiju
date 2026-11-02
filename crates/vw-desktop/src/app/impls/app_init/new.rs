@@ -855,6 +855,7 @@ impl App {
                     })
                     .collect(),
                 save_error: None,
+                save_error_translation: None,
             },
 
             // ========== 心跳设置 ==========
@@ -887,6 +888,7 @@ impl App {
                 runs_modal_editor: iced::widget::text_editor::Content::new(),
                 show_help_modal: false,
                 save_error: None,
+                save_error_translation: None,
                 action_status: None,
             },
 
@@ -1055,6 +1057,7 @@ impl App {
                     .map(|value| value.to_string())
                     .unwrap_or_default(),
                 save_error: None,
+                save_error_translation: None,
             },
 
             http_request_settings: super::state::HttpRequestSettingsState {

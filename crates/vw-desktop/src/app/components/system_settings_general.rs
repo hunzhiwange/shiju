@@ -188,12 +188,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fixed(280.0));
 
     let term_theme_pick =
-        pick_list([TerminalTheme::System], Some(app.terminal.theme), terminal_theme_selected)
-            .padding([10, 14])
-            .text_size(13)
-            .style(settings_pick_list_style)
-            .menu_style(settings_pick_list_menu_style)
-            .width(Length::Fixed(280.0));
+        pick_list([i18n.__("跟随系统")], Some(i18n.__("跟随系统")), |_| {
+            terminal_theme_selected(TerminalTheme::System)
+        })
+        .padding([10, 14])
+        .text_size(13)
+        .style(settings_pick_list_style)
+        .menu_style(settings_pick_list_menu_style)
+        .width(Length::Fixed(280.0));
 
     let font_pick = pick_list(
         [

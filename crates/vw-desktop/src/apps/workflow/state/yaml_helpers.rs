@@ -4,17 +4,27 @@
 
 use super::*;
 
-pub(super) fn parse_mapping_yaml(text: &str, label: &str) -> Result<Value, String> {
+pub(super) fn parse_mapping_yaml(
+    text: &str,
+    label: &str,
+) -> Result<Value, crate::app::i18n::workflow::Feedback> {
     if text.trim().is_empty() {
         return Ok(Value::Mapping(Mapping::new()));
     }
 
-    let value = serde_yaml::from_str::<Value>(text)
-        .map_err(|error| format!("{label} YAML 解析失败: {error}"))?;
+    let value = serde_yaml::from_str::<Value>(text).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new(
+            "%s YAML 解析失败: %s",
+            vec![label.to_string(), error.to_string()],
+        )
+    })?;
     if value.is_mapping() {
         Ok(value)
     } else {
-        Err(format!("{label} 必须是对象映射（YAML map）"))
+        Err(crate::app::i18n::workflow::Feedback::new(
+            "%s 必须是对象映射（YAML map）",
+            vec![label.to_string()],
+        ))
     }
 }
 
@@ -135,39 +145,65 @@ pub(super) fn value_yaml_for_editor(value: &Value) -> String {
     yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string()
 }
 
-pub(super) fn parse_yaml_editor_value(text: &str) -> Result<Value, String> {
+pub(super) fn parse_yaml_editor_value(
+    text: &str,
+) -> Result<Value, crate::app::i18n::workflow::Feedback> {
     if text.trim().is_empty() {
         return Ok(Value::String(String::new()));
     }
 
-    serde_yaml::from_str::<Value>(text).map_err(|error| format!("变量值 YAML 解析失败: {error}"))
+    serde_yaml::from_str::<Value>(text).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new(
+            "变量值 YAML 解析失败: %s",
+            vec![error.to_string()],
+        )
+    })
 }
 
-pub(super) fn normalize_environment_value_type(value_type: &str) -> Result<String, String> {
+pub(super) fn normalize_environment_value_type(
+    value_type: &str,
+) -> Result<String, crate::app::i18n::workflow::Feedback> {
     let normalized = value_type.trim().to_ascii_lowercase();
     match normalized.as_str() {
         "string" | "number" | "secret" => Ok(normalized),
-        _ => Err("环境变量类型仅支持 string / number / secret".to_string()),
+        _ => Err(crate::app::i18n::workflow::Feedback::new(
+            "环境变量类型仅支持 string / number / secret",
+            vec![],
+        )),
     }
 }
 
-pub(super) fn normalize_conversation_value_type(value_type: &str) -> Result<String, String> {
+pub(super) fn normalize_conversation_value_type(
+    value_type: &str,
+) -> Result<String, crate::app::i18n::workflow::Feedback> {
     let normalized = value_type.trim().to_ascii_lowercase();
     if normalized.is_empty() {
-        Err("会话变量类型不能为空".to_string())
+        Err(crate::app::i18n::workflow::Feedback::new("会话变量类型不能为空", vec![]))
     } else {
         Ok(normalized)
     }
 }
 
-pub(super) fn validate_environment_value(value_type: &str, value: &Value) -> Result<(), String> {
+pub(super) fn validate_environment_value(
+    value_type: &str,
+    value: &Value,
+) -> Result<(), crate::app::i18n::workflow::Feedback> {
     match (value_type, value) {
         ("string" | "secret", Value::String(_)) => Ok(()),
         ("number", Value::Number(_)) => Ok(()),
-        ("string", _) => Err("string 类型环境变量的值必须是字符串 YAML 标量".to_string()),
-        ("secret", _) => Err("secret 类型环境变量的值必须是字符串 YAML 标量".to_string()),
-        ("number", _) => Err("number 类型环境变量的值必须是数字 YAML 标量".to_string()),
-        _ => Err("不支持的环境变量类型".to_string()),
+        ("string", _) => Err(crate::app::i18n::workflow::Feedback::new(
+            "string 类型环境变量的值必须是字符串 YAML 标量",
+            vec![],
+        )),
+        ("secret", _) => Err(crate::app::i18n::workflow::Feedback::new(
+            "secret 类型环境变量的值必须是字符串 YAML 标量",
+            vec![],
+        )),
+        ("number", _) => Err(crate::app::i18n::workflow::Feedback::new(
+            "number 类型环境变量的值必须是数字 YAML 标量",
+            vec![],
+        )),
+        _ => Err(crate::app::i18n::workflow::Feedback::new("不支持的环境变量类型", vec![])),
     }
 }
 
@@ -176,13 +212,13 @@ pub(super) fn ensure_unique_variable_name<T>(
     name: &str,
     current_id: Option<&str>,
     label: &str,
-) -> Result<(), String>
+) -> Result<(), crate::app::i18n::workflow::Feedback>
 where
     T: WorkflowVariableNameAccess,
 {
     if variables.iter().any(|variable| variable.name() == name && Some(variable.id()) != current_id)
     {
-        Err(format!("{}名称不能重复", label))
+        Err(crate::app::i18n::workflow::Feedback::new("%s名称不能重复", vec![label.to_string()]))
     } else {
         Ok(())
     }

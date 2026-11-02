@@ -9,7 +9,7 @@ fn validation_with_errors(paths: &[&str]) -> state::WorkflowNodeEditorValidation
             .iter()
             .map(|path| state::WorkflowNodeValidationError {
                 path: (*path).to_string(),
-                message: format!("error for {path}"),
+                message: (format!("error for {path}")).into(),
             })
             .collect(),
     }
@@ -41,7 +41,11 @@ fn visual_section_handles_empty_cases() {
     let cases = Vec::new();
     let validation = state::WorkflowNodeEditorValidation::default();
 
-    let _element = build_if_else_visual_section(&cases, &validation);
+    let _element = build_if_else_visual_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &cases,
+        &validation,
+    );
 }
 
 #[test]
@@ -49,7 +53,11 @@ fn visual_section_renders_case_list() {
     let cases = vec![if_else_case(vec![if_else_condition()])];
     let validation = state::WorkflowNodeEditorValidation::default();
 
-    let element = build_if_else_visual_section(&cases, &validation);
+    let element = build_if_else_visual_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &cases,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -67,7 +75,11 @@ fn visual_section_renders_multiple_cases_with_mixed_conditions() {
     ];
     let validation = validation_with_errors(&["if_else.cases[1].conditions"]);
 
-    let element = build_if_else_visual_section(&cases, &validation);
+    let element = build_if_else_visual_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &cases,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -93,7 +105,11 @@ fn visual_section_passes_validation_to_nested_condition_fields() {
         "if_else.cases[0].conditions[1].value",
     ]);
 
-    let element = build_if_else_visual_section(&cases, &validation);
+    let element = build_if_else_visual_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &cases,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -103,7 +119,12 @@ fn case_card_handles_empty_conditions_without_validation_error() {
     let case = if_else_case(Vec::new());
     let validation = state::WorkflowNodeEditorValidation::default();
 
-    let element = build_if_else_case_card(0, &case, &validation);
+    let element = build_if_else_case_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        0,
+        &case,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -120,7 +141,12 @@ fn case_card_renders_validation_errors_and_conditions() {
         "if_else.cases[2].conditions[0].value",
     ]);
 
-    let element = build_if_else_case_card(2, &case, &validation);
+    let element = build_if_else_case_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        2,
+        &case,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -134,7 +160,12 @@ fn case_card_ignores_validation_for_other_case_indexes() {
         "if_else.cases[1].conditions[0].selector",
     ]);
 
-    let element = build_if_else_case_card(0, &case, &validation);
+    let element = build_if_else_case_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        0,
+        &case,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -144,7 +175,13 @@ fn condition_card_renders_without_validation_errors() {
     let condition = if_else_condition();
     let validation = state::WorkflowNodeEditorValidation::default();
 
-    let element = build_if_else_condition_card(1, 3, &condition, &validation);
+    let element = build_if_else_condition_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        1,
+        3,
+        &condition,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -159,7 +196,13 @@ fn condition_card_renders_field_validation_errors() {
         "if_else.cases[1].conditions[3].value",
     ]);
 
-    let element = build_if_else_condition_card(1, 3, &condition, &validation);
+    let element = build_if_else_condition_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        1,
+        3,
+        &condition,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -180,7 +223,13 @@ fn condition_card_uses_indexes_when_building_change_messages() {
         "if_else.cases[4].conditions[2].value",
     ]);
 
-    let element = build_if_else_condition_card(4, 2, &condition, &validation);
+    let element = build_if_else_condition_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        4,
+        2,
+        &condition,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }
@@ -196,7 +245,13 @@ fn condition_card_accepts_blank_draft_values_before_validation() {
     };
 
     let validation = state::WorkflowNodeEditorValidation::default();
-    let element = build_if_else_condition_card(0, 0, &condition, &validation);
+    let element = build_if_else_condition_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        0,
+        0,
+        &condition,
+        &validation,
+    );
 
     std::hint::black_box(element);
 }

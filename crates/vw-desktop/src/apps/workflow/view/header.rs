@@ -7,38 +7,61 @@ use iced::widget::{column, row};
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 #[allow(dead_code)]
-pub(super) fn build_header(state: &WorkflowState) -> Element<'_, Message> {
-    let reload_label = "重新载入";
+pub(super) fn build_header(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
+    let reload_label = i18n.__("重新载入");
     let description = if !state.has_apps() {
         String::new()
     } else if let Some(path) = state.source_path.as_deref() {
-        format!("Dify DSL 源文件：{}{}", path, if state.active_is_dirty { " · 未保存" } else { "" })
+        i18n.format(
+            "Dify DSL 源文件：%s%s",
+            &[
+                path.to_string().into(),
+                (if state.active_is_dirty { i18n.__(" · 未保存") } else { "" }).to_string().into(),
+            ],
+        )
+        .expect("valid workflow display template")
     } else if state.active_is_dirty {
-        "当前为未保存草稿，保存后会落到本地 yml。".to_string()
+        i18n.__("当前为未保存草稿，保存后会落到本地 yml。").to_string()
     } else {
-        "当前应用来自本地数据库，可继续编辑并保存。".to_string()
+        i18n.__("当前应用来自本地数据库，可继续编辑并保存。").to_string()
     };
-    let app_switcher = build_app_switcher(state);
+    let app_switcher = build_app_switcher(i18n, state);
 
     let overview_badges = row![
-        settings_value_badge(format!("{} 个应用", state.apps.len())),
-        settings_value_badge(format!("{} 节点", state.document.nodes.len())),
-        settings_value_badge(format!("{} 连线", state.document.edges.len())),
-        settings_value_badge(if state.active_is_dirty { "草稿待保存" } else { "已同步" }),
+        settings_value_badge(
+            i18n.format("%s 个应用", &[state.apps.len().to_string().into()])
+                .expect("valid workflow display template")
+        ),
+        settings_value_badge(
+            i18n.format("%s 节点", &[state.document.nodes.len().to_string().into()])
+                .expect("valid workflow display template")
+        ),
+        settings_value_badge(
+            i18n.format("%s 连线", &[state.document.edges.len().to_string().into()])
+                .expect("valid workflow display template")
+        ),
+        settings_value_badge(if state.active_is_dirty {
+            i18n.__("草稿待保存")
+        } else {
+            i18n.__("已同步")
+        }),
     ]
     .spacing(8)
     .wrap();
 
     let primary_actions = row![
-        button(text("新增应用").size(12))
+        button(text(i18n.__("新增应用")).size(12))
             .style(primary_action_btn_style)
             .padding([9, 14])
             .on_press(Message::WorkflowTool(WorkflowMessage::OpenCreateAppEditor)),
-        button(text("导入 DSL").size(12))
+        button(text(i18n.__("导入 DSL")).size(12))
             .style(rounded_action_btn_style)
             .padding([9, 14])
             .on_press(Message::WorkflowTool(WorkflowMessage::OpenFile)),
-        button(text("保存 yml").size(12))
+        button(text(i18n.__("保存 yml")).size(12))
             .style(rounded_action_btn_style)
             .padding([9, 14])
             .on_press_maybe(
@@ -47,7 +70,7 @@ pub(super) fn build_header(state: &WorkflowState) -> Element<'_, Message> {
                     .as_ref()
                     .map(|_| Message::WorkflowTool(WorkflowMessage::SaveActiveApp)),
             ),
-        button(text("另存为").size(12))
+        button(text(i18n.__("另存为")).size(12))
             .style(rounded_action_btn_style)
             .padding([9, 14])
             .on_press_maybe(
@@ -61,7 +84,7 @@ pub(super) fn build_header(state: &WorkflowState) -> Element<'_, Message> {
     .wrap();
 
     let maintenance_actions = row![
-        button(text("编辑应用").size(12))
+        button(text(i18n.__("编辑应用")).size(12))
             .style(rounded_action_btn_style)
             .padding([8, 12])
             .on_press_maybe(
@@ -70,7 +93,7 @@ pub(super) fn build_header(state: &WorkflowState) -> Element<'_, Message> {
                     .as_ref()
                     .map(|_| Message::WorkflowTool(WorkflowMessage::OpenEditAppEditor(None))),
             ),
-        button(text("编辑节点").size(12))
+        button(text(i18n.__("编辑节点")).size(12))
             .style(rounded_action_btn_style)
             .padding([8, 12])
             .on_press_maybe(
@@ -88,22 +111,22 @@ pub(super) fn build_header(state: &WorkflowState) -> Element<'_, Message> {
                     .as_ref()
                     .map(|_| Message::WorkflowTool(WorkflowMessage::Reload)),
             ),
-        button(text("适配视图").size(12))
+        button(text(i18n.__("适配视图")).size(12))
             .style(rounded_action_btn_style)
             .padding([8, 12])
             .on_press(Message::WorkflowTool(WorkflowMessage::ZoomFit)),
         if state.connection_draft.is_some() {
-            button(text("取消连线").size(12))
+            button(text(i18n.__("取消连线")).size(12))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(Message::WorkflowTool(WorkflowMessage::CancelConnection))
         } else if state.selected_node_id.is_some() {
-            button(text("删除节点").size(12))
+            button(text(i18n.__("删除节点")).size(12))
                 .style(danger_action_btn_style)
                 .padding([8, 12])
                 .on_press(Message::WorkflowTool(WorkflowMessage::DeleteSelectedNode))
         } else {
-            button(text("删除连线").size(12))
+            button(text(i18n.__("删除连线")).size(12))
                 .style(danger_action_btn_style)
                 .padding([8, 12])
                 .on_press_maybe(
@@ -156,7 +179,10 @@ pub(super) fn build_header(state: &WorkflowState) -> Element<'_, Message> {
 /// 构建 action bar 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_action_bar(state: &WorkflowState) -> Element<'static, Message> {
+pub(super) fn build_action_bar(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'static, Message> {
     let icon_button = |icon: Icon,
                        tooltip: &'static str,
                        message: Option<WorkflowMessage>,
@@ -199,25 +225,29 @@ pub(super) fn build_action_bar(state: &WorkflowState) -> Element<'static, Messag
         row![
             icon_button(
                 Icon::LayoutSidebar,
-                if state.action_menu_open { "收起菜单" } else { "打开菜单" },
+                if state.action_menu_open {
+                    i18n.__("收起菜单")
+                } else {
+                    i18n.__("打开菜单")
+                },
                 Some(WorkflowMessage::ToggleActionMenu),
                 state.action_menu_open,
             ),
             icon_button(
                 Icon::ArrowCounterClockwise,
-                "撤销",
+                i18n.__("撤销"),
                 (!state.undo_stack.is_empty()).then_some(WorkflowMessage::Undo),
                 false,
             ),
             icon_button(
                 Icon::ArrowClockwise,
-                "重做",
+                i18n.__("重做"),
                 (!state.redo_stack.is_empty()).then_some(WorkflowMessage::Redo),
                 false,
             ),
             icon_button(
                 Icon::ArrowRepeat,
-                "重新载入",
+                i18n.__("重新载入"),
                 state.active_app_id.as_ref().map(|_| WorkflowMessage::Reload),
                 false,
             ),
@@ -279,7 +309,10 @@ fn action_bar_button_style(
 /// 构建 action menu overlay 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_action_menu_overlay(state: &WorkflowState) -> Element<'static, Message> {
+pub(super) fn build_action_menu_overlay(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'static, Message> {
     let menu_item = |icon: Icon,
                      label: &'static str,
                      message: Option<WorkflowMessage>|
@@ -320,41 +353,41 @@ pub(super) fn build_action_menu_overlay(state: &WorkflowState) -> Element<'stati
 
     container(
         column![
-            menu_item(Icon::Grid1x2, "应用列表", Some(WorkflowMessage::ShowSavedApps)),
+            menu_item(Icon::Grid1x2, i18n.__("应用列表"), Some(WorkflowMessage::ShowSavedApps)),
             menu_item(
                 Icon::FileEarmarkPlus,
-                "新增应用",
+                i18n.__("新增应用"),
                 Some(WorkflowMessage::OpenCreateAppEditor)
             ),
-            menu_item(Icon::FolderOpen, "导入 DSL", Some(WorkflowMessage::OpenFile)),
+            menu_item(Icon::FolderOpen, i18n.__("导入 DSL"), Some(WorkflowMessage::OpenFile)),
             menu_item(
                 Icon::Save,
-                "保存 YAML",
+                i18n.__("保存 YAML"),
                 has_active_app.then_some(WorkflowMessage::SaveActiveApp)
             ),
             menu_item(
                 Icon::Save,
-                "另存为",
+                i18n.__("另存为"),
                 has_active_app.then_some(WorkflowMessage::SaveActiveAppAs)
             ),
             menu_item(
                 Icon::ArrowRepeat,
-                "重新载入",
+                i18n.__("重新载入"),
                 has_active_app.then_some(WorkflowMessage::Reload)
             ),
             menu_item(
                 Icon::CloudDownload,
-                "导出 PNG",
+                i18n.__("导出 PNG"),
                 has_active_app.then_some(WorkflowMessage::ExportPng)
             ),
             menu_item(
                 Icon::CloudDownload,
-                "导出 JPEG",
+                i18n.__("导出 JPEG"),
                 has_active_app.then_some(WorkflowMessage::ExportJpeg)
             ),
             menu_item(
                 Icon::CloudDownload,
-                "导出 SVG",
+                i18n.__("导出 SVG"),
                 has_active_app.then_some(WorkflowMessage::ExportSvg)
             ),
         ]

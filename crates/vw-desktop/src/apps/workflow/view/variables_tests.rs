@@ -91,7 +91,8 @@ fn conversation_variable(description: &str, value: Value) -> WorkflowConversatio
 #[test]
 fn build_variable_panel_modal_covers_closed_and_all_panel_kinds() {
     let empty_state = WorkflowState::default();
-    let _placeholder = build_variable_panel_modal(&empty_state);
+    let _placeholder =
+        build_variable_panel_modal(crate::app::i18n::I18n::new(Default::default()), &empty_state);
 
     let system_state = WorkflowState {
         variable_panel: Some(WorkflowVariablePanelKind::System),
@@ -115,15 +116,23 @@ fn build_variable_panel_modal_covers_closed_and_all_panel_kinds() {
         ..WorkflowState::default()
     };
 
-    let _system = build_variable_panel_modal(&system_state);
-    let _environment = build_variable_panel_modal(&environment_state);
-    let _conversation = build_variable_panel_modal(&conversation_state);
+    let _system =
+        build_variable_panel_modal(crate::app::i18n::I18n::new(Default::default()), &system_state);
+    let _environment = build_variable_panel_modal(
+        crate::app::i18n::I18n::new(Default::default()),
+        &environment_state,
+    );
+    let _conversation = build_variable_panel_modal(
+        crate::app::i18n::I18n::new(Default::default()),
+        &conversation_state,
+    );
 }
 
 #[test]
 fn build_variable_editor_modal_covers_closed_and_all_modes() {
     let empty_state = WorkflowState::default();
-    let _placeholder = build_variable_editor_modal(&empty_state);
+    let _placeholder =
+        build_variable_editor_modal(crate::app::i18n::I18n::new(Default::default()), &empty_state);
 
     for mode in [
         state::WorkflowVariableEditorMode::CreateEnvironment,
@@ -135,16 +144,24 @@ fn build_variable_editor_modal_covers_closed_and_all_modes() {
             variable_editor: Some(variable_editor(mode)),
             ..WorkflowState::default()
         };
-        let _modal = build_variable_editor_modal(&state);
+        let _modal =
+            build_variable_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
     }
 }
 
 #[test]
 fn variable_list_builders_cover_empty_and_populated_states() {
     let empty_state = WorkflowState::default();
-    let _empty_system = build_system_variable_list(&empty_state);
-    let _empty_environment = build_environment_variable_list(&empty_state);
-    let _empty_conversation = build_conversation_variable_list(&empty_state);
+    let _empty_system =
+        build_system_variable_list(crate::app::i18n::I18n::new(Default::default()), &empty_state);
+    let _empty_environment = build_environment_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &empty_state,
+    );
+    let _empty_conversation = build_conversation_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &empty_state,
+    );
 
     let populated_system_state = active_state_with_mode("advanced-chat");
     let populated_environment_state = WorkflowState {
@@ -163,9 +180,18 @@ fn variable_list_builders_cover_empty_and_populated_states() {
         ..WorkflowState::default()
     };
 
-    let _system = build_system_variable_list(&populated_system_state);
-    let _environment = build_environment_variable_list(&populated_environment_state);
-    let _conversation = build_conversation_variable_list(&populated_conversation_state);
+    let _system = build_system_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &populated_system_state,
+    );
+    let _environment = build_environment_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &populated_environment_state,
+    );
+    let _conversation = build_conversation_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &populated_conversation_state,
+    );
 }
 
 #[test]
@@ -200,8 +226,14 @@ fn variable_list_builders_preserve_non_empty_descriptions() {
         ..WorkflowState::default()
     };
 
-    let environment = build_environment_variable_list(&environment_state);
-    let conversation = build_conversation_variable_list(&conversation_state);
+    let environment = build_environment_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &environment_state,
+    );
+    let conversation = build_conversation_variable_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &conversation_state,
+    );
 
     let _ = std::hint::black_box((environment, conversation));
 }
@@ -209,7 +241,8 @@ fn variable_list_builders_preserve_non_empty_descriptions() {
 #[test]
 fn variable_modal_builders_keep_expected_root_children() {
     let closed_state = WorkflowState::default();
-    let closed_panel = build_variable_panel_modal(&closed_state);
+    let closed_panel =
+        build_variable_panel_modal(crate::app::i18n::I18n::new(Default::default()), &closed_state);
     std::hint::black_box(closed_panel);
 
     for panel in [
@@ -221,12 +254,16 @@ fn variable_modal_builders_keep_expected_root_children() {
             variable_panel: Some(panel),
             ..active_state_with_mode("advanced-chat")
         };
-        let modal = build_variable_panel_modal(&state);
+        let modal =
+            build_variable_panel_modal(crate::app::i18n::I18n::new(Default::default()), &state);
         std::hint::black_box(modal);
     }
 
     let closed_editor_state = WorkflowState::default();
-    let closed_editor = build_variable_editor_modal(&closed_editor_state);
+    let closed_editor = build_variable_editor_modal(
+        crate::app::i18n::I18n::new(Default::default()),
+        &closed_editor_state,
+    );
     std::hint::black_box(closed_editor);
 
     let editor_state = WorkflowState {
@@ -235,13 +272,15 @@ fn variable_modal_builders_keep_expected_root_children() {
         )),
         ..WorkflowState::default()
     };
-    let editor = build_variable_editor_modal(&editor_state);
+    let editor =
+        build_variable_editor_modal(crate::app::i18n::I18n::new(Default::default()), &editor_state);
     std::hint::black_box(editor);
 }
 
 #[test]
 fn variable_card_and_validation_helpers_expose_expected_child_counts() {
     let plain_card = variable_card(
+        crate::app::i18n::I18n::new(Default::default()),
         "name".to_string(),
         "string".to_string(),
         "description".to_string(),
@@ -252,6 +291,7 @@ fn variable_card_and_validation_helpers_expose_expected_child_counts() {
     std::hint::black_box(plain_card);
 
     let action_card = variable_card(
+        crate::app::i18n::I18n::new(Default::default()),
         "name".to_string(),
         "string".to_string(),
         "description".to_string(),
@@ -264,8 +304,11 @@ fn variable_card_and_validation_helpers_expose_expected_child_counts() {
     let field = build_editor_field("变量名称", text("内容").into());
     assert_eq!(field.as_widget().children().len(), 2);
 
-    let validated_error =
-        build_editor_field_validated("变量值", text("bad").into(), Some("变量值必须是合法 YAML"));
+    let validated_error = build_editor_field_validated(
+        "变量值",
+        text("bad").into(),
+        Some(("变量值必须是合法 YAML").to_string()),
+    );
     assert_eq!(validated_error.as_widget().children().len(), 3);
 
     let inline_error = build_inline_error("变量名不能为空");
@@ -278,7 +321,7 @@ fn node_validation_summary_limits_visible_errors_and_reports_overflow() {
         field_errors: (0..8)
             .map(|index| WorkflowNodeValidationError {
                 path: format!("variables[{index}].name"),
-                message: format!("第 {index} 项错误"),
+                message: (format!("第 {index} 项错误")).into(),
             })
             .collect(),
     };
@@ -286,15 +329,21 @@ fn node_validation_summary_limits_visible_errors_and_reports_overflow() {
         field_errors: (0..9)
             .map(|index| WorkflowNodeValidationError {
                 path: format!("variables[{index}].name"),
-                message: format!("第 {index} 项错误"),
+                message: (format!("第 {index} 项错误")).into(),
             })
             .collect(),
     };
 
-    let eight_summary = build_node_validation_summary(&eight_errors);
+    let eight_summary = build_node_validation_summary(
+        crate::app::i18n::I18n::new(Default::default()),
+        &eight_errors,
+    );
     std::hint::black_box(eight_summary);
 
-    let nine_summary = build_node_validation_summary(&nine_errors);
+    let nine_summary = build_node_validation_summary(
+        crate::app::i18n::I18n::new(Default::default()),
+        &nine_errors,
+    );
     std::hint::black_box(nine_summary);
 }
 
@@ -308,6 +357,7 @@ fn variable_value_preview_keeps_short_scalars_and_masks_secret_case_insensitivel
 #[test]
 fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
     let _plain_card = variable_card(
+        crate::app::i18n::I18n::new(Default::default()),
         "name".to_string(),
         "string".to_string(),
         "description".to_string(),
@@ -316,6 +366,7 @@ fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
         None,
     );
     let _action_card = variable_card(
+        crate::app::i18n::I18n::new(Default::default()),
         "name".to_string(),
         "string".to_string(),
         "description".to_string(),
@@ -325,19 +376,22 @@ fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
     );
     let _field = build_editor_field("变量名称", text("内容").into());
     let _validated_ok = build_editor_field_validated("变量类型", text("string").into(), None);
-    let _validated_error =
-        build_editor_field_validated("变量值", text("bad").into(), Some("变量值必须是合法 YAML"));
+    let _validated_error = build_editor_field_validated(
+        "变量值",
+        text("bad").into(),
+        Some(("变量值必须是合法 YAML").to_string()),
+    );
     let _inline_error = build_inline_error("变量名不能为空");
 
     let short_validation = WorkflowNodeEditorValidation {
         field_errors: vec![
             WorkflowNodeValidationError {
                 path: "variables[0].name".to_string(),
-                message: "变量名不能为空".to_string(),
+                message: "变量名不能为空".to_string().into(),
             },
             WorkflowNodeValidationError {
                 path: "variables[0].type".to_string(),
-                message: "变量类型不能为空".to_string(),
+                message: "变量类型不能为空".to_string().into(),
             },
         ],
     };
@@ -345,11 +399,17 @@ fn helper_builders_cover_optional_actions_and_validation_summary_branches() {
         field_errors: (0..9)
             .map(|index| WorkflowNodeValidationError {
                 path: format!("variables[{index}].name"),
-                message: format!("第 {index} 项错误"),
+                message: (format!("第 {index} 项错误")).into(),
             })
             .collect(),
     };
 
-    let _short_summary = build_node_validation_summary(&short_validation);
-    let _long_summary = build_node_validation_summary(&long_validation);
+    let _short_summary = build_node_validation_summary(
+        crate::app::i18n::I18n::new(Default::default()),
+        &short_validation,
+    );
+    let _long_summary = build_node_validation_summary(
+        crate::app::i18n::I18n::new(Default::default()),
+        &long_validation,
+    );
 }

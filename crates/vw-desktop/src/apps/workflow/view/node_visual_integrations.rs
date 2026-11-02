@@ -11,6 +11,7 @@ mod tests;
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_knowledge_visual_section<'a>(
+    i18n: crate::app::i18n::I18n,
     validation: &'a super::state::WorkflowNodeEditorValidation,
     query_selector_input: &'a str,
     query_attachment_selector_input: &'a str,
@@ -30,9 +31,9 @@ pub(super) fn build_knowledge_visual_section<'a>(
     column![
         row![
             build_editor_field_validated(
-                "知识库 ID",
+                i18n.__("知识库 ID"),
                 workflow_text_input(
-                    "逗号分隔，例如：kb_orders, kb_faq",
+                    i18n.__("逗号分隔，例如：kb_orders, kb_faq"),
                     dataset_ids_input,
                     |value| {
                         Message::WorkflowTool(
@@ -40,33 +41,33 @@ pub(super) fn build_knowledge_visual_section<'a>(
                         )
                     }
                 ),
-                validation.first_error_for("knowledge.dataset_ids"),
+                validation.localized_error_for(i18n, "knowledge.dataset_ids"),
             ),
             build_editor_field_validated(
-                "检索模式",
-                workflow_text_input("single 或 multiple", retrieval_mode, |value| {
+                i18n.__("检索模式"),
+                workflow_text_input(i18n.__("single 或 multiple"), retrieval_mode, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorKnowledgeRetrievalModeChanged(
                         value,
                     ))
                 }),
-                validation.first_error_for("knowledge.retrieval_mode"),
+                validation.localized_error_for(i18n, "knowledge.retrieval_mode"),
             ),
         ]
         .spacing(12),
         row![
             build_editor_field_validated(
-                "查询变量选择器",
-                workflow_text_input("例如：sys.query", query_selector_input, |value| {
+                i18n.__("查询变量选择器"),
+                workflow_text_input(i18n.__("例如：sys.query"), query_selector_input, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorKnowledgeQuerySelectorChanged(
                         value,
                     ))
                 }),
-                validation.first_error_for("knowledge.query_selector"),
+                validation.localized_error_for(i18n, "knowledge.query_selector"),
             ),
             build_editor_field(
-                "附件变量选择器",
+                i18n.__("附件变量选择器"),
                 workflow_text_input(
-                    "例如：start.files",
+                    i18n.__("例如：start.files"),
                     query_attachment_selector_input,
                     |value| {
                         Message::WorkflowTool(
@@ -82,10 +83,10 @@ pub(super) fn build_knowledge_visual_section<'a>(
         row![
             build_editor_field_validated(
                 "top_k",
-                workflow_text_input("例如：5", top_k_input, |value| {
+                workflow_text_input(i18n.__("例如：5"), top_k_input, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorKnowledgeTopKChanged(value))
                 }),
-                validation.first_error_for("knowledge.multiple.top_k"),
+                validation.localized_error_for(i18n, "knowledge.multiple.top_k"),
             ),
             build_editor_field(
                 "Reranking",
@@ -107,7 +108,7 @@ pub(super) fn build_knowledge_visual_section<'a>(
             "Reranking Model YAML",
             build_embedded_text_editor(
                 reranking_model_editor,
-                "输入 reranking_model YAML map",
+                i18n.__("输入 reranking_model YAML map"),
                 WorkflowMessage::NodeEditorKnowledgeRerankingModelAction,
                 120.0,
             ),
@@ -126,7 +127,7 @@ pub(super) fn build_knowledge_visual_section<'a>(
             "Metadata Model Config YAML",
             build_embedded_text_editor(
                 metadata_model_config_editor,
-                "输入 metadata_model_config YAML map",
+                i18n.__("输入 metadata_model_config YAML map"),
                 WorkflowMessage::NodeEditorKnowledgeMetadataModelConfigAction,
                 120.0,
             ),
@@ -138,25 +139,29 @@ pub(super) fn build_knowledge_visual_section<'a>(
                     toggler(score_threshold_enabled).on_toggle(|value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorKnowledgeScoreThresholdEnabledChanged(value),
                     )),
-                    text("启用 score_threshold").size(12).style(settings_muted_text_style),
+                    text(i18n.__("启用 score_threshold")).size(12).style(settings_muted_text_style),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
-                workflow_text_input("0 到 1，例如：0.5", score_threshold_input, |value| {
-                    Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorKnowledgeScoreThresholdChanged(value),
-                    )
-                }),
+                workflow_text_input(
+                    i18n.__("0 到 1，例如：0.5"),
+                    score_threshold_input,
+                    |value| {
+                        Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorKnowledgeScoreThresholdChanged(value),
+                        )
+                    }
+                ),
             ]
             .spacing(8)
             .into(),
-            validation.first_error_for("knowledge.multiple.score_threshold"),
+            validation.localized_error_for(i18n, "knowledge.multiple.score_threshold"),
         ),
         row![
             build_editor_field_validated(
                 "Single Provider",
                 workflow_text_input(
-                    "例如：langgenius/openai/openai",
+                    i18n.__("例如：langgenius/openai/openai"),
                     single_model_provider,
                     |value| {
                         Message::WorkflowTool(
@@ -164,27 +169,27 @@ pub(super) fn build_knowledge_visual_section<'a>(
                         )
                     }
                 ),
-                validation.first_error_for("knowledge.single.provider"),
+                validation.localized_error_for(i18n, "knowledge.single.provider"),
             ),
             build_editor_field_validated(
                 "Single Model",
-                workflow_text_input("例如：gpt-4o-mini", single_model_name, |value| {
+                workflow_text_input(i18n.__("例如：gpt-4o-mini"), single_model_name, |value| {
                     Message::WorkflowTool(
                         WorkflowMessage::NodeEditorKnowledgeSingleModelNameChanged(value),
                     )
                 }),
-                validation.first_error_for("knowledge.single.model_name"),
+                validation.localized_error_for(i18n, "knowledge.single.model_name"),
             ),
         ]
         .spacing(12),
         build_editor_field_validated(
             "Single Mode",
-            workflow_text_input("例如：chat", single_model_mode, |value| {
+            workflow_text_input(i18n.__("例如：chat"), single_model_mode, |value| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorKnowledgeSingleModelModeChanged(
                     value,
                 ))
             }),
-            validation.first_error_for("knowledge.single.model_mode"),
+            validation.localized_error_for(i18n, "knowledge.single.model_mode"),
         ),
     ]
     .spacing(12)
@@ -195,6 +200,7 @@ pub(super) fn build_knowledge_visual_section<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_tool_visual_section<'a>(
+    i18n: crate::app::i18n::I18n,
     validation: &'a super::state::WorkflowNodeEditorValidation,
     provider_id: &'a str,
     provider_type: &'a str,
@@ -211,47 +217,47 @@ pub(super) fn build_tool_visual_section<'a>(
         row![
             build_editor_field_validated(
                 "Provider ID",
-                workflow_text_input("例如：google", provider_id, |value| {
+                workflow_text_input(i18n.__("例如：google"), provider_id, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorToolProviderIdChanged(value))
                 }),
-                validation.first_error_for("tool.provider_id"),
+                validation.localized_error_for(i18n, "tool.provider_id"),
             ),
             build_editor_field_validated(
                 "Provider Type",
-                workflow_text_input("例如：builtin / api", provider_type, |value| {
+                workflow_text_input(i18n.__("例如：builtin / api"), provider_type, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorToolProviderTypeChanged(value))
                 }),
-                validation.first_error_for("tool.provider_type"),
+                validation.localized_error_for(i18n, "tool.provider_type"),
             ),
         ]
         .spacing(12),
         row![
             build_editor_field_validated(
                 "Provider Name",
-                workflow_text_input("例如：google/google", provider_name, |value| {
+                workflow_text_input(i18n.__("例如：google/google"), provider_name, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorToolProviderNameChanged(value))
                 }),
-                validation.first_error_for("tool.provider_name"),
+                validation.localized_error_for(i18n, "tool.provider_name"),
             ),
             build_editor_field_validated(
                 "Tool Name",
-                workflow_text_input("例如：search", tool_name, |value| {
+                workflow_text_input(i18n.__("例如：search"), tool_name, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorToolNameChanged(value))
                 }),
-                validation.first_error_for("tool.tool_name"),
+                validation.localized_error_for(i18n, "tool.tool_name"),
             ),
         ]
         .spacing(12),
         row![
             build_editor_field(
                 "Tool Label",
-                workflow_text_input("面向用户展示的名称", tool_label, |value| {
+                workflow_text_input(i18n.__("面向用户展示的名称"), tool_label, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorToolLabelChanged(value))
                 }),
             ),
             build_editor_field(
                 "Credential ID",
-                workflow_text_input("可选，例如：cred-123", credential_id, |value| {
+                workflow_text_input(i18n.__("可选，例如：cred-123"), credential_id, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorToolCredentialIdChanged(value))
                 }),
             ),
@@ -259,37 +265,41 @@ pub(super) fn build_tool_visual_section<'a>(
         .spacing(12),
         build_editor_field(
             "Tool Description",
-            workflow_text_input("工具说明", tool_description, |value| {
+            workflow_text_input(i18n.__("工具说明"), tool_description, |value| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorToolDescriptionChanged(value))
             }),
         ),
         build_editor_field(
             "Plugin Unique Identifier",
-            workflow_text_input("可选插件唯一标识", plugin_unique_identifier, |value| {
-                Message::WorkflowTool(WorkflowMessage::NodeEditorToolPluginUniqueIdentifierChanged(
-                    value,
-                ))
-            }),
+            workflow_text_input(
+                i18n.__("可选插件唯一标识"),
+                plugin_unique_identifier,
+                |value| {
+                    Message::WorkflowTool(
+                        WorkflowMessage::NodeEditorToolPluginUniqueIdentifierChanged(value),
+                    )
+                }
+            ),
         ),
         build_editor_field_validated(
             "Tool Parameters YAML",
             build_embedded_text_editor(
                 tool_parameters_editor,
-                "输入 tool_parameters YAML map",
+                i18n.__("输入 tool_parameters YAML map"),
                 WorkflowMessage::NodeEditorToolParametersAction,
                 150.0,
             ),
-            validation.first_error_for("tool.tool_parameters"),
+            validation.localized_error_for(i18n, "tool.tool_parameters"),
         ),
         build_editor_field_validated(
             "Tool Configurations YAML",
             build_embedded_text_editor(
                 tool_configurations_editor,
-                "输入 tool_configurations YAML map",
+                i18n.__("输入 tool_configurations YAML map"),
                 WorkflowMessage::NodeEditorToolConfigurationsAction,
                 150.0,
             ),
-            validation.first_error_for("tool.tool_configurations"),
+            validation.localized_error_for(i18n, "tool.tool_configurations"),
         ),
     ]
     .spacing(12)
@@ -300,6 +310,7 @@ pub(super) fn build_tool_visual_section<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_agent_visual_section<'a>(
+    i18n: crate::app::i18n::I18n,
     validation: &'a super::state::WorkflowNodeEditorValidation,
     strategy_provider_name: &'a str,
     strategy_name: &'a str,
@@ -314,9 +325,9 @@ pub(super) fn build_agent_visual_section<'a>(
     column![
         row![
             build_editor_field_validated(
-                "策略 Provider",
+                i18n.__("策略 Provider"),
                 workflow_text_input(
-                    "例如：langgenius/openai/openai",
+                    i18n.__("例如：langgenius/openai/openai"),
                     strategy_provider_name,
                     |value| {
                         Message::WorkflowTool(
@@ -324,58 +335,62 @@ pub(super) fn build_agent_visual_section<'a>(
                         )
                     }
                 ),
-                validation.first_error_for("agent.strategy_provider"),
+                validation.localized_error_for(i18n, "agent.strategy_provider"),
             ),
             build_editor_field_validated(
-                "策略名称",
-                workflow_text_input("例如：function_call", strategy_name, |value| {
+                i18n.__("策略名称"),
+                workflow_text_input(i18n.__("例如：function_call"), strategy_name, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorAgentStrategyNameChanged(
                         value,
                     ))
                 }),
-                validation.first_error_for("agent.strategy_name"),
+                validation.localized_error_for(i18n, "agent.strategy_name"),
             ),
         ]
         .spacing(12),
         row![
             build_editor_field_validated(
-                "策略显示名称",
-                workflow_text_input("例如：Function Call", strategy_label, |value| {
+                i18n.__("策略显示名称"),
+                workflow_text_input(i18n.__("例如：Function Call"), strategy_label, |value| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorAgentStrategyLabelChanged(
                         value,
                     ))
                 }),
-                validation.first_error_for("agent.strategy_label"),
+                validation.localized_error_for(i18n, "agent.strategy_label"),
             ),
             build_editor_field(
                 "Plugin Unique Identifier",
-                workflow_text_input("可选插件唯一标识", plugin_unique_identifier, |value| {
-                    Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorAgentPluginUniqueIdentifierChanged(value),
-                    )
-                }),
+                workflow_text_input(
+                    i18n.__("可选插件唯一标识"),
+                    plugin_unique_identifier,
+                    |value| {
+                        Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorAgentPluginUniqueIdentifierChanged(value),
+                        )
+                    }
+                ),
             ),
         ]
         .spacing(12),
         build_editor_field_validated(
-            "输出结构 YAML",
+            i18n.__("输出结构 YAML"),
             build_embedded_text_editor(
                 output_schema_editor,
-                "输入 output_schema YAML map",
+                i18n.__("输入 output_schema YAML map"),
                 WorkflowMessage::NodeEditorAgentOutputSchemaAction,
                 150.0,
             ),
-            validation.first_error_for("agent.output_schema"),
+            validation.localized_error_for(i18n, "agent.output_schema"),
         ),
         build_editor_field_validated(
-            "Agent 参数 YAML",
+            i18n.__("Agent 参数 YAML"),
             build_embedded_text_editor(
                 parameters_editor,
-                "输入 agent_parameters YAML map",
+                i18n.__("输入 agent_parameters YAML map"),
                 WorkflowMessage::NodeEditorAgentParametersAction,
                 150.0,
             ),
-            validation.first_error_for("agent.parameters"),
+            validation.localized_error_for(i18n, "agent.parameters"),
         ),
         build_editor_field_validated(
             "Memory",
@@ -384,25 +399,29 @@ pub(super) fn build_agent_visual_section<'a>(
                     toggler(memory_enabled).on_toggle(|value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorAgentMemoryEnabledChanged(value),
                     )),
-                    text("启用 memory.window").size(12).style(settings_muted_text_style),
+                    text(i18n.__("启用 memory.window")).size(12).style(settings_muted_text_style),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
-                workflow_text_input("window size，例如：3", memory_window_size_input, |value| {
-                    Message::WorkflowTool(WorkflowMessage::NodeEditorAgentMemoryWindowSizeChanged(
-                        value,
-                    ))
-                }),
+                workflow_text_input(
+                    i18n.__("window size，例如：3"),
+                    memory_window_size_input,
+                    |value| {
+                        Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorAgentMemoryWindowSizeChanged(value),
+                        )
+                    }
+                ),
             ]
             .spacing(8)
             .into(),
-            validation.first_error_for("agent.memory.window_size"),
+            validation.localized_error_for(i18n, "agent.memory.window_size"),
         ),
         build_editor_field(
             "Memory Prompt",
             build_embedded_text_editor(
                 memory_prompt_editor,
-                "输入 memory.query_prompt_template",
+                i18n.__("输入 memory.query_prompt_template"),
                 WorkflowMessage::NodeEditorAgentMemoryPromptAction,
                 140.0,
             ),
@@ -416,6 +435,7 @@ pub(super) fn build_agent_visual_section<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_code_visual_section<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     editor: &'a super::state::WorkflowNodeEditorDraft,
     validation: &'a super::state::WorkflowNodeEditorValidation,
@@ -431,11 +451,11 @@ pub(super) fn build_code_visual_section<'a>(
     let selected_language = code_picker_option(language, &language_options);
     let variable_options = build_code_variable_reference_options(state, editor);
     let output_type_options = code_output_type_options().to_vec();
-    let error_strategy_options = code_error_strategy_options().to_vec();
+    let error_strategy_options = code_error_strategy_options(i18n).to_vec();
     let selected_error_strategy = code_picker_option(error_strategy, &error_strategy_options);
 
     let input_list: Element<'a, Message> = if inputs.is_empty() {
-        text("当前没有输入变量，可添加已有流程变量或系统变量作为代码参数。")
+        text(i18n.__("当前没有输入变量，可添加已有流程变量或系统变量作为代码参数。"))
             .size(12)
             .style(settings_muted_text_style)
             .into()
@@ -445,7 +465,7 @@ pub(super) fn build_code_visual_section<'a>(
                 .iter()
                 .enumerate()
                 .map(|(index, input)| {
-                    build_code_input_variable_row(index, input, &variable_options, validation)
+                    build_code_input_variable_row(i18n, index, input, &variable_options, validation)
                 })
                 .collect::<Vec<Element<'a, Message>>>(),
         )
@@ -454,7 +474,7 @@ pub(super) fn build_code_visual_section<'a>(
     };
 
     let output_list: Element<'a, Message> = if outputs.is_empty() {
-        text("至少新增一个输出变量，代码节点的返回值会按这里声明的类型导出。")
+        text(i18n.__("至少新增一个输出变量，代码节点的返回值会按这里声明的类型导出。"))
             .size(12)
             .style(settings_muted_text_style)
             .into()
@@ -464,7 +484,13 @@ pub(super) fn build_code_visual_section<'a>(
                 .iter()
                 .enumerate()
                 .map(|(index, output)| {
-                    build_code_output_variable_row(index, output, &output_type_options, validation)
+                    build_code_output_variable_row(
+                        i18n,
+                        index,
+                        output,
+                        &output_type_options,
+                        validation,
+                    )
                 })
                 .collect::<Vec<Element<'a, Message>>>(),
         )
@@ -473,20 +499,22 @@ pub(super) fn build_code_visual_section<'a>(
     };
 
     let retry_error = validation
-        .first_error_for("code.retry.max_retries")
-        .or_else(|| validation.first_error_for("code.retry.retry_interval"));
+        .localized_error_for(i18n, "code.retry.max_retries")
+        .or_else(|| validation.localized_error_for(i18n, "code.retry.retry_interval"));
     let error_strategy_hint = match error_strategy {
-        "default-value" => "节点发生异常时，使用下面的默认输出继续流转。",
-        "fail-branch" => "节点发生异常时，会暴露失败分支，可在“下一步”里继续编排处理节点。",
-        _ => "发生异常且未处理时，节点将停止运行。",
+        "default-value" => i18n.__("节点发生异常时，使用下面的默认输出继续流转。"),
+        "fail-branch" => {
+            i18n.__("节点发生异常时，会暴露失败分支，可在“下一步”里继续编排处理节点。")
+        }
+        _ => i18n.__("发生异常且未处理时，节点将停止运行。"),
     };
 
     column![
         build_editor_field(
-            "输入变量",
+            i18n.__("输入变量"),
             column![
                 input_list,
-                button(text("新增输入变量").size(12))
+                button(text(i18n.__("新增输入变量")).size(12))
                     .style(rounded_action_btn_style)
                     .padding([8, 12])
                     .on_press(Message::WorkflowTool(
@@ -497,7 +525,7 @@ pub(super) fn build_code_visual_section<'a>(
             .into(),
         ),
         build_editor_field_validated(
-            "代码语言",
+            i18n.__("代码语言"),
             pick_list(language_options, selected_language, |option| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorCodeLanguageChanged(
                     option.value.to_string(),
@@ -509,23 +537,23 @@ pub(super) fn build_code_visual_section<'a>(
             .menu_style(settings_pick_list_menu_style)
             .width(Length::Fill)
             .into(),
-            validation.first_error_for("code.language"),
+            validation.localized_error_for(i18n, "code.language"),
         ),
         build_editor_field_validated(
-            "代码内容",
+            i18n.__("代码内容"),
             build_embedded_text_editor(
                 code_editor,
-                "输入代码体",
+                i18n.__("输入代码体"),
                 WorkflowMessage::NodeEditorCodeAction,
                 220.0,
             ),
-            validation.first_error_for("code.body"),
+            validation.localized_error_for(i18n, "code.body"),
         ),
         build_editor_field_validated(
-            "输出变量",
+            i18n.__("输出变量"),
             column![
                 output_list,
-                button(text("新增输出变量").size(12))
+                button(text(i18n.__("新增输出变量")).size(12))
                     .style(rounded_action_btn_style)
                     .padding([8, 12])
                     .on_press(Message::WorkflowTool(
@@ -534,13 +562,13 @@ pub(super) fn build_code_visual_section<'a>(
             ]
             .spacing(8)
             .into(),
-            validation.first_error_for("code.outputs"),
+            validation.localized_error_for(i18n, "code.outputs"),
         ),
         build_editor_field_validated(
-            "失败时重试",
+            i18n.__("失败时重试"),
             column![
                 row![
-                    text("启用失败重试").size(12),
+                    text(i18n.__("启用失败重试")).size(12),
                     Space::new().width(Length::Fill),
                     toggler(retry_config.enabled).on_toggle(|value| Message::WorkflowTool(
                         WorkflowMessage::NodeEditorCodeRetryEnabledChanged(value),
@@ -551,7 +579,7 @@ pub(super) fn build_code_visual_section<'a>(
                     let retry_detail: Element<'a, Message> = if retry_config.enabled {
                         column![
                             row![
-                                text("最大重试次数")
+                                text(i18n.__("最大重试次数"))
                                     .size(12)
                                     .style(settings_muted_text_style)
                                     .width(Length::Fixed(88.0)),
@@ -572,12 +600,12 @@ pub(super) fn build_code_visual_section<'a>(
                                     .padding([6, 10])
                                     .width(Length::Fixed(56.0))
                                     .style(value_card_style),
-                                text("次").size(12).style(settings_muted_text_style),
+                                text(i18n.__("次")).size(12).style(settings_muted_text_style),
                             ]
                             .spacing(8)
                             .align_y(Alignment::Center),
                             row![
-                                text("重试间隔")
+                                text(i18n.__("重试间隔"))
                                     .size(12)
                                     .style(settings_muted_text_style)
                                     .width(Length::Fixed(88.0)),
@@ -598,7 +626,7 @@ pub(super) fn build_code_visual_section<'a>(
                                     .padding([6, 10])
                                     .width(Length::Fixed(76.0))
                                     .style(value_card_style),
-                                text("毫秒").size(12).style(settings_muted_text_style),
+                                text(i18n.__("毫秒")).size(12).style(settings_muted_text_style),
                             ]
                             .spacing(8)
                             .align_y(Alignment::Center),
@@ -607,7 +635,7 @@ pub(super) fn build_code_visual_section<'a>(
                         .into()
                     } else {
                         container(
-                            text("关闭后，代码节点发生错误会直接进入异常处理逻辑。")
+                            text(i18n.__("关闭后，代码节点发生错误会直接进入异常处理逻辑。"))
                                 .size(12)
                                 .style(settings_muted_text_style),
                         )
@@ -622,7 +650,7 @@ pub(super) fn build_code_visual_section<'a>(
             retry_error,
         ),
         build_editor_field_validated(
-            "异常处理",
+            i18n.__("异常处理"),
             column![
                 pick_list(error_strategy_options, selected_error_strategy, |option| {
                     Message::WorkflowTool(WorkflowMessage::NodeEditorCodeErrorStrategyChanged(
@@ -638,18 +666,18 @@ pub(super) fn build_code_visual_section<'a>(
             ]
             .spacing(8)
             .into(),
-            validation.first_error_for("code.error_strategy"),
+            validation.localized_error_for(i18n, "code.error_strategy"),
         ),
         if error_strategy == "default-value" {
             build_editor_field_validated(
-                "默认输出 YAML",
+                i18n.__("默认输出 YAML"),
                 build_embedded_text_editor(
                     default_value_editor,
                     "- key: result\n  type: string\n  value: ''",
                     WorkflowMessage::NodeEditorCodeDefaultValueAction,
                     160.0,
                 ),
-                validation.first_error_for("code.default_value"),
+                validation.localized_error_for(i18n, "code.default_value"),
             )
         } else {
             container(Space::new().width(1).height(1)).into()
@@ -685,6 +713,7 @@ impl std::fmt::Display for WorkflowCodeVariableReferenceOption {
 }
 
 fn build_code_input_variable_row<'a>(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     input: &'a WorkflowCodeVariableDraft,
     options: &[WorkflowCodeVariableReferenceOption],
@@ -702,7 +731,7 @@ fn build_code_input_variable_row<'a>(
     }
 
     let selector_control: Element<'a, Message> = if row_options.is_empty() {
-        text("当前没有可选变量").size(12).style(settings_muted_text_style).into()
+        text(i18n.__("当前没有可选变量")).size(12).style(settings_muted_text_style).into()
     } else {
         pick_list(row_options, selected, move |option| {
             Message::WorkflowTool(WorkflowMessage::NodeEditorCodeInputVariableSelectorChanged(
@@ -722,7 +751,7 @@ fn build_code_input_variable_row<'a>(
     let mut content = column![
         row![
             selector_control,
-            workflow_text_input("参数名", &input.variable, move |value| {
+            workflow_text_input(i18n.__("参数名"), &input.variable, move |value| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorCodeInputVariableNameChanged(
                     index, value,
                 ))
@@ -730,22 +759,25 @@ fn build_code_input_variable_row<'a>(
             text(code_value_type_label(&input.value_type))
                 .size(11)
                 .style(settings_muted_text_style),
-            button(text("删除").size(12)).style(danger_action_btn_style).padding([8, 10]).on_press(
-                Message::WorkflowTool(WorkflowMessage::NodeEditorCodeRemoveInputVariable(index),)
-            ),
+            button(text(i18n.__("删除")).size(12))
+                .style(danger_action_btn_style)
+                .padding([8, 10])
+                .on_press(Message::WorkflowTool(
+                    WorkflowMessage::NodeEditorCodeRemoveInputVariable(index),
+                )),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
     ]
     .spacing(8);
 
-    if let Some(error) = validation.first_error_for(&variable_path) {
+    if let Some(error) = validation.localized_error_for(i18n, &variable_path) {
         content = content.push(build_inline_error(error));
     }
-    if let Some(error) = validation.first_error_for(&selector_path) {
+    if let Some(error) = validation.localized_error_for(i18n, &selector_path) {
         content = content.push(build_inline_error(error));
     }
-    if let Some(error) = validation.first_error_for(&value_type_path) {
+    if let Some(error) = validation.localized_error_for(i18n, &value_type_path) {
         content = content.push(build_inline_error(error));
     }
 
@@ -753,6 +785,7 @@ fn build_code_input_variable_row<'a>(
 }
 
 fn build_code_output_variable_row<'a>(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     output: &'a WorkflowCodeOutputDraft,
     type_options: &[WorkflowCodePickerOption],
@@ -765,7 +798,7 @@ fn build_code_output_variable_row<'a>(
 
     let mut content = column![
         row![
-            workflow_text_input("输出变量名", &output.key, move |value| {
+            workflow_text_input(i18n.__("输出变量名"), &output.key, move |value| {
                 Message::WorkflowTool(WorkflowMessage::NodeEditorCodeOutputNameChanged(
                     index, value,
                 ))
@@ -781,19 +814,22 @@ fn build_code_output_variable_row<'a>(
             .style(settings_pick_list_style)
             .menu_style(settings_pick_list_menu_style)
             .width(Length::Fixed(196.0)),
-            button(text("删除").size(12)).style(danger_action_btn_style).padding([8, 10]).on_press(
-                Message::WorkflowTool(WorkflowMessage::NodeEditorCodeRemoveOutputVariable(index),)
-            ),
+            button(text(i18n.__("删除")).size(12))
+                .style(danger_action_btn_style)
+                .padding([8, 10])
+                .on_press(Message::WorkflowTool(
+                    WorkflowMessage::NodeEditorCodeRemoveOutputVariable(index),
+                )),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
     ]
     .spacing(8);
 
-    if let Some(error) = validation.first_error_for(&key_path) {
+    if let Some(error) = validation.localized_error_for(i18n, &key_path) {
         content = content.push(build_inline_error(error));
     }
-    if let Some(error) = validation.first_error_for(&type_path) {
+    if let Some(error) = validation.localized_error_for(i18n, &type_path) {
         content = content.push(build_inline_error(error));
     }
 
@@ -820,11 +856,11 @@ fn code_output_type_options() -> [WorkflowCodePickerOption; 8] {
     ]
 }
 
-fn code_error_strategy_options() -> [WorkflowCodePickerOption; 3] {
+fn code_error_strategy_options(i18n: crate::app::i18n::I18n) -> [WorkflowCodePickerOption; 3] {
     [
-        WorkflowCodePickerOption { value: "none", label: "无" },
-        WorkflowCodePickerOption { value: "default-value", label: "默认值" },
-        WorkflowCodePickerOption { value: "fail-branch", label: "异常分支" },
+        WorkflowCodePickerOption { value: "none", label: i18n.__("无") },
+        WorkflowCodePickerOption { value: "default-value", label: i18n.__("默认值") },
+        WorkflowCodePickerOption { value: "fail-branch", label: i18n.__("异常分支") },
     ]
 }
 

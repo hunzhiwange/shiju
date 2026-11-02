@@ -62,6 +62,7 @@ enum DragMode {
 }
 
 pub struct WorkflowCanvas<'a> {
+    pub i18n: crate::app::i18n::I18n,
     pub document: &'a WorkflowDocument,
     pub pan: Vector,
     pub zoom: f32,
@@ -289,6 +290,7 @@ impl<'a> canvas::Program<Message> for WorkflowCanvas<'a> {
         frame.fill(&Path::rectangle(Point::ORIGIN, bounds.size()), background);
         draw_grid(&mut frame, bounds.size(), self.pan, self.zoom, theme);
         draw_edges(
+            self.i18n,
             &mut frame,
             self.document,
             self.pan,
@@ -308,6 +310,7 @@ impl<'a> canvas::Program<Message> for WorkflowCanvas<'a> {
             &handle_slots,
         );
         draw_nodes(
+            self.i18n,
             &mut frame,
             self.document,
             self.pan,

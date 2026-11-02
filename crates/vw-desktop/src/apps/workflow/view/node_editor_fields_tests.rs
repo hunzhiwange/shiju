@@ -43,15 +43,24 @@ fn node_editor_fields_build_all_shared_controls() {
     };
     let retry = WorkflowNodeRetryDraft { enabled: true, max_retries: 3, retry_interval: 500 };
 
-    let _ = build_variable_selector_field("输入变量", &selector, |_| {
+    let _ = build_variable_selector_field(
+        crate::app::i18n::I18n::new(Default::default()),
+        "输入变量",
+        &selector,
+        |_| Message::WorkflowTool(WorkflowMessage::CloseNodeEditor),
+    );
+    let _ = build_named_value_list(crate::app::i18n::I18n::new(Default::default()), &named, |_| {
         Message::WorkflowTool(WorkflowMessage::CloseNodeEditor)
     });
-    let _ =
-        build_named_value_list(&named, |_| Message::WorkflowTool(WorkflowMessage::CloseNodeEditor));
-    let _ =
-        build_key_value_list(&pairs, |_| Message::WorkflowTool(WorkflowMessage::CloseNodeEditor));
-    let _ = build_model_fields(&model, |_| Message::WorkflowTool(WorkflowMessage::CloseNodeEditor));
-    let _ = build_retry_fields(retry, |_| Message::WorkflowTool(WorkflowMessage::CloseNodeEditor));
+    let _ = build_key_value_list(crate::app::i18n::I18n::new(Default::default()), &pairs, |_| {
+        Message::WorkflowTool(WorkflowMessage::CloseNodeEditor)
+    });
+    let _ = build_model_fields(crate::app::i18n::I18n::new(Default::default()), &model, |_| {
+        Message::WorkflowTool(WorkflowMessage::CloseNodeEditor)
+    });
+    let _ = build_retry_fields(crate::app::i18n::I18n::new(Default::default()), retry, |_| {
+        Message::WorkflowTool(WorkflowMessage::CloseNodeEditor)
+    });
 
     for theme in [Theme::Light, Theme::Dark] {
         assert!(node_editor_field_card_style(&theme).border.width > 0.0);

@@ -35,7 +35,7 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                 return Some(Task::none());
             };
             if prompt.loading {
-                app.workflow_state.set_saved_app_run_prompt_error("运行参数仍在加载".to_string());
+                app.workflow_state.set_saved_app_run_prompt_error("运行参数仍在加载");
                 return Some(Task::none());
             }
 
@@ -162,7 +162,7 @@ fn load_saved_app_run_prompt_task(uuid: String) -> Task<Message> {
 
 fn build_run_request_inputs(
     prompt: &crate::apps::workflow::state::WorkflowRunPromptDraft,
-) -> Result<(String, BTreeMap<String, serde_json::Value>), String> {
+) -> Result<(String, BTreeMap<String, serde_json::Value>), crate::app::i18n::workflow::Feedback> {
     // 提交前统一按输入定义解析和校验，避免把界面草稿字符串直接交给运行时。
     let mut parsed = BTreeMap::new();
     let mut query = prompt.query.trim().to_string();
@@ -183,7 +183,10 @@ fn build_run_request_inputs(
 
         if run_input_value_is_empty(input) {
             if input.required {
-                return Err(format!("{} 必填", run_input_label(input)));
+                return Err(crate::app::i18n::workflow::Feedback::new(
+                    "%s 必填",
+                    vec![run_input_label(input).to_string()],
+                ));
             }
             continue;
         }
@@ -198,7 +201,7 @@ fn build_run_request_inputs(
     }
 
     if query.trim().is_empty() {
-        return Err("请输入 query 后再运行".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new("请输入 query 后再运行", vec![]));
     }
 
     Ok((query, parsed))
@@ -206,7 +209,7 @@ fn build_run_request_inputs(
 
 fn parse_run_input_value(
     input: &crate::apps::workflow::state::WorkflowRunInputDraft,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::app::i18n::workflow::Feedback> {
     let value = input.value.trim();
     match input.input_type.as_str() {
         "number" => parse_number_input(value, input),
@@ -215,7 +218,10 @@ fn parse_run_input_value(
         "file-list" => parse_file_list_input(value, input),
         "select" => {
             if !input.options.is_empty() && !input.options.iter().any(|option| option == value) {
-                return Err(format!("{} 必须从选项中选择", run_input_label(input)));
+                return Err(crate::app::i18n::workflow::Feedback::new(
+                    "%s 必须从选项中选择",
+                    vec![run_input_label(input).to_string()],
+                ));
             }
             Ok(serde_json::Value::String(input.value.clone()))
         }
@@ -229,35 +235,49 @@ fn parse_run_input_value(
 fn parse_number_input(
     value: &str,
     input: &crate::apps::workflow::state::WorkflowRunInputDraft,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::app::i18n::workflow::Feedback> {
     if let Ok(number) = value.parse::<i64>() {
         return Ok(serde_json::Value::Number(number.into()));
     }
 
-    let number =
-        value.parse::<f64>().map_err(|_| format!("{} 必须是数字", run_input_label(input)))?;
-    let number = serde_json::Number::from_f64(number)
-        .ok_or_else(|| format!("{} 必须是有效数字", run_input_label(input)))?;
+    let number = value.parse::<f64>().map_err(|_| {
+        crate::app::i18n::workflow::Feedback::new(
+            "%s 必须是数字",
+            vec![run_input_label(input).to_string()],
+        )
+    })?;
+    let number = serde_json::Number::from_f64(number).ok_or_else(|| {
+        crate::app::i18n::workflow::Feedback::new(
+            "%s 必须是有效数字",
+            vec![run_input_label(input).to_string()],
+        )
+    })?;
     Ok(serde_json::Value::Number(number))
 }
 
 fn parse_bool_input(
     value: &str,
     input: &crate::apps::workflow::state::WorkflowRunInputDraft,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::app::i18n::workflow::Feedback> {
     match value.to_ascii_lowercase().as_str() {
         "" | "false" => Ok(serde_json::Value::Bool(false)),
         "true" => Ok(serde_json::Value::Bool(true)),
-        _ => Err(format!("{} 必须是 boolean", run_input_label(input))),
+        _ => Err(crate::app::i18n::workflow::Feedback::new(
+            "%s 必须是 boolean",
+            vec![run_input_label(input).to_string()],
+        )),
     }
 }
 
 fn parse_file_input(
     value: &str,
     input: &crate::apps::workflow::state::WorkflowRunInputDraft,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::app::i18n::workflow::Feedback> {
     if split_file_values(value).len() > 1 {
-        return Err(format!("{} 只能填写一个文件", run_input_label(input)));
+        return Err(crate::app::i18n::workflow::Feedback::new(
+            "%s 只能填写一个文件",
+            vec![run_input_label(input).to_string()],
+        ));
     }
     file_value_from_text(value)
 }
@@ -265,7 +285,7 @@ fn parse_file_input(
 fn parse_file_list_input(
     value: &str,
     _input: &crate::apps::workflow::state::WorkflowRunInputDraft,
-) -> Result<serde_json::Value, String> {
+) -> Result<serde_json::Value, crate::app::i18n::workflow::Feedback> {
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(value) {
         return match json {
             serde_json::Value::Array(_) => Ok(json),
@@ -281,12 +301,17 @@ fn parse_file_list_input(
         .map(serde_json::Value::Array)
 }
 
-fn file_value_from_text(value: &str) -> Result<serde_json::Value, String> {
+fn file_value_from_text(
+    value: &str,
+) -> Result<serde_json::Value, crate::app::i18n::workflow::Feedback> {
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(value) {
         return match json {
             serde_json::Value::Object(_) => Ok(json),
             serde_json::Value::String(text) => Ok(file_object_from_path_or_url(&text)),
-            _ => Err("文件值必须是 URL、路径或文件对象".to_string()),
+            _ => Err(crate::app::i18n::workflow::Feedback::new(
+                "文件值必须是 URL、路径或文件对象",
+                vec![],
+            )),
         };
     }
 
@@ -313,7 +338,7 @@ fn split_file_values(value: &str) -> Vec<&str> {
 
 fn validate_text_length(
     input: &crate::apps::workflow::state::WorkflowRunInputDraft,
-) -> Result<(), String> {
+) -> Result<(), crate::app::i18n::workflow::Feedback> {
     let max_length = input.max_length_input.trim();
     if max_length.is_empty() {
         return Ok(());
@@ -322,7 +347,10 @@ fn validate_text_length(
         return Ok(());
     };
     if input.value.chars().count() > max_length {
-        return Err(format!("{} 超过最大长度 {}", run_input_label(input), max_length));
+        return Err(crate::app::i18n::workflow::Feedback::new(
+            "%s 超过最大长度 %s",
+            vec![run_input_label(input).to_string(), max_length.to_string()],
+        ));
     }
     Ok(())
 }

@@ -11,11 +11,12 @@ mod tests;
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_next_step_existing_item<'a>(
+    i18n: crate::app::i18n::I18n,
     edge: &'a WorkflowEdge,
     node: &'a WorkflowNode,
 ) -> Element<'a, Message> {
     let accent = workflow_node_accent_color(&node.block_type);
-    let block_label = pretty_block_type(&node.block_type);
+    let block_label = i18n.__(&pretty_block_type(&node.block_type)).to_string();
     let subtitle = if node.description.trim().is_empty() {
         block_label.clone()
     } else {
@@ -41,17 +42,17 @@ pub(super) fn build_node_next_step_existing_item<'a>(
         .width(Length::Fill)
         .on_press(Message::WorkflowTool(WorkflowMessage::JumpToNode(node.id.clone()))),
         row![
-            button(text("更改").size(12))
+            button(text(i18n.__("更改")).size(12))
                 .style(rounded_action_btn_style)
                 .padding([8, 10])
                 .on_press(Message::WorkflowTool(WorkflowMessage::OpenEditNodeEditor(Some(
                     node.id.clone(),
                 )))),
-            button(text("断开").size(12))
+            button(text(i18n.__("断开")).size(12))
                 .style(rounded_action_btn_style)
                 .padding([8, 10])
                 .on_press(Message::WorkflowTool(WorkflowMessage::DeleteEdgeById(edge.id.clone(),))),
-            button(text("删除").size(12))
+            button(text(i18n.__("删除")).size(12))
                 .style(danger_action_btn_style)
                 .padding([8, 10])
                 .on_press(Message::WorkflowTool(WorkflowMessage::DeleteNodeById(node.id.clone(),))),
@@ -68,20 +69,22 @@ pub(super) fn build_node_next_step_existing_item<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_next_step_section<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     editor: &'a super::state::WorkflowNodeEditorDraft,
 ) -> Element<'a, Message> {
     let existing_connections: Element<'a, Message> = match &editor.mode {
         super::state::WorkflowNodeEditorMode::Edit(node_id) => {
             build_node_next_step_connection_list(
+                i18n,
                 state,
                 node_id,
                 None,
-                "当前还没有已连接的下游节点。",
+                i18n.__("当前还没有已连接的下游节点。"),
             )
         }
         super::state::WorkflowNodeEditorMode::Create => container(
-            text("保存当前节点后，才能查看和管理它的下游节点。")
+            text(i18n.__("保存当前节点后，才能查看和管理它的下游节点。"))
                 .size(12)
                 .style(settings_muted_text_style),
         )
@@ -100,13 +103,14 @@ pub(super) fn build_node_next_step_section<'a>(
 
             if has_fail_branch {
                 content = content.push(build_node_next_step_branch_section(
-                    "异常时",
-                    "代码节点进入异常分支后，会从这里继续流转。",
+                    i18n.__("异常时"),
+                    i18n.__("代码节点进入异常分支后，会从这里继续流转。"),
                     build_node_next_step_connection_list(
+                        i18n,
                         state,
                         node_id,
                         Some("fail-branch"),
-                        "当前还没有异常分支节点。",
+                        i18n.__("当前还没有异常分支节点。"),
                     ),
                     build_start_next_step_button_group(state, node_id.clone(), Some("fail-branch")),
                 ));
@@ -115,7 +119,7 @@ pub(super) fn build_node_next_step_section<'a>(
             content.into()
         }
         super::state::WorkflowNodeEditorMode::Create => container(
-            text("保存节点后，可在这里继续添加下游节点。")
+            text(i18n.__("保存节点后，可在这里继续添加下游节点。"))
                 .size(12)
                 .style(settings_muted_text_style),
         )
@@ -128,6 +132,7 @@ pub(super) fn build_node_next_step_section<'a>(
 }
 
 fn build_node_next_step_connection_list<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     node_id: &str,
     source_handle_id: Option<&str>,
@@ -145,7 +150,7 @@ fn build_node_next_step_connection_list<'a>(
     }) {
         if let Some(target_node) = state.document.node(&edge.target) {
             has_items = true;
-            list = list.push(build_node_next_step_existing_item(edge, target_node));
+            list = list.push(build_node_next_step_existing_item(i18n, edge, target_node));
         }
     }
 

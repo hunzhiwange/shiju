@@ -5,6 +5,14 @@
 use super::*;
 
 impl WorkflowState {
+    pub fn display_title(&self, i18n: crate::app::i18n::I18n) -> String {
+        if self.active_app_id.is_none() || self.source_name.trim().is_empty() {
+            i18n.__("工作流").to_string()
+        } else {
+            self.title().to_string()
+        }
+    }
+
     pub fn title(&self) -> &str {
         if self.active_app_id.is_none() {
             return "工作流";
@@ -211,7 +219,7 @@ impl WorkflowState {
             }
             Err(error) => {
                 prompt.inputs.clear();
-                prompt.error = Some(error);
+                prompt.error = Some(error.into());
             }
         }
     }
@@ -234,9 +242,12 @@ impl WorkflowState {
         }
     }
 
-    pub fn set_saved_app_run_prompt_error(&mut self, error: String) {
+    pub fn set_saved_app_run_prompt_error(
+        &mut self,
+        error: impl Into<crate::app::i18n::workflow::Feedback>,
+    ) {
         if let Some(prompt) = self.saved_app_run_prompt.as_mut() {
-            prompt.error = Some(error);
+            prompt.error = Some(error.into());
         }
     }
 
@@ -338,6 +349,7 @@ impl WorkflowState {
         let content =
             serde_json::to_string_pretty(&node.data).unwrap_or_else(|_| node.data.to_string());
         self.saved_app_run_detail = Some(WorkflowRunDetailDialog {
+            title_source: None,
             title,
             content: text_editor::Content::with_text(&content),
         });
@@ -349,6 +361,7 @@ impl WorkflowState {
             return;
         };
         self.saved_app_run_detail = Some(WorkflowRunDetailDialog {
+            title_source: Some("运行输出"),
             title: "运行输出".to_string(),
             content: text_editor::Content::with_text(&preview.text_output),
         });
@@ -491,8 +504,10 @@ impl WorkflowState {
         self.conversation_variables.iter().find(|variable| variable.id == id)
     }
 
-    pub fn set_error(&mut self, error: impl Into<String>) {
-        self.error_message = Some(error.into());
+    pub fn set_error(&mut self, error: impl Into<crate::app::i18n::workflow::Feedback>) {
+        let error = error.into();
+        self.error_message = Some(error.to_string());
+        self.localized_error = Some(error);
     }
 
     pub fn clear_error(&mut self) {
@@ -671,9 +686,14 @@ impl WorkflowState {
         self.dragging_node_id = None;
         self.drag_pending_snapshot = None;
 
-        self.status_message = Some(match self.source_path.as_deref() {
-            Some(path) => format!("已加载 {}", path),
-            None => format!("已加载 {}", self.title()),
+        self.set_status(match self.source_path.as_deref() {
+            Some(path) => {
+                crate::app::i18n::format::Message::new("已加载 %s", vec![path.to_string().into()])
+            }
+            None => crate::app::i18n::format::Message::new(
+                "已加载 %s",
+                vec![self.title().to_string().into()],
+            ),
         });
         self.sync_selection_flags();
     }
@@ -754,7 +774,10 @@ impl WorkflowState {
         self.saved_snapshot = Some(saved_snapshot);
         self.dragging_node_id = None;
         self.drag_pending_snapshot = None;
-        self.status_message = Some(format!("已重新载入 {}", self.title()));
+        self.set_status(crate::app::i18n::format::Message::new(
+            "已重新载入 %s",
+            vec![self.title().to_string().into()],
+        ));
         self.sync_selection_flags();
     }
 
@@ -770,7 +793,10 @@ impl WorkflowState {
 
         self.active_app_id = Some(app.id.clone());
         self.load_entry_into_current(&app);
-        self.status_message = Some(format!("已切换到 {}", self.title()));
+        self.set_status(crate::app::i18n::format::Message::new(
+            "已切换到 %s",
+            vec![self.title().to_string().into()],
+        ));
         true
     }
 
@@ -1191,4 +1217,39 @@ fn is_sensitive_debug_key(key: &str) -> bool {
         || lower.contains("apikey")
         || lower == "authorization"
         || lower == "cookie"
+}
+
+impl WorkflowState {
+    pub fn set_status(&mut self, message: crate::app::i18n::format::Message) {
+        self.status_message = Some(
+            message
+                .render(crate::app::i18n::I18n::new(Default::default()))
+                .expect("valid workflow status template"),
+        );
+        self.localized_status = Some(message);
+    }
+
+    pub fn status_text(&self, i18n: crate::app::i18n::I18n) -> Option<String> {
+        let raw = self.status_message.as_ref()?;
+        if let Some(message) = &self.localized_status {
+            if message.render(crate::app::i18n::I18n::new(Default::default())).as_ref().ok()
+                == Some(raw)
+            {
+                return Some(message.render(i18n).expect("valid workflow status template"));
+            }
+        }
+        Some(raw.clone())
+    }
+}
+
+impl WorkflowState {
+    pub fn error_text(&self, i18n: crate::app::i18n::I18n) -> Option<String> {
+        let raw = self.error_message.as_ref()?;
+        if let Some(message) = &self.localized_error {
+            if message.to_string() == *raw {
+                return Some(message.render(i18n));
+            }
+        }
+        Some(raw.clone())
+    }
 }

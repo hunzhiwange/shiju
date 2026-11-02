@@ -86,7 +86,8 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             match result {
                 Ok(uuid) => {
                     let removed_active = app.workflow_state.remove_saved_app(&uuid);
-                    app.workflow_state.status_message = Some("已删除应用".to_string());
+                    app.workflow_state
+                        .set_status(crate::app::i18n::format::Message::new("已删除应用", vec![]));
                     if removed_active {
                         crate::apps::workflow::sync_top_tab(app);
                     }
@@ -109,8 +110,10 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
                         {
                             app.workflow_state.set_error(error);
                         }
-                        app.workflow_state.status_message =
-                            Some("已打开临时工作流预览".to_string());
+                        app.workflow_state.set_status(crate::app::i18n::format::Message::new(
+                            "已打开临时工作流预览",
+                            vec![],
+                        ));
                     }
                     Err(error) => app.workflow_state.set_error(error),
                 }
@@ -118,7 +121,7 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             #[cfg(target_arch = "wasm32")]
             {
                 let _ = (workflow_yaml, focus_node_id);
-                app.workflow_state.set_error("Web 平台暂不支持预览内联 Workflow YAML".to_string());
+                app.workflow_state.set_error("Web 平台暂不支持预览内联 Workflow YAML");
             }
             Task::none()
         }

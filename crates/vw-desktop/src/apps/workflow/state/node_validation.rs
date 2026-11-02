@@ -901,7 +901,7 @@ fn validate_structured_model(
 fn push_validation_error(
     field_errors: &mut Vec<WorkflowNodeValidationError>,
     path: &str,
-    message: impl Into<String>,
+    message: impl Into<crate::app::i18n::workflow::Feedback>,
 ) {
     field_errors
         .push(WorkflowNodeValidationError { path: path.to_string(), message: message.into() });

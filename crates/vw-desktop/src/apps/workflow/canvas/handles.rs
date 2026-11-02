@@ -138,17 +138,20 @@ pub(super) fn control_for_side(point: Point, side: WorkflowHandleSide, distance:
     }
 }
 
-pub(super) fn edge_handle_label(edge: &WorkflowEdge) -> Option<String> {
+pub(super) fn edge_handle_label(
+    i18n: crate::app::i18n::I18n,
+    edge: &WorkflowEdge,
+) -> Option<String> {
     let label = edge.source_handle.as_deref()?;
     let trimmed = label.trim();
     if trimmed.is_empty() || trimmed == "source" || trimmed == "target" {
         return None;
     }
     if trimmed == "true" {
-        return Some("是".to_string());
+        return Some(i18n.__("是").to_string());
     }
     if trimmed == "false" {
-        return Some("否".to_string());
+        return Some(i18n.__("否").to_string());
     }
     if trimmed.len() > 24 || trimmed.contains('-') {
         return None;

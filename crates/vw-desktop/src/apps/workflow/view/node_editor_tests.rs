@@ -48,7 +48,7 @@ fn state_with_editor(editor: state::WorkflowNodeEditorDraft) -> WorkflowState {
 fn modal_without_editor_builds_empty_placeholder() {
     let state = WorkflowState::default();
 
-    let _element = build_node_editor_modal(&state);
+    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -56,7 +56,7 @@ fn modal_builds_visual_tab_with_answer_editor() {
     let state =
         state_with_editor(editor_with_tab(WorkflowNodeEditorTab::Visual, Some(answer_visual())));
 
-    let _element = build_node_editor_modal(&state);
+    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -73,7 +73,7 @@ fn node_editor_content_leaves_space_for_the_scrollbar() {
 fn modal_falls_back_from_missing_visual_tab_to_description() {
     let state = state_with_editor(editor_with_tab(WorkflowNodeEditorTab::Visual, None));
 
-    let _element = build_node_editor_modal(&state);
+    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -85,7 +85,8 @@ fn modal_builds_description_basic_and_advanced_tabs() {
     ] {
         let state = state_with_editor(editor_with_tab(tab, Some(answer_visual())));
 
-        let _element = build_node_editor_modal(&state);
+        let _element =
+            build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
     }
 }
 
@@ -98,7 +99,8 @@ fn modal_without_visual_draft_keeps_non_visual_tabs_active() {
     ] {
         let state = state_with_editor(editor_with_tab(tab, None));
 
-        let _element = build_node_editor_modal(&state);
+        let _element =
+            build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
     }
 }
 
@@ -107,11 +109,11 @@ fn modal_builds_validation_summary_when_editor_has_errors() {
     let mut editor = editor_with_tab(WorkflowNodeEditorTab::AdvancedDsl, Some(answer_visual()));
     editor.validation.field_errors.push(state::WorkflowNodeValidationError {
         path: "answer.text".to_string(),
-        message: "回复内容不能为空".to_string(),
+        message: ("回复内容不能为空".to_string()).into(),
     });
     let state = state_with_editor(editor);
 
-    let _element = build_node_editor_modal(&state);
+    let _element = build_node_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -125,9 +127,18 @@ fn node_editor_parts_build_individually() {
         WorkflowMessage::NodeEditorDescriptionAction,
         88.0,
     );
-    let _header = build_node_editor_header(&editor);
-    let _tabs_with_visual = build_node_editor_tabs(true, WorkflowNodeEditorTab::Visual);
-    let _tabs_without_visual = build_node_editor_tabs(false, WorkflowNodeEditorTab::Basic);
+    let _header =
+        build_node_editor_header(crate::app::i18n::I18n::new(Default::default()), &editor);
+    let _tabs_with_visual = build_node_editor_tabs(
+        crate::app::i18n::I18n::new(Default::default()),
+        true,
+        WorkflowNodeEditorTab::Visual,
+    );
+    let _tabs_without_visual = build_node_editor_tabs(
+        crate::app::i18n::I18n::new(Default::default()),
+        false,
+        WorkflowNodeEditorTab::Basic,
+    );
     let _active_tab = build_node_editor_tab_button(
         "配置",
         WorkflowNodeEditorTab::Visual,
@@ -138,15 +149,20 @@ fn node_editor_parts_build_individually() {
         WorkflowNodeEditorTab::Description,
         WorkflowNodeEditorTab::Visual,
     );
-    let _description = build_node_description_section(&editor);
-    let _hint = build_node_connection_hint();
+    let _description =
+        build_node_description_section(crate::app::i18n::I18n::new(Default::default()), &editor);
+    let _hint = build_node_connection_hint(crate::app::i18n::I18n::new(Default::default()));
     let state = state_with_editor(editor_with_tab(
         WorkflowNodeEditorTab::AdvancedDsl,
         Some(answer_visual()),
     ));
-    let _advanced =
-        build_node_advanced_dsl_section(&state, state.node_editor.as_ref().expect("node editor"));
-    let _placeholder = build_node_visual_placeholder();
+    let _advanced = build_node_advanced_dsl_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        state.node_editor.as_ref().expect("node editor"),
+    );
+    let _placeholder =
+        build_node_visual_placeholder(crate::app::i18n::I18n::new(Default::default()));
 }
 
 #[test]

@@ -14,15 +14,21 @@ const SAVED_APP_RUN_PROMPT_SCROLLBAR_GUTTER: f32 = 12.0;
 /// 构建 saved apps view 对应的界面元素。
 ///
 /// 参数由当前工作流状态提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_saved_apps_view(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_saved_apps_view(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let body: Element<'_, Message> = if state.saved_apps_loading && state.saved_apps.is_empty() {
-        build_saved_apps_notice("正在读取本地 Workflow 应用...")
+        build_saved_apps_notice(i18n, i18n.__("正在读取本地 Workflow 应用..."))
     } else if let Some(error) = &state.saved_apps_error {
-        build_saved_apps_error(error)
+        build_saved_apps_error(i18n, error)
     } else if state.saved_apps.is_empty() {
-        build_saved_apps_notice("暂无应用，请创建应用或导入 DSL 后保存到本地数据库。")
+        build_saved_apps_notice(
+            i18n,
+            i18n.__("暂无应用，请创建应用或导入 DSL 后保存到本地数据库。"),
+        )
     } else {
-        let mut cards = row![build_create_app_card()].spacing(18);
+        let mut cards = row![build_create_app_card(i18n,)].spacing(18);
         let filtered_apps = state
             .saved_apps
             .iter()
@@ -30,21 +36,21 @@ pub(super) fn build_saved_apps_view(state: &WorkflowState) -> Element<'_, Messag
             .collect::<Vec<_>>();
 
         for app in &filtered_apps {
-            cards = cards.push(build_saved_app_card(state, app));
+            cards = cards.push(build_saved_app_card(i18n, state, app));
         }
 
         if filtered_apps.is_empty() {
-            cards = cards.push(build_no_result_card());
+            cards = cards.push(build_no_result_card(i18n));
         }
 
-        scrollable(container(cards.wrap()).width(Length::Fill))
+        scrollable(container(cards.wrap()).width(Length::Fill).padding([0, 7]))
             .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
             .width(Length::Fill)
             .height(Length::Fill)
             .into()
     };
 
-    let content = column![build_saved_apps_header(state), body]
+    let content = column![build_saved_apps_header(i18n, state), body]
         .spacing(26)
         .width(Length::Fill)
         .height(Length::Fill);
@@ -52,11 +58,14 @@ pub(super) fn build_saved_apps_view(state: &WorkflowState) -> Element<'_, Messag
     container(content).padding([30, 34]).style(root_style).into()
 }
 
-fn build_saved_apps_header(state: &WorkflowState) -> Element<'_, Message> {
+fn build_saved_apps_header(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     row![
-        build_search_input(state),
-        saved_apps_header_button("刷新", WorkflowMessage::LoadSavedApps),
-        saved_apps_header_button("导入 DSL", WorkflowMessage::OpenFile),
+        build_search_input(i18n, state),
+        saved_apps_header_button(i18n.__("刷新"), WorkflowMessage::LoadSavedApps),
+        saved_apps_header_button(i18n.__("导入 DSL"), WorkflowMessage::OpenFile),
         Space::new().width(Length::Fill),
     ]
     .spacing(10)
@@ -94,9 +103,9 @@ fn saved_apps_header_button(
     .into()
 }
 
-fn build_search_input(state: &WorkflowState) -> Element<'_, Message> {
+fn build_search_input(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, Message> {
     container(
-        text_input("搜索", &state.saved_app_search_query)
+        text_input(i18n.__("搜索"), &state.saved_app_search_query)
             .on_input(|query| Message::WorkflowTool(WorkflowMessage::SavedAppSearchChanged(query)))
             .padding([9, 12])
             .size(13)
@@ -110,16 +119,20 @@ fn build_search_input(state: &WorkflowState) -> Element<'_, Message> {
     .into()
 }
 
-fn build_create_app_card() -> Element<'static, Message> {
+fn build_create_app_card(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     container(
         column![
-            text("创建应用").size(14).style(settings_muted_text_style),
+            text(i18n.__("创建应用")).size(14).style(settings_muted_text_style),
             create_action_button(
                 Icon::FileEarmarkPlus,
-                "创建空白应用",
+                i18n.__("创建空白应用"),
                 WorkflowMessage::OpenCreateAppEditor,
             ),
-            create_action_button(Icon::FolderOpen, "导入 DSL 文件", WorkflowMessage::OpenFile),
+            create_action_button(
+                Icon::FolderOpen,
+                i18n.__("导入 DSL 文件"),
+                WorkflowMessage::OpenFile
+            ),
         ]
         .spacing(12)
         .width(Length::Fill),
@@ -166,11 +179,11 @@ fn create_action_row(icon: Icon, label: &'static str) -> Element<'static, Messag
     .into()
 }
 
-fn build_no_result_card() -> Element<'static, Message> {
+fn build_no_result_card(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     container(
         column![
-            text("没有匹配的应用").size(15),
-            text("换个搜索词再试。").size(12).style(settings_muted_text_style),
+            text(i18n.__("没有匹配的应用")).size(15),
+            text(i18n.__("换个搜索词再试。")).size(12).style(settings_muted_text_style),
         ]
         .spacing(8)
         .align_x(Alignment::Center),
@@ -184,13 +197,16 @@ fn build_no_result_card() -> Element<'static, Message> {
 }
 
 fn build_saved_app_card(
+    i18n: crate::app::i18n::I18n,
     state: &WorkflowState,
     app: &state::WorkflowSavedAppSummary,
 ) -> Element<'static, Message> {
     let uuid = app.uuid.clone();
-    let title = saved_app_title(&app.name);
-    let description = saved_app_description(&app.description);
-    let updated_label = format!("编辑于 {}", format_saved_app_time(app.updated_at_ms));
+    let title = saved_app_title(i18n, &app.name);
+    let description = saved_app_description(i18n, &app.description);
+    let updated_label = i18n
+        .format("编辑于 %s", &[format_saved_app_time(app.updated_at_ms).to_string().into()])
+        .expect("valid workflow display template");
     let opening = state.opening_saved_app_uuid.as_deref() == Some(app.uuid.as_str());
     let enabled = state.opening_saved_app_uuid.is_none();
     let copied = state.copied_saved_app_uuid.as_deref() == Some(app.uuid.as_str());
@@ -223,21 +239,22 @@ fn build_saved_app_card(
     .on_press_maybe(
         enabled.then_some(Message::WorkflowTool(WorkflowMessage::OpenSavedApp(uuid.clone()))),
     );
-    let actions = build_saved_app_actions_menu(uuid, actions_open, deleting, running, run_blocked);
+    let actions =
+        build_saved_app_actions_menu(i18n, uuid, actions_open, deleting, running, run_blocked);
 
     container(
         column![
             row![open_area, actions].spacing(8).align_y(Alignment::Start),
-            saved_app_uuid_row(app.uuid.as_str(), copied),
+            saved_app_uuid_row(i18n, app.uuid.as_str(), copied),
             row![
-                saved_app_tag("内部应用"),
-                saved_app_tag("工作流"),
+                saved_app_tag(i18n.__("内部应用")),
+                saved_app_tag(i18n.__("工作流")),
                 if opening {
-                    saved_app_tag("打开中")
+                    saved_app_tag(i18n.__("打开中"))
                 } else if running {
-                    saved_app_tag("运行中")
+                    saved_app_tag(i18n.__("运行中"))
                 } else {
-                    saved_app_tag("正式")
+                    saved_app_tag(i18n.__("正式"))
                 },
             ]
             .spacing(6)
@@ -254,6 +271,7 @@ fn build_saved_app_card(
 }
 
 fn build_saved_app_actions_menu(
+    i18n: crate::app::i18n::I18n,
     uuid: String,
     actions_open: bool,
     deleting: bool,
@@ -282,7 +300,7 @@ fn build_saved_app_actions_menu(
 
     let run_item = build_saved_app_action_item(
         Icon::ArrowRepeat,
-        if running { "运行中" } else { "运行" },
+        if running { i18n.__("运行中") } else { i18n.__("运行") },
         saved_app_run_action_message(uuid.clone(), run_blocked),
         false,
     );
@@ -290,7 +308,7 @@ fn build_saved_app_actions_menu(
     let delete_message = (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid));
     let delete_item = build_saved_app_action_item(
         Icon::Trash,
-        if deleting { "删除中" } else { "删除" },
+        if deleting { i18n.__("删除中") } else { i18n.__("删除") },
         delete_message,
         true,
     );
@@ -360,7 +378,11 @@ fn build_saved_app_action_item(
     }
 }
 
-fn saved_app_uuid_row(uuid: &str, copied: bool) -> Element<'static, Message> {
+fn saved_app_uuid_row(
+    i18n: crate::app::i18n::I18n,
+    uuid: &str,
+    copied: bool,
+) -> Element<'static, Message> {
     let uuid = uuid.to_string();
     let copy_content: Element<'static, Message> = if copied {
         text("✓").size(12).line_height(1.0).into()
@@ -372,7 +394,7 @@ fn saved_app_uuid_row(uuid: &str, copied: bool) -> Element<'static, Message> {
                 .style(|theme: &Theme, _| iced::widget::svg::Style {
                     color: Some(theme.palette().text.scale_alpha(0.70))
                 }),
-            text("复制").size(11).line_height(1.0),
+            text(i18n.__("复制")).size(11).line_height(1.0),
         ]
         .spacing(5)
         .align_y(Alignment::Center)
@@ -400,6 +422,7 @@ fn saved_app_uuid_row(uuid: &str, copied: bool) -> Element<'static, Message> {
 }
 
 pub(super) fn build_saved_app_delete_confirm_dialog(
+    i18n: crate::app::i18n::I18n,
     state: &WorkflowState,
 ) -> Option<Element<'_, Message>> {
     let uuid = state.confirm_delete_saved_app_uuid.as_deref()?;
@@ -407,20 +430,25 @@ pub(super) fn build_saved_app_delete_confirm_dialog(
         .saved_apps
         .iter()
         .find(|app| app.uuid == uuid)
-        .map(|app| saved_app_title(&app.name))
-        .unwrap_or_else(|| "该应用".to_string());
+        .map(|app| saved_app_title(i18n, &app.name))
+        .unwrap_or_else(|| i18n.__("该应用").to_string());
 
     Some(crate::app::components::toast::confirm_dialog(
-        "确认删除应用",
-        format!("将从本地数据库删除「{app_name}」。此操作不可撤销。\nUUID: {uuid}"),
-        "确认删除",
-        "取消",
+        i18n.__("确认删除应用"),
+        i18n.format(
+            "将从本地数据库删除「%s」。此操作不可撤销。\nUUID: %s",
+            &[app_name.to_string().into(), uuid.to_string().into()],
+        )
+        .expect("valid workflow display template"),
+        i18n.__("确认删除"),
+        i18n.__("取消"),
         Message::WorkflowTool(WorkflowMessage::DeleteSavedApp(uuid.to_string())),
         Message::WorkflowTool(WorkflowMessage::CancelDeleteSavedApp),
     ))
 }
 
 pub(super) fn build_saved_app_run_prompt_dialog(
+    i18n: crate::app::i18n::I18n,
     state: &WorkflowState,
 ) -> Option<Element<'_, Message>> {
     let prompt = state.saved_app_run_prompt.as_ref()?;
@@ -428,15 +456,18 @@ pub(super) fn build_saved_app_run_prompt_dialog(
         .saved_apps
         .iter()
         .find(|app| app.uuid == prompt.uuid)
-        .map(|app| saved_app_title(&app.name))
-        .unwrap_or_else(|| "该应用".to_string());
+        .map(|app| saved_app_title(i18n, &app.name))
+        .unwrap_or_else(|| i18n.__("该应用").to_string());
 
     let header = row![
         column![
-            text("运行工作流").size(22),
-            text(format!("为「{app_name}」填写本次运行参数"))
-                .size(12)
-                .style(settings_muted_text_style),
+            text(i18n.__("运行工作流")).size(22),
+            text(
+                i18n.format("为「%s」填写本次运行参数", &[app_name.to_string().into()])
+                    .expect("valid workflow display template")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         ]
         .spacing(4),
         Space::new().width(Length::Fill),
@@ -449,17 +480,17 @@ pub(super) fn build_saved_app_run_prompt_dialog(
     if !prompt.loading && !saved_app_run_prompt_has_query_input(prompt) {
         form = form.push(build_editor_field(
             "query",
-            workflow_text_input("输入本次运行的 query", &prompt.query, |value| {
+            workflow_text_input(i18n.__("输入本次运行的 query"), &prompt.query, |value| {
                 Message::WorkflowTool(WorkflowMessage::SavedAppRunQueryChanged(value))
             }),
         ));
     }
 
-    form = form.push(build_saved_app_run_inputs(prompt));
+    form = form.push(build_saved_app_run_inputs(i18n, prompt));
 
     if let Some(error) = &prompt.error {
         form = form.push(
-            container(text(error).size(12))
+            container(text(error.render(i18n)).size(12))
                 .width(Length::Fill)
                 .padding([9, 12])
                 .style(workflow_run_prompt_error_style),
@@ -485,11 +516,11 @@ pub(super) fn build_saved_app_run_prompt_dialog(
 
     let footer = row![
         Space::new().width(Length::Fill),
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .style(rounded_action_btn_style)
             .padding([9, 14])
             .on_press(Message::WorkflowTool(WorkflowMessage::CancelSavedAppRunPrompt)),
-        button(text("运行"))
+        button(text(i18n.__("运行")))
             .style(primary_action_btn_style)
             .padding([9, 14])
             .on_press(Message::WorkflowTool(WorkflowMessage::SubmitSavedAppRunPrompt)),
@@ -509,18 +540,22 @@ pub(super) fn build_saved_app_run_prompt_dialog(
     ))
 }
 
-fn build_saved_app_run_inputs(prompt: &state::WorkflowRunPromptDraft) -> Element<'_, Message> {
+fn build_saved_app_run_inputs(
+    i18n: crate::app::i18n::I18n,
+    prompt: &state::WorkflowRunPromptDraft,
+) -> Element<'_, Message> {
     let mut rows = column![].spacing(8).width(Length::Fill);
 
     if prompt.loading {
-        rows = rows.push(text("正在读取运行参数...").size(12).style(settings_muted_text_style));
+        rows = rows
+            .push(text(i18n.__("正在读取运行参数...")).size(12).style(settings_muted_text_style));
     } else if prompt.inputs.iter().all(|input| input.hidden) {
-        rows = rows.push(text("没有额外参数").size(12).style(settings_muted_text_style));
+        rows = rows.push(text(i18n.__("没有额外参数")).size(12).style(settings_muted_text_style));
     }
 
     for (index, input) in prompt.inputs.iter().enumerate() {
         if !input.hidden {
-            rows = rows.push(build_saved_app_run_input_field(index, input));
+            rows = rows.push(build_saved_app_run_input_field(i18n, index, input));
         }
     }
 
@@ -528,6 +563,7 @@ fn build_saved_app_run_inputs(prompt: &state::WorkflowRunPromptDraft) -> Element
 }
 
 fn build_saved_app_run_input_field(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     input: &state::WorkflowRunInputDraft,
 ) -> Element<'_, Message> {
@@ -543,13 +579,14 @@ fn build_saved_app_run_input_field(
     .spacing(8)
     .align_y(Alignment::Center);
 
-    column![meta, build_saved_app_run_input_control(index, input)]
+    column![meta, build_saved_app_run_input_control(i18n, index, input)]
         .spacing(6)
         .width(Length::Fill)
         .into()
 }
 
 fn build_saved_app_run_input_control(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     input: &state::WorkflowRunInputDraft,
 ) -> Element<'_, Message> {
@@ -558,7 +595,9 @@ fn build_saved_app_run_input_control(
             toggler(input.value.trim().eq_ignore_ascii_case("true")).on_toggle(move |value| {
                 Message::WorkflowTool(WorkflowMessage::SavedAppRunInputToggled(index, value))
             }),
-            text(saved_app_run_input_placeholder(input)).size(12).style(settings_muted_text_style),
+            text(saved_app_run_input_placeholder(i18n, input))
+                .size(12)
+                .style(settings_muted_text_style),
         ]
         .spacing(10)
         .align_y(Alignment::Center)
@@ -577,7 +616,7 @@ fn build_saved_app_run_input_control(
             .width(Length::Fill)
             .into()
         }
-        _ => text_input(saved_app_run_input_placeholder(input), &input.value)
+        _ => text_input(saved_app_run_input_placeholder(i18n, input), &input.value)
             .on_input(move |value| {
                 Message::WorkflowTool(WorkflowMessage::SavedAppRunInputChanged(index, value))
             })
@@ -597,16 +636,19 @@ fn saved_app_run_input_label(input: &state::WorkflowRunInputDraft) -> String {
     if input.label.trim().is_empty() { input.name.clone() } else { input.label.clone() }
 }
 
-fn saved_app_run_input_placeholder(input: &state::WorkflowRunInputDraft) -> &str {
+fn saved_app_run_input_placeholder(
+    i18n: crate::app::i18n::I18n,
+    input: &state::WorkflowRunInputDraft,
+) -> &str {
     if !input.placeholder.trim().is_empty() {
         return input.placeholder.as_str();
     }
     match input.input_type.as_str() {
-        "number" => "请输入数字",
-        "file" => "输入文件 URL 或路径",
-        "file-list" => "输入文件 URL 或路径，逗号分隔",
+        "number" => i18n.__("请输入数字"),
+        "file" => i18n.__("输入文件 URL 或路径"),
+        "file-list" => i18n.__("输入文件 URL 或路径，逗号分隔"),
         _ if !input.hint.trim().is_empty() => input.hint.as_str(),
-        _ => "请输入",
+        _ => i18n.__("请输入"),
     }
 }
 
@@ -623,11 +665,14 @@ fn workflow_run_prompt_error_style(theme: &Theme) -> iced::widget::container::St
     }
 }
 
-fn build_saved_apps_notice(message: &'static str) -> Element<'static, Message> {
+fn build_saved_apps_notice(
+    i18n: crate::app::i18n::I18n,
+    message: &'static str,
+) -> Element<'static, Message> {
     container(
         column![
             text(message).size(15).style(settings_muted_text_style),
-            button(text("创建应用").size(13))
+            button(text(i18n.__("创建应用")).size(13))
                 .style(primary_action_btn_style)
                 .padding([10, 16])
                 .on_press(Message::WorkflowTool(WorkflowMessage::OpenCreateAppEditor)),
@@ -642,11 +687,15 @@ fn build_saved_apps_notice(message: &'static str) -> Element<'static, Message> {
     .into()
 }
 
-fn build_saved_apps_error(error: &str) -> Element<'_, Message> {
+fn build_saved_apps_error(i18n: crate::app::i18n::I18n, error: &str) -> Element<'_, Message> {
     container(
         column![
-            text(format!("读取应用列表失败: {error}")).size(14),
-            button(text("重试").size(13))
+            text(
+                i18n.format("读取应用列表失败: %s", &[error.to_string().into()])
+                    .expect("valid workflow display template")
+            )
+            .size(14),
+            button(text(i18n.__("重试")).size(13))
                 .style(primary_action_btn_style)
                 .padding([10, 16])
                 .on_press(Message::WorkflowTool(WorkflowMessage::LoadSavedApps)),
@@ -816,13 +865,17 @@ fn saved_app_name_text_style(theme: &Theme) -> iced::widget::text::Style {
     }
 }
 
-fn saved_app_title(name: &str) -> String {
-    if name.trim().is_empty() { "未命名应用".to_string() } else { name.trim().to_string() }
+fn saved_app_title(i18n: crate::app::i18n::I18n, name: &str) -> String {
+    if name.trim().is_empty() {
+        i18n.__("未命名应用").to_string()
+    } else {
+        name.trim().to_string()
+    }
 }
 
-fn saved_app_description(description: &str) -> String {
+fn saved_app_description(i18n: crate::app::i18n::I18n, description: &str) -> String {
     if description.trim().is_empty() {
-        "暂无描述".to_string()
+        i18n.__("暂无描述").to_string()
     } else {
         description.trim().to_string()
     }

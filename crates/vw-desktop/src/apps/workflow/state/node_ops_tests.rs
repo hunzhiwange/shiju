@@ -136,7 +136,7 @@ fn open_create_node_editor_rejects_second_start_node() {
 
     let result = state.open_create_node_editor("start", Point::ORIGIN);
 
-    assert_eq!(result, Err("开始节点只能有一个".to_string()));
+    assert_eq!((result).map_err(String::from), Err("开始节点只能有一个".to_string()));
     assert!(state.node_editor.is_none());
 }
 
@@ -200,10 +200,16 @@ fn open_edit_node_editor_with_explicit_id_closes_floating_editors() {
 fn open_edit_node_editor_returns_clear_errors() {
     let mut state = WorkflowState::default();
 
-    assert_eq!(state.open_edit_node_editor(None), Err("请先选择一个节点".to_string()));
+    assert_eq!(
+        (state.open_edit_node_editor(None)).map_err(String::from),
+        Err("请先选择一个节点".to_string())
+    );
 
     state.selected_node_id = Some("missing".to_string());
-    assert_eq!(state.open_edit_node_editor(None), Err("目标节点不存在".to_string()));
+    assert_eq!(
+        (state.open_edit_node_editor(None)).map_err(String::from),
+        Err("目标节点不存在".to_string())
+    );
 }
 
 #[test]
@@ -272,7 +278,7 @@ fn insert_node_immediately_rejects_second_start_node() {
     let mut state = workflow_state_with_nodes(vec![start]);
 
     assert_eq!(
-        state.insert_node_immediately("start", Point::new(30.0, 40.0)),
+        (state.insert_node_immediately("start", Point::new(30.0, 40.0))).map_err(String::from),
         Err("开始节点只能有一个".to_string())
     );
     assert_eq!(state.document.nodes.len(), 1);
@@ -364,7 +370,7 @@ fn duplicate_selected_node_clones_offset_and_rejects_start_node() {
 
     state.selected_node_id = Some("start_1".to_string());
     assert_eq!(
-        state.duplicate_selected_node(),
+        (state.duplicate_selected_node()).map_err(String::from),
         Err("开始节点只能有一个，不能复制开始节点".to_string())
     );
 
@@ -390,10 +396,16 @@ fn duplicate_selected_node_clones_offset_and_rejects_start_node() {
 fn duplicate_selected_node_requires_existing_selection() {
     let mut state = WorkflowState::default();
 
-    assert_eq!(state.duplicate_selected_node(), Err("请先选择一个节点".to_string()));
+    assert_eq!(
+        (state.duplicate_selected_node()).map_err(String::from),
+        Err("请先选择一个节点".to_string())
+    );
 
     state.selected_node_id = Some("missing".to_string());
-    assert_eq!(state.duplicate_selected_node(), Err("目标节点不存在".to_string()));
+    assert_eq!(
+        (state.duplicate_selected_node()).map_err(String::from),
+        Err("目标节点不存在".to_string())
+    );
 }
 
 #[test]
@@ -421,14 +433,20 @@ fn open_downstream_node_picker_retargets_context_menu_and_selection() {
 fn open_downstream_node_picker_requires_menu_and_node() {
     let mut state = WorkflowState::default();
 
-    assert_eq!(state.open_downstream_node_picker("missing"), Err("右键菜单已关闭".to_string()));
+    assert_eq!(
+        (state.open_downstream_node_picker("missing")).map_err(String::from),
+        Err("右键菜单已关闭".to_string())
+    );
 
     state.context_menu = Some(WorkflowCanvasContextMenu {
         target: WorkflowCanvasContextMenuTarget::Canvas,
         anchor: Point::ORIGIN,
         world: Point::ORIGIN,
     });
-    assert_eq!(state.open_downstream_node_picker("missing"), Err("目标节点不存在".to_string()));
+    assert_eq!(
+        (state.open_downstream_node_picker("missing")).map_err(String::from),
+        Err("目标节点不存在".to_string())
+    );
 }
 
 #[test]
@@ -572,11 +590,11 @@ fn insert_downstream_node_rejects_missing_source_and_second_start() {
     let mut state = workflow_state_with_nodes(vec![start]);
 
     assert_eq!(
-        state.insert_downstream_node("missing", "answer"),
+        (state.insert_downstream_node("missing", "answer")).map_err(String::from),
         Err("目标节点不存在".to_string())
     );
     assert_eq!(
-        state.insert_downstream_node("start_1", "start"),
+        (state.insert_downstream_node("start_1", "start")).map_err(String::from),
         Err("开始节点只能有一个".to_string())
     );
 }
@@ -588,19 +606,20 @@ fn connect_nodes_with_source_handle_rejects_invalid_paths_and_duplicates() {
     let mut state = workflow_state_with_nodes(vec![start, answer]);
 
     assert_eq!(
-        state.connect_nodes_by_default_handles("start_1", "start_1"),
+        (state.connect_nodes_by_default_handles("start_1", "start_1")).map_err(String::from),
         Err("暂不支持节点自身回环连线".to_string())
     );
     assert_eq!(
-        state.connect_nodes_by_default_handles("missing", "answer_1"),
+        (state.connect_nodes_by_default_handles("missing", "answer_1")).map_err(String::from),
         Err("源节点不存在，无法自动连线".to_string())
     );
     assert_eq!(
-        state.connect_nodes_by_default_handles("start_1", "missing"),
+        (state.connect_nodes_by_default_handles("start_1", "missing")).map_err(String::from),
         Err("目标节点不存在，无法自动连线".to_string())
     );
     assert_eq!(
-        state.connect_nodes_with_source_handle("start_1", Some("missing"), "answer_1"),
+        (state.connect_nodes_with_source_handle("start_1", Some("missing"), "answer_1"))
+            .map_err(String::from),
         Err("源节点不存在输出句柄 missing".to_string())
     );
 
@@ -609,7 +628,7 @@ fn connect_nodes_with_source_handle_rejects_invalid_paths_and_duplicates() {
         .expect("default handles should connect");
     assert_eq!(state.document.edges.len(), 1);
     assert_eq!(
-        state.connect_nodes_by_default_handles("start_1", "answer_1"),
+        (state.connect_nodes_by_default_handles("start_1", "answer_1")).map_err(String::from),
         Err("这条连线已经存在".to_string())
     );
 }
@@ -623,7 +642,7 @@ fn connect_nodes_with_source_handle_rejects_missing_handles() {
     let mut state = workflow_state_with_nodes(vec![start, answer]);
 
     assert_eq!(
-        state.connect_nodes_by_default_handles("start_1", "answer_1"),
+        (state.connect_nodes_by_default_handles("start_1", "answer_1")).map_err(String::from),
         Err("源节点没有可用输出句柄".to_string())
     );
 
@@ -633,7 +652,7 @@ fn connect_nodes_with_source_handle_rejects_missing_handles() {
         kind: WorkflowHandleKind::Source,
     });
     assert_eq!(
-        state.connect_nodes_by_default_handles("start_1", "answer_1"),
+        (state.connect_nodes_by_default_handles("start_1", "answer_1")).map_err(String::from),
         Err("目标节点没有可用输入句柄".to_string())
     );
 }

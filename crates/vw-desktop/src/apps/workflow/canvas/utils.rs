@@ -118,18 +118,23 @@ pub(super) fn start_variable_badge_text(value_type: &str) -> &'static str {
     }
 }
 
-pub(super) fn node_description_text(document: &WorkflowDocument, node: &WorkflowNode) -> String {
+pub(super) fn node_description_text(
+    i18n: crate::app::i18n::I18n,
+    document: &WorkflowDocument,
+    node: &WorkflowNode,
+) -> String {
     if node.is_group() {
         let child_count = document.group_child_count(&node.id);
         if child_count > 0 {
-            format!("包含 {} 个子节点", child_count)
+            i18n.format("包含 %s 个子节点", &[child_count.to_string().into()])
+                .expect("valid workflow display template")
         } else if node.description.trim().is_empty() {
-            "容器节点，可拖动带走内部节点".to_string()
+            i18n.__("容器节点，可拖动带走内部节点").to_string()
         } else {
             node.description.clone()
         }
     } else if node.block_type == "code" {
-        code_node_description_text(node)
+        code_node_description_text(i18n, node)
     } else if node.description.trim().is_empty() {
         String::new()
     } else {
@@ -137,10 +142,10 @@ pub(super) fn node_description_text(document: &WorkflowDocument, node: &Workflow
     }
 }
 
-fn code_node_description_text(node: &WorkflowNode) -> String {
+fn code_node_description_text(i18n: crate::app::i18n::I18n, node: &WorkflowNode) -> String {
     match code_node_error_strategy(node) {
-        Some("default-value") => "异常时 输出默认值".to_string(),
-        Some("fail-branch") => "异常时 异常分支".to_string(),
+        Some("default-value") => i18n.__("异常时 输出默认值").to_string(),
+        Some("fail-branch") => i18n.__("异常时 异常分支").to_string(),
         _ if node.description.trim().is_empty() => String::new(),
         _ => node.description.clone(),
     }
@@ -316,7 +321,9 @@ pub(crate) fn export_svg(document: &WorkflowDocument) -> String {
             if edge.selected { 2.8 } else { 1.6 },
         );
 
-        if let Some(label) = edge_handle_label(edge) {
+        if let Some(label) =
+            edge_handle_label(crate::app::i18n::I18n::new(Default::default()), edge)
+        {
             let badge_center = cubic_bezier_point(start, c1, c2, end, 0.5);
             let badge_width = (label.chars().count() as f32 * 8.0 + 18.0).clamp(30.0, 94.0);
             let badge_x = badge_center.x - badge_width / 2.0;
@@ -355,7 +362,8 @@ pub(crate) fn export_svg(document: &WorkflowDocument) -> String {
         let title_line_step = title_font_size + 3.0;
         let desc_font_size = if rect.height > 140.0 { 12.0 } else { 11.0 };
         let desc_line_step = desc_font_size + 3.0;
-        let description = node_description_text(document, node);
+        let description =
+            node_description_text(crate::app::i18n::I18n::new(Default::default()), document, node);
         let title_x = rect.x + 14.0 + 24.0 + 12.0;
         let title_width = (rect.x + rect.width - title_x - 14.0).max(rect.width - 96.0);
         let title_max_chars = (title_width / (title_font_size * 0.63)).floor().max(8.0) as usize;

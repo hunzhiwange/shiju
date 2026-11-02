@@ -13,7 +13,10 @@ const NODE_EDITOR_SCROLLBAR_GUTTER: f32 = 12.0;
 /// 构建 node editor modal 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_node_editor_modal(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let Some(editor) = state.node_editor.as_ref() else {
         return container(Space::new().width(1).height(1)).into();
     };
@@ -29,22 +32,22 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
 
     match active_tab {
         WorkflowNodeEditorTab::Visual => {
-            if let Some(visual_section) = build_node_visual_section(state, editor) {
+            if let Some(visual_section) = build_node_visual_section(i18n, state, editor) {
                 content = content.push(visual_section);
             } else {
-                content = content.push(build_node_visual_placeholder());
+                content = content.push(build_node_visual_placeholder(i18n));
             }
-            content = content.push(build_node_connection_hint());
+            content = content.push(build_node_connection_hint(i18n));
         }
         WorkflowNodeEditorTab::Description => {
-            content = content.push(build_node_description_section(editor));
+            content = content.push(build_node_description_section(i18n, editor));
         }
         WorkflowNodeEditorTab::Basic => {
-            content = content.push(build_node_next_step_section(state, editor));
-            content = content.push(build_node_connection_hint());
+            content = content.push(build_node_next_step_section(i18n, state, editor));
+            content = content.push(build_node_connection_hint(i18n));
         }
         WorkflowNodeEditorTab::AdvancedDsl => {
-            content = content.push(build_node_advanced_dsl_section(state, editor));
+            content = content.push(build_node_advanced_dsl_section(i18n, state, editor));
         }
     }
 
@@ -58,15 +61,15 @@ pub(super) fn build_node_editor_modal(state: &WorkflowState) -> Element<'_, Mess
     let validation_summary = editor
         .validation
         .has_errors()
-        .then(|| build_node_validation_summary(&editor.validation))
+        .then(|| build_node_validation_summary(i18n, &editor.validation))
         .unwrap_or_else(|| container(Space::new().height(0)).into());
 
     let drawer = opaque(
         mouse_area(
             container(
                 column![
-                    build_node_editor_header(editor),
-                    build_node_editor_tabs(has_visual_tab, active_tab),
+                    build_node_editor_header(i18n, editor),
+                    build_node_editor_tabs(i18n, has_visual_tab, active_tab),
                     validation_summary,
                     scrollable(scroll_content)
                         .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
@@ -144,6 +147,7 @@ impl std::fmt::Display for StartVariableTypeOption {
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_editor_header(
+    i18n: crate::app::i18n::I18n,
     editor: &super::state::WorkflowNodeEditorDraft,
 ) -> Element<'_, Message> {
     let accent = workflow_node_accent_color(&editor.block_type);
@@ -152,7 +156,7 @@ pub(super) fn build_node_editor_header(
         column![
             row![
                 workflow_node_icon_badge(workflow_node_icon(&editor.block_type), accent, 16.0),
-                text_input("输入节点名称", &editor.title)
+                text_input(i18n.__("输入节点名称"), &editor.title)
                     .on_input(|value| {
                         Message::WorkflowTool(WorkflowMessage::NodeEditorTitleChanged(value))
                     })
@@ -161,7 +165,7 @@ pub(super) fn build_node_editor_header(
                     .style(node_editor_title_input_style)
                     .width(Length::Fill),
                 Space::new().width(Length::Fill),
-                button(text("保存").size(12))
+                button(text(i18n.__("保存")).size(12))
                     .style(primary_action_btn_style)
                     .padding([7, 11])
                     .on_press(Message::WorkflowTool(WorkflowMessage::SubmitNodeEditor)),
@@ -177,10 +181,11 @@ pub(super) fn build_node_editor_header(
 }
 
 fn build_node_description_section(
+    i18n: crate::app::i18n::I18n,
     editor: &super::state::WorkflowNodeEditorDraft,
 ) -> Element<'_, Message> {
     text_editor(&editor.description_editor)
-        .placeholder("补充这个节点在工作流中的作用与约束")
+        .placeholder(i18n.__("补充这个节点在工作流中的作用与约束"))
         .on_action(|action| {
             Message::WorkflowTool(WorkflowMessage::NodeEditorDescriptionAction(action))
         })
@@ -190,11 +195,15 @@ fn build_node_description_section(
         .into()
 }
 
-fn build_node_connection_hint() -> Element<'static, Message> {
+fn build_node_connection_hint(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     container(
-        text("连线提示：保存节点后，拖拽节点右侧或分支句柄到其他节点左侧句柄，即可添加连线。")
-            .size(12)
-            .style(settings_muted_text_style),
+        text(
+            i18n.__(
+                "连线提示：保存节点后，拖拽节点右侧或分支句柄到其他节点左侧句柄，即可添加连线。",
+            ),
+        )
+        .size(12)
+        .style(settings_muted_text_style),
     )
     .padding([2, 0])
     .into()
@@ -204,6 +213,7 @@ fn build_node_connection_hint() -> Element<'static, Message> {
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_editor_tabs(
+    i18n: crate::app::i18n::I18n,
     has_visual_tab: bool,
     active_tab: WorkflowNodeEditorTab,
 ) -> Element<'static, Message> {
@@ -211,17 +221,25 @@ pub(super) fn build_node_editor_tabs(
 
     if has_visual_tab {
         tabs = tabs.push(build_node_editor_tab_button(
-            "配置",
+            i18n.__("配置"),
             WorkflowNodeEditorTab::Visual,
             active_tab,
         ));
     }
 
     tabs = tabs
-        .push(build_node_editor_tab_button("描述", WorkflowNodeEditorTab::Description, active_tab))
-        .push(build_node_editor_tab_button("下一步", WorkflowNodeEditorTab::Basic, active_tab))
         .push(build_node_editor_tab_button(
-            "高级 DSL",
+            i18n.__("描述"),
+            WorkflowNodeEditorTab::Description,
+            active_tab,
+        ))
+        .push(build_node_editor_tab_button(
+            i18n.__("下一步"),
+            WorkflowNodeEditorTab::Basic,
+            active_tab,
+        ))
+        .push(build_node_editor_tab_button(
+            i18n.__("高级 DSL"),
             WorkflowNodeEditorTab::AdvancedDsl,
             active_tab,
         ));
@@ -250,12 +268,13 @@ pub(super) fn build_node_editor_tab_button(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_advanced_dsl_section<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     editor: &'a super::state::WorkflowNodeEditorDraft,
 ) -> Element<'a, Message> {
     let editor = text_editor(&editor.raw_data_editor)
         .id(iced::widget::Id::new(super::super::NODE_EDITOR_DSL_EDITOR_ID))
-        .placeholder("输入节点 data 的 YAML，支持各类型特有字段")
+        .placeholder(i18n.__("输入节点 data 的 YAML，支持各类型特有字段"))
         .on_action(|action| Message::WorkflowTool(WorkflowMessage::NodeEditorDataAction(action)))
         .key_binding(node_editor_dsl_key_binding)
         .padding([10, 12])
@@ -315,8 +334,10 @@ fn node_editor_dsl_key_binding(
 /// 构建 node visual placeholder 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_node_visual_placeholder() -> Element<'static, Message> {
-    text("当前节点暂未配置可视化表单，请切换到“高级 DSL”直接编辑节点 data YAML。")
+pub(super) fn build_node_visual_placeholder(
+    i18n: crate::app::i18n::I18n,
+) -> Element<'static, Message> {
+    text(i18n.__("当前节点暂未配置可视化表单，请切换到“高级 DSL”直接编辑节点 data YAML。"))
         .size(12)
         .style(settings_muted_text_style)
         .into()

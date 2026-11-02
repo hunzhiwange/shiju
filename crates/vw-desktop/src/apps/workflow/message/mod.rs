@@ -67,7 +67,7 @@ pub enum WorkflowMessage {
     LoadSavedApps,
     LoadSavedAppsFinished(Result<Vec<WorkflowSavedAppSummary>, String>),
     OpenSavedApp(String),
-    OpenSavedAppFinished(Result<LoadedWorkflow, String>),
+    OpenSavedAppFinished(Result<LoadedWorkflow, crate::app::i18n::workflow::Feedback>),
     ShowSavedApps,
     SavedAppSearchChanged(String),
     ToggleSavedAppActions(String),
@@ -95,10 +95,10 @@ pub enum WorkflowMessage {
     RequestDeleteSavedApp(String),
     CancelDeleteSavedApp,
     DeleteSavedApp(String),
-    DeleteSavedAppFinished(Result<String, String>),
+    DeleteSavedAppFinished(Result<String, crate::app::i18n::workflow::Feedback>),
     OpenInlineYaml { workflow_yaml: String, focus_node_id: Option<String> },
     OpenFile,
-    OpenFileFinished(Result<Option<LoadedWorkflow>, String>),
+    OpenFileFinished(Result<Option<LoadedWorkflow>, crate::app::i18n::workflow::Feedback>),
     SelectApp(String),
     OpenCreateAppEditor,
     OpenEditAppEditor(Option<String>),
@@ -272,11 +272,11 @@ pub enum WorkflowMessage {
     CloseFloatingPanels,
     SaveActiveApp,
     SaveActiveAppAs,
-    SaveActiveAppFinished(Result<Option<WorkflowSaveTarget>, String>),
+    SaveActiveAppFinished(Result<Option<WorkflowSaveTarget>, crate::app::i18n::workflow::Feedback>),
     ExportPng,
     ExportJpeg,
     ExportSvg,
-    ExportFinished(Result<(), String>),
+    ExportFinished(Result<(), crate::app::i18n::workflow::Feedback>),
     Reload,
     SelectNode(String),
     SelectEdge(String),
@@ -355,7 +355,12 @@ pub(super) fn open_saved_app_task(uuid: String) -> Task<Message> {
     {
         let _ = uuid;
         Task::perform(
-            async { Err("Web 平台暂不支持读取本地 Workflow 应用".to_string()) },
+            async {
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持读取本地 Workflow 应用",
+                    vec![],
+                ))
+            },
             |res| Message::WorkflowTool(WorkflowMessage::OpenSavedAppFinished(res)),
         )
     }
@@ -388,7 +393,12 @@ pub(super) fn delete_saved_app_task(uuid: String) -> Task<Message> {
     {
         let _ = uuid;
         Task::perform(
-            async { Err("Web 平台暂不支持删除本地 Workflow 应用".to_string()) },
+            async {
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持删除本地 Workflow 应用",
+                    vec![],
+                ))
+            },
             |res| Message::WorkflowTool(WorkflowMessage::DeleteSavedAppFinished(res)),
         )
     }
@@ -402,7 +412,10 @@ pub(super) fn delete_saved_app_task(uuid: String) -> Task<Message> {
                 if response.deleted {
                     Ok(response.uuid)
                 } else {
-                    Err(format!("未找到可删除的 Workflow 应用: {uuid}"))
+                    Err(crate::app::i18n::workflow::Feedback::new(
+                        "未找到可删除的 Workflow 应用: %s",
+                        vec![uuid],
+                    ))
                 }
             },
             |res| Message::WorkflowTool(WorkflowMessage::DeleteSavedAppFinished(res)),
@@ -447,7 +460,12 @@ pub(super) fn save_entry(
     {
         let _ = (entry, force_picker);
         Task::perform(
-            async { Err("Web 平台暂不支持保存本地工作流文件".to_string()) },
+            async {
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持保存本地工作流文件",
+                    vec![],
+                ))
+            },
             |res| Message::WorkflowTool(WorkflowMessage::SaveActiveAppFinished(res)),
         )
     }
@@ -497,8 +515,12 @@ pub(super) fn save_entry(
                     entry.source_path.clone().unwrap_or(default_name)
                 };
 
-                std::fs::write(&path, content)
-                    .map_err(|error| format!("写入工作流文件失败: {error}"))?;
+                std::fs::write(&path, content).map_err(|error| {
+                    crate::app::i18n::workflow::Feedback::new(
+                        "写入工作流文件失败: %s",
+                        vec![error.to_string()],
+                    )
+                })?;
                 Ok(Some(WorkflowSaveTarget::FilePath(path)))
             },
             |res| Message::WorkflowTool(WorkflowMessage::SaveActiveAppFinished(res)),
@@ -510,7 +532,12 @@ pub(super) fn open_file() -> Task<Message> {
     #[cfg(target_arch = "wasm32")]
     {
         Task::perform(
-            async { Err("Web 平台暂不支持本地工作流文件选择".to_string()) },
+            async {
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持本地工作流文件选择",
+                    vec![],
+                ))
+            },
             |res| Message::WorkflowTool(WorkflowMessage::OpenFileFinished(res)),
         )
     }
@@ -570,7 +597,10 @@ pub(super) fn export_svg(app: &mut App) -> Task<Message> {
             #[cfg(target_arch = "wasm32")]
             {
                 let _ = (file_name, svg_data);
-                Err("Web 平台暂不支持导出工作流图片".to_string())
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持导出工作流图片",
+                    vec![],
+                ))
             }
         },
         |result| Message::WorkflowTool(WorkflowMessage::ExportFinished(result)),
@@ -592,8 +622,9 @@ pub(super) fn export_png(app: &mut App) -> Task<Message> {
             {
                 let file = rfd::AsyncFileDialog::new().set_file_name(&file_name).save_file().await;
                 if let Some(file) = file {
-                    let png = render_workflow_svg_to_png(&svg_data)
-                        .ok_or_else(|| "导出 PNG 失败".to_string())?;
+                    let png = render_workflow_svg_to_png(&svg_data).ok_or_else(|| {
+                        crate::app::i18n::workflow::Feedback::new("导出 PNG 失败", vec![])
+                    })?;
                     file.write(&png).await.map_err(|error| error.to_string())?;
                     let _ = open::that(file.path());
                 }
@@ -603,7 +634,10 @@ pub(super) fn export_png(app: &mut App) -> Task<Message> {
             #[cfg(target_arch = "wasm32")]
             {
                 let _ = (file_name, svg_data);
-                Err("Web 平台暂不支持导出工作流图片".to_string())
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持导出工作流图片",
+                    vec![],
+                ))
             }
         },
         |result| Message::WorkflowTool(WorkflowMessage::ExportFinished(result)),
@@ -625,10 +659,15 @@ pub(super) fn export_jpeg(app: &mut App) -> Task<Message> {
             {
                 let file = rfd::AsyncFileDialog::new().set_file_name(&file_name).save_file().await;
                 if let Some(file) = file {
-                    let png = render_workflow_svg_to_png(&svg_data)
-                        .ok_or_else(|| "导出 JPEG 失败".to_string())?;
-                    let image = image::load_from_memory(&png)
-                        .map_err(|error| format!("解码 PNG 失败: {error}"))?;
+                    let png = render_workflow_svg_to_png(&svg_data).ok_or_else(|| {
+                        crate::app::i18n::workflow::Feedback::new("导出 JPEG 失败", vec![])
+                    })?;
+                    let image = image::load_from_memory(&png).map_err(|error| {
+                        crate::app::i18n::workflow::Feedback::new(
+                            "解码 PNG 失败: %s",
+                            vec![error.to_string()],
+                        )
+                    })?;
                     let rgb = image::DynamicImage::ImageRgba8(image.to_rgba8()).into_rgb8();
                     let mut jpeg_data = std::io::Cursor::new(Vec::new());
                     let mut encoder =
@@ -640,7 +679,12 @@ pub(super) fn export_jpeg(app: &mut App) -> Task<Message> {
                             rgb.height(),
                             image::ExtendedColorType::Rgb8,
                         )
-                        .map_err(|error| format!("编码 JPEG 失败: {error}"))?;
+                        .map_err(|error| {
+                            crate::app::i18n::workflow::Feedback::new(
+                                "编码 JPEG 失败: %s",
+                                vec![error.to_string()],
+                            )
+                        })?;
                     file.write(&jpeg_data.into_inner()).await.map_err(|error| error.to_string())?;
                     let _ = open::that(file.path());
                 }
@@ -650,17 +694,24 @@ pub(super) fn export_jpeg(app: &mut App) -> Task<Message> {
             #[cfg(target_arch = "wasm32")]
             {
                 let _ = (file_name, svg_data);
-                Err("Web 平台暂不支持导出工作流图片".to_string())
+                Err(crate::app::i18n::workflow::Feedback::new(
+                    "Web 平台暂不支持导出工作流图片",
+                    vec![],
+                ))
             }
         },
         |result| Message::WorkflowTool(WorkflowMessage::ExportFinished(result)),
     )
 }
 
-pub(super) fn export_finished(app: &mut App, result: Result<(), String>) {
+pub(super) fn export_finished(
+    app: &mut App,
+    result: Result<(), crate::app::i18n::workflow::Feedback>,
+) {
     match result {
         Ok(()) => {
-            app.workflow_state.status_message = Some("已导出工作流图片".to_string());
+            app.workflow_state
+                .set_status(crate::app::i18n::format::Message::new("已导出工作流图片", vec![]));
         }
         Err(error) => app.workflow_state.set_error(error),
     }

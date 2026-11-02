@@ -63,7 +63,7 @@ fn workflow_messages_clone_and_debug_cover_signal_variants() {
         WorkflowMessage::LoadSavedApps,
         WorkflowMessage::LoadSavedAppsFinished(Err("load failed".to_string())),
         WorkflowMessage::OpenSavedApp("uuid".to_string()),
-        WorkflowMessage::OpenSavedAppFinished(Err("open failed".to_string())),
+        WorkflowMessage::OpenSavedAppFinished(Err("open failed".to_string().into())),
         WorkflowMessage::ShowSavedApps,
         WorkflowMessage::SavedAppSearchChanged("search".to_string()),
         WorkflowMessage::ToggleSavedAppActions("uuid".to_string()),
@@ -97,7 +97,7 @@ fn workflow_messages_clone_and_debug_cover_signal_variants() {
             focus_node_id: Some("node".to_string()),
         },
         WorkflowMessage::OpenFile,
-        WorkflowMessage::OpenFileFinished(Err("open file failed".to_string())),
+        WorkflowMessage::OpenFileFinished(Err("open file failed".to_string().into())),
         WorkflowMessage::SelectApp("app".to_string()),
         WorkflowMessage::OpenCreateAppEditor,
         WorkflowMessage::OpenEditAppEditor(Some("app".to_string())),
@@ -433,7 +433,7 @@ fn helper_functions_cover_save_export_and_record_mapping() {
     let _ = export_jpeg(&mut app);
     export_finished(&mut app, Ok(()));
     assert_eq!(app.workflow_state.status_message.as_deref(), Some("已导出工作流图片"));
-    export_finished(&mut app, Err("bad export".to_string()));
+    export_finished(&mut app, Err("bad export".to_string().into()));
     assert_eq!(app.workflow_state.error_message.as_deref(), Some("bad export"));
 
     #[cfg(not(target_arch = "wasm32"))]

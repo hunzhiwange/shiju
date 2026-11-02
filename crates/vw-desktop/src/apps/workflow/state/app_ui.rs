@@ -99,16 +99,15 @@ impl WorkflowState {
         &mut self,
         window_size: (f32, f32),
         loaded: LoadedWorkflow,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
         let Some(editor) = self.app_editor.clone() else {
             return Ok(());
         };
 
-        let max_active_requests = editor
-            .max_active_requests_input
-            .trim()
-            .parse::<u32>()
-            .map_err(|_| "最大活跃请求数必须是非负整数".to_string())?;
+        let max_active_requests =
+            editor.max_active_requests_input.trim().parse::<u32>().map_err(|_| {
+                crate::app::i18n::workflow::Feedback::new("最大活跃请求数必须是非负整数", vec![])
+            })?;
 
         let meta = WorkflowAppMeta {
             name: editor.name.trim().to_string(),
@@ -125,7 +124,7 @@ impl WorkflowState {
         };
 
         if meta.name.is_empty() {
-            return Err("应用名称不能为空".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new("应用名称不能为空", vec![]));
         }
 
         match editor.mode {
@@ -156,16 +155,22 @@ impl WorkflowState {
 
         self.app_editor = None;
         self.action_menu_open = false;
-        self.status_message = Some("已更新应用信息".to_string());
+        self.set_status(crate::app::i18n::format::Message::new("已更新应用信息", vec![]));
         Ok(())
     }
 
-    pub fn organize_active_app(&mut self, window_size: (f32, f32)) -> Result<(), String> {
+    pub fn organize_active_app(
+        &mut self,
+        window_size: (f32, f32),
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
         if self.active_app_id.is_none() {
-            return Err("请先打开一个应用".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new("请先打开一个应用", vec![]));
         }
         if self.document.nodes.is_empty() {
-            return Err("当前应用没有可整理的节点".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "当前应用没有可整理的节点",
+                vec![],
+            ));
         }
 
         let positions = organized_node_positions(&self.document);
@@ -190,7 +195,7 @@ impl WorkflowState {
         self.dragging_node_id = None;
         self.drag_pending_snapshot = None;
         self.refresh_dirty_state();
-        self.status_message = Some("已整理应用节点位置".to_string());
+        self.set_status(crate::app::i18n::format::Message::new("已整理应用节点位置", vec![]));
         Ok(())
     }
 

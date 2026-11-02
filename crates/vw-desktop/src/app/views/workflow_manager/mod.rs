@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::Result;
 use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{
     Space, button, column, container, pick_list, row, scrollable, text, text_input,
@@ -405,15 +405,30 @@ impl WorkflowDraftStatus {
 pub struct WorkflowManagerFeedback {
     kind: WorkflowManagerFeedbackKind,
     message: String,
+    localized: Option<crate::app::i18n::workflow::Feedback>,
 }
 
 impl WorkflowManagerFeedback {
-    fn success(message: impl Into<String>) -> Self {
-        Self { kind: WorkflowManagerFeedbackKind::Success, message: message.into() }
+    fn error(message: impl Into<String>) -> Self {
+        Self { kind: WorkflowManagerFeedbackKind::Error, message: message.into(), localized: None }
     }
 
-    fn error(message: impl Into<String>) -> Self {
-        Self { kind: WorkflowManagerFeedbackKind::Error, message: message.into() }
+    fn localized(
+        kind: WorkflowManagerFeedbackKind,
+        message: crate::app::i18n::workflow::Feedback,
+    ) -> Self {
+        Self {
+            kind,
+            message: message.render(crate::app::i18n::I18n::new(Default::default())),
+            localized: Some(message),
+        }
+    }
+
+    fn from_error(error: anyhow::Error) -> Self {
+        match error.downcast_ref::<crate::app::i18n::workflow::Feedback>() {
+            Some(message) => Self::localized(WorkflowManagerFeedbackKind::Error, message.clone()),
+            None => Self::error(error.to_string()),
+        }
     }
 
     pub fn is_success(&self) -> bool {
@@ -615,7 +630,10 @@ pub(crate) fn update(
         }
         WorkflowManagerMessage::StartEditSelected => {
             let Some(selected) = state.selected_item() else {
-                state.feedback = Some(WorkflowManagerFeedback::error("请先选择工作流"));
+                state.feedback = Some(WorkflowManagerFeedback::localized(
+                    WorkflowManagerFeedbackKind::Error,
+                    crate::app::i18n::workflow::Feedback::new("请先选择工作流", vec![]),
+                ));
                 return false;
             };
             match registry.workflow_by_id(&selected.id) {
@@ -625,7 +643,10 @@ pub(crate) fn update(
                     state.feedback = None;
                 }
                 None => {
-                    state.feedback = Some(WorkflowManagerFeedback::error("选中的工作流不存在"));
+                    state.feedback = Some(WorkflowManagerFeedback::localized(
+                        WorkflowManagerFeedbackKind::Error,
+                        crate::app::i18n::workflow::Feedback::new("选中的工作流不存在", vec![]),
+                    ));
                 }
             }
             false
@@ -778,7 +799,18 @@ pub fn update_app(app: &mut App, message: WorkflowManagerMessage) -> Task<Messag
         return workflow_manager_effect_task(effect);
     }
     let feedback_task = if let Some(feedback) = app.workflow_manager.feedback().cloned() {
-        if feedback.is_error() {
+        if let Some(message) = feedback.localized {
+            let kind = if feedback.kind == WorkflowManagerFeedbackKind::Error {
+                crate::app::state::ToastKind::Error
+            } else {
+                crate::app::state::ToastKind::Success
+            };
+            app.show_localized_toast(
+                kind,
+                &message.source,
+                message.arguments.into_iter().map(Into::into).collect(),
+            )
+        } else if feedback.is_error() {
             app.show_error_toast(feedback.message)
         } else if feedback.is_success() {
             app.show_success_toast(feedback.message)
@@ -814,11 +846,17 @@ fn owned_workflow_from_snapshot(workflow: TaskWorkflow) -> OwnedTaskWorkflow {
 
 fn request_delete_selected_workflow(state: &mut WorkflowManagerState) -> bool {
     let Some(selected) = state.selected_item() else {
-        state.feedback = Some(WorkflowManagerFeedback::error("请先选择工作流"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("请先选择工作流", vec![]),
+        ));
         return false;
     };
     if selected.is_builtin {
-        state.feedback = Some(WorkflowManagerFeedback::error("内置工作流不能删除"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("内置工作流不能删除", vec![]),
+        ));
         return false;
     }
     let workflow_id = selected.id.clone();
@@ -832,11 +870,17 @@ fn request_delete_selected_workflow(state: &mut WorkflowManagerState) -> bool {
 
 fn request_reset_selected_workflow(state: &mut WorkflowManagerState) -> bool {
     let Some(selected) = state.selected_item() else {
-        state.feedback = Some(WorkflowManagerFeedback::error("请先选择工作流"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("请先选择工作流", vec![]),
+        ));
         return false;
     };
     if !selected.is_builtin {
-        state.feedback = Some(WorkflowManagerFeedback::error("只有内置工作流可以重置"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("只有内置工作流可以重置", vec![]),
+        ));
         return false;
     }
     let workflow_id = selected.id.clone();
@@ -850,7 +894,10 @@ fn request_reset_selected_workflow(state: &mut WorkflowManagerState) -> bool {
 
 fn request_remove_draft_status(state: &mut WorkflowManagerState, index: usize) -> bool {
     let Some(status) = state.draft.as_ref().and_then(|draft| draft.statuses.get(index)) else {
-        state.feedback = Some(WorkflowManagerFeedback::error("要删除的阶段不存在"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("要删除的阶段不存在", vec![]),
+        ));
         return false;
     };
     state.pending_confirmation = Some(WorkflowManagerConfirmation::DeleteStatus {
@@ -879,7 +926,10 @@ fn confirm_pending_action(state: &mut WorkflowManagerState) -> bool {
         }
         WorkflowManagerConfirmation::DeleteStatus { index, key, .. } => {
             let Some(draft) = state.draft.as_mut() else {
-                state.feedback = Some(WorkflowManagerFeedback::error("没有可编辑草稿"));
+                state.feedback = Some(WorkflowManagerFeedback::localized(
+                    WorkflowManagerFeedbackKind::Error,
+                    crate::app::i18n::workflow::Feedback::new("没有可编辑草稿", vec![]),
+                ));
                 return false;
             };
             let remove_index = if draft.statuses.get(index).is_some_and(|status| status.key == key)
@@ -891,7 +941,10 @@ fn confirm_pending_action(state: &mut WorkflowManagerState) -> bool {
                 draft.statuses.iter().position(|status| status.key == key)
             };
             let Some(remove_index) = remove_index else {
-                state.feedback = Some(WorkflowManagerFeedback::error("要删除的阶段不存在"));
+                state.feedback = Some(WorkflowManagerFeedback::localized(
+                    WorkflowManagerFeedbackKind::Error,
+                    crate::app::i18n::workflow::Feedback::new("要删除的阶段不存在", vec![]),
+                ));
                 return false;
             };
             draft.statuses.remove(remove_index);
@@ -907,7 +960,10 @@ fn copy_workflow_to_draft(
     workflow_id: &str,
 ) -> bool {
     let Some(workflow) = registry.workflow_by_id(workflow_id) else {
-        state.feedback = Some(WorkflowManagerFeedback::error("要复制的工作流不存在"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("要复制的工作流不存在", vec![]),
+        ));
         return false;
     };
     let used_ids: HashSet<String> =
@@ -940,7 +996,10 @@ fn unique_copy_id(source_id: &str, used_ids: &HashSet<String>) -> String {
 
 fn save_draft(state: &mut WorkflowManagerState, registry: &mut TaskWorkflowRegistry) -> bool {
     let Some(draft) = state.draft.clone() else {
-        state.feedback = Some(WorkflowManagerFeedback::error("没有正在编辑的工作流"));
+        state.feedback = Some(WorkflowManagerFeedback::localized(
+            WorkflowManagerFeedbackKind::Error,
+            crate::app::i18n::workflow::Feedback::new("没有正在编辑的工作流", vec![]),
+        ));
         return false;
     };
     match lifecycle_save_command_from_draft(&draft, registry) {
@@ -955,7 +1014,7 @@ fn save_draft(state: &mut WorkflowManagerState, registry: &mut TaskWorkflowRegis
             false
         }
         Err(err) => {
-            state.feedback = Some(WorkflowManagerFeedback::error(err.to_string()));
+            state.feedback = Some(WorkflowManagerFeedback::from_error(err));
             false
         }
     }
@@ -977,7 +1036,10 @@ fn lifecycle_save_command_from_draft(
         && is_builtin_task_workflow_id(original_id)
         && workflow.id != original_id
     {
-        bail!("内置工作流 ID 不能修改，请复制后另存");
+        return Err(anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+            "内置工作流 ID 不能修改，请复制后另存",
+            vec![],
+        )));
     }
     let existing_custom_workflows = custom_workflows_from_registry(registry);
     let original_id = draft.original_id.clone().or_else(|| {
@@ -1007,18 +1069,28 @@ fn owned_workflow_from_draft(draft: &WorkflowDraft) -> Result<OwnedTaskWorkflow>
     // 草稿在进入运行时前集中验证标识唯一性、角色约束和路由目标完整性。
     let id = draft.id.trim();
     if id.is_empty() {
-        bail!("自定义工作流 id 不能为空");
+        return Err(anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+            "自定义工作流 id 不能为空",
+            vec![],
+        )));
     }
     let label = draft.label.trim();
     if label.is_empty() {
-        bail!("自定义工作流 label 不能为空: {id}");
+        return Err(anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+            "自定义工作流 label 不能为空: %s",
+            vec![id.to_string()],
+        )));
     }
 
     let mut statuses = Vec::with_capacity(draft.statuses.len());
     for (index, status) in draft.statuses.iter().enumerate() {
         let key = status.key.trim();
-        let task_status =
-            TaskStatus::parse_key(key).ok_or_else(|| anyhow!("工作流 {id} 状态 key 不能为空"))?;
+        let task_status = TaskStatus::parse_key(key).ok_or_else(|| {
+            anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+                "工作流 %s 状态 key 不能为空",
+                vec![id.to_string()],
+            ))
+        })?;
         let default_success_key =
             draft.statuses.get(index + 1).map(|next| next.key.trim().to_string());
         let mut transitions = Vec::new();
@@ -1026,10 +1098,16 @@ fn owned_workflow_from_draft(draft: &WorkflowDraft) -> Result<OwnedTaskWorkflow>
         for (route_index, route) in status.routes.iter().enumerate() {
             let outcome = StatusOutcome::new(route.outcome_key.trim());
             if outcome.key().is_empty() {
-                bail!("工作流 {id} 状态 {key} 的结果 key 不能为空");
+                return Err(anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+                    "工作流 %s 状态 %s 的结果 key 不能为空",
+                    vec![id.to_string(), key.to_string()],
+                )));
             }
             if !route_keys.insert(outcome.key().to_string()) {
-                bail!("工作流 {id} 状态 {key} 的结果 key 重复: {}", outcome.key());
+                return Err(anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+                    "工作流 %s 状态 %s 的结果 key 重复: %s",
+                    vec![id.to_string(), key.to_string(), outcome.key().to_string()],
+                )));
             }
             let target = parse_route_target(
                 id,
@@ -1083,7 +1161,10 @@ fn parse_route_target(
         return Ok(None);
     };
     TaskStatus::parse_key(target_key).map(Some).ok_or_else(|| {
-        anyhow!("工作流 {workflow_id} 状态 {status_key} 的 {} 目标为空", outcome.label())
+        anyhow::Error::new(crate::app::i18n::workflow::Feedback::new(
+            "工作流 %s 状态 %s 的 %s 目标为空",
+            vec![workflow_id.to_string(), status_key.to_string(), outcome.label().to_string()],
+        ))
     })
 }
 
@@ -1165,7 +1246,7 @@ fn apply_lifecycle_workflows_loaded(
                 state.feedback = None;
             }
             Err(err) if notify_error => {
-                state.feedback = Some(WorkflowManagerFeedback::error(err.to_string()));
+                state.feedback = Some(WorkflowManagerFeedback::from_error(err));
             }
             Err(err) => {
                 state.lifecycles_error = Some(err.to_string());
@@ -1176,8 +1257,13 @@ fn apply_lifecycle_workflows_loaded(
             state.lifecycles_loading = false;
             state.lifecycles_error = Some(error.clone());
             if notify_error {
-                state.feedback =
-                    Some(WorkflowManagerFeedback::error(format!("生命周期列表加载失败：{error}")));
+                state.feedback = Some(WorkflowManagerFeedback::localized(
+                    WorkflowManagerFeedbackKind::Error,
+                    crate::app::i18n::workflow::Feedback::new(
+                        "生命周期列表加载失败：%s",
+                        vec![error.to_string()],
+                    ),
+                ));
             } else {
                 state.feedback = None;
             }
@@ -1195,18 +1281,26 @@ fn apply_lifecycle_workflow_saved(
             match apply_lifecycle_workflow_cache(state, workflows, Some(workflow_id)) {
                 Ok(()) => {
                     state.draft = None;
-                    state.feedback = Some(WorkflowManagerFeedback::success("工作流已保存"));
+                    state.feedback = Some(WorkflowManagerFeedback::localized(
+                        WorkflowManagerFeedbackKind::Success,
+                        crate::app::i18n::workflow::Feedback::new("工作流已保存", vec![]),
+                    ));
                 }
                 Err(err) => {
-                    state.feedback = Some(WorkflowManagerFeedback::error(err.to_string()));
+                    state.feedback = Some(WorkflowManagerFeedback::from_error(err));
                 }
             }
         }
         Err(error) => {
             state.lifecycles_loading = false;
             state.lifecycles_error = Some(error.clone());
-            state.feedback =
-                Some(WorkflowManagerFeedback::error(format!("工作流保存失败：{error}")));
+            state.feedback = Some(WorkflowManagerFeedback::localized(
+                WorkflowManagerFeedbackKind::Error,
+                crate::app::i18n::workflow::Feedback::new(
+                    "工作流保存失败：%s",
+                    vec![error.to_string()],
+                ),
+            ));
         }
     }
 }
@@ -1224,17 +1318,25 @@ fn apply_lifecycle_workflow_deleted(
                         state.workflows.first().map(|workflow| workflow.id.clone());
                 }
                 state.draft = None;
-                state.feedback = Some(WorkflowManagerFeedback::success("工作流已删除"));
+                state.feedback = Some(WorkflowManagerFeedback::localized(
+                    WorkflowManagerFeedbackKind::Success,
+                    crate::app::i18n::workflow::Feedback::new("工作流已删除", vec![]),
+                ));
             }
             Err(err) => {
-                state.feedback = Some(WorkflowManagerFeedback::error(err.to_string()));
+                state.feedback = Some(WorkflowManagerFeedback::from_error(err));
             }
         },
         Err(error) => {
             state.lifecycles_loading = false;
             state.lifecycles_error = Some(error.clone());
-            state.feedback =
-                Some(WorkflowManagerFeedback::error(format!("工作流删除失败：{error}")));
+            state.feedback = Some(WorkflowManagerFeedback::localized(
+                WorkflowManagerFeedbackKind::Error,
+                crate::app::i18n::workflow::Feedback::new(
+                    "工作流删除失败：%s",
+                    vec![error.to_string()],
+                ),
+            ));
         }
     }
 }
@@ -1249,18 +1351,26 @@ fn apply_lifecycle_workflow_reset(
             match apply_lifecycle_workflow_cache(state, workflows, Some(workflow_id)) {
                 Ok(()) => {
                     state.draft = None;
-                    state.feedback = Some(WorkflowManagerFeedback::success("工作流已重置"));
+                    state.feedback = Some(WorkflowManagerFeedback::localized(
+                        WorkflowManagerFeedbackKind::Success,
+                        crate::app::i18n::workflow::Feedback::new("工作流已重置", vec![]),
+                    ));
                 }
                 Err(err) => {
-                    state.feedback = Some(WorkflowManagerFeedback::error(err.to_string()));
+                    state.feedback = Some(WorkflowManagerFeedback::from_error(err));
                 }
             }
         }
         Err(error) => {
             state.lifecycles_loading = false;
             state.lifecycles_error = Some(error.clone());
-            state.feedback =
-                Some(WorkflowManagerFeedback::error(format!("工作流重置失败：{error}")));
+            state.feedback = Some(WorkflowManagerFeedback::localized(
+                WorkflowManagerFeedbackKind::Error,
+                crate::app::i18n::workflow::Feedback::new(
+                    "工作流重置失败：%s",
+                    vec![error.to_string()],
+                ),
+            ));
         }
     }
 }
@@ -1285,11 +1395,12 @@ fn apply_lifecycle_workflow_cache(
 
 /// 构建工作流列表、编辑器、阶段动作页面及确认对话框。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let state = &app.workflow_manager;
     let body: Element<'_, Message> = match state.active_tab {
         WorkflowManagerTab::LifecycleDefinition => {
-            let list = build_workflow_list(state);
-            let editor = build_editor(state);
+            let list = build_workflow_list(i18n, state);
+            let editor = build_editor(i18n, state);
             row![
                 container(list).width(Length::Fixed(340.0)).height(Length::Fill),
                 container(editor).width(Length::Fill).height(Length::Fill),
@@ -1302,25 +1413,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let help_panel = match state.active_tab {
         WorkflowManagerTab::LifecycleDefinition if state.show_status_role_help => {
-            status_role_help_panel()
+            status_role_help_panel(i18n)
         }
         _ => Space::new().height(Length::Shrink).into(),
     };
 
     let help_button = match state.active_tab {
-        WorkflowManagerTab::LifecycleDefinition => button(text("语义角色帮助").size(13))
+        WorkflowManagerTab::LifecycleDefinition => button(text(i18n.__("语义角色帮助")).size(13))
             .padding([9, 14])
             .style(rounded_action_btn_style)
             .on_press(Message::WorkflowManager(WorkflowManagerMessage::ToggleStatusRoleHelp)),
     };
 
     let header_actions = row![
-        button(text("刷新").size(13))
+        button(text(i18n.__("刷新")).size(13))
             .padding([9, 14])
             .style(rounded_action_btn_style)
             .on_press(Message::WorkflowManager(WorkflowManagerMessage::RefreshLifecycles)),
         help_button,
-        button(text("新建").size(13))
+        button(text(i18n.__("新建")).size(13))
             .padding([9, 14])
             .style(primary_action_btn_style)
             .on_press(Message::WorkflowManager(WorkflowManagerMessage::StartNew)),
@@ -1333,8 +1444,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             column![
                 row![
                     column![
-                        text("任务编排").size(20),
-                        text("生命周期定义负责状态与流向。")
+                        text(i18n.__("任务编排")).size(20),
+                        text(i18n.__("生命周期定义负责状态与流向。"))
                             .size(12)
                             .style(settings_muted_text_style),
                     ]
@@ -1344,7 +1455,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(16)
                 .align_y(Alignment::Center),
-                workflow_manager_tabs(state.active_tab),
+                workflow_manager_tabs(i18n, state.active_tab),
             ]
             .spacing(12)
         ),
@@ -1371,34 +1482,45 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .into();
 
     if let Some(confirmation) = &state.pending_confirmation {
-        iced::widget::stack![page, workflow_confirmation_dialog(confirmation)].into()
+        iced::widget::stack![page, workflow_confirmation_dialog(i18n, confirmation)].into()
     } else {
         page
     }
 }
 
 fn workflow_confirmation_dialog(
+    i18n: crate::app::i18n::I18n,
     confirmation: &WorkflowManagerConfirmation,
 ) -> Element<'static, Message> {
     let (title, body, confirm_label) = match confirmation {
         WorkflowManagerConfirmation::ResetWorkflow { workflow_label, .. } => (
-            "确认重置生命周期".to_string(),
-            format!(
-                "将把内置生命周期「{workflow_label}」恢复到默认值，当前保存的自定义修改会被丢弃。"
-            ),
-            "确认重置",
+            i18n.__("确认重置生命周期").to_string(),
+            i18n.format(
+                "将把内置生命周期「%s」恢复到默认值，当前保存的自定义修改会被丢弃。",
+                &[workflow_label.to_string().into()],
+            )
+            .expect("valid workflow display template"),
+            i18n.__("确认重置"),
         ),
         WorkflowManagerConfirmation::DeleteWorkflow { workflow_label, .. } => (
-            "确认删除生命周期".to_string(),
-            format!("将删除生命周期「{workflow_label}」。此操作不可撤销。"),
-            "确认删除",
+            i18n.__("确认删除生命周期").to_string(),
+            i18n.format(
+                "将删除生命周期「%s」。此操作不可撤销。",
+                &[workflow_label.to_string().into()],
+            )
+            .expect("valid workflow display template"),
+            i18n.__("确认删除"),
         ),
         WorkflowManagerConfirmation::DeleteStatus { key, label, .. } => {
             let display = if label.trim().is_empty() { key.as_str() } else { label.as_str() };
             (
-                "确认删除阶段".to_string(),
-                format!("将从当前草稿中删除阶段「{display}」({key})。保存前可以取消编辑撤销。"),
-                "确认删除",
+                i18n.__("确认删除阶段").to_string(),
+                i18n.format(
+                    "将从当前草稿中删除阶段「%s」(%s)。保存前可以取消编辑撤销。",
+                    &[display.to_string().into(), key.to_string().into()],
+                )
+                .expect("valid workflow display template"),
+                i18n.__("确认删除"),
             )
         }
     };
@@ -1406,15 +1528,18 @@ fn workflow_confirmation_dialog(
         title,
         body,
         confirm_label,
-        "取消",
+        i18n.__("取消"),
         Message::WorkflowManager(WorkflowManagerMessage::ConfirmPendingAction),
         Message::WorkflowManager(WorkflowManagerMessage::CancelPendingConfirmation),
     )
 }
 
-fn workflow_manager_tabs(active_tab: WorkflowManagerTab) -> Element<'static, Message> {
+fn workflow_manager_tabs(
+    i18n: crate::app::i18n::I18n,
+    active_tab: WorkflowManagerTab,
+) -> Element<'static, Message> {
     row![workflow_manager_tab_button(
-        "生命周期定义",
+        i18n.__("生命周期定义"),
         WorkflowManagerTab::LifecycleDefinition,
         active_tab
     ),]
@@ -1438,11 +1563,14 @@ fn workflow_manager_tab_button(
         .into()
 }
 
-fn build_workflow_list(state: &WorkflowManagerState) -> Element<'_, Message> {
+fn build_workflow_list(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowManagerState,
+) -> Element<'_, Message> {
     let mut items = column![].spacing(8);
     for workflow in &state.workflows {
         let selected = state.selected_workflow_id.as_deref() == Some(workflow.id.as_str());
-        let badge = if workflow.is_builtin { "内置" } else { "用户" };
+        let badge = if workflow.is_builtin { i18n.__("内置") } else { i18n.__("用户") };
         let label = format!("{} ({})", workflow.label, workflow.id);
         let button_style: fn(&Theme, button::Status) -> button::Style =
             if selected { primary_action_btn_style } else { rounded_action_btn_style };
@@ -1465,13 +1593,13 @@ fn build_workflow_list(state: &WorkflowManagerState) -> Element<'_, Message> {
                 .on_press(Message::WorkflowManager(
                     WorkflowManagerMessage::SelectWorkflow(workflow.id.clone())
                 )),
-                button(text("查看").size(12))
+                button(text(i18n.__("查看")).size(12))
                     .padding([10, 12])
                     .style(rounded_action_btn_style)
                     .on_press(Message::WorkflowManager(WorkflowManagerMessage::ViewWorkflow(
                         workflow.id.clone()
                     ))),
-                button(text("复制").size(12))
+                button(text(i18n.__("复制")).size(12))
                     .padding([10, 12])
                     .style(rounded_action_btn_style)
                     .on_press(Message::WorkflowManager(WorkflowManagerMessage::CopyWorkflow(
@@ -1485,7 +1613,7 @@ fn build_workflow_list(state: &WorkflowManagerState) -> Element<'_, Message> {
 
     settings_panel(
         column![
-            text("预设").size(15),
+            text(i18n.__("预设")).size(15),
             scrollable(
                 container(items)
                     .width(Length::Fill)
@@ -1500,13 +1628,16 @@ fn build_workflow_list(state: &WorkflowManagerState) -> Element<'_, Message> {
     .into()
 }
 
-fn build_editor(state: &WorkflowManagerState) -> Element<'_, Message> {
+fn build_editor(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowManagerState,
+) -> Element<'_, Message> {
     if let Some(draft) = &state.draft {
-        return build_draft_editor(draft);
+        return build_draft_editor(i18n, draft);
     }
 
     let selected = state.selected_item();
-    let title = selected.map(|workflow| workflow.label.as_str()).unwrap_or("请选择工作流");
+    let title = selected.map(|workflow| workflow.label.as_str()).unwrap_or(i18n.__("请选择工作流"));
     let id = selected.map(|workflow| workflow.id.as_str()).unwrap_or("-");
     let is_builtin = selected.is_some_and(|workflow| workflow.is_builtin);
     let selected_workflow = selected
@@ -1515,7 +1646,7 @@ fn build_editor(state: &WorkflowManagerState) -> Element<'_, Message> {
     let mut actions = row![].spacing(10).align_y(Alignment::Center);
     if let Some(selected) = selected {
         actions = actions.push(
-            button(text("复制").size(13))
+            button(text(i18n.__("复制")).size(13))
                 .padding([9, 14])
                 .style(rounded_action_btn_style)
                 .on_press(Message::WorkflowManager(WorkflowManagerMessage::CopyWorkflow(
@@ -1525,21 +1656,21 @@ fn build_editor(state: &WorkflowManagerState) -> Element<'_, Message> {
     }
     if selected.is_some() {
         actions = actions.push(
-            button(text("编辑").size(13))
+            button(text(i18n.__("编辑")).size(13))
                 .padding([9, 14])
                 .style(rounded_action_btn_style)
                 .on_press(Message::WorkflowManager(WorkflowManagerMessage::StartEditSelected)),
         );
         if is_builtin {
             actions = actions.push(
-                button(text("重置").size(13))
+                button(text(i18n.__("重置")).size(13))
                     .padding([9, 14])
                     .style(danger_action_btn_style)
                     .on_press(Message::WorkflowManager(WorkflowManagerMessage::ResetSelected)),
             );
         } else {
             actions = actions.push(
-                button(text("删除").size(13))
+                button(text(i18n.__("删除")).size(13))
                     .padding([9, 14])
                     .style(danger_action_btn_style)
                     .on_press(Message::WorkflowManager(WorkflowManagerMessage::DeleteSelected)),
@@ -1560,24 +1691,32 @@ fn build_editor(state: &WorkflowManagerState) -> Element<'_, Message> {
             selected
                 .map(|workflow| {
                     if workflow.is_builtin {
-                        settings_value_badge("内置生命周期，可编辑，可重置")
+                        settings_value_badge(i18n.__("内置生命周期，可编辑，可重置"))
                     } else {
-                        settings_value_badge("用户预设，可编辑")
+                        settings_value_badge(i18n.__("用户预设，可编辑"))
                     }
                 })
-                .unwrap_or_else(|| text("未选择").style(settings_muted_text_style).into()),
+                .unwrap_or_else(|| text(i18n.__("未选择")).style(settings_muted_text_style).into()),
         ]
         .spacing(16),
     );
 
-    let body = selected_workflow.map(build_workflow_view).unwrap_or_else(|| {
-        settings_panel(text("请选择左侧工作流查看流程").style(settings_muted_text_style)).into()
-    });
+    let body = selected_workflow
+        .map(|workflow| build_workflow_view(i18n, workflow))
+        .unwrap_or_else(|| {
+            settings_panel(
+                text(i18n.__("请选择左侧工作流查看流程")).style(settings_muted_text_style),
+            )
+            .into()
+        });
 
     column![header, body].spacing(14).height(Length::Fill).into()
 }
 
-fn build_workflow_view(workflow: TaskWorkflow) -> Element<'static, Message> {
+fn build_workflow_view(
+    i18n: crate::app::i18n::I18n,
+    workflow: TaskWorkflow,
+) -> Element<'static, Message> {
     let mut flow = column![].spacing(10);
     for (index, status) in workflow.statuses.iter().enumerate() {
         let routes = workflow
@@ -1594,6 +1733,7 @@ fn build_workflow_view(workflow: TaskWorkflow) -> Element<'static, Message> {
             })
             .collect();
         flow = flow.push(build_workflow_status_view(
+            i18n,
             index,
             status.label.clone(),
             status.key.clone(),
@@ -1607,14 +1747,17 @@ fn build_workflow_view(workflow: TaskWorkflow) -> Element<'static, Message> {
         column![
             row![
                 column![
-                    text("流程预览").size(16),
-                    text("每个状态可按结果 key 进入不同状态；succeed/failed 为内置结果。")
+                    text(i18n.__("流程预览")).size(16),
+                    text(i18n.__("每个状态可按结果 key 进入不同状态；succeed/failed 为内置结果。"))
                         .size(12)
                         .style(settings_muted_text_style),
                 ]
                 .spacing(4),
                 Space::new().width(Length::Fill),
-                settings_value_badge(format!("{} 个状态", workflow.statuses.len())),
+                settings_value_badge(
+                    i18n.format("%s 个状态", &[workflow.statuses.len().to_string().into()])
+                        .expect("valid workflow display template")
+                ),
             ]
             .align_y(Alignment::Center),
             scrollable(
@@ -1632,6 +1775,7 @@ fn build_workflow_view(workflow: TaskWorkflow) -> Element<'static, Message> {
 }
 
 fn build_workflow_status_view(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     label: String,
     key: String,
@@ -1641,11 +1785,11 @@ fn build_workflow_status_view(
 ) -> Element<'static, Message> {
     let is_terminal = routes.is_empty();
     let route_summary: Element<'static, Message> = if is_terminal {
-        text("结束点：无后续状态").size(12).style(settings_muted_text_style).into()
+        text(i18n.__("结束点：无后续状态")).size(12).style(settings_muted_text_style).into()
     } else {
         row(routes.into_iter().map(route_badge).collect::<Vec<_>>()).spacing(6).into()
     };
-    let role = status_role_display(role);
+    let role = status_role_display(i18n, role);
 
     container(
         row![
@@ -1658,12 +1802,12 @@ fn build_workflow_status_view(
                     if enabled {
                         Space::new().width(Length::Shrink).into()
                     } else {
-                        settings_value_badge("已停用")
+                        settings_value_badge(i18n.__("已停用"))
                     },
                     if is_terminal {
-                        settings_value_badge("结束")
+                        settings_value_badge(i18n.__("结束"))
                     } else {
-                        settings_value_badge("分支")
+                        settings_value_badge(i18n.__("分支"))
                     },
                 ]
                 .spacing(8)
@@ -1711,20 +1855,20 @@ fn route_badge(route: WorkflowRouteView) -> Element<'static, Message> {
     ))
 }
 
-fn role_label(role: StatusRole) -> &'static str {
+fn role_label(i18n: crate::app::i18n::I18n, role: StatusRole) -> &'static str {
     match role {
-        StatusRole::Backlog => "待办",
-        StatusRole::Queued => "排队",
-        StatusRole::Planning => "准备",
-        StatusRole::Executing => "处理中",
-        StatusRole::Failed => "失败分支",
-        StatusRole::Paused => "暂停",
-        StatusRole::ReviewReady => "待审核",
-        StatusRole::Review => "审核",
-        StatusRole::Merging => "收尾",
-        StatusRole::Done => "成功",
-        StatusRole::Archived => "归档",
-        StatusRole::Custom => "其他",
+        StatusRole::Backlog => i18n.__("待办"),
+        StatusRole::Queued => i18n.__("排队"),
+        StatusRole::Planning => i18n.__("准备"),
+        StatusRole::Executing => i18n.__("处理中"),
+        StatusRole::Failed => i18n.__("失败分支"),
+        StatusRole::Paused => i18n.__("暂停"),
+        StatusRole::ReviewReady => i18n.__("待审核"),
+        StatusRole::Review => i18n.__("审核"),
+        StatusRole::Merging => i18n.__("收尾"),
+        StatusRole::Done => i18n.__("成功"),
+        StatusRole::Archived => i18n.__("归档"),
+        StatusRole::Custom => i18n.__("其他"),
     }
 }
 
@@ -1745,13 +1889,13 @@ fn role_value(role: StatusRole) -> &'static str {
     }
 }
 
-fn status_role_display(role: StatusRole) -> String {
-    format!("{} ({})", role_label(role), role_value(role))
+fn status_role_display(i18n: crate::app::i18n::I18n, role: StatusRole) -> String {
+    format!("{} ({})", role_label(i18n, role), role_value(role))
 }
 
-fn status_role_help_panel() -> Element<'static, Message> {
+fn status_role_help_panel(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let mut rows = column![].spacing(8);
-    for definition in status_role_help_definitions() {
+    for definition in status_role_help_definitions(i18n) {
         rows = rows.push(
             row![
                 container(text(definition.value).size(12)).width(Length::Fixed(110.0)),
@@ -1770,14 +1914,14 @@ fn status_role_help_panel() -> Element<'static, Message> {
         column![
             row![
                 column![
-                    text("语义角色如何决定调度").size(15),
-                    text("显示用中文，保存值为英文；调度按英文角色值判断阶段行为。")
+                    text(i18n.__("语义角色如何决定调度")).size(15),
+                    text(i18n.__("显示用中文，保存值为英文；调度按英文角色值判断阶段行为。"))
                         .size(12)
                         .style(settings_muted_text_style),
                 ]
                 .spacing(4),
                 Space::new().width(Length::Fill),
-                button(text("收起").size(12))
+                button(text(i18n.__("收起")).size(12))
                     .padding([7, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Message::WorkflowManager(
@@ -1799,58 +1943,60 @@ struct StatusRoleHelpDefinition {
     description: &'static str,
 }
 
-fn status_role_help_definitions() -> Vec<StatusRoleHelpDefinition> {
-    StatusRoleOption::all()
+fn status_role_help_definitions(i18n: crate::app::i18n::I18n) -> Vec<StatusRoleHelpDefinition> {
+    StatusRoleOption::all(i18n)
         .into_iter()
         .map(|role| {
             let role = role.0;
             StatusRoleHelpDefinition {
                 value: role_value(role),
-                label: role_label(role),
-                description: role_scheduler_description(role),
+                label: role_label(i18n, role),
+                description: role_scheduler_description(i18n, role),
             }
         })
         .collect()
 }
 
-fn role_scheduler_description(role: StatusRole) -> &'static str {
+fn role_scheduler_description(i18n: crate::app::i18n::I18n, role: StatusRole) -> &'static str {
     match role {
-        StatusRole::Backlog => "积压池；可被自动提升到下一阶段，不直接占用执行并发。",
-        StatusRole::Queued => "待启动；员工开始或调度器可把任务交给执行路径。",
-        StatusRole::Planning => "规划中；可启动拆分/准备任务，并计入执行并发。",
-        StatusRole::Executing => "执行中；占用执行并发，并参与运行超时监控。",
-        StatusRole::Failed => "失败分支；可重试，默认回到排队或规划阶段。",
-        StatusRole::Paused => "暂停；不参与自动调度，等待人工处理或恢复。",
-        StatusRole::ReviewReady => "待审核；可进入审核，若绑定阶段 Workflow 则优先运行绑定流程。",
-        StatusRole::Review => "审核中；成功进入下一阶段，失败走 failed 边或暂停。",
-        StatusRole::Merging => "收尾/合并；可执行合并或绑定收尾 Workflow。",
-        StatusRole::Done => "完成；不再调度，可进入归档。",
-        StatusRole::Archived => "归档；终态，不再调度。",
-        StatusRole::Custom => "展示或自定义阶段；系统不施加自动调度语义。",
+        StatusRole::Backlog => i18n.__("积压池；可被自动提升到下一阶段，不直接占用执行并发。"),
+        StatusRole::Queued => i18n.__("待启动；员工开始或调度器可把任务交给执行路径。"),
+        StatusRole::Planning => i18n.__("规划中；可启动拆分/准备任务，并计入执行并发。"),
+        StatusRole::Executing => i18n.__("执行中；占用执行并发，并参与运行超时监控。"),
+        StatusRole::Failed => i18n.__("失败分支；可重试，默认回到排队或规划阶段。"),
+        StatusRole::Paused => i18n.__("暂停；不参与自动调度，等待人工处理或恢复。"),
+        StatusRole::ReviewReady => {
+            i18n.__("待审核；可进入审核，若绑定阶段 Workflow 则优先运行绑定流程。")
+        }
+        StatusRole::Review => i18n.__("审核中；成功进入下一阶段，失败走 failed 边或暂停。"),
+        StatusRole::Merging => i18n.__("收尾/合并；可执行合并或绑定收尾 Workflow。"),
+        StatusRole::Done => i18n.__("完成；不再调度，可进入归档。"),
+        StatusRole::Archived => i18n.__("归档；终态，不再调度。"),
+        StatusRole::Custom => i18n.__("展示或自定义阶段；系统不施加自动调度语义。"),
     }
 }
 
-fn build_draft_editor(draft: &WorkflowDraft) -> Element<'_, Message> {
+fn build_draft_editor(i18n: crate::app::i18n::I18n, draft: &WorkflowDraft) -> Element<'_, Message> {
     let mut status_rows = column![].spacing(10);
     for (index, status) in draft.statuses.iter().enumerate() {
-        status_rows = status_rows.push(build_status_row(index, status, draft));
+        status_rows = status_rows.push(build_status_row(i18n, index, status, draft));
     }
 
     let form = column![
         row![
             column![
-                text("编辑工作流").size(18),
-                text("为每个状态配置结果 key 与去向；succeed/failed/retry 为内置结果。")
+                text(i18n.__("编辑工作流")).size(18),
+                text(i18n.__("为每个状态配置结果 key 与去向；succeed/failed/retry 为内置结果。"))
                     .size(12)
                     .style(settings_muted_text_style),
             ]
             .spacing(4),
             Space::new().width(Length::Fill),
-            button(text("取消").size(13))
+            button(text(i18n.__("取消")).size(13))
                 .padding([9, 14])
                 .style(rounded_action_btn_style)
                 .on_press(Message::WorkflowManager(WorkflowManagerMessage::CancelDraft)),
-            button(text("保存").size(13))
+            button(text(i18n.__("保存")).size(13))
                 .padding([9, 14])
                 .style(primary_action_btn_style)
                 .on_press(Message::WorkflowManager(WorkflowManagerMessage::SaveDraft)),
@@ -1859,7 +2005,7 @@ fn build_draft_editor(draft: &WorkflowDraft) -> Element<'_, Message> {
         .spacing(10),
         input_row(
             "ID",
-            "小写字母、数字、下划线或连字符。",
+            i18n.__("小写字母、数字、下划线或连字符。"),
             text_input("handoff_flow", &draft.id)
                 .on_input(|value| {
                     Message::WorkflowManager(WorkflowManagerMessage::DraftIdChanged(value))
@@ -1870,8 +2016,8 @@ fn build_draft_editor(draft: &WorkflowDraft) -> Element<'_, Message> {
                 .width(Length::Fill),
         ),
         input_row(
-            "名称",
-            "显示在项目工作流选择和管理列表中。",
+            i18n.__("名称"),
+            i18n.__("显示在项目工作流选择和管理列表中。"),
             text_input("Handoff Flow", &draft.label)
                 .on_input(|value| {
                     Message::WorkflowManager(WorkflowManagerMessage::DraftLabelChanged(value))
@@ -1882,9 +2028,9 @@ fn build_draft_editor(draft: &WorkflowDraft) -> Element<'_, Message> {
                 .width(Length::Fill),
         ),
         row![
-            text("状态").size(15),
+            text(i18n.__("状态")).size(15),
             Space::new().width(Length::Fill),
-            button(text("添加状态").size(13))
+            button(text(i18n.__("添加状态")).size(13))
                 .padding([9, 14])
                 .style(rounded_action_btn_style)
                 .on_press(Message::WorkflowManager(WorkflowManagerMessage::AddBlankStatus)),
@@ -1920,26 +2066,31 @@ fn input_row<'a>(
 }
 
 fn build_status_row<'a>(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     status: &'a WorkflowDraftStatus,
     draft: &'a WorkflowDraft,
 ) -> Element<'a, Message> {
-    let role_pick =
-        pick_list(StatusRoleOption::all(), Some(StatusRoleOption(status.role)), move |role| {
+    let role_pick = pick_list(
+        StatusRoleOption::all(i18n),
+        Some(StatusRoleOption::new(status.role, i18n)),
+        move |role| {
             Message::WorkflowManager(WorkflowManagerMessage::DraftStatusRoleChanged {
                 index,
                 role: role.0,
             })
-        })
-        .padding([8, 10])
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style);
+        },
+    )
+    .padding([8, 10])
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style);
 
     let route_options = next_options(draft);
     let default_success_key = draft.statuses.get(index + 1).map(|next| next.key.trim().to_string());
     let mut route_rows = column![].spacing(8);
     for (route_index, route) in status.routes.iter().enumerate() {
         route_rows = route_rows.push(build_route_row(
+            i18n,
             index,
             route_index,
             route,
@@ -1955,22 +2106,24 @@ fn build_status_row<'a>(
                 if status.enabled {
                     Space::new().width(Length::Shrink).into()
                 } else {
-                    settings_value_badge("已停用")
+                    settings_value_badge(i18n.__("已停用"))
                 },
                 Space::new().width(Length::Fill),
-                button(text(if status.enabled { "停用" } else { "启用" }).size(12))
-                    .padding([7, 10])
-                    .style(rounded_action_btn_style)
-                    .on_press(Message::WorkflowManager(
-                        WorkflowManagerMessage::ToggleDraftStatusEnabled(index)
-                    )),
-                button(text("上移").size(12))
+                button(
+                    text(if status.enabled { i18n.__("停用") } else { i18n.__("启用") }).size(12)
+                )
+                .padding([7, 10])
+                .style(rounded_action_btn_style)
+                .on_press(Message::WorkflowManager(
+                    WorkflowManagerMessage::ToggleDraftStatusEnabled(index)
+                )),
+                button(text(i18n.__("上移")).size(12))
                     .padding([7, 10])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((index > 0).then_some(Message::WorkflowManager(
                         WorkflowManagerMessage::MoveDraftStatusUp(index),
                     ))),
-                button(text("下移").size(12))
+                button(text(i18n.__("下移")).size(12))
                     .padding([7, 10])
                     .style(rounded_action_btn_style)
                     .on_press_maybe((index + 1 < draft.statuses.len()).then_some(
@@ -1978,7 +2131,7 @@ fn build_status_row<'a>(
                             index
                         )),
                     )),
-                button(text("删除").size(12))
+                button(text(i18n.__("删除")).size(12))
                     .padding([7, 10])
                     .style(danger_action_btn_style)
                     .on_press(Message::WorkflowManager(WorkflowManagerMessage::RemoveDraftStatus(
@@ -1988,8 +2141,8 @@ fn build_status_row<'a>(
             .spacing(8)
             .align_y(Alignment::Center),
             input_row(
-                "状态 key",
-                "自定义状态会按 key 持久化。",
+                i18n.__("状态 key"),
+                i18n.__("自定义状态会按 key 持久化。"),
                 text_input("ready_for_qa", &status.key)
                     .on_input(move |key| {
                         Message::WorkflowManager(WorkflowManagerMessage::DraftStatusKeyChanged {
@@ -2003,8 +2156,8 @@ fn build_status_row<'a>(
                     .width(Length::Fill),
             ),
             input_row(
-                "标签",
-                "用于看板列和状态展示。",
+                i18n.__("标签"),
+                i18n.__("用于看板列和状态展示。"),
                 text_input("Ready for QA", &status.label)
                     .on_input(move |label| {
                         Message::WorkflowManager(WorkflowManagerMessage::DraftStatusLabelChanged {
@@ -2017,17 +2170,17 @@ fn build_status_row<'a>(
                     .style(settings_text_input_style)
                     .width(Length::Fill),
             ),
-            input_row("语义角色", "调度和执行只依赖角色语义。", role_pick),
+            input_row(i18n.__("语义角色"), i18n.__("调度和执行只依赖角色语义。"), role_pick),
             row![
                 column![
-                    text("结果去向").size(13),
-                    text("结果 key 可自定义；目标留空表示此结果结束。")
+                    text(i18n.__("结果去向")).size(13),
+                    text(i18n.__("结果 key 可自定义；目标留空表示此结果结束。"))
                         .size(11)
                         .style(settings_muted_text_style),
                 ]
                 .spacing(4),
                 Space::new().width(Length::Fill),
-                button(text("添加结果").size(12))
+                button(text(i18n.__("添加结果")).size(12))
                     .padding([7, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Message::WorkflowManager(
@@ -2052,6 +2205,7 @@ fn next_options(draft: &WorkflowDraft) -> Vec<NextStatusOption> {
 }
 
 fn build_route_row<'a>(
+    i18n: crate::app::i18n::I18n,
     status_index: usize,
     route_index: usize,
     route: &'a WorkflowDraftRoute,
@@ -2060,9 +2214,9 @@ fn build_route_row<'a>(
 ) -> Element<'a, Message> {
     let outcome = route.outcome();
     let name_control: Element<'a, Message> = if route.is_builtin() {
-        settings_value_badge(outcome.label())
+        settings_value_badge(i18n.__(&outcome.label()).to_string())
     } else {
-        text_input("平台驳回", &route.label)
+        text_input(i18n.__("平台驳回"), &route.label)
             .on_input(move |label| {
                 Message::WorkflowManager(WorkflowManagerMessage::DraftStatusRouteLabelChanged {
                     status_index,
@@ -2096,7 +2250,7 @@ fn build_route_row<'a>(
     let remove: Element<'a, Message> = if route.is_builtin() {
         Space::new().width(Length::Fixed(70.0)).into()
     } else {
-        button(text("删除").size(12))
+        button(text(i18n.__("删除")).size(12))
             .padding([7, 10])
             .style(danger_action_btn_style)
             .on_press(Message::WorkflowManager(WorkflowManagerMessage::RemoveDraftStatusRoute {
@@ -2108,20 +2262,20 @@ fn build_route_row<'a>(
 
     row![
         column![
-            text("结果名字").size(12),
-            text("给人看的名称").size(11).style(settings_muted_text_style),
+            text(i18n.__("结果名字")).size(12),
+            text(i18n.__("给人看的名称")).size(11).style(settings_muted_text_style),
         ]
         .spacing(3)
         .width(Length::Fixed(120.0)),
         container(name_control).width(Length::FillPortion(2)),
         column![
-            text("结果 key").size(12),
-            text("程序匹配用").size(11).style(settings_muted_text_style),
+            text(i18n.__("结果 key")).size(12),
+            text(i18n.__("程序匹配用")).size(11).style(settings_muted_text_style),
         ]
         .spacing(3)
         .width(Length::Fixed(110.0)),
         container(key_control).width(Length::FillPortion(2)),
-        container(route_picker(status_index, route_index, options, selected_key))
+        container(route_picker(i18n, status_index, route_index, options, selected_key))
             .width(Length::FillPortion(2)),
         remove,
     ]
@@ -2131,11 +2285,21 @@ fn build_route_row<'a>(
 }
 
 fn route_picker<'a>(
+    i18n: crate::app::i18n::I18n,
     status_index: usize,
     route_index: usize,
     options: Vec<NextStatusOption>,
     selected_key: Option<String>,
 ) -> Element<'a, Message> {
+    let options = options
+        .into_iter()
+        .map(|mut option| {
+            if option.target_key.is_none() {
+                option.label = Some(i18n.__("结束点 (End)").to_string());
+            }
+            option
+        })
+        .collect::<Vec<_>>();
     let selected = NextStatusOption::selected(&options, selected_key);
     pick_list(options, Some(selected), move |target| {
         Message::WorkflowManager(WorkflowManagerMessage::SetDraftStatusRoute {
@@ -2150,31 +2314,36 @@ fn route_picker<'a>(
     .into()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct StatusRoleOption(StatusRole);
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct StatusRoleOption(StatusRole, String);
 
 impl StatusRoleOption {
-    fn all() -> Vec<Self> {
-        vec![
-            Self(StatusRole::Backlog),
-            Self(StatusRole::Queued),
-            Self(StatusRole::Planning),
-            Self(StatusRole::Executing),
-            Self(StatusRole::Failed),
-            Self(StatusRole::Paused),
-            Self(StatusRole::ReviewReady),
-            Self(StatusRole::Review),
-            Self(StatusRole::Merging),
-            Self(StatusRole::Done),
-            Self(StatusRole::Archived),
-            Self(StatusRole::Custom),
+    fn new(role: StatusRole, i18n: crate::app::i18n::I18n) -> Self {
+        Self(role, status_role_display(i18n, role))
+    }
+    fn all(i18n: crate::app::i18n::I18n) -> Vec<Self> {
+        [
+            StatusRole::Backlog,
+            StatusRole::Queued,
+            StatusRole::Planning,
+            StatusRole::Executing,
+            StatusRole::Failed,
+            StatusRole::Paused,
+            StatusRole::ReviewReady,
+            StatusRole::Review,
+            StatusRole::Merging,
+            StatusRole::Done,
+            StatusRole::Archived,
+            StatusRole::Custom,
         ]
+        .into_iter()
+        .map(|role| Self::new(role, i18n))
+        .collect()
     }
 }
-
 impl fmt::Display for StatusRoleOption {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&status_role_display(self.0))
+        f.write_str(&self.1)
     }
 }
 
@@ -2218,7 +2387,7 @@ impl fmt::Display for NextStatusOption {
                 Some(label) if label != key => write!(f, "{label} ({key})"),
                 _ => f.write_str(key),
             },
-            None => f.write_str("结束点 (End)"),
+            None => f.write_str(self.label.as_deref().unwrap_or("结束点 (End)")),
         }
     }
 }

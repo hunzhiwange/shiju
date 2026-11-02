@@ -98,7 +98,7 @@ fn connection_draft() -> WorkflowConnectionDraft {
 #[test]
 fn build_header_renders_empty_state_without_description() {
     let state = WorkflowState::default();
-    let element = build_header(&state);
+    let element = build_header(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box(element);
 }
@@ -109,7 +109,7 @@ fn build_header_renders_source_path_and_dirty_badges() {
     state.active_is_dirty = true;
     state.zoom = 0.05;
 
-    let element = build_header(&state);
+    let element = build_header(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box(element);
 }
@@ -120,7 +120,7 @@ fn build_header_renders_clean_source_path_without_dirty_suffix() {
 
     assert!(state.source_path.is_some());
     assert!(!state.active_is_dirty);
-    std::hint::black_box(build_header(&state));
+    std::hint::black_box(build_header(crate::app::i18n::I18n::new(Default::default()), &state));
 }
 
 #[test]
@@ -129,7 +129,7 @@ fn build_header_renders_unsaved_draft_without_source_path() {
     state.source_path = None;
     state.active_is_dirty = true;
 
-    let element = build_header(&state);
+    let element = build_header(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box(element);
 }
@@ -140,7 +140,7 @@ fn build_header_renders_database_backed_clean_app() {
     state.source_path = None;
     state.active_is_dirty = false;
 
-    let element = build_header(&state);
+    let element = build_header(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box(element);
 }
@@ -153,7 +153,7 @@ fn build_header_renders_high_zoom_and_no_active_app_actions() {
     state.selected_edge_id = None;
     state.zoom = 2.75;
 
-    let element = build_header(&state);
+    let element = build_header(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box(element);
 }
@@ -165,7 +165,7 @@ fn build_header_prefers_cancel_connection_over_delete_actions() {
     state.selected_edge_id = Some("edge_1".to_string());
     state.connection_draft = Some(connection_draft());
 
-    let element = build_header(&state);
+    let element = build_header(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box(element);
 }
@@ -174,33 +174,40 @@ fn build_header_prefers_cancel_connection_over_delete_actions() {
 fn build_header_renders_delete_node_and_delete_edge_paths() {
     let mut node_state = active_state();
     node_state.selected_node_id = Some("node_1".to_string());
-    let node_element = build_header(&node_state);
+    let node_element = build_header(crate::app::i18n::I18n::new(Default::default()), &node_state);
 
     let mut edge_state = active_state();
     edge_state.selected_edge_id = Some("edge_1".to_string());
-    let edge_element = build_header(&edge_state);
+    let edge_element = build_header(crate::app::i18n::I18n::new(Default::default()), &edge_state);
 
     std::hint::black_box((node_element, edge_element));
 }
 
 #[test]
 fn build_action_bar_covers_enabled_disabled_and_active_controls() {
-    let empty_element = build_action_bar(&WorkflowState::default());
+    let empty_element = build_action_bar(
+        crate::app::i18n::I18n::new(Default::default()),
+        &WorkflowState::default(),
+    );
 
     let mut state = active_state();
     let snapshot = test_snapshot(&state.document);
     state.action_menu_open = true;
     state.undo_stack.push(snapshot.clone());
     state.redo_stack.push(snapshot);
-    let active_element = build_action_bar(&state);
+    let active_element = build_action_bar(crate::app::i18n::I18n::new(Default::default()), &state);
 
     std::hint::black_box((empty_element, active_element));
 }
 
 #[test]
 fn build_action_menu_overlay_covers_enabled_and_disabled_items() {
-    let empty_element = build_action_menu_overlay(&WorkflowState::default());
-    let active_element = build_action_menu_overlay(&active_state());
+    let empty_element = build_action_menu_overlay(
+        crate::app::i18n::I18n::new(Default::default()),
+        &WorkflowState::default(),
+    );
+    let active_element =
+        build_action_menu_overlay(crate::app::i18n::I18n::new(Default::default()), &active_state());
 
     std::hint::black_box((empty_element, active_element));
 }

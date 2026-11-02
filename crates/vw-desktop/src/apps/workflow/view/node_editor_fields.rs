@@ -8,6 +8,7 @@ use super::*;
 use iced::widget::{column, row};
 
 pub(super) fn build_variable_selector_field<'a, F>(
+    i18n: crate::app::i18n::I18n,
     label: &'a str,
     selector: &'a WorkflowVariableSelectorDraft,
     map_edit: F,
@@ -19,7 +20,7 @@ where
     container(
         column![
             text(label).size(12),
-            text_input("节点.变量", &input)
+            text_input(i18n.__("节点.变量"), &input)
                 .on_input(move |value| {
                     map_edit(WorkflowNodeFieldEdit::VariableSelectorChanged(value))
                 })
@@ -36,6 +37,7 @@ where
 }
 
 pub(super) fn build_named_value_list<'a, F>(
+    i18n: crate::app::i18n::I18n,
     values: &'a [WorkflowNamedValueDraft],
     map_edit: F,
 ) -> Element<'a, Message>
@@ -53,24 +55,26 @@ where
             container(
                 column![
                     row![
-                        text_input("名称", &value.name)
+                        text_input(i18n.__("名称"), &value.name)
                             .on_input(move |input| name_mapper(
                                 WorkflowNodeFieldEdit::NamedValueNameChanged(index, input)
                             ))
                             .padding([8, 10])
                             .style(settings_text_input_style),
-                        text_input("类型", &value.value_type)
+                        text_input(i18n.__("类型"), &value.value_type)
                             .on_input(move |input| type_mapper(
                                 WorkflowNodeFieldEdit::NamedValueTypeChanged(index, input)
                             ))
                             .padding([8, 10])
                             .style(settings_text_input_style),
-                        button(text("删除").size(12)).style(danger_action_btn_style).on_press(
-                            remove_mapper(WorkflowNodeFieldEdit::NamedValueRemoved(index))
-                        ),
+                        button(text(i18n.__("删除")).size(12))
+                            .style(danger_action_btn_style)
+                            .on_press(remove_mapper(WorkflowNodeFieldEdit::NamedValueRemoved(
+                                index
+                            ))),
                     ]
                     .spacing(8),
-                    text_input("节点.变量", &selector_input)
+                    text_input(i18n.__("节点.变量"), &selector_input)
                         .on_input(move |input| selector_mapper(
                             WorkflowNodeFieldEdit::NamedValueSelectorChanged(index, input)
                         ))
@@ -84,7 +88,7 @@ where
         );
     }
     list.push(
-        button(text("新增命名项").size(12))
+        button(text(i18n.__("新增命名项")).size(12))
             .style(rounded_action_btn_style)
             .on_press(map_edit(WorkflowNodeFieldEdit::NamedValueAdded)),
     )
@@ -92,6 +96,7 @@ where
 }
 
 pub(super) fn build_key_value_list<'a, F>(
+    i18n: crate::app::i18n::I18n,
     values: &'a [WorkflowKeyValueDraft],
     map_edit: F,
 ) -> Element<'a, Message>
@@ -105,19 +110,19 @@ where
         let remove_mapper = map_edit.clone();
         list = list.push(
             row![
-                text_input("键", &value.key)
+                text_input(i18n.__("键"), &value.key)
                     .on_input(move |input| key_mapper(WorkflowNodeFieldEdit::KeyValueKeyChanged(
                         index, input
                     )))
                     .padding([8, 10])
                     .style(settings_text_input_style),
-                text_input("值", &value.value)
+                text_input(i18n.__("值"), &value.value)
                     .on_input(move |input| value_mapper(
                         WorkflowNodeFieldEdit::KeyValueValueChanged(index, input)
                     ))
                     .padding([8, 10])
                     .style(settings_text_input_style),
-                button(text("删除").size(12))
+                button(text(i18n.__("删除")).size(12))
                     .style(danger_action_btn_style)
                     .on_press(remove_mapper(WorkflowNodeFieldEdit::KeyValueRemoved(index))),
             ]
@@ -125,7 +130,7 @@ where
         );
     }
     list.push(
-        button(text("新增键值").size(12))
+        button(text(i18n.__("新增键值")).size(12))
             .style(rounded_action_btn_style)
             .on_press(map_edit(WorkflowNodeFieldEdit::KeyValueAdded)),
     )
@@ -133,6 +138,7 @@ where
 }
 
 pub(super) fn build_model_fields<'a, F>(
+    i18n: crate::app::i18n::I18n,
     model: &'a WorkflowModelDraft,
     map_edit: F,
 ) -> Element<'a, Message>
@@ -142,17 +148,17 @@ where
     let provider_mapper = map_edit.clone();
     let name_mapper = map_edit.clone();
     column![
-        text_input("模型供应商", &model.provider)
+        text_input(i18n.__("模型供应商"), &model.provider)
             .on_input(move |value| provider_mapper(WorkflowNodeFieldEdit::ModelProviderChanged(
                 value
             )))
             .padding([10, 12])
             .style(settings_text_input_style),
-        text_input("模型名称", &model.name)
+        text_input(i18n.__("模型名称"), &model.name)
             .on_input(move |value| name_mapper(WorkflowNodeFieldEdit::ModelNameChanged(value)))
             .padding([10, 12])
             .style(settings_text_input_style),
-        text_input("模型模式", &model.mode)
+        text_input(i18n.__("模型模式"), &model.mode)
             .on_input(move |value| map_edit(WorkflowNodeFieldEdit::ModelModeChanged(value)))
             .padding([10, 12])
             .style(settings_text_input_style),
@@ -162,6 +168,7 @@ where
 }
 
 pub(super) fn build_retry_fields<'a, F>(
+    i18n: crate::app::i18n::I18n,
     retry: WorkflowNodeRetryDraft,
     map_edit: F,
 ) -> Element<'a, Message>
@@ -172,7 +179,7 @@ where
     let retries_mapper = map_edit.clone();
     column![
         row![
-            text("启用失败重试").size(12),
+            text(i18n.__("启用失败重试")).size(12),
             Space::new().width(Length::Fill),
             toggler(retry.enabled).on_toggle(move |enabled| enabled_mapper(
                 WorkflowNodeFieldEdit::RetryEnabledChanged(enabled)
@@ -180,7 +187,7 @@ where
         ]
         .align_y(Alignment::Center),
         row![
-            text("最大次数").size(12).width(Length::Fixed(72.0)),
+            text(i18n.__("最大次数")).size(12).width(Length::Fixed(72.0)),
             slider(1.0..=10.0, retry.max_retries.max(1) as f32, move |value: f32| {
                 retries_mapper(WorkflowNodeFieldEdit::RetryMaxRetriesChanged(
                     (value.round() as u8).clamp(1, 10),
@@ -192,7 +199,7 @@ where
         .spacing(8)
         .align_y(Alignment::Center),
         row![
-            text("间隔毫秒").size(12).width(Length::Fixed(72.0)),
+            text(i18n.__("间隔毫秒")).size(12).width(Length::Fixed(72.0)),
             slider(100.0..=5000.0, retry.retry_interval.max(100) as f32, move |value: f32| {
                 map_edit(WorkflowNodeFieldEdit::RetryIntervalChanged(
                     ((value.round() as u16) / 100).max(1) * 100,

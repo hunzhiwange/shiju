@@ -6,7 +6,10 @@ use iced::widget::{column, row};
 /// 构建或更新 build app editor modal 相关行为。
 ///
 /// 参数由调用方提供，返回值直接交给上层视图或状态处理；本函数不执行额外错误恢复。
-pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_app_editor_modal(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let Some(editor) = state.app_editor.as_ref() else {
         return container(Space::new().width(1).height(1)).into();
     };
@@ -17,16 +20,16 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
     const APP_EDITOR_SCROLL_GUTTER: f32 = 12.0;
 
     let title = match &editor.mode {
-        super::state::WorkflowAppEditorMode::Create => "新增应用",
-        super::state::WorkflowAppEditorMode::Edit(_) => "编辑应用信息",
+        super::state::WorkflowAppEditorMode::Create => i18n.__("新增应用"),
+        super::state::WorkflowAppEditorMode::Edit(_) => i18n.__("编辑应用信息"),
     };
 
     let subtitle = match &editor.mode {
         super::state::WorkflowAppEditorMode::Create => {
-            "创建一个新的 workflow 应用，后续可以单独保存成 yml 文件。"
+            i18n.__("创建一个新的 workflow 应用，后续可以单独保存成 yml 文件。")
         }
         super::state::WorkflowAppEditorMode::Edit(_) => {
-            "修改应用元数据，不会丢失原始 Dify yml 里的节点业务字段。"
+            i18n.__("修改应用元数据，不会丢失原始 Dify yml 里的节点业务字段。")
         }
     };
 
@@ -44,48 +47,48 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
     ];
 
     let mut content = column![section_card(
-        "应用基础信息",
-        "表单结构参考 Dify 应用设置页，先整理名称、图标和描述。",
+        i18n.__("应用基础信息"),
+        i18n.__("表单结构参考 Dify 应用设置页，先整理名称、图标和描述。"),
     )]
     .spacing(16);
 
     if let super::state::WorkflowAppEditorMode::Edit(target_id) = &editor.mode {
-        content = content.push(build_app_uuid_field(state, target_id));
+        content = content.push(build_app_uuid_field(i18n, state, target_id));
         if state.active_app_id.as_deref() == Some(target_id.as_str()) {
-            content = content.push(build_app_organize_field());
+            content = content.push(build_app_organize_field(i18n));
         }
     }
 
     let content = content
         .push(build_editor_field(
-            "应用名称",
-            workflow_text_input("例如：客服分流工作流", &editor.name, |value| {
+            i18n.__("应用名称"),
+            workflow_text_input(i18n.__("例如：客服分流工作流"), &editor.name, |value| {
                 Message::WorkflowTool(WorkflowMessage::AppEditorNameChanged(value))
             }),
         ))
         .push(build_editor_field(
-            "应用图标",
-            workflow_text_input("例如：🤖", &editor.icon, |value| {
+            i18n.__("应用图标"),
+            workflow_text_input(i18n.__("例如：🤖"), &editor.icon, |value| {
                 Message::WorkflowTool(WorkflowMessage::AppEditorIconChanged(value))
             }),
         ))
         .push(build_editor_field(
-            "应用描述",
+            i18n.__("应用描述"),
             workflow_text_input(
-                "描述这个 workflow 用来做什么",
+                i18n.__("描述这个 workflow 用来做什么"),
                 &editor.description,
                 |value| Message::WorkflowTool(WorkflowMessage::AppEditorDescriptionChanged(value)),
             ),
         ))
         .push(build_editor_field(
-            "使用 web app 图标替换 🤖",
+            i18n.__("使用 web app 图标替换 🤖"),
             row![
                 toggler(editor.use_icon_as_answer_icon).on_toggle(|value| {
                     Message::WorkflowTool(WorkflowMessage::AppEditorUseIconAsAnswerIconChanged(
                         value,
                     ))
                 }),
-                text("在分享和 Explore 场景里用应用图标替换默认机器人图标")
+                text(i18n.__("在分享和 Explore 场景里用应用图标替换默认机器人图标"))
                     .size(12)
                     .style(settings_muted_text_style),
             ]
@@ -94,19 +97,23 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
             .into(),
         ))
         .push(build_editor_field(
-            "最大活跃请求数",
-            workflow_text_input("0 表示不限制", &editor.max_active_requests_input, |value| {
-                Message::WorkflowTool(WorkflowMessage::AppEditorMaxActiveRequestsChanged(value))
-            }),
+            i18n.__("最大活跃请求数"),
+            workflow_text_input(
+                i18n.__("0 表示不限制"),
+                &editor.max_active_requests_input,
+                |value| {
+                    Message::WorkflowTool(WorkflowMessage::AppEditorMaxActiveRequestsChanged(value))
+                },
+            ),
         ));
 
     let footer = row![
         Space::new().width(Length::Fill),
-        button(text("取消"))
+        button(text(i18n.__("取消")))
             .style(rounded_action_btn_style)
             .padding([9, 14])
             .on_press(Message::WorkflowTool(WorkflowMessage::CloseAppEditor)),
-        button(text("保存应用信息"))
+        button(text(i18n.__("保存应用信息")))
             .style(primary_action_btn_style)
             .padding([9, 14])
             .on_press(Message::WorkflowTool(WorkflowMessage::SubmitAppEditor)),
@@ -148,14 +155,18 @@ pub(super) fn build_app_editor_modal(state: &WorkflowState) -> Element<'_, Messa
     .into()
 }
 
-fn build_app_uuid_field<'a>(state: &'a WorkflowState, target_id: &'a str) -> Element<'a, Message> {
+fn build_app_uuid_field<'a>(
+    i18n: crate::app::i18n::I18n,
+    state: &'a WorkflowState,
+    target_id: &'a str,
+) -> Element<'a, Message> {
     let local_uuid = state
         .apps
         .iter()
         .find(|app| app.id.as_str() == target_id)
         .and_then(|app| app.local_uuid.as_deref());
 
-    let value = local_uuid.unwrap_or("保存到本地数据库后生成 UUID");
+    let value = local_uuid.unwrap_or(i18n.__("保存到本地数据库后生成 UUID"));
     let uuid_panel = container(text(value).size(12))
         .padding([9, 12])
         .width(Length::Fill)
@@ -175,7 +186,10 @@ fn build_app_uuid_field<'a>(state: &'a WorkflowState, target_id: &'a str) -> Ele
                     color: Some(theme.palette().text),
                 });
 
-            row![copy_icon, text("复制").size(12)].spacing(6).align_y(Alignment::Center).into()
+            row![copy_icon, text(i18n.__("复制")).size(12)]
+                .spacing(6)
+                .align_y(Alignment::Center)
+                .into()
         };
 
         uuid_row = uuid_row.push(
@@ -193,14 +207,17 @@ fn build_app_uuid_field<'a>(state: &'a WorkflowState, target_id: &'a str) -> Ele
             .on_press(Message::WorkflowTool(WorkflowMessage::CopySavedAppUuid(uuid.to_string()))),
         );
     } else {
-        uuid_row = uuid_row
-            .push(button(text("未生成").size(12)).style(rounded_action_btn_style).padding([8, 12]));
+        uuid_row = uuid_row.push(
+            button(text(i18n.__("未生成")).size(12))
+                .style(rounded_action_btn_style)
+                .padding([8, 12]),
+        );
     }
 
-    build_editor_field("应用 UUID", uuid_row.into())
+    build_editor_field(i18n.__("应用 UUID"), uuid_row.into())
 }
 
-fn build_app_organize_field() -> Element<'static, Message> {
+fn build_app_organize_field(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let icon = svg(assets::get_icon(Icon::Grid1x2))
         .width(Length::Fixed(14.0))
         .height(Length::Fixed(14.0))
@@ -209,12 +226,16 @@ fn build_app_organize_field() -> Element<'static, Message> {
         });
 
     build_editor_field(
-        "应用整理",
+        i18n.__("应用整理"),
         row![
-            button(row![icon, text("整理节点位置").size(12)].spacing(6).align_y(Alignment::Center))
-                .style(rounded_action_btn_style)
-                .padding([8, 12])
-                .on_press(Message::WorkflowTool(WorkflowMessage::OrganizeActiveApp)),
+            button(
+                row![icon, text(i18n.__("整理节点位置")).size(12)]
+                    .spacing(6)
+                    .align_y(Alignment::Center)
+            )
+            .style(rounded_action_btn_style)
+            .padding([8, 12])
+            .on_press(Message::WorkflowTool(WorkflowMessage::OrganizeActiveApp)),
         ]
         .spacing(10)
         .align_y(Alignment::Center)

@@ -100,7 +100,10 @@ fn empty_state_methods_are_noops_or_expected_errors() {
     assert!(state.node_editor.is_none());
     assert_eq!(state.delete_edge_by_id("missing"), false);
     assert_eq!(state.delete_node_by_id("missing"), false);
-    assert_eq!(state.focus_node("missing", (800.0, 600.0)), Err("目标节点不存在".to_string()));
+    assert_eq!(
+        (state.focus_node("missing", (800.0, 600.0))).map_err(String::from),
+        Err("目标节点不存在".to_string())
+    );
 }
 
 #[test]
@@ -123,7 +126,7 @@ fn title_description_raw_editor_and_visibility_defer_validation_until_submit() {
     assert!(!editor(&state).validation.has_errors());
 
     assert_eq!(
-        state.submit_node_editor(),
+        (state.submit_node_editor()).map_err(String::from),
         Err("请先修正节点表单中的错误字段，再保存。".to_string())
     );
     assert!(editor(&state).validation.has_errors());
@@ -204,7 +207,10 @@ fn duplicate_select_options_and_edit_missing_index_are_rejected() {
     submit_text_variable(&mut state, "First", "first");
 
     fill_start_variable_editor(&mut state, "Duplicate", "first");
-    assert_eq!(state.submit_node_editor_start_variable_editor(), Err("变量名不能重复".to_string()));
+    assert_eq!(
+        (state.submit_node_editor_start_variable_editor()).map_err(String::from),
+        Err("变量名不能重复".to_string())
+    );
 
     state.set_node_editor_start_variable_editor_name("choice".to_string());
     state.set_node_editor_start_variable_editor_type("select".to_string());
@@ -213,7 +219,7 @@ fn duplicate_select_options_and_edit_missing_index_are_rejected() {
     state.add_node_editor_start_variable_editor_option();
     state.set_node_editor_start_variable_editor_option(1, "alpha".to_string());
     assert_eq!(
-        state.submit_node_editor_start_variable_editor(),
+        (state.submit_node_editor_start_variable_editor()).map_err(String::from),
         Err("下拉选项不能重复".to_string())
     );
 
@@ -228,7 +234,10 @@ fn duplicate_select_options_and_edit_missing_index_are_rejected() {
         WorkflowStartVariableEditorMode::Edit(99),
         start_variables(&state)[0].clone(),
     ));
-    assert_eq!(state.submit_node_editor_start_variable_editor(), Err("变量名不能重复".to_string()));
+    assert_eq!(
+        (state.submit_node_editor_start_variable_editor()).map_err(String::from),
+        Err("变量名不能重复".to_string())
+    );
 }
 
 #[test]
@@ -318,7 +327,8 @@ fn file_list_default_files_respect_max_count_and_removal() {
     state.set_node_editor_start_variable_editor_default_file_url_input("/tmp/b.txt".to_string());
     state.submit_node_editor_start_variable_editor_default_file_url().unwrap();
     assert_eq!(
-        state.set_node_editor_start_variable_editor_default_file_path("/tmp/c.txt".to_string()),
+        (state.set_node_editor_start_variable_editor_default_file_path("/tmp/c.txt".to_string()))
+            .map_err(String::from),
         Err("默认文件最多只能添加 2 个".to_string())
     );
 
@@ -351,7 +361,7 @@ fn submit_variable_on_non_start_editor_is_rejected_and_editor_is_restored() {
     ));
 
     assert_eq!(
-        state.submit_node_editor_start_variable_editor(),
+        (state.submit_node_editor_start_variable_editor()).map_err(String::from),
         Err("当前节点不支持开始变量编辑".to_string())
     );
     assert!(editor(&state).start_variable_editor.is_some());
@@ -502,7 +512,7 @@ fn submit_errors_restore_editor_for_merge_failure_and_missing_edit_target() {
     state.set_node_editor_start_variable_editor_type("number".to_string());
     state.set_node_editor_start_variable_editor_default("not a number".to_string());
     assert_eq!(
-        state.submit_node_editor_start_variable_editor(),
+        (state.submit_node_editor_start_variable_editor()).map_err(String::from),
         Err("数字类型默认值必须是数字".to_string())
     );
     assert_eq!(start_variable_editor(&state).mode, WorkflowStartVariableEditorMode::Create);
@@ -516,7 +526,10 @@ fn submit_errors_restore_editor_for_merge_failure_and_missing_edit_target() {
         missing_target,
     ));
 
-    assert_eq!(state.submit_node_editor_start_variable_editor(), Err("目标变量不存在".to_string()));
+    assert_eq!(
+        (state.submit_node_editor_start_variable_editor()).map_err(String::from),
+        Err("目标变量不存在".to_string())
+    );
     assert_eq!(start_variable_editor(&state).mode, WorkflowStartVariableEditorMode::Edit(99));
 }
 

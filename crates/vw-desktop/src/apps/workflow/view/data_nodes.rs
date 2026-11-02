@@ -8,19 +8,20 @@ fn message(edit: WorkflowDataNodeEdit) -> Message {
 }
 
 pub(super) fn build_variable_assigner_section<'a>(
+    i18n: crate::app::i18n::I18n,
     items: &'a [state::WorkflowAssignmentDraft],
 ) -> Element<'a, Message> {
-    let mut content = column![text("赋值项").size(13)].spacing(8);
+    let mut content = column![text(i18n.__("赋值项")).size(13)].spacing(8);
     for (index, item) in items.iter().enumerate() {
         content = content.push(
             column![
                 row![
                     workflow_text_input(
-                        "目标，例如 conversation.count",
+                        i18n.__("目标，例如 conversation.count"),
                         &item.variable_selector_input,
                         move |v| { message(WorkflowDataNodeEdit::AssignmentTarget(index, v)) }
                     ),
-                    button("删除")
+                    button(i18n.__("删除"))
                         .style(danger_action_btn_style)
                         .padding([8, 10])
                         .on_press(message(WorkflowDataNodeEdit::AssignmentRemove(index))),
@@ -28,16 +29,18 @@ pub(super) fn build_variable_assigner_section<'a>(
                 .spacing(8),
                 row![
                     workflow_text_input(
-                        "操作，例如 over-write / +=",
+                        i18n.__("操作，例如 over-write / +="),
                         &item.operation,
                         move |v| message(WorkflowDataNodeEdit::AssignmentOperation(index, v))
                     ),
                     workflow_text_input("constant / variable", &item.input_type, move |v| message(
                         WorkflowDataNodeEdit::AssignmentInputType(index, v)
                     )),
-                    workflow_text_input("值或 [node, variable]", &item.value_input, move |v| {
-                        message(WorkflowDataNodeEdit::AssignmentValue(index, v))
-                    }),
+                    workflow_text_input(
+                        i18n.__("值或 [node, variable]"),
+                        &item.value_input,
+                        move |v| { message(WorkflowDataNodeEdit::AssignmentValue(index, v)) }
+                    ),
                 ]
                 .spacing(8),
             ]
@@ -46,7 +49,7 @@ pub(super) fn build_variable_assigner_section<'a>(
     }
     content
         .push(
-            button("添加赋值")
+            button(i18n.__("添加赋值"))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(message(WorkflowDataNodeEdit::AssignmentAdd)),
@@ -55,20 +58,24 @@ pub(super) fn build_variable_assigner_section<'a>(
 }
 
 pub(super) fn build_variable_aggregator_section<'a>(
+    i18n: crate::app::i18n::I18n,
     variables: &'a [String],
     output_type: &'a str,
 ) -> Element<'a, Message> {
-    let mut content = column![workflow_text_input("输出类型", output_type, |v| message(
-        WorkflowDataNodeEdit::AggregatorOutputType(v)
-    ))]
-    .spacing(8);
+    let mut content =
+        column![workflow_text_input(i18n.__("输出类型"), output_type, |v| message(
+            WorkflowDataNodeEdit::AggregatorOutputType(v)
+        ))]
+        .spacing(8);
     for (index, variable) in variables.iter().enumerate() {
         content = content.push(
             row![
-                workflow_text_input("候选变量，例如 start.value", variable, move |v| {
-                    message(WorkflowDataNodeEdit::AggregatorVariable(index, v))
-                }),
-                button("删除")
+                workflow_text_input(
+                    i18n.__("候选变量，例如 start.value"),
+                    variable,
+                    move |v| { message(WorkflowDataNodeEdit::AggregatorVariable(index, v)) }
+                ),
+                button(i18n.__("删除"))
                     .style(danger_action_btn_style)
                     .padding([8, 10])
                     .on_press(message(WorkflowDataNodeEdit::AggregatorRemove(index))),
@@ -78,7 +85,7 @@ pub(super) fn build_variable_aggregator_section<'a>(
     }
     content
         .push(
-            button("添加候选变量")
+            button(i18n.__("添加候选变量"))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(message(WorkflowDataNodeEdit::AggregatorAdd)),
@@ -88,6 +95,7 @@ pub(super) fn build_variable_aggregator_section<'a>(
 
 #[allow(clippy::too_many_arguments)]
 pub(super) fn build_list_operator_section<'a>(
+    i18n: crate::app::i18n::I18n,
     variable: &'a str,
     conditions: &'a [state::WorkflowListConditionDraft],
     filter_enabled: bool,
@@ -98,13 +106,13 @@ pub(super) fn build_list_operator_section<'a>(
     limit_size: &'a str,
 ) -> Element<'a, Message> {
     let mut content = column![
-        workflow_text_input("输入数组，例如 start.items", variable, |v| message(
+        workflow_text_input(i18n.__("输入数组，例如 start.items"), variable, |v| message(
             WorkflowDataNodeEdit::ListVariable(v)
         )),
         row![
             toggler(filter_enabled)
                 .on_toggle(|v| message(WorkflowDataNodeEdit::ListFilterEnabled(v))),
-            text("启用过滤")
+            text(i18n.__("启用过滤"))
         ]
         .spacing(8),
     ]
@@ -112,16 +120,18 @@ pub(super) fn build_list_operator_section<'a>(
     for (index, condition) in conditions.iter().enumerate() {
         content = content.push(
             row![
-                workflow_text_input("字段", &condition.key, move |v| message(
+                workflow_text_input(i18n.__("字段"), &condition.key, move |v| message(
                     WorkflowDataNodeEdit::ListConditionKey(index, v)
                 )),
-                workflow_text_input("比较符", &condition.comparison_operator, move |v| message(
-                    WorkflowDataNodeEdit::ListConditionOperator(index, v)
-                )),
-                workflow_text_input("值", &condition.value_input, move |v| message(
+                workflow_text_input(
+                    i18n.__("比较符"),
+                    &condition.comparison_operator,
+                    move |v| message(WorkflowDataNodeEdit::ListConditionOperator(index, v))
+                ),
+                workflow_text_input(i18n.__("值"), &condition.value_input, move |v| message(
                     WorkflowDataNodeEdit::ListConditionValue(index, v)
                 )),
-                button("删除")
+                button(i18n.__("删除"))
                     .style(danger_action_btn_style)
                     .padding([8, 10])
                     .on_press(message(WorkflowDataNodeEdit::ListConditionRemove(index))),
@@ -131,7 +141,7 @@ pub(super) fn build_list_operator_section<'a>(
     }
     content
         .push(
-            button("添加过滤条件")
+            button(i18n.__("添加过滤条件"))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(message(WorkflowDataNodeEdit::ListConditionAdd)),
@@ -140,13 +150,13 @@ pub(super) fn build_list_operator_section<'a>(
             row![
                 toggler(order_enabled)
                     .on_toggle(|v| message(WorkflowDataNodeEdit::ListOrderEnabled(v))),
-                text("排序")
+                text(i18n.__("排序"))
             ]
             .spacing(8),
         )
         .push(
             row![
-                workflow_text_input("排序字段", order_key, |v| message(
+                workflow_text_input(i18n.__("排序字段"), order_key, |v| message(
                     WorkflowDataNodeEdit::ListOrderKey(v)
                 )),
                 workflow_text_input("asc / desc", order_direction, |v| message(
@@ -159,11 +169,11 @@ pub(super) fn build_list_operator_section<'a>(
             row![
                 toggler(limit_enabled)
                     .on_toggle(|v| message(WorkflowDataNodeEdit::ListLimitEnabled(v))),
-                text("截取")
+                text(i18n.__("截取"))
             ]
             .spacing(8),
         )
-        .push(workflow_text_input("数量", limit_size, |v| {
+        .push(workflow_text_input(i18n.__("数量"), limit_size, |v| {
             message(WorkflowDataNodeEdit::ListLimitSize(v))
         }))
         .into()

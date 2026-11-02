@@ -10,22 +10,37 @@ use iced::{Background, Theme};
 
 #[test]
 fn saved_app_title_uses_fallback_for_blank_name() {
-    assert_eq!(saved_app_title("  "), "未命名应用");
+    assert_eq!(
+        saved_app_title(crate::app::i18n::I18n::new(Default::default()), "  "),
+        "未命名应用"
+    );
 }
 
 #[test]
 fn saved_app_title_trims_non_blank_name() {
-    assert_eq!(saved_app_title("  客服助手  "), "客服助手");
+    assert_eq!(
+        saved_app_title(crate::app::i18n::I18n::new(Default::default()), "  客服助手  "),
+        "客服助手"
+    );
 }
 
 #[test]
 fn saved_app_description_uses_fallback_for_blank_description() {
-    assert_eq!(saved_app_description("  "), "暂无描述");
+    assert_eq!(
+        saved_app_description(crate::app::i18n::I18n::new(Default::default()), "  "),
+        "暂无描述"
+    );
 }
 
 #[test]
 fn saved_app_description_trims_non_blank_description() {
-    assert_eq!(saved_app_description("  自动回复客户问题  "), "自动回复客户问题");
+    assert_eq!(
+        saved_app_description(
+            crate::app::i18n::I18n::new(Default::default()),
+            "  自动回复客户问题  "
+        ),
+        "自动回复客户问题"
+    );
 }
 
 #[test]
@@ -64,36 +79,38 @@ fn saved_app_matches_search_query() {
 #[test]
 fn saved_apps_view_builds_loading_error_empty_and_filtered_states() {
     let mut state = WorkflowState { saved_apps_loading: true, ..WorkflowState::default() };
-    let _ = build_saved_apps_view(&state);
+    let _ = build_saved_apps_view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.saved_apps_loading = false;
     state.saved_apps_error = Some("数据库不可用".to_string());
-    let _ = build_saved_apps_view(&state);
+    let _ = build_saved_apps_view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.saved_apps_error = None;
-    let _ = build_saved_apps_view(&state);
+    let _ = build_saved_apps_view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.saved_apps = vec![saved_app_summary()];
-    let _ = build_saved_apps_view(&state);
+    let _ = build_saved_apps_view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.saved_app_search_query = "无匹配".to_string();
-    let _ = build_saved_apps_view(&state);
+    let _ = build_saved_apps_view(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
 fn saved_apps_header_and_empty_state_parts_build() {
     let state = WorkflowState::default();
 
-    let _header = build_saved_apps_header(&state);
-    let _search = build_search_input(&state);
+    let _header = build_saved_apps_header(crate::app::i18n::I18n::new(Default::default()), &state);
+    let _search = build_search_input(crate::app::i18n::I18n::new(Default::default()), &state);
     let _refresh = saved_apps_header_button("刷新", WorkflowMessage::LoadSavedApps);
-    let _create_card = build_create_app_card();
+    let _create_card = build_create_app_card(crate::app::i18n::I18n::new(Default::default()));
     let _create_button =
         create_action_button(Icon::FileEarmarkPlus, "创建空白应用", WorkflowMessage::OpenFile);
     let _create_row = create_action_row(Icon::FolderOpen, "导入 DSL 文件");
-    let _no_result = build_no_result_card();
-    let _notice = build_saved_apps_notice("暂无应用");
-    let _error = build_saved_apps_error("数据库不可用");
+    let _no_result = build_no_result_card(crate::app::i18n::I18n::new(Default::default()));
+    let _notice =
+        build_saved_apps_notice(crate::app::i18n::I18n::new(Default::default()), "暂无应用");
+    let _error =
+        build_saved_apps_error(crate::app::i18n::I18n::new(Default::default()), "数据库不可用");
 }
 
 #[test]
@@ -107,8 +124,19 @@ fn saved_app_card_builds_action_and_progress_states() {
         ..WorkflowState::default()
     };
 
-    let _ = build_saved_app_card(&state, &state.saved_apps[0]);
-    let _ = build_saved_app_actions_menu("uuid".to_string(), true, true, true, true);
+    let _ = build_saved_app_card(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        &state.saved_apps[0],
+    );
+    let _ = build_saved_app_actions_menu(
+        crate::app::i18n::I18n::new(Default::default()),
+        "uuid".to_string(),
+        true,
+        true,
+        true,
+        true,
+    );
     assert!(matches!(
         saved_app_run_action_message("uuid".to_string(), false),
         Some(WorkflowMessage::OpenSavedAppRunPrompt(uuid)) if uuid == "uuid"
@@ -116,8 +144,8 @@ fn saved_app_card_builds_action_and_progress_states() {
     assert!(saved_app_run_action_message("uuid".to_string(), true).is_none());
     let _ = build_saved_app_action_item(Icon::ArrowRepeat, "运行中", None, false);
     let _ = build_saved_app_action_item(Icon::Trash, "删除中", None, true);
-    let _ = saved_app_uuid_row("uuid", true);
-    let _ = saved_app_uuid_row("uuid", false);
+    let _ = saved_app_uuid_row(crate::app::i18n::I18n::new(Default::default()), "uuid", true);
+    let _ = saved_app_uuid_row(crate::app::i18n::I18n::new(Default::default()), "uuid", false);
 }
 
 #[test]
@@ -125,26 +153,58 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     let mut running = run_preview(WorkflowRunStatus::Running);
     running.nodes.push(run_node("start", "开始", Some("running")));
     running.text_output = "正在分析输入".to_string();
-    let _ = build_saved_app_run_preview_layer(&running, false);
+    let _ = build_saved_app_run_preview_layer(
+        crate::app::i18n::I18n::new(Default::default()),
+        &running,
+        false,
+    );
     assert!(matches!(
-        saved_app_run_preview_action(&running),
+        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &running),
         Some(("取消运行", WorkflowMessage::CancelSavedAppRun))
     ));
-    assert_eq!(workflow_run_status_label(WorkflowRunStatus::Running), "运行中");
-    assert_eq!(workflow_run_node_status_label(Some("running")), "运行中");
+    assert_eq!(
+        workflow_run_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            WorkflowRunStatus::Running
+        ),
+        "运行中"
+    );
+    assert_eq!(
+        workflow_run_node_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            Some("running")
+        ),
+        "运行中"
+    );
 
     let mut succeeded = run_preview(WorkflowRunStatus::Succeeded);
     succeeded.run_id = Some("run-1".to_string());
     succeeded.is_finished = true;
     succeeded.nodes.push(run_node("answer", "回答", Some("succeeded")));
     succeeded.text_output = "完成输出".to_string();
-    let _ = build_saved_app_run_preview_layer(&succeeded, false);
+    let _ = build_saved_app_run_preview_layer(
+        crate::app::i18n::I18n::new(Default::default()),
+        &succeeded,
+        false,
+    );
     assert!(matches!(
-        saved_app_run_preview_action(&succeeded),
+        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &succeeded),
         Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
     ));
-    assert_eq!(workflow_run_status_label(WorkflowRunStatus::Succeeded), "成功");
-    assert_eq!(workflow_run_node_status_label(Some("succeeded")), "成功");
+    assert_eq!(
+        workflow_run_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            WorkflowRunStatus::Succeeded
+        ),
+        "成功"
+    );
+    assert_eq!(
+        workflow_run_node_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            Some("succeeded")
+        ),
+        "成功"
+    );
 
     let mut failed = run_preview(WorkflowRunStatus::Failed);
     failed.is_finished = true;
@@ -154,13 +214,29 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
         code: "workflow_run_error".to_string(),
         message: "节点执行失败".to_string(),
     });
-    let _ = build_saved_app_run_preview_layer(&failed, false);
+    let _ = build_saved_app_run_preview_layer(
+        crate::app::i18n::I18n::new(Default::default()),
+        &failed,
+        false,
+    );
     assert!(matches!(
-        saved_app_run_preview_action(&failed),
+        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &failed),
         Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
     ));
-    assert_eq!(workflow_run_status_label(WorkflowRunStatus::Failed), "失败");
-    assert_eq!(workflow_run_node_status_label(Some("failed")), "失败");
+    assert_eq!(
+        workflow_run_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            WorkflowRunStatus::Failed
+        ),
+        "失败"
+    );
+    assert_eq!(
+        workflow_run_node_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            Some("failed")
+        ),
+        "失败"
+    );
     assert!(matches!(
         saved_app_run_preview_close_message(),
         WorkflowMessage::CloseSavedAppRunPreview
@@ -178,14 +254,42 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
         status: None,
         data: serde_json::json!({}),
     });
-    let _ = build_saved_app_run_preview_layer(&canceled, false);
-    assert!(saved_app_run_preview_action(&canceled).is_none());
+    let _ = build_saved_app_run_preview_layer(
+        crate::app::i18n::I18n::new(Default::default()),
+        &canceled,
+        false,
+    );
+    assert!(
+        saved_app_run_preview_action(crate::app::i18n::I18n::new(Default::default()), &canceled)
+            .is_none()
+    );
 
     // Node status labels cover every timeline state.
-    assert_eq!(workflow_run_node_status_label(Some("canceled")), "已取消");
-    assert_eq!(workflow_run_node_status_label(Some("mystery")), "未知");
-    assert_eq!(workflow_run_node_status_label(None), "等待中");
-    assert_eq!(workflow_run_status_label(WorkflowRunStatus::Canceled), "已取消");
+    assert_eq!(
+        workflow_run_node_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            Some("canceled")
+        ),
+        "已取消"
+    );
+    assert_eq!(
+        workflow_run_node_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            Some("mystery")
+        ),
+        "未知"
+    );
+    assert_eq!(
+        workflow_run_node_status_label(crate::app::i18n::I18n::new(Default::default()), None),
+        "等待中"
+    );
+    assert_eq!(
+        workflow_run_status_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            WorkflowRunStatus::Canceled
+        ),
+        "已取消"
+    );
 
     // An empty-detail node produces no detail rows but still has a stable placeholder.
     let empty_node = WorkflowRunNodePreview {
@@ -194,14 +298,24 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
         status: None,
         data: serde_json::json!({}),
     };
-    assert!(workflow_run_node_data_preview_items(&empty_node).is_empty());
+    assert!(
+        workflow_run_node_data_preview_items(
+            crate::app::i18n::I18n::new(Default::default()),
+            &empty_node
+        )
+        .is_empty()
+    );
 
     // A freshly started run with no run id and no nodes must still build: the summary
     // falls back to a placeholder run id and the timeline shows the waiting placeholder.
     let pending = run_preview(WorkflowRunStatus::Running);
     assert!(pending.nodes.is_empty());
     assert!(pending.run_id.is_none());
-    let _ = build_saved_app_run_preview_layer(&pending, false);
+    let _ = build_saved_app_run_preview_layer(
+        crate::app::i18n::I18n::new(Default::default()),
+        &pending,
+        false,
+    );
     assert_eq!(run_preview_run_id_label(&pending), RUN_PREVIEW_PENDING_RUN_ID_LABEL);
     assert_eq!(run_preview_run_id_label(&succeeded), succeeded.run_id.as_deref().unwrap());
 
@@ -212,7 +326,11 @@ fn workflow_run_preview_builds_running_success_and_error_states() {
     multi.nodes.push(run_node("llm", "大模型", Some("running")));
     multi.nodes.push(run_node("answer", "回答", None));
     multi.text_output = "多节点输出".to_string();
-    let _ = build_saved_app_run_preview_layer(&multi, false);
+    let _ = build_saved_app_run_preview_layer(
+        crate::app::i18n::I18n::new(Default::default()),
+        &multi,
+        false,
+    );
     assert_eq!(run_preview_run_id_label(&multi), "run-multi");
 
     // The scrollbar gutter must stay pinned at the repo-mandated 4px width.
@@ -261,11 +379,11 @@ fn workflow_run_output_text_handles_empty_long_and_padded_output() {
 #[test]
 fn workflow_run_output_and_error_areas_build_for_empty_long_and_failed_states() {
     // Empty output still builds a stable, lightweight empty-state container.
-    let _ = workflow_run_output("");
+    let _ = workflow_run_output(crate::app::i18n::I18n::new(Default::default()), "");
 
     // Long multi-line output builds without panicking.
     let long_output = (0..200).map(|i| format!("行 {i}")).collect::<Vec<_>>().join("\n");
-    let _ = workflow_run_output(&long_output);
+    let _ = workflow_run_output(crate::app::i18n::I18n::new(Default::default()), &long_output);
 
     // A failed preview with a multi-line, long error message builds a stable error report
     // in both themes via its dedicated styles.
@@ -278,7 +396,7 @@ fn workflow_run_output_and_error_areas_build_for_empty_long_and_failed_states() 
         code: "workflow_run_error".to_string(),
         message: format!("节点执行失败\n详细堆栈:\n{}", "栈帧 ".repeat(64)),
     });
-    let _ = workflow_run_error(&failed);
+    let _ = workflow_run_error(crate::app::i18n::I18n::new(Default::default()), &failed);
 
     for theme in [Theme::Light, Theme::Dark] {
         assert!(workflow_run_preview_output_style(&theme).background.is_some());
@@ -347,7 +465,10 @@ fn workflow_run_node_preview_formats_key_value_details() {
         }),
     };
 
-    let items = workflow_run_node_data_preview_items(&node);
+    let items = workflow_run_node_data_preview_items(
+        crate::app::i18n::I18n::new(Default::default()),
+        &node,
+    );
     assert_eq!(items[0], ("类型:".to_string(), "llm".to_string()));
     assert_eq!(items[1], ("序号:".to_string(), "2".to_string()));
     assert_eq!(items[2].0, "开始时间:");
@@ -376,7 +497,10 @@ fn workflow_run_node_preview_formats_millisecond_and_hides_empty_fields() {
         }),
     };
 
-    let items = workflow_run_node_data_preview_items(&node);
+    let items = workflow_run_node_data_preview_items(
+        crate::app::i18n::I18n::new(Default::default()),
+        &node,
+    );
 
     // Type and index keep their business priority order.
     assert_eq!(items[0], ("类型:".to_string(), "tool".to_string()));
@@ -415,25 +539,48 @@ fn delete_confirm_dialog_uses_matching_app_or_generic_name() {
         ..WorkflowState::default()
     };
 
-    assert!(build_saved_app_delete_confirm_dialog(&state).is_some());
+    assert!(
+        build_saved_app_delete_confirm_dialog(
+            crate::app::i18n::I18n::new(Default::default()),
+            &state
+        )
+        .is_some()
+    );
 
     let missing_state = WorkflowState {
         confirm_delete_saved_app_uuid: Some("missing".to_string()),
         ..WorkflowState::default()
     };
 
-    assert!(build_saved_app_delete_confirm_dialog(&missing_state).is_some());
-    assert!(build_saved_app_delete_confirm_dialog(&WorkflowState::default()).is_none());
+    assert!(
+        build_saved_app_delete_confirm_dialog(
+            crate::app::i18n::I18n::new(Default::default()),
+            &missing_state
+        )
+        .is_some()
+    );
+    assert!(
+        build_saved_app_delete_confirm_dialog(
+            crate::app::i18n::I18n::new(Default::default()),
+            &WorkflowState::default()
+        )
+        .is_none()
+    );
 }
 
 #[test]
 fn saved_app_run_prompt_dialog_builds_inputs_and_error_states() {
     let mut state =
         WorkflowState { saved_apps: vec![saved_app_summary()], ..WorkflowState::default() };
-    assert!(build_saved_app_run_prompt_dialog(&state).is_none());
+    assert!(
+        build_saved_app_run_prompt_dialog(crate::app::i18n::I18n::new(Default::default()), &state)
+            .is_none()
+    );
 
     state.open_saved_app_run_prompt("uuid".to_string());
-    let _ = build_saved_app_run_prompt_dialog(&state).expect("prompt should build");
+    let _ =
+        build_saved_app_run_prompt_dialog(crate::app::i18n::I18n::new(Default::default()), &state)
+            .expect("prompt should build");
 
     state.finish_saved_app_run_prompt_load(
         "uuid",
@@ -455,10 +602,14 @@ fn saved_app_run_prompt_dialog_builds_inputs_and_error_states() {
             },
         ]),
     );
-    let _ = build_saved_app_run_prompt_dialog(&state).expect("prompt with inputs should build");
+    let _ =
+        build_saved_app_run_prompt_dialog(crate::app::i18n::I18n::new(Default::default()), &state)
+            .expect("prompt with inputs should build");
 
     state.set_saved_app_run_prompt_error("请输入 query 后再运行".to_string());
-    let _ = build_saved_app_run_prompt_dialog(&state).expect("prompt with error should build");
+    let _ =
+        build_saved_app_run_prompt_dialog(crate::app::i18n::I18n::new(Default::default()), &state)
+            .expect("prompt with error should build");
 }
 
 #[test]
@@ -470,19 +621,31 @@ fn saved_app_run_input_metadata_uses_type_specific_fallbacks() {
     };
 
     assert_eq!(saved_app_run_input_label(&input), "amount");
-    assert_eq!(saved_app_run_input_placeholder(&input), "请输入数字");
+    assert_eq!(
+        saved_app_run_input_placeholder(crate::app::i18n::I18n::new(Default::default()), &input),
+        "请输入数字"
+    );
 
     input.label = "金额".to_string();
     input.input_type = "file-list".to_string();
     assert_eq!(saved_app_run_input_label(&input), "金额");
-    assert_eq!(saved_app_run_input_placeholder(&input), "输入文件 URL 或路径，逗号分隔");
+    assert_eq!(
+        saved_app_run_input_placeholder(crate::app::i18n::I18n::new(Default::default()), &input),
+        "输入文件 URL 或路径，逗号分隔"
+    );
 
     input.input_type = "paragraph".to_string();
     input.hint = "补充说明".to_string();
-    assert_eq!(saved_app_run_input_placeholder(&input), "补充说明");
+    assert_eq!(
+        saved_app_run_input_placeholder(crate::app::i18n::I18n::new(Default::default()), &input),
+        "补充说明"
+    );
 
     input.placeholder = "自定义提示".to_string();
-    assert_eq!(saved_app_run_input_placeholder(&input), "自定义提示");
+    assert_eq!(
+        saved_app_run_input_placeholder(crate::app::i18n::I18n::new(Default::default()), &input),
+        "自定义提示"
+    );
 }
 
 #[test]
@@ -492,7 +655,7 @@ fn saved_app_run_inputs_build_loading_hidden_select_and_text_variants() {
         loading: true,
         ..Default::default()
     };
-    let _ = build_saved_app_run_inputs(&prompt);
+    let _ = build_saved_app_run_inputs(crate::app::i18n::I18n::new(Default::default()), &prompt);
 
     prompt.loading = false;
     prompt.inputs = vec![state::WorkflowRunInputDraft {
@@ -500,7 +663,7 @@ fn saved_app_run_inputs_build_loading_hidden_select_and_text_variants() {
         hidden: true,
         ..Default::default()
     }];
-    let _ = build_saved_app_run_inputs(&prompt);
+    let _ = build_saved_app_run_inputs(crate::app::i18n::I18n::new(Default::default()), &prompt);
     assert!(!saved_app_run_prompt_has_query_input(&prompt));
 
     prompt.inputs = vec![
@@ -534,10 +697,18 @@ fn saved_app_run_inputs_build_loading_hidden_select_and_text_variants() {
     ];
 
     assert!(saved_app_run_prompt_has_query_input(&prompt));
-    let _ = build_saved_app_run_inputs(&prompt);
+    let _ = build_saved_app_run_inputs(crate::app::i18n::I18n::new(Default::default()), &prompt);
     for (index, input) in prompt.inputs.iter().enumerate() {
-        let _ = build_saved_app_run_input_field(index, input);
-        let _ = build_saved_app_run_input_control(index, input);
+        let _ = build_saved_app_run_input_field(
+            crate::app::i18n::I18n::new(Default::default()),
+            index,
+            input,
+        );
+        let _ = build_saved_app_run_input_control(
+            crate::app::i18n::I18n::new(Default::default()),
+            index,
+            input,
+        );
     }
 }
 

@@ -64,6 +64,7 @@ pub(super) fn context_menu_button(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_context_node_picker_menu(
+    i18n: crate::app::i18n::I18n,
     state: &WorkflowState,
     title: &'static str,
     description: &'static str,
@@ -72,7 +73,7 @@ pub(super) fn build_context_node_picker_menu(
     let mut items = column![].spacing(6);
 
     for node_type in available_node_types(state, exclude_start) {
-        items = items.push(context_node_picker_button(node_type));
+        items = items.push(context_node_picker_button(i18n, node_type));
     }
 
     container(
@@ -104,6 +105,7 @@ pub(super) fn build_context_node_picker_menu(
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 pub(super) fn context_node_picker_button(
+    i18n: crate::app::i18n::I18n,
     node_type: WorkflowNodeTypeDescriptor,
 ) -> Element<'static, Message> {
     let accent = workflow_node_accent_color(node_type.block_type);
@@ -112,8 +114,8 @@ pub(super) fn context_node_picker_button(
         row![
             workflow_node_icon_badge(node_type.icon, accent, 14.0),
             column![
-                text(node_type.label).size(12),
-                text(node_type.summary).size(10).style(settings_muted_text_style),
+                text(i18n.__(node_type.label)).size(12),
+                text(i18n.__(node_type.summary)).size(10).style(settings_muted_text_style),
             ]
             .spacing(2)
             .width(Length::Fill),
@@ -133,12 +135,15 @@ pub(super) fn context_node_picker_button(
 /// 提供 error banner 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn error_banner<'a>(error: &'a str) -> Element<'a, Message> {
+pub(super) fn error_banner(
+    i18n: crate::app::i18n::I18n,
+    error: impl Into<String>,
+) -> Element<'static, Message> {
     container(
         row![
-            text(error).size(13).color(Color::from_rgb8(0x7F, 0x1D, 0x1D)),
+            text(error.into()).size(13).color(Color::from_rgb8(0x7F, 0x1D, 0x1D)),
             Space::new().width(Length::Fill),
-            button(text("关闭"))
+            button(text(i18n.__("关闭")))
                 .style(rounded_action_btn_style)
                 .padding([4, 10])
                 .on_press(Message::WorkflowTool(WorkflowMessage::DismissError)),

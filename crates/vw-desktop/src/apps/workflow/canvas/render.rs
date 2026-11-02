@@ -140,6 +140,7 @@ pub(super) fn grid_spacing(zoom: f32) -> f32 {
 }
 
 pub(super) fn draw_edges(
+    i18n: crate::app::i18n::I18n,
     frame: &mut Frame,
     document: &WorkflowDocument,
     pan: Vector,
@@ -180,7 +181,7 @@ pub(super) fn draw_edges(
 
         frame.stroke(&edge_path, Stroke::default().with_color(plan.color).with_width(plan.width));
 
-        if let Some(label) = edge_handle_label(edge) {
+        if let Some(label) = edge_handle_label(i18n, edge) {
             let badge_center = cubic_bezier_point(plan.start, plan.c1, plan.c2, plan.end, 0.5);
             let badge_font_size = (12.0 * element_scale).max(4.0);
             let badge_padding_x = 9.0 * element_scale;
@@ -353,6 +354,7 @@ pub(super) fn draft_plan(
 }
 
 pub(super) fn draw_nodes(
+    i18n: crate::app::i18n::I18n,
     frame: &mut Frame,
     document: &WorkflowDocument,
     pan: Vector,
@@ -398,7 +400,7 @@ pub(super) fn draw_nodes(
         let is_selected = selected_node_id == Some(node.id.as_str());
         let is_hovered = hovered_node_id == Some(node.id.as_str());
         let descendant_selected = selected_group_ids.contains(node.id.as_str());
-        let description = node_description_text(document, node);
+        let description = node_description_text(i18n, document, node);
         let start_variables = workflow_start_node_variables(node);
         let show_start_variables = node.block_type == "start" && !start_variables.is_empty();
         let title_font_size = if rect.height < 70.0 { 13.0 } else { 15.0 } * content_scale;
@@ -406,7 +408,7 @@ pub(super) fn draw_nodes(
         let desc_font_size = if rect.height > 140.0 { 12.0 } else { 11.0 } * content_scale;
         let desc_line_step = desc_font_size + text_line_gap;
         let title_text = if node.title.trim().is_empty() {
-            pretty_block_type(&node.block_type)
+            i18n.__(&pretty_block_type(&node.block_type)).to_string()
         } else {
             node.title.clone()
         };
@@ -708,6 +710,7 @@ pub(super) fn draw_nodes(
 
 #[allow(dead_code)]
 pub(super) fn node_plan(
+    i18n: crate::app::i18n::I18n,
     document: &WorkflowDocument,
     node: &WorkflowNode,
     pan: Vector,
@@ -731,7 +734,7 @@ pub(super) fn node_plan(
     let desc_font_size = if rect.height > 140.0 { 12.0 } else { 11.0 } * content_scale;
     let desc_line_step = desc_font_size + text_line_gap;
     let title_text = if node.title.trim().is_empty() {
-        pretty_block_type(&node.block_type)
+        i18n.__(&pretty_block_type(&node.block_type)).to_string()
     } else {
         node.title.clone()
     };
@@ -740,7 +743,7 @@ pub(super) fn node_plan(
         .max(8.0)) as usize;
     let title_lines =
         wrap_text_lines(&title_text, title_max_chars, if rect.height > 120.0 { 2 } else { 1 });
-    let description = node_description_text(document, node);
+    let description = node_description_text(i18n, document, node);
     let desc_max_chars = ((node_text_width(rect, content_scale) / (desc_font_size * 0.62))
         .floor()
         .max(10.0)) as usize;

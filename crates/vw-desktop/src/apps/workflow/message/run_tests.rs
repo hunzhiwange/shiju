@@ -45,10 +45,16 @@ fn request_inputs_report_required_fields_and_missing_query() {
     required.required = true;
     let prompt =
         WorkflowRunPromptDraft { inputs: vec![required], ..WorkflowRunPromptDraft::default() };
-    assert_eq!(build_run_request_inputs(&prompt), Err("主题 必填".to_string()));
+    assert_eq!(
+        (build_run_request_inputs(&prompt)).map_err(String::from),
+        Err("主题 必填".to_string())
+    );
 
     let prompt = WorkflowRunPromptDraft::default();
-    assert_eq!(build_run_request_inputs(&prompt), Err("请输入 query 后再运行".to_string()));
+    assert_eq!(
+        (build_run_request_inputs(&prompt)).map_err(String::from),
+        Err("请输入 query 后再运行".to_string())
+    );
 }
 
 #[test]
@@ -67,21 +73,36 @@ fn query_input_supplies_query_when_prompt_query_is_blank() {
 #[test]
 fn number_boolean_select_and_text_validation_reject_invalid_values() {
     let number = input("amount", "number", "not-a-number");
-    assert_eq!(parse_run_input_value(&number), Err("amount 必须是数字".to_string()));
+    assert_eq!(
+        (parse_run_input_value(&number)).map_err(String::from),
+        Err("amount 必须是数字".to_string())
+    );
 
     let non_finite = input("amount", "number", "NaN");
-    assert_eq!(parse_run_input_value(&non_finite), Err("amount 必须是有效数字".to_string()));
+    assert_eq!(
+        (parse_run_input_value(&non_finite)).map_err(String::from),
+        Err("amount 必须是有效数字".to_string())
+    );
 
     let boolean = input("enabled", "checkbox", "yes");
-    assert_eq!(parse_run_input_value(&boolean), Err("enabled 必须是 boolean".to_string()));
+    assert_eq!(
+        (parse_run_input_value(&boolean)).map_err(String::from),
+        Err("enabled 必须是 boolean".to_string())
+    );
 
     let mut select = input("mode", "select", "unsafe");
     select.options = vec!["safe".to_string(), "strict".to_string()];
-    assert_eq!(parse_run_input_value(&select), Err("mode 必须从选项中选择".to_string()));
+    assert_eq!(
+        (parse_run_input_value(&select)).map_err(String::from),
+        Err("mode 必须从选项中选择".to_string())
+    );
 
     let mut text = input("title", "text-input", "四个字符");
     text.max_length_input = "3".to_string();
-    assert_eq!(parse_run_input_value(&text), Err("title 超过最大长度 3".to_string()));
+    assert_eq!(
+        (parse_run_input_value(&text)).map_err(String::from),
+        Err("title 超过最大长度 3".to_string())
+    );
 }
 
 #[test]
@@ -102,7 +123,10 @@ fn file_input_distinguishes_single_paths_urls_and_multiple_values() {
     );
 
     let multiple = input("attachment", "file", "one.txt,two.txt");
-    assert_eq!(parse_run_input_value(&multiple), Err("attachment 只能填写一个文件".to_string()));
+    assert_eq!(
+        (parse_run_input_value(&multiple)).map_err(String::from),
+        Err("attachment 只能填写一个文件".to_string())
+    );
 }
 
 #[test]

@@ -151,7 +151,7 @@ pub struct WorkflowRunPromptDraft {
     pub query: String,
     pub loading: bool,
     pub inputs: Vec<WorkflowRunInputDraft>,
-    pub error: Option<String>,
+    pub error: Option<crate::app::i18n::workflow::Feedback>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -206,6 +206,7 @@ pub struct WorkflowRunErrorPreview {
 #[derive(Debug, Default)]
 pub struct WorkflowRunDetailDialog {
     pub title: String,
+    pub title_source: Option<&'static str>,
     pub content: text_editor::Content,
 }
 
@@ -684,12 +685,19 @@ pub struct WorkflowNodeEditorValidation {
 #[derive(Debug)]
 pub struct WorkflowNodeValidationError {
     pub path: String,
-    pub message: String,
+    pub message: crate::app::i18n::workflow::Feedback,
 }
 
 impl WorkflowNodeEditorValidation {
     pub fn has_errors(&self) -> bool {
         !self.field_errors.is_empty()
+    }
+
+    pub fn localized_error_for(&self, i18n: crate::app::i18n::I18n, path: &str) -> Option<String> {
+        self.field_errors
+            .iter()
+            .find(|item| item.path == path)
+            .map(|item| item.message.render(i18n))
     }
 
     pub fn first_error_for(&self, path: &str) -> Option<&str> {
@@ -791,5 +799,7 @@ pub struct WorkflowState {
     pub dragging_node_id: Option<String>,
     pub drag_pending_snapshot: Option<WorkflowHistorySnapshot>,
     pub status_message: Option<String>,
+    pub localized_status: Option<crate::app::i18n::format::Message>,
     pub error_message: Option<String>,
+    pub localized_error: Option<crate::app::i18n::workflow::Feedback>,
 }

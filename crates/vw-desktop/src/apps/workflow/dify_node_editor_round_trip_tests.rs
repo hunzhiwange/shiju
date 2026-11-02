@@ -291,11 +291,23 @@ async fn dify_node_editor_full_round_trip_and_render() {
 
     state.quick_insert_panel_open = true;
     state.status_message = Some("动态中文状态：全节点菜单已加载".to_string());
-    assert_dark_element_draws(view::view(&state)).await;
+    for locale in [
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        vw_config_types::ui::DesktopLocale::TraditionalChinese,
+        vw_config_types::ui::DesktopLocale::English,
+    ] {
+        assert_dark_element_draws(view::view(crate::app::i18n::I18n::new(locale), &state)).await;
+    }
     state.quick_insert_panel_open = false;
     state
         .open_edit_node_editor(Some("node-0"))
         .expect("Chinese start-node dialog should open for rendering");
     state.status_message = Some("动态中文状态：全节点已加载".to_string());
-    assert_dark_element_draws(view::view(&state)).await;
+    for locale in [
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        vw_config_types::ui::DesktopLocale::TraditionalChinese,
+        vw_config_types::ui::DesktopLocale::English,
+    ] {
+        assert_dark_element_draws(view::view(crate::app::i18n::I18n::new(locale), &state)).await;
+    }
 }

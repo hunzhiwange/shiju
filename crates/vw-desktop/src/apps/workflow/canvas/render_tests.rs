@@ -57,6 +57,7 @@ fn document() -> WorkflowDocument {
 fn render_helpers_are_wired_through_canvas_module() {
     let _grid: fn(&mut Frame, Size, Vector, f32, &Theme) = draw_grid;
     let _edges: fn(
+        crate::app::i18n::I18n,
         &mut Frame,
         &WorkflowDocument,
         Vector,
@@ -76,6 +77,7 @@ fn render_helpers_are_wired_through_canvas_module() {
         &HandleSlots,
     ) = draw_connection_draft;
     let _nodes: fn(
+        crate::app::i18n::I18n,
         &mut Frame,
         &WorkflowDocument,
         Vector,
@@ -228,6 +230,7 @@ fn node_plan_wraps_descriptions_and_tracks_selection_state() {
     let selected_group_ids = HashSet::from(["parent"]);
 
     let plan = node_plan(
+        crate::app::i18n::I18n::new(Default::default()),
         &document,
         &parent,
         Vector::new(5.0, 10.0),
@@ -259,6 +262,7 @@ fn node_plan_prefers_pretty_titles_and_start_variable_rows() {
     start.raw_node = raw_node;
     let document = WorkflowDocument { nodes: vec![start.clone()], ..WorkflowDocument::default() };
     let plan = node_plan(
+        crate::app::i18n::I18n::new(Default::default()),
         &document,
         &start,
         Vector::new(0.0, 0.0),
@@ -383,8 +387,16 @@ fn node_plan_hides_description_when_card_is_too_short() {
     compact.size = Size::new(120.0, 60.0);
     let document = WorkflowDocument { nodes: vec![compact.clone()], ..WorkflowDocument::default() };
 
-    let plan =
-        node_plan(&document, &compact, Vector::new(0.0, 0.0), 1.0, None, None, &HashSet::new());
+    let plan = node_plan(
+        crate::app::i18n::I18n::new(Default::default()),
+        &document,
+        &compact,
+        Vector::new(0.0, 0.0),
+        1.0,
+        None,
+        None,
+        &HashSet::new(),
+    );
 
     assert_eq!(plan.title_lines.len(), 1);
     assert!(plan.desc_lines.is_empty());
@@ -401,7 +413,16 @@ fn node_plan_uses_tall_card_description_layout_when_space_allows() {
     tall.size = Size::new(180.0, 180.0);
     let document = WorkflowDocument { nodes: vec![tall.clone()], ..WorkflowDocument::default() };
 
-    let plan = node_plan(&document, &tall, Vector::new(0.0, 0.0), 1.0, None, None, &HashSet::new());
+    let plan = node_plan(
+        crate::app::i18n::I18n::new(Default::default()),
+        &document,
+        &tall,
+        Vector::new(0.0, 0.0),
+        1.0,
+        None,
+        None,
+        &HashSet::new(),
+    );
 
     assert_eq!(plan.title_lines.len(), 2);
     assert!(!plan.desc_lines.is_empty());

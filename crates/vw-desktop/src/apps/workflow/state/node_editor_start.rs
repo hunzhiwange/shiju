@@ -23,7 +23,7 @@ impl WorkflowState {
     pub(super) fn append_node_editor_start_variable_editor_default_file(
         &mut self,
         value: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
         let trimmed = value.trim().to_string();
         if trimmed.is_empty() {
             return Ok(());
@@ -37,7 +37,10 @@ impl WorkflowState {
                         &editor.variable.max_length_input,
                     ));
                     if editor.variable.default_file_values.len() >= max_count {
-                        result = Err(format!("默认文件最多只能添加 {} 个", max_count));
+                        result = Err(crate::app::i18n::workflow::Feedback::new(
+                            "默认文件最多只能添加 %s 个",
+                            vec![max_count.to_string()],
+                        ));
                         return;
                     }
                     editor.variable.default_file_values.push(trimmed.clone());
@@ -106,8 +109,15 @@ impl WorkflowState {
         self.delete_selected_node()
     }
 
-    pub fn focus_node(&mut self, id: &str, window_size: (f32, f32)) -> Result<(), String> {
-        let node = self.document.node(id).cloned().ok_or_else(|| "目标节点不存在".to_string())?;
+    pub fn focus_node(
+        &mut self,
+        id: &str,
+        window_size: (f32, f32),
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
+        let node =
+            self.document.node(id).cloned().ok_or_else(|| {
+                crate::app::i18n::workflow::Feedback::new("目标节点不存在", vec![])
+            })?;
 
         let usable_width = (window_size.0 - 380.0).max(320.0);
         let usable_height = (window_size.1 - 220.0).max(260.0);
@@ -124,7 +134,10 @@ impl WorkflowState {
         self.node_editor = None;
         self.context_menu = None;
         self.connection_draft = None;
-        self.status_message = Some(format!("已定位到节点 {}", node.title));
+        self.set_status(crate::app::i18n::format::Message::new(
+            "已定位到节点 %s",
+            vec![node.title.to_string().into()],
+        ));
         self.sync_selection_flags();
 
         Ok(())
@@ -409,7 +422,7 @@ impl WorkflowState {
 
     pub fn submit_node_editor_start_variable_editor_default_file_url(
         &mut self,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
         let value = self
             .node_editor
             .as_ref()
@@ -422,7 +435,7 @@ impl WorkflowState {
     pub fn set_node_editor_start_variable_editor_default_file_path(
         &mut self,
         path: String,
-    ) -> Result<(), String> {
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
         self.append_node_editor_start_variable_editor_default_file(path)
     }
 
@@ -440,7 +453,9 @@ impl WorkflowState {
         });
     }
 
-    pub fn submit_node_editor_start_variable_editor(&mut self) -> Result<(), String> {
+    pub fn submit_node_editor_start_variable_editor(
+        &mut self,
+    ) -> Result<(), crate::app::i18n::workflow::Feedback> {
         let Some(editor) = self.node_editor.as_mut() else {
             return Ok(());
         };
@@ -454,7 +469,10 @@ impl WorkflowState {
         let Some(WorkflowNodeVisualDraft::Start { variables }) = editor.visual_draft.as_mut()
         else {
             editor.start_variable_editor = Some(build_start_variable_editor_draft(mode, variable));
-            return Err("当前节点不支持开始变量编辑".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "当前节点不支持开始变量编辑",
+                vec![],
+            ));
         };
 
         if let Err(error) = validate_start_variable_editor_draft(&variable, variables, mode) {
@@ -476,7 +494,10 @@ impl WorkflowState {
                 let Some(slot) = variables.get_mut(index) else {
                     editor.start_variable_editor =
                         Some(build_start_variable_editor_draft(mode, variable));
-                    return Err("目标变量不存在".to_string());
+                    return Err(crate::app::i18n::workflow::Feedback::new(
+                        "目标变量不存在",
+                        vec![],
+                    ));
                 };
                 *slot = variable;
                 editor.start_variable_focus_index = Some(index);

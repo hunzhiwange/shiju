@@ -58,6 +58,7 @@ fn document() -> WorkflowDocument {
 
 fn canvas<'a>(document: &'a WorkflowDocument) -> WorkflowCanvas<'a> {
     WorkflowCanvas {
+        i18n: crate::app::i18n::I18n::new(Default::default()),
         document,
         pan: Vector::new(0.0, 0.0),
         zoom: 1.0,

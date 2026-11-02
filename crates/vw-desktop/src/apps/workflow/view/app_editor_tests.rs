@@ -12,7 +12,7 @@ use serde_yaml::Value;
 fn app_editor_modal_renders_empty_placeholder_when_editor_is_closed() {
     let state = WorkflowState::default();
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -22,7 +22,7 @@ fn app_editor_modal_renders_create_form() {
         ..WorkflowState::default()
     };
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -34,7 +34,7 @@ fn app_editor_modal_renders_edit_form_without_active_organize_action() {
         None,
     );
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn app_editor_modal_renders_active_edit_form_with_organize_action() {
         None,
     );
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -58,7 +58,7 @@ fn app_editor_modal_renders_copied_uuid_state() {
         Some("uuid-1"),
     );
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn app_editor_modal_renders_uuid_as_not_copied_when_copy_marker_differs() {
         Some("uuid-2"),
     );
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -82,7 +82,7 @@ fn app_editor_modal_renders_inactive_app_with_matching_copy_marker() {
         Some("uuid-1"),
     );
 
-    let element = build_app_editor_modal(&state);
+    let element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(element.as_widget().size(), iced::Size::new(Length::Fill, Length::Fill));
     assert_eq!(element.as_widget().children().len(), 3);
@@ -98,7 +98,7 @@ fn app_editor_modal_renders_empty_fields_zero_limit_and_disabled_icon_replacemen
     draft.max_active_requests_input = "0".to_string();
     let state = WorkflowState { app_editor: Some(draft), ..WorkflowState::default() };
 
-    let _element = build_app_editor_modal(&state);
+    let _element = build_app_editor_modal(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -110,7 +110,8 @@ fn app_uuid_field_renders_missing_uuid_state() {
         None,
     );
 
-    let _element = build_app_uuid_field(&state, "app_1");
+    let _element =
+        build_app_uuid_field(crate::app::i18n::I18n::new(Default::default()), &state, "app_1");
 }
 
 #[test]
@@ -122,12 +123,16 @@ fn app_uuid_field_renders_missing_target_state() {
         None,
     );
 
-    let _element = build_app_uuid_field(&state, "missing_app");
+    let _element = build_app_uuid_field(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        "missing_app",
+    );
 }
 
 #[test]
 fn app_organize_field_renders_action_button() {
-    let _element = build_app_organize_field();
+    let _element = build_app_organize_field(crate::app::i18n::I18n::new(Default::default()));
 }
 
 fn workflow_state_with_editor(

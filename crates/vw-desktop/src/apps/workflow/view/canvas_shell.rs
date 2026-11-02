@@ -6,14 +6,15 @@ use iced::widget::{column, mouse_area, row};
 /// 构建 status chip 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_status_chip<'a>(status: &'a str) -> Element<'a, Message> {
-    container(text(status).size(12)).padding([8, 12]).style(floating_panel_style).into()
+pub(super) fn build_status_chip(status: impl Into<String>) -> Element<'static, Message> {
+    container(text(status.into()).size(12)).padding([8, 12]).style(floating_panel_style).into()
 }
 
 /// 构建 canvas area 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_canvas_area<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     canvas_base: Element<'a, Message>,
 ) -> Element<'a, Message> {
@@ -22,7 +23,7 @@ pub(super) fn build_canvas_area<'a>(
 
     if state.has_apps() {
         layers.push(
-            container(build_action_bar(state))
+            container(build_action_bar(i18n, state))
                 .padding(iced::Padding {
                     top: FLOATING_MARGIN,
                     right: 0.0,
@@ -37,7 +38,7 @@ pub(super) fn build_canvas_area<'a>(
         );
 
         layers.push(
-            container(build_center_toolbar(state))
+            container(build_center_toolbar(i18n, state))
                 .padding(iced::Padding { top: FLOATING_MARGIN, right: 0.0, bottom: 0.0, left: 0.0 })
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Top)
@@ -48,7 +49,7 @@ pub(super) fn build_canvas_area<'a>(
 
         if state.quick_insert_panel_open {
             layers.push(
-                container(build_quick_insert_panel(state))
+                container(build_quick_insert_panel(i18n, state))
                     .padding(iced::Padding {
                         top: FLOATING_MARGIN + TOOLBAR_HEIGHT + QUICK_INSERT_GAP,
                         right: 0.0,
@@ -79,7 +80,7 @@ pub(super) fn build_canvas_area<'a>(
         );
 
         layers.push(
-            container(build_app_switcher_dock(state))
+            container(build_app_switcher_dock(i18n, state))
                 .padding(iced::Padding {
                     top: 0.0,
                     right: 0.0,
@@ -94,7 +95,7 @@ pub(super) fn build_canvas_area<'a>(
         );
     }
 
-    if let Some(status) = &state.status_message {
+    if let Some(status) = state.status_text(i18n) {
         layers.push(
             container(build_status_chip(status))
                 .padding(iced::Padding { top: 0.0, right: 0.0, bottom: FLOATING_MARGIN, left: 0.0 })
@@ -107,14 +108,14 @@ pub(super) fn build_canvas_area<'a>(
     }
 
     if state.context_menu.is_some() {
-        layers.push(build_canvas_context_menu_overlay(state));
+        layers.push(build_canvas_context_menu_overlay(i18n, state));
     }
 
     let canvas_with_ui: Element<'a, Message> =
         stack(layers).width(Length::Fill).height(Length::Fill).into();
 
     let mut canvas_with_overlays = if state.action_menu_open {
-        PointBelowOverlay::new(canvas_with_ui, build_action_menu_overlay(state))
+        PointBelowOverlay::new(canvas_with_ui, build_action_menu_overlay(i18n, state))
             .show(true)
             .anchor(Point::new(FLOATING_MARGIN, FLOATING_MARGIN + ACTION_BAR_HEIGHT))
             .gap(ACTION_MENU_GAP)
@@ -127,7 +128,7 @@ pub(super) fn build_canvas_area<'a>(
     if state.zoom_menu_open {
         canvas_with_overlays = PointBelowOverlay::new(
             canvas_with_overlays,
-            build_zoom_menu_overlay(state, &zoom_presets),
+            build_zoom_menu_overlay(i18n, state, &zoom_presets),
         )
         .show(true)
         .anchor(Point::new(100_000.0, FLOATING_MARGIN + ZOOM_CONTROL_HEIGHT))
@@ -143,36 +144,43 @@ pub(super) fn build_canvas_area<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 #[allow(dead_code)]
-pub(super) fn build_left_toolbar_overlay(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_left_toolbar_overlay(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let toolbar = container(
         column![
             toolbar_icon_button(
                 Icon::Plus,
-                if state.quick_insert_panel_open { "收起插入菜单" } else { "插入节点" },
+                if state.quick_insert_panel_open {
+                    i18n.__("收起插入菜单")
+                } else {
+                    i18n.__("插入节点")
+                },
                 WorkflowMessage::ToggleQuickInsertPanel,
                 state.quick_insert_panel_open,
             ),
             toolbar_icon_button(
                 Icon::Sliders,
-                "环境变量",
+                i18n.__("环境变量"),
                 WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::Environment),
                 variable_panel_is_open(state, WorkflowVariablePanelKind::Environment),
             ),
             toolbar_icon_button(
                 Icon::ChatTextFill,
-                "会话变量",
+                i18n.__("会话变量"),
                 WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::Conversation),
                 variable_panel_is_open(state, WorkflowVariablePanelKind::Conversation),
             ),
             toolbar_icon_button(
                 Icon::Gear,
-                "系统变量",
+                i18n.__("系统变量"),
                 WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::System),
                 variable_panel_is_open(state, WorkflowVariablePanelKind::System),
             ),
             toolbar_icon_button(
                 Icon::ArrowsFullscreen,
-                "适配视图",
+                i18n.__("适配视图"),
                 WorkflowMessage::ZoomFit,
                 false
             ),
@@ -184,7 +192,7 @@ pub(super) fn build_left_toolbar_overlay(state: &WorkflowState) -> Element<'_, M
 
     let mut overlay = row![toolbar].spacing(12).align_y(Alignment::Start);
     if state.quick_insert_panel_open {
-        overlay = overlay.push(build_quick_insert_panel(state));
+        overlay = overlay.push(build_quick_insert_panel(i18n, state));
     }
 
     container(overlay)
@@ -199,17 +207,24 @@ pub(super) fn build_left_toolbar_overlay(state: &WorkflowState) -> Element<'_, M
 /// 构建 canvas context menu overlay 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_canvas_context_menu_overlay(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_canvas_context_menu_overlay(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let Some(context_menu) = state.context_menu.as_ref() else {
         return container(Space::new().width(1).height(1)).into();
     };
 
     let menu_card: Element<'static, Message> = match &context_menu.target {
-        WorkflowCanvasContextMenuTarget::Canvas => {
-            build_context_node_picker_menu(state, "新增节点", "点击后直接放到右键位置", false)
-        }
+        WorkflowCanvasContextMenuTarget::Canvas => build_context_node_picker_menu(
+            i18n,
+            state,
+            i18n.__("新增节点"),
+            i18n.__("点击后直接放到右键位置"),
+            false,
+        ),
         WorkflowCanvasContextMenuTarget::Edge(_) => container(
-            button(text("删除连线").size(12))
+            button(text(i18n.__("删除连线")).size(12))
                 .style(danger_action_btn_style)
                 .padding([8, 10])
                 .width(Length::Fill)
@@ -221,22 +236,26 @@ pub(super) fn build_canvas_context_menu_overlay(state: &WorkflowState) -> Elemen
         .into(),
         WorkflowCanvasContextMenuTarget::Node(node_id) => {
             let mut actions = column![context_menu_button(
-                "编辑节点",
+                i18n.__("编辑节点"),
                 WorkflowMessage::OpenEditNodeEditor(Some(node_id.clone())),
             )]
             .spacing(6);
 
             if state.document.node(node_id).is_some_and(|node| node.block_type != "start") {
-                actions = actions
-                    .push(context_menu_button("复制节点", WorkflowMessage::DuplicateSelectedNode));
+                actions = actions.push(context_menu_button(
+                    i18n.__("复制节点"),
+                    WorkflowMessage::DuplicateSelectedNode,
+                ));
             }
 
             actions = actions.push(context_menu_button(
-                "新增下游节点",
+                i18n.__("新增下游节点"),
                 WorkflowMessage::OpenDownstreamNodePicker(node_id.clone()),
             ));
-            actions =
-                actions.push(context_menu_button("删除节点", WorkflowMessage::DeleteSelectedNode));
+            actions = actions.push(context_menu_button(
+                i18n.__("删除节点"),
+                WorkflowMessage::DeleteSelectedNode,
+            ));
 
             container(actions)
                 .width(Length::Fixed(208.0))
@@ -244,9 +263,13 @@ pub(super) fn build_canvas_context_menu_overlay(state: &WorkflowState) -> Elemen
                 .style(modal_card_style)
                 .into()
         }
-        WorkflowCanvasContextMenuTarget::NodeInsert(_) => {
-            build_context_node_picker_menu(state, "新增下游节点", "点击后自动关联到当前节点", true)
-        }
+        WorkflowCanvasContextMenuTarget::NodeInsert(_) => build_context_node_picker_menu(
+            i18n,
+            state,
+            i18n.__("新增下游节点"),
+            i18n.__("点击后自动关联到当前节点"),
+            true,
+        ),
     };
 
     let menu_card = mouse_area(menu_card)
@@ -364,12 +387,15 @@ pub(super) fn available_node_types(
 /// 构建 quick insert panel 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_quick_insert_panel(state: &WorkflowState) -> Element<'static, Message> {
+pub(super) fn build_quick_insert_panel(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'static, Message> {
     let available_node_types = available_node_types(state, false);
     let mut grid = row![].spacing(10);
 
     for node_type in available_node_types.iter().copied() {
-        grid = grid.push(quick_insert_node_button(node_type));
+        grid = grid.push(quick_insert_node_button(i18n, node_type));
     }
 
     let grid = grid.wrap();
@@ -378,18 +404,21 @@ pub(super) fn build_quick_insert_panel(state: &WorkflowState) -> Element<'static
         column![
             row![
                 column![
-                    text("插入节点").size(16),
-                    text("点击后直接放到当前画布中心附近，细节配置后续再编辑节点。")
+                    text(i18n.__("插入节点")).size(16),
+                    text(i18n.__("点击后直接放到当前画布中心附近，细节配置后续再编辑节点。"))
                         .size(11)
                         .style(settings_muted_text_style),
                 ]
                 .spacing(4),
                 Space::new().width(Length::Fill),
-                settings_value_badge(format!("{} 种", available_node_types.len())),
+                settings_value_badge(
+                    i18n.format("%s 种", &[available_node_types.len().to_string().into()])
+                        .expect("valid workflow display template")
+                ),
             ]
             .align_y(Alignment::Center),
             container(
-                scrollable(container(grid).width(Length::Fill))
+                scrollable(container(grid).width(Length::Fill).padding([0, 7]))
                     .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
                     .width(Length::Fill)
                     .height(Length::Fixed(304.0)),
@@ -407,6 +436,7 @@ pub(super) fn build_quick_insert_panel(state: &WorkflowState) -> Element<'static
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 pub(super) fn quick_insert_node_button(
+    i18n: crate::app::i18n::I18n,
     node_type: WorkflowNodeTypeDescriptor,
 ) -> Element<'static, Message> {
     let accent = workflow_node_accent_color(node_type.block_type);
@@ -414,8 +444,8 @@ pub(super) fn quick_insert_node_button(
         row![
             workflow_node_icon_badge(node_type.icon, accent, 16.0),
             column![
-                text(node_type.label).size(13),
-                text(node_type.summary).size(11).style(settings_muted_text_style),
+                text(i18n.__(node_type.label)).size(13),
+                text(i18n.__(node_type.summary)).size(11).style(settings_muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),

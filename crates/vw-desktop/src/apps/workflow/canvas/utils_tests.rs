@@ -76,8 +76,22 @@ fn edge(source: &str, target: &str, label: Option<&str>) -> WorkflowEdge {
 fn code_node_description_hides_when_error_strategy_is_none() {
     let document = WorkflowDocument::default();
 
-    assert!(node_description_text(&document, &code_node(None)).is_empty());
-    assert!(node_description_text(&document, &code_node(Some("none"))).is_empty());
+    assert!(
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &document,
+            &code_node(None)
+        )
+        .is_empty()
+    );
+    assert!(
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &document,
+            &code_node(Some("none"))
+        )
+        .is_empty()
+    );
 }
 
 #[test]
@@ -85,11 +99,19 @@ fn code_node_description_shows_error_strategy_summary() {
     let document = WorkflowDocument::default();
 
     assert_eq!(
-        node_description_text(&document, &code_node(Some("default-value"))),
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &document,
+            &code_node(Some("default-value"))
+        ),
         "异常时 输出默认值"
     );
     assert_eq!(
-        node_description_text(&document, &code_node(Some("fail-branch"))),
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &document,
+            &code_node(Some("fail-branch"))
+        ),
         "异常时 异常分支"
     );
 }
@@ -183,27 +205,46 @@ fn group_and_plain_node_description_text_follow_state() {
     let document =
         WorkflowDocument { nodes: vec![group.clone(), child], ..WorkflowDocument::default() };
 
-    assert_eq!(node_description_text(&document, &group), "包含 1 个子节点");
+    assert_eq!(
+        node_description_text(crate::app::i18n::I18n::new(Default::default()), &document, &group),
+        "包含 1 个子节点"
+    );
 
     let empty_group = basic_node("empty-group", "loop", "Loop", "");
     assert_eq!(
-        node_description_text(&WorkflowDocument::default(), &empty_group),
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &WorkflowDocument::default(),
+            &empty_group
+        ),
         "容器节点，可拖动带走内部节点"
     );
 
     let described_group = basic_node("described", "loop", "Loop", "自定义描述");
-    assert_eq!(node_description_text(&WorkflowDocument::default(), &described_group), "自定义描述");
+    assert_eq!(
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &WorkflowDocument::default(),
+            &described_group
+        ),
+        "自定义描述"
+    );
 
     assert_eq!(
         node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
             &WorkflowDocument::default(),
             &basic_node("plain", "llm", "LLM", "节点描述")
         ),
         "节点描述"
     );
     assert!(
-        node_description_text(&WorkflowDocument::default(), &basic_node("plain", "llm", "LLM", ""))
-            .is_empty()
+        node_description_text(
+            crate::app::i18n::I18n::new(Default::default()),
+            &WorkflowDocument::default(),
+            &basic_node("plain", "llm", "LLM", "")
+        )
+        .is_empty()
     );
 }
 
@@ -225,7 +266,14 @@ fn code_node_description_falls_back_for_invalid_and_unknown_strategies() {
         node.description = "保留原始描述".to_string();
         node.raw_node = raw_node;
 
-        assert_eq!(node_description_text(&document, &node), "保留原始描述");
+        assert_eq!(
+            node_description_text(
+                crate::app::i18n::I18n::new(Default::default()),
+                &document,
+                &node
+            ),
+            "保留原始描述"
+        );
     }
 
     let mut trimmed = code_node(None);
@@ -233,7 +281,10 @@ fn code_node_description_falls_back_for_invalid_and_unknown_strategies() {
     trimmed.raw_node =
         serde_yaml::from_str::<Value>("data:\n  error_strategy: '  fail-branch  '\n")
             .expect("yaml should parse");
-    assert_eq!(node_description_text(&document, &trimmed), "异常时 异常分支");
+    assert_eq!(
+        node_description_text(crate::app::i18n::I18n::new(Default::default()), &document, &trimmed),
+        "异常时 异常分支"
+    );
 }
 
 #[test]

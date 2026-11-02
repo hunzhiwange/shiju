@@ -7,11 +7,11 @@ use super::*;
 pub(super) fn build_node_visual_draft(
     block_type: &str,
     raw_data_yaml: &str,
-) -> Result<Option<WorkflowNodeVisualDraft>, String> {
+) -> Result<Option<WorkflowNodeVisualDraft>, crate::app::i18n::workflow::Feedback> {
     let data_value = parse_node_data_yaml_value(raw_data_yaml)?;
-    let data_map = data_value
-        .as_mapping()
-        .ok_or_else(|| "节点 data 必须是对象映射（YAML map）".to_string())?;
+    let data_map = data_value.as_mapping().ok_or_else(|| {
+        crate::app::i18n::workflow::Feedback::new("节点 data 必须是对象映射（YAML map）", vec![])
+    })?;
 
     match block_type {
         "start" => Ok(Some(WorkflowNodeVisualDraft::Start {
@@ -715,7 +715,7 @@ fn model_draft(value: Option<&Value>) -> WorkflowModelDraft {
 
 pub(super) fn sync_node_editor_raw_from_visual(
     editor: &mut WorkflowNodeEditorDraft,
-) -> Result<(), String> {
+) -> Result<(), crate::app::i18n::workflow::Feedback> {
     let merged_yaml = apply_visual_draft_to_yaml(
         &editor.block_type,
         &editor.raw_data_editor.text(),
@@ -858,17 +858,26 @@ pub(super) fn default_code_default_value_value(outputs: &[WorkflowCodeOutputDraf
     )
 }
 
-pub(super) fn parse_code_default_value_yaml(text: &str) -> Result<Value, String> {
+pub(super) fn parse_code_default_value_yaml(
+    text: &str,
+) -> Result<Value, crate::app::i18n::workflow::Feedback> {
     if text.trim().is_empty() {
         return Ok(Value::Sequence(Vec::new()));
     }
 
-    let value = serde_yaml::from_str::<Value>(text)
-        .map_err(|error| format!("代码节点 default_value YAML 解析失败: {error}"))?;
+    let value = serde_yaml::from_str::<Value>(text).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new(
+            "代码节点 default_value YAML 解析失败: %s",
+            vec![error.to_string()],
+        )
+    })?;
     if value.is_sequence() {
         Ok(value)
     } else {
-        Err("代码节点 default_value 必须是数组（YAML sequence）".to_string())
+        Err(crate::app::i18n::workflow::Feedback::new(
+            "代码节点 default_value 必须是数组（YAML sequence）",
+            vec![],
+        ))
     }
 }
 

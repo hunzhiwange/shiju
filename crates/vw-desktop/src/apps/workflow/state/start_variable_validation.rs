@@ -232,21 +232,24 @@ pub(super) fn validate_start_variable_editor_draft(
     variable: &WorkflowStartVariableDraft,
     variables: &[WorkflowStartVariableDraft],
     mode: WorkflowStartVariableEditorMode,
-) -> Result<(), String> {
+) -> Result<(), crate::app::i18n::workflow::Feedback> {
     let label = variable.label.trim();
     if label.is_empty() {
-        return Err("显示名称不能为空".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new("显示名称不能为空", vec![]));
     }
 
     let name = variable.variable.trim();
     if name.is_empty() {
-        return Err("变量名不能为空".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new("变量名不能为空", vec![]));
     }
     if !is_valid_start_variable_name(name) {
-        return Err("变量名只能包含字母、数字和下划线，且不能以数字开头".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new(
+            "变量名只能包含字母、数字和下划线，且不能以数字开头",
+            vec![],
+        ));
     }
     if !is_supported_start_variable_input_type(&variable.input_type) {
-        return Err("不支持的字段类型".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new("不支持的字段类型", vec![]));
     }
 
     let duplicated = variables.iter().enumerate().any(|(index, item)| {
@@ -254,19 +257,20 @@ pub(super) fn validate_start_variable_editor_draft(
             && !matches!(mode, WorkflowStartVariableEditorMode::Edit(edit_index) if edit_index == index)
     });
     if duplicated {
-        return Err("变量名不能重复".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new("变量名不能重复", vec![]));
     }
 
     if variable.input_type == "file-list" {
         if !is_valid_start_variable_file_list_max_length(&variable.max_length_input) {
-            return Err("最大上传数必须在 1 到 10 之间".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "最大上传数必须在 1 到 10 之间",
+                vec![],
+            ));
         }
     } else if !variable.max_length_input.trim().is_empty() {
-        variable
-            .max_length_input
-            .trim()
-            .parse::<u64>()
-            .map_err(|_| "最大长度必须是非负整数".to_string())?;
+        variable.max_length_input.trim().parse::<u64>().map_err(|_| {
+            crate::app::i18n::workflow::Feedback::new("最大长度必须是非负整数", vec![])
+        })?;
     }
 
     if variable.input_type == "select" {
@@ -277,38 +281,50 @@ pub(super) fn validate_start_variable_editor_draft(
             .filter(|option| !option.is_empty())
             .collect::<Vec<_>>();
         if options.is_empty() {
-            return Err("下拉选项至少需要一个有效选项".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "下拉选项至少需要一个有效选项",
+                vec![],
+            ));
         }
         let mut seen = std::collections::HashSet::new();
         for option in &options {
             if !seen.insert((*option).to_string()) {
-                return Err("下拉选项不能重复".to_string());
+                return Err(crate::app::i18n::workflow::Feedback::new("下拉选项不能重复", vec![]));
             }
         }
         if !variable.default_value.trim().is_empty()
             && !options.iter().any(|option| *option == variable.default_value.trim())
         {
-            return Err("默认值必须在下拉选项中".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "默认值必须在下拉选项中",
+                vec![],
+            ));
         }
     }
 
     if variable.input_type == "number"
         && !is_valid_start_variable_number_default_value(&variable.default_value)
     {
-        return Err("数字类型默认值必须是数字".to_string());
+        return Err(crate::app::i18n::workflow::Feedback::new("数字类型默认值必须是数字", vec![]));
     }
 
     if matches!(variable.input_type.as_str(), "file" | "file-list") {
         if variable.allowed_file_types.is_empty() {
-            return Err("至少选择一种支持的文件类型".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "至少选择一种支持的文件类型",
+                vec![],
+            ));
         }
         if variable.allowed_file_types.iter().any(|item| item == "custom")
             && variable.allowed_file_extensions.is_empty()
         {
-            return Err("选择自定义文件类型时，必须填写扩展名".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "选择自定义文件类型时，必须填写扩展名",
+                vec![],
+            ));
         }
         if variable.allowed_file_upload_methods.is_empty() {
-            return Err("至少选择一种上传方式".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new("至少选择一种上传方式", vec![]));
         }
         if variable.input_type == "file-list"
             && variable.default_file_values.len()
@@ -316,7 +332,10 @@ pub(super) fn validate_start_variable_editor_draft(
                     &variable.max_length_input,
                 ))
         {
-            return Err("默认文件数量不能超过最大上传数".to_string());
+            return Err(crate::app::i18n::workflow::Feedback::new(
+                "默认文件数量不能超过最大上传数",
+                vec![],
+            ));
         }
     }
 

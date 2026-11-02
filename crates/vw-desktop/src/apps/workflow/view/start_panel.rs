@@ -7,6 +7,7 @@ use iced::widget::{column, row};
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_visual_section<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     variables: &'a [super::state::WorkflowStartVariableDraft],
     validation: &'a super::state::WorkflowNodeEditorValidation,
@@ -15,8 +16,8 @@ pub(super) fn build_start_visual_section<'a>(
         state.node_editor.as_ref().and_then(|editor| editor.hovered_start_variable_index);
 
     column![
-        build_start_variable_section(variables, hovered_index, validation),
-        build_start_builtin_variables_section(state),
+        build_start_variable_section(i18n, variables, hovered_index, validation),
+        build_start_builtin_variables_section(i18n, state),
     ]
     .spacing(12)
     .into()
@@ -25,7 +26,10 @@ pub(super) fn build_start_visual_section<'a>(
 /// 构建 start variable editor modal 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_start_variable_editor_modal(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_start_variable_editor_modal(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let Some(start_variable_editor) =
         state.node_editor.as_ref().and_then(|editor| editor.start_variable_editor.as_ref())
     else {
@@ -33,8 +37,8 @@ pub(super) fn build_start_variable_editor_modal(state: &WorkflowState) -> Elemen
     };
 
     let title = match start_variable_editor.mode {
-        super::state::WorkflowStartVariableEditorMode::Create => "添加变量",
-        super::state::WorkflowStartVariableEditorMode::Edit(_) => "编辑变量",
+        super::state::WorkflowStartVariableEditorMode::Create => i18n.__("添加变量"),
+        super::state::WorkflowStartVariableEditorMode::Edit(_) => i18n.__("编辑变量"),
     };
 
     settings_modal_overlay(
@@ -50,15 +54,21 @@ pub(super) fn build_start_variable_editor_modal(state: &WorkflowState) -> Elemen
                     )),
                 ]
                 .align_y(Alignment::Center),
-                build_start_variable_card(start_variable_editor),
+                build_start_variable_card(i18n, start_variable_editor),
                 row![
                     Space::new().width(Length::Fill),
-                    button(text("取消")).style(rounded_action_btn_style).padding([9, 14]).on_press(
-                        Message::WorkflowTool(WorkflowMessage::NodeEditorStartCloseVariableEditor,)
-                    ),
-                    button(text("保存")).style(primary_action_btn_style).padding([9, 14]).on_press(
-                        Message::WorkflowTool(WorkflowMessage::NodeEditorStartSubmitVariableEditor,)
-                    ),
+                    button(text(i18n.__("取消")))
+                        .style(rounded_action_btn_style)
+                        .padding([9, 14])
+                        .on_press(Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorStartCloseVariableEditor,
+                        )),
+                    button(text(i18n.__("保存")))
+                        .style(primary_action_btn_style)
+                        .padding([9, 14])
+                        .on_press(Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorStartSubmitVariableEditor,
+                        )),
                 ]
                 .spacing(10),
             ]
@@ -74,6 +84,7 @@ pub(super) fn build_start_variable_editor_modal(state: &WorkflowState) -> Elemen
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_variable_section<'a>(
+    i18n: crate::app::i18n::I18n,
     variables: &'a [super::state::WorkflowStartVariableDraft],
     hovered_index: Option<usize>,
     validation: &'a super::state::WorkflowNodeEditorValidation,
@@ -83,7 +94,7 @@ pub(super) fn build_start_variable_section<'a>(
     if variables.is_empty() {
         variable_list = variable_list.push(
             container(
-                text("当前没有输入变量。新增后会写入 start.variables。")
+                text(i18n.__("当前没有输入变量。新增后会写入 start.variables。"))
                     .size(12)
                     .style(settings_muted_text_style),
             )
@@ -93,6 +104,7 @@ pub(super) fn build_start_variable_section<'a>(
     } else {
         for (index, variable) in variables.iter().enumerate() {
             variable_list = variable_list.push(build_start_variable_summary_item(
+                i18n,
                 index,
                 hovered_index,
                 variable,
@@ -103,9 +115,9 @@ pub(super) fn build_start_variable_section<'a>(
 
     column![
         row![
-            column![text("变量").size(16)].spacing(4),
+            column![text(i18n.__("变量")).size(16)].spacing(4),
             Space::new().width(Length::Fill),
-            button(text("新增变量").size(11))
+            button(text(i18n.__("新增变量")).size(11))
                 .style(primary_action_btn_style)
                 .padding([6, 10])
                 .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorStartAddVariable,)),
@@ -121,18 +133,20 @@ pub(super) fn build_start_variable_section<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_variable_summary_item<'a>(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     _hovered_index: Option<usize>,
     variable: &'a super::state::WorkflowStartVariableDraft,
     validation: &'a super::state::WorkflowNodeEditorValidation,
 ) -> Element<'a, Message> {
     let name = if variable.variable.trim().is_empty() {
-        format!("变量 {}", index + 1)
+        i18n.format("变量 %s", &[(index + 1).to_string().into()])
+            .expect("valid workflow display template")
     } else {
         variable.variable.clone()
     };
     let label = variable.label.trim();
-    let summary_error = start_variable_summary_error(index, validation);
+    let summary_error = start_variable_summary_error(i18n, index, validation);
 
     let label_fragment: Element<'a, Message> = if label.is_empty() {
         container(Space::new().width(1).height(1)).into()
@@ -217,20 +231,24 @@ fn build_start_variable_action_button(
 /// 构建 start builtin variables section 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_start_builtin_variables_section(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_start_builtin_variables_section(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let mut list = column![].spacing(8);
 
-    for item in start_builtin_variables(state) {
-        list = list.push(build_start_builtin_variable_item(item));
+    for item in start_builtin_variables(i18n, state) {
+        list = list.push(build_start_builtin_variable_item(i18n, item));
     }
 
-    column![text("内置变量").size(16), list].spacing(12).into()
+    column![text(i18n.__("内置变量")).size(16), list].spacing(12).into()
 }
 
 /// 构建 start builtin variable item 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_builtin_variable_item(
+    i18n: crate::app::i18n::I18n,
     item: StartBuiltinVariableItem,
 ) -> Element<'static, Message> {
     container(
@@ -239,7 +257,7 @@ pub(super) fn build_start_builtin_variable_item(
                 row![
                     text(item.name).size(13),
                     if item.legacy {
-                        start_variable_badge("兼容字段")
+                        start_variable_badge(i18n.__("兼容字段"))
                     } else {
                         container(Space::new().width(1).height(1)).into()
                     },

@@ -72,3 +72,11 @@ pub mod tasks;
 
 #[cfg(test)]
 mod tasks_tests;
+
+#[cfg(test)]
+mod gettext_area_13_tests;
+
+pub mod workflow;
+
+#[cfg(test)]
+mod workflow_tests;

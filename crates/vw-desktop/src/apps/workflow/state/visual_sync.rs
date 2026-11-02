@@ -8,15 +8,15 @@ pub(super) fn apply_visual_draft_to_yaml(
     block_type: &str,
     raw_data_yaml: &str,
     visual_draft: Option<&WorkflowNodeVisualDraft>,
-) -> Result<String, String> {
+) -> Result<String, crate::app::i18n::workflow::Feedback> {
     let Some(visual_draft) = visual_draft else {
         return Ok(raw_data_yaml.to_string());
     };
 
     let mut data_value = parse_node_data_yaml_value(raw_data_yaml)?;
-    let data_map = data_value
-        .as_mapping_mut()
-        .ok_or_else(|| "节点 data 必须是对象映射（YAML map）".to_string())?;
+    let data_map = data_value.as_mapping_mut().ok_or_else(|| {
+        crate::app::i18n::workflow::Feedback::new("节点 data 必须是对象映射（YAML map）", vec![])
+    })?;
 
     match (block_type, visual_draft) {
         ("start", WorkflowNodeVisualDraft::Start { variables }) => {
@@ -150,14 +150,20 @@ pub(super) fn apply_visual_draft_to_yaml(
             for (key, input) in
                 [("connect", timeout_connect), ("read", timeout_read), ("write", timeout_write)]
             {
-                let value = input
-                    .trim()
-                    .parse::<u64>()
-                    .map_err(|_| format!("HTTP {key} timeout 必须是正整数"))?;
+                let value = input.trim().parse::<u64>().map_err(|_| {
+                    crate::app::i18n::workflow::Feedback::new(
+                        "HTTP %s timeout 必须是正整数",
+                        vec![key.to_string()],
+                    )
+                })?;
                 timeout.insert(
                     yaml_key(key),
-                    serde_yaml::to_value(value)
-                        .map_err(|e| format!("HTTP timeout 序列化失败: {e}"))?,
+                    serde_yaml::to_value(value).map_err(|e| {
+                        crate::app::i18n::workflow::Feedback::new(
+                            "HTTP timeout 序列化失败: %s",
+                            vec![e.to_string()],
+                        )
+                    })?,
                 );
             }
             set_mapping_bool(data_map, "ssl_verify", *ssl_verify);
@@ -277,10 +283,9 @@ pub(super) fn apply_visual_draft_to_yaml(
             set_mapping_string(order, "value", order_direction);
             let limit = ensure_mapping_entry(data_map, "limit");
             set_mapping_bool(limit, "enabled", *limit_enabled);
-            let size = limit_size
-                .trim()
-                .parse::<u64>()
-                .map_err(|_| "列表截取数量必须是非负整数".to_string())?;
+            let size = limit_size.trim().parse::<u64>().map_err(|_| {
+                crate::app::i18n::workflow::Feedback::new("列表截取数量必须是非负整数", vec![])
+            })?;
             limit.insert(yaml_key("size"), serde_yaml::to_value(size).map_err(|e| e.to_string())?);
         }
         (
@@ -304,10 +309,9 @@ pub(super) fn apply_visual_draft_to_yaml(
             );
             set_mapping_string(data_map, "output_type", output_type);
             set_mapping_bool(data_map, "is_parallel", *is_parallel);
-            let count = parallel_nums
-                .trim()
-                .parse::<u64>()
-                .map_err(|_| "并行数量必须是正整数".to_string())?;
+            let count = parallel_nums.trim().parse::<u64>().map_err(|_| {
+                crate::app::i18n::workflow::Feedback::new("并行数量必须是正整数", vec![])
+            })?;
             data_map.insert(
                 yaml_key("parallel_nums"),
                 serde_yaml::to_value(count).map_err(|e| e.to_string())?,
@@ -366,10 +370,9 @@ pub(super) fn apply_visual_draft_to_yaml(
                 ),
             );
             set_mapping_string(data_map, "logical_operator", logical_operator);
-            let count = max_loop_count
-                .trim()
-                .parse::<u64>()
-                .map_err(|_| "最大循环次数必须是正整数".to_string())?;
+            let count = max_loop_count.trim().parse::<u64>().map_err(|_| {
+                crate::app::i18n::workflow::Feedback::new("最大循环次数必须是正整数", vec![])
+            })?;
             data_map.insert(
                 yaml_key("max_loop_count"),
                 serde_yaml::to_value(count).map_err(|e| e.to_string())?,
@@ -474,14 +477,17 @@ pub(super) fn apply_visual_draft_to_yaml(
             set_mapping_string(data_map, "retrieval_mode", retrieval_mode);
 
             let multiple_config = ensure_mapping_entry(data_map, "multiple_retrieval_config");
-            let top_k = top_k_input
-                .trim()
-                .parse::<u64>()
-                .map_err(|_| "知识检索 top_k 必须是正整数".to_string())?;
+            let top_k = top_k_input.trim().parse::<u64>().map_err(|_| {
+                crate::app::i18n::workflow::Feedback::new("知识检索 top_k 必须是正整数", vec![])
+            })?;
             multiple_config.insert(
                 yaml_key("top_k"),
-                serde_yaml::to_value(top_k)
-                    .map_err(|error| format!("知识检索 top_k 序列化失败: {error}"))?,
+                serde_yaml::to_value(top_k).map_err(|error| {
+                    crate::app::i18n::workflow::Feedback::new(
+                        "知识检索 top_k 序列化失败: %s",
+                        vec![error.to_string()],
+                    )
+                })?,
             );
             set_mapping_bool(multiple_config, "reranking_enable", *reranking_enable);
             multiple_config.insert(
@@ -497,14 +503,21 @@ pub(super) fn apply_visual_draft_to_yaml(
                 )?,
             );
             if *score_threshold_enabled {
-                let score_threshold = score_threshold_input
-                    .trim()
-                    .parse::<f64>()
-                    .map_err(|_| "知识检索 score_threshold 必须是数字".to_string())?;
+                let score_threshold =
+                    score_threshold_input.trim().parse::<f64>().map_err(|_| {
+                        crate::app::i18n::workflow::Feedback::new(
+                            "知识检索 score_threshold 必须是数字",
+                            vec![],
+                        )
+                    })?;
                 multiple_config.insert(
                     yaml_key("score_threshold"),
-                    serde_yaml::to_value(score_threshold)
-                        .map_err(|error| format!("知识检索 score_threshold 序列化失败: {error}"))?,
+                    serde_yaml::to_value(score_threshold).map_err(|error| {
+                        crate::app::i18n::workflow::Feedback::new(
+                            "知识检索 score_threshold 序列化失败: %s",
+                            vec![error.to_string()],
+                        )
+                    })?,
                 );
             } else {
                 multiple_config.insert(yaml_key("score_threshold"), Value::Null);
@@ -598,14 +611,20 @@ pub(super) fn apply_visual_draft_to_yaml(
             let memory_map = ensure_mapping_entry(data_map, "memory");
             let window_map = ensure_mapping_entry(memory_map, "window");
             set_mapping_bool(window_map, "enabled", *memory_enabled);
-            let window_size = memory_window_size_input
-                .trim()
-                .parse::<u64>()
-                .map_err(|_| "Agent memory window size 必须是正整数".to_string())?;
+            let window_size = memory_window_size_input.trim().parse::<u64>().map_err(|_| {
+                crate::app::i18n::workflow::Feedback::new(
+                    "Agent memory window size 必须是正整数",
+                    vec![],
+                )
+            })?;
             window_map.insert(
                 yaml_key("size"),
-                serde_yaml::to_value(window_size)
-                    .map_err(|error| format!("Agent memory window size 序列化失败: {error}"))?,
+                serde_yaml::to_value(window_size).map_err(|error| {
+                    crate::app::i18n::workflow::Feedback::new(
+                        "Agent memory window size 序列化失败: %s",
+                        vec![error.to_string()],
+                    )
+                })?,
             );
             set_mapping_string(memory_map, "query_prompt_template", &memory_prompt_editor.text());
         }
@@ -633,13 +652,21 @@ pub(super) fn apply_visual_draft_to_yaml(
             set_mapping_bool(&mut retry_map, "retry_enabled", retry_config.enabled);
             retry_map.insert(
                 yaml_key("max_retries"),
-                serde_yaml::to_value(retry_config.max_retries)
-                    .map_err(|error| format!("代码节点 max_retries 序列化失败: {error}"))?,
+                serde_yaml::to_value(retry_config.max_retries).map_err(|error| {
+                    crate::app::i18n::workflow::Feedback::new(
+                        "代码节点 max_retries 序列化失败: %s",
+                        vec![error.to_string()],
+                    )
+                })?,
             );
             retry_map.insert(
                 yaml_key("retry_interval"),
-                serde_yaml::to_value(retry_config.retry_interval)
-                    .map_err(|error| format!("代码节点 retry_interval 序列化失败: {error}"))?,
+                serde_yaml::to_value(retry_config.retry_interval).map_err(|error| {
+                    crate::app::i18n::workflow::Feedback::new(
+                        "代码节点 retry_interval 序列化失败: %s",
+                        vec![error.to_string()],
+                    )
+                })?,
             );
             data_map.insert(yaml_key("retry_config"), Value::Mapping(retry_map));
 
@@ -664,16 +691,25 @@ pub(super) fn apply_visual_draft_to_yaml(
         _ => {}
     }
 
-    let yaml = serde_yaml::to_string(&data_value)
-        .map_err(|error| format!("生成节点 data YAML 失败: {error}"))?;
+    let yaml = serde_yaml::to_string(&data_value).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new(
+            "生成节点 data YAML 失败: %s",
+            vec![error.to_string()],
+        )
+    })?;
     Ok(yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string())
 }
 
-pub(super) fn parse_http_value(input: &str, label: &str) -> Result<Value, String> {
+pub(super) fn parse_http_value(
+    input: &str,
+    label: &str,
+) -> Result<Value, crate::app::i18n::workflow::Feedback> {
     if input.trim().is_empty() {
         return Ok(Value::String(String::new()));
     }
-    serde_yaml::from_str(input).map_err(|_| format!("{label}必须是合法 YAML"))
+    serde_yaml::from_str(input).map_err(|_| {
+        crate::app::i18n::workflow::Feedback::new("%s必须是合法 YAML", vec![label.to_string()])
+    })
 }
 
 fn named_values_value(values: &[WorkflowNamedValueDraft], include_type: bool) -> Value {
@@ -712,17 +748,26 @@ fn merge_model_value(data_map: &mut Mapping, model: &WorkflowModelDraft) {
     set_mapping_string(model_map, "mode", &model.mode);
 }
 
-pub(super) fn parse_node_data_yaml_value(text: &str) -> Result<Value, String> {
+pub(super) fn parse_node_data_yaml_value(
+    text: &str,
+) -> Result<Value, crate::app::i18n::workflow::Feedback> {
     if text.trim().is_empty() {
         return Ok(Value::Mapping(Mapping::new()));
     }
 
-    let value = serde_yaml::from_str::<Value>(text)
-        .map_err(|error| format!("节点 data YAML 解析失败: {error}"))?;
+    let value = serde_yaml::from_str::<Value>(text).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new(
+            "节点 data YAML 解析失败: %s",
+            vec![error.to_string()],
+        )
+    })?;
     if value.is_mapping() {
         Ok(value)
     } else {
-        Err("节点 data 必须是对象映射（YAML map）".to_string())
+        Err(crate::app::i18n::workflow::Feedback::new(
+            "节点 data 必须是对象映射（YAML map）",
+            vec![],
+        ))
     }
 }
 

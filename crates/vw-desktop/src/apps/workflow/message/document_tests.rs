@@ -214,7 +214,7 @@ fn save_reload_export_and_floating_panel_messages_update_state() {
     assert!(app.workflow_state.error_message.is_none());
     document_message(
         &mut app,
-        WorkflowMessage::SaveActiveAppFinished(Err("disk full".to_string())),
+        WorkflowMessage::SaveActiveAppFinished(Err("disk full".to_string().into())),
     );
     assert_eq!(app.workflow_state.error_message.as_deref(), Some("disk full"));
 
@@ -266,7 +266,10 @@ fn save_reload_export_and_floating_panel_messages_update_state() {
     document_message(&mut empty_app, WorkflowMessage::ExportSvg);
     document_message(&mut app, WorkflowMessage::ExportFinished(Ok(())));
     assert_eq!(app.workflow_state.status_message.as_deref(), Some("已导出工作流图片"));
-    document_message(&mut app, WorkflowMessage::ExportFinished(Err("export failed".to_string())));
+    document_message(
+        &mut app,
+        WorkflowMessage::ExportFinished(Err("export failed".to_string().into())),
+    );
     assert_eq!(app.workflow_state.error_message.as_deref(), Some("export failed"));
 
     let ignored =

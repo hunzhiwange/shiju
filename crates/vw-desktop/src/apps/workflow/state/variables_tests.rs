@@ -144,7 +144,7 @@ fn open_edit_environment_editor_reports_missing_variable() {
 
     let result = state.open_edit_environment_variable_editor("missing");
 
-    assert_eq!(result, Err("环境变量不存在".to_string()));
+    assert_eq!((result).map_err(String::from), Err("环境变量不存在".to_string()));
     assert!(state.variable_editor.is_none());
 }
 
@@ -224,7 +224,7 @@ fn open_edit_conversation_editor_reports_missing_variable() {
 
     let result = state.open_edit_conversation_variable_editor("missing");
 
-    assert_eq!(result, Err("会话变量不存在".to_string()));
+    assert_eq!((result).map_err(String::from), Err("会话变量不存在".to_string()));
     assert!(state.variable_editor.is_none());
 }
 
@@ -301,7 +301,10 @@ fn submit_environment_create_rejects_invalid_inputs() {
     state.open_create_environment_variable_editor();
 
     state.set_variable_editor_name("   ".to_string());
-    assert_eq!(state.submit_variable_editor(), Err("变量名称不能为空".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("变量名称不能为空".to_string())
+    );
 
     state.set_variable_editor_name("api_url".to_string());
     set_editor_value(&mut state, "[");
@@ -311,26 +314,26 @@ fn submit_environment_create_rejects_invalid_inputs() {
     set_editor_value(&mut state, "plain");
     state.set_variable_editor_type("boolean".to_string());
     assert_eq!(
-        state.submit_variable_editor(),
+        (state.submit_variable_editor()).map_err(String::from),
         Err("环境变量类型仅支持 string / number / secret".to_string())
     );
 
     state.set_variable_editor_type("number".to_string());
     assert_eq!(
-        state.submit_variable_editor(),
+        (state.submit_variable_editor()).map_err(String::from),
         Err("number 类型环境变量的值必须是数字 YAML 标量".to_string())
     );
 
     state.set_variable_editor_type("string".to_string());
     set_editor_value(&mut state, "1");
     assert_eq!(
-        state.submit_variable_editor(),
+        (state.submit_variable_editor()).map_err(String::from),
         Err("string 类型环境变量的值必须是字符串 YAML 标量".to_string())
     );
 
     state.set_variable_editor_type("secret".to_string());
     assert_eq!(
-        state.submit_variable_editor(),
+        (state.submit_variable_editor()).map_err(String::from),
         Err("secret 类型环境变量的值必须是字符串 YAML 标量".to_string())
     );
 
@@ -342,7 +345,10 @@ fn submit_environment_create_rejects_invalid_inputs() {
     ));
     state.set_variable_editor_type("string".to_string());
     set_editor_value(&mut state, "new");
-    assert_eq!(state.submit_variable_editor(), Err("环境变量名称不能重复".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("环境变量名称不能重复".to_string())
+    );
     assert_eq!(state.environment_variables.len(), 1);
     assert!(state.variable_editor.is_some());
 }
@@ -388,12 +394,18 @@ fn submit_environment_edit_rejects_duplicate_and_missing_target() {
     state.set_variable_editor_name("api_key".to_string());
     set_editor_value(&mut state, "new");
 
-    assert_eq!(state.submit_variable_editor(), Err("环境变量名称不能重复".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("环境变量名称不能重复".to_string())
+    );
 
     state.set_variable_editor_name("api_new".to_string());
     state.environment_variables.retain(|variable| variable.id != "env-1");
 
-    assert_eq!(state.submit_variable_editor(), Err("环境变量不存在".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("环境变量不存在".to_string())
+    );
 }
 
 #[test]
@@ -439,7 +451,10 @@ fn submit_conversation_create_rejects_empty_type_duplicate_and_bad_yaml() {
     state.set_variable_editor_name("status".to_string());
     state.set_variable_editor_type(" ".to_string());
 
-    assert_eq!(state.submit_variable_editor(), Err("会话变量类型不能为空".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("会话变量类型不能为空".to_string())
+    );
 
     state.set_variable_editor_type("string".to_string());
     set_editor_value(&mut state, "[");
@@ -448,7 +463,10 @@ fn submit_conversation_create_rejects_empty_type_duplicate_and_bad_yaml() {
 
     state.set_variable_editor_name("topic".to_string());
     set_editor_value(&mut state, "new");
-    assert_eq!(state.submit_variable_editor(), Err("会话变量名称不能重复".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("会话变量名称不能重复".to_string())
+    );
     assert_eq!(state.conversation_variables.len(), 1);
     assert!(state.variable_editor.is_some());
 }
@@ -504,12 +522,18 @@ fn submit_conversation_edit_rejects_duplicate_and_missing_target() {
     state.set_variable_editor_name("status".to_string());
     set_editor_value(&mut state, "new");
 
-    assert_eq!(state.submit_variable_editor(), Err("会话变量名称不能重复".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("会话变量名称不能重复".to_string())
+    );
 
     state.set_variable_editor_name("new_topic".to_string());
     state.conversation_variables.retain(|variable| variable.id != "conversation-1");
 
-    assert_eq!(state.submit_variable_editor(), Err("会话变量不存在".to_string()));
+    assert_eq!(
+        (state.submit_variable_editor()).map_err(String::from),
+        Err("会话变量不存在".to_string())
+    );
 }
 
 #[test]

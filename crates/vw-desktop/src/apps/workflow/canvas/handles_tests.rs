@@ -399,17 +399,62 @@ fn control_points_follow_handle_side() {
 
 #[test]
 fn edge_handle_label_maps_and_filters_labels() {
-    assert_eq!(edge_handle_label(&edge("true", Some("true"), None)), Some("是".to_string()));
-    assert_eq!(edge_handle_label(&edge("false", Some("false"), None)), Some("否".to_string()));
     assert_eq!(
-        edge_handle_label(&edge("custom", Some("branch"), None)),
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("true", Some("true"), None)
+        ),
+        Some("是".to_string())
+    );
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("false", Some("false"), None)
+        ),
+        Some("否".to_string())
+    );
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("custom", Some("branch"), None)
+        ),
         Some("branch".to_string())
     );
-    assert_eq!(edge_handle_label(&edge("default", Some("source"), None)), None);
-    assert_eq!(edge_handle_label(&edge("empty", Some("   "), None)), None);
-    assert_eq!(edge_handle_label(&edge("dash", Some("branch-a"), None)), None);
-    assert_eq!(edge_handle_label(&edge("long", Some("abcdefghijklmnopqrstuvwxyz"), None)), None);
-    assert_eq!(edge_handle_label(&edge("none", None, None)), None);
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("default", Some("source"), None)
+        ),
+        None
+    );
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("empty", Some("   "), None)
+        ),
+        None
+    );
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("dash", Some("branch-a"), None)
+        ),
+        None
+    );
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("long", Some("abcdefghijklmnopqrstuvwxyz"), None)
+        ),
+        None
+    );
+    assert_eq!(
+        edge_handle_label(
+            crate::app::i18n::I18n::new(Default::default()),
+            &edge("none", None, None)
+        ),
+        None
+    );
 }
 
 #[test]

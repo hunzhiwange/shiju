@@ -6,7 +6,10 @@ use iced::widget::{column, row};
 /// 构建 variable panel modal 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_variable_panel_modal(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_variable_panel_modal(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let Some(panel) = state.variable_panel.as_ref() else {
         return container(Space::new().width(1).height(1)).into();
     };
@@ -18,16 +21,16 @@ pub(super) fn build_variable_panel_modal(state: &WorkflowState) -> Element<'_, M
         Element<'_, Message>,
     ) = match panel {
         WorkflowVariablePanelKind::System => (
-            "系统变量",
-            "这些变量由运行时自动注入，只读展示，方便和 Dify 的全局变量保持一致。",
+            i18n.__("系统变量"),
+            i18n.__("这些变量由运行时自动注入，只读展示，方便和 Dify 的全局变量保持一致。"),
             None,
-            build_system_variable_list(state),
+            build_system_variable_list(i18n, state),
         ),
         WorkflowVariablePanelKind::Environment => (
-            "环境变量",
-            "环境变量会随 yml 一起保存，适合放 API Key、URL、开关等全局配置。",
+            i18n.__("环境变量"),
+            i18n.__("环境变量会随 yml 一起保存，适合放 API Key、URL、开关等全局配置。"),
             Some(
-                button(text("新增环境变量"))
+                button(text(i18n.__("新增环境变量")))
                     .style(primary_action_btn_style)
                     .padding([9, 14])
                     .on_press(Message::WorkflowTool(
@@ -35,13 +38,13 @@ pub(super) fn build_variable_panel_modal(state: &WorkflowState) -> Element<'_, M
                     ))
                     .into(),
             ),
-            build_environment_variable_list(state),
+            build_environment_variable_list(i18n, state),
         ),
         WorkflowVariablePanelKind::Conversation => (
-            "会话变量",
-            "会话变量会跟随调试会话流转，适合沉淀结构化上下文与中间状态。",
+            i18n.__("会话变量"),
+            i18n.__("会话变量会跟随调试会话流转，适合沉淀结构化上下文与中间状态。"),
             Some(
-                button(text("新增会话变量"))
+                button(text(i18n.__("新增会话变量")))
                     .style(primary_action_btn_style)
                     .padding([9, 14])
                     .on_press(Message::WorkflowTool(
@@ -49,7 +52,7 @@ pub(super) fn build_variable_panel_modal(state: &WorkflowState) -> Element<'_, M
                     ))
                     .into(),
             ),
-            build_conversation_variable_list(state),
+            build_conversation_variable_list(i18n, state),
         ),
     };
 
@@ -85,30 +88,33 @@ pub(super) fn build_variable_panel_modal(state: &WorkflowState) -> Element<'_, M
 /// 构建 variable editor modal 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_variable_editor_modal(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_variable_editor_modal(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let Some(editor) = state.variable_editor.as_ref() else {
         return container(Space::new().width(1).height(1)).into();
     };
 
     let (title, subtitle, type_hint) = match &editor.mode {
         super::state::WorkflowVariableEditorMode::CreateEnvironment => (
-            "新增环境变量",
-            "环境变量推荐使用 string / number / secret 三种类型。",
+            i18n.__("新增环境变量"),
+            i18n.__("环境变量推荐使用 string / number / secret 三种类型。"),
             "string / number / secret",
         ),
         super::state::WorkflowVariableEditorMode::EditEnvironment(_) => (
-            "编辑环境变量",
-            "保留原始 raw 字段，只覆盖常用的 name / description / value_type / value。",
+            i18n.__("编辑环境变量"),
+            i18n.__("保留原始 raw 字段，只覆盖常用的 name / description / value_type / value。"),
             "string / number / secret",
         ),
         super::state::WorkflowVariableEditorMode::CreateConversation => (
-            "新增会话变量",
-            "会话变量类型可以更宽，支持 string / number / object / array[string] 等 Dify 风格值。",
+            i18n.__("新增会话变量"),
+            i18n.__("会话变量类型可以更宽，支持 string / number / object / array[string] 等 Dify 风格值。"),
             "string / number / object / array[string]",
         ),
         super::state::WorkflowVariableEditorMode::EditConversation(_) => (
-            "编辑会话变量",
-            "会话变量 value 直接使用 YAML 编辑，方便录入对象或数组。",
+            i18n.__("编辑会话变量"),
+            i18n.__("会话变量 value 直接使用 YAML 编辑，方便录入对象或数组。"),
             "string / number / object / array[string]",
         ),
     };
@@ -129,9 +135,9 @@ pub(super) fn build_variable_editor_modal(state: &WorkflowState) -> Element<'_, 
                 ]
                 .align_y(Alignment::Center),
                 build_editor_field(
-                    "变量名称",
+                    i18n.__("变量名称"),
                     workflow_text_input(
-                        "例如：api_key / conversation_state",
+                        i18n.__("例如：api_key / conversation_state"),
                         &editor.name,
                         |value| {
                             Message::WorkflowTool(WorkflowMessage::VariableEditorNameChanged(value))
@@ -139,15 +145,15 @@ pub(super) fn build_variable_editor_modal(state: &WorkflowState) -> Element<'_, 
                     ),
                 ),
                 build_editor_field(
-                    "变量类型",
+                    i18n.__("变量类型"),
                     workflow_text_input(type_hint, &editor.value_type, |value| {
                         Message::WorkflowTool(WorkflowMessage::VariableEditorTypeChanged(value))
                     }),
                 ),
                 build_editor_field(
-                    "变量描述",
+                    i18n.__("变量描述"),
                     workflow_text_input(
-                        "描述这个变量在工作流中的用途",
+                        i18n.__("描述这个变量在工作流中的用途"),
                         &editor.description,
                         |value| {
                             Message::WorkflowTool(
@@ -157,9 +163,9 @@ pub(super) fn build_variable_editor_modal(state: &WorkflowState) -> Element<'_, 
                     ),
                 ),
                 build_editor_field(
-                    "变量值 YAML",
+                    i18n.__("变量值 YAML"),
                     text_editor(&editor.raw_value_editor)
-                        .placeholder("输入变量值，支持字符串、数字、对象或数组 YAML")
+                        .placeholder(i18n.__("输入变量值，支持字符串、数字、对象或数组 YAML"))
                         .on_action(|action| {
                             Message::WorkflowTool(WorkflowMessage::VariableEditorValueAction(
                                 action,
@@ -172,11 +178,11 @@ pub(super) fn build_variable_editor_modal(state: &WorkflowState) -> Element<'_, 
                 ),
                 row![
                     Space::new().width(Length::Fill),
-                    button(text("取消"))
+                    button(text(i18n.__("取消")))
                         .style(rounded_action_btn_style)
                         .padding([9, 14])
                         .on_press(Message::WorkflowTool(WorkflowMessage::CloseVariableEditor)),
-                    button(text("保存变量"))
+                    button(text(i18n.__("保存变量")))
                         .style(primary_action_btn_style)
                         .padding([9, 14])
                         .on_press(Message::WorkflowTool(WorkflowMessage::SubmitVariableEditor)),
@@ -200,11 +206,14 @@ pub(super) fn build_variable_editor_modal(state: &WorkflowState) -> Element<'_, 
 /// 构建 system variable list 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_system_variable_list(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_system_variable_list(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     let items = state.active_meta().map(workflow_system_variables).unwrap_or_default();
 
     if items.is_empty() {
-        return container(text("当前没有可显示的系统变量").size(13))
+        return container(text(i18n.__("当前没有可显示的系统变量")).size(13))
             .padding(12)
             .style(value_card_style)
             .into();
@@ -213,24 +222,31 @@ pub(super) fn build_system_variable_list(state: &WorkflowState) -> Element<'_, M
     let mut list = column![].spacing(10);
     for item in items {
         list = list.push(variable_card(
+            i18n,
             item.name.to_string(),
             item.value_type.to_string(),
-            item.description.to_string(),
-            "运行时注入".to_string(),
+            i18n.__(item.description).to_string(),
+            i18n.__("运行时注入").to_string(),
             None,
             None,
         ));
     }
 
-    scrollable(list).height(Length::Fixed(420.0)).into()
+    scrollable(container(list).padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(420.0))
+        .into()
 }
 
 /// 构建 environment variable list 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_environment_variable_list(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_environment_variable_list(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     if state.environment_variables.is_empty() {
-        return container(text("还没有环境变量").size(13))
+        return container(text(i18n.__("还没有环境变量")).size(13))
             .padding(12)
             .style(value_card_style)
             .into();
@@ -239,12 +255,13 @@ pub(super) fn build_environment_variable_list(state: &WorkflowState) -> Element<
     let mut list = column![].spacing(10);
     for variable in &state.environment_variables {
         let description = if variable.description.trim().is_empty() {
-            "无描述".to_string()
+            i18n.__("无描述").to_string()
         } else {
             variable.description.clone()
         };
         let preview = variable_value_preview(&variable.value, Some(&variable.value_type));
         list = list.push(variable_card(
+            i18n,
             variable.name.clone(),
             variable.value_type.clone(),
             description,
@@ -258,15 +275,21 @@ pub(super) fn build_environment_variable_list(state: &WorkflowState) -> Element<
         ));
     }
 
-    scrollable(list).height(Length::Fixed(420.0)).into()
+    scrollable(container(list).padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(420.0))
+        .into()
 }
 
 /// 构建 conversation variable list 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_conversation_variable_list(state: &WorkflowState) -> Element<'_, Message> {
+pub(super) fn build_conversation_variable_list(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'_, Message> {
     if state.conversation_variables.is_empty() {
-        return container(text("还没有会话变量").size(13))
+        return container(text(i18n.__("还没有会话变量")).size(13))
             .padding(12)
             .style(value_card_style)
             .into();
@@ -275,12 +298,13 @@ pub(super) fn build_conversation_variable_list(state: &WorkflowState) -> Element
     let mut list = column![].spacing(10);
     for variable in &state.conversation_variables {
         let description = if variable.description.trim().is_empty() {
-            "无描述".to_string()
+            i18n.__("无描述").to_string()
         } else {
             variable.description.clone()
         };
         let preview = variable_value_preview(&variable.value, None);
         list = list.push(variable_card(
+            i18n,
             variable.name.clone(),
             variable.value_type.clone(),
             description,
@@ -294,13 +318,17 @@ pub(super) fn build_conversation_variable_list(state: &WorkflowState) -> Element
         ));
     }
 
-    scrollable(list).height(Length::Fixed(420.0)).into()
+    scrollable(container(list).padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+        .height(Length::Fixed(420.0))
+        .into()
 }
 
 /// 提供 variable card 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 pub(super) fn variable_card(
+    i18n: crate::app::i18n::I18n,
     name: String,
     value_type: String,
     description: String,
@@ -312,7 +340,7 @@ pub(super) fn variable_card(
 
     if let Some(edit_message) = edit_message {
         actions = actions.push(
-            button(text("编辑").size(12))
+            button(text(i18n.__("编辑")).size(12))
                 .style(rounded_action_btn_style)
                 .padding([6, 10])
                 .on_press(edit_message),
@@ -320,7 +348,7 @@ pub(super) fn variable_card(
     }
     if let Some(delete_message) = delete_message {
         actions = actions.push(
-            button(text("删除").size(12))
+            button(text(i18n.__("删除")).size(12))
                 .style(danger_action_btn_style)
                 .padding([6, 10])
                 .on_press(delete_message),
@@ -385,14 +413,15 @@ pub(super) fn build_editor_field<'a>(
 pub(super) fn build_editor_field_validated<'a>(
     label: &'a str,
     control: Element<'a, Message>,
-    error: Option<&'a str>,
+    error: Option<String>,
 ) -> Element<'a, Message> {
     let mut content =
         column![text(label).size(12).style(settings_muted_text_style), control].spacing(6);
 
     if let Some(error) = error {
-        content =
-            content.push(text(error).size(12).color(Color::from_rgba8(0xB4, 0x23, 0x18, 1.0)));
+        content = content.push(text(error).size(12).style(|theme: &Theme| {
+            iced::widget::text::Style { color: Some(theme.extended_palette().danger.base.color) }
+        }));
     }
 
     content.into()
@@ -402,29 +431,36 @@ pub(super) fn build_editor_field_validated<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_validation_summary(
+    i18n: crate::app::i18n::I18n,
     validation: &super::state::WorkflowNodeEditorValidation,
 ) -> Element<'_, Message> {
     let mut items = column![
-        text("当前节点还有未修正的字段").size(14),
-        text("请先处理下面这些错误，再保存节点。")
+        text(i18n.__("当前节点还有未修正的字段")).size(14),
+        text(i18n.__("请先处理下面这些错误，再保存节点。"))
             .size(12)
             .color(Color::from_rgba8(0x7F, 0x1D, 0x1D, 0.80)),
     ]
     .spacing(6);
 
     for error in validation.field_errors.iter().take(8) {
-        items = items.push(
-            text(format!("- {}", error.message))
-                .size(12)
-                .color(Color::from_rgba8(0xB4, 0x23, 0x18, 1.0)),
-        );
+        items = items.push(text(format!("- {}", error.message.render(i18n))).size(12).style(
+            |theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.extended_palette().danger.base.color),
+            },
+        ));
     }
 
     if validation.field_errors.len() > 8 {
         items = items.push(
-            text(format!("还有 {} 项未展示", validation.field_errors.len() - 8))
-                .size(12)
-                .color(Color::from_rgba8(0x7F, 0x1D, 0x1D, 0.72)),
+            text(
+                i18n.format(
+                    "还有 %s 项未展示",
+                    &[(validation.field_errors.len() - 8).to_string().into()],
+                )
+                .expect("valid workflow display template"),
+            )
+            .size(12)
+            .color(Color::from_rgba8(0x7F, 0x1D, 0x1D, 0.72)),
         );
     }
 
@@ -434,8 +470,13 @@ pub(super) fn build_node_validation_summary(
 /// 构建 inline error 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_inline_error<'a>(message: &'a str) -> Element<'a, Message> {
-    text(message).size(12).color(Color::from_rgba8(0xB4, 0x23, 0x18, 1.0)).into()
+pub(super) fn build_inline_error(message: impl Into<String>) -> Element<'static, Message> {
+    text(message.into())
+        .size(12)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().danger.base.color),
+        })
+        .into()
 }
 
 #[cfg(test)]

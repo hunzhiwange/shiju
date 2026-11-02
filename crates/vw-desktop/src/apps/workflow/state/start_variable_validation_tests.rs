@@ -36,6 +36,7 @@ fn valid_file_draft(input_type: &str) -> WorkflowStartVariableDraft {
 fn validate_error(variable: &WorkflowStartVariableDraft) -> String {
     validate_start_variable_editor_draft(variable, &[], WorkflowStartVariableEditorMode::Create)
         .expect_err("draft should be invalid")
+        .to_string()
 }
 
 #[test]

@@ -5,7 +5,10 @@ use super::*;
 /// 提供 start builtin variables 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn start_builtin_variables(state: &WorkflowState) -> Vec<StartBuiltinVariableItem> {
+pub(super) fn start_builtin_variables(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Vec<StartBuiltinVariableItem> {
     let is_chat_mode = state.active_meta().map(|meta| meta.mode.contains("chat")).unwrap_or(true);
 
     let mut items = Vec::new();
@@ -13,14 +16,14 @@ pub(super) fn start_builtin_variables(state: &WorkflowState) -> Vec<StartBuiltin
         items.push(StartBuiltinVariableItem {
             name: "userinput.query",
             value_type: "String",
-            description: "用户当前这一轮输入的问题文本。",
+            description: i18n.__("用户当前这一轮输入的问题文本。"),
             legacy: false,
         });
     }
     items.push(StartBuiltinVariableItem {
         name: "userinput.files",
         value_type: "Array[File]",
-        description: "用户上传的文件列表，可作为文件型输入或后续节点的附件来源。",
+        description: i18n.__("用户上传的文件列表，可作为文件型输入或后续节点的附件来源。"),
         legacy: !is_chat_mode,
     });
 
@@ -51,6 +54,7 @@ pub(super) fn start_variable_value_type_label(input_type: &str) -> &'static str 
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 pub(super) fn start_variable_summary_error(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     validation: &super::state::WorkflowNodeEditorValidation,
 ) -> Option<String> {
@@ -66,8 +70,8 @@ pub(super) fn start_variable_summary_error(
         format!("start.variables[{index}].allowed_file_extensions"),
         format!("start.variables[{index}].allowed_file_upload_methods"),
     ] {
-        if let Some(error) = validation.first_error_for(&path) {
-            errors.push(error.to_string());
+        if let Some(error) = validation.localized_error_for(i18n, &path) {
+            errors.push(error);
         }
     }
 
@@ -78,12 +82,13 @@ pub(super) fn start_variable_summary_error(
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 pub(super) fn start_variable_default_error(
+    i18n: crate::app::i18n::I18n,
     variable: &super::state::WorkflowStartVariableDraft,
 ) -> Option<&'static str> {
     if variable.input_type == "number"
         && !super::state::is_valid_start_variable_number_default_value(&variable.default_value)
     {
-        Some("数字类型默认值必须是数字")
+        Some(i18n.__("数字类型默认值必须是数字"))
     } else {
         None
     }
@@ -101,21 +106,43 @@ pub(super) fn start_variable_advanced_hint(input_type: &str) -> Option<&'static 
 /// 提供 start variable type options 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn start_variable_type_options() -> Vec<StartVariableTypeOption> {
+pub(super) fn start_variable_type_options(
+    i18n: crate::app::i18n::I18n,
+) -> Vec<StartVariableTypeOption> {
     vec![
-        StartVariableTypeOption { input_type: "text-input", label: "文本", value_type: "string" },
-        StartVariableTypeOption { input_type: "paragraph", label: "段落", value_type: "string" },
         StartVariableTypeOption {
-            input_type: "select", label: "下拉选项", value_type: "string"
+            input_type: "text-input",
+            label: i18n.__("文本"),
+            value_type: "string",
         },
-        StartVariableTypeOption { input_type: "number", label: "数字", value_type: "number" },
         StartVariableTypeOption {
-            input_type: "checkbox", label: "复选框", value_type: "boolean"
+            input_type: "paragraph",
+            label: i18n.__("段落"),
+            value_type: "string",
         },
-        StartVariableTypeOption { input_type: "file", label: "单文件", value_type: "file" },
+        StartVariableTypeOption {
+            input_type: "select",
+            label: i18n.__("下拉选项"),
+            value_type: "string",
+        },
+        StartVariableTypeOption {
+            input_type: "number",
+            label: i18n.__("数字"),
+            value_type: "number",
+        },
+        StartVariableTypeOption {
+            input_type: "checkbox",
+            label: i18n.__("复选框"),
+            value_type: "boolean",
+        },
+        StartVariableTypeOption {
+            input_type: "file",
+            label: i18n.__("单文件"),
+            value_type: "file",
+        },
         StartVariableTypeOption {
             input_type: "file-list",
-            label: "文件列表",
+            label: i18n.__("文件列表"),
             value_type: "array[file]",
         },
     ]
@@ -125,17 +152,21 @@ pub(super) fn start_variable_type_options() -> Vec<StartVariableTypeOption> {
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 pub(super) fn selected_start_variable_type_option(
+    i18n: crate::app::i18n::I18n,
     input_type: &str,
 ) -> Option<StartVariableTypeOption> {
-    start_variable_type_options().into_iter().find(|option| option.input_type == input_type)
+    start_variable_type_options(i18n).into_iter().find(|option| option.input_type == input_type)
 }
 
 /// 构建 start variable type selector 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_start_variable_type_selector(input_type: &str) -> Element<'static, Message> {
-    let options = start_variable_type_options();
-    let selected = selected_start_variable_type_option(input_type);
+pub(super) fn build_start_variable_type_selector(
+    i18n: crate::app::i18n::I18n,
+    input_type: &str,
+) -> Element<'static, Message> {
+    let options = start_variable_type_options(i18n);
+    let selected = selected_start_variable_type_option(i18n, input_type);
 
     pick_list(options, selected, |option| {
         Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorTypeChanged(
@@ -154,14 +185,15 @@ pub(super) fn build_start_variable_type_selector(input_type: &str) -> Element<'s
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
 #[allow(dead_code)]
-pub(super) fn start_variable_file_type_options() -> [(&'static str, &'static str, &'static str); 5]
-{
+pub(super) fn start_variable_file_type_options(
+    i18n: crate::app::i18n::I18n,
+) -> [(&'static str, &'static str, &'static str); 5] {
     [
-        ("document", "文档", "PDF, DOCX"),
-        ("image", "图片", "PNG, JPG"),
-        ("audio", "音频", "MP3, WAV"),
-        ("video", "视频", "MP4, MOV"),
-        ("custom", "自定义", "手动填写扩展名"),
+        ("document", i18n.__("文档"), "PDF, DOCX"),
+        ("image", i18n.__("图片"), "PNG, JPG"),
+        ("audio", i18n.__("音频"), "MP3, WAV"),
+        ("video", i18n.__("视频"), "MP4, MOV"),
+        ("custom", i18n.__("自定义"), i18n.__("手动填写扩展名")),
     ]
 }
 

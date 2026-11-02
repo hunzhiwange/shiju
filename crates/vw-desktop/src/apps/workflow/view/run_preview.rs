@@ -27,28 +27,30 @@ pub(super) fn run_preview_run_id_label(preview: &WorkflowRunPreview) -> &str {
 }
 
 pub(super) fn saved_app_run_preview_action(
+    i18n: crate::app::i18n::I18n,
     preview: &WorkflowRunPreview,
 ) -> Option<(&'static str, WorkflowMessage)> {
     match (preview.is_finished, preview.status) {
         (false, WorkflowRunStatus::Running) => {
-            Some(("取消运行", WorkflowMessage::CancelSavedAppRun))
+            Some((i18n.__("取消运行"), WorkflowMessage::CancelSavedAppRun))
         }
         (true, WorkflowRunStatus::Succeeded | WorkflowRunStatus::Failed) => {
-            Some(("重新执行", WorkflowMessage::RetrySavedAppRunPreview))
+            Some((i18n.__("重新执行"), WorkflowMessage::RetrySavedAppRunPreview))
         }
         _ => None,
     }
 }
 
 pub(super) fn build_saved_app_run_preview_layer(
+    i18n: crate::app::i18n::I18n,
     preview: &WorkflowRunPreview,
     error_copied: bool,
 ) -> Element<'_, Message> {
     let close_message = Message::WorkflowTool(saved_app_run_preview_close_message());
     let run_id_label = run_preview_run_id_label(preview);
-    let preview_action = saved_app_run_preview_action(preview);
+    let preview_action = saved_app_run_preview_action(i18n, preview);
     let summary = row![
-        workflow_run_status_badge(preview.status),
+        workflow_run_status_badge(i18n, preview.status),
         text(format!("UUID: {}", preview.uuid)).size(12).style(settings_muted_text_style),
         text(format!("Run: {run_id_label}")).size(12).style(settings_muted_text_style),
     ]
@@ -74,22 +76,23 @@ pub(super) fn build_saved_app_run_preview_layer(
         );
     } else {
         for (index, node) in preview.nodes.iter().enumerate() {
-            timeline = timeline.push(workflow_run_node_row(index, node));
+            timeline = timeline.push(workflow_run_node_row(i18n, index, node));
         }
     }
 
     let output_action = workflow_run_output_text(preview.text_output.as_str()).map(|_| {
-        run_preview_detail_button(Message::WorkflowTool(
-            WorkflowMessage::OpenSavedAppRunOutputDetail,
-        ))
+        run_preview_detail_button(
+            i18n,
+            Message::WorkflowTool(WorkflowMessage::OpenSavedAppRunOutputDetail),
+        )
     });
 
     let mut body = column![
-        run_preview_section("节点时间线", None, timeline.into()),
+        run_preview_section(i18n.__("节点时间线"), None, timeline.into()),
         run_preview_section(
-            "输出",
+            i18n.__("输出"),
             output_action,
-            workflow_run_output(preview.text_output.as_str()),
+            workflow_run_output(i18n, preview.text_output.as_str()),
         ),
     ]
     .spacing(16)
@@ -97,12 +100,13 @@ pub(super) fn build_saved_app_run_preview_layer(
 
     if preview.error.is_some() {
         body = body.push(run_preview_section(
-            "错误详情",
+            i18n.__("错误详情"),
             Some(run_preview_copy_button(
+                i18n,
                 error_copied,
                 Message::WorkflowTool(WorkflowMessage::CopySavedAppRunError),
             )),
-            workflow_run_error(preview),
+            workflow_run_error(i18n, preview),
         ));
     }
 
@@ -139,8 +143,10 @@ pub(super) fn build_saved_app_run_preview_layer(
         column![
             row![
                 column![
-                    text("运行预览").size(18).line_height(1.0),
-                    text("实时展示 Workflow 执行过程").size(12).style(settings_muted_text_style),
+                    text(i18n.__("运行预览")).size(18).line_height(1.0),
+                    text(i18n.__("实时展示 Workflow 执行过程"))
+                        .size(12)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(6)
                 .width(Length::Fill),
@@ -165,6 +171,7 @@ pub(super) fn build_saved_app_run_preview_layer(
 
 /// 构建运行预览的“查看详细”弹窗：以只读、可滚动、可选中复制的编辑器展示完整内容。
 pub(super) fn build_saved_app_run_detail_layer(
+    i18n: crate::app::i18n::I18n,
     detail: &state::WorkflowRunDetailDialog,
 ) -> Element<'_, Message> {
     let close_message = Message::WorkflowTool(WorkflowMessage::CloseSavedAppRunDetail);
@@ -180,8 +187,15 @@ pub(super) fn build_saved_app_run_detail_layer(
         column![
             row![
                 column![
-                    text(&detail.title).size(16).line_height(1.1).width(Length::Fill),
-                    text("可滚动并选中复制完整内容").size(12).style(settings_muted_text_style),
+                    text(
+                        detail.title_source.map(|source| i18n.__(source)).unwrap_or(&detail.title)
+                    )
+                    .size(16)
+                    .line_height(1.1)
+                    .width(Length::Fill),
+                    text(i18n.__("可滚动并选中复制完整内容"))
+                        .size(12)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(6)
                 .width(Length::Fill),
@@ -240,8 +254,11 @@ fn run_preview_section<'a>(
 }
 
 /// 渲染运行预览里的“查看详细”按钮，复用次级按钮样式，与节点/输出标题对齐。
-fn run_preview_detail_button(on_press: Message) -> Element<'static, Message> {
-    button(text("查看详细").size(11))
+fn run_preview_detail_button(
+    i18n: crate::app::i18n::I18n,
+    on_press: Message,
+) -> Element<'static, Message> {
+    button(text(i18n.__("查看详细")).size(11))
         .style(rounded_action_btn_style)
         .padding([4, 10])
         .on_press(on_press)
@@ -249,8 +266,12 @@ fn run_preview_detail_button(on_press: Message) -> Element<'static, Message> {
 }
 
 /// 渲染错误详情的复制按钮：复制后短暂显示 ✓，2 秒后由计时消息恢复为“复制”。
-fn run_preview_copy_button(copied: bool, on_press: Message) -> Element<'static, Message> {
-    let label = if copied { "✓" } else { "复制" };
+fn run_preview_copy_button(
+    i18n: crate::app::i18n::I18n,
+    copied: bool,
+    on_press: Message,
+) -> Element<'static, Message> {
+    let label = if copied { "✓" } else { i18n.__("复制") };
     let mut control = button(text(label).size(11)).padding([4, 10]);
     control = if copied {
         control.style(run_preview_copied_button_style)
@@ -278,8 +299,11 @@ fn run_preview_copied_button_style(
     }
 }
 
-fn workflow_run_status_badge(status: WorkflowRunStatus) -> Element<'static, Message> {
-    let label = workflow_run_status_label(status);
+fn workflow_run_status_badge(
+    i18n: crate::app::i18n::I18n,
+    status: WorkflowRunStatus,
+) -> Element<'static, Message> {
+    let label = workflow_run_status_label(i18n, status);
     container(
         row![
             workflow_status_dot(move |theme| workflow_run_status_color(theme, status)),
@@ -293,10 +317,14 @@ fn workflow_run_status_badge(status: WorkflowRunStatus) -> Element<'static, Mess
     .into()
 }
 
-fn workflow_run_node_row(index: usize, node: &WorkflowRunNodePreview) -> Element<'_, Message> {
-    let status = workflow_run_node_status_label(node.status.as_deref());
+fn workflow_run_node_row(
+    i18n: crate::app::i18n::I18n,
+    index: usize,
+    node: &WorkflowRunNodePreview,
+) -> Element<'_, Message> {
+    let status = workflow_run_node_status_label(i18n, node.status.as_deref());
     let status_kind = workflow_run_node_status_kind(node.status.as_deref());
-    let data_preview = workflow_run_node_data_preview_items(node);
+    let data_preview = workflow_run_node_data_preview_items(i18n, node);
 
     // Left rail: a status-colored dot anchors each node onto the timeline.
     let rail = container(workflow_status_dot(move |theme| {
@@ -309,9 +337,10 @@ fn workflow_run_node_row(index: usize, node: &WorkflowRunNodePreview) -> Element
 
     let header = row![
         text(node.title.as_str()).size(14).line_height(1.1).width(Length::Fill),
-        run_preview_detail_button(Message::WorkflowTool(
-            WorkflowMessage::OpenSavedAppRunNodeDetail(index),
-        )),
+        run_preview_detail_button(
+            i18n,
+            Message::WorkflowTool(WorkflowMessage::OpenSavedAppRunNodeDetail(index),)
+        ),
         container(
             row![
                 workflow_status_dot(move |theme| workflow_run_status_kind_color(
@@ -333,7 +362,7 @@ fn workflow_run_node_row(index: usize, node: &WorkflowRunNodePreview) -> Element
         column![
             header,
             text(format!("ID: {}", node.id)).size(11).style(settings_muted_text_style),
-            workflow_run_node_details(data_preview),
+            workflow_run_node_details(i18n, data_preview),
         ]
         .spacing(6)
         .width(Length::Fill),
@@ -354,9 +383,12 @@ pub(super) fn workflow_run_output_text(output: &str) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
-pub(super) fn workflow_run_output(output: &str) -> Element<'_, Message> {
+pub(super) fn workflow_run_output(
+    i18n: crate::app::i18n::I18n,
+    output: &str,
+) -> Element<'_, Message> {
     match workflow_run_output_text(output) {
-        None => container(text("暂无文本输出").size(12).style(settings_muted_text_style))
+        None => container(text(i18n.__("暂无文本输出")).size(12).style(settings_muted_text_style))
             .padding([12, 14])
             .width(Length::Fill)
             .style(workflow_run_preview_output_empty_style)
@@ -369,9 +401,15 @@ pub(super) fn workflow_run_output(output: &str) -> Element<'_, Message> {
     }
 }
 
-pub(super) fn workflow_run_error(preview: &WorkflowRunPreview) -> Element<'_, Message> {
+pub(super) fn workflow_run_error(
+    i18n: crate::app::i18n::I18n,
+    preview: &WorkflowRunPreview,
+) -> Element<'_, Message> {
     let report = column![
-        text("失败详情").size(12).line_height(1.0).style(workflow_run_preview_error_heading_style),
+        text(i18n.__("失败详情"))
+            .size(12)
+            .line_height(1.0)
+            .style(workflow_run_preview_error_heading_style),
         text(preview.debug_text()).size(12),
     ]
     .spacing(8)
@@ -384,9 +422,12 @@ pub(super) fn workflow_run_error(preview: &WorkflowRunPreview) -> Element<'_, Me
         .into()
 }
 
-fn workflow_run_node_details(items: Vec<(String, String)>) -> Element<'static, Message> {
+fn workflow_run_node_details(
+    i18n: crate::app::i18n::I18n,
+    items: Vec<(String, String)>,
+) -> Element<'static, Message> {
     if items.is_empty() {
-        return text("暂无节点详情").size(11).style(settings_muted_text_style).into();
+        return text(i18n.__("暂无节点详情")).size(11).style(settings_muted_text_style).into();
     }
 
     let mut details = column![].spacing(4).width(Length::Fill);
@@ -408,36 +449,39 @@ fn workflow_run_node_details(items: Vec<(String, String)>) -> Element<'static, M
 }
 
 pub(super) fn workflow_run_node_data_preview_items(
+    i18n: crate::app::i18n::I18n,
     node: &WorkflowRunNodePreview,
 ) -> Vec<(String, String)> {
     let mut items = Vec::new();
     let mut shown_keys = Vec::new();
     let Some(map) = node.data.as_object() else {
-        return workflow_run_preview_value("data", &node.data)
+        return workflow_run_preview_value(i18n, "data", &node.data)
             .map(|value| vec![("data".to_string(), value)])
             .unwrap_or_default();
     };
 
     for (key, label) in [
-        ("node_type", "类型"),
-        ("index", "序号"),
-        ("predecessor_node_id", "上游"),
-        ("created_at", "开始时间"),
-        ("created_at_ms", "开始时间"),
-        ("started_at", "开始时间"),
-        ("started_at_ms", "开始时间"),
-        ("finished_at", "完成时间"),
-        ("finished_at_ms", "完成时间"),
-        ("elapsed_time", "耗时"),
-        ("elapsed_ms", "耗时"),
-        ("duration_ms", "耗时"),
-        ("error", "错误"),
-        ("inputs", "输入"),
-        ("process_data", "过程"),
-        ("outputs", "输出"),
+        ("node_type", i18n.__("类型")),
+        ("index", i18n.__("序号")),
+        ("predecessor_node_id", i18n.__("上游")),
+        ("created_at", i18n.__("开始时间")),
+        ("created_at_ms", i18n.__("开始时间")),
+        ("started_at", i18n.__("开始时间")),
+        ("started_at_ms", i18n.__("开始时间")),
+        ("finished_at", i18n.__("完成时间")),
+        ("finished_at_ms", i18n.__("完成时间")),
+        ("elapsed_time", i18n.__("耗时")),
+        ("elapsed_ms", i18n.__("耗时")),
+        ("duration_ms", i18n.__("耗时")),
+        ("error", i18n.__("错误")),
+        ("inputs", i18n.__("输入")),
+        ("process_data", i18n.__("过程")),
+        ("outputs", i18n.__("输出")),
     ] {
         shown_keys.push(key.to_string());
-        if let Some(value) = map.get(key).and_then(|value| workflow_run_preview_value(key, value)) {
+        if let Some(value) =
+            map.get(key).and_then(|value| workflow_run_preview_value(i18n, key, value))
+        {
             items.push((format!("{label}:"), value));
         }
     }
@@ -449,7 +493,7 @@ pub(super) fn workflow_run_node_data_preview_items(
         if should_skip_run_preview_key(key) || shown_keys.iter().any(|shown| shown == key) {
             continue;
         }
-        if let Some(value) = workflow_run_preview_value(key, value) {
+        if let Some(value) = workflow_run_preview_value(i18n, key, value) {
             items.push((format!("{key}:"), value));
         }
     }
@@ -473,13 +517,17 @@ fn is_sensitive_run_preview_key(key: &str) -> bool {
         || lower == "cookie"
 }
 
-fn workflow_run_preview_value(key: &str, value: &serde_json::Value) -> Option<String> {
+fn workflow_run_preview_value(
+    i18n: crate::app::i18n::I18n,
+    key: &str,
+    value: &serde_json::Value,
+) -> Option<String> {
     if value.is_null() {
         return None;
     }
 
     if is_duration_run_preview_key(key) {
-        if let Some(duration) = format_run_preview_duration(key, value) {
+        if let Some(duration) = format_run_preview_duration(i18n, key, value) {
             return Some(duration);
         }
     }
@@ -492,8 +540,8 @@ fn workflow_run_preview_value(key: &str, value: &serde_json::Value) -> Option<St
         serde_json::Value::String(text) => compact_run_preview_text(text),
         serde_json::Value::Number(number) => Some(number.to_string()),
         serde_json::Value::Bool(flag) => Some(flag.to_string()),
-        serde_json::Value::Array(items) => summarize_run_preview_array(items),
-        serde_json::Value::Object(map) => summarize_run_preview_object(map),
+        serde_json::Value::Array(items) => summarize_run_preview_array(i18n, items),
+        serde_json::Value::Object(map) => summarize_run_preview_object(i18n, map),
         serde_json::Value::Null => None,
     }
 }
@@ -513,7 +561,11 @@ fn is_time_run_preview_key(key: &str) -> bool {
         || lower == "finished_at_ms"
 }
 
-fn format_run_preview_duration(key: &str, value: &serde_json::Value) -> Option<String> {
+fn format_run_preview_duration(
+    i18n: crate::app::i18n::I18n,
+    key: &str,
+    value: &serde_json::Value,
+) -> Option<String> {
     let raw = json_number_as_f64(value)?;
     if !raw.is_finite() || raw < 0.0 {
         return None;
@@ -523,10 +575,16 @@ fn format_run_preview_duration(key: &str, value: &serde_json::Value) -> Option<S
     let millis =
         if lower.ends_with("_ms") || lower.contains("millis") { raw } else { raw * 1000.0 };
     if millis < 1000.0 {
-        return Some(format!("{} 毫秒", millis.round() as u64));
+        return Some(
+            i18n.format("%s 毫秒", &[(millis.round() as u64).to_string().into()])
+                .expect("valid workflow display template"),
+        );
     }
 
-    Some(format!("{} 秒", trim_decimal(millis / 1000.0)))
+    Some(
+        i18n.format("%s 秒", &[trim_decimal(millis / 1000.0).to_string().into()])
+            .expect("valid workflow display template"),
+    )
 }
 
 fn format_run_preview_timestamp_value(key: &str, value: &serde_json::Value) -> Option<String> {
@@ -557,6 +615,7 @@ fn json_number_as_f64(value: &serde_json::Value) -> Option<f64> {
 }
 
 fn summarize_run_preview_object(
+    i18n: crate::app::i18n::I18n,
     map: &serde_json::Map<String, serde_json::Value>,
 ) -> Option<String> {
     if map.is_empty() {
@@ -564,7 +623,9 @@ fn summarize_run_preview_object(
     }
 
     for key in ["text", "answer", "result", "output", "data"] {
-        if let Some(value) = map.get(key).and_then(|value| workflow_run_preview_value(key, value)) {
+        if let Some(value) =
+            map.get(key).and_then(|value| workflow_run_preview_value(i18n, key, value))
+        {
             return Some(value);
         }
     }
@@ -577,7 +638,7 @@ fn summarize_run_preview_object(
         if is_sensitive_run_preview_key(key) {
             continue;
         }
-        if let Some(value) = workflow_run_preview_value(key, value) {
+        if let Some(value) = workflow_run_preview_value(i18n, key, value) {
             parts.push(format!("{key}={value}"));
         }
     }
@@ -585,29 +646,44 @@ fn summarize_run_preview_object(
     if parts.is_empty() {
         None
     } else if map.len() > parts.len() {
-        Some(format!("{} 等", parts.join(", ")))
+        Some(
+            i18n.format("%s 等", &[parts.join(", ").to_string().into()])
+                .expect("valid workflow display template"),
+        )
     } else {
         Some(parts.join(", "))
     }
 }
 
-fn summarize_run_preview_array(items: &[serde_json::Value]) -> Option<String> {
+fn summarize_run_preview_array(
+    i18n: crate::app::i18n::I18n,
+    items: &[serde_json::Value],
+) -> Option<String> {
     if items.is_empty() {
         return None;
     }
 
     let mut parts = Vec::new();
     for value in items.iter().take(3) {
-        let Some(value) = workflow_run_preview_value("item", value) else {
+        let Some(value) = workflow_run_preview_value(i18n, "item", value) else {
             continue;
         };
         parts.push(value);
     }
 
     if parts.is_empty() {
-        Some(format!("{} 项", items.len()))
+        Some(
+            i18n.format("%s 项", &[items.len().to_string().into()])
+                .expect("valid workflow display template"),
+        )
     } else if items.len() > parts.len() {
-        Some(format!("{} 等，共 {} 项", parts.join(", "), items.len()))
+        Some(
+            i18n.format(
+                "%s 等，共 %s 项",
+                &[parts.join(", ").to_string().into(), items.len().to_string().into()],
+            )
+            .expect("valid workflow display template"),
+        )
     } else {
         Some(parts.join(", "))
     }
@@ -651,23 +727,29 @@ pub(super) enum WorkflowPreviewStatusKind {
     Unknown,
 }
 
-pub(super) fn workflow_run_status_label(status: WorkflowRunStatus) -> &'static str {
+pub(super) fn workflow_run_status_label(
+    i18n: crate::app::i18n::I18n,
+    status: WorkflowRunStatus,
+) -> &'static str {
     match status {
-        WorkflowRunStatus::Running => "运行中",
-        WorkflowRunStatus::Succeeded => "成功",
-        WorkflowRunStatus::Failed => "失败",
-        WorkflowRunStatus::Canceled => "已取消",
+        WorkflowRunStatus::Running => i18n.__("运行中"),
+        WorkflowRunStatus::Succeeded => i18n.__("成功"),
+        WorkflowRunStatus::Failed => i18n.__("失败"),
+        WorkflowRunStatus::Canceled => i18n.__("已取消"),
     }
 }
 
-pub(super) fn workflow_run_node_status_label(status: Option<&str>) -> &'static str {
+pub(super) fn workflow_run_node_status_label(
+    i18n: crate::app::i18n::I18n,
+    status: Option<&str>,
+) -> &'static str {
     match status {
-        Some("running") | Some("started") => "运行中",
-        Some("succeeded") | Some("success") | Some("finished") => "成功",
-        Some("failed") | Some("error") => "失败",
-        Some("canceled") | Some("cancelled") => "已取消",
-        Some(_) => "未知",
-        None => "等待中",
+        Some("running") | Some("started") => i18n.__("运行中"),
+        Some("succeeded") | Some("success") | Some("finished") => i18n.__("成功"),
+        Some("failed") | Some("error") => i18n.__("失败"),
+        Some("canceled") | Some("cancelled") => i18n.__("已取消"),
+        Some(_) => i18n.__("未知"),
+        None => i18n.__("等待中"),
     }
 }
 

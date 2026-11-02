@@ -111,8 +111,16 @@ fn build_node_next_step_existing_item_handles_empty_and_custom_description() {
         ..workflow_node("answer_2", "answer", Vec::new())
     };
 
-    let empty_description_element = build_node_next_step_existing_item(&edge, &empty_description);
-    let described_element = build_node_next_step_existing_item(&edge, &described_node);
+    let empty_description_element = build_node_next_step_existing_item(
+        crate::app::i18n::I18n::new(Default::default()),
+        &edge,
+        &empty_description,
+    );
+    let described_element = build_node_next_step_existing_item(
+        crate::app::i18n::I18n::new(Default::default()),
+        &edge,
+        &described_node,
+    );
 
     let _ = std::hint::black_box((empty_description_element, described_element));
 }
@@ -122,7 +130,11 @@ fn build_node_next_step_section_handles_create_mode() {
     let state = WorkflowState::default();
     let editor = create_editor("answer");
 
-    let element = build_node_next_step_section(&state, &editor);
+    let element = build_node_next_step_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        &editor,
+    );
 
     let _ = std::hint::black_box(element);
 }
@@ -139,7 +151,11 @@ fn build_node_next_step_section_handles_edit_mode_without_fail_branch() {
     });
     let editor = code_editor_with_error_strategy("code_1", "none");
 
-    let element = build_node_next_step_section(&state, &editor);
+    let element = build_node_next_step_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        &editor,
+    );
 
     let _ = std::hint::black_box(element);
 }
@@ -164,7 +180,11 @@ fn build_node_next_step_section_handles_saved_fail_branch() {
     });
     let editor = code_editor_with_error_strategy("code_1", "none");
 
-    let element = build_node_next_step_section(&state, &editor);
+    let element = build_node_next_step_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        &editor,
+    );
 
     let _ = std::hint::black_box(element);
 }
@@ -177,7 +197,11 @@ fn build_node_next_step_section_handles_draft_fail_branch() {
     });
     let editor = code_editor_with_error_strategy("code_1", "fail-branch");
 
-    let element = build_node_next_step_section(&state, &editor);
+    let element = build_node_next_step_section(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        &editor,
+    );
 
     let _ = std::hint::black_box(element);
 }
@@ -222,9 +246,20 @@ fn build_node_next_step_connection_list_handles_empty_and_dangling_edges() {
         ..WorkflowDocument::default()
     });
 
-    let default_list = build_node_next_step_connection_list(&state, "code_1", None, "空");
-    let fail_branch_list =
-        build_node_next_step_connection_list(&state, "code_1", Some("fail-branch"), "空");
+    let default_list = build_node_next_step_connection_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        "code_1",
+        None,
+        "空",
+    );
+    let fail_branch_list = build_node_next_step_connection_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        "code_1",
+        Some("fail-branch"),
+        "空",
+    );
 
     let _ = std::hint::black_box((default_list, fail_branch_list));
 }
@@ -244,9 +279,20 @@ fn build_node_next_step_connection_list_filters_default_and_fail_branch_edges() 
         ..WorkflowDocument::default()
     });
 
-    let default_list = build_node_next_step_connection_list(&state, "code_1", None, "空");
-    let fail_branch_list =
-        build_node_next_step_connection_list(&state, "code_1", Some("fail-branch"), "空");
+    let default_list = build_node_next_step_connection_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        "code_1",
+        None,
+        "空",
+    );
+    let fail_branch_list = build_node_next_step_connection_list(
+        crate::app::i18n::I18n::new(Default::default()),
+        &state,
+        "code_1",
+        Some("fail-branch"),
+        "空",
+    );
 
     let _ = std::hint::black_box((default_list, fail_branch_list));
 }

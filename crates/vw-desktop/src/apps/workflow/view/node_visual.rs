@@ -15,6 +15,7 @@ use iced::widget::{column, row};
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_node_visual_section<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a WorkflowState,
     editor: &'a super::state::WorkflowNodeEditorDraft,
 ) -> Option<Element<'a, Message>> {
@@ -22,7 +23,7 @@ pub(super) fn build_node_visual_section<'a>(
 
     match editor.visual_draft.as_ref()? {
         WorkflowNodeVisualDraft::Start { variables } => {
-            Some(build_start_visual_section(state, variables, validation))
+            Some(build_start_visual_section(i18n, state, variables, validation))
         }
         WorkflowNodeVisualDraft::Llm {
             provider,
@@ -42,9 +43,9 @@ pub(super) fn build_node_visual_section<'a>(
             column![
                 row![
                     build_editor_field_validated(
-                        "模型 Provider",
+                        i18n.__("模型 Provider"),
                         workflow_text_input(
-                            "例如：langgenius/tongyi/tongyi",
+                            i18n.__("例如：langgenius/tongyi/tongyi"),
                             provider,
                             |value| {
                                 Message::WorkflowTool(
@@ -52,16 +53,20 @@ pub(super) fn build_node_visual_section<'a>(
                                 )
                             }
                         ),
-                        validation.first_error_for("llm.provider"),
+                        validation.localized_error_for(i18n, "llm.provider"),
                     ),
                     build_editor_field_validated(
-                        "模型名称",
-                        workflow_text_input("例如：qwen-turbo-2025-07-15", model_name, |value| {
-                            Message::WorkflowTool(WorkflowMessage::NodeEditorLlmModelNameChanged(
-                                value,
-                            ))
-                        }),
-                        validation.first_error_for("llm.model_name"),
+                        i18n.__("模型名称"),
+                        workflow_text_input(
+                            i18n.__("例如：qwen-turbo-2025-07-15"),
+                            model_name,
+                            |value| {
+                                Message::WorkflowTool(
+                                    WorkflowMessage::NodeEditorLlmModelNameChanged(value),
+                                )
+                            }
+                        ),
+                        validation.localized_error_for(i18n, "llm.model_name"),
                     ),
                 ]
                 .spacing(12),
@@ -69,7 +74,7 @@ pub(super) fn build_node_visual_section<'a>(
                     "Completion Params YAML",
                     build_embedded_text_editor(
                         completion_params_editor,
-                        "输入 completion_params YAML map",
+                        i18n.__("输入 completion_params YAML map"),
                         WorkflowMessage::NodeEditorLlmCompletionParamsAction,
                         120.0,
                     ),
@@ -78,7 +83,7 @@ pub(super) fn build_node_visual_section<'a>(
                     "Structured Output YAML",
                     build_embedded_text_editor(
                         structured_output_editor,
-                        "输入 structured_output YAML map",
+                        i18n.__("输入 structured_output YAML map"),
                         WorkflowMessage::NodeEditorLlmStructuredOutputAction,
                         120.0,
                     ),
@@ -87,23 +92,23 @@ pub(super) fn build_node_visual_section<'a>(
                     "Memory YAML",
                     build_embedded_text_editor(
                         memory_editor,
-                        "输入 memory YAML map",
+                        i18n.__("输入 memory YAML map"),
                         WorkflowMessage::NodeEditorLlmMemoryAction,
                         120.0,
                     ),
                 ),
                 row![
                     build_editor_field_validated(
-                        "模型模式",
-                        workflow_text_input("例如：chat", model_mode, |value| {
+                        i18n.__("模型模式"),
+                        workflow_text_input(i18n.__("例如：chat"), model_mode, |value| {
                             Message::WorkflowTool(WorkflowMessage::NodeEditorLlmModelModeChanged(
                                 value,
                             ))
                         }),
-                        validation.first_error_for("llm.model_mode"),
+                        validation.localized_error_for(i18n, "llm.model_mode"),
                     ),
                     build_editor_field(
-                        "推理开关",
+                        i18n.__("推理开关"),
                         row![
                             toggler(*enable_thinking).on_toggle(|value| Message::WorkflowTool(
                                 WorkflowMessage::NodeEditorLlmEnableThinkingChanged(value),
@@ -119,18 +124,20 @@ pub(super) fn build_node_visual_section<'a>(
                 ]
                 .spacing(12),
                 build_editor_field_validated(
-                    "上下文变量",
+                    i18n.__("上下文变量"),
                     column![
                         row![
                             toggler(*context_enabled).on_toggle(|value| Message::WorkflowTool(
                                 WorkflowMessage::NodeEditorLlmContextEnabledChanged(value),
                             )),
-                            text("启用上下文拼接").size(12).style(settings_muted_text_style),
+                            text(i18n.__("启用上下文拼接"))
+                                .size(12)
+                                .style(settings_muted_text_style),
                         ]
                         .spacing(8)
                         .align_y(Alignment::Center),
                         workflow_text_input(
-                            "用逗号分隔，例如：node_id.text, sys.query",
+                            i18n.__("用逗号分隔，例如：node_id.text, sys.query"),
                             context_selector_input,
                             |value| {
                                 Message::WorkflowTool(
@@ -141,13 +148,13 @@ pub(super) fn build_node_visual_section<'a>(
                     ]
                     .spacing(8)
                     .into(),
-                    validation.first_error_for("llm.context_selector"),
+                    validation.localized_error_for(i18n, "llm.context_selector"),
                 ),
                 build_editor_field(
                     "SYSTEM Prompt",
                     build_embedded_text_editor(
                         system_prompt_editor,
-                        "输入 system prompt",
+                        i18n.__("输入 system prompt"),
                         WorkflowMessage::NodeEditorLlmSystemPromptAction,
                         180.0,
                     ),
@@ -156,13 +163,13 @@ pub(super) fn build_node_visual_section<'a>(
                     "USER Prompt",
                     build_embedded_text_editor(
                         user_prompt_editor,
-                        "输入 user prompt",
+                        i18n.__("输入 user prompt"),
                         WorkflowMessage::NodeEditorLlmUserPromptAction,
                         120.0,
                     ),
                 ),
                 build_editor_field(
-                    "视觉输入",
+                    i18n.__("视觉输入"),
                     column![
                         row![
                             toggler(*vision_enabled).on_toggle(|value| Message::WorkflowTool(
@@ -173,7 +180,7 @@ pub(super) fn build_node_visual_section<'a>(
                         .spacing(8)
                         .align_y(Alignment::Center),
                         workflow_text_input(
-                            "例如：start.image",
+                            i18n.__("例如：start.image"),
                             vision_selector_input,
                             |value| Message::WorkflowTool(
                                 WorkflowMessage::NodeEditorLlmVisionSelectorChanged(value),
@@ -188,19 +195,19 @@ pub(super) fn build_node_visual_section<'a>(
             .into(),
         ),
         WorkflowNodeVisualDraft::Answer { answer_editor } => Some(build_editor_field_validated(
-            "回复内容",
+            i18n.__("回复内容"),
             build_embedded_text_editor(
                 answer_editor,
-                "输入回复文本或模版内容",
+                i18n.__("输入回复文本或模版内容"),
                 WorkflowMessage::NodeEditorAnswerAction,
                 220.0,
             ),
-            validation.first_error_for("answer.text"),
+            validation.localized_error_for(i18n, "answer.text"),
         )),
         WorkflowNodeVisualDraft::End { outputs } => Some(
             column![
-                text("输出变量").size(13),
-                build_named_value_list(outputs, |edit| Message::WorkflowTool(
+                text(i18n.__("输出变量")).size(13),
+                build_named_value_list(i18n, outputs, |edit| Message::WorkflowTool(
                     WorkflowMessage::NodeEditorEndFieldEdit(edit)
                 )),
             ]
@@ -209,34 +216,38 @@ pub(super) fn build_node_visual_section<'a>(
         ),
         WorkflowNodeVisualDraft::TemplateTransform { variables, template_editor } => Some(
             column![
-                text("模板变量").size(13),
-                build_named_value_list(variables, |edit| Message::WorkflowTool(
+                text(i18n.__("模板变量")).size(13),
+                build_named_value_list(i18n, variables, |edit| Message::WorkflowTool(
                     WorkflowMessage::NodeEditorTemplateFieldEdit(edit)
                 )),
                 build_editor_field_validated(
-                    "Jinja 模板",
+                    i18n.__("Jinja 模板"),
                     build_embedded_text_editor(
                         template_editor,
-                        "输入 Jinja 模板",
+                        i18n.__("输入 Jinja 模板"),
                         WorkflowMessage::NodeEditorTemplateAction,
                         220.0,
                     ),
-                    validation.first_error_for("template.template"),
+                    validation.localized_error_for(i18n, "template.template"),
                 ),
             ]
             .spacing(10)
             .into(),
         ),
         WorkflowNodeVisualDraft::DocumentExtractor { variable_selector } => {
-            Some(build_variable_selector_field("文件变量", variable_selector, |edit| match edit
-            {
-                WorkflowNodeFieldEdit::VariableSelectorChanged(value) => {
-                    Message::WorkflowTool(WorkflowMessage::NodeEditorDocumentSelectorChanged(value))
-                }
-                _ => Message::WorkflowTool(WorkflowMessage::NodeEditorDocumentSelectorChanged(
-                    String::new(),
-                )),
-            }))
+            Some(build_variable_selector_field(
+                i18n,
+                i18n.__("文件变量"),
+                variable_selector,
+                |edit| match edit {
+                    WorkflowNodeFieldEdit::VariableSelectorChanged(value) => Message::WorkflowTool(
+                        WorkflowMessage::NodeEditorDocumentSelectorChanged(value),
+                    ),
+                    _ => Message::WorkflowTool(WorkflowMessage::NodeEditorDocumentSelectorChanged(
+                        String::new(),
+                    )),
+                },
+            ))
         }
         WorkflowNodeVisualDraft::QuestionClassifier {
             query,
@@ -244,6 +255,7 @@ pub(super) fn build_node_visual_section<'a>(
             classes,
             instruction_editor,
         } => Some(build_question_classifier_section(
+            i18n,
             validation,
             query,
             model,
@@ -257,6 +269,7 @@ pub(super) fn build_node_visual_section<'a>(
             reasoning_mode,
             instruction_editor,
         } => Some(build_parameter_extractor_section(
+            i18n,
             validation,
             query,
             model,
@@ -265,7 +278,7 @@ pub(super) fn build_node_visual_section<'a>(
             instruction_editor,
         )),
         WorkflowNodeVisualDraft::IfElse { cases } => {
-            Some(build_if_else_visual_section(cases, validation))
+            Some(build_if_else_visual_section(i18n, cases, validation))
         }
         WorkflowNodeVisualDraft::KnowledgeRetrieval {
             query_selector_input,
@@ -283,6 +296,7 @@ pub(super) fn build_node_visual_section<'a>(
             single_model_name,
             single_model_mode,
         } => Some(build_knowledge_visual_section(
+            i18n,
             validation,
             query_selector_input,
             query_attachment_selector_input,
@@ -311,6 +325,7 @@ pub(super) fn build_node_visual_section<'a>(
             tool_parameters_editor,
             tool_configurations_editor,
         } => Some(build_tool_visual_section(
+            i18n,
             validation,
             provider_id,
             provider_type,
@@ -334,6 +349,7 @@ pub(super) fn build_node_visual_section<'a>(
             memory_window_size_input,
             memory_prompt_editor,
         } => Some(build_agent_visual_section(
+            i18n,
             validation,
             strategy_provider_name,
             strategy_name,
@@ -363,6 +379,7 @@ pub(super) fn build_node_visual_section<'a>(
             retry_config,
             error_strategy,
         } => Some(build_http_request_section(
+            i18n,
             validation,
             method,
             url,
@@ -382,10 +399,10 @@ pub(super) fn build_node_visual_section<'a>(
             error_strategy,
         )),
         WorkflowNodeVisualDraft::VariableAssigner { items } => {
-            Some(build_variable_assigner_section(items))
+            Some(build_variable_assigner_section(i18n, items))
         }
         WorkflowNodeVisualDraft::VariableAggregator { variables, output_type } => {
-            Some(build_variable_aggregator_section(variables, output_type))
+            Some(build_variable_aggregator_section(i18n, variables, output_type))
         }
         WorkflowNodeVisualDraft::ListOperator {
             variable,
@@ -397,6 +414,7 @@ pub(super) fn build_node_visual_section<'a>(
             limit_enabled,
             limit_size,
         } => Some(build_list_operator_section(
+            i18n,
             variable,
             conditions,
             *filter_enabled,
@@ -414,6 +432,7 @@ pub(super) fn build_node_visual_section<'a>(
             parallel_nums,
             error_handle_mode,
         } => Some(build_iteration_section(
+            i18n,
             iterator_selector,
             output_selector,
             output_type,
@@ -426,9 +445,13 @@ pub(super) fn build_node_visual_section<'a>(
             break_conditions,
             logical_operator,
             max_loop_count,
-        } => {
-            Some(build_loop_section(variables, break_conditions, logical_operator, max_loop_count))
-        }
+        } => Some(build_loop_section(
+            i18n,
+            variables,
+            break_conditions,
+            logical_operator,
+            max_loop_count,
+        )),
         WorkflowNodeVisualDraft::Code {
             language,
             inputs,
@@ -438,6 +461,7 @@ pub(super) fn build_node_visual_section<'a>(
             error_strategy,
             default_value_editor,
         } => Some(build_code_visual_section(
+            i18n,
             state,
             editor,
             validation,
@@ -457,6 +481,7 @@ fn data_node_message(edit: WorkflowDataNodeEdit) -> Message {
 }
 
 fn build_iteration_section<'a>(
+    i18n: crate::app::i18n::I18n,
     iterator_selector: &'a str,
     output_selector: &'a str,
     output_type: &'a str,
@@ -466,26 +491,26 @@ fn build_iteration_section<'a>(
 ) -> Element<'a, Message> {
     column![
         build_editor_field(
-            "迭代输入",
-            workflow_text_input("例如：start.items", iterator_selector, |v| data_node_message(
-                WorkflowDataNodeEdit::IterationIterator(v)
-            ))
+            i18n.__("迭代输入"),
+            workflow_text_input(i18n.__("例如：start.items"), iterator_selector, |v| {
+                data_node_message(WorkflowDataNodeEdit::IterationIterator(v))
+            })
         ),
         build_editor_field(
-            "迭代输出",
-            workflow_text_input("例如：iteration.item", output_selector, |v| data_node_message(
-                WorkflowDataNodeEdit::IterationOutput(v)
-            ))
+            i18n.__("迭代输出"),
+            workflow_text_input(i18n.__("例如：iteration.item"), output_selector, |v| {
+                data_node_message(WorkflowDataNodeEdit::IterationOutput(v))
+            })
         ),
         row![
             build_editor_field(
-                "输出类型",
+                i18n.__("输出类型"),
                 workflow_text_input("array[string]", output_type, |v| data_node_message(
                     WorkflowDataNodeEdit::IterationOutputType(v)
                 ))
             ),
             build_editor_field(
-                "错误处理",
+                i18n.__("错误处理"),
                 workflow_text_input("terminated", error_handle_mode, |v| data_node_message(
                     WorkflowDataNodeEdit::IterationErrorMode(v)
                 ))
@@ -493,11 +518,11 @@ fn build_iteration_section<'a>(
         ]
         .spacing(12),
         build_editor_field(
-            "并行执行",
+            i18n.__("并行执行"),
             row![
                 toggler(is_parallel)
                     .on_toggle(|v| data_node_message(WorkflowDataNodeEdit::IterationParallel(v))),
-                workflow_text_input("并行数量", parallel_nums, |v| data_node_message(
+                workflow_text_input(i18n.__("并行数量"), parallel_nums, |v| data_node_message(
                     WorkflowDataNodeEdit::IterationParallelNums(v)
                 )),
             ]
@@ -511,28 +536,29 @@ fn build_iteration_section<'a>(
 }
 
 fn build_loop_section<'a>(
+    i18n: crate::app::i18n::I18n,
     variables: &'a [WorkflowLoopVariableDraft],
     conditions: &'a [WorkflowLoopConditionDraft],
     logical_operator: &'a str,
     max_loop_count: &'a str,
 ) -> Element<'a, Message> {
-    let mut variable_list = column![text("循环变量").size(13)].spacing(8);
+    let mut variable_list = column![text(i18n.__("循环变量")).size(13)].spacing(8);
     for (index, item) in variables.iter().enumerate() {
         variable_list = variable_list.push(
             row![
                 workflow_text_input("ID", &item.id, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopVariableId(index, v)
                 )),
-                workflow_text_input("名称", &item.label, move |v| data_node_message(
+                workflow_text_input(i18n.__("名称"), &item.label, move |v| data_node_message(
                     WorkflowDataNodeEdit::LoopVariableLabel(index, v)
                 )),
-                workflow_text_input("类型", &item.value_type, move |v| data_node_message(
-                    WorkflowDataNodeEdit::LoopVariableType(index, v)
-                )),
-                workflow_text_input("初始值", &item.initial_value_input, move |v| {
+                workflow_text_input(i18n.__("类型"), &item.value_type, move |v| {
+                    data_node_message(WorkflowDataNodeEdit::LoopVariableType(index, v))
+                }),
+                workflow_text_input(i18n.__("初始值"), &item.initial_value_input, move |v| {
                     data_node_message(WorkflowDataNodeEdit::LoopVariableValue(index, v))
                 }),
-                button(text("删除"))
+                button(text(i18n.__("删除")))
                     .style(danger_action_btn_style)
                     .padding([8, 10])
                     .on_press(data_node_message(WorkflowDataNodeEdit::LoopVariableRemove(index))),
@@ -540,20 +566,20 @@ fn build_loop_section<'a>(
             .spacing(8),
         );
     }
-    let mut condition_list = column![text("终止条件").size(13)].spacing(8);
+    let mut condition_list = column![text(i18n.__("终止条件")).size(13)].spacing(8);
     for (index, item) in conditions.iter().enumerate() {
         condition_list = condition_list.push(
             row![
-                workflow_text_input("变量选择器", &item.selector, move |v| data_node_message(
-                    WorkflowDataNodeEdit::LoopConditionSelector(index, v)
-                )),
-                workflow_text_input("操作符", &item.comparison_operator, move |v| {
+                workflow_text_input(i18n.__("变量选择器"), &item.selector, move |v| {
+                    data_node_message(WorkflowDataNodeEdit::LoopConditionSelector(index, v))
+                }),
+                workflow_text_input(i18n.__("操作符"), &item.comparison_operator, move |v| {
                     data_node_message(WorkflowDataNodeEdit::LoopConditionOperator(index, v))
                 }),
-                workflow_text_input("比较值", &item.value_input, move |v| data_node_message(
-                    WorkflowDataNodeEdit::LoopConditionValue(index, v)
-                )),
-                button(text("删除"))
+                workflow_text_input(i18n.__("比较值"), &item.value_input, move |v| {
+                    data_node_message(WorkflowDataNodeEdit::LoopConditionValue(index, v))
+                }),
+                button(text(i18n.__("删除")))
                     .style(danger_action_btn_style)
                     .padding([8, 10])
                     .on_press(data_node_message(WorkflowDataNodeEdit::LoopConditionRemove(index))),
@@ -563,26 +589,26 @@ fn build_loop_section<'a>(
     }
     column![
         variable_list.push(
-            button(text("新增循环变量"))
+            button(text(i18n.__("新增循环变量")))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(data_node_message(WorkflowDataNodeEdit::LoopVariableAdd))
         ),
         condition_list.push(
-            button(text("新增终止条件"))
+            button(text(i18n.__("新增终止条件")))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(data_node_message(WorkflowDataNodeEdit::LoopConditionAdd))
         ),
         row![
             build_editor_field(
-                "条件关系",
+                i18n.__("条件关系"),
                 workflow_text_input("and / or", logical_operator, |v| data_node_message(
                     WorkflowDataNodeEdit::LoopLogicalOperator(v)
                 ))
             ),
             build_editor_field(
-                "最大循环次数",
+                i18n.__("最大循环次数"),
                 workflow_text_input("10", max_loop_count, |v| data_node_message(
                     WorkflowDataNodeEdit::LoopMaxCount(v)
                 ))
@@ -599,17 +625,18 @@ fn structured_message(edit: WorkflowStructuredNodeEdit) -> Message {
 }
 
 fn build_structured_model_header<'a>(
+    i18n: crate::app::i18n::I18n,
     query: &'a WorkflowVariableSelectorDraft,
     model: &'a WorkflowModelDraft,
 ) -> Element<'a, Message> {
     column![
-        build_variable_selector_field("输入变量", query, |edit| match edit {
+        build_variable_selector_field(i18n, i18n.__("输入变量"), query, |edit| match edit {
             WorkflowNodeFieldEdit::VariableSelectorChanged(value) => {
                 structured_message(WorkflowStructuredNodeEdit::Query(value))
             }
             _ => structured_message(WorkflowStructuredNodeEdit::Query(String::new())),
         }),
-        build_model_fields(model, |edit| match edit {
+        build_model_fields(i18n, model, |edit| match edit {
             WorkflowNodeFieldEdit::ModelProviderChanged(value) => {
                 structured_message(WorkflowStructuredNodeEdit::ModelProvider(value))
             }
@@ -627,30 +654,34 @@ fn build_structured_model_header<'a>(
 }
 
 fn build_question_classifier_section<'a>(
+    i18n: crate::app::i18n::I18n,
     validation: &'a WorkflowNodeEditorValidation,
     query: &'a WorkflowVariableSelectorDraft,
     model: &'a WorkflowModelDraft,
     classes: &'a [WorkflowClassifierClassDraft],
     instruction_editor: &'a text_editor::Content,
 ) -> Element<'a, Message> {
-    let mut list = column![text("分类").size(13)].spacing(8);
+    let mut list = column![text(i18n.__("分类")).size(13)].spacing(8);
     for (index, class) in classes.iter().enumerate() {
         list = list.push(
             container(
                 row![
-                    workflow_text_input("分类 ID", &class.id, move |value| Message::WorkflowTool(
-                        WorkflowMessage::NodeEditorClassifierClassIdChanged(index, value)
-                    )),
-                    workflow_text_input("分类名称", &class.name, move |value| {
+                    workflow_text_input(i18n.__("分类 ID"), &class.id, move |value| {
+                        Message::WorkflowTool(WorkflowMessage::NodeEditorClassifierClassIdChanged(
+                            index, value,
+                        ))
+                    }),
+                    workflow_text_input(i18n.__("分类名称"), &class.name, move |value| {
                         Message::WorkflowTool(
                             WorkflowMessage::NodeEditorClassifierClassNameChanged(index, value),
                         )
                     }),
-                    button(text("删除")).style(danger_action_btn_style).padding([8, 10]).on_press(
-                        Message::WorkflowTool(WorkflowMessage::NodeEditorClassifierRemoveClass(
-                            index
-                        ),)
-                    ),
+                    button(text(i18n.__("删除")))
+                        .style(danger_action_btn_style)
+                        .padding([8, 10])
+                        .on_press(Message::WorkflowTool(
+                            WorkflowMessage::NodeEditorClassifierRemoveClass(index),
+                        )),
                 ]
                 .spacing(8),
             )
@@ -659,24 +690,24 @@ fn build_question_classifier_section<'a>(
         );
     }
     column![
-        build_structured_model_header(query, model),
+        build_structured_model_header(i18n, query, model),
         list.push(
-            button(text("新增分类"))
+            button(text(i18n.__("新增分类")))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorClassifierAddClass))
         ),
         build_editor_field_validated(
-            "分类指令",
+            i18n.__("分类指令"),
             build_embedded_text_editor(
                 instruction_editor,
-                "输入分类指令",
+                i18n.__("输入分类指令"),
                 |action| WorkflowMessage::NodeEditorStructuredFieldEdit(
                     WorkflowStructuredNodeEdit::Instruction(action)
                 ),
                 140.0,
             ),
-            validation.first_error_for("classifier.instruction"),
+            validation.localized_error_for(i18n, "classifier.instruction"),
         ),
     ]
     .spacing(10)
@@ -684,6 +715,7 @@ fn build_question_classifier_section<'a>(
 }
 
 fn build_parameter_extractor_section<'a>(
+    i18n: crate::app::i18n::I18n,
     _validation: &'a WorkflowNodeEditorValidation,
     query: &'a WorkflowVariableSelectorDraft,
     model: &'a WorkflowModelDraft,
@@ -691,23 +723,27 @@ fn build_parameter_extractor_section<'a>(
     reasoning_mode: &'a str,
     instruction_editor: &'a text_editor::Content,
 ) -> Element<'a, Message> {
-    let mut list = column![text("参数").size(13)].spacing(8);
+    let mut list = column![text(i18n.__("参数")).size(13)].spacing(8);
     for (index, parameter) in parameters.iter().enumerate() {
         list = list.push(
             container(
                 column![
                     row![
-                        workflow_text_input("参数名", &parameter.name, move |value| {
+                        workflow_text_input(i18n.__("参数名"), &parameter.name, move |value| {
                             structured_message(WorkflowStructuredNodeEdit::ParameterName(
                                 index, value,
                             ))
                         }),
-                        workflow_text_input("类型", &parameter.value_type, move |value| {
-                            structured_message(WorkflowStructuredNodeEdit::ParameterType(
-                                index, value,
-                            ))
-                        }),
-                        button(text("删除"))
+                        workflow_text_input(
+                            i18n.__("类型"),
+                            &parameter.value_type,
+                            move |value| {
+                                structured_message(WorkflowStructuredNodeEdit::ParameterType(
+                                    index, value,
+                                ))
+                            }
+                        ),
+                        button(text(i18n.__("删除")))
                             .style(danger_action_btn_style)
                             .padding([8, 10])
                             .on_press(Message::WorkflowTool(
@@ -715,18 +751,22 @@ fn build_parameter_extractor_section<'a>(
                             )),
                     ]
                     .spacing(8),
-                    workflow_text_input("参数说明", &parameter.description, move |value| {
-                        structured_message(WorkflowStructuredNodeEdit::ParameterDescription(
-                            index, value,
-                        ))
-                    }),
+                    workflow_text_input(
+                        i18n.__("参数说明"),
+                        &parameter.description,
+                        move |value| {
+                            structured_message(WorkflowStructuredNodeEdit::ParameterDescription(
+                                index, value,
+                            ))
+                        }
+                    ),
                     row![
                         toggler(parameter.required).on_toggle(move |value| {
                             structured_message(WorkflowStructuredNodeEdit::ParameterRequired(
                                 index, value,
                             ))
                         }),
-                        text("必填").size(12),
+                        text(i18n.__("必填")).size(12),
                     ]
                     .spacing(8),
                 ]
@@ -737,21 +777,21 @@ fn build_parameter_extractor_section<'a>(
         );
     }
     column![
-        build_structured_model_header(query, model),
-        workflow_text_input("推理模式", reasoning_mode, |value| structured_message(
+        build_structured_model_header(i18n, query, model),
+        workflow_text_input(i18n.__("推理模式"), reasoning_mode, |value| structured_message(
             WorkflowStructuredNodeEdit::ReasoningMode(value)
         )),
         list.push(
-            button(text("新增参数"))
+            button(text(i18n.__("新增参数")))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(Message::WorkflowTool(WorkflowMessage::NodeEditorExtractorAddParameter))
         ),
         build_editor_field(
-            "提取指令",
+            i18n.__("提取指令"),
             build_embedded_text_editor(
                 instruction_editor,
-                "输入提取指令",
+                i18n.__("输入提取指令"),
                 |action| WorkflowMessage::NodeEditorStructuredFieldEdit(
                     WorkflowStructuredNodeEdit::Instruction(action)
                 ),

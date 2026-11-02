@@ -131,7 +131,10 @@ fn zoom_menu_button_style(
 /// 构建 center toolbar 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_center_toolbar(state: &WorkflowState) -> Element<'static, Message> {
+pub(super) fn build_center_toolbar(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'static, Message> {
     let node_editor_active = state
         .node_editor
         .as_ref()
@@ -195,38 +198,42 @@ pub(super) fn build_center_toolbar(state: &WorkflowState) -> Element<'static, Me
         row![
             tool_button(
                 Icon::GitBranch,
-                if state.quick_insert_panel_open { "收起插入菜单" } else { "插入节点" },
+                if state.quick_insert_panel_open {
+                    i18n.__("收起插入菜单")
+                } else {
+                    i18n.__("插入节点")
+                },
                 state.quick_insert_panel_open,
                 Some(WorkflowMessage::ToggleQuickInsertPanel),
             ),
             tool_button(
                 Icon::Braces,
-                "环境变量",
+                i18n.__("环境变量"),
                 variable_panel_is_open(state, WorkflowVariablePanelKind::Environment),
                 Some(WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::Environment)),
             ),
             tool_button(
                 Icon::Journals,
-                "会话变量",
+                i18n.__("会话变量"),
                 variable_panel_is_open(state, WorkflowVariablePanelKind::Conversation),
                 Some(WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::Conversation)),
             ),
             tool_button(
                 Icon::GearWideConnected,
-                "系统变量",
+                i18n.__("系统变量"),
                 variable_panel_is_open(state, WorkflowVariablePanelKind::System),
                 Some(WorkflowMessage::OpenVariablePanel(WorkflowVariablePanelKind::System)),
             ),
             divider(),
             tool_button(
                 Icon::Pencil,
-                "编辑节点",
+                i18n.__("编辑节点"),
                 node_editor_active,
                 state.selected_node_id.as_ref().map(|_| WorkflowMessage::OpenEditNodeEditor(None)),
             ),
             tool_button(
                 Icon::LayoutTextWindow,
-                "编辑应用",
+                i18n.__("编辑应用"),
                 app_editor_active,
                 state.active_app_id.as_ref().map(|_| WorkflowMessage::OpenEditAppEditor(None)),
             ),
@@ -340,6 +347,7 @@ pub(super) fn build_zoom_control(state: &WorkflowState) -> Element<'static, Mess
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_zoom_menu_overlay(
+    i18n: crate::app::i18n::I18n,
     state: &WorkflowState,
     zoom_presets: &[u32],
 ) -> Element<'static, Message> {
@@ -355,7 +363,8 @@ pub(super) fn build_zoom_menu_overlay(
         };
 
     let mut items =
-        column![menu_button("适配窗口".to_string(), false, WorkflowMessage::ZoomFit,)].spacing(2);
+        column![menu_button(i18n.__("适配窗口").to_string(), false, WorkflowMessage::ZoomFit,)]
+            .spacing(2);
 
     for percent in zoom_presets {
         items = items.push(menu_button(
@@ -375,8 +384,11 @@ pub(super) fn build_zoom_menu_overlay(
 /// 构建 app switcher dock 对应的界面元素。
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
-pub(super) fn build_app_switcher_dock(state: &WorkflowState) -> Element<'static, Message> {
-    container(build_app_switcher(state)).width(Length::Fixed(300.0)).into()
+pub(super) fn build_app_switcher_dock(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'static, Message> {
+    container(build_app_switcher(i18n, state)).width(Length::Fixed(300.0)).into()
 }
 
 #[cfg(test)]

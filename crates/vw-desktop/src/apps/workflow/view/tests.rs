@@ -22,9 +22,18 @@ fn module_test_anchor() {
 
 #[test]
 fn workflow_app_display_name_uses_fallback_only_for_blank_names() {
-    assert_eq!(workflow_app_display_name(""), "未命名应用");
-    assert_eq!(workflow_app_display_name("   "), "未命名应用");
-    assert_eq!(workflow_app_display_name(" 客服助手 "), " 客服助手 ");
+    assert_eq!(
+        workflow_app_display_name(crate::app::i18n::I18n::new(Default::default()), ""),
+        "未命名应用"
+    );
+    assert_eq!(
+        workflow_app_display_name(crate::app::i18n::I18n::new(Default::default()), "   "),
+        "未命名应用"
+    );
+    assert_eq!(
+        workflow_app_display_name(crate::app::i18n::I18n::new(Default::default()), " 客服助手 "),
+        " 客服助手 "
+    );
 }
 
 #[test]
@@ -68,7 +77,8 @@ fn workflow_app_switch_options_include_saved_apps_with_dirty_active_marker() {
         ..WorkflowState::default()
     };
 
-    let options = workflow_app_switch_options(&state);
+    let options =
+        workflow_app_switch_options(crate::app::i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(options.len(), 2);
     assert_eq!(options[0].id, "saved-a");
@@ -99,7 +109,8 @@ fn workflow_app_switch_options_include_only_open_apps_missing_from_saved_list() 
         ..WorkflowState::default()
     };
 
-    let options = workflow_app_switch_options(&state);
+    let options =
+        workflow_app_switch_options(crate::app::i18n::I18n::new(Default::default()), &state);
 
     assert_eq!(options.len(), 3);
     assert_eq!(options[0].label, "🤖 已保存");
@@ -111,7 +122,7 @@ fn workflow_app_switch_options_include_only_open_apps_missing_from_saved_list() 
 #[test]
 fn build_app_switcher_handles_empty_saved_and_open_apps() {
     let empty_state = WorkflowState::default();
-    let _ = build_app_switcher(&empty_state);
+    let _ = build_app_switcher(crate::app::i18n::I18n::new(Default::default()), &empty_state);
 
     let saved_state = WorkflowState {
         local_uuid: Some("saved".to_string()),
@@ -124,14 +135,14 @@ fn build_app_switcher_handles_empty_saved_and_open_apps() {
         }],
         ..WorkflowState::default()
     };
-    let _ = build_app_switcher(&saved_state);
+    let _ = build_app_switcher(crate::app::i18n::I18n::new(Default::default()), &saved_state);
 
     let open_state = WorkflowState {
         active_app_id: Some("open".to_string()),
         apps: vec![test_app_entry("open", None, "打开应用", "🤖", false)],
         ..WorkflowState::default()
     };
-    let _ = build_app_switcher(&open_state);
+    let _ = build_app_switcher(crate::app::i18n::I18n::new(Default::default()), &open_state);
 }
 
 #[test]
@@ -149,11 +160,12 @@ fn build_app_switcher_prefers_saved_selection_when_saved_uuid_is_active() {
         apps: vec![test_app_entry("open", None, "打开应用", "🧪", false)],
         ..WorkflowState::default()
     };
-    let options = workflow_app_switch_options(&state);
+    let options =
+        workflow_app_switch_options(crate::app::i18n::I18n::new(Default::default()), &state);
 
     assert!(matches!(options[0].source, WorkflowAppSwitchSource::SavedUuid(_)));
     assert!(matches!(options[1].source, WorkflowAppSwitchSource::OpenApp(_)));
-    let _ = build_app_switcher(&state);
+    let _ = build_app_switcher(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -203,7 +215,7 @@ fn view_builds_saved_app_layers_without_active_app() {
         ..WorkflowState::default()
     };
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.saved_app_run_preview = Some(WorkflowRunPreview {
         uuid: "saved".to_string(),
@@ -215,7 +227,7 @@ fn view_builds_saved_app_layers_without_active_app() {
         is_finished: false,
     });
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.app_editor = Some(WorkflowAppEditorDraft {
         mode: WorkflowAppEditorMode::Create,
@@ -226,7 +238,7 @@ fn view_builds_saved_app_layers_without_active_app() {
         max_active_requests_input: "0".to_string(),
     });
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -250,7 +262,7 @@ fn view_builds_active_app_layers_for_empty_and_node_documents() {
         ..WorkflowState::default()
     };
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     state.document.nodes.push(test_node("start", "start"));
     state.selected_node_id = Some("start".to_string());
@@ -261,7 +273,7 @@ fn view_builds_active_app_layers_for_empty_and_node_documents() {
     });
     state.variable_panel = Some(WorkflowVariablePanelKind::System);
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -291,9 +303,10 @@ fn view_builds_saved_app_run_prompt_detail_and_preview_with_copied_error() {
                 hint: "提示".to_string(),
                 max_length_input: "48".to_string(),
             }],
-            error: Some("参数缺失".to_string()),
+            error: Some("参数缺失".to_string().into()),
         }),
         saved_app_run_detail: Some(WorkflowRunDetailDialog {
+            title_source: None,
             title: "运行输出".to_string(),
             content: text_editor::Content::with_text("详细文本"),
         }),
@@ -319,11 +332,11 @@ fn view_builds_saved_app_run_prompt_detail_and_preview_with_copied_error() {
 
     // active_app_id 为空，命中已保存应用分支并叠加全部弹层。
     assert!(state.active_app_id.is_none());
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 
     // run_error_copied 为 false 时仍构建预览层，覆盖另一分支。
     state.run_error_copied = false;
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -347,7 +360,7 @@ fn view_builds_active_app_node_and_variable_editor_layers() {
     };
     state.document.nodes.push(test_node("answer", "answer"));
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 #[test]
@@ -376,7 +389,7 @@ fn view_builds_start_variable_editor_layer() {
             .is_some()
     );
 
-    let _ = view(&state);
+    let _ = view(crate::app::i18n::I18n::new(Default::default()), &state);
 }
 
 fn test_node_editor(

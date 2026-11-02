@@ -6,14 +6,15 @@ use iced::widget::{column, row};
 /// 提供 start variable file type options 功能。
 ///
 /// 参数和返回值遵循调用方所在模块的工作流约定，错误会显式向上传递或由 UI 状态承载。
-pub(super) fn start_variable_file_type_options() -> [(&'static str, &'static str, &'static str); 5]
-{
+pub(super) fn start_variable_file_type_options(
+    i18n: crate::app::i18n::I18n,
+) -> [(&'static str, &'static str, &'static str); 5] {
     [
-        ("document", "文档", "pdf, doc, docx, txt, md"),
-        ("image", "图片", "png, jpg, jpeg, webp, gif"),
-        ("audio", "音频", "mp3, wav, m4a"),
-        ("video", "视频", "mp4, mov, avi"),
-        ("custom", "自定义", "手动填写扩展名"),
+        ("document", i18n.__("文档"), "pdf, doc, docx, txt, md"),
+        ("image", i18n.__("图片"), "png, jpg, jpeg, webp, gif"),
+        ("audio", i18n.__("音频"), "mp3, wav, m4a"),
+        ("video", i18n.__("视频"), "mp4, mov, avi"),
+        ("custom", i18n.__("自定义"), i18n.__("手动填写扩展名")),
     ]
 }
 
@@ -21,6 +22,7 @@ pub(super) fn start_variable_file_type_options() -> [(&'static str, &'static str
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_variable_option_editor<'a>(
+    i18n: crate::app::i18n::I18n,
     variable: &'a super::state::WorkflowStartVariableDraft,
 ) -> Element<'a, Message> {
     let mut option_list = column![].spacing(8);
@@ -28,7 +30,7 @@ pub(super) fn build_start_variable_option_editor<'a>(
     if variable.options.is_empty() {
         option_list = option_list.push(
             container(
-                text("当前还没有选项，至少新增一个后才能保存。")
+                text(i18n.__("当前还没有选项，至少新增一个后才能保存。"))
                     .size(12)
                     .style(settings_muted_text_style),
             )
@@ -39,14 +41,14 @@ pub(super) fn build_start_variable_option_editor<'a>(
         for (index, option) in variable.options.iter().enumerate() {
             option_list = option_list.push(
                 row![
-                    workflow_text_input("选项内容", option, move |value| {
+                    workflow_text_input(i18n.__("选项内容"), option, move |value| {
                         Message::WorkflowTool(
                             WorkflowMessage::NodeEditorStartVariableEditorOptionChanged(
                                 index, value,
                             ),
                         )
                     }),
-                    button(text("删除").size(12))
+                    button(text(i18n.__("删除")).size(12))
                         .style(danger_action_btn_style)
                         .padding([8, 10])
                         .on_press(Message::WorkflowTool(
@@ -60,11 +62,11 @@ pub(super) fn build_start_variable_option_editor<'a>(
     }
 
     build_editor_field(
-        "下拉选项",
+        i18n.__("下拉选项"),
         container(
             column![
                 option_list,
-                button(text("新增选项").size(12))
+                button(text(i18n.__("新增选项")).size(12))
                     .style(rounded_action_btn_style)
                     .padding([8, 12])
                     .on_press(Message::WorkflowTool(
@@ -81,6 +83,7 @@ pub(super) fn build_start_variable_option_editor<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_variable_select_default_field<'a>(
+    i18n: crate::app::i18n::I18n,
     variable: &'a super::state::WorkflowStartVariableDraft,
 ) -> Element<'a, Message> {
     let options = variable
@@ -93,17 +96,21 @@ pub(super) fn build_start_variable_select_default_field<'a>(
 
     if options.is_empty() {
         return build_editor_field(
-            "默认值",
-            container(text("请先添加至少一个下拉选项。").size(12).style(settings_muted_text_style))
-                .padding([10, 12])
-                .style(value_card_style)
-                .into(),
+            i18n.__("默认值"),
+            container(
+                text(i18n.__("请先添加至少一个下拉选项。"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+            )
+            .padding([10, 12])
+            .style(value_card_style)
+            .into(),
         );
     }
 
     let selected =
         options.iter().find(|option| option.as_str() == variable.default_value.trim()).cloned();
-    let select_default_picker: Element<'a, Message> = pick_list(options, selected, |value| {
+    let select_default_picker: Element<'a, Message> = pick_list(options, selected, move |value| {
         Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(value))
     })
     .padding([10, 12])
@@ -114,10 +121,10 @@ pub(super) fn build_start_variable_select_default_field<'a>(
     .into();
 
     build_editor_field(
-        "默认值",
+        i18n.__("默认值"),
         row![
             select_default_picker,
-            button(text("清空").size(12))
+            button(text(i18n.__("清空")).size(12))
                 .style(rounded_action_btn_style)
                 .padding([8, 12])
                 .on_press(Message::WorkflowTool(
@@ -192,6 +199,7 @@ fn build_start_variable_default_file_button(
 }
 
 fn build_start_variable_file_default_value<'a>(
+    i18n: crate::app::i18n::I18n,
     start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
 ) -> Element<'a, Message> {
     let variable = &start_variable_editor.variable;
@@ -211,12 +219,12 @@ fn build_start_variable_file_default_value<'a>(
         (true, true) => row![
             build_start_variable_default_file_button(
                 Icon::CloudUpload,
-                "从本地上传",
+                i18n.__("从本地上传"),
                 WorkflowMessage::NodeEditorStartVariableEditorPickDefaultFile,
             ),
             build_start_variable_default_file_button(
                 Icon::Link,
-                "粘贴文件链接",
+                i18n.__("粘贴文件链接"),
                 WorkflowMessage::NodeEditorStartVariableEditorOpenDefaultFileUrlInput,
             ),
         ]
@@ -224,20 +232,20 @@ fn build_start_variable_file_default_value<'a>(
         .into(),
         (true, false) => build_start_variable_default_file_button(
             Icon::CloudUpload,
-            "从本地上传",
+            i18n.__("从本地上传"),
             WorkflowMessage::NodeEditorStartVariableEditorPickDefaultFile,
         ),
         (false, true) => build_start_variable_default_file_button(
             Icon::Link,
-            "粘贴文件链接",
+            i18n.__("粘贴文件链接"),
             WorkflowMessage::NodeEditorStartVariableEditorOpenDefaultFileUrlInput,
         ),
-        (false, false) => {
-            container(text("请先选择至少一种上传方式。").size(12).style(settings_muted_text_style))
-                .padding([10, 12])
-                .style(value_card_style)
-                .into()
-        }
+        (false, false) => container(
+            text(i18n.__("请先选择至少一种上传方式。")).size(12).style(settings_muted_text_style),
+        )
+        .padding([10, 12])
+        .style(value_card_style)
+        .into(),
     };
 
     let url_input_overlay: Element<'a, Message> =
@@ -246,7 +254,7 @@ fn build_start_variable_file_default_value<'a>(
                 column![
                     row![
                         workflow_text_input(
-                            "输入文件链接",
+                            i18n.__("输入文件链接"),
                             &start_variable_editor.default_file_url_input,
                             |value| Message::WorkflowTool(
                                 WorkflowMessage::NodeEditorStartVariableEditorDefaultFileUrlChanged(
@@ -254,7 +262,7 @@ fn build_start_variable_file_default_value<'a>(
                                 ),
                             ),
                         ),
-                        button(text("好的").size(12))
+                        button(text(i18n.__("好的")).size(12))
                             .style(primary_action_btn_style)
                             .padding([10, 12])
                             .on_press(Message::WorkflowTool(
@@ -263,7 +271,7 @@ fn build_start_variable_file_default_value<'a>(
                     ]
                     .spacing(8)
                     .align_y(Alignment::Center),
-                    button(text("取消").size(12))
+                    button(text(i18n.__("取消")).size(12))
                         .style(rounded_action_btn_style)
                         .padding([8, 10])
                         .on_press(Message::WorkflowTool(
@@ -286,9 +294,16 @@ fn build_start_variable_file_default_value<'a>(
         container(
             column![
                 text(if variable.input_type == "file-list" {
-                    format!("当前默认值 {selected_default_count}/{max_default_count}")
+                    i18n.format(
+                        "当前默认值 %s/%s",
+                        &[
+                            selected_default_count.to_string().into(),
+                            max_default_count.to_string().into(),
+                        ],
+                    )
+                    .expect("valid workflow display template")
                 } else {
-                    "当前默认值".to_string()
+                    i18n.__("当前默认值").to_string()
                 })
                 .size(12)
                 .style(settings_muted_text_style),
@@ -335,11 +350,12 @@ fn build_start_variable_file_default_value<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_variable_file_settings<'a>(
+    i18n: crate::app::i18n::I18n,
     start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
 ) -> Element<'a, Message> {
     let variable = &start_variable_editor.variable;
     let mut file_type_buttons = row![].spacing(8);
-    for (value, label, description) in start_variable_file_type_options() {
+    for (value, label, description) in start_variable_file_type_options(i18n) {
         let selected = variable.allowed_file_types.iter().any(|item| item == value);
         file_type_buttons = file_type_buttons.push(build_start_variable_file_type_button(
             value,
@@ -365,9 +381,9 @@ pub(super) fn build_start_variable_file_settings<'a>(
     let custom_extensions_field: Element<'a, Message> =
         if variable.allowed_file_types.iter().any(|item| item == "custom") {
             build_editor_field(
-                "自定义扩展名",
+                i18n.__("自定义扩展名"),
                 workflow_text_input(
-                    "例如：.pdf, .csv",
+                    i18n.__("例如：.pdf, .csv"),
                     &variable.allowed_file_extensions_input,
                     |value| {
                         Message::WorkflowTool(
@@ -385,9 +401,9 @@ pub(super) fn build_start_variable_file_settings<'a>(
             &variable.max_length_input,
         );
         build_editor_field(
-            "最大上传数",
+            i18n.__("最大上传数"),
             column![
-                text("文档 <15.00 MB, 图片 <10.00 MB, 音频 <50.00 MB, 视频 <100.00 MB")
+                text(i18n.__("文档 <15.00 MB, 图片 <10.00 MB, 音频 <50.00 MB, 视频 <100.00 MB"))
                     .size(12)
                     .style(settings_muted_text_style),
                 row![
@@ -418,12 +434,12 @@ pub(super) fn build_start_variable_file_settings<'a>(
     let default_value_field: Element<'a, Message> =
         if matches!(variable.input_type.as_str(), "file" | "file-list") {
             build_editor_field(
-                "默认值",
-                build_start_variable_file_default_value(start_variable_editor),
+                i18n.__("默认值"),
+                build_start_variable_file_default_value(i18n, start_variable_editor),
             )
         } else {
             container(
-                text("文件列表默认值暂未可视化，仍可在“高级 DSL”里直接编辑。")
+                text(i18n.__("文件列表默认值暂未可视化，仍可在“高级 DSL”里直接编辑。"))
                     .size(12)
                     .style(settings_muted_text_style),
             )
@@ -434,16 +450,16 @@ pub(super) fn build_start_variable_file_settings<'a>(
 
     column![
         build_editor_field(
-            "支持文件类型",
+            i18n.__("支持文件类型"),
             container(file_type_buttons.wrap()).width(Length::Fill).into(),
         ),
         custom_extensions_field,
         build_editor_field(
-            "上传方式",
+            i18n.__("上传方式"),
             row![
                 build_start_variable_upload_method_button(
                     "local_file",
-                    "本地上传",
+                    i18n.__("本地上传"),
                     upload_mode == "local_file",
                 ),
                 build_start_variable_upload_method_button(
@@ -453,7 +469,7 @@ pub(super) fn build_start_variable_file_settings<'a>(
                 ),
                 build_start_variable_upload_method_button(
                     "all",
-                    "两者都支持",
+                    i18n.__("两者都支持"),
                     upload_mode == "all"
                 ),
             ]
@@ -471,11 +487,12 @@ pub(super) fn build_start_variable_file_settings<'a>(
 ///
 /// 参数由当前工作流状态或编辑草稿提供；返回值是可直接嵌入 iced 视图树的元素。
 pub(super) fn build_start_variable_card<'a>(
+    i18n: crate::app::i18n::I18n,
     start_variable_editor: &'a super::state::WorkflowStartVariableEditorDraft,
 ) -> Element<'a, Message> {
     let variable = &start_variable_editor.variable;
     let advanced_hint = start_variable_advanced_hint(&variable.input_type);
-    let default_value_error = start_variable_default_error(variable);
+    let default_value_error = start_variable_default_error(i18n, variable);
     let advanced_hint_card: Element<'a, Message> = if let Some(hint) = advanced_hint {
         text(hint).size(12).style(settings_muted_text_style).into()
     } else {
@@ -483,25 +500,25 @@ pub(super) fn build_start_variable_card<'a>(
     };
     let type_specific_fields: Element<'a, Message> = if variable.input_type == "select" {
         column![
-            build_start_variable_option_editor(variable),
-            build_start_variable_select_default_field(variable),
+            build_start_variable_option_editor(i18n, variable),
+            build_start_variable_select_default_field(i18n, variable),
         ]
         .spacing(12)
         .into()
     } else if matches!(variable.input_type.as_str(), "file" | "file-list") {
-        build_start_variable_file_settings(start_variable_editor)
+        build_start_variable_file_settings(i18n, start_variable_editor)
     } else if variable.input_type == "checkbox" {
-        let options = vec!["默认勾选".to_string(), "不默认选中".to_string()];
+        let options = vec![i18n.__("默认勾选").to_string(), i18n.__("不默认选中").to_string()];
         let selected = match variable.default_value.trim().to_ascii_lowercase().as_str() {
-            "true" => Some("默认勾选".to_string()),
-            "false" | "" => Some("不默认选中".to_string()),
+            "true" => Some(i18n.__("默认勾选").to_string()),
+            "false" | "" => Some(i18n.__("不默认选中").to_string()),
             _ => None,
         };
 
         build_editor_field(
-            "默认值",
-            pick_list(options, selected, |value| {
-                let normalized = if value == "默认勾选" { "true" } else { "false" };
+            i18n.__("默认值"),
+            pick_list(options, selected, move |value| {
+                let normalized = if value == i18n.__("默认勾选") { "true" } else { "false" };
                 Message::WorkflowTool(WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(
                     normalized.to_string(),
                 ))
@@ -517,8 +534,8 @@ pub(super) fn build_start_variable_card<'a>(
         let max_length_field: Element<'a, Message> =
             if matches!(variable.input_type.as_str(), "text-input" | "paragraph") {
                 build_editor_field(
-                    "最大长度",
-                    workflow_text_input("请输入", &variable.max_length_input, |value| {
+                    i18n.__("最大长度"),
+                    workflow_text_input(i18n.__("请输入"), &variable.max_length_input, |value| {
                         Message::WorkflowTool(
                             WorkflowMessage::NodeEditorStartVariableEditorMaxLengthChanged(value),
                         )
@@ -530,24 +547,24 @@ pub(super) fn build_start_variable_card<'a>(
 
         let default_value_field: Element<'a, Message> = if variable.input_type == "paragraph" {
             build_editor_field_validated(
-                "默认值",
+                i18n.__("默认值"),
                 build_embedded_text_editor(
                     &start_variable_editor.default_value_editor,
-                    "请输入",
+                    i18n.__("请输入"),
                     WorkflowMessage::NodeEditorStartVariableEditorDefaultAction,
                     112.0,
                 ),
-                default_value_error,
+                default_value_error.map(str::to_owned),
             )
         } else {
             build_editor_field_validated(
-                "默认值",
-                workflow_text_input("请输入", &variable.default_value, |value| {
+                i18n.__("默认值"),
+                workflow_text_input(i18n.__("请输入"), &variable.default_value, |value| {
                     Message::WorkflowTool(
                         WorkflowMessage::NodeEditorStartVariableEditorDefaultChanged(value),
                     )
                 }),
-                default_value_error,
+                default_value_error.map(str::to_owned),
             )
         };
 
@@ -557,20 +574,20 @@ pub(super) fn build_start_variable_card<'a>(
     container(
         column![
             build_editor_field(
-                "字段类型",
-                build_start_variable_type_selector(&variable.input_type)
+                i18n.__("字段类型"),
+                build_start_variable_type_selector(i18n, &variable.input_type)
             ),
             build_editor_field(
-                "变量名称",
-                workflow_text_input("请输入", &variable.variable, |value| {
+                i18n.__("变量名称"),
+                workflow_text_input(i18n.__("请输入"), &variable.variable, |value| {
                     Message::WorkflowTool(
                         WorkflowMessage::NodeEditorStartVariableEditorNameChanged(value),
                     )
                 }),
             ),
             build_editor_field(
-                "显示名称",
-                workflow_text_input("请输入", &variable.label, |value| {
+                i18n.__("显示名称"),
+                workflow_text_input(i18n.__("请输入"), &variable.label, |value| {
                     Message::WorkflowTool(
                         WorkflowMessage::NodeEditorStartVariableEditorLabelChanged(value),
                     )
@@ -584,7 +601,7 @@ pub(super) fn build_start_variable_card<'a>(
                             WorkflowMessage::NodeEditorStartVariableEditorRequiredChanged(value),
                         )
                     }),
-                    text("必填").size(13),
+                    text(i18n.__("必填")).size(13),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
@@ -594,7 +611,7 @@ pub(super) fn build_start_variable_card<'a>(
                             WorkflowMessage::NodeEditorStartVariableEditorHiddenChanged(value),
                         )
                     }),
-                    text("隐藏").size(13),
+                    text(i18n.__("隐藏")).size(13),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),

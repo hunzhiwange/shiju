@@ -7,9 +7,10 @@ use super::*;
 pub fn load_document_from_value(
     source_path: Option<String>,
     raw_root: Value,
-) -> Result<LoadedWorkflow, String> {
-    let parsed: DifyWorkflowFile = serde_yaml::from_value(raw_root.clone())
-        .map_err(|error| format!("解析 Dify DSL 失败: {error}"))?;
+) -> Result<LoadedWorkflow, crate::app::i18n::workflow::Feedback> {
+    let parsed: DifyWorkflowFile = serde_yaml::from_value(raw_root.clone()).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new("解析 Dify DSL 失败: %s", vec![error.to_string()])
+    })?;
 
     let app_meta = workflow_app_meta_from_dify(parsed.app.as_ref());
 
@@ -27,7 +28,12 @@ pub fn load_document_from_value(
         .as_ref()
         .map(|workflow| &workflow.graph)
         .or(parsed.graph.as_ref())
-        .ok_or_else(|| "未找到 workflow.graph 节点，无法构建画布".to_string())?;
+        .ok_or_else(|| {
+            crate::app::i18n::workflow::Feedback::new(
+                "未找到 workflow.graph 节点，无法构建画布",
+                vec![],
+            )
+        })?;
 
     let raw_graph = raw_graph_value(&raw_root);
     let raw_nodes = raw_graph
@@ -137,7 +143,7 @@ pub fn serialize_workflow_yaml(
     conversation_variables: &[WorkflowConversationVariable],
     raw_root: &Value,
     viewport: WorkflowViewport,
-) -> Result<String, String> {
+) -> Result<String, crate::app::i18n::workflow::Feedback> {
     let root = patch_root_for_save(
         app_meta,
         document,
@@ -146,7 +152,12 @@ pub fn serialize_workflow_yaml(
         raw_root,
         viewport,
     )?;
-    serde_yaml::to_string(&root).map_err(|error| format!("序列化工作流 yml 失败: {error}"))
+    serde_yaml::to_string(&root).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new(
+            "序列化工作流 yml 失败: %s",
+            vec![error.to_string()],
+        )
+    })
 }
 
 pub fn suggested_workflow_file_name(title: &str) -> String {

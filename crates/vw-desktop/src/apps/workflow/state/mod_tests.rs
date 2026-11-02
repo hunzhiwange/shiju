@@ -8,7 +8,7 @@ fn validation_reports_whether_any_field_errors_exist() {
     let validation = WorkflowNodeEditorValidation {
         field_errors: vec![WorkflowNodeValidationError {
             path: "basic.title".to_string(),
-            message: "请输入标题".to_string(),
+            message: "请输入标题".to_string().into(),
         }],
     };
 
@@ -22,15 +22,15 @@ fn validation_returns_first_error_message_for_matching_path() {
         field_errors: vec![
             WorkflowNodeValidationError {
                 path: "basic.title".to_string(),
-                message: "请输入标题".to_string(),
+                message: "请输入标题".to_string().into(),
             },
             WorkflowNodeValidationError {
                 path: "advanced_yaml.raw_data".to_string(),
-                message: "YAML 格式无效".to_string(),
+                message: "YAML 格式无效".to_string().into(),
             },
             WorkflowNodeValidationError {
                 path: "basic.title".to_string(),
-                message: "标题过长".to_string(),
+                message: "标题过长".to_string().into(),
             },
         ],
     };

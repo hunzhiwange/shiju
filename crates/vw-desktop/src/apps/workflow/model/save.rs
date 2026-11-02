@@ -111,9 +111,11 @@ pub(super) fn patch_root_for_save(
     conversation_variables: &[WorkflowConversationVariable],
     raw_root: &Value,
     viewport: WorkflowViewport,
-) -> Result<Value, String> {
+) -> Result<Value, crate::app::i18n::workflow::Feedback> {
     let mut root = ensure_root_mapping(raw_root.clone());
-    let root_map = root.as_mapping_mut().ok_or_else(|| "工作流根节点必须是一个对象".to_string())?;
+    let root_map = root.as_mapping_mut().ok_or_else(|| {
+        crate::app::i18n::workflow::Feedback::new("工作流根节点必须是一个对象", vec![])
+    })?;
 
     let app_value =
         root_map.entry(Value::String("app".to_string())).or_insert_with(|| yaml_map(vec![]));
@@ -268,9 +270,12 @@ pub(super) fn raw_workflow_value(root: &Value) -> Option<&Mapping> {
     root.as_mapping()?.get(&key_value("workflow")).and_then(Value::as_mapping)
 }
 
-pub(super) fn yaml_string_for_editor(value: &Value) -> Result<String, String> {
-    let yaml =
-        serde_yaml::to_string(value).map_err(|error| format!("生成 YAML 文本失败: {error}"))?;
+pub(super) fn yaml_string_for_editor(
+    value: &Value,
+) -> Result<String, crate::app::i18n::workflow::Feedback> {
+    let yaml = serde_yaml::to_string(value).map_err(|error| {
+        crate::app::i18n::workflow::Feedback::new("生成 YAML 文本失败: %s", vec![error.to_string()])
+    })?;
     Ok(yaml.strip_prefix("---\n").unwrap_or(&yaml).to_string())
 }
 

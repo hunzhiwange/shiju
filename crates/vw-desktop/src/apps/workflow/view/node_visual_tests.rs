@@ -36,7 +36,8 @@ fn assert_visual_section_builds(block_type: &str, visual_draft: WorkflowNodeVisu
     let state = WorkflowState::default();
     let editor = editor_with_visual_draft(block_type, Some(visual_draft));
 
-    let section = build_node_visual_section(&state, &editor);
+    let section =
+        build_node_visual_section(crate::app::i18n::I18n::new(Default::default()), &state, &editor);
 
     assert!(section.is_some());
 }
@@ -46,7 +47,8 @@ fn node_visual_section_returns_none_without_visual_draft() {
     let state = WorkflowState::default();
     let editor = editor_with_visual_draft("custom", None);
 
-    let section = build_node_visual_section(&state, &editor);
+    let section =
+        build_node_visual_section(crate::app::i18n::I18n::new(Default::default()), &state, &editor);
 
     assert!(section.is_none());
 }
@@ -167,23 +169,30 @@ fn node_visual_section_builds_with_validation_errors() {
     llm_editor.validation.field_errors = vec![
         WorkflowNodeValidationError {
             path: "llm.provider".to_string(),
-            message: "provider required".to_string(),
+            message: "provider required".to_string().into(),
         },
         WorkflowNodeValidationError {
             path: "llm.model_name".to_string(),
-            message: "model required".to_string(),
+            message: "model required".to_string().into(),
         },
         WorkflowNodeValidationError {
             path: "llm.model_mode".to_string(),
-            message: "mode required".to_string(),
+            message: "mode required".to_string().into(),
         },
         WorkflowNodeValidationError {
             path: "llm.context_selector".to_string(),
-            message: "selector invalid".to_string(),
+            message: "selector invalid".to_string().into(),
         },
     ];
 
-    assert!(build_node_visual_section(&state, &llm_editor).is_some());
+    assert!(
+        build_node_visual_section(
+            crate::app::i18n::I18n::new(Default::default()),
+            &state,
+            &llm_editor
+        )
+        .is_some()
+    );
 
     let mut answer_editor = editor_with_visual_draft(
         "answer",
@@ -193,10 +202,17 @@ fn node_visual_section_builds_with_validation_errors() {
     );
     answer_editor.validation.field_errors.push(WorkflowNodeValidationError {
         path: "answer.text".to_string(),
-        message: "answer required".to_string(),
+        message: ("answer required".to_string()).into(),
     });
 
-    assert!(build_node_visual_section(&state, &answer_editor).is_some());
+    assert!(
+        build_node_visual_section(
+            crate::app::i18n::I18n::new(Default::default()),
+            &state,
+            &answer_editor
+        )
+        .is_some()
+    );
 }
 
 #[test]

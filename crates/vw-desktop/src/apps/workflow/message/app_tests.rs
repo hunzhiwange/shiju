@@ -153,12 +153,15 @@ fn saved_app_errors_and_copy_state_are_recorded() {
     app::handle(&mut app, WorkflowMessage::LoadSavedAppsFinished(Err("load failed".to_string())));
     assert_eq!(app.workflow_state.saved_apps_error.as_deref(), Some("load failed"));
 
-    app::handle(&mut app, WorkflowMessage::OpenSavedAppFinished(Err("open failed".to_string())));
+    app::handle(
+        &mut app,
+        WorkflowMessage::OpenSavedAppFinished(Err("open failed".to_string().into())),
+    );
     assert_eq!(app.workflow_state.error_message.as_deref(), Some("open failed"));
 
     app::handle(
         &mut app,
-        WorkflowMessage::DeleteSavedAppFinished(Err("delete failed".to_string())),
+        WorkflowMessage::DeleteSavedAppFinished(Err("delete failed".to_string().into())),
     );
     assert_eq!(app.workflow_state.error_message.as_deref(), Some("delete failed"));
 
@@ -222,8 +225,11 @@ fn open_file_finished_handles_loaded_cancel_and_error_results() {
     assert_eq!(app.workflow_state.status_message.as_deref(), Some("unchanged"));
 
     assert!(
-        app::handle(&mut app, WorkflowMessage::OpenFileFinished(Err("open failed".to_string())))
-            .is_some()
+        app::handle(
+            &mut app,
+            WorkflowMessage::OpenFileFinished(Err("open failed".to_string().into()))
+        )
+        .is_some()
     );
 }
 

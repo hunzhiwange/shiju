@@ -20,12 +20,12 @@ use crate::app::Message;
 use crate::app::assets::{self, Icon};
 use crate::app::components::overlays::PointBelowOverlay;
 use crate::app::components::system_settings_common::{
-    danger_action_btn_style, primary_action_btn_style, round_icon_btn_style,
-    rounded_action_btn_style, settings_close_button, settings_modal_backdrop_style,
-    settings_modal_card_style, settings_modal_overlay, settings_muted_text_style,
-    settings_panel_style, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_section_card, settings_text_editor_style, settings_text_input_style,
-    settings_value_badge,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, danger_action_btn_style,
+    primary_action_btn_style, round_icon_btn_style, rounded_action_btn_style,
+    settings_close_button, settings_modal_backdrop_style, settings_modal_card_style,
+    settings_modal_overlay, settings_muted_text_style, settings_panel_style,
+    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
+    settings_text_editor_style, settings_text_input_style, settings_value_badge,
 };
 use iced::widget::{
     Space, button, checkbox, container, image, mouse_area, pick_list, scrollable,
@@ -109,8 +109,8 @@ fn workflow_text_input<'a>(
 ) -> Element<'a, Message> {
     text_input(placeholder, value)
         .on_input(on_input)
-        .padding([10, 12])
-        .size(13)
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_text_input_style)
         .width(Length::Fill)
         .into()
@@ -252,11 +252,14 @@ impl std::fmt::Display for WorkflowAppSwitchOption {
     }
 }
 
-fn workflow_app_display_name(name: &str) -> String {
-    if name.trim().is_empty() { "未命名应用".to_string() } else { name.to_string() }
+fn workflow_app_display_name(i18n: crate::app::i18n::I18n, name: &str) -> String {
+    if name.trim().is_empty() { i18n.__("未命名应用").to_string() } else { name.to_string() }
 }
 
-fn workflow_app_switch_options(state: &WorkflowState) -> Vec<WorkflowAppSwitchOption> {
+fn workflow_app_switch_options(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Vec<WorkflowAppSwitchOption> {
     let mut options = state
         .saved_apps
         .iter()
@@ -264,9 +267,9 @@ fn workflow_app_switch_options(state: &WorkflowState) -> Vec<WorkflowAppSwitchOp
             let is_active = state.local_uuid.as_deref() == Some(app.uuid.as_str());
             let dirty = is_active && state.active_is_dirty;
             let label = if dirty {
-                format!("🤖 {} *", workflow_app_display_name(&app.name))
+                format!("🤖 {} *", workflow_app_display_name(i18n, &app.name))
             } else {
-                format!("🤖 {}", workflow_app_display_name(&app.name))
+                format!("🤖 {}", workflow_app_display_name(i18n, &app.name))
             };
 
             WorkflowAppSwitchOption {
@@ -284,9 +287,9 @@ fn workflow_app_switch_options(state: &WorkflowState) -> Vec<WorkflowAppSwitchOp
     }) {
         let is_active = state.active_app_id.as_deref() == Some(app.id.as_str());
         let name = if is_active {
-            workflow_app_display_name(&state.source_name)
+            workflow_app_display_name(i18n, &state.source_name)
         } else {
-            workflow_app_display_name(&app.meta.name)
+            workflow_app_display_name(i18n, &app.meta.name)
         };
         let dirty = if is_active { state.active_is_dirty } else { app.is_dirty };
         let label = if dirty {
@@ -305,8 +308,11 @@ fn workflow_app_switch_options(state: &WorkflowState) -> Vec<WorkflowAppSwitchOp
     options
 }
 
-fn build_app_switcher(state: &WorkflowState) -> Element<'static, Message> {
-    let options = workflow_app_switch_options(state);
+fn build_app_switcher(
+    i18n: crate::app::i18n::I18n,
+    state: &WorkflowState,
+) -> Element<'static, Message> {
+    let options = workflow_app_switch_options(i18n, state);
     let selected = state
         .local_uuid
         .as_ref()
@@ -346,15 +352,18 @@ fn build_app_switcher(state: &WorkflowState) -> Element<'static, Message> {
     }
 }
 
-pub fn view(state: &WorkflowState) -> Element<'_, Message> {
+pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, Message> {
     if state.active_app_id.is_none() {
         let mut layers: Vec<Element<'_, Message>> = vec![
-            container(build_saved_apps_view(state)).width(Length::Fill).height(Length::Fill).into(),
+            container(build_saved_apps_view(i18n, state))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into(),
         ];
 
-        if let Some(error) = &state.error_message {
+        if let Some(error) = state.error_text(i18n) {
             layers.push(
-                container(error_banner(error))
+                container(error_banner(i18n, error))
                     .padding(iced::Padding {
                         top: FLOATING_MARGIN,
                         right: FLOATING_MARGIN,
@@ -370,19 +379,19 @@ pub fn view(state: &WorkflowState) -> Element<'_, Message> {
         }
 
         if state.app_editor.is_some() {
-            layers.push(build_app_editor_modal(state));
+            layers.push(build_app_editor_modal(i18n, state));
         }
-        if let Some(confirm_dialog) = build_saved_app_delete_confirm_dialog(state) {
+        if let Some(confirm_dialog) = build_saved_app_delete_confirm_dialog(i18n, state) {
             layers.push(confirm_dialog);
         }
-        if let Some(run_prompt) = build_saved_app_run_prompt_dialog(state) {
+        if let Some(run_prompt) = build_saved_app_run_prompt_dialog(i18n, state) {
             layers.push(run_prompt);
         }
         if let Some(preview) = &state.saved_app_run_preview {
-            layers.push(build_saved_app_run_preview_layer(preview, state.run_error_copied));
+            layers.push(build_saved_app_run_preview_layer(i18n, preview, state.run_error_copied));
         }
         if let Some(detail) = &state.saved_app_run_detail {
-            layers.push(build_saved_app_run_detail_layer(detail));
+            layers.push(build_saved_app_run_detail_layer(i18n, detail));
         }
 
         return stack(layers).width(Length::Fill).height(Length::Fill).into();
@@ -398,6 +407,7 @@ pub fn view(state: &WorkflowState) -> Element<'_, Message> {
     } else {
         container(
             iced::widget::canvas(WorkflowCanvas {
+                i18n,
                 document: &state.document,
                 pan: state.pan,
                 zoom: state.zoom,
@@ -414,15 +424,15 @@ pub fn view(state: &WorkflowState) -> Element<'_, Message> {
         .into()
     };
 
-    let canvas_area = build_canvas_area(state, canvas_base);
+    let canvas_area = build_canvas_area(i18n, state, canvas_base);
 
     let mut layers: Vec<Element<'_, Message>> = vec![
         container(canvas_area).width(Length::Fill).height(Length::Fill).style(root_style).into(),
     ];
 
-    if let Some(error) = &state.error_message {
+    if let Some(error) = state.error_text(i18n) {
         layers.push(
-            container(error_banner(error))
+            container(error_banner(i18n, error))
                 .padding(iced::Padding {
                     top: FLOATING_MARGIN,
                     right: FLOATING_MARGIN,
@@ -438,20 +448,20 @@ pub fn view(state: &WorkflowState) -> Element<'_, Message> {
     }
 
     if state.app_editor.is_some() {
-        layers.push(build_app_editor_modal(state));
+        layers.push(build_app_editor_modal(i18n, state));
     }
     if state.node_editor.is_some() {
-        layers.push(build_node_editor_modal(state));
+        layers.push(build_node_editor_modal(i18n, state));
     }
     if state.variable_panel.is_some() {
-        layers.push(build_variable_panel_modal(state));
+        layers.push(build_variable_panel_modal(i18n, state));
     }
     if state.variable_editor.is_some() {
-        layers.push(build_variable_editor_modal(state));
+        layers.push(build_variable_editor_modal(i18n, state));
     }
     if state.node_editor.as_ref().and_then(|editor| editor.start_variable_editor.as_ref()).is_some()
     {
-        layers.push(build_start_variable_editor_modal(state));
+        layers.push(build_start_variable_editor_modal(i18n, state));
     }
 
     stack(layers).width(Length::Fill).height(Length::Fill).into()

@@ -48,5 +48,10 @@ session/multi_agents.rs；这是行为对齐，不代表复制其模型能力。
 嵌套额度、取消、续派、Gateway processor 和 QueryEngine 的模型边界。
 `agcollab_end_to_end_team_workflow` 用真实持久存储和 AgentTool 启动两个子任务，
 通过屏障确认重叠执行及父继续工作，再验证父子/兄弟通信、同 session 续派和结果一次消费。
-仅模型 stream 边界脚本化；它与两个入口的模型循环测试共同提供分层证据，
-不将 stream 注入测试表述为真实网络或完整 Gateway HTTP 请求验收。
+该组合测试仅脚本化模型 stream 收集边界。
+`agcollab_end_to_end_gateway_and_query_engine_entries` 另行贯穿 Gateway stream 入口与
+QueryEngine::submit_message：父模型调用工厂注册的 AgentTool，启动两个真实持久子会话，
+子会话执行真实 Gateway/processor/模型 HTTP 路径。父模型必须收到两份不同事实后
+才返回整合答案。Gateway 父模型响应由本地 HTTP 服务脚本化；QueryEngine 使用现有
+provider 注入点脚本化父模型响应。未替换工具、工厂、协调器、会话存储或子模型循环。
+工具工厂按运行上下文的租户及工作区加载有效项目配置，确保项目配置的角色可被调用。

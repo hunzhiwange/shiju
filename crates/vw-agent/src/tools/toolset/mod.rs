@@ -2,7 +2,6 @@ use super::context::ToolUseContext;
 use super::discovery::ToolDiscoveryCatalog;
 use super::tool_search::{TOOL_SEARCH_ID, ToolSearchTool};
 use super::*;
-use crate::app::agent::config::schema::load_or_init_config;
 use crate::app::agent::config::{Config, DelegateAgentConfig};
 use crate::app::agent::memory::Memory;
 use crate::app::agent::runtime::{NativeRuntime, RuntimeAdapter};
@@ -198,7 +197,12 @@ fn runtime_config_for_context(ctx: &ToolRuntimeContext) -> Arc<Config> {
     });
 
     let config = block_on(async {
-        match load_or_init_config().await {
+        match crate::config::get_project_for_tenant(
+            &ctx.tool_use_context().tenant_scope(),
+            &workspace_dir,
+        )
+        .await
+        {
             Ok(config) => Arc::new(config),
             Err(error) => {
                 tracing::warn!(

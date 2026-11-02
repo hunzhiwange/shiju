@@ -23,18 +23,25 @@ use crate::gateway::api::handlers::session::stream::{
 struct EnvGuard {
     key: String,
     previous: Option<OsString>,
+    snapshot_previous: Option<String>,
 }
 
 impl EnvGuard {
     fn set(key: &'static str, value: impl AsRef<std::ffi::OsStr>) -> Self {
         let previous = std::env::var_os(key);
+        let snapshot_previous = crate::env::get(key);
+        crate::env::set(key, value.as_ref().to_string_lossy().into_owned());
         unsafe { std::env::set_var(key, value) };
-        Self { key: key.to_string(), previous }
+        Self { key: key.to_string(), previous, snapshot_previous }
     }
 }
 
 impl Drop for EnvGuard {
     fn drop(&mut self) {
+        match self.snapshot_previous.take() {
+            Some(v) => crate::env::set(&self.key, &v),
+            None => crate::env::remove(&self.key),
+        }
         match &self.previous {
             Some(value) => unsafe { std::env::set_var(&self.key, value) },
             None => unsafe { std::env::remove_var(&self.key) },

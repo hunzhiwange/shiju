@@ -733,3 +733,7 @@ where
     }
     result
 }
+
+#[cfg(test)]
+#[path = "child_agent/entry_tests.rs"]
+mod entry_tests;

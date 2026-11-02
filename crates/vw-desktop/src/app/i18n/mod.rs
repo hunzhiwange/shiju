@@ -27,3 +27,7 @@ pub fn save_error(locale: DesktopLocale, raw_error: &str) -> String {
     };
     format!("{prefix}{raw_error}")
 }
+
+pub mod settings_models;
+#[cfg(test)]
+mod settings_models_tests;

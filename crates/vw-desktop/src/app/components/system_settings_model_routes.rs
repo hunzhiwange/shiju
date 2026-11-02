@@ -9,6 +9,7 @@ use crate::app::components::system_settings_common::{
     settings_page_intro, settings_panel, settings_panel_style, settings_section_card,
     settings_text_input_style,
 };
+use crate::app::i18n::settings_models::{self, Text as ModelText, text as model_text};
 use crate::app::message::settings::{ModelRoutesMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{button, column, container, row, text, text_input};
@@ -55,11 +56,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let header = row![
         container(settings_page_intro(
-            "模型路由",
-            "将匹配模式映射到指定 provider/model，并与查询分类优先级保持一致。"
+            model_text(app.desktop_locale, ModelText::ModelRoutes),
+            model_text(app.desktop_locale, ModelText::RouteIntro)
         ))
         .width(Length::Fill),
-        button(text("新增路由"))
+        button(text(model_text(app.desktop_locale, ModelText::AddRoute)))
             .on_press(Message::Settings(
                 SettingsMessage::ModelRoutes(ModelRoutesMessage::AddRoute,)
             ))
@@ -72,8 +73,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut list = column![
         header,
         settings_section_card(
-            "路由规则",
-            "优先级越高的规则越先命中，并会同步到 query classification。"
+            model_text(app.desktop_locale, ModelText::RouteRules),
+            model_text(app.desktop_locale, ModelText::RoutePriorityHelp)
         ),
     ]
     .spacing(16);
@@ -81,7 +82,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if s.routes.is_empty() {
         list = list.push(settings_panel(
             column![
-                text("暂无模型路由，点击右上角“新增路由”开始配置")
+                text(model_text(app.desktop_locale, ModelText::NoRoutes))
                     .size(13)
                     .style(settings_muted_text_style)
             ]
@@ -93,11 +94,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let card = container(
             column![
                 row![
-                    text(format!("路由 {}", idx + 1)).size(14),
+                    text(settings_models::route_title(app.desktop_locale, idx + 1)).size(14),
                     container(text(" ")).width(Length::Fill),
                     icon_btn(
                         Icon::Trash,
-                        "删除路由",
+                        model_text(app.desktop_locale, ModelText::DeleteRoute),
                         Some(Message::Settings(SettingsMessage::ModelRoutes(
                             ModelRoutesMessage::RemoveRoute(idx),
                         ))),
@@ -107,50 +108,53 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 settings_panel(
                     column![
                         field_row(
-                            "匹配模式",
-                            "定义命中的任务场景，例如 reasoning / fast / code。",
-                            text_input("如：reasoning / fast / code", &route.pattern)
-                                .on_input(move |value| Message::Settings(
-                                    SettingsMessage::ModelRoutes(
-                                        ModelRoutesMessage::PatternChanged(idx, value),
-                                    )
-                                ))
-                                .padding([10, 12])
-                                .size(13)
-                                .style(settings_text_input_style)
-                                .width(Length::Fill),
+                            model_text(app.desktop_locale, ModelText::Pattern),
+                            model_text(app.desktop_locale, ModelText::PatternHelp),
+                            text_input(
+                                model_text(app.desktop_locale, ModelText::PatternExample),
+                                &route.pattern
+                            )
+                            .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
+                                ModelRoutesMessage::PatternChanged(idx, value),
+                            )))
+                            .padding([10, 12])
+                            .size(13)
+                            .style(settings_text_input_style)
+                            .width(Length::Fill),
                         ),
                         field_row(
-                            "提供商",
-                            "命中后要切换到的 provider。",
-                            text_input("如：openai", &route.provider)
-                                .on_input(move |value| Message::Settings(
-                                    SettingsMessage::ModelRoutes(
-                                        ModelRoutesMessage::ProviderChanged(idx, value),
-                                    )
-                                ))
-                                .padding([10, 12])
-                                .size(13)
-                                .style(settings_text_input_style)
-                                .width(Length::Fill),
+                            model_text(app.desktop_locale, ModelText::Provider),
+                            model_text(app.desktop_locale, ModelText::ProviderHelp),
+                            text_input(
+                                model_text(app.desktop_locale, ModelText::ProviderExample),
+                                &route.provider
+                            )
+                            .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
+                                ModelRoutesMessage::ProviderChanged(idx, value),
+                            )))
+                            .padding([10, 12])
+                            .size(13)
+                            .style(settings_text_input_style)
+                            .width(Length::Fill),
                         ),
                         field_row(
-                            "模型",
-                            "命中后优先使用的模型。",
-                            text_input("如：gpt-5", &route.model)
-                                .on_input(move |value| Message::Settings(
-                                    SettingsMessage::ModelRoutes(ModelRoutesMessage::ModelChanged(
-                                        idx, value
-                                    ),)
-                                ))
-                                .padding([10, 12])
-                                .size(13)
-                                .style(settings_text_input_style)
-                                .width(Length::Fill),
+                            model_text(app.desktop_locale, ModelText::Models),
+                            model_text(app.desktop_locale, ModelText::ModelHelp),
+                            text_input(
+                                model_text(app.desktop_locale, ModelText::ModelExample),
+                                &route.model
+                            )
+                            .on_input(move |value| Message::Settings(SettingsMessage::ModelRoutes(
+                                ModelRoutesMessage::ModelChanged(idx, value),
+                            )))
+                            .padding([10, 12])
+                            .size(13)
+                            .style(settings_text_input_style)
+                            .width(Length::Fill),
                         ),
                         field_row(
-                            "优先级",
-                            "越大优先级越高；保存时同步生成 query_classification 规则。",
+                            model_text(app.desktop_locale, ModelText::Priority),
+                            model_text(app.desktop_locale, ModelText::PriorityHelp),
                             text_input("0", &route.priority_input)
                                 .on_input(move |value| Message::Settings(
                                     SettingsMessage::ModelRoutes(

@@ -1,0 +1,53 @@
+{
+  "task": 51,
+  "status": "已完成",
+  "dependency": "30116fe9 / t50.json",
+  "authorization": "2026-11-02 user approved existing implementation reuse and no new red test",
+  "implementation": "Existing identity.rs, loader.rs, install.rs and transaction_install.rs from tasks 6/8; no new production behavior",
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t51_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 10
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 12
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true
+  },
+  "platform": "macOS arm64",
+  "assertions": [
+    "fresh discovery restores exact identities, version, provenance and disabled state",
+    "corrupt metadata produces diagnostic, excludes plugin and prevents removal",
+    "workspace disabled copy shadows global; exact removal leaves other markets and external data",
+    "original manifest bytes unchanged"
+  ],
+  "red": "Not applicable: explicitly approved existing-behavior acceptance; no artificial regression",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t51/README.md",
+  "reference": "baseline.json identity/store/toggles, frozen Codex store.rs/toggles.rs"
+}

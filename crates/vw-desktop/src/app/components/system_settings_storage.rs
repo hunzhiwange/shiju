@@ -8,6 +8,7 @@ use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_pick_list_menu_style, settings_pick_list_style,
     settings_section_card, settings_section_content, settings_text_input_style,
 };
+use crate::app::i18n::settings_runtime::{Text, text as runtime_text};
 use crate::app::message::settings::StorageMessage;
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
@@ -71,6 +72,7 @@ fn text_row<'a>(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn embedded_view(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
     let s = &app.storage_settings;
 
     let provider_pick = pick_list(
@@ -88,10 +90,14 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
-    let provider_row = field_row("存储类型", "选择后端数据库类型。", provider_pick);
+    let provider_row = field_row(
+        runtime_text(locale, Text::StorageKind),
+        runtime_text(locale, Text::StorageKindHelp),
+        provider_pick,
+    );
 
     let db_url_row = field_row(
-        "数据库地址",
+        runtime_text(locale, Text::DatabaseUrl),
         "",
         settings_control_with_hint(
             text_input("postgres://user:pass@host:5432/db", &s.db_url_input)
@@ -104,20 +110,25 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
                 .size(13)
                 .style(settings_text_input_style)
                 .width(Length::Fill),
-            "远程 SQL 存储使用连接串；留空时不写入数据库地址。",
+            runtime_text(locale, Text::DatabaseHint),
         ),
     );
 
-    let schema_row =
-        text_row("Schema 名称", "数据库 schema 名称。", "public", &s.schema, |value| {
+    let schema_row = text_row(
+        runtime_text(locale, Text::Schema),
+        runtime_text(locale, Text::SchemaHelp),
+        "public",
+        &s.schema,
+        |value| {
             Message::Settings(message::SettingsMessage::Storage(StorageMessage::SchemaChanged(
                 value,
             )))
-        });
+        },
+    );
 
     let table_row = text_row(
-        "数据表",
-        "保存记录所使用的数据表名。",
+        runtime_text(locale, Text::Table),
+        runtime_text(locale, Text::TableHelp),
         "memories",
         &s.table,
         |value| {
@@ -128,28 +139,31 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     );
 
     let timeout_row = field_row(
-        "连接超时",
+        runtime_text(locale, Text::Timeout),
         "",
         settings_control_with_hint(
-            text_input("秒；留空表示使用默认", &s.connect_timeout_secs_input)
-                .on_input(|value| {
-                    Message::Settings(message::SettingsMessage::Storage(
-                        StorageMessage::ConnectTimeoutSecsChanged(value),
-                    ))
-                })
-                .padding([10, 12])
-                .size(13)
-                .style(settings_text_input_style)
-                .width(Length::Fill),
-            "仅接受整数秒；留空会写入 None。",
+            text_input(
+                runtime_text(locale, Text::TimeoutPlaceholder),
+                &s.connect_timeout_secs_input,
+            )
+            .on_input(|value| {
+                Message::Settings(message::SettingsMessage::Storage(
+                    StorageMessage::ConnectTimeoutSecsChanged(value),
+                ))
+            })
+            .padding([10, 12])
+            .size(13)
+            .style(settings_text_input_style)
+            .width(Length::Fill),
+            runtime_text(locale, Text::TimeoutHint),
         ),
     );
 
     let tls_row = field_row(
-        "TLS 加密",
-        "控制远程存储连接是否启用 TLS。",
+        runtime_text(locale, Text::Tls),
+        runtime_text(locale, Text::TlsHelp),
         checkbox(s.tls)
-            .label("启用存储连接 TLS")
+            .label(runtime_text(locale, Text::EnableTls))
             .on_toggle(|value| {
                 Message::Settings(message::SettingsMessage::Storage(StorageMessage::TlsToggled(
                     value,
@@ -159,14 +173,23 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     );
 
     let content = column![
-        settings_section_card("连接参数", "选择数据库类型并配置基础连接信息。"),
+        settings_section_card(
+            runtime_text(locale, Text::ConnectionParams),
+            runtime_text(locale, Text::ConnectionIntro)
+        ),
         settings_section_content(column![provider_row, settings_divider(), db_url_row].spacing(0)),
-        settings_section_card("命名与超时", "配置 schema、表名和连接超时。"),
+        settings_section_card(
+            runtime_text(locale, Text::NamingTimeout),
+            runtime_text(locale, Text::NamingHelp)
+        ),
         settings_section_content(
             column![schema_row, settings_divider(), table_row, settings_divider(), timeout_row]
                 .spacing(0),
         ),
-        settings_section_card("安全", "配置与远程存储的加密连接策略。"),
+        settings_section_card(
+            runtime_text(locale, Text::Security),
+            runtime_text(locale, Text::StorageSecurityHelp)
+        ),
         settings_section_content(column![tls_row].spacing(0)),
     ]
     .spacing(16)

@@ -5,4 +5,3 @@ running 1 test
 test plugins::compat::t61_tests::codex_plugin_compat_t61_public_sources_match_locked_hashes ... ok
 
 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10944 filtered out; finished in 0.08s
-

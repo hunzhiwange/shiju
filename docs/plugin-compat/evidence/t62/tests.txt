@@ -8,4 +8,3 @@ test plugins::compat::t62_tests::codex_plugin_compat_t62_preserves_isolation ...
 test plugins::compat::t62_tests::codex_plugin_compat_t62_calls_actual_public_readonly_service ... ok
 
 test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 10942 filtered out; finished in 7.32s
-

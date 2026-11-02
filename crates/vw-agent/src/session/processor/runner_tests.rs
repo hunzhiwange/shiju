@@ -2811,3 +2811,152 @@ fn codex_plugin_compat_t44_session_final_text_requests_continuation() {
     assert!(event_texts(&events).is_empty());
     assert!(std::fs::read_to_string(state.path().join("events")).unwrap().contains("Stop"));
 }
+
+#[test]
+fn agcollab_processor_integrates_before_done() {
+    let session_id = unique_session_id("plain-text");
+    let req = request_with_session(&session_id);
+    let ctx = ToolRuntimeContext::new(session_id.clone(), None);
+    let mut session = super::Session::new(session_id);
+    let mut llm_messages = Vec::new();
+    let mut total_usage = models::TokenUsage::default();
+    let mut tool_state = super::ToolSessionState::default();
+    let mut retries = 2usize;
+    let mut step = 0;
+    let mut events = Vec::new();
+    let empty_tools = HashSet::new();
+    let coordinator = crate::session::child_agent::coordinator::global_child_agent_coordinator();
+    for (child, fact) in [("a", "fact_alpha"), ("b", "fact_beta")] {
+        let child = format!("{}-{child}", req.session);
+        coordinator.register(&req.session, &child, "worker", "research").unwrap();
+        coordinator.mark_succeeded(&req.session, &child, fact).unwrap();
+        tool_state.agent_background_children.push(child);
+    }
+    let step_out = llm_step("  final answer  ");
+
+    let should_continue = super::handle_assistant_text_branch(
+        &req,
+        &mut session,
+        &ctx,
+        &empty_tools,
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut tool_state,
+        &mut retries,
+        &mut step,
+        &step_out,
+        "final answer",
+        &empty_tools,
+        false,
+        1,
+        None,
+        &mut false,
+    );
+
+    assert!(should_continue);
+    assert!(
+        session.messages.iter().all(|message| message.content != "final answer"),
+        "candidate answer must not enter persisted history before integration"
+    );
+    assert!(!events.iter().any(|event| matches!(event, super::StreamEvent::Done(_))));
+    let request = serde_json::to_string(&llm_messages).unwrap();
+    assert!(request.contains("fact_alpha") && request.contains("fact_beta"));
+    let integrated = llm_step("fact_alpha and fact_beta");
+    assert!(!super::handle_assistant_text_branch(
+        &req,
+        &mut session,
+        &ctx,
+        &empty_tools,
+        &mut llm_messages,
+        &mut total_usage,
+        &mut |event| {
+            events.push(event);
+            true
+        },
+        &mut tool_state,
+        &mut retries,
+        &mut step,
+        &integrated,
+        "integrated",
+        &empty_tools,
+        false,
+        2,
+        None,
+        &mut false,
+    ));
+    assert_eq!(session.messages.last().unwrap().content, "fact_alpha and fact_beta");
+    assert!(matches!(events.last(), Some(super::StreamEvent::Done(_))));
+}
+
+#[test]
+fn agcollab_processor_cancel_propagates_before_final() {
+    let coordinator = crate::session::child_agent::coordinator::global_child_agent_coordinator();
+    let parent = unique_session_id("cancel-gate");
+    let child = format!("{parent}-child");
+    coordinator.register(&parent, &child, "worker", "research").unwrap();
+    let cancellation = tokio_util::sync::CancellationToken::new();
+    cancellation.cancel();
+    let state = super::ToolSessionState {
+        agent_background_children: vec![child.clone()],
+        ..Default::default()
+    };
+    let result = super::tools_exec::integrate_agent_tool_children(
+        &crate::tools::ToolUseContext::new(&parent, None),
+        &mut Vec::new(),
+        &state,
+        Some(&cancellation),
+        false,
+    );
+    assert!(result.is_err());
+    assert!(coordinator.snapshots(&parent, &[child]).unwrap()[0].state.is_terminal());
+}
+
+#[test]
+fn agcollab_processor_gate_reports_budget_and_delivers_failure_once() {
+    let coordinator = crate::session::child_agent::coordinator::global_child_agent_coordinator();
+    let parent = unique_session_id("budget-gate");
+    let child = format!("{parent}-child");
+    coordinator.register(&parent, &child, "worker", "research").unwrap();
+    let context = crate::tools::ToolUseContext::new(&parent, None);
+    let state = super::ToolSessionState::default();
+    let mut messages = Vec::new();
+    assert!(
+        super::tools_exec::integrate_agent_tool_children(
+            &context,
+            &mut messages,
+            &state,
+            None,
+            true,
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("unfinished")
+    );
+    coordinator.mark_failed(&parent, &child, "permission denied").unwrap();
+    assert!(
+        super::tools_exec::integrate_agent_tool_children(
+            &context,
+            &mut messages,
+            &state,
+            None,
+            false,
+        )
+        .unwrap()
+    );
+    assert!(messages[0]["content"].as_str().unwrap().contains("permission denied"));
+    assert!(
+        !super::tools_exec::integrate_agent_tool_children(
+            &context,
+            &mut messages,
+            &state,
+            None,
+            false,
+        )
+        .unwrap()
+    );
+    assert_eq!(messages.len(), 1);
+}

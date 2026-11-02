@@ -1609,12 +1609,19 @@ fn handle_assistant_text_branch(
     }
 
     *empty_response_retries = 0;
-    session.push(Role::Assistant, text.to_string());
-    llm_messages.push(utils::assistant_message_with_reasoning(text, &step_out.reasoning_content));
-
-    match crate::session::child_agent::coordinator::global_child_agent_coordinator()
-        .deliver_model_events(ctx.tool_use_context().as_ref(), llm_messages)
-    {
+    match tools_exec::integrate_agent_tool_children(
+        ctx.tool_use_context().as_ref(),
+        llm_messages,
+        tool_state,
+        req.abort_token.as_ref(),
+        is_last_step,
+    ) {
+        Ok(true) if is_last_step => {
+            on_event(StreamEvent::Error(
+                "Maximum tool iterations reached: child results remain unintegrated".into(),
+            ));
+            return false;
+        }
         Ok(true) => {
             *step += 1;
             return true;
@@ -1625,6 +1632,8 @@ fn handle_assistant_text_branch(
             return false;
         }
     }
+    session.push(Role::Assistant, text.to_string());
+    llm_messages.push(utils::assistant_message_with_reasoning(text, &step_out.reasoning_content));
 
     if is_last_step {
         tracing::info!(
@@ -1654,9 +1663,6 @@ fn handle_assistant_text_branch(
             }
         }
         if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
-            return false;
-        }
-        if !tools_exec::finalize_agent_tool_children(&req.session, session, on_event, tool_state) {
             return false;
         }
         artifacts::persist_final_ai_call_payload(
@@ -1731,9 +1737,6 @@ fn handle_assistant_text_branch(
         }
     }
     if req.abort_token.as_ref().is_some_and(|token| token.is_cancelled()) {
-        return false;
-    }
-    if !tools_exec::finalize_agent_tool_children(&req.session, session, on_event, tool_state) {
         return false;
     }
     artifacts::persist_final_ai_call_payload(

@@ -25,9 +25,10 @@ use super::utils::{
 use crate::app::agent::tools::traits::ToolExtraMessage;
 use crate::app::agent::tools::{self, ToolCallError, ToolRuntimeContext};
 use crate::app::agent::tools::{is_todo_read_tool_id, is_todo_write_tool_id};
+use crate::session::child_agent::coordinator::global_child_agent_coordinator;
+#[cfg(test)]
 use crate::session::child_agent::coordinator::{
     ChildAgentCoordinator, ChildAgentTaskSnapshot, ChildAgentTaskState,
-    global_child_agent_coordinator,
 };
 use std::sync::Arc;
 use std::time::Duration;
@@ -547,6 +548,7 @@ fn track_background_agent_child(
     tool_state.agent_background_children.push(created.child_session_id.clone());
 }
 
+#[cfg(test)]
 fn agent_tool_snapshot_status(snapshot: &ChildAgentTaskSnapshot, waiting: bool) -> &'static str {
     if waiting && !snapshot.state.is_terminal() {
         return "waiting";
@@ -559,6 +561,7 @@ fn agent_tool_snapshot_status(snapshot: &ChildAgentTaskSnapshot, waiting: bool) 
     }
 }
 
+#[cfg(test)]
 fn agent_tool_snapshot_payload(
     snapshot: &ChildAgentTaskSnapshot,
     waiting: bool,
@@ -587,21 +590,42 @@ fn agent_tool_snapshot_payload(
     })
 }
 
-pub(crate) fn finalize_agent_tool_children(
-    parent_session_id: &str,
-    session: &mut super::Session,
-    on_event: &mut impl FnMut(StreamEvent) -> bool,
+/// Wait at the final-answer boundary, then deliver each unconsumed result to the model.
+pub(crate) fn integrate_agent_tool_children(
+    context: &tools::ToolUseContext,
+    messages: &mut Vec<serde_json::Value>,
     tool_state: &super::ToolSessionState,
-) -> bool {
-    finalize_agent_tool_children_with(
-        &global_child_agent_coordinator(),
-        parent_session_id,
-        session,
-        on_event,
-        &tool_state.agent_background_children,
-    )
+    cancellation: Option<&tokio_util::sync::CancellationToken>,
+    budget_exhausted: bool,
+) -> anyhow::Result<bool> {
+    let coordinator = global_child_agent_coordinator();
+    loop {
+        if cancellation.is_some_and(|token| token.is_cancelled()) {
+            coordinator
+                .cancel_descendants(context.session(), &tool_state.agent_background_children)?;
+            anyhow::bail!("执行已取消：子任务结果尚未整合");
+        }
+        if budget_exhausted
+            && coordinator
+                .descendant_snapshots(context.session(), &[])?
+                .iter()
+                .any(|task| !task.state.is_terminal())
+        {
+            anyhow::bail!("Maximum tool iterations reached: child tasks remain unfinished");
+        }
+        let outcome = coordinator.wait_for_descendants_blocking(
+            context.session(),
+            &[],
+            Duration::from_millis(100),
+        )?;
+        if !outcome.timed_out {
+            break;
+        }
+    }
+    coordinator.deliver_model_events(context, messages)
 }
 
+#[cfg(test)]
 fn finalize_agent_tool_children_with(
     coordinator: &ChildAgentCoordinator,
     parent_session_id: &str,

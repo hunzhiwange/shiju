@@ -440,7 +440,7 @@ fn all_tools_includes_agent_tool_when_agents_configured() {
 }
 
 #[test]
-fn all_tools_excludes_agent_tool_when_no_agents() {
+fn all_tools_includes_default_agent_tool_when_no_agents() {
     let tmp = TempDir::new().unwrap();
     let security = Arc::new(SecurityPolicy::default());
     let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
@@ -465,12 +465,12 @@ fn all_tools_excludes_agent_tool_when_no_agents() {
         None,
     );
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(!names.contains(&"AgentTool"));
+    assert!(names.contains(&"AgentTool"));
     assert!(!names.contains(&"delegate"));
 }
 
 #[test]
-fn all_tools_excludes_agent_tool_when_only_primary_agents() {
+fn all_tools_includes_default_agent_tool_when_only_primary_agents() {
     let tmp = TempDir::new().unwrap();
     let security = Arc::new(SecurityPolicy::default());
     let mem_cfg = MemoryConfig { backend: "markdown".into(), ..MemoryConfig::default() };
@@ -531,7 +531,7 @@ fn all_tools_excludes_agent_tool_when_only_primary_agents() {
         None,
     );
     let names: Vec<&str> = tools.iter().map(|t| t.name()).collect();
-    assert!(!names.contains(&"AgentTool"));
+    assert!(names.contains(&"AgentTool"));
     assert!(!names.contains(&"delegate"));
 }
 

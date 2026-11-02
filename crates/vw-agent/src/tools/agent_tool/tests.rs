@@ -251,7 +251,17 @@ fn schema_is_closed_and_agent_description_is_stable() {
     assert_eq!(schema["additionalProperties"], false);
     assert_eq!(
         schema["properties"]["action"]["enum"],
-        json!(["launch", "run", "spawn", "status", "wait", "stop"])
+        json!([
+            "launch",
+            "run",
+            "spawn",
+            "status",
+            "wait",
+            "stop",
+            "send_message",
+            "followup_task",
+            "list_agents"
+        ])
     );
     for removed_property in ["task", "run_in_background", "session_id", "status"] {
         assert!(
@@ -420,7 +430,7 @@ async fn main_child_inherits_parent_provider_and_model_as_one_reference() {
             ..DelegateAgentConfig::default()
         },
     )]);
-    let tool = AgentTool::new(agents, Some(parent.id), directory.into())
+    let tool = AgentTool::new(agents, Some(parent.id.clone()), directory.clone().into())
         .with_child_agent_stream_executor(Arc::new(|request| {
             Box::pin(async move {
                 assert_eq!(request.model.as_deref(), Some("token-plan/qwen3.7-plus"));
@@ -432,7 +442,9 @@ async fn main_child_inherits_parent_provider_and_model_as_one_reference() {
             })
         }));
     let context = Arc::new(
-        ToolUseContext::new("parent", None).with_provider("token-plan").with_model("qwen3.7-plus"),
+        ToolUseContext::new(&parent.id, Some(directory))
+            .with_provider("token-plan")
+            .with_model("qwen3.7-plus"),
     );
 
     let result = scope_tool_use_context(
@@ -457,7 +469,7 @@ async fn agent_tool_registers_only_configured_tools_in_child_request() {
             ..DelegateAgentConfig::default()
         },
     )]);
-    let tool = AgentTool::new(agents, Some(parent.id), directory.into())
+    let tool = AgentTool::new(agents, Some(parent.id.clone()), directory.clone().into())
         .with_child_agent_stream_executor(Arc::new(|request| {
             Box::pin(async move {
                 assert_eq!(request.allowed_tools, Some(vec!["file_read".to_string()]));
@@ -470,7 +482,7 @@ async fn agent_tool_registers_only_configured_tools_in_child_request() {
                 })
             })
         }));
-    let context = Arc::new(ToolUseContext::new("parent", None));
+    let context = Arc::new(ToolUseContext::new(&parent.id, Some(directory)));
 
     let result = scope_tool_use_context(
         context,
@@ -487,7 +499,7 @@ async fn auto_parent_allows_child_auto_selection() {
     let workspace = tempfile::tempdir().expect("temporary workspace");
     let directory = workspace.path().to_string_lossy().to_string();
     let parent = create_parent(directory.clone()).await;
-    let tool = build_persistent_tool(parent.id, directory, |request| {
+    let tool = build_persistent_tool(parent.id.clone(), directory.clone(), |request| {
         Box::pin(async move {
             assert_eq!(request.model, None);
             Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
@@ -498,7 +510,7 @@ async fn auto_parent_allows_child_auto_selection() {
         })
     });
     let context = Arc::new(
-        ToolUseContext::new("parent", None)
+        ToolUseContext::new(&parent.id, Some(directory))
             .with_provider("token-plan")
             .with_model("qwen3.7-plus")
             .with_auto_model_selection(true),

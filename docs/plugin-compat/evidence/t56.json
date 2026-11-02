@@ -1,0 +1,103 @@
+{
+  "task": 56,
+  "status": "已完成",
+  "dependency": "0a309352 task55",
+  "red": {
+    "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t56_ -- --nocapture",
+    "slot": 1,
+    "exit_code": 101,
+    "target_assertions_failed": 3,
+    "failure": "Callable state skeleton cannot prepare or preserve request isolation. Test panic emitted SIGABRT; all three target assertions are recorded."
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t56_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "slot": 2
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t55_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "slot": 2
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t54_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "slot": 2
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "slot": 2
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 2
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "native_window": {
+    "build_commands": [
+      "cargo test -p vw-agent --lib --all-features --no-run --message-format=json",
+      "cargo test -p vw-desktop --test plugin-compat-window --all-features --no-run --message-format=json"
+    ],
+    "launch": "<slot-2 plugin-compat-window executable> <slot-2 vw_agent test executable> /tmp/shiju-plugin-ui-t56.L0lSLq 56",
+    "slot": 2,
+    "exit_code": 0,
+    "backend_fixture_passed": 1,
+    "result": {
+      "themes": 2,
+      "real_gateway": true,
+      "retry": true,
+      "cancel_without_publish": true,
+      "explicit_install": true,
+      "explicit_update": true,
+      "capability_diff": true,
+      "unicode_long_path": true,
+      "glyph_panic": false,
+      "no_auto_execution": true
+    },
+    "backend": {
+      "original_unchanged": true,
+      "script_not_executed": true
+    },
+    "screenshots": [
+      "t56-error-light.png",
+      "t56-review-light.png",
+      "t56-review-dark.png",
+      "t56-update-dark.png",
+      "t56-success-dark.png"
+    ],
+    "visually_reviewed": [
+      "t56-review-light.png",
+      "t56-review-dark.png",
+      "t56-update-dark.png"
+    ],
+    "review_fix": "Successful retry now replaces stale error toast with preview-ready info; native flow rerun after fix."
+  },
+  "cargo": {
+    "slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR_final": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_TARGET_DIR_native": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "same as active CARGO_TARGET_DIR",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t56/README.md",
+  "implementation": "Explicit gateway-backed install/update modal; stale reply cleanup, retry/cancel toasts, old/new declarations, fixed controls and scrolling content. No automatic hook/onboarding execution."
+}

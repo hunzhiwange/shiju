@@ -3,6 +3,7 @@
 mod browser;
 mod catalog;
 mod help;
+mod plugin_install_modal;
 pub(crate) mod plugins;
 
 use crate::app::components::system_settings_common::{
@@ -228,5 +229,15 @@ pub fn plugin_dependency_summary(
         "含范围外托管能力"
     } else {
         "依赖文件已检测，运行待验证"
+    }
+}
+
+pub(crate) fn with_plugin_install<'a>(
+    app: &'a App,
+    base: Element<'a, Message>,
+) -> Element<'a, Message> {
+    match app.skills_settings.plugin_install.as_ref() {
+        Some(form) => plugin_install_modal::view(base, form),
+        None => base,
     }
 }

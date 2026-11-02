@@ -265,3 +265,7 @@ mod plugin_compat_t31_tests;
 #[cfg(test)]
 #[path = "app/plugin_compat_t55_tests.rs"]
 mod plugin_compat_t55_tests;
+
+#[cfg(test)]
+#[path = "app/plugin_compat_t56_tests.rs"]
+mod plugin_compat_t56_tests;

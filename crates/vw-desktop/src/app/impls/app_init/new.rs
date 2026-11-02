@@ -956,6 +956,8 @@ impl App {
                 loading: false,
                 catalog: Vec::new(),
                 plugin_catalog: Vec::new(),
+                plugin_install: None,
+                plugin_operation_id: 0,
                 plugin_loading: false,
                 selected_plugin_id: None,
                 plugin_status_message: None,

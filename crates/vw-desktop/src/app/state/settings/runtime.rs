@@ -187,6 +187,8 @@ pub(crate) struct SkillsSettingsState {
     pub(crate) catalog: Vec<SkillsCatalogItem>,
     /// 当前展示的插件目录项
     pub(crate) plugin_catalog: Vec<PluginCatalogItem>,
+    pub(crate) plugin_install: Option<crate::app::state::PluginInstallForm>,
+    pub(crate) plugin_operation_id: u64,
     /// 插件目录是否正在通过 gateway 加载
     pub(crate) plugin_loading: bool,
     /// 当前选中的插件 ID
@@ -225,6 +227,8 @@ impl Default for SkillsSettingsState {
             loading: false,
             catalog: Vec::new(),
             plugin_catalog: Vec::new(),
+            plugin_install: None,
+            plugin_operation_id: 0,
             plugin_loading: false,
             selected_plugin_id: None,
             plugin_status_message: None,

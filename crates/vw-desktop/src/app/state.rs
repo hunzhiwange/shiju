@@ -78,3 +78,6 @@ pub(crate) use presentation::{
 pub(crate) use runtime_tools::*;
 pub(crate) use settings::*;
 pub(crate) use workspace::*;
+
+mod plugin_install;
+pub use plugin_install::{PluginInstallForm, PluginInstallPhase};

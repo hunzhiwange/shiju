@@ -122,6 +122,7 @@ fn preview(
         dependency_status: super::dependency_status(&dependency_checks),
         dependency_checks,
         origin: origin(&installed.manifest)?,
+        previous_capabilities: None,
     })
 }
 async fn prepare_install(
@@ -193,6 +194,7 @@ async fn prepare_update(
             dependency_status: super::dependency_status(&dependency_checks),
             dependency_checks,
             origin: origin(prepared.manifest())?,
+            previous_capabilities: Some(super::plugin_capabilities(prepared.old_manifest())),
         };
         let token = store(root, Operation::Update(prepared))?;
         Ok::<_, anyhow::Error>(DesktopPluginPreviewDto { token, ..response })

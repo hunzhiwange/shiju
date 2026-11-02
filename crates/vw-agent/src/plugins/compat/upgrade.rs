@@ -23,6 +23,7 @@ pub struct PluginUpgradePreview {
     expected_metadata: Vec<u8>,
     new_hash: String,
     manifest: crate::plugins::PluginManifest,
+    old_manifest: Box<crate::plugins::PluginManifest>,
     staging: tempfile::TempDir,
 }
 #[cfg(test)]
@@ -78,7 +79,8 @@ fn prepare_with(
     let root = plugins.canonicalize()?;
     let identity = identity(&root, key)?;
     let old = root.join(key);
-    let old_version = load_plugin_manifest(&old)?.version;
+    let old_manifest = load_plugin_manifest(&old)?;
+    let old_version = old_manifest.version.clone();
     let expected_hash = hash(&old)?;
     let expected_metadata = fs::read(metadata_path(&old)?)?;
     let staging = tempfile::Builder::new().prefix(".plugin-upgrade-").tempdir_in(&root)?;
@@ -93,6 +95,7 @@ fn prepare_with(
         old_version,
         new_version: installed.manifest.version.clone(),
         manifest: installed.manifest,
+        old_manifest: Box::new(old_manifest),
         root,
         identity,
         expected_hash,
@@ -167,6 +170,9 @@ pub fn activate_plugin_upgrade(preview: PluginUpgradePreview) -> Result<()> {
 impl PluginUpgradePreview {
     pub(crate) fn manifest(&self) -> &crate::plugins::PluginManifest {
         &self.manifest
+    }
+    pub(crate) fn old_manifest(&self) -> &crate::plugins::PluginManifest {
+        &self.old_manifest
     }
     pub(crate) fn identity_key(&self) -> String {
         self.identity.as_key()

@@ -131,6 +131,8 @@ pub struct DesktopPluginPreviewDto {
     pub origin: DesktopPluginSourceDto,
     #[serde(default)]
     pub dependency_checks: Vec<DesktopPluginDependencyDto>,
+    #[serde(default)]
+    pub previous_capabilities: Option<DesktopPluginCapabilitiesDto>,
 }
 
 /// One statically audited hook declaration from an installed plugin.

@@ -1129,3 +1129,29 @@ pub fn gateway_project_change_records(_directory: &str) -> Vec<ProjectChangeReco
 #[cfg(test)]
 #[path = "session_gateway_tests.rs"]
 mod session_gateway_tests;
+
+pub async fn gateway_plugin_prepare_async(
+    source: String,
+    update_id: Option<String>,
+) -> Result<vw_gateway_client::DesktopPluginPreviewDto, String> {
+    let client = gateway_client()?;
+    match update_id {
+        Some(id) => {
+            client
+                .plugin_prepare_update(&id, (!source.trim().is_empty()).then_some(source.trim()))
+                .await
+        }
+        None => client.plugin_prepare_install(source.trim()).await,
+    }
+}
+pub async fn gateway_plugin_activate_async(token: String, update: bool) -> Result<String, String> {
+    let client = gateway_client()?;
+    if update {
+        client.plugin_update(&token, true).await
+    } else {
+        client.plugin_install(&token, true).await
+    }
+}
+pub async fn gateway_plugin_discard_async(token: String) -> Result<(), String> {
+    gateway_client()?.plugin_cancel(&token).await
+}

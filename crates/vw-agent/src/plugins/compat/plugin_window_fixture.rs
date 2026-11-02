@@ -63,6 +63,16 @@ async fn plugin_window_gateway_fixture() {
     std::fs::write(source.join("mcp.json"),json!({"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"示例服务":{"type":"stdio","command":"node","args":["${PLUGIN_ROOT}/server.js"],"env":{"PATH":root.join("empty-bin")}}}}).to_string()).unwrap();
     std::fs::write(source.join("server.js"), "require('fs').writeFileSync('MUST_NOT_RUN','bad')")
         .unwrap();
+    let install_source = root.join("待安装中文原包abcdefghijklmnop".repeat(4));
+    let update_source = root.join("待更新中文原包qrstuvwxyz".repeat(4));
+    for (path, version) in [(&install_source, "2"), (&update_source, "3")] {
+        std::fs::create_dir_all(path.join(".codex-plugin")).unwrap();
+        let mut value = json!({"name":"newcomer","version":version,"description":"中文安装与更新验证","hooks":{"hooks":{"PreToolUse":[{"hooks":[{"type":"command","command":format!("touch {}",root.join("MUST_NOT_RUN").display())}]}]}}});
+        if version == "3" {
+            value["mcpServers"] = json!({"public":{"url":"https://public.example.invalid/mcp"}});
+        }
+        std::fs::write(path.join(".codex-plugin/plugin.json"), value.to_string()).unwrap();
+    }
     let original = std::fs::read(source.join("plugin.json")).unwrap();
     crate::plugins::install_plugin_from_marketplace(
         source.to_str().unwrap(),
@@ -80,7 +90,7 @@ async fn plugin_window_gateway_fixture() {
     let router = app(&root, &long);
     std::fs::write(
         root.join("ready.json"),
-        json!({"port":port,"source":source,"long_config":long}).to_string(),
+        json!({"port":port,"source":source,"long_config":long,"install_source":install_source,"update_source":update_source}).to_string(),
     )
     .unwrap();
     let server = tokio::spawn(async move {
@@ -95,6 +105,7 @@ async fn plugin_window_gateway_fixture() {
     let _ = server.await;
     assert_eq!(std::fs::read(source.join("plugin.json")).unwrap(), original);
     assert!(!source.join("MUST_NOT_RUN").exists());
+    assert!(!root.join("MUST_NOT_RUN").exists());
     std::fs::write(
         root.join("backend-result.json"),
         r#"{"original_unchanged":true,"script_not_executed":true}"#,

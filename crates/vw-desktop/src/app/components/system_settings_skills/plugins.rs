@@ -197,6 +197,14 @@ pub(super) fn plugin_detail_panel(
 
     let actions = row![
         detail_action_button(
+            "更新",
+            Icon::ArrowRepeat,
+            DetailActionStyle::Secondary,
+            (!busy).then_some(Message::Settings(message::SettingsMessage::PluginsUpdateOpen(
+                plugin_id.clone()
+            )))
+        ),
+        detail_action_button(
             if enabled { "禁用" } else { "启用" },
             if enabled { Icon::EyeSlash } else { Icon::Eye },
             DetailActionStyle::Secondary,
@@ -294,6 +302,13 @@ pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
                     DetailActionStyle::Secondary,
                     (!s.plugin_loading)
                         .then_some(Message::Settings(message::SettingsMessage::PluginsRefresh)),
+                ),
+                detail_action_button(
+                    "安装插件",
+                    Icon::Box,
+                    DetailActionStyle::Primary,
+                    (!s.plugin_loading)
+                        .then_some(Message::Settings(message::SettingsMessage::PluginsInstallOpen))
                 ),
                 skill_badge(format!("{} 个插件", plugins.len()), true),
             ]

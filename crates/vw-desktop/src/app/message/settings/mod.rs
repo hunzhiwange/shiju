@@ -21,6 +21,7 @@ mod model_routes;
 mod models;
 mod multimodal;
 mod observability;
+mod plugin_install;
 mod projects;
 pub(crate) mod providers;
 mod proxy;
@@ -203,6 +204,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         | SettingsMessage::ModelDetailOpen(_, _)
         | SettingsMessage::ModelDetailClose
         | SettingsMessage::ModelDetailToggleRaw => models::update(app, message),
+        SettingsMessage::PluginsInstallOpen
+        | SettingsMessage::PluginsUpdateOpen(_)
+        | SettingsMessage::PluginsInstallSourceChanged(_)
+        | SettingsMessage::PluginsInstallPrepare
+        | SettingsMessage::PluginsInstallPrepared { .. }
+        | SettingsMessage::PluginsInstallConfirm
+        | SettingsMessage::PluginsInstallCompleted { .. }
+        | SettingsMessage::PluginsInstallClose
+        | SettingsMessage::PluginsPreviewDiscarded(_) => plugin_install::update(app, message),
         SettingsMessage::SkillsProjectSelected(_)
         | SettingsMessage::SkillsRefresh
         | SettingsMessage::SkillsLoaded(_)

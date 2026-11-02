@@ -1,0 +1,57 @@
+{
+  "task": 49,
+  "status": "已完成",
+  "dependency": "t48.json",
+  "platform": "macOS arm64",
+  "implementation": "fetch_npm_plugin: registry version/tag resolution, unchanged archive bytes, SRI SHA-512/SHA-256 verification and SHA-256 provenance; no script execution",
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t49_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "Expected integrity mismatch / successful download; got npm download unavailable from callable skeleton; panic runtime aborted after assertions"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t49_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t47_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "assertions": [
+    "incorrect integrity rejected",
+    "invalid names, file selectors, credentials and production loopback rejected",
+    "oversized metadata rejected",
+    "resolved version and SHA-256 recorded",
+    "archive bytes unchanged; no filesystem or script side effects",
+    "redirect rejected without following; no Authorization header"
+  ],
+  "reference": "baseline.json marketplace.npm.*; core-plugins/src/npm_source.rs::pack_npm_package",
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t49/README.md",
+  "limitations": "Exact versions and tags only; semver ranges explicitly unsupported. No npm subprocess, no SHA-1 fallback, no redirects; each production destination uses pinned public DNS with no proxy. Package extraction and installation are task 50."
+}

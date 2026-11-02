@@ -138,3 +138,5 @@ pub use compat::marketplace::{
     AuthenticationPolicy, InstallationPolicy, MarketplaceEntry, MarketplacePolicy,
     MarketplaceSource, PluginMarketplace, load_plugin_marketplace,
 };
+
+pub use compat::npm_source::{NpmPluginArchive, fetch_npm_plugin};

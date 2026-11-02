@@ -1,0 +1,55 @@
+{
+  "task": 59,
+  "status": "已完成",
+  "platform": "macOS arm64",
+  "implementation": [
+    "HostExecTool registered through both shell-capable factories",
+    "cmd/workdir/timeout_ms/yield_time_ms mapped without dropping fields",
+    "host permissions, environment filtering and process session ownership retained",
+    "bash_wait/bash_cancel preserve running handle and terminal snapshots"
+  ],
+  "sources": {
+    "unified_exec.rs": "0e4917e6be975e0127b33f1bc8bfab76ee05a44714c0a318adfa0e8061885ccc",
+    "skill-installer/SKILL.md": "d68b77e5bbb34dedab89d134da52855f140fc4b4299b80104f534e3b9e98f8ee"
+  },
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t59_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "execution assertion received command contract not yet adapted; two other assertions passed",
+    "caveat": "initial build used repository build-dir target despite CARGO_TARGET_DIR; corrected by setting CARGO_BUILD_BUILD_DIR for subsequent validation"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t59_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features shell_session_tools_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 4,
+      "failed": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 3,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "locks_released": true
+  },
+  "limits": "Explicitly rejects unsupported custom shells/login/PTY/output-token budgets/permission profiles/stdin; no claim of complete Codex command protocol compatibility. Host-native wait/cancel names and output shape remain visible. Hosted services excluded."
+}

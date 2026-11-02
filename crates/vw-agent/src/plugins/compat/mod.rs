@@ -244,3 +244,8 @@ mod plugin_window_fixture;
 pub(crate) mod session_snapshot;
 #[cfg(test)]
 mod t57_tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod host_exec;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod t59_tests;

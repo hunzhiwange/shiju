@@ -16,6 +16,8 @@ mod skills;
 mod types;
 
 mod compat;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use compat::host_exec::HostExecTool;
 pub(crate) use compat::mcp_auth::runtime_headers as plugin_mcp_http_headers;
 pub(crate) use compat::mcp_capabilities::{
     client_info as mcp_client_info, validate_server_protocol as validate_mcp_server_protocol,

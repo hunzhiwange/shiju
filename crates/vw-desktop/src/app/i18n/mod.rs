@@ -36,3 +36,7 @@ pub mod catalog;
 pub use catalog::I18n;
 #[cfg(test)]
 mod gettext_catalog_tests;
+
+pub mod format;
+#[cfg(test)]
+mod gettext_sprintf_tests;

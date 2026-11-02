@@ -1,4 +1,5 @@
 {
   "语言": "Language",
-  "保存失败：": "Failed to save: "
+  "保存失败：": "Failed to save: ",
+  "保存失败：%s": "Failed to save: %s"
 }

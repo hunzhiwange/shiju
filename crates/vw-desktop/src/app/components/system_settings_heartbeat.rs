@@ -17,9 +17,10 @@
 //! 用户的配置会通过 Gateway 保存到共享数据库的 `heartbeat` 字段中。
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_section_card,
-    settings_section_content, settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider,
+    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
+    settings_page_intro, settings_section_card, settings_section_content,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, row, slider, text, text_input};
@@ -103,8 +104,10 @@ fn text_row<'a>(
 /// 9. 帮助模态框（如果启用）
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.heartbeat_settings;
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::HeartbeatHelpOpen));
+    let help_btn = settings_help_button(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::HeartbeatHelpOpen),
+    );
 
     let enabled_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),

@@ -19,9 +19,10 @@
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_help_button, settings_muted_text_style, settings_page_intro,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_segment_button_style, settings_text_input_style,
+    settings_error_banner, settings_help_button_with_locale as settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::{AutonomyListKind, AutonomySettingsTab};
@@ -295,8 +296,10 @@ fn bool_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.autonomy_settings;
     let available_tools = &app.agents_settings.available_tools;
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::AutonomyHelpOpen));
+    let help_btn = settings_help_button(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::AutonomyHelpOpen),
+    );
 
     let level_row = || {
         field_row(

@@ -925,6 +925,7 @@ pub(crate) struct ThemesSettingsState {
     pub(crate) page_index: usize,
     /// 最近一次刷新/操作/校验错误。
     pub(crate) error: Option<String>,
+    pub(crate) error_translation: Option<crate::app::i18n::format::Message>,
     /// 列表或编辑模式。
     pub(crate) mode: ThemesSettingsMode,
     /// 编辑器当前分段 Tab（仅 Edit 模式使用）。
@@ -943,6 +944,7 @@ impl Default for ThemesSettingsState {
             entries: Vec::new(),
             page_index: 0,
             error: None,
+            error_translation: None,
             mode: ThemesSettingsMode::List,
             editor_tab: ThemeEditorTab::Basics,
             draft: None,

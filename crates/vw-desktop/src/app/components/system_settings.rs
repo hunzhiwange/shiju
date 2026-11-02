@@ -826,7 +826,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 container({
                     let mut content_with_help = column![].spacing(12).width(Length::Fill);
                     if let Some(help_bar) =
-                        crate::app::components::system_settings_help::help_button_bar(help_tab)
+                        crate::app::components::system_settings_help::help_button_bar(
+                            app.desktop_locale,
+                            help_tab,
+                        )
                     {
                         content_with_help = content_with_help.push(help_bar);
                     }

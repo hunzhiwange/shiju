@@ -5,7 +5,7 @@
 
 use crate::app::components::system_settings::SystemTab;
 use crate::app::components::system_settings_common::{
-    settings_help_button, with_settings_help_modal,
+    settings_help_button_with_locale, with_settings_help_modal,
 };
 use crate::app::message::settings::SettingsMessage;
 use crate::app::{App, Message};
@@ -357,13 +357,19 @@ pub fn help_open_for_tab(open_tab: Option<SystemTab>, active_tab: SystemTab) -> 
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn help_button_bar(tab: SystemTab) -> Option<Element<'static, Message>> {
+pub fn help_button_bar(
+    locale: vw_config_types::ui::DesktopLocale,
+    tab: SystemTab,
+) -> Option<Element<'static, Message>> {
     help_content(tab)?;
 
     Some(
         row![
             container(text(" ")).width(Length::Fill),
-            settings_help_button(Message::Settings(SettingsMessage::SystemHelpOpen(tab))),
+            settings_help_button_with_locale(
+                locale,
+                Message::Settings(SettingsMessage::SystemHelpOpen(tab))
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center)

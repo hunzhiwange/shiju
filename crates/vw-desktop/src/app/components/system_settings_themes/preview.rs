@@ -79,7 +79,10 @@ fn status_chip(label: &'static str, color: Color, text_color: Color) -> Element<
 }
 
 /// 用当前草稿渲染小型配色预览。
-pub(crate) fn theme_preview_panel(draft: &ThemeEditorDraft) -> Element<'static, Message> {
+pub(crate) fn theme_preview_panel(
+    locale: vw_config_types::ui::DesktopLocale,
+    draft: &ThemeEditorDraft,
+) -> Element<'static, Message> {
     let definition = definition_from_draft(draft);
     let preview_theme = to_iced_theme(&definition).ok();
     let palette = preview_theme.as_ref().map(|theme| theme.palette()).unwrap_or_else(|| {
@@ -101,16 +104,19 @@ pub(crate) fn theme_preview_panel(draft: &ThemeEditorDraft) -> Element<'static, 
     let danger = palette.danger;
 
     let title = if draft.name.trim().is_empty() {
-        "未命名主题".to_string()
+        crate::app::i18n::I18n::new(locale).__("未命名主题").to_string()
     } else {
         draft.name.clone()
     };
 
     let sample = column![
         text(title).size(15).color(fg),
-        text("这是一段预览文本，用于检查背景与文字对比。").size(12).color(fg),
-        button(text("主色按钮").size(12).color(bg)).padding([8, 14]).style(
-            move |_theme: &Theme, status: iced::widget::button::Status| {
+        text(crate::app::i18n::I18n::new(locale).__("这是一段预览文本，用于检查背景与文字对比。"))
+            .size(12)
+            .color(fg),
+        button(text(crate::app::i18n::I18n::new(locale).__("主色按钮")).size(12).color(bg))
+            .padding([8, 14])
+            .style(move |_theme: &Theme, status: iced::widget::button::Status| {
                 let alpha = match status {
                     iced::widget::button::Status::Hovered => 0.92,
                     iced::widget::button::Status::Pressed => 0.84,
@@ -122,12 +128,11 @@ pub(crate) fn theme_preview_panel(draft: &ThemeEditorDraft) -> Element<'static, 
                     border: Border { radius: 8.0.into(), width: 0.0, color: Color::TRANSPARENT },
                     ..Default::default()
                 }
-            }
-        ),
+            }),
         row![
-            status_chip("成功", success, bg),
-            status_chip("警告", warning, bg),
-            status_chip("危险", danger, bg),
+            status_chip(crate::app::i18n::I18n::new(locale).__("成功"), success, bg),
+            status_chip(crate::app::i18n::I18n::new(locale).__("警告"), warning, bg),
+            status_chip(crate::app::i18n::I18n::new(locale).__("危险"), danger, bg),
         ]
         .spacing(8),
     ]

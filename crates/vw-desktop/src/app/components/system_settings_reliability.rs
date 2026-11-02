@@ -15,8 +15,9 @@
 //! - 提供详细的帮助文档模态框说明各参数含义
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_help_button, settings_muted_text_style, settings_page_intro,
-    settings_section_card, settings_section_content, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_help_button_with_locale as settings_help_button,
+    settings_muted_text_style, settings_page_intro, settings_section_card,
+    settings_section_content, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{column, container, row, slider, text};
@@ -145,8 +146,10 @@ fn scheduler_retries_changed(v: f32) -> Message {
 /// 9. 帮助模态框（可选显示）
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.reliability_settings;
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::ReliabilityHelpOpen));
+    let help_btn = settings_help_button(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::ReliabilityHelpOpen),
+    );
 
     let provider_retries_slider =
         slider(0.0..=20.0, s.provider_retries as f32, provider_retries_changed)

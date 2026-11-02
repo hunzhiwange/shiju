@@ -342,8 +342,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         ThemesMessage::ImportPackPicked(None) => Task::none(),
         ThemesMessage::ImportPackPicked(Some(path)) => {
             let Some(store) = theme_store_from_home() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
             match import_theme_pack_into_store(&path, &store) {
                 Ok(installed) => {
@@ -354,13 +353,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             installed.id
                         ));
                     }
-                    app.show_success_toast(format!("已导入主题包为 `{}`", installed.id))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已导入主题包为 `%s`",
+                        vec![installed.id.to_string().into()],
+                    )
                 }
-                Err(err) => {
-                    let message = format!("导入主题包失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    app.show_error_toast(message)
-                }
+                Err(err) => theme_error(app, "导入主题包失败: %s", vec![err.to_string().into()]),
             }
         }
         ThemesMessage::ExportPack(theme_id) => save_theme_pack_task(theme_id),
@@ -369,76 +368,94 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             match export_theme_pack(&theme_id, &path) {
                 Ok(()) => {
                     app.themes_settings.error = None;
-                    app.show_success_toast(format!("已导出主题包 `{theme_id}`"))
+                    app.themes_settings.error_translation = None;
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已导出主题包 `%s`",
+                        vec![theme_id.to_string().into()],
+                    )
                 }
-                Err(err) => {
-                    let message = format!("导出主题包 `{theme_id}` 失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    app.show_error_toast(message)
-                }
+                Err(err) => theme_error(
+                    app,
+                    "导出主题包 `%s` 失败: %s",
+                    vec![theme_id.to_string().into(), err.to_string().into()],
+                ),
             }
         }
         ThemesMessage::ApplyBuiltin(name) => {
             let Some(builtin) = find_builtin_theme(&name).cloned() else {
-                app.themes_settings.error = Some(format!("未找到内置主题 `{name}`"));
-                return app.show_error_toast(format!("未找到内置主题 `{name}`"));
+                return theme_error(app, "未找到内置主题 `%s`", vec![name.to_string().into()]);
             };
             let root = current_themes_root();
             let theme = match resolve_builtin_with_overlay(&builtin, root.as_deref()) {
                 Ok(theme) => theme,
                 Err(err) => {
-                    let message = format!("应用内置主题覆盖失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    return app.show_error_toast(message);
+                    return theme_error(
+                        app,
+                        "应用内置主题覆盖失败: %s",
+                        vec![err.to_string().into()],
+                    );
                 }
             };
             app.active_custom_theme_id = None;
             let task = apply_theme(app, theme);
             sync_overlay_skin(app, &name);
             refresh_gallery_state(app);
-            Task::batch([task, app.show_success_toast(format!("已应用主题 {name}"))])
+            Task::batch([
+                task,
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "已应用主题 %s",
+                    vec![name.to_string().into()],
+                ),
+            ])
         }
         ThemesMessage::ApplyCustom(id) => {
             let Some(store) = theme_store_from_home() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
             let definition = match store.load(&id) {
                 Ok(definition) => definition,
                 Err(err) => {
-                    let message = format!("加载主题 `{id}` 失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    return app.show_error_toast(message);
+                    return theme_error(
+                        app,
+                        "加载主题 `%s` 失败: %s",
+                        vec![id.to_string().into(), err.to_string().into()],
+                    );
                 }
             };
             let theme = match to_iced_theme(&definition) {
                 Ok(theme) => theme,
                 Err(err) => {
-                    let message = format!("转换主题 `{id}` 失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    return app.show_error_toast(message);
+                    return theme_error(
+                        app,
+                        "转换主题 `%s` 失败: %s",
+                        vec![id.to_string().into(), err.to_string().into()],
+                    );
                 }
             };
             app.active_custom_theme_id = Some(id.clone());
             sync_active_theme_skin(app);
             let task = apply_theme(app, theme);
             refresh_gallery_state(app);
-            Task::batch([task, app.show_success_toast(format!("已应用主题 {}", definition.name))])
+            Task::batch([
+                task,
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "已应用主题 %s",
+                    vec![definition.name.to_string().into()],
+                ),
+            ])
         }
         ThemesMessage::DeleteCustom(id) => {
             if find_builtin_theme(&id).is_some() {
-                let message = format!("内置主题 `{id}` 不可删除");
-                app.themes_settings.error = Some(message.clone());
-                return app.show_error_toast(message);
+                return theme_error(app, "内置主题 `%s` 不可删除", vec![id.to_string().into()]);
             }
             if is_bundled_preset_id(&id) {
-                let message = format!("内置预设主题 `{id}` 不可删除");
-                app.themes_settings.error = Some(message.clone());
-                return app.show_error_toast(message);
+                return theme_error(app, "内置预设主题 `%s` 不可删除", vec![id.to_string().into()]);
             }
             let Some(store) = theme_store_from_home() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
 
             let mut tasks = Vec::new();
@@ -449,13 +466,19 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
 
             if let Err(err) = store.delete(&id) {
-                let message = format!("删除主题 `{id}` 失败: {err}");
-                app.themes_settings.error = Some(message.clone());
-                return app.show_error_toast(message);
+                return theme_error(
+                    app,
+                    "删除主题 `%s` 失败: %s",
+                    vec![id.to_string().into(), err.to_string().into()],
+                );
             }
 
             refresh_gallery_state(app);
-            tasks.push(app.show_success_toast(format!("已删除主题 `{id}`")));
+            tasks.push(app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "已删除主题 `%s`",
+                vec![id.to_string().into()],
+            ));
             Task::batch(tasks)
         }
         ThemesMessage::NewThemeRequested => {
@@ -465,44 +488,43 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.themes_settings.mode = ThemesSettingsMode::Edit;
             app.themes_settings.editor_tab = ThemeEditorTab::Basics;
             app.themes_settings.error = None;
+            app.themes_settings.error_translation = None;
             reset_color_picker(app);
             Task::none()
         }
         ThemesMessage::EditCustom(id) => {
             let Some(store) = theme_store_from_home() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
             let definition = match store.load(&id) {
                 Ok(definition) => definition,
                 Err(err) => {
-                    let message = format!("加载主题 `{id}` 失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    return app.show_error_toast(message);
+                    return theme_error(
+                        app,
+                        "加载主题 `%s` 失败: %s",
+                        vec![id.to_string().into(), err.to_string().into()],
+                    );
                 }
             };
             app.themes_settings.draft = Some(draft_from_definition(&definition));
             app.themes_settings.mode = ThemesSettingsMode::Edit;
             app.themes_settings.editor_tab = ThemeEditorTab::Basics;
             app.themes_settings.error = None;
+            app.themes_settings.error_translation = None;
             reset_color_picker(app);
             Task::none()
         }
         ThemesMessage::EditBuiltin(name) => {
             let Some(builtin) = find_builtin_theme(&name) else {
-                app.themes_settings.error = Some(format!("未找到内置主题 `{name}`"));
-                return app.show_error_toast(format!("未找到内置主题 `{name}`"));
+                return theme_error(app, "未找到内置主题 `%s`", vec![name.to_string().into()]);
             };
             let Some(root) = current_themes_root() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
             let overlay = match load_builtin_overlay(&root, &name) {
                 Ok(overlay) => overlay,
                 Err(err) => {
-                    let message = format!("加载内置覆盖失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    return app.show_error_toast(message);
+                    return theme_error(app, "加载内置覆盖失败: %s", vec![err.to_string().into()]);
                 }
             };
             let palette = palette_hex_from_theme(builtin);
@@ -510,25 +532,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.themes_settings.mode = ThemesSettingsMode::Edit;
             app.themes_settings.editor_tab = ThemeEditorTab::Basics;
             app.themes_settings.error = None;
+            app.themes_settings.error_translation = None;
             reset_color_picker(app);
             Task::none()
         }
         ThemesMessage::RestoreBuiltinDefault(name) => {
             let Some(root) = current_themes_root() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
             if let Err(err) = delete_builtin_overlay(&root, &name) {
-                let message = format!("恢复默认失败: {err}");
-                app.themes_settings.error = Some(message.clone());
-                return app.show_error_toast(message);
+                return theme_error(app, "恢复默认失败: %s", vec![err.to_string().into()]);
             }
 
             let mut tasks = Vec::new();
             if is_active_builtin(app, &name) {
                 let Some(builtin) = find_builtin_theme(&name).cloned() else {
-                    app.themes_settings.error = Some(format!("未找到内置主题 `{name}`"));
-                    return app.show_error_toast(format!("未找到内置主题 `{name}`"));
+                    return theme_error(app, "未找到内置主题 `%s`", vec![name.to_string().into()]);
                 };
                 app.active_custom_theme_id = None;
                 clear_active_theme_skin(app);
@@ -542,18 +561,23 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
 
             refresh_gallery_state(app);
-            tasks.push(app.show_success_toast(format!("已恢复内置主题 {name} 的默认值")));
+            tasks.push(app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "已恢复内置主题 %s 的默认值",
+                vec![name.to_string().into()],
+            ));
             Task::batch(tasks)
         }
         ThemesMessage::RestorePresetDefault(id) => {
             let Some(root) = current_themes_root() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
             if let Err(err) = restore_bundled_preset(&root, &id) {
-                let message = format!("恢复预设主题 `{id}` 默认值失败: {err}");
-                app.themes_settings.error = Some(message.clone());
-                return app.show_error_toast(message);
+                return theme_error(
+                    app,
+                    "恢复预设主题 `%s` 默认值失败: %s",
+                    vec![id.to_string().into(), err.to_string().into()],
+                );
             }
 
             let mut tasks = Vec::new();
@@ -571,12 +595,17 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
 
             refresh_gallery_state(app);
-            tasks.push(app.show_success_toast(format!("已恢复预设主题 `{id}` 的默认值")));
+            tasks.push(app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "已恢复预设主题 `%s` 的默认值",
+                vec![id.to_string().into()],
+            ));
             Task::batch(tasks)
         }
         ThemesMessage::CancelEdit => {
             clear_editor(app);
             app.themes_settings.error = None;
+            app.themes_settings.error_translation = None;
             Task::none()
         }
         ThemesMessage::EditorTabSelected(tab) => {
@@ -703,19 +732,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         ThemesMessage::SaveDraft => {
             let Some(draft) = app.themes_settings.draft.clone() else {
-                app.themes_settings.error = Some("没有可保存的主题草稿".to_string());
-                return app.show_error_toast("没有可保存的主题草稿");
+                return theme_error(app, "没有可保存的主题草稿", vec![]);
             };
 
             if let Some(builtin_name) = draft.builtin_base.clone() {
                 let Some(root) = current_themes_root() else {
-                    app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                    return app.show_error_toast("无法定位主题仓库");
+                    return theme_error(app, "无法定位主题仓库", vec![]);
                 };
 
                 let definition = match try_definition_from_draft(&draft) {
                     Ok(definition) => definition,
                     Err(err) => {
+                        app.themes_settings.error_translation = None;
                         app.themes_settings.error = Some(err.clone());
                         return app.show_error_toast(err);
                     }
@@ -729,9 +757,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 ) {
                     Ok(saved) => saved,
                     Err(err) => {
-                        let message = format!("保存内置覆盖失败: {err}");
-                        app.themes_settings.error = Some(message.clone());
-                        return app.show_error_toast(message);
+                        return theme_error(
+                            app,
+                            "保存内置覆盖失败: %s",
+                            vec![err.to_string().into()],
+                        );
                     }
                 };
 
@@ -744,35 +774,40 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             sync_overlay_skin(app, &builtin_name);
                         }
                         None => {
-                            let message = format!("保存后刷新内置主题 `{builtin_name}` 失败");
-                            app.themes_settings.error = Some(message.clone());
-                            return app.show_error_toast(message);
+                            return theme_error(
+                                app,
+                                "保存后刷新内置主题 `%s` 失败",
+                                vec![builtin_name.to_string().into()],
+                            );
                         }
                     }
                 }
 
                 clear_editor(app);
                 refresh_gallery_state(app);
-                tasks.push(app.show_success_toast(format!("已保存内置主题覆盖 {}", saved.name)));
+                tasks.push(app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "已保存内置主题覆盖 %s",
+                    vec![saved.name.to_string().into()],
+                ));
                 return Task::batch(tasks);
             }
 
             let Some(store) = theme_store_from_home() else {
-                app.themes_settings.error = Some("无法定位主题仓库".to_string());
-                return app.show_error_toast("无法定位主题仓库");
+                return theme_error(app, "无法定位主题仓库", vec![]);
             };
 
             // Finalize id for new themes before validation.
             sync_new_theme_id(app);
 
             let Some(draft) = app.themes_settings.draft.clone() else {
-                app.themes_settings.error = Some("没有可保存的主题草稿".to_string());
-                return app.show_error_toast("没有可保存的主题草稿");
+                return theme_error(app, "没有可保存的主题草稿", vec![]);
             };
 
             let definition = match try_definition_from_draft(&draft) {
                 Ok(definition) => definition,
                 Err(err) => {
+                    app.themes_settings.error_translation = None;
                     app.themes_settings.error = Some(err.clone());
                     return app.show_error_toast(err);
                 }
@@ -782,9 +817,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let saved = match store.save_with_sources(&definition, &sources) {
                 Ok(saved) => saved,
                 Err(err) => {
-                    let message = format!("保存主题失败: {err}");
-                    app.themes_settings.error = Some(message.clone());
-                    return app.show_error_toast(message);
+                    return theme_error(app, "保存主题失败: %s", vec![err.to_string().into()]);
                 }
             };
 
@@ -796,16 +829,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         tasks.push(apply_theme(app, theme));
                     }
                     Err(err) => {
-                        let message = format!("保存后刷新应用主题失败: {err}");
-                        app.themes_settings.error = Some(message.clone());
-                        return app.show_error_toast(message);
+                        return theme_error(
+                            app,
+                            "保存后刷新应用主题失败: %s",
+                            vec![err.to_string().into()],
+                        );
                     }
                 }
             }
 
             clear_editor(app);
             refresh_gallery_state(app);
-            tasks.push(app.show_success_toast(format!("已保存主题 {}", saved.name)));
+            tasks.push(app.show_localized_toast(
+                crate::app::state::ToastKind::Success,
+                "已保存主题 %s",
+                vec![saved.name.to_string().into()],
+            ));
             Task::batch(tasks)
         }
     }
@@ -814,3 +853,20 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "themes_tests.rs"]
 mod themes_tests;
+
+fn theme_error(
+    app: &mut App,
+    source: &str,
+    arguments: Vec<crate::app::i18n::format::Argument>,
+) -> Task<Message> {
+    let message = crate::app::i18n::format::Message::new(source, arguments.clone());
+    app.themes_settings.error = Some(
+        message
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .expect("valid theme error template"),
+    );
+    app.themes_settings.error_translation = Some(message);
+    app.show_localized_toast(crate::app::state::ToastKind::Error, source, arguments)
+}

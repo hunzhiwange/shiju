@@ -182,7 +182,10 @@ fn entry_is_active(app: &App, entry: &ThemeGalleryEntry) -> bool {
     }
 }
 
-fn palette_swatch_row(palette: &ThemePaletteHex) -> Element<'static, Message> {
+fn palette_swatch_row(
+    locale: vw_config_types::ui::DesktopLocale,
+    palette: &ThemePaletteHex,
+) -> Element<'static, Message> {
     let swatches = [
         ("背景", &palette.background),
         ("文本", &palette.text),
@@ -209,7 +212,9 @@ fn palette_swatch_row(palette: &ThemePaletteHex) -> Element<'static, Message> {
                             },
                             ..Default::default()
                         }),
-                    text(label).size(8).style(settings_muted_text_style),
+                    text(crate::app::i18n::I18n::new(locale).__(label))
+                        .size(8)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(3)
                 .align_x(Alignment::Center),
@@ -251,18 +256,20 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
     let source_label = match entry.source {
         ThemeGallerySource::Builtin => {
             if entry.modified {
-                "已修改"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("已修改")
             } else {
-                "内置"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("内置")
             }
         }
-        ThemeGallerySource::Preset => "预设",
-        ThemeGallerySource::Custom => "自定义",
+        ThemeGallerySource::Preset => crate::app::i18n::I18n::new(app.desktop_locale).__("预设"),
+        ThemeGallerySource::Custom => crate::app::i18n::I18n::new(app.desktop_locale).__("自定义"),
     };
 
     let mut badges = row![settings_value_badge(source_label)].spacing(6);
     if is_active {
-        badges = badges.push(settings_value_badge("当前应用"));
+        badges = badges.push(settings_value_badge(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("当前应用"),
+        ));
     }
 
     let header = column![
@@ -270,13 +277,17 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
         text(entry.tagline.clone().unwrap_or_else(|| match entry.source {
             ThemeGallerySource::Builtin => {
                 if entry.modified {
-                    "本地覆盖的内置主题".to_string()
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("本地覆盖的内置主题")
+                        .to_string()
                 } else {
-                    "Iced 内置主题".to_string()
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("Iced 内置主题").to_string()
                 }
             }
-            ThemeGallerySource::Preset => "内置预设主题".to_string(),
-            ThemeGallerySource::Custom => "本地自定义主题".to_string(),
+            ThemeGallerySource::Preset =>
+                crate::app::i18n::I18n::new(app.desktop_locale).__("内置预设主题").to_string(),
+            ThemeGallerySource::Custom =>
+                crate::app::i18n::I18n::new(app.desktop_locale).__("本地自定义主题").to_string(),
         }))
         .size(10)
         .style(settings_muted_text_style),
@@ -295,15 +306,22 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
     };
 
     let mut actions = row![
-        button(text(if is_active { "已应用" } else { "应用" }).size(11))
-            .padding([6, 10])
-            .on_press_maybe(if is_active { None } else { Some(apply_msg) })
-            .style(rounded_action_btn_style),
+        button(
+            text(if is_active {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("已应用")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("应用")
+            })
+            .size(11)
+        )
+        .padding([6, 10])
+        .on_press_maybe(if is_active { None } else { Some(apply_msg) })
+        .style(rounded_action_btn_style),
     ]
     .spacing(6);
 
     actions = actions.push(
-        button(text("导出").size(11))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("导出")).size(11))
             .padding([6, 10])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::ExportPack(
                 entry.id.clone(),
@@ -315,7 +333,7 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
         ThemeGallerySource::Builtin => {
             let edit_name = entry.id.clone();
             actions = actions.push(
-                button(text("编辑").size(11))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("编辑")).size(11))
                     .padding([6, 10])
                     .on_press(Message::Settings(SettingsMessage::Themes(
                         ThemesMessage::EditBuiltin(edit_name),
@@ -325,19 +343,22 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
             if entry.modified {
                 let restore_name = entry.id.clone();
                 actions = actions.push(
-                    button(text("恢复默认").size(11))
-                        .padding([6, 10])
-                        .on_press(Message::Settings(SettingsMessage::Themes(
-                            ThemesMessage::RestoreBuiltinDefault(restore_name),
-                        )))
-                        .style(danger_action_btn_style),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("恢复默认"))
+                            .size(11),
+                    )
+                    .padding([6, 10])
+                    .on_press(Message::Settings(SettingsMessage::Themes(
+                        ThemesMessage::RestoreBuiltinDefault(restore_name),
+                    )))
+                    .style(danger_action_btn_style),
                 );
             }
         }
         ThemeGallerySource::Preset => {
             let edit_id = entry.id.clone();
             actions = actions.push(
-                button(text("编辑").size(11))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("编辑")).size(11))
                     .padding([6, 10])
                     .on_press(Message::Settings(SettingsMessage::Themes(
                         ThemesMessage::EditCustom(edit_id),
@@ -347,12 +368,15 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
             if entry.modified {
                 let restore_id = entry.id.clone();
                 actions = actions.push(
-                    button(text("恢复默认").size(11))
-                        .padding([6, 10])
-                        .on_press(Message::Settings(SettingsMessage::Themes(
-                            ThemesMessage::RestorePresetDefault(restore_id),
-                        )))
-                        .style(danger_action_btn_style),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("恢复默认"))
+                            .size(11),
+                    )
+                    .padding([6, 10])
+                    .on_press(Message::Settings(SettingsMessage::Themes(
+                        ThemesMessage::RestorePresetDefault(restore_id),
+                    )))
+                    .style(danger_action_btn_style),
                 );
             }
         }
@@ -360,7 +384,7 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
             let edit_id = entry.id.clone();
             let delete_id = entry.id.clone();
             actions = actions.push(
-                button(text("编辑").size(11))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("编辑")).size(11))
                     .padding([6, 10])
                     .on_press(Message::Settings(SettingsMessage::Themes(
                         ThemesMessage::EditCustom(edit_id),
@@ -368,7 +392,7 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
                     .style(rounded_action_btn_style),
             );
             actions = actions.push(
-                button(text("删除").size(11))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")).size(11))
                     .padding([6, 10])
                     .on_press(Message::Settings(SettingsMessage::Themes(
                         ThemesMessage::DeleteCustom(delete_id),
@@ -382,7 +406,7 @@ fn gallery_card<'a>(app: &'a App, entry: &'a ThemeGalleryEntry) -> Element<'a, M
     if let Some(cover_path) = entry.cover_path.as_deref() {
         body = body.push(cover_thumbnail(cover_path));
     }
-    body = body.push(palette_swatch_row(&entry.palette));
+    body = body.push(palette_swatch_row(app.desktop_locale, &entry.palette));
     body = body.push(actions);
 
     container(body)
@@ -401,16 +425,24 @@ fn pagination_controls(app: &App) -> Element<'_, Message> {
     let can_next = page + 1 < page_count;
 
     row![
-        button(text("上一页").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("上一页")).size(12))
             .padding([8, 14])
             .on_press_maybe(can_prev.then_some(Message::Settings(SettingsMessage::Themes(
                 ThemesMessage::GalleryPrevPage,
             ))))
             .style(rounded_action_btn_style),
-        text(format!("第 {} / {} 页", page + 1, page_count))
-            .size(12)
-            .style(settings_muted_text_style),
-        button(text("下一页").size(12))
+        text(
+            crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "第 %u / %u 页",
+                page + 1,
+                page_count
+            )
+            .expect("valid gallery page template")
+        )
+        .size(12)
+        .style(settings_muted_text_style),
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("下一页")).size(12))
             .padding([8, 14])
             .on_press_maybe(can_next.then_some(Message::Settings(SettingsMessage::Themes(
                 ThemesMessage::GalleryNextPage,
@@ -448,10 +480,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     let cards_grid: Element<'_, Message> = if total == 0 {
-        container(text("暂无主题，点击刷新或新建主题。").size(13).style(settings_muted_text_style))
-            .padding([12, 4])
-            .width(Length::Fill)
-            .into()
+        container(
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("暂无主题，点击刷新或新建主题。"),
+            )
+            .size(13)
+            .style(settings_muted_text_style),
+        )
+        .padding([12, 4])
+        .width(Length::Fill)
+        .into()
     } else {
         let mut rows = column![].spacing(12).width(Length::Fill);
         let mut remaining = cards;
@@ -464,15 +503,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let toolbar = row![
-        button(text("刷新").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("刷新")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::Refresh)))
             .style(rounded_action_btn_style),
-        button(text("新建主题").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新建主题")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::NewThemeRequested,)))
             .style(rounded_action_btn_style),
-        button(text("导入主题包").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("导入主题包")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Themes(ThemesMessage::ImportPack,)))
             .style(rounded_action_btn_style),
@@ -482,17 +521,32 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
 
     let mut body = column![
-        settings_page_intro("主题", "浏览内置、预设与自定义主题，应用或管理本地主题包。"),
+        settings_page_intro(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("主题"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("浏览内置、预设与自定义主题，应用或管理本地主题包。")
+        ),
         settings_section_card(
-            "主题画廊",
-            "所有主题均可导出；预设主题可编辑并恢复默认、不可删除，自定义主题可编辑或删除。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("主题画廊"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__(
+                "所有主题均可导出；预设主题可编辑并恢复默认、不可删除，自定义主题可编辑或删除。"
+            ),
         ),
         toolbar,
     ]
     .spacing(12);
 
     if let Some(error) = app.themes_settings.error.as_deref() {
-        body = body.push(settings_error_banner(error));
+        body = body.push(settings_error_banner(
+            app.themes_settings
+                .error_translation
+                .as_ref()
+                .map(|m| {
+                    m.render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid theme feedback template")
+                })
+                .unwrap_or_else(|| error.to_string()),
+        ));
     }
 
     body = body.push(cards_grid);
@@ -510,9 +564,11 @@ pub fn refresh_gallery_state(app: &mut App) {
             app.themes_settings.page_index =
                 clamp_gallery_page(app.themes_settings.page_index, total);
             app.themes_settings.error = None;
+            app.themes_settings.error_translation = None;
         }
         Err(error) => {
             app.themes_settings.error = Some(error);
+            app.themes_settings.error_translation = None;
         }
     }
 }

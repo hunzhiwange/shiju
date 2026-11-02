@@ -16,9 +16,9 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, icon_btn, settings_checkbox_style, settings_close_button,
-    settings_control_with_hint, settings_help_button, settings_help_copy_state,
-    settings_muted_text_style, settings_page_intro, settings_panel, settings_section_card,
-    settings_section_content, settings_value_badge,
+    settings_control_with_hint, settings_help_button_with_locale as settings_help_button,
+    settings_help_copy_state, settings_muted_text_style, settings_page_intro, settings_panel,
+    settings_section_card, settings_section_content, settings_value_badge,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{Space, checkbox, column, container, row, slider, text};
@@ -130,8 +130,10 @@ fn inline_help_panel(app: &App) -> Option<Element<'static, Message>> {
 /// 构建可嵌入到定时任务配置页的调度器设置内容。
 pub(crate) fn embedded_view(app: &App) -> Element<'_, Message> {
     let s = &app.scheduler_settings;
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::SchedulerHelpOpen));
+    let help_btn = settings_help_button(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::SchedulerHelpOpen),
+    );
 
     let enabled_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),

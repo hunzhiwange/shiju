@@ -87,10 +87,28 @@ fn option_helpers_preserve_selected_values() {
         with_selected_option(vec!["b".to_string(), "b".to_string()], " "),
         vec!["b".to_string()]
     );
-    assert_eq!(selected_acp_agent_label(""), NO_ACP_AGENT_LABEL);
-    assert_eq!(selected_acp_agent_label("agent-a"), "agent-a");
-    assert_eq!(acp_agent_value_from_label(NO_ACP_AGENT_LABEL.to_string()), "");
-    assert_eq!(acp_agent_value_from_label("agent-a".to_string()), "agent-a");
+    assert_eq!(
+        selected_acp_agent_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, ""),
+        NO_ACP_AGENT_LABEL
+    );
+    assert_eq!(
+        selected_acp_agent_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "agent-a"),
+        "agent-a"
+    );
+    assert_eq!(
+        acp_agent_value_from_label(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            NO_ACP_AGENT_LABEL.to_string()
+        ),
+        ""
+    );
+    assert_eq!(
+        acp_agent_value_from_label(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "agent-a".to_string()
+        ),
+        "agent-a"
+    );
 }
 
 #[test]
@@ -260,10 +278,10 @@ fn job_row_builds_disabled_announced_agent_with_complete_execution_metadata() {
 
 #[test]
 fn run_row_handles_missing_output_and_duration() {
-    keep_element(run_row(&run("success")));
+    keep_element(run_row(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &run("success")));
 
     let missing = CronRunDto { output: None, duration_ms: None, ..run("failed") };
-    keep_element(run_row(&missing));
+    keep_element(run_row(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &missing));
 }
 
 #[test]

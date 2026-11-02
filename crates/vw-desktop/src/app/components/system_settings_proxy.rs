@@ -18,10 +18,10 @@
 //! - `services`: 仅对指定服务选择器生效
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider, settings_help_button,
-    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
-    settings_pick_list_style, settings_section_card, settings_section_content,
-    settings_text_input_style,
+    SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_divider,
+    settings_help_button_with_locale as settings_help_button, settings_muted_text_style,
+    settings_page_intro, settings_pick_list_menu_style, settings_pick_list_style,
+    settings_section_card, settings_section_content, settings_text_input_style,
 };
 use crate::app::{App, Message, message};
 use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
@@ -78,7 +78,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.proxy_settings;
 
-    let help_btn = settings_help_button(Message::Settings(message::SettingsMessage::ProxyHelpOpen));
+    let help_btn = settings_help_button(
+        app.desktop_locale,
+        Message::Settings(message::SettingsMessage::ProxyHelpOpen),
+    );
 
     let enabled_row = field_row(
         crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),

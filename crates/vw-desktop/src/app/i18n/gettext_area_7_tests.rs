@@ -21,6 +21,11 @@ fn desktop_gettext_area_7_general_editor_sources_have_catalog_entries() {
         include_str!("../components/system_settings_editor.rs"),
         include_str!("../components/system_settings_acp.rs"),
         include_str!("../components/system_settings_browser.rs"),
+        include_str!("../components/system_settings_cron.rs"),
+        include_str!("../components/system_settings_cron/schedule.rs"),
+        include_str!("../components/system_settings_themes/editor.rs"),
+        include_str!("../components/system_settings_themes/gallery.rs"),
+        include_str!("../components/system_settings_themes/preview.rs"),
         include_str!("../components/system_settings_multimodal.rs"),
         include_str!("../components/system_settings_projects.rs"),
         include_str!("../components/system_settings_query_classification.rs"),
@@ -117,4 +122,24 @@ async fn desktop_gettext_area_7_general_search_keeps_chinese_and_stable_keywords
     assert!(entry.matches("常规"));
     assert!(entry.matches("general"));
     assert!(entry.matches("General settings"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_7_theme_delete_guard_retains_localized_feedback() {
+    use crate::app::message::settings::{SettingsMessage, ThemesMessage};
+    let (mut app, _) = crate::app::App::new();
+    let name = iced::Theme::Light.to_string();
+    let _ = crate::app::message::settings::update(
+        &mut app,
+        SettingsMessage::Themes(ThemesMessage::DeleteCustom(name.clone())),
+    );
+    let feedback = app.themes_settings.error_translation.as_ref().unwrap();
+    assert_eq!(
+        feedback.render(I18n::new(DesktopLocale::English)).unwrap(),
+        format!("Built-in theme `{name}` cannot be deleted")
+    );
+    assert_eq!(
+        feedback.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
+        format!("內建主題 `{name}` 不可刪除")
+    );
 }

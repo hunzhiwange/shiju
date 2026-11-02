@@ -32,7 +32,8 @@ mod theme_tests;
 mod utils_tests;
 
 pub use help::{
-    settings_close_button, settings_help_button, settings_help_copy_state, with_settings_help_modal,
+    settings_close_button, settings_help_button, settings_help_button_with_locale,
+    settings_help_copy_state, with_settings_help_modal,
 };
 pub use icons::{icon_btn, icon_svg, provider_logo_svg};
 pub use panels::{

@@ -136,18 +136,14 @@ fn theme_detection_treats_exact_brightness_threshold_as_light() {
 #[test]
 fn option_text_colors_follow_theme_and_selection_state() {
     for theme in [Theme::Dark, Theme::Light] {
-        assert_eq!(super::question_option_title_color(&theme, false), theme.palette().text);
-        assert_eq!(
-            super::question_option_title_color(&theme, true),
-            theme.extended_palette().primary.base.text
-        );
+        assert_eq!(super::question_option_title_color(&theme), theme.palette().text);
         assert_eq!(
             super::question_option_description_color(&theme, false),
             theme.palette().text.scale_alpha(0.68)
         );
         assert_eq!(
             super::question_option_description_color(&theme, true),
-            theme.extended_palette().primary.base.text.scale_alpha(0.82)
+            theme.palette().text.scale_alpha(0.82)
         );
     }
 }
@@ -181,7 +177,7 @@ fn selected_option_styles_cover_statuses_in_dark_and_light_themes() {
         assert_eq!(solid_background(pressed.background), primary.scale_alpha(pressed_alpha));
         assert_eq!(solid_background(disabled.background), primary.scale_alpha(active_alpha));
         assert_eq!(active.border.color, primary.scale_alpha(border_alpha));
-        assert_eq!(active.text_color, theme.extended_palette().primary.base.text);
+        assert_eq!(active.text_color, theme.palette().text);
         assert_eq!(active.shadow.color, primary.scale_alpha(shadow_alpha));
         assert_eq!(active.shadow.blur_radius, 18.0);
     }
@@ -263,6 +259,6 @@ fn question_option_styles_follow_theme_and_selection_state() {
 
     assert_ne!(solid_background(active.background), solid_background(selected.background));
     assert_ne!(solid_background(active.background), solid_background(hovered.background));
-    assert_ne!(active.text_color, selected.text_color);
+    assert_eq!(active.text_color, selected.text_color);
     assert!(selected.shadow.blur_radius > 0.0);
 }

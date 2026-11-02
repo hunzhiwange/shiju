@@ -11,13 +11,13 @@ fn question_modal_is_dark_theme(theme: &iced::Theme) -> bool {
     background.r + background.g + background.b < 1.5
 }
 
-fn question_option_title_color(theme: &iced::Theme, selected: bool) -> iced::Color {
-    if selected { theme.extended_palette().primary.base.text } else { theme.palette().text }
+fn question_option_title_color(theme: &iced::Theme) -> iced::Color {
+    // 选项使用半透明主色背景，文字应匹配弹窗底色，而非实心主色。
+    theme.palette().text
 }
 
 fn question_option_description_color(theme: &iced::Theme, selected: bool) -> iced::Color {
-    let base =
-        if selected { theme.extended_palette().primary.base.text } else { theme.palette().text };
+    let base = question_option_title_color(theme);
     base.scale_alpha(if selected { 0.82 } else { 0.68 })
 }
 
@@ -41,7 +41,7 @@ fn question_option_button_style(
         (
             background,
             theme.palette().primary.scale_alpha(if is_dark { 0.62 } else { 0.34 }),
-            theme.extended_palette().primary.base.text,
+            question_option_title_color(theme),
         )
     } else {
         let background = match status {
@@ -131,7 +131,7 @@ pub(crate) fn with_question_modal<'a>(
                 let button_label = column![
                     text(label.clone()).size(13).style(move |theme: &Theme| {
                         iced::widget::text::Style {
-                            color: Some(question_option_title_color(theme, selected)),
+                            color: Some(question_option_title_color(theme)),
                         }
                     }),
                     text(option.description.clone()).size(11).style(move |theme: &Theme| {

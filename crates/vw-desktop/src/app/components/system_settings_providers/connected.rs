@@ -13,10 +13,8 @@ use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_divider, settings_muted_text_style, settings_page_intro,
     settings_panel, settings_section_card, settings_value_badge,
 };
-use crate::app::i18n::settings_models::connection_text::{
-    Text as ConnectionText, text as connection_text,
-};
-use crate::app::i18n::settings_models::messages::{Message as OwnedMessage, render as owned_text};
+use crate::app::i18n::settings_models::connection_text::text as connection_text;
+use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::state::{
     ModelCatalogEntry, ProviderSummary, SHIJU_OFFICIAL_PROVIDER_ID, SHIJU_OFFICIAL_PROVIDER_NAME,
     is_shiju_official_provider_id,
@@ -165,14 +163,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let header = row![
         container(settings_page_intro(
-            connection_text(app.desktop_locale, ConnectionText::ModelProviders),
-            connection_text(app.desktop_locale, ConnectionText::ManageConnectedPopularAndCustom),
+            connection_text(app.desktop_locale, "模型提供商"),
+            connection_text(app.desktop_locale, "统一管理已连接、热门和自定义的模型提供商入口。"),
         ))
         .width(Length::Fill),
         button(text(if s.models_syncing {
-            connection_text(app.desktop_locale, ConnectionText::Syncing)
+            connection_text(app.desktop_locale, "同步中…")
         } else {
-            connection_text(app.desktop_locale, ConnectionText::SyncFromModelsDev)
+            connection_text(app.desktop_locale, "从 models.dev 同步")
         }))
         .on_press_maybe(
             (!header_busy)
@@ -185,9 +183,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             primary_action_btn_style
         }),
         button(text(if s.loading {
-            connection_text(app.desktop_locale, ConnectionText::Refreshing)
+            connection_text(app.desktop_locale, "刷新中…")
         } else {
-            connection_text(app.desktop_locale, ConnectionText::Refresh)
+            connection_text(app.desktop_locale, "刷新")
         }))
         .on_press_maybe(
             (!header_busy)
@@ -219,14 +217,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     root = root.push(settings_section_card(
-        connection_text(app.desktop_locale, ConnectionText::ConnectedProviders),
-        connection_text(app.desktop_locale, ConnectionText::ViewAvailableProvidersAndManage),
+        connection_text(app.desktop_locale, "已连接的提供商"),
+        connection_text(
+            app.desktop_locale,
+            "查看当前可用的 provider，并管理密钥、编辑与断开连接。",
+        ),
     ));
 
     let connected = s.providers.iter().filter(|provider| provider.connected).collect::<Vec<_>>();
     if connected.is_empty() {
         root = root.push(settings_panel(
-            text(connection_text(app.desktop_locale, ConnectionText::NoConnectedProviders))
+            text(connection_text(app.desktop_locale, "暂无已连接的提供商。"))
                 .size(13)
                 .style(settings_muted_text_style),
         ));
@@ -240,21 +241,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
             let controls: Element<'_, Message> = if is_confirming_disconnect {
                 row![
                     source_badge,
-                    button(text(connection_text(app.desktop_locale, ConnectionText::Cancel)))
+                    button(text(connection_text(app.desktop_locale, "取消")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::ProviderDisconnectCanceled,
                         ))
                         .padding([7, 12])
                         .style(rounded_action_btn_style),
-                    button(text(connection_text(
-                        app.desktop_locale,
-                        ConnectionText::ConfirmDisconnect
-                    )))
-                    .on_press(Message::Settings(
-                        message::SettingsMessage::ProviderDisconnectConfirmed(p.id.clone()),
-                    ))
-                    .padding([7, 12])
-                    .style(danger_action_btn_style),
+                    button(text(connection_text(app.desktop_locale, "确认断开")))
+                        .on_press(Message::Settings(
+                            message::SettingsMessage::ProviderDisconnectConfirmed(p.id.clone()),
+                        ))
+                        .padding([7, 12])
+                        .style(danger_action_btn_style),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center)
@@ -263,22 +261,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 row![
                     source_badge,
                     button(text(if is_shiju_official_provider_id(&p.id) {
-                        connection_text(app.desktop_locale, ConnectionText::AuthorizeAgain)
+                        connection_text(app.desktop_locale, "重新授权")
                     } else {
-                        connection_text(app.desktop_locale, ConnectionText::ChangeApiKey)
+                        connection_text(app.desktop_locale, "修改密钥")
                     }))
                     .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
                         p.id.clone()
                     )))
                     .padding([7, 12])
                     .style(rounded_action_btn_style),
-                    button(text(connection_text(app.desktop_locale, ConnectionText::Edit)))
+                    button(text(connection_text(app.desktop_locale, "编辑")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::CustomProviderEditOpen(p.id.clone()),
                         ))
                         .padding([7, 12])
                         .style(rounded_action_btn_style),
-                    button(text(connection_text(app.desktop_locale, ConnectionText::Disconnect)))
+                    button(text(connection_text(app.desktop_locale, "断开连接")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::ProviderDisconnectRequested(p.id.clone()),
                         ))
@@ -306,26 +304,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
 
     root = root.push(settings_section_card(
-        connection_text(app.desktop_locale, ConnectionText::PopularProviders),
-        connection_text(app.desktop_locale, ConnectionText::MatchPopularPatternsAgainstThe),
+        connection_text(app.desktop_locale, "热门提供商"),
+        connection_text(
+            app.desktop_locale,
+            "根据热门模式匹配目录中的 provider，快速建立常用连接。",
+        ),
     ));
 
     let official =
         popular_provider_match(SHIJU_OFFICIAL_PROVIDER_ID, &s.catalog_items, &s.providers);
-    let mut official_controls = row![settings_value_badge(connection_text(
-        app.desktop_locale,
-        ConnectionText::OfficialRecommendation
-    ))]
-    .spacing(8)
-    .align_y(Alignment::Center);
+    let mut official_controls =
+        row![settings_value_badge(connection_text(app.desktop_locale, "官方推荐"))]
+            .spacing(8)
+            .align_y(Alignment::Center);
     if official.is_connected {
-        official_controls = official_controls.push(settings_value_badge(connection_text(
-            app.desktop_locale,
-            ConnectionText::Connected,
-        )));
+        official_controls = official_controls
+            .push(settings_value_badge(connection_text(app.desktop_locale, "已连接")));
     } else {
         official_controls = official_controls.push(
-            button(text(connection_text(app.desktop_locale, ConnectionText::Connect)))
+            button(text(connection_text(app.desktop_locale, "连接")))
                 .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
                     SHIJU_OFFICIAL_PROVIDER_ID.to_string(),
                 )))
@@ -336,7 +333,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut popular_panel = column![provider_item_row(
         SHIJU_OFFICIAL_PROVIDER_ID,
         official.display,
-        connection_text(app.desktop_locale, ConnectionText::OfficialShijuModelServiceAvailable),
+        connection_text(app.desktop_locale, "识矩官方模型服务，连接后可自动发现可用模型。"),
         official_controls,
     )];
 
@@ -353,20 +350,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let mut controls = row![].spacing(8).align_y(Alignment::Center);
 
         if is_connected {
-            controls = controls.push(settings_value_badge(connection_text(
-                app.desktop_locale,
-                ConnectionText::Connected,
-            )));
+            controls =
+                controls.push(settings_value_badge(connection_text(app.desktop_locale, "已连接")));
         } else if provider_id.is_none() {
-            controls = controls.push(settings_value_badge(connection_text(
-                app.desktop_locale,
-                ConnectionText::NotFound,
-            )));
+            controls =
+                controls.push(settings_value_badge(connection_text(app.desktop_locale, "未发现")));
         }
 
         if let Some(pid) = provider_id.clone().filter(|_| !is_connected) {
             controls = controls.push(
-                button(text(connection_text(app.desktop_locale, ConnectionText::Connect)))
+                button(text(connection_text(app.desktop_locale, "连接")))
                     .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(pid)))
                     .padding([7, 12])
                     .style(primary_action_btn_style),
@@ -374,7 +367,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
 
         controls = controls.push(
-            button(text(connection_text(app.desktop_locale, ConnectionText::Remove)))
+            button(text(connection_text(app.desktop_locale, "移除")))
                 .on_press(Message::Settings(message::SettingsMessage::PopularProviderRemove(
                     original_index,
                 )))
@@ -383,16 +376,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         );
 
         let description = provider_id
-            .map(|pid| {
-                format!(
-                    "{} ID: {}",
-                    connection_text(app.desktop_locale, ConnectionText::Provider),
-                    pid
-                )
-            })
-            .unwrap_or_else(|| {
-                owned_text(app.desktop_locale, OwnedMessage::PatternValue, &[pat.clone()])
-            });
+            .map(|pid| format!("{} ID: {}", connection_text(app.desktop_locale, "提供商"), pid))
+            .unwrap_or_else(|| owned_text(app.desktop_locale, "匹配模式：%s", &[pat.clone()]));
 
         popular_panel = popular_panel.push(settings_divider()).push(provider_item_row(
             logo_id,
@@ -405,15 +390,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let popular_action = container(
         row![
             column![
-                text(connection_text(app.desktop_locale, ConnectionText::DiscoverMoreProviders))
-                    .size(13),
-                text(connection_text(app.desktop_locale, ConnectionText::BrowseTheModelCatalogAdd))
-                    .size(12)
-                    .style(settings_muted_text_style),
+                text(connection_text(app.desktop_locale, "发现更多提供商")).size(13),
+                text(connection_text(
+                    app.desktop_locale,
+                    "从模型目录中浏览更多 provider，并快速加入热门或直接连接。"
+                ))
+                .size(12)
+                .style(settings_muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),
-            button(text(connection_text(app.desktop_locale, ConnectionText::MoreModelProviders)))
+            button(text(connection_text(app.desktop_locale, "更多模型提供商")))
                 .on_press(Message::Settings(message::SettingsMessage::ProviderCatalogOpen))
                 .padding([8, 14])
                 .style(primary_action_btn_style),
@@ -428,16 +415,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     root = root.push(popular_action);
 
     root = root.push(settings_section_card(
-        connection_text(app.desktop_locale, ConnectionText::CustomProvider),
-        connection_text(app.desktop_locale, ConnectionText::ConnectAnOpenaiCompatibleProvider),
+        connection_text(app.desktop_locale, "自定义提供商"),
+        connection_text(app.desktop_locale, "按 base URL 接入 OpenAI 兼容 provider。"),
     ));
     root = root.push(settings_panel(provider_item_row(
         "agent",
-        connection_text(app.desktop_locale, ConnectionText::OpenaiCompatibleProvider),
-        connection_text(app.desktop_locale, ConnectionText::AddACustomProviderAnd),
+        connection_text(app.desktop_locale, "OpenAI 兼容 provider"),
+        connection_text(app.desktop_locale, "添加一个自定义 provider，并在后续编辑连接参数。"),
         row![
             container(text(" ")).width(Length::Fill),
-            button(text(connection_text(app.desktop_locale, ConnectionText::AddProvider)))
+            button(text(connection_text(app.desktop_locale, "添加提供商")))
                 .on_press(Message::Settings(message::SettingsMessage::CustomProviderOpen))
                 .padding([7, 12])
                 .style(primary_action_btn_style),

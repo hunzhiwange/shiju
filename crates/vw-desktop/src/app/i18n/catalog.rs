@@ -17,7 +17,10 @@ pub(super) fn parse_catalog(source: &str) -> Result<BTreeMap<String, String>, se
         fn visit_map<M: MapAccess<'de>>(self, mut map: M) -> Result<Self::Value, M::Error> {
             let mut entries = BTreeMap::new();
             while let Some((key, value)) = map.next_entry::<String, String>()? {
-                if !key.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c)) || key.contains('.')
+                if !key.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c))
+                    || key.split('.').next().is_some_and(|prefix| {
+                        !prefix.chars().any(|c| ('\u{3400}'..='\u{9fff}').contains(&c))
+                    })
                 {
                     return Err(de::Error::custom(
                         "catalog keys must be Chinese source text without domains",

@@ -1,7 +1,7 @@
 //! 将账号登录态连接到识矩模型认证；秘密只在当前账号的结果被接受后写入。
 
 use crate::app::config;
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::message::account::AccountMessage;
 use crate::app::state::SHIJU_OFFICIAL_PROVIDER_ID;
 use crate::app::{App, Message};
@@ -14,11 +14,11 @@ fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), 
     if token.endpoint_url != "https://router.shiju.cloud/v1"
         || !token.key.expose().bytes().all(|byte| (33..=126).contains(&byte))
     {
-        return Err(Feedback::owned(OwnedMessage::InvalidAuthorization, vec![]));
+        return Err(Feedback::owned("识矩模型授权响应无效", vec![]));
     }
     let info = auth::Info::Api(auth::ApiInfo { key: token.key.expose().to_string() });
     auth::store::set_to(path, SHIJU_OFFICIAL_PROVIDER_ID, &info)
-        .map_err(|_| Feedback::owned(OwnedMessage::CredentialSaveFailed, vec![]))
+        .map_err(|_| Feedback::owned("识矩模型凭据保存失败，请检查认证文件权限", vec![]))
 }
 
 /// 登录、启动恢复、切换账号及退出时统一撤销旧模型凭据。
@@ -42,7 +42,7 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
     if auth::store::get_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_some() {
         if auth::store::remove_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_err() {
             return app.show_error_toast(
-                Feedback::owned(OwnedMessage::CredentialRemoveFailed, vec![])
+                Feedback::owned("无法清理识矩模型凭据，请检查认证文件权限", vec![])
                     .display(app.desktop_locale),
             );
         }
@@ -61,7 +61,7 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
         Ok(credential) => credential,
         Err(_) => {
             return app.show_error_toast(
-                Feedback::owned(OwnedMessage::InvalidLogin, vec![]).display(app.desktop_locale),
+                Feedback::owned("识矩登录凭据无效，请重新登录", vec![]).display(app.desktop_locale),
             );
         }
     };
@@ -124,7 +124,7 @@ pub(crate) fn configured(
         Ok(()) => Task::batch([
             super::tasks::refresh_task(),
             app.show_success_toast(
-                Feedback::owned(OwnedMessage::ModelsConfigured, vec![]).display(app.desktop_locale),
+                Feedback::owned("识矩模型已自动配置", vec![]).display(app.desktop_locale),
             ),
         ]),
         Err(_) => retry_task(generation),

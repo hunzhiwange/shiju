@@ -1,7 +1,7 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
 use crate::app::config;
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
 use crate::app::state::{CustomProviderDraft, ModelCapabilityDefaults, ModelCatalogEntry};
@@ -97,7 +97,7 @@ pub async fn discover_custom_provider_models(
             .filter(|key| is_real_bearer(key))
             .map(str::to_string)
     }
-    .ok_or_else(|| Feedback::owned(OwnedMessage::RealKeyRequired, vec![]))?;
+    .ok_or_else(|| Feedback::owned("请先填写或保存真实 API Key", vec![]))?;
 
     let configured_api = draft.base_url.trim();
     let api_base = if configured_api.is_empty() {
@@ -105,13 +105,13 @@ pub async fn discover_custom_provider_models(
     } else {
         Some(configured_api.trim_end_matches('/').to_string())
     }
-    .ok_or_else(|| Feedback::owned(OwnedMessage::BaseUrlRequired, vec![]))?;
+    .ok_or_else(|| Feedback::owned("基础 URL 不能为空", vec![]))?;
 
     let models = discover_openai_compatible_models(&api_base, &bearer)
         .await
         .map_err(|error| discovery_error_message(error.category()))?;
     if models.is_empty() {
-        return Err(Feedback::owned(OwnedMessage::NoDiscoveredModels, vec![]));
+        return Err(Feedback::owned("未发现可用模型", vec![]));
     }
     Ok(models)
 }
@@ -125,7 +125,7 @@ fn discovery_error_message(category: &str) -> Feedback {
 pub async fn discover_custom_provider_models(
     _draft: CustomProviderDraft,
 ) -> Result<Vec<String>, Feedback> {
-    Err(Feedback::owned(OwnedMessage::DiscoveryUnsupported, vec![]))
+    Err(Feedback::owned("当前平台暂不支持自动发现模型", vec![]))
 }
 
 /// 处理 `load_custom_provider_draft` 对应的用户输入、异步结果或状态转换。
@@ -159,9 +159,10 @@ pub async fn load_custom_provider_draft(
         (None, Some(settings)) => {
             Ok(draft_from_settings_provider(&provider_id, settings, &catalog_model_ids))
         }
-        (None, None) => {
-            Err(Feedback::owned(OwnedMessage::ProviderNotConfigured, vec![provider_id.to_string()]))
-        }
+        (None, None) => Err(Feedback::owned(
+            "提供商 %s 不在系统配置的 providers 中",
+            vec![provider_id.to_string()],
+        )),
     }
 }
 
@@ -355,10 +356,7 @@ fn custom_provider_draft_from_value(
     raw: &Value,
 ) -> Result<CustomProviderDraft, Feedback> {
     let Some(obj) = raw.as_object() else {
-        return Err(Feedback::owned(
-            OwnedMessage::InvalidProviderConfig,
-            vec![provider_id.to_string()],
-        ));
+        return Err(Feedback::owned("提供商 %s 的配置格式无效", vec![provider_id.to_string()]));
     };
 
     let headers = extract_shared_headers(obj);
@@ -752,10 +750,7 @@ pub(crate) fn validate_model_drafts(
             continue;
         }
         if !ids.insert(model_id.to_string()) {
-            return Err(Feedback::owned(
-                OwnedMessage::DuplicateModelId,
-                vec![model_id.to_string()],
-            ));
+            return Err(Feedback::owned("模型 ID 重复：%s", vec![model_id.to_string()]));
         }
         let context = parse_limit_field(model_id, "上下文", &model.context_limit, false)?;
         parse_limit_field(model_id, "输入", &model.input_limit, false)?;
@@ -763,7 +758,7 @@ pub(crate) fn validate_model_drafts(
         if let (Some(context), Some(output)) = (context, output) {
             if output > context {
                 return Err(Feedback::owned(
-                    OwnedMessage::OutputExceedsContext,
+                    "模型 %s 的输出限制不能超过上下文限制",
                     vec![model_id.to_string()],
                 ));
             }
@@ -783,10 +778,10 @@ fn parse_limit_field(
         return Ok(None);
     }
     let key = match (label, allow_zero) {
-        ("上下文" | "context", _) => OwnedMessage::InvalidContextLimit,
-        ("输入" | "input", _) => OwnedMessage::InvalidInputLimit,
-        (_, true) => OwnedMessage::InvalidOutputLimit,
-        (_, false) => OwnedMessage::InvalidPositiveOutputLimit,
+        ("上下文" | "context", _) => "模型 %s 的上下文限制必须是正整数",
+        ("输入" | "input", _) => "模型 %s 的输入限制必须是正整数",
+        (_, true) => "模型 %s 的输出限制必须是非负整数",
+        (_, false) => "模型 %s 的输出限制必须是正整数",
     };
     let invalid = || Feedback::owned(key, vec![model_id.to_string()]);
     let parsed = value.parse::<u64>().map_err(|_| invalid())?;

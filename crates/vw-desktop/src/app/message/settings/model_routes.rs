@@ -2,7 +2,7 @@
 
 use crate::app::config::server_config_unreachable_error;
 use crate::app::config::update_system_settings_config;
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{
     App, Message, load_model_routes_config, load_query_classification_config,
     state::{ModelRoute, QueryClassificationRuleInput},
@@ -114,26 +114,17 @@ fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
             continue;
         }
         if pattern.is_empty() {
-            return Err(Feedback::owned(
-                OwnedMessage::RouteMissingPattern,
-                vec![(idx + 1).to_string()],
-            ));
+            return Err(Feedback::owned("第 %s 条路由缺少 pattern", vec![(idx + 1).to_string()]));
         }
         if provider.is_empty() {
-            return Err(Feedback::owned(
-                OwnedMessage::RouteMissingProvider,
-                vec![(idx + 1).to_string()],
-            ));
+            return Err(Feedback::owned("第 %s 条路由缺少 provider", vec![(idx + 1).to_string()]));
         }
         if model.is_empty() {
-            return Err(Feedback::owned(
-                OwnedMessage::RouteMissingModel,
-                vec![(idx + 1).to_string()],
-            ));
+            return Err(Feedback::owned("第 %s 条路由缺少 model", vec![(idx + 1).to_string()]));
         }
         if !priority.is_empty() && priority.parse::<u32>().is_err() {
             return Err(Feedback::owned(
-                OwnedMessage::RoutePriorityInvalid,
+                "第 %s 条路由的 priority 不是有效数字",
                 vec![(idx + 1).to_string()],
             ));
         }
@@ -198,7 +189,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.model_routes_settings.save_error = if app.model_routes_settings.routes.is_empty()
                 && !query_classification.rules.is_empty()
             {
-                Some(Feedback::owned(OwnedMessage::ClassificationWithoutRoutes, vec![]))
+                Some(Feedback::owned(
+                    "已检测到 query_classification 规则，但桌面模型路由列表为空",
+                    vec![],
+                ))
             } else {
                 None
             };

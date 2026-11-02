@@ -23,3 +23,6 @@ mod gettext_sprintf_tests;
 
 #[cfg(test)]
 mod gettext_selection_tests;
+
+#[cfg(test)]
+mod gettext_area_4_tests;

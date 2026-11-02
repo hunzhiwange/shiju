@@ -10,10 +10,8 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_section_content, settings_text_input_style,
     with_settings_help_modal,
 };
-use crate::app::i18n::settings_models::connection_text::{
-    Text as ConnectionText, text as connection_text,
-};
-use crate::app::i18n::settings_models::messages::{Message as OwnedMessage, render as owned_text};
+use crate::app::i18n::settings_models::connection_text::text as connection_text;
+use crate::app::i18n::settings_models::messages::render as owned_text;
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{Space, button, column, container, row, text, text_input};
@@ -239,7 +237,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .collect::<Vec<_>>();
     let server_list: Element<'_, Message> = if server_items.is_empty() {
         column![
-            text(connection_text(app.desktop_locale, ConnectionText::NoGateways))
+            text(connection_text(app.desktop_locale, "暂无网关"))
                 .size(13)
                 .style(settings_muted_text_style)
         ]
@@ -249,19 +247,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let add_server = rounded_action_button(
-        row![
-            text("+").size(16),
-            text(connection_text(app.desktop_locale, ConnectionText::AddGateway)).size(13)
-        ]
-        .spacing(8)
-        .align_y(Alignment::Center)
-        .into(),
+        row![text("+").size(16), text(connection_text(app.desktop_locale, "新增网关")).size(13)]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .into(),
         true,
         Some(Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer))),
     );
     let can_remove_server = s.servers.len() > 1;
     let remove_server = rounded_action_button(
-        row![text(connection_text(app.desktop_locale, ConnectionText::DeleteSelected)).size(13)]
+        row![text(connection_text(app.desktop_locale, "删除当前")).size(13)]
             .align_y(Alignment::Center)
             .into(),
         can_remove_server,
@@ -272,7 +267,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }),
     );
     let refresh_server = rounded_action_button(
-        row![text(connection_text(app.desktop_locale, ConnectionText::RefreshStatus)).size(13)]
+        row![text(connection_text(app.desktop_locale, "刷新状态")).size(13)]
             .align_y(Alignment::Center)
             .into(),
         true,
@@ -280,9 +275,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let name_row = text_row(
-        connection_text(app.desktop_locale, ConnectionText::GatewayName),
-        connection_text(app.desktop_locale, ConnectionText::NameUsedToDistinguishClient),
-        connection_text(app.desktop_locale, ConnectionText::LocalGateway),
+        connection_text(app.desktop_locale, "网关名称"),
+        connection_text(app.desktop_locale, "用于区分多个客户端网关。"),
+        connection_text(app.desktop_locale, "本地网关"),
         &s.name_input,
         |value| {
             Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::NameChanged(
@@ -291,8 +286,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let host_row = text_row(
-        connection_text(app.desktop_locale, ConnectionText::TargetHost),
-        connection_text(app.desktop_locale, ConnectionText::GatewayHostUsedByDesktop),
+        connection_text(app.desktop_locale, "目标主机"),
+        connection_text(app.desktop_locale, "桌面端请求所连接的 Gateway 主机。"),
         "127.0.0.1",
         &s.host_input,
         |value| {
@@ -302,8 +297,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let port_row = number_row(
-        connection_text(app.desktop_locale, ConnectionText::TargetPort),
-        connection_text(app.desktop_locale, ConnectionText::GatewayPortUsedByDesktop),
+        connection_text(app.desktop_locale, "目标端口"),
+        connection_text(app.desktop_locale, "桌面端请求所连接的 Gateway 端口。"),
         s.port as u32,
         1,
         u16::MAX as u32,
@@ -315,8 +310,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let platform_id_row = text_row(
-        connection_text(app.desktop_locale, ConnectionText::PlatformId),
-        connection_text(app.desktop_locale, ConnectionText::PlatformTenantForRequestsTo),
+        connection_text(app.desktop_locale, "平台 ID"),
+        connection_text(app.desktop_locale, "当前网关请求所属的平台租户。"),
         "10000",
         &s.platform_id_input,
         |value| {
@@ -326,8 +321,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let company_id_row = text_row(
-        connection_text(app.desktop_locale, ConnectionText::CompanyId),
-        connection_text(app.desktop_locale, ConnectionText::CompanyTenantForRequestsTo),
+        connection_text(app.desktop_locale, "公司 ID"),
+        connection_text(app.desktop_locale, "当前网关请求所属的公司租户。"),
         "100000000",
         &s.company_id_input,
         |value| {
@@ -338,8 +333,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
     let skey_row = secure_text_row(
         "skey",
-        connection_text(app.desktop_locale, ConnectionText::OptionalSkeySentThroughAuthorization),
-        connection_text(app.desktop_locale, ConnectionText::OptionalSkey),
+        connection_text(app.desktop_locale, "可选 skey，会作为 Authorization: Bearer 发送。"),
+        connection_text(app.desktop_locale, "可选 skey"),
         &s.skey_input,
         |value| {
             Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::SkeyChanged(
@@ -351,10 +346,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content = column![
         row![
             container(settings_page_intro(
-                connection_text(app.desktop_locale, ConnectionText::ClientGateway),
+                connection_text(app.desktop_locale, "客户端网关"),
                 connection_text(
                     app.desktop_locale,
-                    ConnectionText::ConfigureAddressesAndCredentialsFor
+                    "配置 Desktop 作为客户端访问一个或多个 Gateway 时使用的地址与认证信息。"
                 ),
             ))
             .width(Length::Fill),
@@ -362,10 +357,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         ]
         .align_y(Alignment::Start),
         settings_section_card(
-            connection_text(app.desktop_locale, ConnectionText::GatewayServices),
+            connection_text(app.desktop_locale, "网关服务"),
             connection_text(
                 app.desktop_locale,
-                ConnectionText::ManageMultipleClientGatewaysDesktop
+                "可以维护多个客户端网关，当前选中的网关会用于 Desktop 的 Gateway 请求。"
             ),
         ),
         settings_panel(
@@ -382,8 +377,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Start),
         ),
         settings_section_card(
-            connection_text(app.desktop_locale, ConnectionText::AuthenticationText),
-            connection_text(app.desktop_locale, ConnectionText::OptionalSkeySentAsAuthorization),
+            connection_text(app.desktop_locale, "认证"),
+            connection_text(
+                app.desktop_locale,
+                "可选填写 skey。请求会通过 Authorization: Bearer <skey> 发送。"
+            ),
         ),
         settings_section_content(column![skey_row].spacing(0)),
     ]
@@ -417,10 +415,10 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 GatewayClientMessage::RemoveServerCanceled,
             ));
             let confirm_dialog = crate::app::components::toast::confirm_dialog(
-                connection_text(app.desktop_locale, ConnectionText::ConfirmClientGatewayDeletion),
+                connection_text(app.desktop_locale, "确认删除客户端网关"),
                 owned_text(
                     app.desktop_locale,
-                    OwnedMessage::DeleteGateway,
+                    "将删除客户端网关「%s」。此操作不可撤销。\n地址: %s:%s\nID: %s",
                     &[
                         server.name.clone(),
                         server.host.clone(),
@@ -428,8 +426,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                         server.id.clone(),
                     ],
                 ),
-                connection_text(app.desktop_locale, ConnectionText::ConfirmDeletion),
-                connection_text(app.desktop_locale, ConnectionText::Cancel),
+                connection_text(app.desktop_locale, "确认删除"),
+                connection_text(app.desktop_locale, "取消"),
                 confirm,
                 cancel,
             );
@@ -450,7 +448,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     with_settings_help_modal(
         app,
         dialog,
-        connection_text(app.desktop_locale, ConnectionText::ClientGatewaySettingsHelp),
+        connection_text(app.desktop_locale, "客户端网关配置帮助"),
         help_text,
         Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HelpClose)),
     )

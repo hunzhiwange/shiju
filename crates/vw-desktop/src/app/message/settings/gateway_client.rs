@@ -1,6 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::state::GatewayClientServerDraft;
 use crate::app::{App, Message, update_gateway_client_config};
 use iced::Task;
@@ -38,7 +38,7 @@ fn sync_selected_server_from_inputs(app: &mut App) -> Result<(), Feedback> {
     let platform_id = settings.platform_id_input.trim();
     let company_id = settings.company_id_input.trim();
     TenantScope::new(platform_id, company_id)
-        .map_err(|err| Feedback::owned(OwnedMessage::TenantInvalid, vec![err.to_string()]))?;
+        .map_err(|err| Feedback::owned("租户配置无效：%s", vec![err.to_string()]))?;
     let draft = GatewayClientServerDraft {
         id: settings.selected_server_id.clone(),
         name: normalize_name(&settings.name_input, index),

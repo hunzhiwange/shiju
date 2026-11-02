@@ -208,12 +208,9 @@ fn gateway_skey_helpers_validate_unicode_names_dates_and_mask_boundaries() {
     assert_eq!(normalize_skey_name(&format!("  {max_name}  ")), Ok(max_name));
     assert_eq!(
         normalize_skey_name(&"界".repeat(81)),
-        Err(Feedback::owned(OwnedMessage::SkeyNameTooLong, vec![]))
+        Err(Feedback::owned("skey 名称不能超过 80 个字符", vec![]))
     );
-    assert_eq!(
-        normalize_skey_name(" \n "),
-        Err(Feedback::owned(OwnedMessage::SkeyNameRequired, vec![]))
-    );
+    assert_eq!(normalize_skey_name(" \n "), Err(Feedback::owned("skey 名称不能为空", vec![])));
 
     assert_eq!(mask_skey_for_display(" 1234567890123456789012345 "), "1234567890123456789012345");
     assert_eq!(hash_skey(" secret "), hash_skey("secret"));

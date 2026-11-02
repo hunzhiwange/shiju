@@ -1,6 +1,6 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{
     App, Message,
     state::{
@@ -101,7 +101,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.provider_settings.models_syncing = true;
             app.provider_settings.models_sync_progress = 0.08;
             app.provider_settings.models_sync_label =
-                Feedback::owned(OwnedMessage::SyncFetch, vec![]);
+                Feedback::owned("正在从 models.dev 拉取模型目录…", vec![]);
             sync_remote_task()
         }
         SettingsMessage::ProviderModelsSyncTick => {
@@ -111,11 +111,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let next = (app.provider_settings.models_sync_progress + 0.07).min(0.9);
             app.provider_settings.models_sync_progress = next;
             app.provider_settings.models_sync_label = if next < 0.35 {
-                Feedback::owned(OwnedMessage::SyncFetch, vec![])
+                Feedback::owned("正在从 models.dev 拉取模型目录…", vec![])
             } else if next < 0.7 {
-                Feedback::owned(OwnedMessage::SyncCache, vec![])
+                Feedback::owned("正在写入本地缓存…", vec![])
             } else {
-                Feedback::owned(OwnedMessage::SyncRefresh, vec![])
+                Feedback::owned("正在刷新提供商视图…", vec![])
             };
             Task::none()
         }
@@ -168,7 +168,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 app.provider_settings.connect_modal = None;
                 if app.account.active_account().is_none() {
                     return app.show_warning_toast(
-                        Feedback::owned(OwnedMessage::SignInFirst, vec![])
+                        Feedback::owned("请先登录识矩账户，模型将自动配置", vec![])
                             .display(app.desktop_locale),
                     );
                 }
@@ -225,7 +225,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             if m.api_key.trim().is_empty() {
                 app.provider_settings.connect_error =
-                    Some(Feedback::owned(OwnedMessage::ApiKeyRequired, vec![]));
+                    Some(Feedback::owned("请输入 API 密钥", vec![]));
                 return Task::none();
             }
             app.provider_settings.loading = true;
@@ -513,7 +513,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let model_id = m.model_id.trim().to_string();
             if model_id.is_empty() {
                 app.provider_settings.save_error =
-                    Some(Feedback::owned(OwnedMessage::ModelIdRequired, vec![]));
+                    Some(Feedback::owned("模型 ID 不能为空", vec![]));
                 return Task::none();
             }
             let new_model = CustomProviderModelDraft {
@@ -552,10 +552,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .filter(|(index, _)| Some(*index) != m.edit_index)
                 .any(|(_, model)| model.model_id.trim() == new_model.model_id)
             {
-                app.provider_settings.save_error = Some(Feedback::owned(
-                    OwnedMessage::ModelIdExists,
-                    vec![new_model.model_id.clone()],
-                ));
+                app.provider_settings.save_error =
+                    Some(Feedback::owned("模型 ID 已存在：%s", vec![new_model.model_id.clone()]));
                 return Task::none();
             }
             let mut next_models = app.provider_settings.custom.models.clone();
@@ -645,13 +643,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let provider_id = draft.provider_id.trim().to_string();
             if !is_valid_provider_id(&provider_id) {
                 app.provider_settings.save_error =
-                    Some(Feedback::owned(OwnedMessage::InvalidProviderId, vec![]));
+                    Some(Feedback::owned("提供商 ID 仅支持小写字母、数字、连字符或下划线", vec![]));
                 return Task::none();
             }
             let base_url = draft.base_url.trim().to_string();
             if base_url.is_empty() {
                 app.provider_settings.save_error =
-                    Some(Feedback::owned(OwnedMessage::BaseUrlRequired, vec![]));
+                    Some(Feedback::owned("基础 URL 不能为空", vec![]));
                 return Task::none();
             }
 

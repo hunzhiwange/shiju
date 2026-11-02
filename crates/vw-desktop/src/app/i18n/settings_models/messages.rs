@@ -2,15 +2,15 @@
 use vw_config_types::ui::DesktopLocale;
 #[path = "message_catalog.rs"]
 mod catalog;
-pub use catalog::{Message, render};
+pub use catalog::render;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Feedback {
     original: String,
-    owned: Option<(Message, Vec<String>)>,
+    owned: Option<(&'static str, Vec<String>)>,
     joined: Option<Box<(Feedback, Feedback)>>,
 }
 impl Feedback {
-    pub fn owned(key: Message, args: Vec<String>) -> Self {
+    pub fn owned(key: &'static str, args: Vec<String>) -> Self {
         Self {
             original: render(DesktopLocale::SimplifiedChinese, key, &args),
             owned: Some((key, args)),
@@ -69,14 +69,14 @@ impl PartialEq<&str> for Feedback {
 impl Feedback {
     pub fn discovery(reason: &str) -> Self {
         let key = match reason {
-            "timeout" => Message::DiscoveryTimeout,
-            "request" => Message::DiscoveryRequest,
-            "http_status" => Message::DiscoveryHttpStatus,
-            "redirect" => Message::DiscoveryRedirect,
-            "response_too_large" => Message::DiscoveryTooLarge,
-            "invalid_response" => Message::DiscoveryInvalidResponse,
-            "client" => Message::DiscoveryClient,
-            _ => Message::DiscoveryUnknown,
+            "timeout" => "自动发现模型失败：请求超时",
+            "request" => "自动发现模型失败：网络请求失败",
+            "http_status" => "自动发现模型失败：服务返回错误状态",
+            "redirect" => "自动发现模型失败：服务返回重定向",
+            "response_too_large" => "自动发现模型失败：响应过大",
+            "invalid_response" => "自动发现模型失败：返回格式无效",
+            "client" => "自动发现模型失败：请求初始化失败",
+            _ => "自动发现模型失败：未知错误",
         };
         Self::owned(key, vec![])
     }
@@ -84,6 +84,6 @@ impl Feedback {
 
 impl Feedback {
     pub fn gateway(error: impl ToString) -> Self {
-        Self::owned(Message::GatewayConfigUnavailable, vec![error.to_string()])
+        Self::owned("服务端配置不可达，请检查 Gateway 连接状态。%s", vec![error.to_string()])
     }
 }

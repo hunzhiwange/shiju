@@ -5,9 +5,7 @@ use crate::app::components::system_settings_common::{
     settings_error_banner, settings_page_intro, settings_segment_button_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
-use crate::app::i18n::settings_models::connection_text::{
-    Text as ConnectionText, text as connection_text,
-};
+use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Element, Length, Theme};
@@ -111,11 +109,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         row![].spacing(8).align_y(Alignment::Center),
         |row, descriptor| {
             let key = match descriptor.tab {
-                SystemTab::WebSearch => ConnectionText::WebSearch,
-                SystemTab::HttpRequest => ConnectionText::HttpRequests,
-                SystemTab::Browser => ConnectionText::Browser,
-                SystemTab::Proxy => ConnectionText::Proxy,
-                SystemTab::Tunnel => ConnectionText::Tunnel,
+                SystemTab::WebSearch => "网页搜索",
+                SystemTab::HttpRequest => "网络请求",
+                SystemTab::Browser => "浏览器",
+                SystemTab::Proxy => "代理",
+                SystemTab::Tunnel => "隧道",
                 _ => unreachable!("network descriptor"),
             };
             row.push(tab_button(descriptor.tab, connection_text(app.desktop_locale, key)))
@@ -134,8 +132,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut sections = column![
         settings_page_intro(
-            connection_text(app.desktop_locale, ConnectionText::NetworkSettings),
-            connection_text(app.desktop_locale, ConnectionText::SwitchTabsToConfigureWeb),
+            connection_text(app.desktop_locale, "网络配置"),
+            connection_text(
+                app.desktop_locale,
+                "通过标签切换网页搜索、网络请求、浏览器、代理与隧道配置。"
+            ),
         ),
         tabs,
     ]

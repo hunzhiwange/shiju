@@ -165,18 +165,15 @@ fn view_keeps_intro_service_and_authentication_sections_across_server_counts() {
 
 #[test]
 fn tenant_controls_and_help_example_are_declared() {
-    use crate::app::i18n::settings_models::{
-        connection_text::{Text, text},
-        help,
-    };
+    use crate::app::i18n::settings_models::{connection_text::text, help};
     use vw_config_types::ui::DesktopLocale;
     for locale in [
         DesktopLocale::SimplifiedChinese,
         DesktopLocale::TraditionalChinese,
         DesktopLocale::English,
     ] {
-        assert!(!text(locale, Text::PlatformId).is_empty());
-        assert!(!text(locale, Text::CompanyId).is_empty());
+        assert!(!text(locale, "平台 ID").is_empty());
+        assert!(!text(locale, "公司 ID").is_empty());
         let example = help::gateway_client(locale);
         assert!(example.contains(r#""platform_id": "10000""#));
         assert!(example.contains(r#""company_id": "100000000""#));

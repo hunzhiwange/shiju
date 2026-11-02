@@ -183,19 +183,16 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
 
         if let Some(label) = connection_target_label(app.desktop_locale, entry.target) {
             entry.label = label;
-            use crate::app::i18n::settings_models::{
-                self,
-                connection_text::{Text, text},
-            };
+            use crate::app::i18n::settings_models::{self, connection_text::text};
             entry.parent_label = match entry.target {
                 SystemSettingsSearchTarget::Models(_) => {
-                    Some(settings_models::text(app.desktop_locale, settings_models::Text::Models))
+                    Some(settings_models::text(app.desktop_locale, "模型"))
                 }
                 SystemSettingsSearchTarget::Gateway(_) => {
-                    Some(text(app.desktop_locale, Text::ServerGatewaySettings))
+                    Some(text(app.desktop_locale, "服务端网关配置"))
                 }
                 SystemSettingsSearchTarget::Network(_) => {
-                    Some(text(app.desktop_locale, Text::NetworkSettings))
+                    Some(text(app.desktop_locale, "网络配置"))
                 }
                 _ => entry.parent_label,
             };
@@ -279,34 +276,34 @@ fn connection_target_label(
     locale: vw_config_types::ui::DesktopLocale,
     target: SystemSettingsSearchTarget,
 ) -> Option<&'static str> {
-    use crate::app::i18n::settings_models::{self, Text as ModelText};
+    use crate::app::i18n::settings_models::{self};
     use SystemSettingsSearchTarget::{Gateway, Models, Network, TopLevel};
-    use settings_models::connection_text::{Text, text};
+    use settings_models::connection_text::text;
     let key = match target {
         Models(tab) => {
             return Some(settings_models::text(
                 locale,
                 match tab {
-                    ModelConfigTab::Models => ModelText::Models,
-                    ModelConfigTab::ModelRoutes => ModelText::ModelRoutes,
-                    ModelConfigTab::QueryClassification => ModelText::ModelClassification,
-                    ModelConfigTab::Multimodal => ModelText::Multimodal,
+                    ModelConfigTab::Models => "模型",
+                    ModelConfigTab::ModelRoutes => "模型路由",
+                    ModelConfigTab::QueryClassification => "模型分类",
+                    ModelConfigTab::Multimodal => "多模态",
                 },
             ));
         }
-        Gateway(GatewaySettingsTab::Config) => Text::Configuration,
-        Gateway(GatewaySettingsTab::Skeys) => Text::SkeyManagement,
-        TopLevel(SystemTab::Providers) => Text::ModelProviders,
+        Gateway(GatewaySettingsTab::Config) => "配置",
+        Gateway(GatewaySettingsTab::Skeys) => "skey 管理",
+        TopLevel(SystemTab::Providers) => "模型提供商",
         TopLevel(SystemTab::Models) => {
-            return Some(settings_models::text(locale, ModelText::Models));
+            return Some(settings_models::text(locale, "模型"));
         }
-        TopLevel(SystemTab::Gateway) => Text::ServerGatewaySettings,
-        TopLevel(SystemTab::GatewayClient) => Text::ClientGateway,
-        Network(SystemTab::WebSearch) | TopLevel(SystemTab::WebSearch) => Text::WebSearch,
-        Network(SystemTab::HttpRequest) | TopLevel(SystemTab::HttpRequest) => Text::HttpRequests,
-        Network(SystemTab::Browser) | TopLevel(SystemTab::Browser) => Text::Browser,
-        Network(SystemTab::Proxy) | TopLevel(SystemTab::Proxy) => Text::Proxy,
-        Network(SystemTab::Tunnel) | TopLevel(SystemTab::Tunnel) => Text::Tunnel,
+        TopLevel(SystemTab::Gateway) => "服务端网关配置",
+        TopLevel(SystemTab::GatewayClient) => "客户端网关",
+        Network(SystemTab::WebSearch) | TopLevel(SystemTab::WebSearch) => "网页搜索",
+        Network(SystemTab::HttpRequest) | TopLevel(SystemTab::HttpRequest) => "网络请求",
+        Network(SystemTab::Browser) | TopLevel(SystemTab::Browser) => "浏览器",
+        Network(SystemTab::Proxy) | TopLevel(SystemTab::Proxy) => "代理",
+        Network(SystemTab::Tunnel) | TopLevel(SystemTab::Tunnel) => "隧道",
         _ => return None,
     };
     Some(text(locale, key))

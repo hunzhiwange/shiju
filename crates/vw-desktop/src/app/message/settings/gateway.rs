@@ -1,7 +1,7 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use crate::app::config::update_gateway_config_async;
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::message::settings::util::parse_comma_or_newline_list;
 use crate::app::{App, Message};
 use chrono::{Datelike, NaiveDate, Utc};
@@ -50,10 +50,10 @@ fn mask_skey_for_display(skey: &str) -> String {
 fn normalize_skey_name(raw: &str) -> Result<String, Feedback> {
     let trimmed = raw.trim();
     if trimmed.is_empty() {
-        return Err(Feedback::owned(OwnedMessage::SkeyNameRequired, vec![]));
+        return Err(Feedback::owned("skey 名称不能为空", vec![]));
     }
     if trimmed.chars().count() > 80 {
-        return Err(Feedback::owned(OwnedMessage::SkeyNameTooLong, vec![]));
+        return Err(Feedback::owned("skey 名称不能超过 80 个字符", vec![]));
     }
     Ok(trimmed.to_string())
 }
@@ -104,7 +104,7 @@ fn normalize_expires_at(raw: &str) -> Result<Option<String>, Feedback> {
         return Ok(Some(trimmed.to_string()));
     }
     let date = NaiveDate::parse_from_str(trimmed, "%Y-%m-%d")
-        .map_err(|_| Feedback::owned(OwnedMessage::ExpirationInvalid, vec![]))?;
+        .map_err(|_| Feedback::owned("过期日期必须从日历选择，或使用 2026-12-31 格式", vec![]))?;
     Ok(Some(format!("{}T23:59:59Z", date.format("%Y-%m-%d"))))
 }
 
@@ -239,7 +239,7 @@ fn service_recovery_task(command: String) -> Task<Message> {
         Task::done(Message::Settings(SettingsMessage::Gateway(
             GatewayMessage::ServiceRecoveryCompleted(
                 command,
-                Err(Feedback::owned(OwnedMessage::GatewayRecoveryUnsupported, vec![])),
+                Err(Feedback::owned("wasm 环境不支持本机 gateway 自动恢复", vec![])),
             ),
         )))
     }
@@ -415,7 +415,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             match result {
                 Ok(output) => {
                     let output = if output.trim().is_empty() {
-                        Feedback::owned(OwnedMessage::ServiceComplete, vec![command.clone()])
+                        Feedback::owned("service %s 执行完成", vec![command.clone()])
                     } else {
                         output.into()
                     };
@@ -427,10 +427,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(err) => {
                     app.gateway_settings.service_action_output = None;
-                    app.gateway_settings.save_error = Some(Feedback::owned(
-                        OwnedMessage::ServiceFailed,
-                        vec![command.clone(), err],
-                    ));
+                    app.gateway_settings.save_error =
+                        Some(Feedback::owned("service %s 失败: %s", vec![command.clone(), err]));
                 }
             }
             return Task::none();
@@ -438,7 +436,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         GatewayMessage::ServiceRecoveryCompleted(command, result) => {
             match result {
                 Ok(()) => {
-                    let recovery_message = Feedback::owned(OwnedMessage::GatewayRecovered, vec![]);
+                    let recovery_message =
+                        Feedback::owned("本机 gateway 已恢复并刷新连接状态。", vec![]);
                     app.gateway_settings.service_action_output =
                         Some(match app.gateway_settings.service_action_output.take() {
                             Some(output) if !output.trim().is_empty() => {
@@ -451,7 +450,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(err) => {
                     app.gateway_settings.save_error = Some(Feedback::owned(
-                        OwnedMessage::GatewayRecoveryFailed,
+                        "service %s 已执行，但本机 gateway 自动恢复失败: %s",
                         vec![command.clone(), err],
                     ));
                 }

@@ -9,9 +9,7 @@ use crate::app::components::system_settings_common::{
     settings_panel_style, settings_section_card, settings_success_banner,
     settings_text_input_style,
 };
-use crate::app::i18n::settings_models::connection_text::{
-    Text as ConnectionText, text as connection_text,
-};
+use crate::app::i18n::settings_models::connection_text::text as connection_text;
 use crate::app::message::settings::EmbeddingRoutesMessage;
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, text, text_input};
@@ -113,12 +111,12 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         container(
             text(connection_text(
                 app.desktop_locale,
-                ConnectionText::ConfigureEmbeddingProvidersModelsDimensions
+                "按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。"
             ))
             .style(settings_muted_text_style)
         )
         .width(Length::Fill),
-        button(text(connection_text(app.desktop_locale, ConnectionText::AddRoute)))
+        button(text(connection_text(app.desktop_locale, "添加路由")))
             .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                 EmbeddingRoutesMessage::AddRoute,
             )))
@@ -130,21 +128,21 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let templates_panel = settings_panel(
         column![
-            text(connection_text(app.desktop_locale, ConnectionText::QuickTemplates)).size(13),
+            text(connection_text(app.desktop_locale, "快捷模板")).size(13),
             text(connection_text(
                 app.desktop_locale,
-                ConnectionText::InsertACommonConfigurationThen
+                "一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。"
             ))
             .size(11)
             .style(settings_muted_text_style),
             row![
                 template_button(
-                    connection_text(app.desktop_locale, ConnectionText::AlibabaDashscope),
+                    connection_text(app.desktop_locale, "阿里 DashScope"),
                     "alibaba-cn / text-embedding-v4 / 1024",
                     EmbeddingRoutesMessage::InsertAlibabaTemplate,
                 ),
                 template_button(
-                    connection_text(app.desktop_locale, ConnectionText::DoubaoVision250615),
+                    connection_text(app.desktop_locale, "豆包 Vision 250615"),
                     "custom:Volcengine Ark / doubao-embedding-vision-250615",
                     EmbeddingRoutesMessage::InsertDoubaoTemplate,
                 ),
@@ -164,18 +162,19 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         header,
         templates_panel,
         settings_section_card(
-            connection_text(app.desktop_locale, ConnectionText::RouteRules),
-            connection_text(app.desktop_locale, ConnectionText::EachRouteMapsAScenario)
+            connection_text(app.desktop_locale, "路由规则"),
+            connection_text(
+                app.desktop_locale,
+                "每条路由定义一个匹配模式，并映射到具体的嵌入 provider/model。"
+            )
         ),
     ]
     .spacing(16)
     .width(Length::Fill);
 
     if s.save_error.is_none() && s.save_success {
-        content = content.push(settings_success_banner(connection_text(
-            app.desktop_locale,
-            ConnectionText::SavedSuccessfully,
-        )));
+        content =
+            content.push(settings_success_banner(connection_text(app.desktop_locale, "保存成功")));
     }
     if let Some(error) = s.save_error.as_ref() {
         content = content.push(settings_error_banner(error.display(app.desktop_locale)));
@@ -184,11 +183,13 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     if s.routes.is_empty() {
         content = content.push(settings_panel(
             column![
-                text(connection_text(app.desktop_locale, ConnectionText::NoEmbeddingRoutes))
-                    .size(14),
-                text(connection_text(app.desktop_locale, ConnectionText::SelectATemplateOrAdd))
-                    .size(12)
-                    .style(settings_muted_text_style)
+                text(connection_text(app.desktop_locale, "暂无嵌入路由")).size(14),
+                text(connection_text(
+                    app.desktop_locale,
+                    "点击上方模板按钮或右上角「添加路由」创建第一条规则。"
+                ))
+                .size(12)
+                .style(settings_muted_text_style)
             ]
             .spacing(6),
         ));
@@ -196,8 +197,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     for (index, route) in s.routes.iter().enumerate() {
         let pattern_row = field_row(
-            connection_text(app.desktop_locale, ConnectionText::Pattern),
-            connection_text(app.desktop_locale, ConnectionText::MatchesABusinessOrTask),
+            connection_text(app.desktop_locale, "匹配模式"),
+            connection_text(app.desktop_locale, "用于匹配业务或任务场景。"),
             "semantic",
             &route.pattern,
             move |value| {
@@ -207,8 +208,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let provider_row = field_row(
-            connection_text(app.desktop_locale, ConnectionText::Provider),
-            connection_text(app.desktop_locale, ConnectionText::ProviderUsedForEmbeddingRequests),
+            connection_text(app.desktop_locale, "提供商"),
+            connection_text(app.desktop_locale, "嵌入请求所使用的 provider。"),
             "alibaba-cn",
             &route.provider,
             move |value| {
@@ -218,8 +219,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let model_row = field_row(
-            connection_text(app.desktop_locale, ConnectionText::Model),
-            connection_text(app.desktop_locale, ConnectionText::EmbeddingModelToUse),
+            connection_text(app.desktop_locale, "模型"),
+            connection_text(app.desktop_locale, "具体使用的 embedding 模型。"),
             "text-embedding-v4",
             &route.model,
             move |value| {
@@ -229,8 +230,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let dimensions_row = field_row(
-            connection_text(app.desktop_locale, ConnectionText::Dimensions),
-            connection_text(app.desktop_locale, ConnectionText::LeaveEmptyToUseThe),
+            connection_text(app.desktop_locale, "维度"),
+            connection_text(app.desktop_locale, "留空时按模型默认维度运行。"),
             "1024",
             &route.dimensions,
             move |value| {
@@ -241,7 +242,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         );
         let api_key_row = secure_field_row(
             "API Key",
-            connection_text(app.desktop_locale, ConnectionText::OptionalCredentialOverrideUseA),
+            connection_text(app.desktop_locale, "可选覆盖凭据；阿里填 DashScope API Key。"),
             "DASHSCOPE_API_KEY",
             &route.api_key_input,
             move |value| {
@@ -254,13 +255,13 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         let route_title = row![
             text(crate::app::i18n::settings_models::route_title(app.desktop_locale, index + 1))
                 .size(14),
-            text(connection_text(app.desktop_locale, ConnectionText::PatternProviderModel))
-                .size(12)
-                .style(|t: &iced::Theme| {
+            text(connection_text(app.desktop_locale, "匹配模式 -> 提供商/模型")).size(12).style(
+                |t: &iced::Theme| {
                     iced::widget::text::Style { color: Some(t.palette().text.scale_alpha(0.65)) }
-                }),
+                }
+            ),
             container(text(" ")).width(Length::Fill),
-            button(text(connection_text(app.desktop_locale, ConnectionText::Delete)))
+            button(text(connection_text(app.desktop_locale, "删除")))
                 .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                     EmbeddingRoutesMessage::RemoveRoute(index),
                 )))
@@ -290,7 +291,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     content = content.push(
         row![
             container(text(" ")).width(Length::Fill),
-            button(text(connection_text(app.desktop_locale, ConnectionText::Save)))
+            button(text(connection_text(app.desktop_locale, "保存")))
                 .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                     EmbeddingRoutesMessage::Save,
                 )))

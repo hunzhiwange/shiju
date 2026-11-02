@@ -1,4 +1,4 @@
-use super::settings_models::{Text, enabled_count, model_metadata, text};
+use super::settings_models::{enabled_count, model_metadata, text};
 use vw_config_types::ui::DesktopLocale;
 #[test]
 fn desktop_i18n_settings_models_switches_visible_text() {
@@ -7,7 +7,7 @@ fn desktop_i18n_settings_models_switches_visible_text() {
         (DesktopLocale::TraditionalChinese, "模型", "2 / 5 已啟用"),
         (DesktopLocale::English, "Models", "2 / 5 enabled"),
     ] {
-        assert_eq!(text(locale, Text::Models), title);
+        assert_eq!(text(locale, "模型"), title);
         assert_eq!(enabled_count(locale, 2, 5), count);
         let raw = "custom:原始/🚀";
         assert!(model_metadata(locale, true, false, raw).ends_with(raw));
@@ -16,9 +16,9 @@ fn desktop_i18n_settings_models_switches_visible_text() {
 
 #[test]
 fn desktop_i18n_settings_models_pending_feedback_switches_without_replacing_raw_content() {
-    use super::settings_models::messages::{Feedback, Message, render};
+    use super::settings_models::messages::{Feedback, render};
     let raw = "服务返回 {literal} {} 🔐 / model/保留";
-    let feedback = Feedback::owned(Message::ServiceFailed, vec!["restart".into(), raw.into()]);
+    let feedback = Feedback::owned("service %s 失败: %s", vec!["restart".into(), raw.into()]);
     let cases = [
         (DesktopLocale::SimplifiedChinese, "service restart 失败: "),
         (DesktopLocale::TraditionalChinese, "service restart 失敗: "),
@@ -27,10 +27,11 @@ fn desktop_i18n_settings_models_pending_feedback_switches_without_replacing_raw_
     for (locale, prefix) in cases {
         assert_eq!(feedback.display(locale), format!("{prefix}{raw}"));
         assert_eq!(Feedback::from(raw).display(locale), raw);
-        let output = Feedback::from(raw).join(Feedback::owned(Message::GatewayRecovered, vec![]));
+        let output = Feedback::from(raw)
+            .join(Feedback::owned("本机 gateway 已恢复并刷新连接状态。", vec![]));
         assert_eq!(
             output.display(locale),
-            format!("{raw}\n{}", render(locale, Message::GatewayRecovered, &[]))
+            format!("{raw}\n{}", render(locale, "本机 gateway 已恢复并刷新连接状态。", &[]))
         );
     }
 }
@@ -197,9 +198,7 @@ fn desktop_i18n_settings_models_save_waits_for_gateway_acknowledgment() {
 
 #[test]
 fn desktop_i18n_settings_models_cached_details_translate_without_mutating_service_json() {
-    use super::settings_models::connection_text::{
-        Text as ConnectionText, text as connection_text,
-    };
+    use super::settings_models::connection_text::text as connection_text;
     use crate::app::{
         App,
         message::settings::{self, SettingsMessage},
@@ -245,7 +244,7 @@ fn desktop_i18n_settings_models_cached_details_translate_without_mutating_servic
             "Supported",
         ),
     ] {
-        assert_eq!(connection_text(locale, ConnectionText::ServerGatewaySettings), title);
+        assert_eq!(connection_text(locale, "服务端网关配置"), title);
         let tool_row = modal
             .rows
             .iter()

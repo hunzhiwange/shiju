@@ -829,7 +829,10 @@ impl App {
                 save_error: if model_routes_cfg.is_empty()
                     && !query_classification_cfg.rules.is_empty()
                 {
-                    Some(crate::app::i18n::settings_models::messages::Feedback::owned(crate::app::i18n::settings_models::messages::Message::ClassificationWithoutRoutes, vec![]))
+                    Some(crate::app::i18n::settings_models::messages::Feedback::owned(
+                        "已检测到 query_classification 规则，但桌面模型路由列表为空",
+                        vec![],
+                    ))
                 } else {
                     None
                 },

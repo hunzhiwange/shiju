@@ -1,7 +1,7 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use crate::app::config;
-use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
+use crate::app::i18n::settings_models::messages::Feedback;
 use crate::app::{
     App, Message,
     state::{ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary},
@@ -374,14 +374,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::ModelDetailOpen(provider_id, model_id) => {
             let provider = app.model_settings.providers.iter().find(|p| p.id == provider_id);
             let Some(provider) = provider else {
-                app.model_settings.save_error =
-                    Some(Feedback::owned(OwnedMessage::ProviderMissing, vec![]));
+                app.model_settings.save_error = Some(Feedback::owned("未找到提供商", vec![]));
                 return Task::none();
             };
             let model = provider.models.iter().find(|m| m.id == model_id);
             let Some(model) = model else {
-                app.model_settings.save_error =
-                    Some(Feedback::owned(OwnedMessage::ModelMissing, vec![]));
+                app.model_settings.save_error = Some(Feedback::owned("未找到模型", vec![]));
                 return Task::none();
             };
 
@@ -392,12 +390,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let get = |k: &str| detail_value.get(k).unwrap_or(&Value::Null);
             let get_str = |v: &Value| v.as_str().unwrap_or_default().to_string();
             let get_u64 = |v: &Value| v.as_u64().unwrap_or(0);
-            let yes_no = |b: bool| {
-                Feedback::owned(
-                    if b { OwnedMessage::Supported } else { OwnedMessage::Unsupported },
-                    vec![],
-                )
-            };
+            let yes_no = |b: bool| Feedback::owned(if b { "支持" } else { "不支持" }, vec![]);
             let join_caps = |io: &Value| {
                 let mut out = Vec::new();
                 let obj = io.as_object();
@@ -409,54 +402,50 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                 }
                 out.sort_unstable();
-                if out.is_empty() {
-                    Feedback::owned(OwnedMessage::None, vec![])
-                } else {
-                    out.join(", ").into()
-                }
+                if out.is_empty() { Feedback::owned("无", vec![]) } else { out.join(", ").into() }
             };
 
             let mut rows = Vec::<ModelDetailRow>::new();
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailName, vec![]),
+                label: Feedback::owned("模型名称 (name)", vec![]),
                 value: (model.name.clone()).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailId, vec![]),
+                label: Feedback::owned("模型 ID (id)", vec![]),
                 value: (model.id.clone()).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailProvider, vec![]),
+                label: Feedback::owned("提供商 (providerID)", vec![]),
                 value: (provider.id.clone()).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailStatus, vec![]),
+                label: Feedback::owned("状态 (status)", vec![]),
                 value: (get_str(get("status"))).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailRelease, vec![]),
+                label: Feedback::owned("发布日期 (release_date)", vec![]),
                 value: (get_str(get("release_date"))).into(),
             });
 
             let api = get("api");
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailApiUrl, vec![]),
+                label: Feedback::owned("API Base URL (api.url)", vec![]),
                 value: (api.get("url").and_then(Value::as_str).unwrap_or_default().to_string())
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailAdapter, vec![]),
+                label: Feedback::owned("适配器 (api.adapter)", vec![]),
                 value: (api.get("adapter").and_then(Value::as_str).unwrap_or_default().to_string())
                     .into(),
             });
 
             let limit = get("limit");
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailContext, vec![]),
+                label: Feedback::owned("上下文限制 (limit.context)", vec![]),
                 value: (get_u64(limit.get("context").unwrap_or(&Value::Null)).to_string()).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailInput, vec![]),
+                label: Feedback::owned("输入限制 (limit.input)", vec![]),
                 value: (limit
                     .get("input")
                     .and_then(Value::as_u64)
@@ -465,37 +454,37 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailOutput, vec![]),
+                label: Feedback::owned("输出限制 (limit.output)", vec![]),
                 value: (get_u64(limit.get("output").unwrap_or(&Value::Null)).to_string()).into(),
             });
 
             let caps = get("capabilities");
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailTools, vec![]),
+                label: Feedback::owned("支持工具调用 (capabilities.toolcall)", vec![]),
                 value: (yes_no(caps.get("toolcall").and_then(Value::as_bool).unwrap_or(false)))
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailAttachment, vec![]),
+                label: Feedback::owned("支持附件 (capabilities.attachment)", vec![]),
                 value: (yes_no(caps.get("attachment").and_then(Value::as_bool).unwrap_or(false)))
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailReasoning, vec![]),
+                label: Feedback::owned("支持推理 (capabilities.reasoning)", vec![]),
                 value: (yes_no(caps.get("reasoning").and_then(Value::as_bool).unwrap_or(false)))
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailTemperature, vec![]),
+                label: Feedback::owned("支持温度 (capabilities.temperature)", vec![]),
                 value: (yes_no(caps.get("temperature").and_then(Value::as_bool).unwrap_or(false)))
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailInputModality, vec![]),
+                label: Feedback::owned("输入模态 (capabilities.input.*)", vec![]),
                 value: (join_caps(caps.get("input").unwrap_or(&Value::Null))).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailOutputModality, vec![]),
+                label: Feedback::owned("输出模态 (capabilities.output.*)", vec![]),
                 value: (join_caps(caps.get("output").unwrap_or(&Value::Null))).into(),
             });
 
@@ -511,7 +500,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             };
             if !interleaved_str.trim().is_empty() {
                 rows.push(ModelDetailRow {
-                    label: Feedback::owned(OwnedMessage::DetailInterleaved, vec![]),
+                    label: Feedback::owned("混合输入 (capabilities.interleaved)", vec![]),
                     value: (interleaved_str).into(),
                 });
             }
@@ -519,22 +508,22 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let cost = get("cost");
             let cache = cost.get("cache").unwrap_or(&Value::Null);
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailInputCost, vec![]),
+                label: Feedback::owned("输入价格 (cost.input)", vec![]),
                 value: (cost.get("input").and_then(Value::as_f64).unwrap_or(0.0).to_string())
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailOutputCost, vec![]),
+                label: Feedback::owned("输出价格 (cost.output)", vec![]),
                 value: (cost.get("output").and_then(Value::as_f64).unwrap_or(0.0).to_string())
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailCacheRead, vec![]),
+                label: Feedback::owned("缓存读 (cost.cache.read)", vec![]),
                 value: (cache.get("read").and_then(Value::as_f64).unwrap_or(0.0).to_string())
                     .into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailCacheWrite, vec![]),
+                label: Feedback::owned("缓存写 (cost.cache.write)", vec![]),
                 value: (cache.get("write").and_then(Value::as_f64).unwrap_or(0.0).to_string())
                     .into(),
             });
@@ -543,15 +532,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let options_count = get("options").as_object().map(|o| o.len()).unwrap_or(0);
             let variants_count = get("variants").as_object().map(|o| o.len()).unwrap_or(0);
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailHeaders, vec![]),
+                label: Feedback::owned("请求头数量 (headers)", vec![]),
                 value: (headers_count.to_string()).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailOptions, vec![]),
+                label: Feedback::owned("自定义选项数量 (options)", vec![]),
                 value: (options_count.to_string()).into(),
             });
             rows.push(ModelDetailRow {
-                label: Feedback::owned(OwnedMessage::DetailVariants, vec![]),
+                label: Feedback::owned("变体数量 (variants)", vec![]),
                 value: (variants_count.to_string()).into(),
             });
 

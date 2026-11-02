@@ -90,16 +90,19 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(280.0));
 
     let follow_system_theme = field_row(
-        "跟随系统主题",
-        "启用后沿用应用当前主题。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("跟随系统主题"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用后沿用应用当前主题。"),
         checkbox(app.editor_follow_system_theme)
-            .label("启用")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
             .on_toggle(|v| Message::Editor(message::EditorMessage::ToggleFollowSystemTheme(v)))
             .style(settings_checkbox_style),
     );
 
-    let editor_theme_row =
-        field_row("编辑器主题", "关闭跟随系统主题时使用的编辑器配色。", theme_pick);
+    let editor_theme_row = field_row(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器主题"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("关闭跟随系统主题时使用的编辑器配色。"),
+        theme_pick,
+    );
 
     let size_slider = row![
         slider(10.0..=30.0, app.current_font_size, |v| {
@@ -111,7 +114,11 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let size_row = field_row("字体大小", "调整编辑器主文本字号。", size_slider);
+    let size_row = field_row(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("字体大小"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("调整编辑器主文本字号。"),
+        size_slider,
+    );
 
     let line_height_slider = row![
         slider(10.0..=60.0, app.current_line_height, |v| {
@@ -123,23 +130,28 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .align_y(Alignment::Center);
 
-    let line_height_row = field_row("行高", "调整每一行的垂直高度。", line_height_slider);
+    let line_height_row = field_row(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("行高"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("调整每一行的垂直高度。"),
+        line_height_slider,
+    );
 
     let auto_line_height = field_row(
-        "自动行高",
-        "根据字体大小自动推导更合适的行高。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("自动行高"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("根据字体大小自动推导更合适的行高。"),
         checkbox(app.auto_adjust_line_height)
-            .label("根据字体大小自动调整")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("根据字体大小自动调整"))
             .on_toggle(|v| Message::Editor(message::EditorMessage::ToggleAutoLineHeight(v)))
             .style(settings_checkbox_style),
     );
 
     #[cfg(not(target_arch = "wasm32"))]
     let lsp_enabled = field_row(
-        "LSP 语言服务",
-        "启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 语言服务"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("启用代码补全、悬停提示与跳转定义；需要对应语言服务器可用。"),
         checkbox(!app.lsp_disabled)
-            .label("启用")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
             .on_toggle(|enabled| {
                 Message::Preview(message::PreviewMessage::LspToggleDisabled(!enabled))
             })
@@ -165,7 +177,10 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
     }
 
     column![
-        settings_section_card("主题与显示", "统一编辑器主题来源及排版参数。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("主题与显示"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("统一编辑器主题来源及排版参数。")
+        ),
         settings_section_content(fields)
     ]
     .spacing(16)
@@ -174,7 +189,11 @@ pub(crate) fn content(app: &App) -> Element<'_, Message> {
 
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro("编辑器配置", "配置主题、字号与行高等编辑体验参数。"),
+        settings_page_intro(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置主题、字号与行高等编辑体验参数。")
+        ),
         content(app),
     ]
     .spacing(16)

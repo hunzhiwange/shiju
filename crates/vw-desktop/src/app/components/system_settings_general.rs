@@ -150,6 +150,7 @@ fn terminal_font_size_changed(font_size: f32) -> Message {
 /// // 返回的 Element 可直接用于 iced 应用的视图渲染
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let locales = ["简体中文", "繁體中文", "English"];
     let locale_index = match app.desktop_locale {
         vw_config_types::ui::DesktopLocale::SimplifiedChinese => 0,
@@ -210,10 +211,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
+    let auto_save_options: Vec<_> =
+        PreviewAutoSaveMode::ALL.into_iter().map(|mode| i18n.__(mode.label())).collect();
     let auto_save_pick = pick_list(
-        PreviewAutoSaveMode::ALL,
-        Some(app.preview_auto_save_mode),
-        preview_auto_save_mode_changed,
+        auto_save_options,
+        Some(i18n.__(app.preview_auto_save_mode.label())),
+        move |label| {
+            let mode = PreviewAutoSaveMode::ALL
+                .into_iter()
+                .find(|mode| i18n.__(mode.label()) == label)
+                .expect("selected auto-save option belongs to the supplied list");
+            preview_auto_save_mode_changed(mode)
+        },
     )
     .padding([10, 14])
     .text_size(13)
@@ -250,12 +259,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let tabs = GENERAL_TABS
         .iter()
         .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(descriptor.tab, descriptor.label))
+            row.push(tab_button(descriptor.tab, i18n.__(descriptor.label)))
         });
 
     let content: Element<'_, Message> = match active_tab {
         GeneralSettingsTab::Interface => column![
-            settings_section_card("界面", "应用外观与预览行为。"),
+            settings_section_card(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
             settings_section_content(
                 column![
                     setting_row(
@@ -266,24 +275,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                     settings_divider(),
                     setting_row(
-                        "应用主题",
-                        "快速切换内置、预设和自定义主题；完整管理见「主题」标签。",
+                        i18n.__("应用主题"),
+                        i18n.__("快速切换内置、预设和自定义主题；完整管理见「主题」标签。"),
                         theme_pick,
                     ),
                     settings_divider(),
                     setting_row(
-                        "自动保存",
-                        "控制预览编辑器自动保存的时机。",
+                        i18n.__("自动保存"),
+                        i18n.__("控制预览编辑器自动保存的时机。"),
                         column![
                             auto_save_pick,
-                            text(app.preview_auto_save_mode.description())
+                            text(i18n.__(app.preview_auto_save_mode.description()))
                                 .size(11)
                                 .style(settings_muted_text_style),
                         ]
                         .spacing(8),
                     ),
                     settings_divider(),
-                    setting_row("聊天时区", "用于模型时间上下文，新会话生效。", timezone_pick,),
+                    setting_row(
+                        i18n.__("聊天时区"),
+                        i18n.__("用于模型时间上下文，新会话生效。"),
+                        timezone_pick,
+                    ),
                 ]
                 .spacing(0)
             ),
@@ -291,18 +304,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         GeneralSettingsTab::Terminal => column![
-            settings_section_card("终端", "默认 Shell、主题与字体。"),
+            settings_section_card(i18n.__("终端"), i18n.__("默认 Shell、主题与字体。")),
             settings_section_content(
                 column![
-                    setting_row("终端 Shell", "新终端默认使用的 Shell。", shell_pick),
-                    settings_divider(),
-                    setting_row("终端主题", "当前仅跟随系统主题。", term_theme_pick),
-                    settings_divider(),
-                    setting_row("终端字体", "选择终端字体家族。", font_pick),
+                    setting_row(
+                        i18n.__("终端 Shell"),
+                        i18n.__("新终端默认使用的 Shell。"),
+                        shell_pick
+                    ),
                     settings_divider(),
                     setting_row(
-                        "字体大小",
-                        "在 10pt 到 18pt 之间调整终端字号。",
+                        i18n.__("终端主题"),
+                        i18n.__("当前仅跟随系统主题。"),
+                        term_theme_pick
+                    ),
+                    settings_divider(),
+                    setting_row(i18n.__("终端字体"), i18n.__("选择终端字体家族。"), font_pick),
+                    settings_divider(),
+                    setting_row(
+                        i18n.__("字体大小"),
+                        i18n.__("在 10pt 到 18pt 之间调整终端字号。"),
                         row![
                             size_slider,
                             settings_value_badge(format!("{} pt", app.terminal.font_size as u32))
@@ -321,7 +342,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     column![
-        settings_page_intro("常规", "通过标签切换界面、终端、编辑器与主题配置。"),
+        settings_page_intro(i18n.__("常规"), i18n.__("通过标签切换界面、终端、编辑器与主题配置。")),
         tabs,
         content,
     ]

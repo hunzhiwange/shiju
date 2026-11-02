@@ -36,3 +36,6 @@ mod gettext_area_5_tests;
 
 #[cfg(test)]
 mod gettext_area_6_tests;
+
+#[cfg(test)]
+mod gettext_area_7_tests;

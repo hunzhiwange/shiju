@@ -1,0 +1,9 @@
+{
+  "source": "/Users/xiangmin/worker/code/codex-main/codex-rs/core/src/tools/handlers/apply_patch.rs",
+  "sha256": "17ac10916bfb719850fcbf57ff7add094ca61fdb5f28f4b709d57e20f3749f4b",
+  "license": "Apache-2.0",
+  "symbol": "ApplyPatchHandler::handle / ToolPayload::Custom",
+  "contract": "raw patch string; host object patchText/patch retained",
+  "expected": "exact path write; validation failure has no writes; outside workspace denied",
+  "limits": "Host structured result retained; no shell fallback. Persistence REPL/browser/media not supplied by this adapter."
+}

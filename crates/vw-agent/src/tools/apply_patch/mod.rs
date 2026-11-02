@@ -628,7 +628,7 @@ impl Tool for ApplyPatchTool {
     }
 
     async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
-        let args: Args = serde_json::from_value(args)
+        let args: Args = serde_json::from_value(crate::plugins::patch_input(args))
             .map_err(|error| anyhow!("Missing or invalid 'patchText' parameter: {error}"))?;
 
         match self.execute_internal(args).await {
@@ -640,7 +640,7 @@ impl Tool for ApplyPatchTool {
     }
 
     async fn call(&self, input: Value) -> anyhow::Result<ToolCallResult> {
-        let args: Args = serde_json::from_value(input)
+        let args: Args = serde_json::from_value(crate::plugins::patch_input(input))
             .map_err(|error| anyhow!("Missing or invalid 'patchText' parameter: {error}"))?;
 
         match self.execute_internal(args).await {
@@ -1198,7 +1198,7 @@ mod obsolete_apply_patch_impl {
         /// - 频率限制
         async fn execute(&self, args: serde_json::Value) -> anyhow::Result<ToolResult> {
             // 解析输入参数
-            let parsed_args: Args = serde_json::from_value(args)
+            let parsed_args: Args = serde_json::from_value(crate::plugins::patch_input(args))
                 .map_err(|e| anyhow!("Missing or invalid 'patchText' parameter: {e}"))?;
             let patch_text = parsed_args.patch_text.trim();
 

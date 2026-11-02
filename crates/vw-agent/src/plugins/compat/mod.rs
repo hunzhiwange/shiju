@@ -249,3 +249,8 @@ mod t57_tests;
 pub(crate) mod host_exec;
 #[cfg(all(test, not(target_arch = "wasm32")))]
 mod t59_tests;
+
+#[cfg(test)]
+mod t60_tests;
+
+pub(crate) mod host_files;

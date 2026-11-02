@@ -1,0 +1,59 @@
+{
+  "task": 60,
+  "status": "已完成，待回归",
+  "platform": "macOS arm64",
+  "source": {
+    "source": "/Users/xiangmin/worker/code/codex-main/codex-rs/core/src/tools/handlers/apply_patch.rs",
+    "sha256": "17ac10916bfb719850fcbf57ff7add094ca61fdb5f28f4b709d57e20f3749f4b",
+    "license": "Apache-2.0",
+    "symbol": "ApplyPatchHandler::handle / ToolPayload::Custom",
+    "contract": "raw patch string; host object patchText/patch retained",
+    "expected": "exact path write; validation failure has no writes; outside workspace denied",
+    "limits": "Host structured result retained; no shell fallback. Persistence REPL/browser/media not supplied by this adapter."
+  },
+  "implementation": "host_files::patch_input maps raw strings into existing ApplyPatchTool call/execute paths; existing registry factories remain authoritative",
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t60_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "raw patch string rejected as invalid Args; two security tests passed; framework subsequently aborted"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t60_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features tools::apply_patch::tests -- --nocapture",
+      "exit_code": 0,
+      "passed": 8,
+      "failed": 0
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 101,
+      "diagnostic": "unrelated existing desktop settings_http_request.rs:13 unresolved settings_extensions::Text"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo clippy -p vw-agent --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true
+  },
+  "limits": "Context mismatch checked before any write, no claim of transactional rollback on runtime I/O failure. Host output and file policy retained. Existing file_read/file_write remain host-native; no unsupported Codex read_file alias invented. REPL/browser/media dependencies are not provided; no complete-package compatibility claim."
+}

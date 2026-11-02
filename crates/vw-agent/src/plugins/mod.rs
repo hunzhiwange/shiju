@@ -163,3 +163,5 @@ pub use compat::dependencies::{
 pub(crate) use compat::dependencies::missing_mcp_executable as plugin_missing_mcp_executable;
 
 pub(crate) use compat::session_snapshot;
+
+pub(crate) use compat::host_files::patch_input;

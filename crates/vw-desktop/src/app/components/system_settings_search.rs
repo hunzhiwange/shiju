@@ -152,6 +152,35 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
     extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
     for entry in &mut entries {
+        use crate::app::i18n::settings_runtime::{Text as RuntimeText, text as runtime_text};
+        use crate::app::i18n::settings_security::{Text as SecurityText, text as security_text};
+        match entry.target {
+            SystemSettingsSearchTarget::Memory(tab) => {
+                entry.label = system_settings_memory::memory_tab_label(app.desktop_locale, tab);
+                entry.parent_label =
+                    Some(runtime_text(app.desktop_locale, RuntimeText::MemoryConfig));
+            }
+            SystemSettingsSearchTarget::Security(tab) => {
+                entry.label = system_settings_security::security_tab_label(app.desktop_locale, tab);
+                entry.parent_label =
+                    Some(security_text(app.desktop_locale, SecurityText::SecurityConfig));
+            }
+            SystemSettingsSearchTarget::TopLevel(SystemTab::Memory) => {
+                entry.label = runtime_text(app.desktop_locale, RuntimeText::MemoryConfig)
+            }
+            SystemSettingsSearchTarget::Agents(crate::app::state::AgentConfigTab::Runtime)
+            | SystemSettingsSearchTarget::TopLevel(SystemTab::Runtime) => {
+                entry.label = runtime_text(app.desktop_locale, RuntimeText::RuntimeConfig)
+            }
+            SystemSettingsSearchTarget::TopLevel(SystemTab::Observability) => {
+                entry.label = runtime_text(app.desktop_locale, RuntimeText::ObservabilityConfig)
+            }
+            SystemSettingsSearchTarget::TopLevel(SystemTab::Security) => {
+                entry.label = security_text(app.desktop_locale, SecurityText::SecurityConfig)
+            }
+            _ => {}
+        }
+
         if let Some(label) = connection_target_label(app.desktop_locale, entry.target) {
             entry.label = label;
             use crate::app::i18n::settings_models::{

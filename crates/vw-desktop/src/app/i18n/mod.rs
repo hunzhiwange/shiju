@@ -35,3 +35,5 @@ mod settings_models_tests;
 pub mod settings_runtime;
 #[cfg(test)]
 mod settings_runtime_tests;
+
+pub mod settings_security;

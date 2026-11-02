@@ -53,11 +53,11 @@ fn runtime_rows_accept_controls_and_callbacks() {
 fn runtime_reasoning_options_cover_auto_enabled_disabled_and_levels() {
     let source = include_str!("system_settings_runtime.rs");
 
-    assert!(source.contains("value: \"auto\", label: \"自动\""));
-    assert!(source.contains("value: \"true\", label: \"启用\""));
-    assert!(source.contains("value: \"false\", label: \"禁用\""));
-    assert!(source.contains("value: \"minimal\", label: \"最小\""));
-    assert!(source.contains("value: \"xhigh\", label: \"超高\""));
+    assert!(source.contains("value: \"auto\", label: runtime_text(locale, Text::Auto)"));
+    assert!(source.contains("value: \"true\", label: runtime_text(locale, Text::Enabled)"));
+    assert!(source.contains("value: \"false\", label: runtime_text(locale, Text::Disabled)"));
+    assert!(source.contains("value: \"minimal\", label: runtime_text(locale, Text::Minimal)"));
+    assert!(source.contains("value: \"xhigh\", label: runtime_text(locale, Text::ExtraHigh)"));
 }
 
 #[test]

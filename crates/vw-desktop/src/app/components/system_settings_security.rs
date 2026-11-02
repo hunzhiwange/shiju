@@ -19,12 +19,13 @@
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, danger_action_btn_style, settings_checkbox_style, settings_divider,
-    settings_error_banner, settings_help_button, settings_muted_text_style, settings_page_intro,
+    settings_error_banner, settings_muted_text_style, settings_page_intro,
     settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
     settings_section_content, settings_segment_button_style, settings_text_input_style,
     settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_security::{Text, text as security_text};
 use crate::app::state::{SecurityListKind, SecuritySettingsTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -32,6 +33,7 @@ use iced::widget::{
     button, checkbox, column, container, pick_list, row, scrollable, slider, text, text_input,
 };
 use iced::{Alignment, Element, Length, Padding};
+use vw_config_types::ui::DesktopLocale;
 
 const LIST_EDITOR_MAX_HEIGHT: f32 = 176.0;
 
@@ -125,6 +127,7 @@ fn text_row<'a>(
 }
 
 fn list_editor<'a>(
+    locale: DesktopLocale,
     kind: SecurityListKind,
     label: &'static str,
     description: &'static str,
@@ -138,7 +141,7 @@ fn list_editor<'a>(
     };
     let add_message = Message::Settings(message::SettingsMessage::SecurityListAdd(kind));
     let add_button = {
-        let button = button(text("添加"))
+        let button = button(text(security_text(locale, Text::Add)))
             .padding([9, 14])
             .style(|theme, status| settings_segment_button_style(theme, status, false));
         if draft.trim().is_empty() { button } else { button.on_press(add_message.clone()) }
@@ -149,7 +152,7 @@ fn list_editor<'a>(
         let mut item_content = column![
             row![
                 text(item).size(13).width(Length::Fill),
-                button(text("删除").size(12))
+                button(text(security_text(locale, Text::Delete)).size(12))
                     .on_press(Message::Settings(
                         message::SettingsMessage::SecurityListRemoveRequested(kind, index),
                     ))
@@ -163,8 +166,8 @@ fn list_editor<'a>(
         if pending_remove_index == Some(index) {
             item_content = item_content.push(
                 row![
-                    text("确认删除该列表项？").size(12).width(Length::Fill),
-                    button(text("取消").size(12))
+                    text(security_text(locale, Text::ConfirmItem)).size(12).width(Length::Fill),
+                    button(text(security_text(locale, Text::Cancel)).size(12))
                         .on_press(Message::Settings(
                             message::SettingsMessage::SecurityListRemoveCanceled,
                         ))
@@ -172,7 +175,7 @@ fn list_editor<'a>(
                         .style(|theme, status| {
                             settings_segment_button_style(theme, status, false)
                         }),
-                    button(text("确认删除").size(12))
+                    button(text(security_text(locale, Text::ConfirmDelete)).size(12))
                         .on_press(Message::Settings(
                             message::SettingsMessage::SecurityListRemoveConfirmed(kind, index),
                         ))
@@ -232,14 +235,18 @@ fn bool_row<'a>(
 }
 
 fn bash_bool_row<'a>(
+    locale: DesktopLocale,
     label: &'static str,
     description: &'static str,
     checked: bool,
     active: bool,
     on_toggle: impl Fn(bool) -> message::SettingsMessage + 'a,
 ) -> Element<'a, Message> {
-    let checkbox =
-        checkbox(checked).label(if active { "开启" } else { "已保存，当前不生效" });
+    let checkbox = checkbox(checked).label(if active {
+        security_text(locale, Text::On)
+    } else {
+        security_text(locale, Text::Inactive)
+    });
     let checkbox = if active {
         checkbox.on_toggle(move |value| Message::Settings(on_toggle(value)))
     } else {
@@ -261,45 +268,45 @@ fn slider_row<'a>(
     )
 }
 
-fn sandbox_enabled_options() -> [LabeledOption; 3] {
+fn sandbox_enabled_options(locale: DesktopLocale) -> [LabeledOption; 3] {
     [
-        LabeledOption { value: "auto", label: "自动检测" },
-        LabeledOption { value: "true", label: "强制启用" },
-        LabeledOption { value: "false", label: "强制禁用" },
+        LabeledOption { value: "auto", label: security_text(locale, Text::AutoDetect) },
+        LabeledOption { value: "true", label: security_text(locale, Text::ForceEnable) },
+        LabeledOption { value: "false", label: security_text(locale, Text::ForceDisable) },
     ]
 }
 
-fn sandbox_backend_options(enabled: &str) -> Vec<LabeledOption> {
+fn sandbox_backend_options(locale: DesktopLocale, enabled: &str) -> Vec<LabeledOption> {
     match enabled {
-        "false" => vec![LabeledOption { value: "none", label: "禁止沙箱" }],
+        "false" => {
+            vec![LabeledOption { value: "none", label: security_text(locale, Text::NoSandbox) }]
+        }
         "true" => vec![
-            LabeledOption { value: "auto", label: "自动选择" },
+            LabeledOption { value: "auto", label: security_text(locale, Text::AutoSelect) },
             LabeledOption { value: "landlock", label: "Landlock" },
             LabeledOption { value: "firejail", label: "Firejail" },
             LabeledOption { value: "bubblewrap", label: "Bubblewrap" },
             LabeledOption { value: "docker", label: "Docker" },
         ],
         _ => vec![
-            LabeledOption { value: "auto", label: "自动选择" },
+            LabeledOption { value: "auto", label: security_text(locale, Text::AutoSelect) },
             LabeledOption { value: "landlock", label: "Landlock" },
             LabeledOption { value: "firejail", label: "Firejail" },
             LabeledOption { value: "bubblewrap", label: "Bubblewrap" },
             LabeledOption { value: "docker", label: "Docker" },
-            LabeledOption { value: "none", label: "禁止沙箱" },
+            LabeledOption { value: "none", label: security_text(locale, Text::NoSandbox) },
         ],
     }
 }
 
-fn sandbox_backend_description(backend: &str) -> &'static str {
+fn sandbox_backend_description(locale: DesktopLocale, backend: &str) -> &'static str {
     match backend {
-        "landlock" => {
-            "使用 Linux Landlock 约束文件系统与进程权限，适合支持 Landlock 的 Linux 环境。"
-        }
-        "firejail" => "使用 Firejail 进行沙箱隔离，可额外传入命令行参数定制策略。",
-        "bubblewrap" => "使用 Bubblewrap 构造轻量级容器隔离，适合更细粒度的命名空间控制。",
-        "docker" => "使用 Docker 容器作为执行边界，适合已有容器环境的部署方式。",
-        "none" => "不使用任何沙箱。仅在你明确接受更低隔离级别时使用。",
-        _ => "由运行时自动选择可用的最优沙箱实现；无法确定时会回退到安全允许的路径。",
+        "landlock" => security_text(locale, Text::LandlockHelp),
+        "firejail" => security_text(locale, Text::FirejailHelp),
+        "bubblewrap" => security_text(locale, Text::BubblewrapHelp),
+        "docker" => security_text(locale, Text::DockerBoundaryHelp),
+        "none" => security_text(locale, Text::NoSandboxHelp),
+        _ => security_text(locale, Text::AutoSandboxHelp),
     }
 }
 
@@ -336,12 +343,13 @@ fn sandbox_backend_description(backend: &str) -> &'static str {
 /// // 将 settings_view 添加到主界面中
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
     let s = &app.security_settings;
     let bash_security_row = bool_row(
-        "Bash 安全检查",
-        "统一控制命令、路径、风险、重定向与 Shell 语法审计；完全访问始终绕过。",
+        security_text(locale, Text::BashSecurity),
+        security_text(locale, Text::BashHelp),
         s.bash.enabled,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecurityBashSecurityEnabledToggled(v)),
     );
     use message::settings::{BashPolicyCheck as P, BashValidatorCheck as V};
@@ -350,8 +358,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let validator_active = s.bash.enabled;
     let validator_items_active = validator_active && s.bash.validators.enabled;
     let policy_group_row = bash_bool_row(
-        "策略检查",
-        "关闭后保留各单项值，但命令、路径、风险和重定向策略均不生效。",
+        locale,
+        security_text(locale, Text::Policy),
+        security_text(locale, Text::PolicyHelp),
         s.bash.policy.enabled,
         policy_active,
         |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::Enabled, v),
@@ -360,56 +369,63 @@ pub fn view(app: &App) -> Element<'_, Message> {
         policy_group_row,
         settings_divider(),
         bash_bool_row(
-            "只读约束",
-            "阻止只读会话执行写操作。",
+            locale,
+            security_text(locale, Text::ReadOnlyConstraint),
+            security_text(locale, Text::ReadOnlyConstraintHelp),
             s.bash.policy.read_only,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::ReadOnly, v)
         ),
         settings_divider(),
         bash_bool_row(
-            "危险 Shell 结构",
-            "检查危险的 Shell 组合结构。",
+            locale,
+            security_text(locale, Text::DangerousShell),
+            security_text(locale, Text::DangerousShellHelp),
             s.bash.policy.unsafe_shell_patterns,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::UnsafeShellPatterns, v)
         ),
         settings_divider(),
         bash_bool_row(
-            "命令规则",
-            "应用允许命令与规则引擎约束。",
+            locale,
+            security_text(locale, Text::CommandRules),
+            security_text(locale, Text::CommandRulesHelp),
             s.bash.policy.command_rules,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::CommandRules, v)
         ),
         settings_divider(),
         bash_bool_row(
-            "工作区路径",
-            "限制命令访问工作区外路径。",
+            locale,
+            security_text(locale, Text::WorkspacePaths),
+            security_text(locale, Text::WorkspacePathsHelp),
             s.bash.policy.workspace_paths,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::WorkspacePaths, v)
         ),
         settings_divider(),
         bash_bool_row(
-            "禁止路径",
-            "检查明确禁止访问的路径。",
+            locale,
+            security_text(locale, Text::ForbiddenPaths),
+            security_text(locale, Text::ForbiddenPathsHelp),
             s.bash.policy.forbidden_paths,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::ForbiddenPaths, v)
         ),
         settings_divider(),
         bash_bool_row(
-            "风险等级",
-            "应用高、中风险命令策略。",
+            locale,
+            security_text(locale, Text::RiskLevel),
+            security_text(locale, Text::RiskLevelHelp),
             s.bash.policy.risk,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::Risk, v)
         ),
         settings_divider(),
         bash_bool_row(
-            "重定向",
-            "检查 Shell 输入输出重定向。",
+            locale,
+            security_text(locale, Text::Redirects),
+            security_text(locale, Text::RedirectsHelp),
             s.bash.policy.redirects,
             policy_items_active,
             |v| message::SettingsMessage::SecurityBashPolicyCheckToggled(P::Redirects, v)
@@ -417,15 +433,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
     ]
     .spacing(0);
     let validator_group_row = bash_bool_row(
-        "Shell 语法检测",
-        "关闭后保留各 validator 值，但所有 Shell 语法检测均不生效。",
+        locale,
+        security_text(locale, Text::ShellSyntax),
+        security_text(locale, Text::ShellSyntaxHelp),
         s.bash.validators.enabled,
         validator_active,
         |v| message::SettingsMessage::SecurityBashValidatorCheckToggled(V::Enabled, v),
     );
     macro_rules! validator_row {
-        ($label:literal, $description:literal, $field:ident, $variant:ident) => {
+        ($label:expr, $description:expr, $field:ident, $variant:ident) => {
             bash_bool_row(
+                locale,
                 $label,
                 $description,
                 s.bash.validators.$field,
@@ -437,75 +455,161 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let validator_rows = column![
         validator_group_row,
         settings_divider(),
-        validator_row!("空命令", "拒绝空白或空命令。", empty_command, EmptyCommand),
+        validator_row!(
+            security_text(locale, Text::EmptyCommand),
+            security_text(locale, Text::EmptyCommandHelp),
+            empty_command,
+            EmptyCommand
+        ),
         settings_divider(),
-        validator_row!("Heredoc", "检查 heredoc 结构。", heredoc, Heredoc),
-        settings_divider(),
-        validator_row!("Git commit", "检查 Git 提交命令结构。", git_commit, GitCommit),
-        settings_divider(),
-        validator_row!("jq", "检查 jq 命令结构。", jq, Jq),
-        settings_divider(),
-        validator_row!("Shell 元字符", "检查敏感 Shell 元字符。", metacharacters, Metacharacters),
-        settings_divider(),
-        validator_row!("危险变量", "检查危险变量引用。", dangerous_vars, DangerousVars),
-        settings_divider(),
-        validator_row!("命令替换", "检查命令替换结构。", substitution, Substitution),
-        settings_divider(),
-        validator_row!("语法重定向", "检查重定向语法。", redirection, Redirection),
-        settings_divider(),
-        validator_row!("换行注入", "检查命令换行注入。", newline_injection, NewlineInjection),
-        settings_divider(),
-        validator_row!("IFS 注入", "检查 IFS 注入。", ifs_injection, IfsInjection),
-        settings_divider(),
-        validator_row!("进程环境", "检查 /proc 环境访问。", proc_environ, ProcEnviron),
-        settings_divider(),
-        validator_row!("异常命令", "检查格式异常的命令。", malformed, Malformed),
-        settings_divider(),
-        validator_row!("混淆参数", "检查混淆命令参数。", obfuscated_flags, ObfuscatedFlags),
-        settings_divider(),
-        validator_row!("反斜杠", "检查可疑反斜杠。", backslash, Backslash),
-        settings_divider(),
-        validator_row!("花括号扩展", "检查花括号扩展。", brace_expansion, BraceExpansion),
+        validator_row!("Heredoc", security_text(locale, Text::HeredocHelp), heredoc, Heredoc),
         settings_divider(),
         validator_row!(
-            "Unicode 空白",
-            "检查 Unicode 空白字符。",
+            "Git commit",
+            security_text(locale, Text::GitCommitHelp),
+            git_commit,
+            GitCommit
+        ),
+        settings_divider(),
+        validator_row!("jq", security_text(locale, Text::JqHelp), jq, Jq),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::Metacharacters),
+            security_text(locale, Text::MetacharactersHelp),
+            metacharacters,
+            Metacharacters
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::DangerousVars),
+            security_text(locale, Text::DangerousVarsHelp),
+            dangerous_vars,
+            DangerousVars
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::Substitution),
+            security_text(locale, Text::SubstitutionHelp),
+            substitution,
+            Substitution
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::SyntaxRedirection),
+            security_text(locale, Text::SyntaxRedirectionHelp),
+            redirection,
+            Redirection
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::NewlineInjection),
+            security_text(locale, Text::NewlineInjectionHelp),
+            newline_injection,
+            NewlineInjection
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::IfsInjection),
+            security_text(locale, Text::IfsInjectionHelp),
+            ifs_injection,
+            IfsInjection
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::ProcessEnvironment),
+            security_text(locale, Text::ProcessEnvironmentHelp),
+            proc_environ,
+            ProcEnviron
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::Malformed),
+            security_text(locale, Text::MalformedHelp),
+            malformed,
+            Malformed
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::ObfuscatedFlags),
+            security_text(locale, Text::ObfuscatedFlagsHelp),
+            obfuscated_flags,
+            ObfuscatedFlags
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::Backslash),
+            security_text(locale, Text::BackslashHelp),
+            backslash,
+            Backslash
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::BraceExpansion),
+            security_text(locale, Text::BraceExpansionHelp),
+            brace_expansion,
+            BraceExpansion
+        ),
+        settings_divider(),
+        validator_row!(
+            security_text(locale, Text::UnicodeWhitespace),
+            security_text(locale, Text::UnicodeWhitespaceHelp),
             unicode_whitespace,
             UnicodeWhitespace
         ),
         settings_divider(),
-        validator_row!("哈希注释", "检查哈希注释结构。", hash_comment, HashComment),
+        validator_row!(
+            security_text(locale, Text::HashComment),
+            security_text(locale, Text::HashCommentHelp),
+            hash_comment,
+            HashComment
+        ),
         settings_divider(),
         validator_row!(
-            "注释引号同步",
-            "检查注释与引号状态不同步。",
+            security_text(locale, Text::CommentQuote),
+            security_text(locale, Text::CommentQuoteHelp),
             comment_quote_desync,
             CommentQuoteDesync
         ),
         settings_divider(),
         validator_row!(
-            "引号内换行",
-            "拒绝引号内换行；默认关闭以支持多行提交消息。",
+            security_text(locale, Text::QuotedNewline),
+            security_text(locale, Text::QuotedNewlineHelp),
             quoted_newline,
             QuotedNewline
         ),
         settings_divider(),
-        validator_row!("Zsh 危险结构", "检查 Zsh 危险结构。", zsh_dangerous, ZshDangerous),
+        validator_row!(
+            security_text(locale, Text::ZshDangerous),
+            security_text(locale, Text::ZshDangerousHelp),
+            zsh_dangerous,
+            ZshDangerous
+        ),
         settings_divider(),
-        validator_row!("控制字符", "检查命令中的控制字符。", control_chars, ControlChars),
+        validator_row!(
+            security_text(locale, Text::ControlChars),
+            security_text(locale, Text::ControlCharsHelp),
+            control_chars,
+            ControlChars
+        ),
     ]
     .spacing(0);
-    let enabled_options = sandbox_enabled_options();
+    let enabled_options = sandbox_enabled_options(locale);
     let enabled_selected =
         enabled_options.iter().find(|option| option.value == s.sandbox_enabled_input).cloned();
-    let backend_options = sandbox_backend_options(&s.sandbox_enabled_input);
+    let backend_options = sandbox_backend_options(locale, &s.sandbox_enabled_input);
     let backend_selected =
         backend_options.iter().find(|option| option.value == s.sandbox_backend_input).cloned();
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::SecurityHelpOpen));
+    let help_btn = crate::app::components::system_settings_common::icon_btn(
+        crate::app::assets::Icon::QuestionCircle,
+        crate::app::i18n::settings_runtime::text(
+            locale,
+            crate::app::i18n::settings_runtime::Text::Help,
+        ),
+        Some(Message::Settings(message::SettingsMessage::SecurityHelpOpen)),
+    );
     let sandbox_enabled_row = field_row(
-        "沙箱启用",
-        "选择自动检测、强制启用或强制禁用沙箱。",
+        security_text(locale, Text::SandboxEnabled),
+        security_text(locale, Text::SandboxEnabledHelp),
         pick_list(enabled_options, enabled_selected, |value| {
             Message::Settings(message::SettingsMessage::SecuritySandboxEnabledChanged(
                 value.value.to_string(),
@@ -519,8 +623,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let sandbox_backend_row = field_row(
-        "沙箱后端",
-        "根据启用策略收窄可选值，避免互相矛盾的配置。",
+        security_text(locale, Text::SandboxBackend),
+        security_text(locale, Text::SandboxBackendHelp),
         pick_list(backend_options, backend_selected, |value| {
             Message::Settings(message::SettingsMessage::SecuritySandboxBackendChanged(
                 value.value.to_string(),
@@ -533,22 +637,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fixed(280.0)),
     );
 
-    let sandbox_backend_card =
-        settings_section_card("后端说明", sandbox_backend_description(&s.sandbox_backend_input));
+    let sandbox_backend_card = settings_section_card(
+        security_text(locale, Text::BackendDescription),
+        sandbox_backend_description(locale, &s.sandbox_backend_input),
+    );
 
     let firejail_args_row = list_editor(
+        locale,
         SecurityListKind::SandboxFirejailArgs,
-        "Firejail 参数",
-        "仅在使用 Firejail 后端时生效，每次添加一个参数。",
-        "例如 --private",
+        security_text(locale, Text::FirejailArgs),
+        security_text(locale, Text::FirejailArgsHelp),
+        security_text(locale, Text::FirejailExample),
         &s.sandbox_firejail_args,
         s.list_editor.draft(SecurityListKind::SandboxFirejailArgs),
         s.list_editor.pending_remove_index(SecurityListKind::SandboxFirejailArgs),
     );
 
     let max_memory_row = slider_row(
-        "最大内存",
-        "限制执行进程可使用的最大内存。",
+        security_text(locale, Text::MaxMemory),
+        security_text(locale, Text::MaxMemoryHelp),
         slider(32.0..=65_536.0, s.resources_max_memory_mb as f32, |v| {
             Message::Settings(message::SettingsMessage::SecurityResourcesMaxMemoryMbChanged(
                 v.round() as u32,
@@ -559,8 +666,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let max_cpu_row = slider_row(
-        "最大 CPU 时长",
-        "限制单次执行可消耗的 CPU 时间。",
+        security_text(locale, Text::MaxCpuTime),
+        security_text(locale, Text::MaxCpuTimeHelp),
         slider(1.0..=3600.0, s.resources_max_cpu_time_seconds as f32, |v| {
             Message::Settings(message::SettingsMessage::SecurityResourcesMaxCpuTimeSecondsChanged(
                 v.round() as u64,
@@ -571,8 +678,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let max_subprocesses_row = slider_row(
-        "最大子进程数",
-        "限制执行过程中允许派生的子进程数量。",
+        security_text(locale, Text::MaxSubprocesses),
+        security_text(locale, Text::MaxSubprocessesHelp),
         slider(1.0..=10_000.0, s.resources_max_subprocesses as f32, |v| {
             Message::Settings(message::SettingsMessage::SecurityResourcesMaxSubprocessesChanged(
                 v.round() as u32,
@@ -583,34 +690,34 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let memory_monitoring_row = bool_row(
-        "内存监控",
-        "持续监控执行进程的内存占用。",
+        security_text(locale, Text::MemoryMonitoring),
+        security_text(locale, Text::MemoryMonitoringHelp),
         s.resources_memory_monitoring,
-        "开启",
+        security_text(locale, Text::On),
         |v| {
             Message::Settings(message::SettingsMessage::SecurityResourcesMemoryMonitoringToggled(v))
         },
     );
 
     let audit_enabled_row = bool_row(
-        "审计日志",
-        "记录安全相关动作和事件。",
+        security_text(locale, Text::AuditLog),
+        security_text(locale, Text::AuditLogHelp),
         s.audit_enabled,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecurityAuditEnabledToggled(v)),
     );
 
     let audit_log_path_row = text_row(
-        "审计日志路径",
-        "指定审计日志文件的写入位置。",
+        security_text(locale, Text::AuditPath),
+        security_text(locale, Text::AuditPathHelp),
         "audit.log",
         &s.audit_log_path,
         |v| Message::Settings(message::SettingsMessage::SecurityAuditLogPathChanged(v)),
     );
 
     let audit_size_row = slider_row(
-        "审计大小上限",
-        "限制单个审计日志文件的最大大小。",
+        security_text(locale, Text::AuditMaxSize),
+        security_text(locale, Text::AuditMaxSizeHelp),
         slider(1.0..=10_000.0, s.audit_max_size_mb as f32, |v| {
             Message::Settings(message::SettingsMessage::SecurityAuditMaxSizeMbChanged(
                 v.round() as u32
@@ -621,21 +728,24 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let audit_sign_row = bool_row(
-        "审计签名",
-        "为审计事件添加签名，提高完整性。",
+        security_text(locale, Text::AuditSignature),
+        security_text(locale, Text::AuditSignatureHelp),
         s.audit_sign_events,
-        "签名事件",
+        security_text(locale, Text::SignEvents),
         |v| Message::Settings(message::SettingsMessage::SecurityAuditSignEventsToggled(v)),
     );
 
-    let otp_enabled_row =
-        bool_row("OTP", "启用敏感动作的二次验证。", s.otp_enabled, "开启", |v| {
-            Message::Settings(message::SettingsMessage::SecurityOtpEnabledToggled(v))
-        });
+    let otp_enabled_row = bool_row(
+        "OTP",
+        security_text(locale, Text::OtpHelp),
+        s.otp_enabled,
+        security_text(locale, Text::On),
+        |v| Message::Settings(message::SettingsMessage::SecurityOtpEnabledToggled(v)),
+    );
 
     let otp_method_row = text_row(
-        "OTP 方法",
-        "支持 totp、pairing、cli-prompt。",
+        security_text(locale, Text::OtpMethod),
+        security_text(locale, Text::OtpMethodHelp),
         "totp | pairing | cli-prompt",
         &s.otp_method_input,
         |v| Message::Settings(message::SettingsMessage::SecurityOtpMethodChanged(v)),
@@ -643,7 +753,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let otp_ttl_row = slider_row(
         "OTP TTL",
-        "单个 OTP 令牌的有效时长。",
+        security_text(locale, Text::OtpTtlHelp),
         slider(1.0..=600.0, s.otp_token_ttl_secs as f32, |v: f32| {
             Message::Settings(message::SettingsMessage::SecurityOtpTokenTtlSecsChanged(
                 v.round() as u64
@@ -654,8 +764,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let otp_cache_row = slider_row(
-        "OTP 缓存时长",
-        "验证结果的缓存有效期。",
+        security_text(locale, Text::OtpCache),
+        security_text(locale, Text::OtpCacheHelp),
         slider(1.0..=3600.0, s.otp_cache_valid_secs as f32, |v: f32| {
             Message::Settings(message::SettingsMessage::SecurityOtpCacheValidSecsChanged(
                 v.round() as u64
@@ -666,80 +776,83 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let otp_actions_row = list_editor(
+        locale,
         SecurityListKind::OtpGatedActions,
-        "OTP 动作白名单",
-        "需要 OTP 验证的敏感动作，每次添加一个。",
-        "例如 shell",
+        security_text(locale, Text::OtpActions),
+        security_text(locale, Text::OtpActionsHelp),
+        security_text(locale, Text::ShellExample),
         &s.otp_gated_actions,
         s.list_editor.draft(SecurityListKind::OtpGatedActions),
         s.list_editor.pending_remove_index(SecurityListKind::OtpGatedActions),
     );
 
     let otp_domains_row = list_editor(
+        locale,
         SecurityListKind::OtpGatedDomains,
-        "OTP 域名规则",
-        "需要 OTP 验证的网络域名规则，每次添加一个。",
-        "例如 admin.example.com",
+        security_text(locale, Text::OtpDomains),
+        security_text(locale, Text::OtpDomainsHelp),
+        security_text(locale, Text::DomainExample),
         &s.otp_gated_domains,
         s.list_editor.draft(SecurityListKind::OtpGatedDomains),
         s.list_editor.pending_remove_index(SecurityListKind::OtpGatedDomains),
     );
 
     let otp_domain_categories_row = list_editor(
+        locale,
         SecurityListKind::OtpGatedDomainCategories,
-        "OTP 域名分类",
-        "按域名分类启用 OTP 门控，每次添加一个分类。",
-        "例如 payments",
+        security_text(locale, Text::OtpCategories),
+        security_text(locale, Text::OtpCategoriesHelp),
+        security_text(locale, Text::PaymentsExample),
         &s.otp_gated_domain_categories,
         s.list_editor.draft(SecurityListKind::OtpGatedDomainCategories),
         s.list_editor.pending_remove_index(SecurityListKind::OtpGatedDomainCategories),
     );
 
     let estop_enabled_row = bool_row(
-        "紧急停止",
-        "启用紧急停止状态机。",
+        security_text(locale, Text::Estop),
+        security_text(locale, Text::EstopHelp),
         s.estop_enabled,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecurityEstopEnabledToggled(v)),
     );
 
     let estop_state_file_row = text_row(
-        "E-Stop 状态文件",
-        "指定紧急停止状态文件位置。",
+        security_text(locale, Text::EstopFile),
+        security_text(locale, Text::EstopFileHelp),
         vw_config_types::paths::ESTOP_STATE_FILE_PATH,
         &s.estop_state_file,
         |v| Message::Settings(message::SettingsMessage::SecurityEstopStateFileChanged(v)),
     );
 
     let estop_require_otp_row = bool_row(
-        "恢复需 OTP",
-        "从 E-Stop 恢复时要求额外 OTP 验证。",
+        security_text(locale, Text::ResumeOtp),
+        security_text(locale, Text::ResumeOtpHelp),
         s.estop_require_otp_to_resume,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecurityEstopRequireOtpToResumeToggled(v)),
     );
 
     let syscall_enabled_row = bool_row(
-        "系统调用异常检测",
-        "启用系统调用层面的异常行为检测。",
+        security_text(locale, Text::SyscallAnomaly),
+        security_text(locale, Text::SyscallAnomalyHelp),
         s.syscall_anomaly_enabled,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecuritySyscallAnomalyEnabledToggled(v)),
     );
 
     let syscall_strict_row = bool_row(
-        "严格模式",
-        "使用更严格的异常检测规则。",
+        security_text(locale, Text::StrictMode),
+        security_text(locale, Text::StrictModeHelp),
         s.syscall_anomaly_strict_mode,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecuritySyscallAnomalyStrictModeToggled(v)),
     );
 
     let syscall_alert_unknown_row = bool_row(
-        "未知系统调用告警",
-        "遇到未知系统调用时立即告警。",
+        security_text(locale, Text::UnknownSyscall),
+        security_text(locale, Text::UnknownSyscallHelp),
         s.syscall_anomaly_alert_on_unknown_syscall,
-        "开启",
+        security_text(locale, Text::On),
         |v| {
             Message::Settings(
                 message::SettingsMessage::SecuritySyscallAnomalyAlertOnUnknownSyscallToggled(v),
@@ -748,8 +861,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let denied_row = slider_row(
-        "每分钟拒绝阈值",
-        "单位时间内拒绝事件的上限。",
+        security_text(locale, Text::DenyThreshold),
+        security_text(locale, Text::DenyThresholdHelp),
         slider(1.0..=10_000.0, s.syscall_anomaly_max_denied_events_per_minute as f32, |v: f32| {
             Message::Settings(
                 message::SettingsMessage::SecuritySyscallAnomalyMaxDeniedEventsPerMinuteChanged(
@@ -762,8 +875,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let total_row = slider_row(
-        "每分钟总事件阈值",
-        "单位时间内允许的系统调用事件总数。",
+        security_text(locale, Text::EventThreshold),
+        security_text(locale, Text::EventThresholdHelp),
         slider(1.0..=100_000.0, s.syscall_anomaly_max_total_events_per_minute as f32, |v: f32| {
             Message::Settings(
                 message::SettingsMessage::SecuritySyscallAnomalyMaxTotalEventsPerMinuteChanged(
@@ -776,8 +889,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let alerts_row = slider_row(
-        "每分钟告警阈值",
-        "限制单位时间内的告警触发数量。",
+        security_text(locale, Text::AlertThreshold),
+        security_text(locale, Text::AlertThresholdHelp),
         slider(1.0..=10_000.0, s.syscall_anomaly_max_alerts_per_minute as f32, |v: f32| {
             Message::Settings(
                 message::SettingsMessage::SecuritySyscallAnomalyMaxAlertsPerMinuteChanged(
@@ -790,8 +903,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let cooldown_row = slider_row(
-        "告警冷却",
-        "两次告警之间的最小间隔。",
+        security_text(locale, Text::AlertCooldown),
+        security_text(locale, Text::AlertCooldownHelp),
         slider(1.0..=3600.0, s.syscall_anomaly_alert_cooldown_secs as f32, |v: f32| {
             Message::Settings(
                 message::SettingsMessage::SecuritySyscallAnomalyAlertCooldownSecsChanged(
@@ -804,18 +917,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let syscall_log_path_row = text_row(
-        "系统调用日志路径",
-        "指定系统调用异常日志的写入位置。",
+        security_text(locale, Text::SyscallLog),
+        security_text(locale, Text::SyscallLogHelp),
         "syscall-anomalies.log",
         &s.syscall_anomaly_log_path,
         |v| Message::Settings(message::SettingsMessage::SecuritySyscallAnomalyLogPathChanged(v)),
     );
 
     let baseline_syscalls_row = list_editor(
+        locale,
         SecurityListKind::SyscallAnomalyBaselineSyscalls,
-        "系统调用基线",
-        "允许的系统调用白名单基线，每次添加一个。",
-        "例如 openat",
+        security_text(locale, Text::SyscallBaseline),
+        security_text(locale, Text::SyscallBaselineHelp),
+        security_text(locale, Text::OpenatExample),
         &s.syscall_anomaly_baseline_syscalls,
         s.list_editor.draft(SecurityListKind::SyscallAnomalyBaselineSyscalls),
         s.list_editor.pending_remove_index(SecurityListKind::SyscallAnomalyBaselineSyscalls),
@@ -823,31 +937,31 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let canary_row = bool_row(
         "Canary Token",
-        "启用蜜罐令牌与外泄检测。",
+        security_text(locale, Text::CanaryHelp),
         s.canary_tokens,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecurityCanaryTokensToggled(v)),
     );
 
     let semantic_guard_row = bool_row(
-        "语义注入防护",
-        "启用语义层面的注入攻击检测。",
+        security_text(locale, Text::SemanticGuard),
+        security_text(locale, Text::SemanticGuardHelp),
         s.semantic_guard,
-        "开启",
+        security_text(locale, Text::On),
         |v| Message::Settings(message::SettingsMessage::SecuritySemanticGuardToggled(v)),
     );
 
     let semantic_collection_row = text_row(
-        "语义集合",
-        "指定用于语义分析的数据集合。",
+        security_text(locale, Text::SemanticCollection),
+        security_text(locale, Text::SemanticCollectionHelp),
         "semantic_guard",
         &s.semantic_guard_collection,
         |v| Message::Settings(message::SettingsMessage::SecuritySemanticGuardCollectionChanged(v)),
     );
 
     let semantic_threshold_row = slider_row(
-        "语义阈值",
-        "语义防护的触发阈值。",
+        security_text(locale, Text::SemanticThreshold),
+        security_text(locale, Text::SemanticThresholdHelp),
         slider(0.0..=1.0, s.semantic_guard_threshold as f32, |v| {
             Message::Settings(message::SettingsMessage::SecuritySemanticGuardThresholdChanged(
                 v as f64,
@@ -868,7 +982,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         row![].spacing(8).align_y(Alignment::Center),
         |row, descriptor| {
             row.push(tab_button(
-                descriptor.label,
+                security_tab_label(locale, descriptor.tab),
                 s.active_tab == descriptor.tab,
                 Message::Settings(message::SettingsMessage::SecurityTabSelected(descriptor.tab)),
             ))
@@ -878,22 +992,34 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content: Element<'_, Message> = match s.active_tab {
         SecuritySettingsTab::Bash => column![
             settings_section_card(
-                "Bash 安全检查",
-                "优先级为总开关 → 分组开关 → 单项开关；关闭父级不会改写已保存的子项。"
+                security_text(locale, Text::BashSecurity),
+                security_text(locale, Text::SwitchPriorityHelp)
             ),
             settings_section_content(bash_security_row),
-            settings_section_card("策略检查", "命令、路径、风险与重定向策略。"),
+            settings_section_card(
+                security_text(locale, Text::Policy),
+                security_text(locale, Text::PolicyIntro)
+            ),
             settings_section_content(policy_rows),
-            settings_section_card("Shell 语法检测", "按 validator 独立控制 Shell 语法检查。"),
+            settings_section_card(
+                security_text(locale, Text::ShellSyntax),
+                security_text(locale, Text::SyntaxIntro)
+            ),
             settings_section_content(validator_rows),
         ]
         .spacing(16)
         .into(),
         SecuritySettingsTab::SandboxAndResources => column![
-            settings_section_card("沙箱", "控制是否启用沙箱以及选择具体后端。"),
+            settings_section_card(
+                security_text(locale, Text::Sandbox),
+                security_text(locale, Text::SandboxIntro)
+            ),
             settings_section_content(sandbox_rows),
             sandbox_backend_card,
-            settings_section_card("资源限制", "约束进程的内存、CPU 与子进程数量。"),
+            settings_section_card(
+                security_text(locale, Text::Resources),
+                security_text(locale, Text::ResourcesIntro)
+            ),
             settings_section_content(
                 column![
                     max_memory_row,
@@ -910,7 +1036,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Audit => column![
-            settings_section_card("审计日志", "记录并限制安全事件日志。"),
+            settings_section_card(
+                security_text(locale, Text::AuditLog),
+                security_text(locale, Text::AuditIntro)
+            ),
             settings_section_content(
                 column![
                     audit_enabled_row,
@@ -927,7 +1056,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::OtpAndEstop => column![
-            settings_section_card("OTP", "对敏感动作启用二次验证。"),
+            settings_section_card("OTP", security_text(locale, Text::OtpIntro)),
             settings_section_content(
                 column![
                     otp_enabled_row,
@@ -946,7 +1075,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ]
                 .spacing(0)
             ),
-            settings_section_card("紧急停止", "配置 E-Stop 状态与恢复要求。"),
+            settings_section_card(
+                security_text(locale, Text::Estop),
+                security_text(locale, Text::EstopIntro)
+            ),
             settings_section_content(
                 column![
                     estop_enabled_row,
@@ -961,7 +1093,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Syscall => column![
-            settings_section_card("系统调用异常检测", "监控系统调用行为并限制告警节奏。"),
+            settings_section_card(
+                security_text(locale, Text::SyscallAnomaly),
+                security_text(locale, Text::SyscallIntro)
+            ),
             settings_section_content(
                 column![
                     syscall_enabled_row,
@@ -988,7 +1123,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .spacing(16)
         .into(),
         SecuritySettingsTab::Guard => column![
-            settings_section_card("防护", "配置 Canary Token 与语义注入防护。"),
+            settings_section_card(
+                security_text(locale, Text::Guard),
+                security_text(locale, Text::GuardIntro)
+            ),
             settings_section_content(
                 column![
                     canary_row,
@@ -1008,7 +1146,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            settings_page_intro("安全配置", "配置沙箱、资源限制、审计与安全门控策略。"),
+            settings_page_intro(
+                security_text(locale, Text::SecurityConfig),
+                security_text(locale, Text::SecurityIntro)
+            ),
             container(text(" ")).width(Length::Fill),
             help_btn,
         ]
@@ -1019,60 +1160,27 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     if let Some(error) = s.save_error.as_deref() {
-        col = col.push(settings_error_banner(error));
+        col = col.push(settings_error_banner(
+            crate::app::i18n::settings_runtime::validation_error(locale, error),
+        ));
     }
 
     col.push(content).into()
 }
 
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     let s = &app.security_settings;
     if !s.show_help_modal {
         return dialog;
     }
 
-    let help_text = r#"安全配置说明
-
-一、作用
-- security 用于配置沙箱、资源限制、审计、OTP 门控、紧急停止与系统调用异常检测。
-
-二、关键字段
-- bash.enabled: 总开关，默认 false；完全访问始终绕过。
-- bash.policy.enabled / bash.validators.enabled: 分组开关。
-- bash.policy.* / bash.validators.*: 单项开关；有效状态为总开关 && 分组开关 && 单项开关。
-- sandbox.enabled: auto/true/false。
-- sandbox.backend: auto | landlock | firejail | bubblewrap | docker | none。
-- resources.*: 进程资源上限。
-- audit.*: 审计日志行为。
-- otp.*: 敏感动作二次验证。
-- estop.*: 紧急停止状态机。
-- syscall_anomaly.*: 系统调用异常检测。
-- canary_tokens / semantic_guard*: 注入与外泄防护。
-
-三、示例
-{
-  "security": {
-    "bash": {
-      "enabled": true,
-      "policy": {"enabled": true, "read_only": true, "redirects": true},
-      "validators": {"enabled": true, "heredoc": true, "quoted_newline": false}
-    },
-    "sandbox": {"enabled": null, "backend": "auto", "firejail_args": []},
-    "resources": {
-      "max_memory_mb": 512,
-      "max_cpu_time_seconds": 60,
-      "max_subprocesses": 10,
-      "memory_monitoring": true
-    },
-    "audit": {"enabled": true, "log_path": "audit.log", "max_size_mb": 100, "sign_events": false}
-  }
-}
-"#;
+    let help_text = crate::app::i18n::settings_security::help(locale);
 
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
-        "Security 配置帮助",
+        security_text(locale, Text::SecurityHelpTitle),
         help_text,
         Message::Settings(message::SettingsMessage::SecurityHelpClose),
     )
@@ -1080,3 +1188,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "system_settings_security_tests.rs"]
 mod system_settings_security_tests;
+
+pub(super) fn security_tab_label(locale: DesktopLocale, tab: SecuritySettingsTab) -> &'static str {
+    match tab {
+        SecuritySettingsTab::Bash => "Bash",
+        SecuritySettingsTab::SandboxAndResources => security_text(locale, Text::SandboxResources),
+        SecuritySettingsTab::Audit => security_text(locale, Text::Audit),
+        SecuritySettingsTab::OtpAndEstop => security_text(locale, Text::OtpEstop),
+        SecuritySettingsTab::Syscall => security_text(locale, Text::Syscalls),
+        SecuritySettingsTab::Guard => security_text(locale, Text::Guard),
+    }
+}

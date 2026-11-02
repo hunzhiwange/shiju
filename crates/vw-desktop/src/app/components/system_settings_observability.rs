@@ -22,9 +22,9 @@
 //! - `runtime_trace_max_entries`：rolling 模式下保留的最大条目数
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_divider, settings_help_button, settings_muted_text_style,
-    settings_page_intro, settings_section_card, settings_section_content,
-    settings_segment_button_style, settings_text_input_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, settings_divider, settings_muted_text_style, settings_page_intro,
+    settings_section_card, settings_section_content, settings_segment_button_style,
+    settings_text_input_style, settings_value_badge,
 };
 use crate::app::i18n::settings_runtime::{Text, text as runtime_text};
 use crate::app::{App, Message, message};
@@ -108,8 +108,14 @@ fn text_row<'a>(
 pub fn view(app: &App) -> Element<'_, Message> {
     let locale = app.desktop_locale;
     let s = &app.observability_settings;
-    let help_btn =
-        settings_help_button(Message::Settings(message::SettingsMessage::ObservabilityHelpOpen));
+    let help_btn = crate::app::components::system_settings_common::icon_btn(
+        crate::app::assets::Icon::QuestionCircle,
+        crate::app::i18n::settings_runtime::text(
+            locale,
+            crate::app::i18n::settings_runtime::Text::Help,
+        ),
+        Some(Message::Settings(message::SettingsMessage::ObservabilityHelpOpen)),
+    );
 
     let backend_btn = |label: &'static str, v: &'static str| {
         let is_active = s.backend == v;

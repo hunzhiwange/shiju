@@ -199,7 +199,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let general_section = column![
-        settings_section_card("基础行为", runtime_text(locale, Text::MemoryBasicHelp)),
+        settings_section_card(
+            runtime_text(locale, Text::Basic),
+            runtime_text(locale, Text::MemoryBasicHelp)
+        ),
         settings_section_content(
             column![
                 backend_row,
@@ -652,7 +655,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fill);
 
     if let Some(error) = active_save_error(app) {
-        sections = sections.push(settings_error_banner(error));
+        sections = sections.push(settings_error_banner(
+            crate::app::i18n::settings_runtime::validation_error(locale, error),
+        ));
     }
 
     sections.push(selected_section).into()

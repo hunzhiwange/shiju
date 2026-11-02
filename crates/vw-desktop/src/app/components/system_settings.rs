@@ -824,7 +824,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
                             _ => None,
                         }
                         .map(|error| error.display(app.desktop_locale))
-                        .unwrap_or_else(|| err.to_string());
+                        .unwrap_or_else(|| {
+                            if active_tab == SystemTab::Runtime
+                                || (active_tab == SystemTab::Agents
+                                    && app.agents_settings.active_config_tab
+                                        == crate::app::state::AgentConfigTab::Runtime)
+                            {
+                                crate::app::i18n::settings_runtime::validation_error(
+                                    app.desktop_locale,
+                                    err,
+                                )
+                            } else {
+                                err.to_owned()
+                            }
+                        });
                         content_with_help =
                             content_with_help.push(settings_error_banner(localized));
                     }

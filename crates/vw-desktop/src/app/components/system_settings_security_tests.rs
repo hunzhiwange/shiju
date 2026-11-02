@@ -47,7 +47,7 @@ fn labeled_option_displays_label_not_value() {
 
 #[test]
 fn sandbox_enabled_options_are_stable_and_user_facing() {
-    let options = sandbox_enabled_options();
+    let options = sandbox_enabled_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
     let values: Vec<_> = options.iter().map(|option| option.value).collect();
     let labels: Vec<_> = options.iter().map(|option| option.label).collect();
 
@@ -57,13 +57,20 @@ fn sandbox_enabled_options_are_stable_and_user_facing() {
 
 #[test]
 fn sandbox_backend_options_follow_enabled_policy() {
-    let disabled_options = sandbox_backend_options("false");
+    let disabled_options =
+        sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "false");
     let disabled_values: Vec<_> = disabled_options.iter().map(|option| option.value).collect();
     let disabled_labels: Vec<_> = disabled_options.iter().map(|option| option.label).collect();
     let forced_values: Vec<_> =
-        sandbox_backend_options("true").iter().map(|option| option.value).collect();
+        sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "true")
+            .iter()
+            .map(|option| option.value)
+            .collect();
     let auto_values: Vec<_> =
-        sandbox_backend_options("auto").iter().map(|option| option.value).collect();
+        sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "auto")
+            .iter()
+            .map(|option| option.value)
+            .collect();
 
     assert_eq!(disabled_values, ["none"]);
     assert_eq!(disabled_labels, ["禁止沙箱"]);
@@ -77,19 +84,55 @@ fn sandbox_backend_options_treat_unknown_enabled_values_as_auto_policy() {
 
     for enabled in ["", "TRUE", " false", "unsupported"] {
         let values: Vec<_> =
-            sandbox_backend_options(enabled).iter().map(|option| option.value).collect();
+            sandbox_backend_options(vw_config_types::ui::DesktopLocale::SimplifiedChinese, enabled)
+                .iter()
+                .map(|option| option.value)
+                .collect();
         assert_eq!(values, expected, "enabled={enabled:?}");
     }
 }
 
 #[test]
 fn sandbox_backend_description_covers_known_and_fallback_backends() {
-    assert!(sandbox_backend_description("landlock").contains("Landlock"));
-    assert!(sandbox_backend_description("firejail").contains("Firejail"));
-    assert!(sandbox_backend_description("bubblewrap").contains("Bubblewrap"));
-    assert!(sandbox_backend_description("docker").contains("Docker"));
-    assert!(sandbox_backend_description("none").contains("不使用任何沙箱"));
-    assert!(sandbox_backend_description("unknown").contains("自动选择"));
+    assert!(
+        sandbox_backend_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "landlock"
+        )
+        .contains("Landlock")
+    );
+    assert!(
+        sandbox_backend_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "firejail"
+        )
+        .contains("Firejail")
+    );
+    assert!(
+        sandbox_backend_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "bubblewrap"
+        )
+        .contains("Bubblewrap")
+    );
+    assert!(
+        sandbox_backend_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "docker"
+        )
+        .contains("Docker")
+    );
+    assert!(
+        sandbox_backend_description(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "none")
+            .contains("不使用任何沙箱")
+    );
+    assert!(
+        sandbox_backend_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            "unknown"
+        )
+        .contains("自动选择")
+    );
 }
 
 #[test]
@@ -207,6 +250,7 @@ fn list_editor_builds_bounded_scrolling_saved_items() {
     let items = vec!["read".to_string(), "write".to_string(), "中文调用".to_string()];
 
     keep_element(list_editor(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         SecurityListKind::SyscallAnomalyBaselineSyscalls,
         "系统调用基线",
         "说明",

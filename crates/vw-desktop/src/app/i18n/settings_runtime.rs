@@ -1,6 +1,9 @@
 use vw_config_types::ui::DesktopLocale;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Text {
+    Help,
+    CopyHelp,
+    Copied,
     Retention,
     Embedding,
     EmbeddingRoutes,
@@ -152,6 +155,9 @@ pub enum Text {
 }
 pub fn text(locale: DesktopLocale, key: Text) -> &'static str {
     let values = match key {
+        Text::Help => ("帮助", "說明", "Help"),
+        Text::CopyHelp => ("复制帮助", "複製說明", "Copy help"),
+        Text::Copied => ("已复制", "已複製", "Copied"),
         Text::Retention => ("保留与缓存", "保留與快取", "Retention and cache"),
         Text::Embedding => ("嵌入与检索", "嵌入與檢索", "Embeddings and retrieval"),
         Text::EmbeddingRoutes => ("嵌入路由", "嵌入路由", "Embedding routes"),
@@ -519,8 +525,8 @@ pub fn text(locale: DesktopLocale, key: Text) -> &'static str {
 }
 
 /// Help content is selected at render time; configuration keys retain their spelling.
-pub fn observability_help(locale: DesktopLocale) -> &'static str {
-    match locale {
+pub fn observability_help(locale: DesktopLocale) -> String {
+    let content = match locale {
         DesktopLocale::SimplifiedChinese => {
             "可观测性配置说明\n\n一、作用\n- observability 用于控制运行时观测后端与追踪存储行为。\n\n二、字段含义\n1) backend\n- 类型: \"none\" | \"log\" | \"prometheus\" | \"otel\"\n\n2) otelendpoint\n- OTLP 采集端点，仅 backend = \"otel\" 时生效。\n\n3) otel_service_name\n- 上报到 OTel 的服务名，仅 backend = \"otel\" 时生效。\n\n4) runtime_trace_mode\n- 类型: \"none\" | \"rolling\" | \"full\"\n\n5) runtime_trace_path\n- 追踪文件路径；相对路径相对 workspace_dir 解析。\n\n6) runtime_trace_max_entries\n- rolling 模式下保留的最大条目数。\n\n三、示例\n{\n  \"observability\": {\n    \"backend\": \"none\",\n    \"otel_endpoint\": null,\n    \"otel_service_name\": null,\n    \"runtime_trace_mode\": \"none\",\n    \"runtime_trace_path\": \"state/runtime-trace.jsonl\",\n    \"runtime_trace_max_entries\": 200\n  }\n}\n"
         }
@@ -530,5 +536,66 @@ pub fn observability_help(locale: DesktopLocale) -> &'static str {
         DesktopLocale::English => {
             "Observability configuration help\n\nobservability controls the observability backend and trace storage.\nbackend: none / log / prometheus / otel.\notel_endpoint: OTLP collector endpoint; applies only when backend=otel.\notel_service_name: OTel service name; applies only when backend=otel.\nruntime_trace_mode: none / rolling / full.\nruntime_trace_path: trace file path; relative paths resolve against workspace_dir.\nruntime_trace_max_entries: maximum entries retained in rolling mode."
         }
+    };
+    if locale == DesktopLocale::SimplifiedChinese {
+        content.to_owned()
+    } else {
+        format!(
+            "{content}\n\n{}",
+            "{\n  \"observability\": {\n    \"backend\": \"none\",\n    \"otel_endpoint\": null,\n    \"otel_service_name\": null,\n    \"runtime_trace_mode\": \"none\",\n    \"runtime_trace_path\": \"state/runtime-trace.jsonl\",\n    \"runtime_trace_max_entries\": 200\n  }\n}"
+        )
     }
+}
+
+/// Translate only locally produced validation messages; external errors remain verbatim.
+pub fn validation_error(locale: DesktopLocale, raw: &str) -> String {
+    let pick = |zh: &str, tw: &str, en: &str| match locale {
+        DesktopLocale::SimplifiedChinese => zh.to_owned(),
+        DesktopLocale::TraditionalChinese => tw.to_owned(),
+        DesktopLocale::English => en.to_owned(),
+    };
+    match raw {
+        "列表项不能为空" => {
+            return pick(raw, "列表項目不可為空", "List item cannot be empty");
+        }
+        "要删除的列表项不存在" => {
+            return pick(raw, "要刪除的列表項目不存在", "The list item to delete does not exist");
+        }
+        "connect_timeout_secs 必须是整数秒或留空" => {
+            return pick(
+                raw,
+                "connect_timeout_secs 必須是整數秒或留空",
+                "connect_timeout_secs must be whole seconds or blank",
+            );
+        }
+        "reasoning_level 仅支持 minimal / low / medium / high / xhigh" => {
+            return pick(
+                raw,
+                "reasoning_level 僅支援 minimal / low / medium / high / xhigh",
+                "reasoning_level supports only minimal / low / medium / high / xhigh",
+            );
+        }
+        _ => {}
+    }
+    if let Some(value) = raw.strip_prefix("列表项已存在：") {
+        return format!(
+            "{}{value}",
+            pick("列表项已存在：", "列表項目已存在：", "List item already exists: ")
+        );
+    }
+    for (field, tw, en) in [
+        ("Docker 内存限制", "Docker 記憶體限制", "Docker memory limit"),
+        ("Docker CPU 限制", "Docker CPU 限制", "Docker CPU limit"),
+    ] {
+        for (suffix, tw_suffix, en_suffix) in [
+            (" 必须是非负整数", " 必須是非負整數", " must be a non-negative integer"),
+            (" 必须是数字", " 必須是數字", " must be a number"),
+            (" 必须大于 0", " 必須大於 0", " must be greater than 0"),
+        ] {
+            if raw == format!("{field}{suffix}") {
+                return pick(raw, &format!("{tw}{tw_suffix}"), &format!("{en}{en_suffix}"));
+            }
+        }
+    }
+    raw.to_owned()
 }

@@ -15,9 +15,11 @@ use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tokio::sync::OwnedSemaphorePermit;
+#[cfg(test)]
+use tokio::sync::Semaphore;
 
-const DEFAULT_MAX_PARALLEL_SUBAGENTS: usize = 4;
+#[cfg(test)]
 const MAX_PARALLEL_SUBAGENTS: usize = 32;
 
 #[cfg(test)]
@@ -76,12 +78,41 @@ struct PreparedChildRun {
     created: child_agent::CreatedChildAgentRun,
 }
 
+struct ChildExecutionGuard {
+    coordinator: ChildAgentCoordinator,
+    parent: String,
+    child: String,
+    permit: Arc<std::sync::Mutex<Option<OwnedSemaphorePermit>>>,
+}
+
+impl ChildExecutionGuard {
+    fn new(
+        coordinator: ChildAgentCoordinator,
+        parent: String,
+        child: String,
+        permit: OwnedSemaphorePermit,
+    ) -> Self {
+        let permit = coordinator.track_execution(&child, permit);
+        Self { coordinator, parent, child, permit }
+    }
+}
+
+impl Drop for ChildExecutionGuard {
+    fn drop(&mut self) {
+        let _ =
+            self.coordinator.cancel_descendants(&self.parent, std::slice::from_ref(&self.child));
+        self.coordinator.finish_execution(&self.child);
+        self.permit.lock().unwrap_or_else(|e| e.into_inner()).take();
+    }
+}
+
 /// 统一 agent 工具的运行时状态。
 pub struct AgentTool {
     agents: Arc<HashMap<String, DelegateAgentConfig>>,
     parent_session_id: Option<String>,
     workspace_dir: std::path::PathBuf,
-    parallelism: Arc<Semaphore>,
+    #[cfg(test)]
+    parallelism: Option<Arc<Semaphore>>,
     coordinator: ChildAgentCoordinator,
     #[cfg(test)]
     child_agent_stream_executor: Option<ChildAgentStreamExecutor>,
@@ -89,6 +120,14 @@ pub struct AgentTool {
 }
 
 impl AgentTool {
+    fn capacity(&self) -> anyhow::Result<Arc<tokio::sync::Semaphore>> {
+        #[cfg(test)]
+        if let Some(capacity) = &self.parallelism {
+            return Ok(capacity.clone());
+        }
+        Ok(self.coordinator.team_capacity(self.parent_session_id()?))
+    }
+
     fn inherited_model_ref() -> Option<String> {
         let context = current_tool_use_context()?;
         if context.model_selected_by_auto() {
@@ -129,7 +168,8 @@ impl AgentTool {
             agents: Arc::new(agents),
             parent_session_id,
             workspace_dir: crate::app::agent::util::filesystem::normalize_path(workspace_dir),
-            parallelism: Arc::new(Semaphore::new(DEFAULT_MAX_PARALLEL_SUBAGENTS)),
+            #[cfg(test)]
+            parallelism: None,
             coordinator: global_child_agent_coordinator(),
             #[cfg(test)]
             child_agent_stream_executor: None,
@@ -138,8 +178,10 @@ impl AgentTool {
     }
 
     /// 设置同一 AgentTool 实例可同时运行的子智能体数量。
+    #[cfg(test)]
     pub(crate) fn with_max_parallel_subagents(mut self, max_parallel: usize) -> Self {
-        self.parallelism = Arc::new(Semaphore::new(max_parallel.clamp(1, MAX_PARALLEL_SUBAGENTS)));
+        self.parallelism =
+            Some(Arc::new(Semaphore::new(max_parallel.clamp(1, MAX_PARALLEL_SUBAGENTS))));
         self
     }
 
@@ -182,20 +224,23 @@ impl AgentTool {
         &self,
         prepared: PreparedChildRun,
         cancellation: tokio_util::sync::CancellationToken,
-        parallel_permit: OwnedSemaphorePermit,
+        execution_guard: ChildExecutionGuard,
     ) -> anyhow::Result<()> {
         let PreparedChildRun { parent_session_id, agent: _, task: _, created } = prepared;
         let child_session_id = created.child_session_id.clone();
         let coordinator = self.coordinator.clone();
         #[cfg(test)]
         let execute_stream = self.child_agent_stream_executor.clone();
+        let parent_abort = current_tool_use_context()
+            .and_then(|context| context.abort_token().cloned())
+            .unwrap_or_default();
         let thread_parent_session_id = parent_session_id.clone();
         let thread_child_session_id = child_session_id.clone();
 
         let spawned = std::thread::Builder::new()
             .name("vw-child-agent".to_string())
             .spawn(move || {
-                let _parallel_permit = parallel_permit;
+                let _execution = execution_guard;
                 let runtime = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
@@ -206,7 +251,7 @@ impl AgentTool {
                     let run_created = created.clone();
                     #[cfg(test)]
                     let execution = tokio::select! {
-                        _ = cancellation.cancelled() => {
+                        _ = async { tokio::select! { _ = cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => {
                             child_agent::cancel_created(created, "cancelled by parent agent").await
                         }
                         result = run_created_with_optional_executor(run_created, execute_stream) => {
@@ -215,7 +260,7 @@ impl AgentTool {
                     };
                     #[cfg(not(test))]
                     let execution = tokio::select! {
-                        _ = cancellation.cancelled() => {
+                        _ = async { tokio::select! { _ = cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => {
                             child_agent::cancel_created(created, "cancelled by parent agent").await
                         }
                         result = child_agent::run_created(run_created) => {
@@ -484,7 +529,7 @@ impl AgentTool {
     }
 
     async fn handle_launch(&self, args: &Value) -> anyhow::Result<ToolResult> {
-        let parallel_permit = match self.parallelism.clone().try_acquire_owned() {
+        let parallel_permit = match self.capacity()?.try_acquire_owned() {
             Ok(permit) => permit,
             Err(tokio::sync::TryAcquireError::NoPermits) => {
                 return Ok(ToolResult {
@@ -511,6 +556,12 @@ impl AgentTool {
             &prepared.agent,
             &prepared.task,
         )?;
+        let execution_guard = ChildExecutionGuard::new(
+            self.coordinator.clone(),
+            prepared.parent_session_id.clone(),
+            child_session_id.clone(),
+            parallel_permit,
+        );
         self.report_child_created(&prepared);
         let output = serde_json::to_string(&json!({
             "action": "launch",
@@ -520,14 +571,14 @@ impl AgentTool {
             "agent": prepared.agent,
             "task": prepared.task,
         }))?;
-        self.spawn_background_child(prepared, cancellation, parallel_permit)?;
+        self.spawn_background_child(prepared, cancellation, execution_guard)?;
         Ok(ToolResult { success: true, output, error: None })
     }
 
     async fn handle_run(&self, args: &Value) -> anyhow::Result<ToolResult> {
         let _parallel_permit = self
-            .parallelism
-            .acquire()
+            .capacity()?
+            .acquire_owned()
             .await
             .map_err(|_| anyhow::anyhow!("AgentTool parallel limiter is unavailable"))?;
         let prepared = match self.prepare_child_run(args).await? {
@@ -535,16 +586,30 @@ impl AgentTool {
             Err(result) => return Ok(result),
         };
         let child_session_id = prepared.created.child_session_id.clone();
-        self.coordinator.register(
+        let cancellation = self.coordinator.register(
             &prepared.parent_session_id,
             &child_session_id,
             &prepared.agent,
             &prepared.task,
         )?;
+        let _execution = ChildExecutionGuard::new(
+            self.coordinator.clone(),
+            prepared.parent_session_id.clone(),
+            child_session_id.clone(),
+            _parallel_permit,
+        );
         self.report_child_created(&prepared);
         let PreparedChildRun { parent_session_id, agent, task, created } = prepared;
         self.coordinator.mark_running(&parent_session_id, &child_session_id)?;
-        let result = match self.run_child_agent(created).await {
+        let parent_abort = current_tool_use_context()
+            .and_then(|context| context.abort_token().cloned())
+            .unwrap_or_default();
+        let execution = tokio::select! {
+            biased;
+            _ = async { tokio::select! { _ = cancellation.cancelled() => {}, _ = parent_abort.cancelled() => {} } } => child_agent::cancel_created(created.clone(), "cancelled by parent agent").await,
+            result = self.run_child_agent(created.clone()) => result,
+        };
+        let result = match execution {
             Ok(result) => result,
             Err(error) => {
                 self.coordinator.mark_failed(
@@ -652,9 +717,7 @@ impl AgentTool {
         if child_session_ids.is_empty() {
             anyhow::bail!("AgentTool stop requires 'child_session_id' or 'child_session_ids'");
         }
-        for child_session_id in &child_session_ids {
-            self.coordinator.cancel(parent_session_id, child_session_id)?;
-        }
+        self.coordinator.cancel_descendants(parent_session_id, &child_session_ids)?;
         let tasks = self.coordinator.snapshots(parent_session_id, &child_session_ids)?;
         let output = serde_json::to_string(&json!({
             "action": "stop",
@@ -740,13 +803,36 @@ impl Tool for AgentTool {
     }
 
     async fn execute(&self, args: Value) -> anyhow::Result<ToolResult> {
-        match self.action_from_args(&args)? {
+        let action = self.action_from_args(&args)?;
+        if matches!(action, AgentToolAction::Launch | AgentToolAction::Run) {
+            let agent = self
+                .agent_name_from_args(&args)
+                .ok_or_else(|| anyhow::anyhow!("Missing 'agent' parameter"))?;
+            self.prompt_from_args(&args)
+                .ok_or_else(|| anyhow::anyhow!("Missing 'prompt' parameter"))?;
+            if !self.agents.contains_key(agent) {
+                return Ok(ToolResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Unknown agent '{agent}'")),
+                });
+            }
+        }
+
+        let session = self.parent_session_id.as_deref().unwrap_or_default();
+        let paused = matches!(action, AgentToolAction::Run | AgentToolAction::Wait)
+            && self.coordinator.pause_execution(session);
+        let result = match action {
             AgentToolAction::Launch => self.handle_launch(&args).await,
             AgentToolAction::Run => self.handle_run(&args).await,
             AgentToolAction::Status => self.handle_status(&args),
             AgentToolAction::Wait => self.handle_wait(&args).await,
             AgentToolAction::Stop => self.handle_stop(&args),
+        };
+        if paused {
+            self.coordinator.resume_execution(session).await?;
         }
+        result
     }
 
     fn render_hint(&self, result: &ToolCallResult) -> Option<ToolRenderHint> {

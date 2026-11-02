@@ -905,14 +905,11 @@ pub fn all_tools_with_runtime(
     let delegate_agents =
         enabled_delegate_agents_with_project_skills(agents, workspace_dir, root_config);
     if !delegate_agents.is_empty() {
-        let agent_tool = Arc::new(
-            AgentTool::new(
-                delegate_agents.clone(),
-                session_id_override.map(str::to_owned),
-                workspace_dir.to_path_buf(),
-            )
-            .with_max_parallel_subagents(agent_tool_parallel_limit(agents, "main")),
-        );
+        let agent_tool = Arc::new(AgentTool::new(
+            delegate_agents.clone(),
+            session_id_override.map(str::to_owned),
+            workspace_dir.to_path_buf(),
+        ));
         tool_arcs.push(agent_tool);
     }
 

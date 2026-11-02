@@ -1138,3 +1138,163 @@ async fn failed_launch_allows_new_child_session_attempt() {
     assert_eq!(first_body["child_session_id"], created_ids[0]);
     assert_eq!(second_body["child_session_id"], created_ids[1]);
 }
+
+#[tokio::test]
+async fn agcollab_capacity_shared_across_instances() {
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let make_tool = || {
+        build_persistent_tool(parent.id.clone(), directory.clone(), |_| {
+            Box::pin(std::future::pending())
+        })
+    };
+    let first = make_tool();
+    let second = make_tool();
+    let mut ids = Vec::new();
+    for index in 0..4 {
+        let result = first
+            .execute(json!({"action":"launch", "agent":"writer", "prompt":format!("task {index}")}))
+            .await
+            .unwrap();
+        assert!(result.success);
+        let body: Value = serde_json::from_str(&result.output).unwrap();
+        ids.push(body["child_session_id"].as_str().unwrap().to_string());
+    }
+    let result = second
+        .execute(json!({"action":"launch", "agent":"writer", "prompt":"overflow"}))
+        .await
+        .unwrap();
+    let nested = build_persistent_tool(ids[0].clone(), directory.clone(), |_| {
+        Box::pin(std::future::pending())
+    });
+    let nested_result = nested
+        .execute(json!({"action":"launch", "agent":"writer", "prompt":"nested overflow"}))
+        .await
+        .unwrap();
+    assert!(!nested_result.success, "nested tasks must use root capacity");
+    // Always cancel the real background executions, including on the red path.
+    if result.success {
+        let body: Value = serde_json::from_str(&result.output).unwrap();
+        ids.push(body["child_session_id"].as_str().unwrap().to_string());
+    }
+    first.execute(json!({"action":"stop", "child_session_ids":ids})).await.unwrap();
+    assert!(!result.success, "a second tool instance bypassed the team capacity");
+}
+
+#[tokio::test]
+async fn agcollab_approved_children_overlap_execution() {
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let barrier = Arc::new(tokio::sync::Barrier::new(3));
+    let make = || {
+        let barrier = barrier.clone();
+        build_persistent_tool(parent.id.clone(), directory.clone(), move |_| {
+            let barrier = barrier.clone();
+            Box::pin(async move {
+                barrier.wait().await;
+                Ok(crate::gateway::api::handlers::session::stream::GatewayChatStreamCollected {
+                    output: "complete".into(),
+                    message_id: None,
+                    parent_message_id: None,
+                })
+            })
+        })
+    };
+    let first = make();
+    let second = make();
+    let one = first.execute(json!({"action":"run", "agent":"writer", "prompt":"first"}));
+    let two = second.execute(json!({"action":"run", "agent":"writer", "prompt":"second"}));
+    let joined = async { tokio::join!(one, two, barrier.wait()) };
+    let (one, two, _) = tokio::time::timeout(Duration::from_secs(10), joined).await.unwrap();
+    assert!(one.unwrap().success);
+    assert!(two.unwrap().success);
+}
+
+#[tokio::test]
+async fn agcollab_parent_future_drop_cleans_execution() {
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let signal = started.clone();
+    let coordinator = ChildAgentCoordinator::new(8);
+    let tool = build_persistent_tool(parent.id.clone(), directory, move |_| {
+        let signal = signal.clone();
+        Box::pin(async move {
+            signal.notify_one();
+            std::future::pending().await
+        })
+    })
+    .with_coordinator(coordinator.clone());
+    let running = tokio::spawn(async move {
+        tool.execute(json!({"action":"run", "agent":"writer", "prompt":"cancelled foreground"}))
+            .await
+    });
+    tokio::time::timeout(Duration::from_secs(10), started.notified()).await.unwrap();
+    running.abort();
+    assert!(running.await.unwrap_err().is_cancelled());
+    let tasks = coordinator.snapshots(&parent.id, &[]).unwrap();
+    assert_eq!(tasks.len(), 1);
+    assert_eq!(
+        tasks[0].state,
+        crate::session::child_agent::coordinator::ChildAgentTaskState::Cancelled
+    );
+    assert_eq!(coordinator.team_capacity(&parent.id).available_permits(), 4);
+}
+
+#[test]
+fn agcollab_execution_guard_drop_releases_and_cancels_task() {
+    let coordinator = ChildAgentCoordinator::new(8);
+    coordinator.register("root", "child", "writer", "cleanup").unwrap();
+    let capacity = coordinator.team_capacity("root");
+    let guard = ChildExecutionGuard::new(
+        coordinator.clone(),
+        "root".into(),
+        "child".into(),
+        capacity.clone().try_acquire_owned().unwrap(),
+    );
+    drop(guard);
+    assert_eq!(capacity.available_permits(), 4);
+    assert_eq!(
+        coordinator.snapshots("root", &[]).unwrap()[0].state,
+        crate::session::child_agent::coordinator::ChildAgentTaskState::Cancelled
+    );
+}
+
+#[tokio::test]
+async fn agcollab_parent_abort_cancels_background_execution() {
+    let workspace = tempfile::tempdir().unwrap();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let parent = create_parent(directory.clone()).await;
+    let started = Arc::new(tokio::sync::Notify::new());
+    let signal = started.clone();
+    let (dropped_tx, dropped_rx) = oneshot::channel();
+    let dropped = Arc::new(std::sync::Mutex::new(Some(dropped_tx)));
+    let tool = build_persistent_tool(parent.id.clone(), directory.clone(), move |_| {
+        let signal = signal.clone();
+        let dropped = dropped.clone();
+        Box::pin(async move {
+            let _drop = DropSignal(dropped.lock().unwrap().take());
+            signal.notify_one();
+            std::future::pending().await
+        })
+    });
+    let abort = tokio_util::sync::CancellationToken::new();
+    let context =
+        Arc::new(ToolUseContext::new(&parent.id, Some(directory)).with_abort_token(abort.clone()));
+    let launched = scope_tool_use_context(
+        context,
+        tool.execute(json!({"action":"launch", "agent":"writer", "prompt":"background abort"})),
+    )
+    .await
+    .unwrap();
+    assert!(launched.success);
+    tokio::time::timeout(Duration::from_secs(10), started.notified()).await.unwrap();
+    abort.cancel();
+    tokio::time::timeout(Duration::from_secs(10), dropped_rx).await.unwrap().unwrap();
+    let waited = tool.execute(json!({"action":"wait", "timeout_ms":10000})).await.unwrap();
+    let body: Value = serde_json::from_str(&waited.output).unwrap();
+    assert_eq!(body["tasks"][0]["state"], "cancelled");
+}

@@ -5,7 +5,7 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
-use tokio::sync::watch;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore, watch};
 use tokio_util::sync::CancellationToken;
 
 /// 子任务生命周期状态。
@@ -64,6 +64,8 @@ struct TaskEntry {
 struct CoordinatorState {
     tasks: HashMap<String, TaskEntry>,
     version: u64,
+    teams: HashMap<String, Arc<Semaphore>>,
+    execution: HashMap<String, Arc<Mutex<Option<OwnedSemaphorePermit>>>>,
 }
 
 #[derive(Debug)]
@@ -99,6 +101,56 @@ impl ChildAgentCoordinator {
         }
     }
 
+    /// 根会话不占额度；沿已注册父链共享固定的四个执行许可。
+    pub(crate) fn team_capacity(&self, session_id: &str) -> Arc<Semaphore> {
+        let mut state = self.lock_state();
+        let mut root = session_id.to_string();
+        let mut visited = HashSet::new();
+        while visited.insert(root.clone()) {
+            let Some(entry) = state.tasks.get(&root) else { break };
+            root = entry.snapshot.parent_session_id.clone();
+        }
+        state.teams.entry(root).or_insert_with(|| Arc::new(Semaphore::new(4))).clone()
+    }
+
+    pub(crate) fn track_execution(
+        &self,
+        child: &str,
+        permit: OwnedSemaphorePermit,
+    ) -> Arc<Mutex<Option<OwnedSemaphorePermit>>> {
+        let permit = Arc::new(Mutex::new(Some(permit)));
+        self.lock_state().execution.insert(child.to_string(), permit.clone());
+        permit
+    }
+
+    /// 等待后代期间让出许可，避免满额团队中的父子互相等待。
+    pub(crate) fn pause_execution(&self, session: &str) -> bool {
+        let state = self.lock_state();
+        if let Some(permit) = state.execution.get(session) {
+            return permit.lock().unwrap_or_else(|e| e.into_inner()).take().is_some();
+        }
+        false
+    }
+
+    pub(crate) async fn resume_execution(&self, session: &str) -> Result<()> {
+        let capacity = self.team_capacity(session);
+        let permit = capacity.acquire_owned().await?;
+        let state = self.lock_state();
+        if let Some(entry) = state.tasks.get(session)
+            && entry.cancellation.is_cancelled()
+        {
+            bail!("child agent execution cancelled");
+        }
+        if let Some(slot) = state.execution.get(session) {
+            *slot.lock().unwrap_or_else(|e| e.into_inner()) = Some(permit);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finish_execution(&self, session: &str) {
+        self.lock_state().execution.remove(session);
+    }
+
     pub(crate) fn register(
         &self,
         parent_session_id: &str,
@@ -121,6 +173,20 @@ impl ChildAgentCoordinator {
         let now = current_time_ms();
         let version = {
             let mut state = self.lock_state();
+            if parent_session_id == child_session_id {
+                bail!("child agent cannot be its own parent");
+            }
+            let mut ancestor = parent_session_id;
+            let mut visited = HashSet::new();
+            while let Some(entry) = state.tasks.get(ancestor) {
+                if !visited.insert(ancestor) {
+                    bail!("child agent ancestor cycle detected");
+                }
+                if entry.cancellation.is_cancelled() {
+                    bail!("child agent parent was cancelled");
+                }
+                ancestor = &entry.snapshot.parent_session_id;
+            }
             if state.tasks.contains_key(child_session_id) {
                 bail!("child agent task '{child_session_id}' is already registered");
             }

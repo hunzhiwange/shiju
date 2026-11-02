@@ -293,3 +293,38 @@ fn coordinator_bounds_retained_terminal_tasks_per_parent() {
     assert_eq!(retained[0].child_session_id, "child-2");
     assert_eq!(retained[1].child_session_id, "child-3");
 }
+
+#[tokio::test]
+async fn agcollab_nested_wait_releases_and_reacquires_team_capacity() {
+    let coordinator = ChildAgentCoordinator::new(8);
+    let capacity = coordinator.team_capacity("root");
+    coordinator.register("root", "child", "writer", "parent work").unwrap();
+    let parent_permit =
+        coordinator.track_execution("child", capacity.clone().acquire_owned().await.unwrap());
+    let mut others = Vec::new();
+    for _ in 0..3 {
+        others.push(capacity.clone().acquire_owned().await.unwrap());
+    }
+    assert!(coordinator.team_capacity("child").try_acquire_owned().is_err());
+    assert!(coordinator.pause_execution("child"));
+    let descendant = coordinator.team_capacity("child").try_acquire_owned().unwrap();
+    assert!(coordinator.team_capacity("root").try_acquire_owned().is_err());
+    drop(descendant);
+    coordinator.resume_execution("child").await.unwrap();
+    assert!(parent_permit.lock().unwrap().is_some());
+    assert!(capacity.try_acquire_owned().is_err());
+    coordinator.finish_execution("child");
+}
+
+#[test]
+fn agcollab_recursive_cancel_preserves_other_root_and_terminal_state() {
+    let coordinator = ChildAgentCoordinator::new(8);
+    coordinator.register("root", "child", "writer", "parent").unwrap();
+    let nested = coordinator.register("child", "nested", "writer", "nested").unwrap();
+    let other = coordinator.register("other", "unrelated", "writer", "other").unwrap();
+    assert_eq!(coordinator.cancel_descendants("root", &["child".into()]).unwrap(), 2);
+    assert!(nested.is_cancelled());
+    assert!(!other.is_cancelled());
+    assert!(!coordinator.mark_succeeded("child", "nested", "late success").unwrap());
+    assert!(coordinator.cancel_descendants("other", &["child".into()]).is_err());
+}

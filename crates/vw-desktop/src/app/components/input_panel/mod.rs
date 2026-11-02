@@ -134,7 +134,7 @@ pub(super) fn popover_item_style(
 
 const ACP_SELECTOR_MAX_HEIGHT: f32 = 240.0;
 const ACP_SELECTOR_SCROLLBAR_WIDTH: f32 = 4.0;
-const ACP_SELECTOR_LIST_RIGHT_PADDING: f32 = 5.0;
+const ACP_SELECTOR_LIST_RIGHT_PADDING: f32 = 7.0;
 
 pub(super) fn bottom_bar_round_toggle<'a>(
     icon: Element<'a, Message>,
@@ -221,7 +221,10 @@ pub(super) fn acp_selector_button<'a>(
     selected_acp_agent: Option<String>,
     locked: bool,
 ) -> Option<Element<'a, Message>> {
-    let label = selected_acp_agent.as_deref().unwrap_or("ACP 智能体").to_string();
+    let label = selected_acp_agent
+        .as_deref()
+        .unwrap_or_else(|| crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体"))
+        .to_string();
     let icon = acp_agent_icon(&label, styles::BOTTOM_BAR_ICON_SIZE);
     if locked {
         return Some(icon.into());
@@ -229,7 +232,7 @@ pub(super) fn acp_selector_button<'a>(
 
     let toggle = bottom_bar_round_toggle(
         icon,
-        acp_selector_tooltip(&label),
+        acp_selector_tooltip(crate::app::i18n::I18n::new(app.desktop_locale), &label),
         Message::View(message::ViewMessage::ToggleAcpPopover),
     );
 
@@ -243,7 +246,7 @@ pub(super) fn acp_selector_button<'a>(
     let default_button = button(
         row![
             acp_agent_icon("ACP 智能体", 14.0),
-            text("ACP 智能体").size(13),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 智能体")).size(13),
             Space::new().width(Length::Fill),
             default_check
         ]
@@ -283,11 +286,16 @@ pub(super) fn acp_selector_button<'a>(
 
     if app.acp_agents.is_empty() {
         list = list.push(
-            container(text("正在加载 ACP 列表，稍后会自动显示。").size(11).style(
-                |theme: &Theme| iced::widget::text::Style {
+            container(
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("正在加载 ACP 列表，稍后会自动显示。"),
+                )
+                .size(11)
+                .style(|theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.palette().text.scale_alpha(0.62)),
-                },
-            ))
+                }),
+            )
             .padding([4, 2]),
         );
     }
@@ -297,7 +305,7 @@ pub(super) fn acp_selector_button<'a>(
             top: 0.0,
             right: ACP_SELECTOR_LIST_RIGHT_PADDING,
             bottom: 0.0,
-            left: 0.0,
+            left: 7.0,
         }))
         .id(iced::widget::Id::new("input_panel_acp_selector_scroll"))
         .direction(Direction::Vertical(
@@ -321,8 +329,11 @@ pub(super) fn acp_selector_button<'a>(
     )
 }
 
-pub(super) fn acp_selector_tooltip(selected_acp_agent: &str) -> String {
-    format!("切换 ACP 后端：{selected_acp_agent}")
+pub(super) fn acp_selector_tooltip(
+    i18n: crate::app::i18n::I18n,
+    selected_acp_agent: &str,
+) -> String {
+    crate::__!(i18n, "切换 ACP 后端：%s", selected_acp_agent).expect("valid ACP tooltip template")
 }
 
 pub(super) fn dark_tooltip_content<'a>(label: impl Into<String>) -> Element<'a, Message> {
@@ -372,9 +383,13 @@ pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Mess
     let content = row![
         icon,
         column![
-            text("已选工具与技能").size(12).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.92)) }
-            }),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选工具与技能"))
+                .size(12)
+                .style(|theme: &Theme| {
+                    iced::widget::text::Style {
+                        color: Some(theme.palette().text.scale_alpha(0.92)),
+                    }
+                }),
             text(summary)
                 .size(11)
                 .width(Length::Fill)
@@ -385,9 +400,11 @@ pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Mess
         ]
         .spacing(2)
         .width(Length::Fill),
-        text("调整").size(11).style(|theme: &Theme| iced::widget::text::Style {
-            color: Some(theme.palette().primary.scale_alpha(0.88)),
-        }),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("调整")).size(11).style(
+            |theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.palette().primary.scale_alpha(0.88)),
+            }
+        ),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
@@ -408,7 +425,7 @@ pub(super) fn selected_context_card<'a>(app: &'a App) -> Option<Element<'a, Mess
     .align_y(Alignment::Center);
     if let Some(id) = selected_expert {
         controls = controls.push(
-            button(text("取消专家").size(11))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消专家")).size(11))
                 .padding([8, 10])
                 .style(styles::manual_context_card_button_style)
                 .on_press(Message::Chat(message::ChatMessage::SessionSkillSelected(id))),
@@ -442,17 +459,41 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
 
     let mut lines = Vec::new();
     if !tool_names.is_empty() {
-        lines.push(format!("工具 {}：{}", tool_names.len(), summarize_names(&tool_names)));
+        lines.push(
+            crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "工具 %u：%s",
+                tool_names.len(),
+                summarize_names(&tool_names)
+            )
+            .expect("valid context template"),
+        );
     }
     if !skill_names.is_empty() {
-        lines.push(format!("技能 {}：{}", skill_names.len(), summarize_names(&skill_names)));
+        lines.push(
+            crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "技能 %u：%s",
+                skill_names.len(),
+                summarize_names(&skill_names)
+            )
+            .expect("valid context template"),
+        );
     }
     if !selected_shiju_skills.is_empty() {
         let names = selected_shiju_skills
             .iter()
             .map(|selection| selection.display_name().to_string())
             .collect::<Vec<_>>();
-        lines.push(format!("识矩 {}：{}", names.len(), summarize_names(&names)));
+        lines.push(
+            crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "识矩 %u：%s",
+                names.len(),
+                summarize_names(&names)
+            )
+            .expect("valid skill context template"),
+        );
     }
 
     Some(lines.join("  /  "))
@@ -555,8 +596,15 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         acp_selector_button(app, selected_acp_agent.clone(), app.current_session_has_started());
     let reasoning_btn =
         reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
-    let permission_btn = Some(full_access_button(has_permission_context, full_access_enabled));
-    let workflow_btn = workflow_mode_button(workflow_mode_enabled);
+    let permission_btn = Some(full_access_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        has_permission_context,
+        full_access_enabled,
+    ));
+    let workflow_btn = workflow_mode_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        workflow_mode_enabled,
+    );
 
     // ========== 计算按钮启用状态 ==========
     let input_text = input_editor.text().to_string();
@@ -571,6 +619,7 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 构建任务池按钮（仅在任务模式启用时显示）
     let pool_btn = if task_mode_enabled {
         Some(pool_button(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             enabled,
             task_mode_enabled,
             input_text.clone(),
@@ -588,7 +637,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let send = send_button(app, enabled, can_send, is_requesting);
 
     // 如果正在请求中，显示取消按钮
-    let cancel = if is_requesting { Some(cancel_button(submit_anim)) } else { None };
+    let cancel = if is_requesting {
+        Some(cancel_button(crate::app::i18n::I18n::new(app.desktop_locale), submit_anim))
+    } else {
+        None
+    };
 
     // 组装底部控制栏（包含模型选择、使用量、附件、任务池、取消、发送按钮）
     let bottom_bar = bottom_bar(
@@ -631,8 +684,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     // 提取并渲染输入文本中的文件引用
     let file_mentions = extract_file_mentions(&input_text);
 
-    let file_refs: Element<'_, Message> =
-        render_file_references(&file_mentions, app.file_ref_hovered_index);
+    let file_refs: Element<'_, Message> = render_file_references(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        &file_mentions,
+        app.file_ref_hovered_index,
+    );
     let attachment_strip = attachment::attachment_strip(app);
 
     // 读取当前会话的TODO项
@@ -675,7 +731,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         standard.push(input).push(divider).push(bottom_bar)
     } else {
         // 队列布局：队列面板 + 标准内容
-        let queue = queue_panel::queue_panel(queue, is_requesting);
+        let queue = queue_panel::queue_panel(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            queue,
+            is_requesting,
+        );
 
         let mut queued = column![
             queue,

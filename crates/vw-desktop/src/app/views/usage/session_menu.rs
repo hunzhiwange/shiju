@@ -91,7 +91,7 @@ fn session_menu_button<'a>(label: &str, msg: Message) -> Element<'a, Message> {
         .into()
 }
 
-fn build_session_menu<'a>(id: String) -> Element<'a, Message> {
+fn build_session_menu<'a>(i18n: crate::app::i18n::I18n, id: String) -> Element<'a, Message> {
     let separator = || -> Element<'a, Message> {
         container(iced::widget::Space::new())
             .width(Length::Fill)
@@ -102,22 +102,22 @@ fn build_session_menu<'a>(id: String) -> Element<'a, Message> {
 
     let content = column![
         session_menu_button(
-            "重命名",
+            i18n.__("重命名"),
             Message::Project(crate::app::message::ProjectMessage::SessionRenamePressed(id.clone()))
         ),
         session_menu_button(
-            "复制对话",
+            i18n.__("复制对话"),
             Message::Project(crate::app::message::ProjectMessage::SessionCopyPressed(id.clone()))
         ),
         separator(),
         session_menu_button(
-            "归档",
+            i18n.__("归档"),
             Message::Project(crate::app::message::ProjectMessage::SessionArchivePressed(
                 id.clone()
             ))
         ),
         session_menu_button(
-            "删除",
+            i18n.__("删除"),
             Message::Project(crate::app::message::ProjectMessage::SessionDeletePressed(id.clone()))
         ),
     ]
@@ -163,12 +163,13 @@ pub fn kv_with_menu<'a>(
 
         if app.session_menu_id.as_ref() == Some(&id) {
             Element::from(
-                PointBelowOverlay::new(right_click, build_session_menu(id))
-                    .show(true)
-                    .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
-                    .on_close(Message::Project(
-                        crate::app::message::ProjectMessage::SessionMenuClose,
-                    )),
+                PointBelowOverlay::new(
+                    right_click,
+                    build_session_menu(crate::app::i18n::I18n::new(app.desktop_locale), id),
+                )
+                .show(true)
+                .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
+                .on_close(Message::Project(crate::app::message::ProjectMessage::SessionMenuClose)),
             )
         } else {
             right_click

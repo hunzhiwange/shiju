@@ -77,6 +77,10 @@ pub(super) fn handle_clipboard_paste_resolved(
             focus_input_editor(app)
         }
         ClipboardPastePayload::Empty => focus_input_editor(app),
+        ClipboardPastePayload::LocalizedError { source, arguments } => {
+            app.push_localized_notification(source, arguments);
+            focus_input_editor(app)
+        }
         ClipboardPastePayload::Error(error) => {
             app.push_notification(error);
             focus_input_editor(app)

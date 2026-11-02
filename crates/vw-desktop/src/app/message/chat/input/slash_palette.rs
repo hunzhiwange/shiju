@@ -83,7 +83,25 @@ fn match_score(candidate: &SlashPaletteCandidate, query: &str) -> Option<i64> {
         return Some(0);
     }
     let id = candidate.id.to_ascii_lowercase();
-    let label = candidate.label.to_ascii_lowercase();
+    let mut label = candidate.label.to_ascii_lowercase();
+    let built_in = match candidate.id.as_str() {
+        "auto" if candidate.label == "Auto" => Some(("自动模型", "自动选择模型")),
+        "" if candidate.label == "默认智能体" => Some(("默认智能体", "清除 ACP 选择")),
+        _ => None,
+    };
+    if let Some((title, description)) = built_in {
+        for locale in [
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            vw_config_types::ui::DesktopLocale::TraditionalChinese,
+            vw_config_types::ui::DesktopLocale::English,
+        ] {
+            let i18n = crate::app::i18n::I18n::new(locale);
+            label.push(' ');
+            label.push_str(
+                &format!("{} {}", i18n.__(title), i18n.__(description)).to_ascii_lowercase(),
+            );
+        }
+    }
     let desc = candidate.description.as_deref().map(str::to_ascii_lowercase).unwrap_or_default();
 
     let id_score = fuzzy_subsequence_score(&id, &query).unwrap_or(i64::MIN / 2);
@@ -488,7 +506,10 @@ fn apply_mcp_toggle(app: &mut App, server_name: &str) -> Task<Message> {
     let Some((index, enabled, _)) =
         servers.into_iter().find(|(_, _, candidate)| candidate.id == server_name)
     else {
-        app.push_notification(format!("未找到 MCP 服务器：{server_name}"));
+        app.push_localized_notification(
+            "未找到 MCP 服务器：%s",
+            vec![format!("{}", server_name).into()],
+        );
         return Task::none();
     };
     Task::done(Message::Settings(message::SettingsMessage::Mcp(

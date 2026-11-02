@@ -372,7 +372,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .width(Length::Fill)
                     .into()
                 } else {
-                    text(&n.message)
+                    text(n.render(crate::app::i18n::I18n::new(app.desktop_locale)))
                         .size(13)
                         .width(Length::Fill)
                         .style(|theme: &Theme| iced::widget::text::Style {

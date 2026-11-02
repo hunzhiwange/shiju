@@ -248,6 +248,7 @@ impl App {
         let id = self.next_notification_id;
         self.next_notification_id += 1;
         self.notifications.push(crate::app::state::Notification {
+            localized_message: None,
             id,
             message,
             created_at: {
@@ -261,6 +262,50 @@ impl App {
                 }
             },
         });
+    }
+
+    pub(crate) fn set_localized_input_error(
+        &mut self,
+        field: crate::app::i18n::input::ErrorField,
+        source: &str,
+        arguments: Vec<crate::app::i18n::format::Argument>,
+    ) {
+        let feedback = crate::app::i18n::input::Feedback::new(source, arguments);
+        let target = match field {
+            crate::app::i18n::input::ErrorField::General => &mut self.error_message,
+            crate::app::i18n::input::ErrorField::WorktreeDelete => {
+                &mut self.new_session_delete_error
+            }
+            crate::app::i18n::input::ErrorField::WorktreeReset => &mut self.new_session_reset_error,
+        };
+        *target = Some(feedback.fallback.clone());
+        self.localized_input_errors.insert(field, feedback);
+    }
+    pub(crate) fn render_input_error(
+        &self,
+        field: crate::app::i18n::input::ErrorField,
+        raw: &str,
+    ) -> String {
+        self.localized_input_errors
+            .get(&field)
+            .map(|feedback| feedback.render(crate::app::i18n::I18n::new(self.desktop_locale), raw))
+            .unwrap_or_else(|| raw.to_owned())
+    }
+
+    pub fn push_localized_notification(
+        &mut self,
+        source: &str,
+        arguments: Vec<crate::app::i18n::format::Argument>,
+    ) {
+        let message = crate::app::i18n::format::Message::new(source, arguments);
+        let fallback = message
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .expect("valid notification template");
+        self.push_notification(fallback);
+        self.notifications.last_mut().expect("notification was inserted").localized_message =
+            Some(message);
     }
 
     /// 公开函数，执行 show_toast 对应的应用流程。

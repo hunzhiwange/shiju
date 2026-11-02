@@ -47,3 +47,8 @@ pub mod chat;
 
 #[cfg(test)]
 mod chat_tests;
+
+#[cfg(test)]
+mod gettext_area_9_tests;
+
+pub mod input;

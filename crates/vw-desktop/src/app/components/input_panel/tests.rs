@@ -112,8 +112,20 @@ fn bottom_bar_round_toggle_builds_tooltip_wrapped_icon_button() {
 
 #[test]
 fn acp_selector_tooltip_includes_selected_backend() {
-    assert_eq!(acp_selector_tooltip("Codex"), "切换 ACP 后端：Codex");
-    assert_eq!(acp_selector_tooltip("ACP 智能体"), "切换 ACP 后端：ACP 智能体");
+    assert_eq!(
+        acp_selector_tooltip(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "Codex"
+        ),
+        "切换 ACP 后端：Codex"
+    );
+    assert_eq!(
+        acp_selector_tooltip(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            "ACP 智能体"
+        ),
+        "切换 ACP 后端：ACP 智能体"
+    );
 }
 
 #[test]

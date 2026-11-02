@@ -131,7 +131,9 @@ pub fn compute_todo_data(app: &App, todo_items: &[Todo]) -> TodoPanelData {
         // 过滤掉空字符串
         .filter(|s| !s.is_empty())
         // 如果都没有，使用默认文本
-        .unwrap_or_else(|| "无执行中任务".to_string());
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("无执行中任务").to_string()
+        });
 
     TodoPanelData { total, completed, running_task }
 }
@@ -171,8 +173,12 @@ pub fn todo_id_display(raw: &str) -> String {
     s.to_string()
 }
 
-fn placement_button(placement: TodoPanelPlacement, selected: bool) -> Element<'static, Message> {
-    button(text(placement.label()).size(11))
+fn placement_button(
+    i18n: crate::app::i18n::I18n,
+    placement: TodoPanelPlacement,
+    selected: bool,
+) -> Element<'static, Message> {
+    button(text(i18n.__(placement.label())).size(11))
         .padding([3, 8])
         .style(move |theme: &Theme, status| {
             let is_dark = theme.palette().background.r
@@ -219,14 +225,17 @@ fn placement_button(placement: TodoPanelPlacement, selected: bool) -> Element<'s
         .into()
 }
 
-fn open_git_panel_button(changed_files: usize) -> Element<'static, Message> {
+fn open_git_panel_button(
+    i18n: crate::app::i18n::I18n,
+    changed_files: usize,
+) -> Element<'static, Message> {
     let git_icon: Element<'_, Message> = icon_svg(Icon::GitBranch, 13.0)
         .style(|theme: &Theme, _| svg::Style { color: Some(theme.palette().text) })
         .into();
     let label = if changed_files > 0 {
-        format!("打开 Git 面板 · {changed_files}")
+        crate::__!(i18n, "打开 Git 面板 · %u", changed_files).expect("valid Git count template")
     } else {
-        "打开 Git 面板".to_string()
+        i18n.__("打开 Git 面板").to_string()
     };
 
     button(row![git_icon, text(label).size(12)].spacing(7).align_y(Alignment::Center))
@@ -373,7 +382,13 @@ pub fn todo_panel(
     }
 
     // 构建摘要文本：显示已完成数量和总数
-    let summary_text = format!("已完成 {} / {} 项待办", data.completed, data.total);
+    let summary_text = crate::__!(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        "已完成 %u / %u 项待办",
+        data.completed,
+        data.total
+    )
+    .expect("valid todo count template");
 
     // 根据展开状态选择不同的箭头图标
     let header_icon = if app.chat_todo_expanded { Icon::ChevronUp } else { Icon::ChevronDown };
@@ -385,7 +400,7 @@ pub fn todo_panel(
     // 构建头部行：包含摘要文本和箭头图标
     let header_title: Element<'static, Message> = if surface == TodoPanelSurface::ChatTopRight {
         column![
-            text("进度").size(13),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("进度")).size(13),
             text(summary_text).size(11).style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(theme.palette().text.scale_alpha(0.66)),
             })
@@ -501,10 +516,14 @@ pub fn todo_panel(
             });
 
             // 创建状态标签（右侧的彩色标签）
-            let status_label = text(status_badge).size(10).style(move |theme: &Theme| {
-                let (_, text_color) = todo_status_pill_colors(theme, is_completed, is_running);
-                iced::widget::text::Style { color: Some(text_color) }
-            });
+            let status_label =
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(status_badge))
+                    .size(10)
+                    .style(move |theme: &Theme| {
+                        let (_, text_color) =
+                            todo_status_pill_colors(theme, is_completed, is_running);
+                        iced::widget::text::Style { color: Some(text_color) }
+                    });
             let status_pill = container(status_label)
                 .padding([0, 8])
                 .height(Length::Fixed(18.0))
@@ -589,10 +608,12 @@ pub fn todo_panel(
 
         let placement_controls = row![
             placement_button(
+                crate::app::i18n::I18n::new(app.desktop_locale),
                 TodoPanelPlacement::ChatTopRight,
                 app.chat_todo_placement == TodoPanelPlacement::ChatTopRight,
             ),
             placement_button(
+                crate::app::i18n::I18n::new(app.desktop_locale),
                 TodoPanelPlacement::InputBottom,
                 app.chat_todo_placement == TodoPanelPlacement::InputBottom,
             ),
@@ -604,7 +625,10 @@ pub fn todo_panel(
         let body = column![
             header,
             placement_controls,
-            open_git_panel_button(app.git_changed_files.len()),
+            open_git_panel_button(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                app.git_changed_files.len()
+            ),
             task_list
         ]
         .spacing(6);

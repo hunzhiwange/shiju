@@ -148,20 +148,32 @@ pub(super) fn parse_file_reference(reference: &str) -> ParsedFileReference {
 /// # 返回值
 ///
 /// 返回格式化的中文位置描述字符串
-pub(super) fn format_reference_location(location: FileReferenceLocation) -> String {
+pub(super) fn format_reference_location(
+    i18n: crate::app::i18n::I18n,
+    location: FileReferenceLocation,
+) -> String {
     match location {
-        FileReferenceLocation::Line { line } => format!("第 {} 行", line),
+        FileReferenceLocation::Line { line } => {
+            crate::__!(i18n, "第 %u 行", line).expect("valid file location template")
+        }
         FileReferenceLocation::LineColumn { line, column } => {
-            format!("第 {} 行, 第 {} 列", line, column)
+            crate::__!(i18n, "第 %u 行, 第 %u 列", line, column)
+                .expect("valid file location template")
         }
         FileReferenceLocation::LineRange { start_line, end_line } => {
-            format!("第 {}-{} 行", start_line, end_line)
+            crate::__!(i18n, "第 %u-%u 行", start_line, end_line)
+                .expect("valid file location template")
         }
         FileReferenceLocation::Range { start_line, start_column, end_line, end_column } => {
-            format!(
-                "第 {} 行, 第 {} 列 到 第 {} 行, 第 {} 列",
-                start_line, start_column, end_line, end_column
+            crate::__!(
+                i18n,
+                "第 %u 行, 第 %u 列 到 第 %u 行, 第 %u 列",
+                start_line,
+                start_column,
+                end_line,
+                end_column
             )
+            .expect("valid file range template")
         }
     }
 }
@@ -272,7 +284,11 @@ pub(super) fn file_reference_style(
 /// # 返回值
 ///
 /// 返回渲染好的 Element 组件
-pub(super) fn file_reference_card<'a>(file_path: String, is_hovered: bool) -> Element<'a, Message> {
+pub(super) fn file_reference_card<'a>(
+    i18n: crate::app::i18n::I18n,
+    file_path: String,
+    is_hovered: bool,
+) -> Element<'a, Message> {
     let icon = Icon::FileText;
     let file_path_for_display = file_path.clone();
     let file_path_for_delete = file_path;
@@ -355,7 +371,8 @@ pub(super) fn file_reference_card<'a>(file_path: String, is_hovered: bool) -> El
     let content = row![leading_icon].spacing(6).align_y(Alignment::Center).push(title);
 
     // 构建工具提示内容
-    let tooltip_location_text = parsed_ref.location.map(format_reference_location);
+    let tooltip_location_text =
+        parsed_ref.location.map(|location| format_reference_location(i18n, location));
     let tooltip_tip = container({
         let mut tip = iced::widget::column![
             text(format!("@{}", parsed_ref.path))
@@ -462,6 +479,7 @@ pub fn extract_file_mentions(text: &str) -> Vec<String> {
 ///
 /// 返回渲染好的 Element 组件，如果列表为空则返回空白组件
 pub fn render_file_references<'a>(
+    i18n: crate::app::i18n::I18n,
     file_mentions: &[String],
     hovered_index: Option<usize>,
 ) -> Element<'a, Message> {
@@ -474,7 +492,7 @@ pub fn render_file_references<'a>(
     let mut refs_row = row![].spacing(6);
     for (idx, file_path) in file_mentions.iter().enumerate() {
         let hovered = hovered_index == Some(idx);
-        let card = file_reference_card(file_path.clone(), hovered);
+        let card = file_reference_card(i18n, file_path.clone(), hovered);
         // 包装鼠标区域以处理悬停事件
         let card = mouse_area(card)
             .on_enter(Message::Chat(message::ChatMessage::FileReferenceHoverChanged(Some(idx))))

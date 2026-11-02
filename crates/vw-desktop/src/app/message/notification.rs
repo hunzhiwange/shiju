@@ -148,6 +148,7 @@ pub fn update(app: &mut App, message: NotificationMessage) -> Task<Message> {
 
             // 创建并添加新通知到列表
             app.notifications.push(Notification {
+                localized_message: None,
                 id,
                 message: msg.clone(),
                 // 根据目标平台获取当前系统时间
@@ -181,7 +182,10 @@ pub fn update(app: &mut App, message: NotificationMessage) -> Task<Message> {
             app.copied_notification_id = Some(id);
 
             Task::batch(vec![
-                iced::clipboard::write(notification.message.clone()).map(|_: ()| Message::CopyDone),
+                iced::clipboard::write(
+                    notification.render(crate::app::i18n::I18n::new(app.desktop_locale)),
+                )
+                .map(|_: ()| Message::CopyDone),
                 crate::app::message::after(
                     Duration::from_secs(2),
                     Message::Notification(NotificationMessage::ResetCopied(id)),

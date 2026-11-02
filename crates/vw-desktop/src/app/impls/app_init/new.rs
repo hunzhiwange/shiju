@@ -1546,6 +1546,7 @@ impl App {
             preview_nav_popup: None,
 
             error_message: None,
+            localized_input_errors: Default::default(),
             show_preview_settings: false,
             show_preview_fullscreen_overlay: false,
 

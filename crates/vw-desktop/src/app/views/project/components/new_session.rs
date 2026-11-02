@@ -302,11 +302,15 @@ pub fn new_session_button<'a>(app: &crate::app::App, path: String) -> Element<'a
                             theme.palette().text
                         }),
                     }),
-                text(if is_creating { "创建中..." } else { "新建会话" }).size(12).style(
-                    move |theme: &Theme| text::Style {
-                        color: is_creating.then(|| theme.palette().text.scale_alpha(0.35)),
-                    }
-                ),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(if is_creating {
+                    "创建中..."
+                } else {
+                    "新建会话"
+                }))
+                .size(12)
+                .style(move |theme: &Theme| text::Style {
+                    color: is_creating.then(|| theme.palette().text.scale_alpha(0.35)),
+                }),
             ]
             .align_y(iced::alignment::Vertical::Center)
             .spacing(6),
@@ -389,7 +393,12 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
 
     // 如果选项列表为空，显示加载提示
     if app.new_session_picker_options.is_empty() {
-        picker_col = picker_col.push(container(text("加载中...").size(12)).padding([4, 6]));
+        picker_col = picker_col.push(
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中...")).size(12),
+            )
+            .padding([4, 6]),
+        );
     } else {
         // 遍历所有工作区选项
         for (directory, label) in &app.new_session_picker_options {
@@ -400,15 +409,27 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
                         .width(Length::Fill)
                         .padding([2, 6]),
                     // 工作区名称输入框
-                    text_input("例如: feature-login", &app.new_session_worktree_name)
-                        .on_input(worktree_name_changed_message)
-                        .padding([6, 8])
-                        .size(12),
+                    text_input(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("例如: feature-login"),
+                        &app.new_session_worktree_name
+                    )
+                    .on_input(worktree_name_changed_message)
+                    .padding([6, 8])
+                    .size(12),
                     // 创建按钮
-                    button(container(text("创建并使用该工作区").size(12)).width(Length::Fill))
-                        .on_press(create_worktree_message(&path))
-                        .style(create_worktree_button_style)
+                    button(
+                        container(
+                            text(
+                                crate::app::i18n::I18n::new(app.desktop_locale)
+                                    .__("创建并使用该工作区")
+                            )
+                            .size(12)
+                        )
                         .width(Length::Fill)
+                    )
+                    .on_press(create_worktree_message(&path))
+                    .style(create_worktree_button_style)
+                    .width(Length::Fill)
                 ]
                 .spacing(4)
                 .into()
@@ -417,20 +438,36 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
                 let is_primary_workspace = label == "主工作区";
                 // 主工作区显示标签，其他工作区显示操作按钮
                 let action_buttons: Element<'a, Message> = if is_primary_workspace {
-                    container(text("主工作区").size(10).style(|theme: &Theme| text::Style {
-                        color: Some(theme.palette().text.scale_alpha(0.55)),
-                    }))
+                    container(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("主工作区"))
+                            .size(10)
+                            .style(|theme: &Theme| text::Style {
+                                color: Some(theme.palette().text.scale_alpha(0.55)),
+                            }),
+                    )
                     .padding([2, 6])
                     .into()
                 } else {
                     // 非主工作区显示重置和删除按钮
                     row![
-                        button(container(text("重置").size(10)).padding([2, 8]))
-                            .on_press(reset_worktree_message(directory))
-                            .style(worktree_action_button_style),
-                        button(container(text("删除").size(10)).padding([2, 8]))
-                            .on_press(delete_worktree_message(directory))
-                            .style(worktree_action_button_style),
+                        button(
+                            container(
+                                text(crate::app::i18n::I18n::new(app.desktop_locale).__("重置"))
+                                    .size(10)
+                            )
+                            .padding([2, 8])
+                        )
+                        .on_press(reset_worktree_message(directory))
+                        .style(worktree_action_button_style),
+                        button(
+                            container(
+                                text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除"))
+                                    .size(10)
+                            )
+                            .padding([2, 8])
+                        )
+                        .on_press(delete_worktree_message(directory))
+                        .style(worktree_action_button_style),
                     ]
                     .spacing(6)
                     .into()
@@ -462,9 +499,19 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
     if let Some(err) = app.new_session_delete_error.as_ref() {
         picker_col = picker_col.push(
             container(
-                text(format!("删除失败: {}", err))
-                    .size(11)
-                    .style(|_: &Theme| text::Style { color: Some(Color::from_rgb8(220, 38, 38)) }),
+                text(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "删除失败: %s",
+                        app.render_input_error(
+                            crate::app::i18n::input::ErrorField::WorktreeDelete,
+                            err
+                        )
+                    )
+                    .expect("valid input display template"),
+                )
+                .size(11)
+                .style(|_: &Theme| text::Style { color: Some(Color::from_rgb8(220, 38, 38)) }),
             )
             .width(Length::Fill)
             .padding([4, 6]),
@@ -475,9 +522,19 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
     if let Some(err) = app.new_session_reset_error.as_ref() {
         picker_col = picker_col.push(
             container(
-                text(format!("重置失败: {}", err))
-                    .size(11)
-                    .style(|_: &Theme| text::Style { color: Some(Color::from_rgb8(220, 38, 38)) }),
+                text(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "重置失败: %s",
+                        app.render_input_error(
+                            crate::app::i18n::input::ErrorField::WorktreeReset,
+                            err
+                        )
+                    )
+                    .expect("valid input display template"),
+                )
+                .size(11)
+                .style(|_: &Theme| text::Style { color: Some(Color::from_rgb8(220, 38, 38)) }),
             )
             .width(Length::Fill)
             .padding([4, 6]),
@@ -491,20 +548,42 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
         picker_col = picker_col.push(
             container(
                 column![
-                    text(format!("确认删除工作区 {} ?", name)).size(11),
+                    text(
+                        crate::__!(
+                            crate::app::i18n::I18n::new(app.desktop_locale),
+                            "确认删除工作区 %s ?",
+                            format!("{}", name)
+                        )
+                        .expect("valid input display template")
+                    )
+                    .size(11),
                     row![
                         // 取消按钮
-                        button(container(text("取消").size(11)).padding([2, 8]))
-                            .on_press(Message::Project(
-                                message::ProjectMessage::ProjectCreateSessionDeleteWorktreeCancel,
-                            ))
-                            .style(neutral_button_style),
+                        button(
+                            container(
+                                text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消"))
+                                    .size(11)
+                            )
+                            .padding([2, 8])
+                        )
+                        .on_press(Message::Project(
+                            message::ProjectMessage::ProjectCreateSessionDeleteWorktreeCancel,
+                        ))
+                        .style(neutral_button_style),
                         // 确认删除按钮
-                        button(container(text("确认删除").size(11)).padding([2, 8]))
-                            .on_press(Message::Project(
-                                message::ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed,
-                            ))
-                            .style(danger_soft_button_style),
+                        button(
+                            container(
+                                text(
+                                    crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除")
+                                )
+                                .size(11)
+                            )
+                            .padding([2, 8])
+                        )
+                        .on_press(Message::Project(
+                            message::ProjectMessage::ProjectCreateSessionDeleteWorktreeConfirmed,
+                        ))
+                        .style(danger_soft_button_style),
                     ]
                     .spacing(8)
                 ]
@@ -522,16 +601,16 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
         picker_col = picker_col.push(
             container(
                 column![
-                    text(format!("删除失败，是否强制删除工作区 {} ?", name)).size(11),
+                    text(crate::__!(crate::app::i18n::I18n::new(app.desktop_locale), "删除失败，是否强制删除工作区 %s ?", format!("{}", name)).expect("valid input display template")).size(11),
                     row![
                         // 取消按钮
-                        button(container(text("取消").size(11)).padding([2, 8]))
+                        button(container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(11)).padding([2, 8]))
                             .on_press(Message::Project(
                                 message::ProjectMessage::ProjectCreateSessionDeleteWorktreeCancel,
                             ))
                             .style(neutral_button_style),
                         // 强制删除按钮
-                        button(container(text("强制删除").size(11)).padding([2, 8]))
+                        button(container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("强制删除")).size(11)).padding([2, 8]))
                             .on_press(Message::Project(
                                 message::ProjectMessage::ProjectCreateSessionDeleteWorktreeForceConfirmed,
                             ))
@@ -553,26 +632,51 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
         picker_col = picker_col.push(
             container(
                 column![
-                    text(format!("确认重置工作区 {} ?", name)).size(11),
+                    text(
+                        crate::__!(
+                            crate::app::i18n::I18n::new(app.desktop_locale),
+                            "确认重置工作区 %s ?",
+                            format!("{}", name)
+                        )
+                        .expect("valid input display template")
+                    )
+                    .size(11),
                     // 显示重置操作的详细说明
-                    text("将执行 git reset --hard <base-ref> 和 git clean -fd").size(10).style(
-                        |theme: &Theme| text::Style {
-                            color: Some(theme.palette().text.scale_alpha(0.65)),
-                        },
-                    ),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("将执行 git reset --hard <base-ref> 和 git clean -fd")
+                    )
+                    .size(10)
+                    .style(|theme: &Theme| text::Style {
+                        color: Some(theme.palette().text.scale_alpha(0.65)),
+                    },),
                     row![
                         // 取消按钮
-                        button(container(text("取消").size(11)).padding([2, 8]))
-                            .on_press(Message::Project(
-                                message::ProjectMessage::ProjectCreateSessionResetWorktreeCancel,
-                            ))
-                            .style(neutral_button_style),
+                        button(
+                            container(
+                                text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消"))
+                                    .size(11)
+                            )
+                            .padding([2, 8])
+                        )
+                        .on_press(Message::Project(
+                            message::ProjectMessage::ProjectCreateSessionResetWorktreeCancel,
+                        ))
+                        .style(neutral_button_style),
                         // 确认重置按钮
-                        button(container(text("确认重置").size(11)).padding([2, 8]))
-                            .on_press(Message::Project(
-                                message::ProjectMessage::ProjectCreateSessionResetWorktreeConfirmed,
-                            ))
-                            .style(worktree_action_button_style),
+                        button(
+                            container(
+                                text(
+                                    crate::app::i18n::I18n::new(app.desktop_locale).__("确认重置")
+                                )
+                                .size(11)
+                            )
+                            .padding([2, 8])
+                        )
+                        .on_press(Message::Project(
+                            message::ProjectMessage::ProjectCreateSessionResetWorktreeConfirmed,
+                        ))
+                        .style(worktree_action_button_style),
                     ]
                     .spacing(8)
                 ]
@@ -593,10 +697,12 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
             // 标题栏
             row![
                 column![
-                    text("创建会话").size(14).font(iced::Font {
-                        weight: iced::font::Weight::Bold,
-                        ..Default::default()
-                    }),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("创建会话"))
+                        .size(14)
+                        .font(iced::Font {
+                            weight: iced::font::Weight::Bold,
+                            ..Default::default()
+                        }),
                     text(truncate(&title, 42)).size(11).style(|theme: &Theme| text::Style {
                         color: Some(theme.palette().text.scale_alpha(0.65)),
                     })
@@ -604,7 +710,7 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
                 .spacing(2)
                 .width(Length::Fill),
                 // 关闭按钮
-                button(text("关闭").size(11))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭")).size(11))
                     .on_press(Message::Project(
                         message::ProjectMessage::ProjectCreateSessionPickerClose,
                     ))

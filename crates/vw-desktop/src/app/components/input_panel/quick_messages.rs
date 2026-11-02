@@ -128,9 +128,13 @@ fn menu_view<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
     if indices.is_empty() {
         items = items.push(
-            container(text("暂无配置").size(12).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.58)),
-            }))
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无配置"))
+                    .size(12)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(theme.palette().text.scale_alpha(0.58)),
+                    }),
+            )
             .padding([9, 10]),
         );
     }
@@ -222,17 +226,21 @@ fn shiju_trigger_label(state: &LoadState<Vec<InstalledSkill>>) -> String {
     }
 }
 
-fn shiju_version_hint(status: &ShijuPackageStatus) -> ShijuVersionHint {
-    let local_version = status.local_version.clone().unwrap_or_else(|| "未安装".to_string());
+fn shiju_version_hint(
+    i18n: crate::app::i18n::I18n,
+    status: &ShijuPackageStatus,
+) -> ShijuVersionHint {
+    let local_version =
+        status.local_version.clone().unwrap_or_else(|| i18n.__("未安装").to_string());
     let server_version = match (&status.server_version, status.refresh) {
         (Some(version), ShijuPackageRefreshState::Failed) => {
-            format!("{version}（上次检测）")
+            crate::__!(i18n, "%s（上次检测）", version.as_str()).expect("valid version template")
         }
         (Some(version), _) => version.clone(),
-        (None, ShijuPackageRefreshState::Refreshing { .. }) => "检测中".to_string(),
-        (None, ShijuPackageRefreshState::Failed) => "未知（刷新失败）".to_string(),
+        (None, ShijuPackageRefreshState::Refreshing { .. }) => i18n.__("检测中").to_string(),
+        (None, ShijuPackageRefreshState::Failed) => i18n.__("未知（刷新失败）").to_string(),
         (None, ShijuPackageRefreshState::Idle | ShijuPackageRefreshState::Fresh) => {
-            "未知".to_string()
+            i18n.__("未知").to_string()
         }
     };
     let upgrade_enabled = status.local_version.is_none()
@@ -265,16 +273,24 @@ fn shiju_version_hint(status: &ShijuPackageStatus) -> ShijuVersionHint {
         }
     };
 
-    ShijuVersionHint { local_version, server_version, detail: detail.to_string(), upgrade_enabled }
+    ShijuVersionHint {
+        local_version,
+        server_version,
+        detail: i18n.__(detail).to_string(),
+        upgrade_enabled,
+    }
 }
 
-fn shiju_trigger_tooltip(status: &ShijuPackageStatus) -> Element<'static, Message> {
-    let hint = shiju_version_hint(status);
+fn shiju_trigger_tooltip(
+    i18n: crate::app::i18n::I18n,
+    status: &ShijuPackageStatus,
+) -> Element<'static, Message> {
+    let hint = shiju_version_hint(i18n, status);
     container(
         column![
-            text("识矩技能版本").size(12),
-            row![text("本地版本：").size(12), text(hint.local_version).size(12),],
-            row![text("服务端版本：").size(12), text(hint.server_version).size(12),],
+            text(i18n.__("识矩技能版本")).size(12),
+            row![text(i18n.__("本地版本：")).size(12), text(hint.local_version).size(12),],
+            row![text(i18n.__("服务端版本：")).size(12), text(hint.server_version).size(12),],
             text(hint.detail).size(12),
         ]
         .spacing(5),
@@ -323,10 +339,15 @@ fn shiju_menu_rows(app: &App) -> Vec<ShijuMenuRow<'_>> {
         .map(|skill| ShijuMenuRow {
             skill_id: skill.skill_id,
             name: &skill.name,
-            tooltip: format!(
-                "{}\n标识：{}\n版本：{}\n\n{}",
-                skill.name, skill.slug, skill.installed_version, skill.description
-            ),
+            tooltip: crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "%s\n标识：%s\n版本：%s\n\n%s",
+                skill.name.as_str(),
+                skill.slug.as_str(),
+                skill.installed_version.as_str(),
+                skill.description.as_str()
+            )
+            .expect("valid skill tooltip template"),
             selected: selector
                 .is_some_and(|selector| selector.is_shiju_skill_selected(skill.skill_id)),
         })
@@ -348,22 +369,31 @@ fn shiju_tooltip(row: &ShijuMenuRow<'_>) -> Element<'static, Message> {
 fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let refresh_action = shiju_refresh_action(&app.expert_hub.installed);
     let refresh_button = button(
-        row![super::icons::icon_svg(Icon::ArrowRepeat, 13.0), text(refresh_action.label).size(12),]
-            .spacing(8)
-            .align_y(iced::Alignment::Center),
+        row![
+            super::icons::icon_svg(Icon::ArrowRepeat, 13.0),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(refresh_action.label)).size(12),
+        ]
+        .spacing(8)
+        .align_y(iced::Alignment::Center),
     )
     .on_press_maybe(refresh_action.enabled.then(shiju_refresh_message))
     .padding([8, 10])
     .width(Length::Fill)
     .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false));
-    let upgrade_enabled = shiju_version_hint(&app.expert_hub.package_status).upgrade_enabled;
-    let upgrade_button = button(text("前往识矩技能升级").size(12))
-        .on_press_maybe(upgrade_enabled.then(shiju_upgrade_message))
-        .padding([8, 10])
-        .width(Length::Fill)
-        .style(move |theme: &Theme, status| {
-            styles::shiju_upgrade_button_style(theme, status, upgrade_enabled)
-        });
+    let upgrade_enabled = shiju_version_hint(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        &app.expert_hub.package_status,
+    )
+    .upgrade_enabled;
+    let upgrade_button = button(
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("前往识矩技能升级")).size(12),
+    )
+    .on_press_maybe(upgrade_enabled.then(shiju_upgrade_message))
+    .padding([8, 10])
+    .width(Length::Fill)
+    .style(move |theme: &Theme, status| {
+        styles::shiju_upgrade_button_style(theme, status, upgrade_enabled)
+    });
     let status = shiju_menu_status(&app.expert_hub.installed);
     let rows = shiju_menu_rows(app);
     let item_count = rows.len();
@@ -371,9 +401,23 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
 
     if status != ShijuMenuStatus::Loaded {
         items = items.push(
-            container(text(shiju_menu_status_text(status)).size(12).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.66)) }
-            }))
+            container(
+                text(match status {
+                    ShijuMenuStatus::Error(error) => crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "加载失败：%s",
+                        error
+                    )
+                    .expect("valid skill error template"),
+                    _ => crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__(&shiju_menu_status_text(status))
+                        .to_owned(),
+                })
+                .size(12)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    color: Some(theme.palette().text.scale_alpha(0.66)),
+                }),
+            )
             .padding([9, 10]),
         );
     }
@@ -433,7 +477,10 @@ fn shiju_menu(app: &App) -> Element<'_, Message> {
     });
     let trigger = Tooltip::new(
         trigger_button,
-        shiju_trigger_tooltip(&app.expert_hub.package_status),
+        shiju_trigger_tooltip(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            &app.expert_hub.package_status,
+        ),
         TooltipPosition::Bottom,
     )
     .gap(6.0)
@@ -490,11 +537,11 @@ fn workspace_menu_divider() -> Element<'static, Message> {
         .into()
 }
 
-fn workspace_add_button() -> Element<'static, Message> {
+fn workspace_add_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     button(
         row![
             super::icons::icon_svg(Icon::Plus, 13.0),
-            text("新增项目").size(12).width(Length::Fill),
+            text(i18n.__("新增项目")).size(12).width(Length::Fill),
         ]
         .spacing(8)
         .align_y(iced::Alignment::Center)
@@ -511,9 +558,13 @@ fn workspace_menu_view(app: &App) -> Element<'_, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
     if app.recent_projects.is_empty() {
         items = items.push(
-            container(text("暂无空间").size(12).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.58)),
-            }))
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无空间"))
+                    .size(12)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(theme.palette().text.scale_alpha(0.58)),
+                    }),
+            )
             .padding([9, 10]),
         );
     }
@@ -546,9 +597,13 @@ fn workspace_menu_view(app: &App) -> Element<'_, Message> {
         ),
     );
     container(
-        column![items, workspace_menu_divider(), workspace_add_button()]
-            .spacing(3)
-            .width(Length::Fill),
+        column![
+            items,
+            workspace_menu_divider(),
+            workspace_add_button(crate::app::i18n::I18n::new(app.desktop_locale))
+        ]
+        .spacing(3)
+        .width(Length::Fill),
     )
     .padding(6)
     .width(Length::Fixed(300.0))
@@ -558,11 +613,10 @@ fn workspace_menu_view(app: &App) -> Element<'_, Message> {
 
 fn workspace_menu(app: &App) -> Element<'_, Message> {
     let active = app.work_space_picker_open;
-    let label = app
-        .project_path
-        .as_deref()
-        .map(|path| workspace_label(app, path))
-        .unwrap_or_else(|| "选择空间".to_string());
+    let label =
+        app.project_path.as_deref().map(|path| workspace_label(app, path)).unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择空间").to_string()
+        });
     let trigger =
         button(
             row![

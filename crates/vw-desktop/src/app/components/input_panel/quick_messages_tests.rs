@@ -275,7 +275,10 @@ fn shiju_trigger_count_reflects_installed_load_state() {
 fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
     let uninstalled = package_status(None, Some("2.0.0"), ShijuPackageRefreshState::Fresh);
     assert_eq!(
-        shiju_version_hint(&uninstalled),
+        shiju_version_hint(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &uninstalled
+        ),
         ShijuVersionHint {
             local_version: "未安装".to_string(),
             server_version: "2.0.0".to_string(),
@@ -287,7 +290,10 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
     let checking =
         package_status(Some("1.0.0"), None, ShijuPackageRefreshState::Refreshing { generation: 7 });
     assert_eq!(
-        shiju_version_hint(&checking),
+        shiju_version_hint(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &checking
+        ),
         ShijuVersionHint {
             local_version: "1.0.0".to_string(),
             server_version: "检测中".to_string(),
@@ -298,7 +304,10 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
 
     let current = package_status(Some("1.2.3"), Some("1.2.3"), ShijuPackageRefreshState::Fresh);
     assert_eq!(
-        shiju_version_hint(&current),
+        shiju_version_hint(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &current
+        ),
         ShijuVersionHint {
             local_version: "1.2.3".to_string(),
             server_version: "1.2.3".to_string(),
@@ -309,7 +318,10 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
 
     let upgrade = package_status(Some("1.2.3"), Some("2.0.0"), ShijuPackageRefreshState::Fresh);
     assert_eq!(
-        shiju_version_hint(&upgrade),
+        shiju_version_hint(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &upgrade
+        ),
         ShijuVersionHint {
             local_version: "1.2.3".to_string(),
             server_version: "2.0.0".to_string(),
@@ -320,7 +332,10 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
 
     let stale = package_status(Some("1.2.3"), Some("2.0.0"), ShijuPackageRefreshState::Failed);
     assert_eq!(
-        shiju_version_hint(&stale),
+        shiju_version_hint(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &stale
+        ),
         ShijuVersionHint {
             local_version: "1.2.3".to_string(),
             server_version: "2.0.0（上次检测）".to_string(),
@@ -329,7 +344,10 @@ fn shiju_trigger_tooltip_reports_local_server_and_upgrade_state() {
         }
     );
 
-    let tooltip = shiju_trigger_tooltip(&upgrade);
+    let tooltip = shiju_trigger_tooltip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &upgrade,
+    );
     assert_eq!(Tree::new(tooltip.as_widget()).children.len(), 4);
 
     let mut app = App::new().0;
@@ -429,4 +447,19 @@ fn shiju_menu_rows_map_ids_and_selected_state() {
     else {
         panic!("shiju row should map its stable skill id");
     };
+}
+
+#[test]
+fn desktop_gettext_area_9_version_hint_preserves_raw_version() {
+    let mut status = ShijuPackageStatus::default();
+    status.local_version = Some("1.2.3/%n".into());
+    for (locale, detail) in [
+        (vw_config_types::ui::DesktopLocale::SimplifiedChinese, "暂未获取服务端版本"),
+        (vw_config_types::ui::DesktopLocale::TraditionalChinese, "尚未取得伺服器版本"),
+        (vw_config_types::ui::DesktopLocale::English, "Server version not yet available"),
+    ] {
+        let hint = shiju_version_hint(crate::app::i18n::I18n::new(locale), &status);
+        assert_eq!(hint.local_version, "1.2.3/%n");
+        assert_eq!(hint.detail, detail);
+    }
 }

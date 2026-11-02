@@ -15,19 +15,25 @@ fn chat_reasoning_effort_selector_uses_agent_options_and_current_session() {
     let codex =
         reasoning_effort_items(reasoning_effort_options("codex"), Some(ReasoningEffortDto::High));
     assert_eq!(
-        codex.iter().map(|item| item.label).collect::<Vec<_>>(),
+        codex.iter().map(|item| reasoning_effort_label(item.value)).collect::<Vec<_>>(),
         ["默认", "None", "Low", "Medium", "High", "Xhigh"]
     );
     assert_eq!(codex.iter().filter(|item| item.selected).count(), 1);
     assert!(codex[4].selected);
 
     let claude = reasoning_effort_items(reasoning_effort_options("claude"), None);
-    assert_eq!(claude.iter().map(|item| item.label).collect::<Vec<_>>(), ["默认", "High", "Max"]);
+    assert_eq!(
+        claude.iter().map(|item| reasoning_effort_label(item.value)).collect::<Vec<_>>(),
+        ["默认", "High", "Max"]
+    );
     assert!(claude[0].selected);
 
     let other =
         reasoning_effort_items(reasoning_effort_options("gemini"), Some(ReasoningEffortDto::High));
-    assert_eq!(other.iter().map(|item| item.label).collect::<Vec<_>>(), ["默认"]);
+    assert_eq!(
+        other.iter().map(|item| reasoning_effort_label(item.value)).collect::<Vec<_>>(),
+        ["默认"]
+    );
     assert_eq!(other.iter().filter(|item| item.selected).count(), 0);
 
     assert!(matches!(

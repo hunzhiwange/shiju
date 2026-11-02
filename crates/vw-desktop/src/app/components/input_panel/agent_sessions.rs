@@ -242,8 +242,8 @@ pub(crate) fn running_agent_sessions(app: &App) -> Vec<AgentChildSession> {
     projected
 }
 
-pub(super) fn agent_sessions_badge_label(count: usize) -> String {
-    format!("{count} 个工作中")
+pub(super) fn agent_sessions_badge_label(i18n: crate::app::i18n::I18n, count: usize) -> String {
+    crate::__!(i18n, "%u 个工作中", count).expect("valid agent count template")
 }
 
 pub(super) fn agent_sessions_badge_style(
@@ -386,18 +386,39 @@ pub(super) fn agent_session_tooltip_text(child: &AgentChildSession) -> Option<&s
 fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Message> {
     let running_color = Color::from_rgb8(96, 165, 250);
     let content: Element<'a, Message> = if child.kind == AgentChildSessionKind::WorkflowPlanning {
-        text(child.title.clone())
-            .size(12)
-            .width(Length::Fill)
-            .wrapping(iced::widget::text::Wrapping::None)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(0.96)),
-            })
-            .into()
+        text(
+            crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "规划 · %s · 计划任务",
+                child.plan_run_task_id.as_deref().unwrap_or(&child.session_id)
+            )
+            .expect("valid planning title template"),
+        )
+        .size(12)
+        .width(Length::Fill)
+        .wrapping(iced::widget::text::Wrapping::None)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.palette().text.scale_alpha(0.96)),
+        })
+        .into()
     } else {
         let title = compact_and_truncate(&child.title, TITLE_MAX_CHARS);
-        let task = compact_and_truncate(&child.task, TASK_MAX_CHARS);
-        let agent = compact_and_truncate(&child.agent, 22);
+        let task = compact_and_truncate(
+            if child.kind == AgentChildSessionKind::WorkflowExecution {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("工作流执行")
+            } else {
+                &child.task
+            },
+            TASK_MAX_CHARS,
+        );
+        let agent = compact_and_truncate(
+            if child.kind == AgentChildSessionKind::WorkflowExecution {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("子智能体")
+            } else {
+                &child.agent
+            },
+            22,
+        );
         let title_line = row![
             text(title).size(12).width(Length::Fill).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
@@ -418,9 +439,9 @@ fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Me
             text(spinner_frame(app.status_animation_frame)).size(10).style(
                 move |_theme: &Theme| iced::widget::text::Style { color: Some(running_color) }
             ),
-            text(status_label).size(10).style(move |_theme: &Theme| {
-                iced::widget::text::Style { color: Some(running_color) }
-            }),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(status_label)).size(10).style(
+                move |_theme: &Theme| { iced::widget::text::Style { color: Some(running_color) } }
+            ),
             text(task).size(10).width(Length::Fill).style(|theme: &Theme| {
                 iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.62)) }
             }),
@@ -443,7 +464,7 @@ fn agent_session_row<'a>(app: &App, child: &AgentChildSession) -> Element<'a, Me
             .width(Length::Fill);
     if let Some(stop_message) = agent_session_stop_message(child) {
         session_row = session_row.push(
-            button(text("停止").size(10))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("停止")).size(10))
                 .padding([5, 7])
                 .style(agent_sessions_stop_style)
                 .on_press(stop_message),
@@ -472,9 +493,11 @@ pub(super) fn agent_sessions_popover<'a>(
     children: &[AgentChildSession],
 ) -> Element<'a, Message> {
     let header = row![
-        text("工作中的子代理会话").size(13).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
-        }),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("工作中的子代理会话"))
+            .size(13)
+            .style(|theme: &Theme| {
+                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
+            }),
         Space::new().width(Length::Fill),
         text(children.len().to_string()).size(11).style(|theme: &Theme| {
             iced::widget::text::Style {
@@ -523,7 +546,11 @@ pub(super) fn agent_sessions_entry<'a>(
             text(spinner_frame(app.status_animation_frame)).size(11).style(
                 move |_theme: &Theme| iced::widget::text::Style { color: Some(running_color) }
             ),
-            text(agent_sessions_badge_label(children.len())).size(11),
+            text(agent_sessions_badge_label(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                children.len()
+            ))
+            .size(11),
         ]
         .spacing(6)
         .align_y(Alignment::Center),

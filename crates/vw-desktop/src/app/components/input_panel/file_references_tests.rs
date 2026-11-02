@@ -134,7 +134,13 @@ fn formats_reference_locations_for_tooltip_and_compact_badge() {
     ];
 
     for (location, verbose, compact) in cases {
-        assert_eq!(format_reference_location(location), verbose);
+        assert_eq!(
+            format_reference_location(
+                crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+                location
+            ),
+            verbose
+        );
         assert_eq!(format_reference_location_compact(location), compact);
     }
 }
@@ -216,26 +222,50 @@ fn file_reference_styles_keep_theme_text_and_dark_tooltip_contracts() {
 
 #[test]
 fn file_reference_card_and_list_render_expected_outer_shapes() {
-    let card = file_reference_card("src/main.rs:10".to_string(), false);
+    let card = file_reference_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "src/main.rs:10".to_string(),
+        false,
+    );
     assert_size(&card, Length::Shrink, Length::Shrink);
 
-    let hovered = file_reference_card("src/main.rs:10".to_string(), true);
+    let hovered = file_reference_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "src/main.rs:10".to_string(),
+        true,
+    );
     assert_size(&hovered, Length::Shrink, Length::Shrink);
 
-    let empty = render_file_references(&[], None);
+    let empty = render_file_references(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &[],
+        None,
+    );
     assert_size(&empty, Length::Shrink, Length::Shrink);
 
     let mentions = vec!["src/main.rs:10".to_string(), "README.md".to_string()];
-    let rendered = render_file_references(&mentions, Some(1));
+    let rendered = render_file_references(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &mentions,
+        Some(1),
+    );
     assert_size(&rendered, Length::Fill, Length::Shrink);
 }
 
 #[test]
 fn file_reference_cards_accept_empty_paths_and_out_of_range_hover_indices() {
-    let empty_path = file_reference_card(String::new(), true);
+    let empty_path = file_reference_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        String::new(),
+        true,
+    );
     assert_size(&empty_path, Length::Shrink, Length::Shrink);
 
     let mentions = vec!["README.md".to_string(), "src/lib.rs:0:0".to_string()];
-    let rendered = render_file_references(&mentions, Some(mentions.len()));
+    let rendered = render_file_references(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &mentions,
+        Some(mentions.len()),
+    );
     assert_size(&rendered, Length::Fill, Length::Shrink);
 }

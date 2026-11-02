@@ -46,8 +46,10 @@ pub(super) fn reset_new_session_picker_state(app: &mut App) {
     app.new_session_worktree_name.clear();
     app.new_session_confirm_delete_directory = None;
     app.new_session_force_delete_directory = None;
+    app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
     app.new_session_delete_error = None;
     app.new_session_confirm_reset_directory = None;
+    app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
     app.new_session_reset_error = None;
 }
 
@@ -58,8 +60,10 @@ pub(super) fn reset_new_session_picker_state(app: &mut App) {
 pub(super) fn clear_new_session_picker_messages(app: &mut App) {
     app.new_session_confirm_delete_directory = None;
     app.new_session_force_delete_directory = None;
+    app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
     app.new_session_delete_error = None;
     app.new_session_confirm_reset_directory = None;
+    app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
     app.new_session_reset_error = None;
 }
 

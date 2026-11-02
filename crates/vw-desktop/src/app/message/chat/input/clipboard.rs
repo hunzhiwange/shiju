@@ -34,7 +34,10 @@ fn clipboard_text_payload(content: Option<String>) -> ClipboardPastePayload {
                     ClipboardPastePayload::AttachmentPath(path.to_string_lossy().into_owned())
                 }
                 Ok(None) => ClipboardPastePayload::Text(content),
-                Err(error) => ClipboardPastePayload::Error(format!("缓存粘贴文本失败：{error}")),
+                Err(error) => ClipboardPastePayload::LocalizedError {
+                    source: "缓存粘贴文本失败：%s",
+                    arguments: vec![error.to_string().into()],
+                },
             }
         }
         _ => ClipboardPastePayload::Empty,
@@ -61,7 +64,10 @@ fn read_native_clipboard_payload() -> ClipboardPastePayload {
     let mut clipboard = match arboard::Clipboard::new() {
         Ok(clipboard) => clipboard,
         Err(error) => {
-            return ClipboardPastePayload::Error(format!("读取系统剪贴板失败：{}", error));
+            return ClipboardPastePayload::LocalizedError {
+                source: "读取系统剪贴板失败：%s",
+                arguments: vec![error.to_string().into()],
+            };
         }
     };
 

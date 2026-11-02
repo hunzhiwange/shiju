@@ -316,6 +316,7 @@ fn utility_cluster_style_sets_theme_specific_pill_surface() {
 #[test]
 fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
     let disabled_without_task_mode = pool_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         false,
         false,
         String::new(),
@@ -326,6 +327,7 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         Vec::new(),
     );
     let disabled = pool_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         false,
         true,
         String::new(),
@@ -336,6 +338,7 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         Vec::new(),
     );
     let simple = pool_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         true,
         false,
         "task".into(),
@@ -346,6 +349,7 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
         Vec::new(),
     );
     let task_mode = pool_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         true,
         true,
         "task".into(),
@@ -365,10 +369,26 @@ fn pool_button_constructs_disabled_simple_and_task_mode_branches() {
 #[test]
 fn full_access_button_constructs_disabled_enabled_and_active_variants() {
     for element in [
-        full_access_button(false, false),
-        full_access_button(true, false),
-        full_access_button(true, true),
-        full_access_button(false, true),
+        full_access_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            false,
+            false,
+        ),
+        full_access_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            true,
+            false,
+        ),
+        full_access_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            true,
+            true,
+        ),
+        full_access_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            false,
+            true,
+        ),
     ] {
         assert_eq!(element.as_widget().children().len(), 2);
     }
@@ -376,7 +396,16 @@ fn full_access_button_constructs_disabled_enabled_and_active_variants() {
 
 #[test]
 fn workflow_mode_button_constructs_inactive_and_active_variants() {
-    for element in [workflow_mode_button(false), workflow_mode_button(true)] {
+    for element in [
+        workflow_mode_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            false,
+        ),
+        workflow_mode_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            true,
+        ),
+    ] {
         assert_eq!(element.as_widget().children().len(), 2);
     }
 }
@@ -459,7 +488,10 @@ fn bottom_bar_places_workflow_after_full_access_and_before_session_tabs() {
 #[test]
 fn cancel_button_constructs_every_animation_phase() {
     for submit_anim in [0, 2, 4, u8::MAX] {
-        let element = cancel_button(submit_anim);
+        let element = cancel_button(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            submit_anim,
+        );
 
         assert_eq!(element.as_widget().children().len(), 2);
     }
@@ -470,7 +502,10 @@ fn send_behavior_popover_constructs_all_selected_options() {
     for behavior in
         [ChatSendBehavior::Queue, ChatSendBehavior::StopAndSend, ChatSendBehavior::Guide]
     {
-        let element = send_behavior_popover(behavior);
+        let element = send_behavior_popover(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            behavior,
+        );
 
         assert_eq!(element.as_widget().size().width, Length::Fixed(320.0));
         assert_eq!(element.as_widget().children().len(), 3);

@@ -167,6 +167,7 @@ pub enum ClipboardPastePayload {
     AttachmentPath(String),
     Empty,
     Error(String),
+    LocalizedError { source: &'static str, arguments: Vec<crate::app::i18n::format::Argument> },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -140,16 +140,27 @@ fn queue_panel_style_uses_theme_specific_container_background() {
 
 #[test]
 fn queue_panel_renders_empty_short_and_long_queues() {
-    let empty = queue_panel(Vec::new(), false);
+    let empty = queue_panel(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        Vec::new(),
+        false,
+    );
     assert_eq!(empty.as_widget().size().width, Length::Fill);
 
     let mut guided = queue_item("first line\nsecond line", 0);
     guided.send_behavior = ChatSendBehavior::Guide;
-    let short = queue_panel(vec![guided], true);
+    let short = queue_panel(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        vec![guided],
+        true,
+    );
     assert_eq!(short.as_widget().size().width, Length::Fill);
 
     let long_label = "这是一条很长很长很长很长很长很长很长很长很长的任务标题";
-    let long =
-        queue_panel(vec![queue_item(long_label, 1_000), queue_item("waiting", 2_000)], false);
+    let long = queue_panel(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        vec![queue_item(long_label, 1_000), queue_item("waiting", 2_000)],
+        false,
+    );
     assert_eq!(long.as_widget().size().width, Length::Fill);
 }

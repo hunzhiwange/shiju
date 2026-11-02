@@ -185,6 +185,7 @@ fn attachment_thumbnail_uses_image_and_icon_fallback_shapes() {
 #[test]
 fn attachment_chip_builds_with_optional_remove_action_and_display_name_sources() {
     let without_remove = attachment_chip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         AttachmentDisplayItem {
             path: "/tmp/report.pdf".to_string(),
             display_name: Some("Quarterly report.pdf".to_string()),
@@ -198,6 +199,7 @@ fn attachment_chip_builds_with_optional_remove_action_and_display_name_sources()
         .join("src/app/components/input_panel/__missing_attachment_chip__.png");
     assert!(!missing_image_path.exists());
     let with_remove = attachment_chip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         AttachmentDisplayItem::from_local_path(missing_image_path.to_string_lossy()),
         Some(Message::Project(message::ProjectMessage::RemoveAttachedFile(
             missing_image_path.to_string_lossy().into_owned(),
@@ -206,6 +208,7 @@ fn attachment_chip_builds_with_optional_remove_action_and_display_name_sources()
     assert_size(&with_remove, Length::Shrink, Length::Shrink);
 
     let empty_path = attachment_chip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         AttachmentDisplayItem {
             path: String::new(),
             display_name: None,
@@ -297,16 +300,22 @@ fn parse_attachment_markers_normalizes_trailing_space_without_markers() {
 
 #[test]
 fn attachment_preview_strip_builds_empty_and_non_empty_elements() {
-    let empty = attachment_preview_strip(vec![]);
+    let empty = attachment_preview_strip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        vec![],
+    );
     assert_size(&empty, Length::Shrink, Length::Fixed(0.0));
 
     let missing_image_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src/app/components/input_panel/__missing_attachment_preview__.png");
     assert!(!missing_image_path.exists());
-    let populated = attachment_preview_strip(vec![
-        AttachmentDisplayItem::from_local_path(missing_image_path.to_string_lossy()),
-        AttachmentDisplayItem::from_local_path("/tmp/readme.txt"),
-    ]);
+    let populated = attachment_preview_strip(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        vec![
+            AttachmentDisplayItem::from_local_path(missing_image_path.to_string_lossy()),
+            AttachmentDisplayItem::from_local_path("/tmp/readme.txt"),
+        ],
+    );
     assert_size(&populated, Length::Shrink, Length::Shrink);
 }
 

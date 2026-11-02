@@ -1040,6 +1040,10 @@ pub struct App {
     pub workflow_state: crate::apps::workflow::state::WorkflowState,
     /// 错误消息
     pub error_message: Option<String>,
+    pub(crate) localized_input_errors: std::collections::BTreeMap<
+        crate::app::i18n::input::ErrorField,
+        crate::app::i18n::input::Feedback,
+    >,
     /// 鼠标光标位置
     pub cursor_position: Point,
     /// 是否显示预览设置

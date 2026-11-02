@@ -153,16 +153,20 @@ pub fn attachment_button(app: &App) -> Element<'_, Message> {
 
     let attach_tip = container(
         iced::widget::column![
-            text("附件")
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("附件"))
                 .size(12)
                 .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
-            text(format!(
-                "本地文件或截图粘贴，已选 {} 个，图片 {}/{}，单张最多 {} MB",
-                app.files.len(),
-                image_count,
-                max_images,
-                app.multimodal_settings.max_image_size_mb.clamp(1, 20)
-            ))
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "本地文件或截图粘贴，已选 %u 个，图片 %u/%u，单张最多 %u MB",
+                    app.files.len(),
+                    image_count,
+                    max_images,
+                    app.multimodal_settings.max_image_size_mb.clamp(1, 20)
+                )
+                .expect("valid attachment count template")
+            )
             .size(11)
             .style(|_theme: &Theme| iced::widget::text::Style {
                 color: Some(Color::WHITE.scale_alpha(0.78)),
@@ -247,6 +251,7 @@ fn open_attachment_message(path: String) -> Message {
 }
 
 fn attachment_chip(
+    i18n: crate::app::i18n::I18n,
     item: AttachmentDisplayItem,
     remove_message: Option<Message>,
 ) -> Element<'static, Message> {
@@ -275,7 +280,7 @@ fn attachment_chip(
 
     let mut chip_row = row![
         attachment_thumbnail(path.clone(), kind.clone()),
-        text(label).size(11).style(|theme: &Theme| iced::widget::text::Style {
+        text(i18n.__(label)).size(11).style(|theme: &Theme| iced::widget::text::Style {
             color: Some(theme.palette().primary.scale_alpha(0.92)),
         }),
         name_view,
@@ -311,6 +316,7 @@ fn attachment_chip(
 }
 
 pub(crate) fn attachment_preview_strip(
+    i18n: crate::app::i18n::I18n,
     items: Vec<AttachmentDisplayItem>,
 ) -> Element<'static, Message> {
     if items.is_empty() {
@@ -319,7 +325,7 @@ pub(crate) fn attachment_preview_strip(
 
     let mut chips = row![].spacing(8).align_y(iced::Alignment::Center);
     for item in items {
-        chips = chips.push(attachment_chip(item, None));
+        chips = chips.push(attachment_chip(i18n, item, None));
     }
 
     scrollable(chips)
@@ -457,6 +463,7 @@ pub fn attachment_strip(app: &App) -> Element<'_, Message> {
     for path in &app.files {
         let item = AttachmentDisplayItem::from_local_path(path.clone());
         chips = chips.push(attachment_chip(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             item,
             Some(Message::Project(message::ProjectMessage::RemoveAttachedFile(path.to_string()))),
         ));

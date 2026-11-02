@@ -219,7 +219,10 @@ pub(super) fn send_behavior_icon(behavior: ChatSendBehavior) -> Icon {
     }
 }
 
-pub(super) fn send_behavior_popover<'a>(selected: ChatSendBehavior) -> Element<'a, Message> {
+pub(super) fn send_behavior_popover<'a>(
+    i18n: crate::app::i18n::I18n,
+    selected: ChatSendBehavior,
+) -> Element<'a, Message> {
     let mut list = iced::widget::column![].spacing(4);
     for behavior in
         [ChatSendBehavior::Queue, ChatSendBehavior::StopAndSend, ChatSendBehavior::Guide]
@@ -233,8 +236,8 @@ pub(super) fn send_behavior_popover<'a>(selected: ChatSendBehavior) -> Element<'
         let button_content = iced::widget::row![
             icon_svg(send_behavior_icon(behavior), 14.0),
             iced::widget::column![
-                text(behavior.label()).size(13).font(selector_label_font()),
-                text(behavior.description()).size(11).style(|theme: &Theme| {
+                text(i18n.__(behavior.label())).size(13).font(selector_label_font()),
+                text(i18n.__(behavior.description())).size(11).style(|theme: &Theme| {
                     iced::widget::text::Style { color: Some(selector_text_color(theme, false)) }
                 }),
             ]
@@ -282,6 +285,7 @@ pub(super) fn send_behavior_popover<'a>(selected: ChatSendBehavior) -> Element<'
 /// - 当任务模式启用且有输入时，按钮可点击，显示"加入任务池"
 /// - 点击后会根据任务模式是否启用，发送不同的消息（带选项或不带选项）
 pub fn pool_button(
+    i18n: crate::app::i18n::I18n,
     enabled: bool,
     task_mode_enabled: bool,
     input_text: String,
@@ -348,7 +352,7 @@ pub fn pool_button(
 
     // 创建工具提示容器
     let pool_tip = container(
-        text(pool_tip_label)
+        text(i18n.__(pool_tip_label))
             .size(12)
             .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
     )
@@ -359,7 +363,11 @@ pub fn pool_button(
     tooltip(pool_btn, pool_tip, Position::Top).into()
 }
 
-pub fn full_access_button(enabled: bool, active: bool) -> Element<'static, Message> {
+pub fn full_access_button(
+    i18n: crate::app::i18n::I18n,
+    enabled: bool,
+    active: bool,
+) -> Element<'static, Message> {
     let shield_icon: Element<'_, Message> = icon_svg(Icon::ShieldLock, SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
             color: Some(if active {
@@ -398,13 +406,16 @@ pub fn full_access_button(enabled: bool, active: bool) -> Element<'static, Messa
 
     tooltip(
         access_button,
-        container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),
+        container(text(i18n.__(tooltip_label)).size(12)).style(tooltip_dark_style).padding([6, 8]),
         Position::Top,
     )
     .into()
 }
 
-pub fn workflow_mode_button(active: bool) -> Element<'static, Message> {
+pub fn workflow_mode_button(
+    i18n: crate::app::i18n::I18n,
+    active: bool,
+) -> Element<'static, Message> {
     let workflow_icon: Element<'_, Message> = icon_svg(Icon::Grid1x2, SECONDARY_ICON_SIZE)
         .style(move |theme: &Theme, _| svg::Style {
             color: Some(if active {
@@ -431,7 +442,7 @@ pub fn workflow_mode_button(active: bool) -> Element<'static, Message> {
     let tooltip_label = if active { "关闭工作流执行" } else { "启用工作流执行" };
     tooltip(
         button,
-        container(text(tooltip_label).size(12)).style(tooltip_dark_style).padding([6, 8]),
+        container(text(i18n.__(tooltip_label)).size(12)).style(tooltip_dark_style).padding([6, 8]),
         Position::Top,
     )
     .into()
@@ -502,7 +513,9 @@ pub fn send_button<'a>(
 
     let main_send = tooltip(
         main_send,
-        container(text(main_tooltip).size(12)).style(tooltip_dark_style).padding([6, 8]),
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__(main_tooltip)).size(12))
+            .style(tooltip_dark_style)
+            .padding([6, 8]),
         Position::Top,
     );
 
@@ -533,9 +546,9 @@ pub fn send_button<'a>(
         toggle_btn,
         container(
             text(if app.show_send_mode_popover {
-                "收起发送方式"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("收起发送方式")
             } else {
-                "展开发送方式"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("展开发送方式")
             })
             .size(12),
         )
@@ -545,7 +558,7 @@ pub fn send_button<'a>(
     );
 
     let split = row![main_send, toggle_btn].spacing(4).align_y(Alignment::Center);
-    let popover = send_behavior_popover(behavior);
+    let popover = send_behavior_popover(crate::app::i18n::I18n::new(app.desktop_locale), behavior);
 
     AboveOverlay::new(split, popover)
         .show(app.show_send_mode_popover)
@@ -572,7 +585,7 @@ pub fn send_button<'a>(
 /// 按钮内部的方形图标会根据 `submit_anim` 参数产生呼吸效果：
 /// - 动画帧除以2后取模3，循环显示三种不同尺寸（10.0、11.0、12.0）
 /// - 这种设计提供了视觉反馈，表明任务正在执行中
-pub fn cancel_button(submit_anim: u8) -> Element<'static, Message> {
+pub fn cancel_button(i18n: crate::app::i18n::I18n, submit_anim: u8) -> Element<'static, Message> {
     // 计算动画帧：减慢动画速度
     let stop_anim = submit_anim / 2;
 
@@ -606,7 +619,7 @@ pub fn cancel_button(submit_anim: u8) -> Element<'static, Message> {
 
     // 创建工具提示容器
     let cancel_tip = container(
-        text("停止任务")
+        text(i18n.__("停止任务"))
             .size(12)
             .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
     )

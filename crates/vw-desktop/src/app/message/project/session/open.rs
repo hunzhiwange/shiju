@@ -387,7 +387,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::SessionCreateFailed(error) => {
             app.new_session_creating = false;
-            Some(app.show_error_toast(format!("创建新会话失败：{error}")))
+            Some(app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "创建新会话失败：%s",
+                vec![format!("{}", error).into()],
+            ))
         }
         ProjectMessage::ProjectBranchesLoaded { project_path, selected_branch, branches } => {
             if app.project_path.as_deref() != Some(project_path.as_str()) {

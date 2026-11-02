@@ -355,6 +355,7 @@ fn session_compact_message(session_id: &str, project_path: &str) -> Message {
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn build_session_menu<'a>(
+    i18n: crate::app::i18n::I18n,
     id: String,
     project_path: String,
     compaction_disabled: bool,
@@ -368,27 +369,27 @@ pub fn build_session_menu<'a>(
     };
 
     let compact_action = if compaction_disabled {
-        disabled_session_menu_button("压缩会话")
+        disabled_session_menu_button(i18n.__("压缩会话"))
     } else {
-        session_menu_button("压缩会话", session_compact_message(&id, &project_path))
+        session_menu_button(i18n.__("压缩会话"), session_compact_message(&id, &project_path))
     };
     let content = column![
         compact_action,
         session_menu_button(
-            "重命名",
+            i18n.__("重命名"),
             Message::Project(message::ProjectMessage::SessionRenamePressed(id.clone())),
         ),
         session_menu_button(
-            "复制对话",
+            i18n.__("复制对话"),
             Message::Project(message::ProjectMessage::SessionCopyPressed(id.clone())),
         ),
         separator(),
         session_menu_button(
-            "归档",
+            i18n.__("归档"),
             Message::Project(message::ProjectMessage::SessionArchivePressed(id.clone())),
         ),
         session_menu_button(
-            "删除",
+            i18n.__("删除"),
             Message::Project(message::ProjectMessage::SessionDeletePressed(id.clone())),
         )
     ]
@@ -411,7 +412,10 @@ pub fn build_session_menu<'a>(
 ///
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
-pub fn build_project_tools_menu<'a>(path: String) -> Element<'a, Message> {
+pub fn build_project_tools_menu<'a>(
+    i18n: crate::app::i18n::I18n,
+    path: String,
+) -> Element<'a, Message> {
     let separator = || -> Element<'a, Message> {
         container(iced::widget::Space::new())
             .width(Length::Fill)
@@ -422,16 +426,16 @@ pub fn build_project_tools_menu<'a>(path: String) -> Element<'a, Message> {
 
     let content = column![
         session_menu_button(
-            "编辑项目",
+            i18n.__("编辑项目"),
             Message::Project(message::ProjectMessage::ProjectEditOpened(path.clone())),
         ),
         separator(),
         session_menu_button(
-            "在访达中显示",
+            i18n.__("在访达中显示"),
             Message::Project(message::ProjectMessage::RecentRevealPressed(path.clone())),
         ),
         session_menu_button(
-            "移除项目",
+            i18n.__("移除项目"),
             Message::Project(message::ProjectMessage::RecentRemovePressed(path)),
         )
     ]
@@ -459,6 +463,7 @@ pub fn build_project_tools_menu<'a>(path: String) -> Element<'a, Message> {
 /// # 错误
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 pub fn project_sessions_header<'a>(
+    i18n: crate::app::i18n::I18n,
     title: String,
     path: String,
     path_max_chars: usize,
@@ -500,7 +505,7 @@ pub fn project_sessions_header<'a>(
         .on_press(Message::Project(message::ProjectMessage::ProjectLoadSessions(path_for_refresh)))
         .padding(0)
         .style(icon_action_button_style),
-        tooltip_bubble("刷新会话".to_string()),
+        tooltip_bubble(i18n.__("刷新会话").to_string()),
         iced::widget::tooltip::Position::Top,
     )
     .gap(8);
@@ -516,7 +521,7 @@ pub fn project_sessions_header<'a>(
     .style(icon_action_button_style);
 
     let tools: Element<'a, Message> =
-        PointBelowOverlay::new(more_btn, build_project_tools_menu(path_for_menu))
+        PointBelowOverlay::new(more_btn, build_project_tools_menu(i18n, path_for_menu))
             .show(show_tools_menu)
             .anchor(Point::new(20.0, 20.0))
             .on_close(Message::Project(message::ProjectMessage::ProjectToolsMenuClosed))
@@ -644,7 +649,7 @@ fn session_tree_row<'a>(
                     .height(Length::Fixed(13.0))
                     .align_y(iced::alignment::Vertical::Center),
                     container(
-                        text("运行中")
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("运行中"))
                             .size(11)
                             .line_height(iced::widget::text::LineHeight::Relative(1.0)),
                     )
@@ -660,21 +665,35 @@ fn session_tree_row<'a>(
     }
     if queued > 0 {
         status_badges = status_badges.push(
-            container(text(format!("排队 {}", queued)).size(11))
-                .padding([1, 6])
-                .style(|_: &Theme| status_badge_style(Color::from_rgb8(245, 158, 11))),
+            container(
+                text(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "排队 %s",
+                        format!("{}", queued)
+                    )
+                    .expect("valid input display template"),
+                )
+                .size(11),
+            )
+            .padding([1, 6])
+            .style(|_: &Theme| status_badge_style(Color::from_rgb8(245, 158, 11))),
         );
     }
     if has_unseen_success && !is_running && queued == 0 {
         status_badges = status_badges.push(
-            container(text("有更新").size(11))
+            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("有更新")).size(11))
                 .padding([1, 6])
                 .style(|_: &Theme| status_badge_style(Color::from_rgb8(46, 184, 114))),
         );
     }
     let dynamic_title_max_chars = title_max_chars.saturating_add(6).max(14);
 
-    let workspace_label = session_workspace_label(&s.directory, path);
+    let workspace_label = if s.directory == path {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("主工作区").to_owned()
+    } else {
+        session_workspace_label(&s.directory, path)
+    };
     let workspace_meta = truncate_display_width(&workspace_label, dynamic_title_max_chars / 2 + 8);
     let change_stats = row![
         text(format!("+{}", adds)).size(11).style(additions_text_style),
@@ -745,7 +764,12 @@ fn session_tree_row<'a>(
     if app.session_menu_id == Some(id.clone()) {
         PointBelowOverlay::new(
             right_click,
-            build_session_menu(id, s.directory.clone(), is_running || s.time.compacting.is_some()),
+            build_session_menu(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                id,
+                s.directory.clone(),
+                is_running || s.time.compacting.is_some(),
+            ),
         )
         .show(true)
         .anchor(app.session_menu_anchor.unwrap_or(Point::ORIGIN))
@@ -783,8 +807,13 @@ pub fn session_items_list<'a>(
     let now_s = crate::app::time::now_ms() as f64 / 1000.0;
 
     if is_loading {
-        session_items = session_items
-            .push(container(text("加载中...").size(12)).padding([8, 4]).width(Length::Fill));
+        session_items = session_items.push(
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中...")).size(12),
+            )
+            .padding([8, 4])
+            .width(Length::Fill),
+        );
     } else if let Some(sessions) = sessions {
         let projection = session_tree_projection(sessions, load_count);
         let total_visible = projection.total_roots;
@@ -794,17 +823,32 @@ pub fn session_items_list<'a>(
         }
 
         if total_visible == 0 {
-            session_items = session_items
-                .push(container(text("没有会话").size(12)).padding([8, 4]).width(Length::Fill));
+            session_items = session_items.push(
+                container(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有会话")).size(12),
+                )
+                .padding([8, 4])
+                .width(Length::Fill),
+            );
         }
 
         if total_visible > load_count {
             let remaining = total_visible.saturating_sub(load_count);
             let load_more_btn = button(
-                container(text(format!("加载更多 (剩余 {})", remaining)).size(11))
-                    .padding([6, 4])
-                    .width(Length::Fill)
-                    .align_x(iced::alignment::Horizontal::Center),
+                container(
+                    text(
+                        crate::__!(
+                            crate::app::i18n::I18n::new(app.desktop_locale),
+                            "加载更多 (剩余 %s)",
+                            format!("{}", remaining)
+                        )
+                        .expect("valid input display template"),
+                    )
+                    .size(11),
+                )
+                .padding([6, 4])
+                .width(Length::Fill)
+                .align_x(iced::alignment::Horizontal::Center),
             )
             .on_press(Message::Project(message::ProjectMessage::ProjectLoadMoreSessions(
                 path.to_string(),
@@ -815,10 +859,12 @@ pub fn session_items_list<'a>(
         }
     } else {
         let load_btn = button(
-            container(text("加载会话").size(12))
-                .padding([6, 4])
-                .width(Length::Fill)
-                .align_x(iced::alignment::Horizontal::Center),
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载会话")).size(12),
+            )
+            .padding([6, 4])
+            .width(Length::Fill)
+            .align_x(iced::alignment::Horizontal::Center),
         )
         .on_press(Message::Project(message::ProjectMessage::ProjectLoadSessions(path.to_string())))
         .width(Length::Fill)
@@ -867,6 +913,7 @@ pub fn project_sessions_panel(
         let title_max_chars =
             session_title_max_chars((inner_w - session_list_width_reduction).max(0.0));
         let header = project_sessions_header(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             title,
             path.clone(),
             path_max_chars,
@@ -885,7 +932,7 @@ pub fn project_sessions_panel(
                     .width(Length::Fixed(14.0))
                     .height(Length::Fixed(14.0))
                     .style(task_pool_icon_style),
-                    text("任务池").size(12),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务池")).size(12),
                 ]
                 .align_y(iced::alignment::Vertical::Center)
                 .spacing(6),
@@ -952,7 +999,7 @@ pub fn project_sessions_panel(
 
     let empty_label =
         if app.recent_projects.is_empty() { "暂无项目" } else { "请选择一个项目" };
-    container(text(empty_label).size(12))
+    container(text(crate::app::i18n::I18n::new(app.desktop_locale).__(empty_label)).size(12))
         .padding([20, 20])
         .width(Length::Fill)
         .height(Length::Fill)

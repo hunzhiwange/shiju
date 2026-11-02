@@ -265,8 +265,16 @@ fn menu_builders_return_elements() {
         "重命名",
         Message::Project(message::ProjectMessage::SessionRenamePressed("s1".to_string())),
     ));
-    keep_element(build_session_menu("s1".to_string(), "/tmp/project".to_string(), false));
-    keep_element(build_project_tools_menu("/tmp/project".to_string()));
+    keep_element(build_session_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "s1".to_string(),
+        "/tmp/project".to_string(),
+        false,
+    ));
+    keep_element(build_project_tools_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "/tmp/project".to_string(),
+    ));
 }
 
 #[test]
@@ -283,6 +291,7 @@ fn project_session_menu_exposes_compact_target_session_action() {
 #[test]
 fn header_builds_clickable_and_static_variants() {
     keep_element(project_sessions_header(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "项目".to_string(),
         "/tmp/project".to_string(),
         12,
@@ -290,6 +299,7 @@ fn header_builds_clickable_and_static_variants() {
         true,
     ));
     keep_element(project_sessions_header(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "项目".to_string(),
         "/tmp/project".to_string(),
         8,
@@ -585,6 +595,7 @@ fn session_items_builds_missing_summary_menu_default_anchor_and_no_load_more() {
 fn standalone_panel_fragments_build_inactive_and_pressed_variants() {
     keep_element(session_menu_button("删除", Message::None));
     keep_element(project_sessions_header(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "长项目标题".to_string(),
         "/tmp/project/with/a/very/long/path".to_string(),
         4,

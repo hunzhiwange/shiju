@@ -87,7 +87,10 @@ fn session_right_click_message_preserves_id_and_coordinates() {
 #[test]
 fn session_menu_button_and_menu_can_be_constructed() {
     let _button = super::session_menu_button("重命名", Message::None);
-    let _menu = super::build_session_menu("session-1".to_string());
+    let _menu = super::build_session_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "session-1".to_string(),
+    );
 }
 
 #[test]

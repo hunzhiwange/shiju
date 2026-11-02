@@ -37,7 +37,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     app.new_session_picker_options = list;
                 }
                 Err(e) => {
-                    app.error_message = Some(format!("加载工作区列表失败: {}", e));
+                    app.set_localized_input_error(
+                        crate::app::i18n::input::ErrorField::General,
+                        "加载工作区列表失败: %s",
+                        vec![format!("{}", e).into()],
+                    );
                     app.new_session_picker_options =
                         vec![("__create_worktree__".to_string(), "创建新的独立工作区".to_string())];
                 }
@@ -81,15 +85,22 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             let requested_name = app.new_session_worktree_name.trim().to_string();
             if requested_name.is_empty() {
-                app.error_message = Some("请输入 worktree 英文名称".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "请输入 worktree 英文名称",
+                    vec![],
+                );
                 return Some(iced::Task::none());
             }
             let valid = requested_name
                 .chars()
                 .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-');
             if !valid {
-                app.error_message =
-                    Some("worktree 名称仅支持小写英文、数字、连字符(-)".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "worktree 名称仅支持小写英文、数字、连字符(-)",
+                    vec![],
+                );
                 return Some(iced::Task::none());
             }
             app.new_session_creating = true;
@@ -110,16 +121,22 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 .any(|(d, label)| d == &directory && label == "主工作区");
             if is_primary || directory == app.new_session_picker_project.clone().unwrap_or_default()
             {
-                app.new_session_delete_error = Some("主工作区禁止删除".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::WorktreeDelete,
+                    "主工作区禁止删除",
+                    vec![],
+                );
                 app.new_session_confirm_delete_directory = None;
                 app.new_session_force_delete_directory = None;
                 app.new_session_confirm_reset_directory = None;
                 return Some(iced::Task::none());
             }
             app.new_session_confirm_delete_directory = Some(directory);
+            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
             app.new_session_delete_error = None;
             app.new_session_force_delete_directory = None;
             app.new_session_confirm_reset_directory = None;
+            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
             app.new_session_reset_error = None;
             Some(iced::Task::none())
         }
@@ -135,7 +152,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::none());
             };
             if directory == project_path {
-                app.new_session_delete_error = Some("主工作区禁止删除".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::WorktreeDelete,
+                    "主工作区禁止删除",
+                    vec![],
+                );
                 app.new_session_confirm_delete_directory = None;
                 app.new_session_force_delete_directory = None;
                 return Some(iced::Task::none());
@@ -192,8 +213,12 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             match result {
                 Ok(()) => {
+                    app.localized_input_errors
+                        .remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
                     app.new_session_delete_error = None;
                     app.new_session_force_delete_directory = None;
+                    app.localized_input_errors
+                        .remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
                     app.new_session_reset_error = None;
                     if app.new_session_last_directory.as_ref() == Some(&directory) {
                         app.new_session_last_directory = None;
@@ -212,6 +237,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     )));
                 }
                 Err(e) => {
+                    app.localized_input_errors
+                        .remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
                     app.new_session_delete_error = Some(e);
                     app.new_session_force_delete_directory = Some(directory);
                 }
@@ -225,21 +252,28 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 .any(|(d, label)| d == &directory && label == "主工作区");
             if is_primary || directory == app.new_session_picker_project.clone().unwrap_or_default()
             {
-                app.new_session_reset_error = Some("主工作区禁止重置".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::WorktreeReset,
+                    "主工作区禁止重置",
+                    vec![],
+                );
                 app.new_session_confirm_reset_directory = None;
                 app.new_session_confirm_delete_directory = None;
                 app.new_session_force_delete_directory = None;
                 return Some(iced::Task::none());
             }
             app.new_session_confirm_reset_directory = Some(directory);
+            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
             app.new_session_reset_error = None;
             app.new_session_confirm_delete_directory = None;
             app.new_session_force_delete_directory = None;
+            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeDelete);
             app.new_session_delete_error = None;
             Some(iced::Task::none())
         }
         ProjectMessage::ProjectCreateSessionResetWorktreeCancel => {
             app.new_session_confirm_reset_directory = None;
+            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
             app.new_session_reset_error = None;
             Some(iced::Task::none())
         }
@@ -251,11 +285,16 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 return Some(iced::Task::none());
             };
             if directory == project_path {
-                app.new_session_reset_error = Some("主工作区禁止重置".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::WorktreeReset,
+                    "主工作区禁止重置",
+                    vec![],
+                );
                 app.new_session_confirm_reset_directory = None;
                 return Some(iced::Task::none());
             }
             app.new_session_confirm_reset_directory = None;
+            app.localized_input_errors.remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
             app.new_session_reset_error = None;
             let reset_directory = directory.clone();
             let result_directory = directory.clone();
@@ -282,10 +321,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 
             match result {
                 Ok(()) => {
+                    app.localized_input_errors
+                        .remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
                     app.new_session_reset_error = None;
-                    app.push_notification("工作区已重置".to_string());
+                    app.push_localized_notification("工作区已重置", vec![]);
                 }
                 Err(e) => {
+                    app.localized_input_errors
+                        .remove(&crate::app::i18n::input::ErrorField::WorktreeReset);
                     app.new_session_reset_error = Some(e);
                 }
             }

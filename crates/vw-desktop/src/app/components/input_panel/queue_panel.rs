@@ -206,6 +206,7 @@ fn queue_action_button(
 ///                 └── 操作按钮
 /// ```
 pub fn queue_panel(
+    i18n: crate::app::i18n::I18n,
     queue: Vec<QueueItem>,
     is_requesting: bool,
 ) -> Element<'static, crate::app::Message> {
@@ -251,28 +252,34 @@ pub fn queue_panel(
         let (can_move_up, can_move_down) = queue_move_availability(i, queue.len());
         let guide_button = queue_action_button(
             Icon::ChatTextFill,
-            "立即引导",
+            i18n.__("立即引导"),
             Some(message::ChatMessage::QueueGuide(i)),
         );
         let edit_button = queue_action_button(
             Icon::Pencil,
-            "再次编辑文字",
+            i18n.__("再次编辑文字"),
             Some(message::ChatMessage::QueueEdit(i)),
         );
-        let copy_button =
-            queue_action_button(Icon::Copy, "复制", Some(message::ChatMessage::QueueCopy(i)));
+        let copy_button = queue_action_button(
+            Icon::Copy,
+            i18n.__("复制"),
+            Some(message::ChatMessage::QueueCopy(i)),
+        );
         let move_up_button = queue_action_button(
             Icon::ArrowUp,
-            "上移",
+            i18n.__("上移"),
             can_move_up.then_some(message::ChatMessage::QueueUp(i)),
         );
         let move_down_button = queue_action_button(
             Icon::ArrowDown,
-            "下移",
+            i18n.__("下移"),
             can_move_down.then_some(message::ChatMessage::QueueDown(i)),
         );
-        let remove_button =
-            queue_action_button(Icon::Trash, "删除", Some(message::ChatMessage::QueueRemove(i)));
+        let remove_button = queue_action_button(
+            Icon::Trash,
+            i18n.__("删除"),
+            Some(message::ChatMessage::QueueRemove(i)),
+        );
         let actions = row![
             guide_button,
             edit_button,

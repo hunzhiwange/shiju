@@ -108,6 +108,7 @@ fn web_bookmark_preserves_absent_optional_values() {
 #[test]
 fn notification_clone_preserves_identity_message_and_timestamp() {
     let notification = Notification {
+        localized_message: None,
         id: 41,
         message: "saved".to_string(),
         created_at: web_time::SystemTime::UNIX_EPOCH,

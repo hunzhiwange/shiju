@@ -524,8 +524,10 @@ pub(crate) fn message_view_with_runtime<'a>(
     let body = if prefer_attachment_card_render {
         let mut attachment_body = column![].spacing(8);
         if !attachment_items.is_empty() {
-            attachment_body =
-                attachment_body.push(attachment_preview_strip(attachment_items.clone()));
+            attachment_body = attachment_body.push(attachment_preview_strip(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                attachment_items.clone(),
+            ));
         }
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         let text = normalize_display_text(text.trim()).into_owned();
@@ -540,8 +542,11 @@ pub(crate) fn message_view_with_runtime<'a>(
         }
         attachment_body
     } else if !attachment_items.is_empty() && !assistant_like {
-        let mut attachment_body =
-            column![attachment_preview_strip(attachment_items.clone())].spacing(8);
+        let mut attachment_body = column![attachment_preview_strip(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            attachment_items.clone()
+        )]
+        .spacing(8);
         let (text, selection) = split_session_control_selection(cleaned_attachment_text.trim());
         let text = normalize_display_text(text.trim()).into_owned();
         if !text.is_empty() {

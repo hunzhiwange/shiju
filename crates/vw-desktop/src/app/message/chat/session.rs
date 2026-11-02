@@ -596,7 +596,7 @@ fn fork_session_locally(
 ) -> Task<Message> {
     let root = current_session_directory(app).or_else(|| app.project_path.clone());
     if target == ForkSessionTarget::NewWorktree && root.is_none() {
-        app.push_notification("当前项目目录为空，无法创建新 worktree".to_string());
+        app.push_localized_notification("当前项目目录为空，无法创建新 worktree", vec![]);
         return Task::none();
     }
 
@@ -758,29 +758,43 @@ fn request_session_compaction_confirmation(
     project_path: String,
 ) -> Task<Message> {
     if session_id.trim().is_empty() {
-        return app.show_warning_toast("当前没有可压缩的会话");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "当前没有可压缩的会话",
+            vec![],
+        );
     }
     if app.session_is_requesting(&session_id) {
-        return app.show_warning_toast("请等待当前回复完成后再压缩会话");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待当前回复完成后再压缩会话",
+            vec![],
+        );
     }
     if session_info_is_compacting(app, &session_id) {
-        return app.show_info_toast("会话压缩正在进行中");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Info,
+            "会话压缩正在进行中",
+            vec![],
+        );
     }
 
     app.show_session_actions_popover = false;
     app.session_menu_id = None;
     app.session_menu_anchor = None;
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     Task::perform(
         async move {
-            let result = rfd::AsyncMessageDialog::new()
-                .set_level(rfd::MessageLevel::Warning)
-                .set_title("压缩当前会话")
-                .set_description(
-                    "压缩会生成摘要检查点以缩短模型上下文，原始聊天记录保持完整。确认继续吗？",
-                )
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .show()
-                .await;
+            let result =
+                rfd::AsyncMessageDialog::new()
+                    .set_level(rfd::MessageLevel::Warning)
+                    .set_title(i18n.__("压缩当前会话"))
+                    .set_description(i18n.__(
+                        "压缩会生成摘要检查点以缩短模型上下文，原始聊天记录保持完整。确认继续吗？",
+                    ))
+                    .set_buttons(rfd::MessageButtons::YesNo)
+                    .show()
+                    .await;
             (session_id, project_path, matches!(result, rfd::MessageDialogResult::Yes))
         },
         |(session_id, project_path, confirmed)| {
@@ -803,10 +817,18 @@ fn compact_session(
         return Task::none();
     }
     if app.session_is_requesting(&session_id) {
-        return app.show_warning_toast("请等待当前回复完成后再压缩会话");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待当前回复完成后再压缩会话",
+            vec![],
+        );
     }
     if session_info_is_compacting(app, &session_id) {
-        return app.show_info_toast("会话压缩正在进行中");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Info,
+            "会话压缩正在进行中",
+            vec![],
+        );
     }
 
     set_session_compacting(app, &session_id, Some(crate::app::time::now_ms()));
@@ -856,9 +878,19 @@ fn finish_session_compaction(
 ) -> Task<Message> {
     set_session_compacting(app, &session_id, None);
     match result {
-        Ok(true) => app.show_success_toast("会话压缩完成"),
-        Ok(false) => app.show_info_toast("当前会话没有需要压缩的较早历史"),
-        Err(error) => app.show_error_toast(format!("会话压缩失败：{error}")),
+        Ok(true) => {
+            app.show_localized_toast(crate::app::state::ToastKind::Success, "会话压缩完成", vec![])
+        }
+        Ok(false) => app.show_localized_toast(
+            crate::app::state::ToastKind::Info,
+            "当前会话没有需要压缩的较早历史",
+            vec![],
+        ),
+        Err(error) => app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "会话压缩失败：%s",
+            vec![format!("{}", error).into()],
+        ),
     }
 }
 
@@ -923,16 +955,32 @@ fn generate_git_commit_message(
     action: QuickMessageGitCommitAction,
 ) -> Task<Message> {
     if app.git_commit_in_progress {
-        return app.show_warning_toast("Git 提交正在进行中");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "Git 提交正在进行中",
+            vec![],
+        );
     }
     if app.current_session_is_requesting() {
-        return app.show_warning_toast("请等待当前回复完成后再生成 Git 提交信息");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请等待当前回复完成后再生成 Git 提交信息",
+            vec![],
+        );
     }
     if app.quick_message_handoff.is_some() {
-        return app.show_warning_toast("另一个快捷动作正在进行中");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "另一个快捷动作正在进行中",
+            vec![],
+        );
     }
     if app.current_session_runtime().task_mode_enabled {
-        return app.show_warning_toast("请先切换到聊天模式，再生成 Git 提交信息");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请先切换到聊天模式，再生成 Git 提交信息",
+            vec![],
+        );
     }
     if matches!(action, QuickMessageGitCommitAction::CommitSelected)
         && app.staged_files_selected.is_empty()
@@ -940,7 +988,11 @@ fn generate_git_commit_message(
         && app.staged_lines_selected.is_empty()
         && app.staged_old_lines_selected.is_empty()
     {
-        return app.show_warning_toast("请先选择要提交的 Git 变更");
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "请先选择要提交的 Git 变更",
+            vec![],
+        );
     }
 
     let prompt = git_commit_generation_prompt(app, &project_path, &action);
@@ -1116,7 +1168,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 Err(error) => {
                     app.files.extend(pending.item.attachments);
-                    app.push_notification(format!("解析项目失败，无法创建会话: {}", error));
+                    app.push_localized_notification(
+                        "解析项目失败，无法创建会话: %s",
+                        vec![format!("{}", error).into()],
+                    );
                     Task::none()
                 }
             }
@@ -1224,7 +1279,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         }
         ChatMessage::AcpAgentSelected(agent) => {
             if app.current_session_has_started() {
-                return app.show_warning_toast("会话开始后不能切换 ACP 后端");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "会话开始后不能切换 ACP 后端",
+                    vec![],
+                );
             }
             let (model, auto_model) = {
                 let runtime = app.current_session_runtime_mut();
@@ -1348,7 +1407,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let runtime = app.current_session_runtime_mut();
             runtime.agent = None;
             if !runtime.tool_selector.toggle_bucket(bucket) {
-                app.push_notification("至少保留一个工具分桶".to_string());
+                app.push_localized_notification("至少保留一个工具分桶", vec![]);
             } else {
                 runtime.tool_selector.reconcile_tools(&base_tools);
             }
@@ -1420,7 +1479,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let runtime = app.current_session_runtime_mut();
             runtime.agent = None;
             if !runtime.tool_selector.toggle_group_tools(&base_tools, group) {
-                app.push_notification("至少保留一个会话工具".to_string());
+                app.push_localized_notification("至少保留一个会话工具", vec![]);
             }
             Task::none()
         }
@@ -1436,7 +1495,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let runtime = app.current_session_runtime_mut();
             runtime.agent = None;
             if !runtime.tool_selector.invert_tools(&base_tools) {
-                app.push_notification("当前工具范围无法直接反选".to_string());
+                app.push_localized_notification("当前工具范围无法直接反选", vec![]);
             }
             Task::none()
         }
@@ -1445,7 +1504,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             let runtime = app.current_session_runtime_mut();
             runtime.agent = None;
             if !runtime.tool_selector.toggle_tool(&base_tools, &tool_id) {
-                app.push_notification("至少保留一个会话工具".to_string());
+                app.push_localized_notification("至少保留一个会话工具", vec![]);
             }
             Task::none()
         }
@@ -1566,7 +1625,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             let root = current_session_directory(app).or_else(|| app.project_path.clone());
             if target == ForkSessionTarget::NewWorktree && root.is_none() {
-                app.push_notification("当前项目目录为空，无法创建新 worktree".to_string());
+                app.push_localized_notification("当前项目目录为空，无法创建新 worktree", vec![]);
                 return Task::none();
             }
             let endpoint = gateway_endpoint(app);
@@ -1663,14 +1722,20 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     shared_chat,
                     app.chat_message_ids.clone(),
                 );
-                app.push_notification(match target {
-                    ForkSessionTarget::Local => "已分叉到新会话".to_string(),
-                    ForkSessionTarget::NewWorktree => "已分叉到新工作树会话".to_string(),
-                });
+                app.push_localized_notification(
+                    match target {
+                        ForkSessionTarget::Local => "已分叉到新会话",
+                        ForkSessionTarget::NewWorktree => "已分叉到新工作树会话",
+                    },
+                    vec![],
+                );
                 Task::none()
             }
             Err(error) => {
-                app.push_notification(format!("分叉会话失败: {}", error));
+                app.push_localized_notification(
+                    "分叉会话失败: %s",
+                    vec![format!("{}", error).into()],
+                );
                 Task::none()
             }
         },
@@ -1712,10 +1777,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     shared_chat,
                     app.chat_message_ids.clone(),
                 );
-                app.push_notification(match target {
-                    ForkSessionTarget::Local => "已从本地历史分叉到新会话".to_string(),
-                    ForkSessionTarget::NewWorktree => "已从本地历史分叉到新工作树会话".to_string(),
-                });
+                app.push_localized_notification(
+                    match target {
+                        ForkSessionTarget::Local => "已从本地历史分叉到新会话",
+                        ForkSessionTarget::NewWorktree => "已从本地历史分叉到新工作树会话",
+                    },
+                    vec![],
+                );
 
                 let now = crate::app::time::now_ms();
                 let local = models::ChatSession {
@@ -1731,7 +1799,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 save_session_task(local, directory.or_else(|| Some(info.directory)))
             }
             Err(error) => {
-                app.push_notification(format!("本地分叉会话失败: {}", error));
+                app.push_localized_notification(
+                    "本地分叉会话失败: %s",
+                    vec![format!("{}", error).into()],
+                );
                 Task::none()
             }
         },
@@ -1788,18 +1859,21 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     match action {
                         MessageIndexedSessionAction::Reset { revert_code } => {
                             if revert_code {
-                                app.push_notification(
-                                    "网关没有可回滚历史，已仅重置本地会话历史".to_string(),
+                                app.push_localized_notification(
+                                    "网关没有可回滚历史，已仅重置本地会话历史",
+                                    vec![],
                                 );
                             }
                             reset_session_locally(app, session_id, msg_idx)
                         }
                         MessageIndexedSessionAction::Fork(target) => {
-                            app.push_notification(format!(
-                                "无法恢复消息 ID: 本地 {} 条，网关 {} 条，改用本地历史分叉",
-                                app.chat.len(),
-                                ids.len()
-                            ));
+                            app.push_localized_notification(
+                                "无法恢复消息 ID: 本地 %s 条，网关 %s 条，改用本地历史分叉",
+                                vec![
+                                    format!("{}", app.chat.len()).into(),
+                                    format!("{}", ids.len()).into(),
+                                ],
+                            );
                             fork_session_locally(app, session_id, msg_idx, target)
                         }
                     }
@@ -1807,14 +1881,17 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 Err(error) => {
                     if let MessageIndexedSessionAction::Reset { revert_code } = action {
                         if revert_code {
-                            app.push_notification(format!(
-                                "网关历史不可用，已仅重置本地会话历史: {}",
-                                error
-                            ));
+                            app.push_localized_notification(
+                                "网关历史不可用，已仅重置本地会话历史: %s",
+                                vec![format!("{}", error).into()],
+                            );
                         }
                         reset_session_locally(app, session_id, msg_idx)
                     } else {
-                        app.push_notification(format!("恢复消息 ID 失败: {}", error));
+                        app.push_localized_notification(
+                            "恢复消息 ID 失败: %s",
+                            vec![format!("{}", error).into()],
+                        );
                         Task::none()
                     }
                 }
@@ -1926,7 +2003,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 save_session_task(local, session_directory)
             }
             Err(error) => {
-                app.push_notification(format!("重置会话失败: {}", error));
+                app.push_localized_notification(
+                    "重置会话失败: %s",
+                    vec![format!("{}", error).into()],
+                );
                 Task::none()
             }
         },
@@ -1974,7 +2054,11 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             });
         let Some(inferred_project_id) = inferred_project_id else {
             if directory.trim().is_empty() {
-                app.error_message = Some("未选择项目，无法创建会话".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "未选择项目，无法创建会话",
+                    vec![],
+                );
                 return Task::none();
             }
             // 项目页面已打开时，元数据可能尚未返回；由网关解析真实身份后继续发送。

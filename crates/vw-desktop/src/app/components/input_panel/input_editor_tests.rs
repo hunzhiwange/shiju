@@ -101,7 +101,9 @@ fn build_input_editor_ignores_context_menu_anchor_when_closed() {
 
 #[test]
 fn input_context_menu_contains_four_actions() {
-    let menu = input_context_menu();
+    let menu = input_context_menu(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
 
     assert_eq!(menu.as_widget().size().width, Length::Shrink);
 }

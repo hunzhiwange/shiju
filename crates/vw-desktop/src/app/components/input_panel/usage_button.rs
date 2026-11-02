@@ -67,28 +67,72 @@ pub fn usage_button(app: &App) -> Element<'_, Message> {
     let usage_tip = container(
         column![
             // 输入使用情况：输入 token 数 / 当前请求输入窗口
-            text(format!("输入窗口: {} / {}", input_tokens, input_limit))
-                .size(12)
-                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
-            text(format!("上下文上限: {}", context_limit))
-                .size(12)
-                .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "输入窗口: %d / %u",
+                    input_tokens,
+                    input_limit
+                )
+                .expect("valid input usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "上下文上限: %d",
+                    context_limit
+                )
+                .expect("valid input usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
             // 使用率百分比，使用黄色高亮显示
-            text(format!("使用率: {:.1}%", usage_percent)).size(12).style(|_theme: &Theme| {
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "使用率: %.1f%%",
+                    usage_percent
+                )
+                .expect("valid input usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::from_rgb8(255, 225, 80)) }
             }),
             // 累计 Token 数量
-            text(format!("累计 Token: {}", total_tokens)).size(12).style(|_theme: &Theme| {
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "累计 Token: %d",
+                    total_tokens
+                )
+                .expect("valid input usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.9)) }
             }),
             // 预估成本
-            text(format!("预估成本: ${:.4}", estimated_cost)).size(12).style(|_theme: &Theme| {
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "预估成本: $%.4f",
+                    estimated_cost
+                )
+                .expect("valid input usage template")
+            )
+            .size(12)
+            .style(|_theme: &Theme| {
                 iced::widget::text::Style { color: Some(Color::WHITE.scale_alpha(0.9)) }
             }),
             if app.usage_model_info.as_ref().is_some_and(|info| info.limit_is_default) {
-                text("限制：使用保守默认值").size(12).style(|_theme: &Theme| {
-                    iced::widget::text::Style { color: Some(Color::from_rgb8(255, 225, 80)) }
-                })
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("限制：使用保守默认值"))
+                    .size(12)
+                    .style(|_theme: &Theme| iced::widget::text::Style {
+                        color: Some(Color::from_rgb8(255, 225, 80)),
+                    })
             } else {
                 text("").size(12)
             },

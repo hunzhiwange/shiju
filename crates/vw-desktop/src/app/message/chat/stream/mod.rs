@@ -378,7 +378,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     });
                 }
                 if failed {
-                    return app.show_error_toast("MCP 应用加载或通信失败，请重试".to_string());
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "MCP 应用加载或通信失败，请重试",
+                        vec![],
+                    );
                 }
             }
             Task::none()
@@ -423,7 +427,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 match launch {
                     Ok(panel) => app.get_session_runtime_mut(&session).mcp_app_panels.push(panel),
                     Err(error) => {
-                        app_task = app.show_error_toast(format!("MCP 应用加载失败: {error}"));
+                        app_task = app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "MCP 应用加载失败: %s",
+                            vec![format!("{}", error).into()],
+                        );
                     }
                 }
             }
@@ -552,9 +560,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             ])
         }
         ChatMessage::SessionSaveAck => Task::none(),
-        ChatMessage::SessionSaveFailed(error) => {
-            app.show_error_toast(format!("会话保存失败：{error}"))
-        }
+        ChatMessage::SessionSaveFailed(error) => app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "会话保存失败：%s",
+            vec![format!("{}", error).into()],
+        ),
         ChatMessage::AgentStepCostLoaded(_id, session_id, step_index, resolved_model, cost) => {
             steps::handle_agent_step_cost_loaded(app, session_id, step_index, resolved_model, cost)
         }
@@ -573,7 +583,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::AgentStreamCancelled(id) => handle_agent_stream_cancelled(app, id),
         ChatMessage::AgentStreamStopFinished(_, result) => match result {
             Ok(_) => Task::none(),
-            Err(error) => app.show_error_toast(format!("停止后台请求失败：{error}")),
+            Err(error) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "停止后台请求失败：%s",
+                vec![format!("{}", error).into()],
+            ),
         },
         ChatMessage::AgentStreamError(id, err) => {
             stream_events::handle_agent_stream_error(app, id, err)

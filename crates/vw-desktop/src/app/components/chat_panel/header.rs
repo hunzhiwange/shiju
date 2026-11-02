@@ -570,14 +570,14 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
         column![
             text(
                 crate::app::i18n::I18n::new(app.desktop_locale)
-                    .format("输入窗口: %u / %u", &[input_tokens.into(), input_limit.into()])
+                    .format("输入窗口: %d / %u", &[input_tokens.into(), input_limit.into()])
                     .expect("valid usage template")
             )
             .size(12)
             .style(|_theme: &Theme| iced::widget::text::Style { color: Some(Color::WHITE) }),
             text(
                 crate::app::i18n::I18n::new(app.desktop_locale)
-                    .format("上下文上限: %u", &[context_limit.into()])
+                    .format("上下文上限: %d", &[context_limit.into()])
                     .expect("valid usage template")
             )
             .size(12)
@@ -593,7 +593,7 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
             }),
             text(
                 crate::app::i18n::I18n::new(app.desktop_locale)
-                    .format("累计 Token: %u", &[total_tokens.into()])
+                    .format("累计 Token: %d", &[total_tokens.into()])
                     .expect("valid usage template")
             )
             .size(12)

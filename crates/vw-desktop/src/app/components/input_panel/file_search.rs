@@ -97,7 +97,11 @@ pub fn file_search_overlay(app: &App) -> Element<'_, Message> {
     let mut list = column![].spacing(4);
 
     if files.is_empty() {
-        list = list.push(text("No matching files").size(13).style(empty_file_search_text_style));
+        list = list.push(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的文件"))
+                .size(13)
+                .style(empty_file_search_text_style),
+        );
     } else {
         for (i, entry) in files.iter().take(20).enumerate() {
             let path = &entry.path;
@@ -130,7 +134,12 @@ pub fn file_search_overlay(app: &App) -> Element<'_, Message> {
         column![
             container(text(highlighted_query).size(12).style(file_search_query_text_style))
                 .padding([2, 2]),
-            scrollable(list).id(app.file_search_scroll_id.clone()).height(Length::Fixed(320.0))
+            scrollable(container(list).padding([0, 7]))
+                .id(app.file_search_scroll_id.clone())
+                .height(Length::Fixed(320.0))
+                .direction(iced::widget::scrollable::Direction::Vertical(
+                    iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4)
+                ))
         ]
         .spacing(6),
     )

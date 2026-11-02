@@ -129,8 +129,20 @@ fn agent_sessions_popover_hides_without_running_children_and_counts_visible_item
     let app = crate::app::App::new().0;
 
     assert!(agent_sessions_entry(&app, &[]).is_none());
-    assert_eq!(agent_sessions_badge_label(1), "1 个工作中");
-    assert_eq!(agent_sessions_badge_label(3), "3 个工作中");
+    assert_eq!(
+        agent_sessions_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            1
+        ),
+        "1 个工作中"
+    );
+    assert_eq!(
+        agent_sessions_badge_label(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            3
+        ),
+        "3 个工作中"
+    );
 }
 
 #[test]

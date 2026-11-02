@@ -86,7 +86,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             match item.kind {
                 vw_config_types::ui::QuickMessageKind::Message => {
                     if item.text.trim().is_empty() {
-                        return app.show_warning_toast("快捷消息内容不能为空");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "快捷消息内容不能为空",
+                            vec![],
+                        );
                     }
                     app.current_session_runtime_mut().input_editor =
                         iced::widget::text_editor::Content::with_text(&item.text);
@@ -95,7 +99,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 vw_config_types::ui::QuickMessageKind::FillInput => {
                     if item.text.trim().is_empty() {
-                        return app.show_warning_toast("快捷消息内容不能为空");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "快捷消息内容不能为空",
+                            vec![],
+                        );
                     }
                     crate::app::ui::chat::append_line(
                         &mut app.current_session_runtime_mut().input_editor,
@@ -108,7 +116,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     let Some(project_path) =
                         app.project_path.clone().filter(|path| !path.trim().is_empty())
                     else {
-                        return app.show_warning_toast("请先打开项目，再创建新会话");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "请先打开项目，再创建新会话",
+                            vec![],
+                        );
                     };
                     Task::done(Message::Project(message::ProjectMessage::ProjectCreateSession(
                         project_path,
@@ -116,7 +128,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 vw_config_types::ui::QuickMessageKind::SummarizeAndCreateNewSession => {
                     let Some(session_id) = app.active_session_id.clone() else {
-                        return app.show_warning_toast("当前没有可压缩的会话");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "当前没有可压缩的会话",
+                            vec![],
+                        );
                     };
                     let Some(project_path) = app
                         .known_session_directory(&session_id)
@@ -125,7 +141,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                             app.project_path.clone().filter(|path| !path.trim().is_empty())
                         })
                     else {
-                        return app.show_warning_toast("当前会话没有可用的项目目录");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "当前会话没有可用的项目目录",
+                            vec![],
+                        );
                     };
                     Task::done(Message::Chat(ChatMessage::CompactSessionRequested {
                         session_id,
@@ -134,13 +154,21 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 vw_config_types::ui::QuickMessageKind::RefreshGitChanges => {
                     if app.project_path.as_deref().is_none_or(|path| path.trim().is_empty()) {
-                        return app.show_warning_toast("请先打开项目，再刷新 Git 变更");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "请先打开项目，再刷新 Git 变更",
+                            vec![],
+                        );
                     }
                     Task::done(Message::Project(message::ProjectMessage::FileManagerRefreshChanges))
                 }
                 vw_config_types::ui::QuickMessageKind::SelectAllGitChanges => {
                     if app.git_changed_files.is_empty() {
-                        return app.show_warning_toast("当前没有可选择的 Git 变更");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "当前没有可选择的 Git 变更",
+                            vec![],
+                        );
                     }
                     Task::done(Message::Git(message::GitMessage::SelectAllVisibleFileLines(
                         app.git_changed_files.clone(),
@@ -148,7 +176,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 vw_config_types::ui::QuickMessageKind::InvertGitSelection => {
                     if app.git_changed_files.is_empty() {
-                        return app.show_warning_toast("当前没有可反选的 Git 变更");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "当前没有可反选的 Git 变更",
+                            vec![],
+                        );
                     }
                     Task::done(Message::Git(message::GitMessage::InvertVisibleFileLines(
                         app.git_changed_files.clone(),
@@ -159,7 +191,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 vw_config_types::ui::QuickMessageKind::StageAllAndCommitGitChanges => {
                     let Some(project_path) = git_quick_action_path(app) else {
-                        return app.show_warning_toast("请先打开项目，再暂存并提交 Git 变更");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "请先打开项目，再暂存并提交 Git 变更",
+                            vec![],
+                        );
                     };
                     Task::done(Message::Chat(ChatMessage::GenerateGitCommitMessage {
                         project_path,
@@ -168,7 +204,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 }
                 vw_config_types::ui::QuickMessageKind::CommitSelectedGitChanges => {
                     let Some(project_path) = git_quick_action_path(app) else {
-                        return app.show_warning_toast("请先打开项目，再提交已选 Git 变更");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "请先打开项目，再提交已选 Git 变更",
+                            vec![],
+                        );
                     };
                     Task::done(Message::Chat(ChatMessage::GenerateGitCommitMessage {
                         project_path,
@@ -238,7 +278,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         ChatMessage::StopPlanRun(task_id) => {
             let task_id = task_id.trim().to_string();
             if task_id.is_empty() {
-                return app.show_warning_toast("无法停止：plan-run task ID 为空");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "无法停止：plan-run task ID 为空",
+                    vec![],
+                );
             }
             let result_task_id = task_id.clone();
             Task::perform(
@@ -254,14 +298,21 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             )
         }
         ChatMessage::StopPlanRunFinished { task_id, result } => match result {
-            Ok(status) if status.task_id == task_id => {
-                app.show_info_toast("已请求停止，正在等待运行状态收敛")
-            }
-            Ok(status) => app.show_error_toast(format!(
-                "停止 plan-run 失败：响应任务不匹配（请求 {task_id}，响应 {}）",
-                status.task_id
-            )),
-            Err(error) => app.show_error_toast(format!("停止 plan-run 失败：{error}")),
+            Ok(status) if status.task_id == task_id => app.show_localized_toast(
+                crate::app::state::ToastKind::Info,
+                "已请求停止，正在等待运行状态收敛",
+                vec![],
+            ),
+            Ok(status) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "停止 plan-run 失败：响应任务不匹配（请求 %s，响应 %s）",
+                vec![task_id.into(), status.task_id.into()],
+            ),
+            Err(error) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "停止 plan-run 失败：%s",
+                vec![format!("{}", error).into()],
+            ),
         },
         ChatMessage::OpenInputContextMenu { x, y } => {
             context_menus::handle_open_input_context_menu(app, x, y)

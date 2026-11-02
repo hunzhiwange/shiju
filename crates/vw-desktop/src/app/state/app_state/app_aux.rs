@@ -4,6 +4,7 @@
 /// 包含消息 ID、内容和创建时间。
 #[derive(Debug, Clone)]
 pub struct Notification {
+    pub localized_message: Option<crate::app::i18n::format::Message>,
     /// 通知的唯一标识符
     pub id: usize,
     /// 通知消息内容
@@ -11,6 +12,15 @@ pub struct Notification {
     /// 通知创建时间
     #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     pub created_at: web_time::SystemTime,
+}
+
+impl Notification {
+    pub fn render(&self, i18n: crate::app::i18n::I18n) -> String {
+        self.localized_message
+            .as_ref()
+            .map(|message| message.render(i18n).expect("valid notification template"))
+            .unwrap_or_else(|| self.message.clone())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

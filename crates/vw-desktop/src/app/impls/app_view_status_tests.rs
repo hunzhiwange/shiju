@@ -170,6 +170,7 @@ fn status_bar_builds_overcomplete_progress_as_completion() {
 fn status_bar_builds_notification_variant() {
     let (mut app, _) = crate::app::App::new();
     app.notifications.push(crate::app::state::Notification {
+        localized_message: None,
         id: 1,
         message: "warning".to_string(),
         created_at: web_time::SystemTime::UNIX_EPOCH,
@@ -184,6 +185,7 @@ fn status_bar_builds_multiple_notification_count() {
     let (mut app, _) = crate::app::App::new();
     for id in 1..=3 {
         app.notifications.push(crate::app::state::Notification {
+            localized_message: None,
             id,
             message: format!("warning {id}"),
             created_at: web_time::SystemTime::UNIX_EPOCH,

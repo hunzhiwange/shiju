@@ -146,7 +146,11 @@ pub fn model_toggle_button(
     .style(chevron_style);
 
     // 根据是否启用自动模型确定显示的标签文本
-    let toggle_label = model_toggle_label(&app.model_settings.providers, auto_model, model);
+    let toggle_label = if auto_model {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型").to_owned()
+    } else {
+        model_toggle_label(&app.model_settings.providers, auto_model, model)
+    };
 
     // 根据当前状态确定按钮图标
     let model_icon_svg = if auto_model {
@@ -227,11 +231,14 @@ pub fn model_popover_content<'a>(
     let query = app.model_settings.query.trim().to_ascii_lowercase();
 
     // 搜索输入框
-    let search = text_input("搜索模型…", &app.model_settings.query)
-        .on_input(|v| Message::Settings(message::SettingsMessage::ModelQueryChanged(v)))
-        .padding([8, 10])
-        .size(13)
-        .style(settings_text_input_style);
+    let search = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索模型…"),
+        &app.model_settings.query,
+    )
+    .on_input(|v| Message::Settings(message::SettingsMessage::ModelQueryChanged(v)))
+    .padding([8, 10])
+    .size(13)
+    .style(settings_text_input_style);
 
     // 模型列表容器
     let mut model_list = column![].spacing(8);
@@ -240,9 +247,13 @@ pub fn model_popover_content<'a>(
     // 处理加载状态和空列表情况
     if app.model_settings.loading && app.model_settings.providers.is_empty() {
         // 加载中且无数据时显示加载提示
-        model_list = model_list.push(text("加载中…").size(13).style(|t: &Theme| {
-            iced::widget::text::Style { color: Some(t.extended_palette().secondary.base.text) }
-        }));
+        model_list = model_list.push(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中…")).size(13).style(
+                |t: &Theme| iced::widget::text::Style {
+                    color: Some(t.extended_palette().secondary.base.text),
+                },
+            ),
+        );
     } else {
         // 遍历所有 provider 及其模型
         for p in &app.model_settings.providers {
@@ -285,10 +296,13 @@ pub fn model_popover_content<'a>(
 
                 // 选中状态显示勾选图标，否则显示占位空间
                 let selected_badge: Element<'_, Message> = if selected {
-                    row![text("已选择").size(11), icon_svg(Icon::Check, 14.0)]
-                        .spacing(4)
-                        .align_y(Alignment::Center)
-                        .into()
+                    row![
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选择")).size(11),
+                        icon_svg(Icon::Check, 14.0)
+                    ]
+                    .spacing(4)
+                    .align_y(Alignment::Center)
+                    .into()
                 } else {
                     Space::new().width(Length::Fixed(44.0)).into()
                 };
@@ -341,12 +355,16 @@ pub fn model_popover_content<'a>(
 
         // 如果没有任何可用模型，显示提示信息
         if !any_models {
-            model_list =
-                model_list.push(text("暂无可选模型（请先在系统设置里启用模型）").size(13).style(
-                    |t: &Theme| iced::widget::text::Style {
-                        color: Some(t.extended_palette().secondary.base.text),
-                    },
-                ));
+            model_list = model_list.push(
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("暂无可选模型（请先在系统设置里启用模型）"),
+                )
+                .size(13)
+                .style(|t: &Theme| iced::widget::text::Style {
+                    color: Some(t.extended_palette().secondary.base.text),
+                }),
+            );
         }
     }
 
@@ -392,7 +410,7 @@ pub fn model_popover_content<'a>(
                 // 自动模型开关
                 row![
                     themed_svg_handle(auto_icon(), 18.0),
-                    text("自动模型"),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
                     container(text("")).width(Length::Fill),
                     toggler(auto_model)
                         .on_toggle(|b| Message::Chat(message::ChatMessage::AutoModelToggled(b)))
@@ -401,7 +419,7 @@ pub fn model_popover_content<'a>(
                 // 任务模式开关
                 row![
                     icon_svg(Icon::Grid1x2, 18.0),
-                    text("任务模式"),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务模式")),
                     container(text("")).width(Length::Fill),
                     toggler(task_mode_enabled)
                         .on_toggle(|b| Message::Chat(message::ChatMessage::TaskModeToggled(b)))
@@ -413,17 +431,26 @@ pub fn model_popover_content<'a>(
         .padding([6, 8]),
         container(
             column![
-                text("手工填写模型").size(12),
-                text_input("auto / provider/model / 自定义模型", model)
-                    .on_input(|value| {
-                        Message::Chat(message::ChatMessage::ModelInputChanged(
-                            normalize_model_input(&value),
-                        ))
-                    })
-                    .padding([8, 10])
-                    .size(13)
-                    .style(settings_text_input_style),
-                text("兼容特殊调度器或未出现在列表中的模型 ID").size(11).style(|theme: &Theme| {
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")).size(12),
+                text_input(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("auto / provider/model / 自定义模型"),
+                    model
+                )
+                .on_input(|value| {
+                    Message::Chat(message::ChatMessage::ModelInputChanged(normalize_model_input(
+                        &value,
+                    )))
+                })
+                .padding([8, 10])
+                .size(13)
+                .style(settings_text_input_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("兼容特殊调度器或未出现在列表中的模型 ID")
+                )
+                .size(11)
+                .style(|theme: &Theme| {
                     let palette = theme.palette();
                     let is_dark =
                         palette.background.r + palette.background.g + palette.background.b < 1.5;

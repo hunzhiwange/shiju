@@ -183,7 +183,14 @@ fn task_mode_reasoning_effort_option_displays_every_shared_label() {
     ];
 
     for (effort, expected) in cases {
-        assert_eq!(TaskModeReasoningEffortOption(effort).to_string(), expected);
+        assert_eq!(
+            TaskModeReasoningEffortOption(
+                effort,
+                super::reasoning_selector::reasoning_effort_label(effort)
+            )
+            .to_string(),
+            expected
+        );
     }
 }
 

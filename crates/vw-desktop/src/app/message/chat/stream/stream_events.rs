@@ -222,7 +222,11 @@ fn complete_quick_message_handoff(
             let Some(generated) = generated else {
                 app.quick_message_handoff = None;
                 app.git_commit_in_progress = false;
-                return Some(app.show_warning_toast("AI 未生成有效的提交标题和摘要，未执行提交"));
+                return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "AI 未生成有效的提交标题和摘要，未执行提交",
+                    vec![],
+                ));
             };
             let current_project_path =
                 crate::app::components::git_panel::git_repo_path_for_app(app)
@@ -230,7 +234,11 @@ fn complete_quick_message_handoff(
             if current_project_path.as_deref() != Some(project_path.as_str()) {
                 app.quick_message_handoff = None;
                 app.git_commit_in_progress = false;
-                return Some(app.show_warning_toast("Git 工作树已切换，未执行提交"));
+                return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "Git 工作树已切换，未执行提交",
+                    vec![],
+                ));
             }
 
             app.git_commit_type = None;
@@ -757,9 +765,11 @@ pub(super) fn handle_agent_stream_session_delta_saved(
                 runtime.stream_save_flush_scheduled = false;
                 tracing::warn!(target: "vw_desktop", session_id = %session_id, error = %error,
                     "stream message save stopped; keeping unsaved records");
-                return app.show_error_toast(format!(
-                    "会话消息保存失败，已停止自动重试，待存消息仍保留在内存中：{error}"
-                ));
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "会话消息保存失败，已停止自动重试，待存消息仍保留在内存中：%s",
+                    vec![format!("{}", error).into()],
+                );
             }
             tracing::debug!(target: "vw_desktop", session_id = %session_id, error = %error,
                 "retrying stream message save");

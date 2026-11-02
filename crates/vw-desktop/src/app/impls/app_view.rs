@@ -171,40 +171,46 @@ impl App {
             use iced::widget::{button, column, container, row, text};
             use iced::{Background, Border, Color, Length};
 
-            let card = container(
-                column![
-                    text("操作失败").size(20).color(Color::from_rgb(0.86, 0.2, 0.2)),
-                    text(error).size(14).width(Length::Fill),
-                    row![
-                        container(text("")).width(Length::Fill),
-                        button(text("知道了").size(14))
-                            .on_press(Message::CloseError)
-                            .padding([8, 12])
-                            .style(|theme, status| {
-                                let mut style = button::primary(theme, status);
-                                style.border.radius = 8.0.into();
-                                style
-                            })
+            let card =
+                container(
+                    column![
+                        text("操作失败").size(20).color(Color::from_rgb(0.86, 0.2, 0.2)),
+                        text(self.render_input_error(
+                            crate::app::i18n::input::ErrorField::General,
+                            error
+                        ))
+                        .size(14)
+                        .width(Length::Fill),
+                        row![
+                            container(text("")).width(Length::Fill),
+                            button(text("知道了").size(14))
+                                .on_press(Message::CloseError)
+                                .padding([8, 12])
+                                .style(|theme, status| {
+                                    let mut style = button::primary(theme, status);
+                                    style.border.radius = 8.0.into();
+                                    style
+                                })
+                        ]
+                        .align_y(iced::Alignment::Center)
                     ]
-                    .align_y(iced::Alignment::Center)
-                ]
-                .spacing(12),
-            )
-            .width(Length::Fixed(560.0))
-            .padding(16)
-            .style(|theme: &iced::Theme| {
-                let palette = theme.extended_palette();
-                container::Style {
-                    background: Some(Background::Color(palette.background.base.color)),
-                    text_color: Some(palette.background.base.text),
-                    border: Border {
-                        radius: 12.0.into(),
-                        width: 1.0,
-                        color: palette.secondary.weak.color,
-                    },
-                    ..Default::default()
-                }
-            });
+                    .spacing(12),
+                )
+                .width(Length::Fixed(560.0))
+                .padding(16)
+                .style(|theme: &iced::Theme| {
+                    let palette = theme.extended_palette();
+                    container::Style {
+                        background: Some(Background::Color(palette.background.base.color)),
+                        text_color: Some(palette.background.base.text),
+                        border: Border {
+                            radius: 12.0.into(),
+                            width: 1.0,
+                            color: palette.secondary.weak.color,
+                        },
+                        ..Default::default()
+                    }
+                });
 
             iced::widget::stack![
                 main_view,

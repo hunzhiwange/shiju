@@ -533,7 +533,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         ProjectMessage::ProjectEditRuntimeSaved(res) => {
             if let Err(err) = res {
-                app.error_message = Some(format!("保存项目扩展配置失败: {}", err));
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "保存项目扩展配置失败: %s",
+                    vec![format!("{}", err).into()],
+                );
             }
             Some(iced::Task::none())
         }

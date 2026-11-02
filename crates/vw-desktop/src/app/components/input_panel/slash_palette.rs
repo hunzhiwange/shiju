@@ -105,13 +105,29 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
 
     let mut list = column![].spacing(6);
     if sections.is_empty() {
-        list = list.push(text("No matching items").size(13).style(empty_text_style));
+        list = list.push(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的项目"))
+                .size(13)
+                .style(empty_text_style),
+        );
     } else {
         let mut flat_index = 0usize;
         for section in &sections {
             list = list.push(
-                container(text(section.kind.label()).size(11).style(section_header_style))
-                    .padding(Padding::from([4, 8])),
+                container(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(
+                        match section.kind.label() {
+                            "Skills" => "技能",
+                            "Tools" => "工具",
+                            "MCP" => "MCP 服务",
+                            "Models" => "模型",
+                            _ => "ACP 智能体",
+                        },
+                    ))
+                    .size(11)
+                    .style(section_header_style),
+                )
+                .padding(Padding::from([4, 8])),
             );
 
             for entry in &section.entries {
@@ -123,10 +139,27 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
                     .height(Length::Fixed(14.0))
                     .style(icon_style);
 
-                let mut label_col = column![text(entry.label.clone()).size(13)].spacing(2);
+                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+                let built_in = match (entry.kind, entry.id.as_str()) {
+                    (SlashPaletteKind::Model, "auto") => Some(("自动模型", "自动选择模型")),
+                    (SlashPaletteKind::Acp, "") => Some(("默认智能体", "清除 ACP 选择")),
+                    _ => None,
+                };
+                let label = built_in
+                    .map(|(label, _)| i18n.__(label).to_owned())
+                    .unwrap_or_else(|| entry.label.clone());
+                let mut label_col = column![text(label).size(13)].spacing(2);
                 if let Some(description) = entry.description.as_deref().filter(|d| !d.is_empty()) {
-                    label_col = label_col
-                        .push(text(description.to_string()).size(11).style(description_text_style));
+                    label_col = label_col.push(
+                        text(
+                            built_in
+                                .map(|(_, source)| i18n.__(source))
+                                .unwrap_or(description)
+                                .to_string(),
+                        )
+                        .size(11)
+                        .style(description_text_style),
+                    );
                 }
 
                 let row_content =
@@ -144,7 +177,12 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
 
             if section.hidden_count > 0 {
                 let kind = section.kind;
-                let label = format!("Show {} more", section.hidden_count);
+                let label = crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "再显示 %u 项",
+                    section.hidden_count
+                )
+                .expect("valid slash count template");
                 let more = button(text(label).size(12))
                     .width(Length::Fill)
                     .padding([4, 10])
@@ -160,7 +198,7 @@ pub fn slash_palette_overlay(app: &App) -> Element<'_, Message> {
     container(
         column![
             container(text(highlighted_query).size(12).style(query_text_style)).padding([2, 2]),
-            scrollable(list)
+            scrollable(container(list).padding([0, 7]))
                 .id(app.slash_palette_scroll_id.clone())
                 .height(Length::Fixed(LIST_HEIGHT))
                 .direction(Direction::Vertical(

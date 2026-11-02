@@ -959,6 +959,7 @@ pub(super) fn task_session_context_menu(
         PointBelowOverlay::new(
             right_click,
             build_session_menu(
+                crate::app::i18n::I18n::new(app.desktop_locale),
                 id.clone(),
                 project_path,
                 app.session_is_requesting(&id) || compacting,

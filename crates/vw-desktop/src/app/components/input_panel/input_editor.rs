@@ -294,7 +294,7 @@ pub fn build_input_editor<'a>(
     // 构建文本编辑器组件
     let editor = text_editor(input_editor)
         .id(app.input_editor_id.clone())
-        .placeholder("随便问点什么...")
+        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("随便问点什么..."))
         .on_action(|a| Message::Chat(message::ChatMessage::InputEditorAction(a)))
         .key_binding(move |kp| binding_from_key_press(app, kp))
         .size(14.0)
@@ -326,12 +326,15 @@ pub fn build_input_editor<'a>(
 
     let input = if let Some((x, y)) = app.input_context_menu_pos {
         if app.input_context_menu_open {
-            PointBelowOverlay::new(input, input_context_menu())
-                .show(true)
-                .anchor(iced::Point::new(x, y))
-                .gap(0.0)
-                .on_close(Message::Chat(message::ChatMessage::CloseInputContextMenu))
-                .into()
+            PointBelowOverlay::new(
+                input,
+                input_context_menu(crate::app::i18n::I18n::new(app.desktop_locale)),
+            )
+            .show(true)
+            .anchor(iced::Point::new(x, y))
+            .gap(0.0)
+            .on_close(Message::Chat(message::ChatMessage::CloseInputContextMenu))
+            .into()
         } else {
             input
         }
@@ -344,7 +347,7 @@ pub fn build_input_editor<'a>(
     (input, editor_height)
 }
 
-pub(super) fn input_context_menu<'a>() -> Element<'a, Message> {
+pub(super) fn input_context_menu<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
     let menu_item = |label: &'static str, message: Message| {
         button(
             container(text(label).size(12))
@@ -360,10 +363,10 @@ pub(super) fn input_context_menu<'a>() -> Element<'a, Message> {
 
     container(
         column![
-            menu_item("复制", Message::Chat(message::ChatMessage::CopyInputSelection)),
-            menu_item("剪切", Message::Chat(message::ChatMessage::CutInputSelection)),
-            menu_item("粘贴", Message::Chat(message::ChatMessage::PasteIntoInput)),
-            menu_item("全选", Message::Chat(message::ChatMessage::SelectAllInput)),
+            menu_item(i18n.__("复制"), Message::Chat(message::ChatMessage::CopyInputSelection)),
+            menu_item(i18n.__("剪切"), Message::Chat(message::ChatMessage::CutInputSelection)),
+            menu_item(i18n.__("粘贴"), Message::Chat(message::ChatMessage::PasteIntoInput)),
+            menu_item(i18n.__("全选"), Message::Chat(message::ChatMessage::SelectAllInput)),
         ]
         .spacing(0)
         .width(Length::Fixed(134.0)),

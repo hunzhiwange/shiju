@@ -144,3 +144,15 @@ fn slash_palette_scroll_relative_y_maps_row_to_unit_interval() {
     assert_eq!(slash_palette_scroll_relative_y(4, 5), 1.0);
     assert_eq!(slash_palette_scroll_relative_y(99, 5), 1.0);
 }
+
+#[test]
+fn desktop_gettext_area_9_builtin_search_matches_three_languages_and_stable_id() {
+    let candidates = sample_candidates();
+    for query in ["auto", "自动模型", "自動模型", "automatic model"] {
+        let sections = build_ranked_slash_sections(query, &candidates, &BTreeSet::new());
+        assert!(
+            sections.iter().flat_map(|s| &s.entries).any(|entry| entry.id == "auto"),
+            "missing query: {query}"
+        );
+    }
+}

@@ -82,7 +82,6 @@ pub(crate) fn model_reasoning_effort_options(
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct ReasoningEffortItem {
     pub(super) value: Option<ReasoningEffortDto>,
-    pub(super) label: &'static str,
     pub(super) selected: bool,
 }
 
@@ -97,6 +96,23 @@ pub(crate) fn reasoning_effort_label(value: Option<ReasoningEffortDto>) -> &'sta
         Some(ReasoningEffortDto::Xhigh) => "Xhigh",
         Some(ReasoningEffortDto::Max) => "Max",
     }
+}
+
+pub(crate) fn localized_reasoning_effort_label(
+    i18n: crate::app::i18n::I18n,
+    value: Option<ReasoningEffortDto>,
+) -> &'static str {
+    let source = match value {
+        None => "默认",
+        Some(ReasoningEffortDto::None) => "无推理",
+        Some(ReasoningEffortDto::Minimal) => "最低",
+        Some(ReasoningEffortDto::Low) => "低",
+        Some(ReasoningEffortDto::Medium) => "中",
+        Some(ReasoningEffortDto::High) => "高",
+        Some(ReasoningEffortDto::Xhigh) => "极高",
+        Some(ReasoningEffortDto::Max) => "最大",
+    };
+    i18n.__(source)
 }
 
 pub(crate) fn reasoning_effort_options(agent: &str) -> &'static [Option<ReasoningEffortDto>] {
@@ -114,11 +130,7 @@ pub(super) fn reasoning_effort_items(
     options
         .iter()
         .copied()
-        .map(|value| ReasoningEffortItem {
-            value,
-            label: reasoning_effort_label(value),
-            selected: value == current,
-        })
+        .map(|value| ReasoningEffortItem { value, selected: value == current })
         .collect()
 }
 
@@ -154,9 +166,12 @@ pub(super) fn reasoning_effort_selector<'a>(
     let toggle = button(
         row![
             icon,
-            text(reasoning_effort_label(current))
-                .size(BOTTOM_BAR_LABEL_SIZE)
-                .font(selector_label_font()),
+            text(localized_reasoning_effort_label(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                current
+            ))
+            .size(BOTTOM_BAR_LABEL_SIZE)
+            .font(selector_label_font()),
             chevron,
         ]
         .spacing(6)
@@ -167,10 +182,15 @@ pub(super) fn reasoning_effort_selector<'a>(
         selector_pill_button_style(theme, status, expanded || current.is_some())
     })
     .on_press(Message::View(message::ViewMessage::ToggleReasoningEffortPopover));
-    let toggle: Element<'_, Message> =
-        Tooltip::new(toggle, dark_tooltip_content("选择本会话的推理强度"), TooltipPosition::Top)
-            .gap(6.0)
-            .into();
+    let toggle: Element<'_, Message> = Tooltip::new(
+        toggle,
+        dark_tooltip_content(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("选择本会话的推理强度"),
+        ),
+        TooltipPosition::Top,
+    )
+    .gap(6.0)
+    .into();
 
     let items = reasoning_effort_items(&options, current);
     let list_height = (items.len() as f32 * ITEM_HEIGHT).min(MAX_LIST_HEIGHT);
@@ -184,9 +204,17 @@ pub(super) fn reasoning_effort_selector<'a>(
         let value = item.value;
         list = list.push(
             button(
-                row![text(item.label).size(13), Space::new().width(Length::Fill), check]
-                    .spacing(8)
-                    .align_y(Alignment::Center),
+                row![
+                    text(localized_reasoning_effort_label(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        item.value
+                    ))
+                    .size(13),
+                    Space::new().width(Length::Fill),
+                    check
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
             )
             .padding([6, 10])
             .width(Length::Fill)
@@ -200,9 +228,9 @@ pub(super) fn reasoning_effort_selector<'a>(
     let popover: Element<'_, Message> = container(
         scrollable(container(list).padding(iced::Padding {
             top: 0.0,
-            right: 5.0,
+            right: 7.0,
             bottom: 0.0,
-            left: 0.0,
+            left: 7.0,
         }))
         .id(iced::widget::Id::new("input_panel_reasoning_effort_scroll"))
         .direction(Direction::Vertical(

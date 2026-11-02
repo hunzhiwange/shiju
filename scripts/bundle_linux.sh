@@ -213,6 +213,13 @@ mkdir -p "$OUT_DIR"
 if [ "$PROFILE" = "release" ]; then
   for binary in shi-ju vw-webview shiju acp; do
     if [ ! -f "$BIN_DIR/$binary" ]; then
+      if [ "$(uname -s)" != "Linux" ]; then
+        echo "error: building missing Linux desktop binaries requires a Linux build environment." >&2
+        echo "Run this script in a Linux VM, container, or Linux CI with GTK 3 and WebKitGTK 4.1 development libraries." >&2
+        echo "Installing the Rust target alone does not provide a Linux C compiler, linker, or system libraries." >&2
+        echo "To package prebuilt binaries, place shi-ju, vw-webview, shiju, and acp in $BIN_DIR." >&2
+        exit 1
+      fi
       need_cmd cargo
       need_cmd rustc
       target_libdir="$(rustc --print target-libdir --target "$TARGET")"

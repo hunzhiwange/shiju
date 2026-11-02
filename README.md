@@ -173,6 +173,8 @@ bash scripts/bundle_linux.sh
 
 在 macOS 上仅安装 Linux Rust 目标不足以完成桌面应用交叉编译；请使用 Linux
 虚拟机、容器或 Linux CI。macOS 应用使用上面的 `bundle_macos.sh`。
+缺少待打包二进制时，脚本会在非 Linux 宿主上提前报错，避免进入缺少
+`x86_64-linux-gnu-gcc` 或目标系统库的构建流程。
 
 CLI 多平台构建脚本示例：
 

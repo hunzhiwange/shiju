@@ -254,3 +254,6 @@ mod t59_tests;
 mod t60_tests;
 
 pub(crate) mod host_files;
+
+#[cfg(test)]
+mod t61_tests;

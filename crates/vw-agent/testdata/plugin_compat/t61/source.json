@@ -1,0 +1,10 @@
+{
+  "origin": "Repository-authored MIT local MCP package; not a third-party ecosystem sample",
+  "license": "MIT",
+  "files": {
+    "package/mcp.json": "d823465f1ec89af61d02df3ec4c25ad7fca52379f67769fd23c2e34dba47313b",
+    "package/plugin.json": "2262443998119da1ed278005798388f47815cf3c094d9d6e070fc06de0410c20",
+    "package/server.py": "3de6cd3da85a8518e743a1b6d59ff99e9dce7fdce80bee820a1e55233d3e1f48"
+  },
+  "coverage": "Real installation/discovery/stdio tool call/file side effect/disable/remove and original byte preservation. Does not establish public HTTP, skills-only, hooks, marketplace catalog, upgrade, or UI acceptance."
+}

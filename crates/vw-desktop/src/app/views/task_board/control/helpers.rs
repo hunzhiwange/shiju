@@ -233,11 +233,17 @@ pub(super) fn worktree_log_preview_lines(
     now_ms: u64,
 ) -> Vec<String> {
     let Some(task_id) = slot.leased_task_id.as_deref() else {
-        return vec!["等待任务日志...".to_string()];
+        return vec![
+            crate::app::i18n::I18n::new(app.desktop_locale).__("等待任务日志...").to_string(),
+        ];
     };
 
     let Some(task) = slot_task(app, slot) else {
-        return vec![format!("任务 {}", truncate_log_line(task_id, 52))];
+        return vec![
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("任务 %s", &[truncate_log_line(task_id, 52).into()])
+                .expect("valid task label"),
+        ];
     };
 
     let mut lines = task
@@ -245,7 +251,11 @@ pub(super) fn worktree_log_preview_lines(
         .iter()
         .rev()
         .filter_map(|entry| {
-            let line = entry.message.replace('\n', " ");
+            let line = crate::app::i18n::tasks::log_message(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                entry,
+            )
+            .replace('\n', " ");
             let trimmed = line.trim();
             if trimmed.is_empty() { None } else { Some(truncate_log_line(trimmed, 52)) }
         })
@@ -253,7 +263,7 @@ pub(super) fn worktree_log_preview_lines(
         .collect::<Vec<_>>();
 
     if lines.is_empty() {
-        lines.push("任务已启动...".to_string());
+        lines.push(crate::app::i18n::I18n::new(app.desktop_locale).__("任务已启动...").to_string());
     }
 
     lines.reverse();

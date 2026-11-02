@@ -64,3 +64,11 @@ mod project_tests;
 mod gettext_area_11_tests;
 
 pub mod git;
+
+#[cfg(test)]
+mod gettext_area_12_tests;
+
+pub mod tasks;
+
+#[cfg(test)]
+mod tasks_tests;

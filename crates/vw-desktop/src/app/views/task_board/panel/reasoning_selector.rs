@@ -16,11 +16,14 @@ use crate::app::message::TaskBoardMessage;
 use crate::app::{App, Message};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct TaskBoardReasoningEffortOption(Option<ReasoningEffortDto>);
+struct TaskBoardReasoningEffortOption(
+    Option<ReasoningEffortDto>,
+    vw_config_types::ui::DesktopLocale,
+);
 
 impl fmt::Display for TaskBoardReasoningEffortOption {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(reasoning_effort_label(self.0))
+        formatter.write_str(crate::app::i18n::I18n::new(self.1).__(reasoning_effort_label(self.0)))
     }
 }
 
@@ -84,18 +87,18 @@ fn build_selector(app: &App, kind: TaskBoardReasoningSelectorKind) -> Option<Ele
         .unwrap_or_else(|| model_reasoning_effort_options(app, model))
         .iter()
         .copied()
-        .map(TaskBoardReasoningEffortOption)
+        .map(|value| TaskBoardReasoningEffortOption(value, app.desktop_locale))
         .collect::<Vec<_>>();
     if options.len() <= 1 {
         return None;
     }
-    let selected = TaskBoardReasoningEffortOption(kind.current(app));
+    let selected = TaskBoardReasoningEffortOption(kind.current(app), app.desktop_locale);
 
     Some(
         pick_list(options, Some(selected), move |option| {
             Message::TaskBoard(kind.select_message(option.0))
         })
-        .placeholder("推理强度")
+        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("推理强度"))
         .padding([6, 10])
         .text_size(14)
         .style(settings_pick_list_style)

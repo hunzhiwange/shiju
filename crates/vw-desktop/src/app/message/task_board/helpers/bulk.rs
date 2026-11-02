@@ -364,7 +364,7 @@ pub(crate) fn start_manual_merge_queue_task(
     }
     let Some(project_path) = app.project_path.clone() else {
         app.task_board_manual_merge_queue.clear();
-        app.push_notification("缺少项目路径，无法执行批量合并".to_string());
+        app.push_localized_notification("缺少项目路径，无法执行批量合并", vec![]);
         return iced::Task::none();
     };
     let Some(task) = pop_next_manual_merge_task(app) else {
@@ -373,7 +373,7 @@ pub(crate) fn start_manual_merge_queue_task(
 
     let task_id = task.id.clone();
     if let Some(task_in_list) = app.task_board_tasks.iter_mut().find(|t| t.id == task_id) {
-        task_in_list.add_log("手动批量合并已发送 Agent Scheduler 合并命令".to_string());
+        task_in_list.add_localized_log("手动批量合并已发送 Agent Scheduler 合并命令", vec![]);
     }
     sync_viewing_logs(app, &task_id);
     iced::Task::batch(vec![

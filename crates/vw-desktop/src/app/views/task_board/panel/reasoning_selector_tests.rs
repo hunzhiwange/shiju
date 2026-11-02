@@ -8,8 +8,19 @@ use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 #[test]
 fn reasoning_option_formats_automatic_and_explicit_efforts() {
-    assert_eq!(TaskBoardReasoningEffortOption(None).to_string(), "默认");
-    assert_eq!(TaskBoardReasoningEffortOption(Some(ReasoningEffortDto::High)).to_string(), "High");
+    assert_eq!(
+        TaskBoardReasoningEffortOption(None, vw_config_types::ui::DesktopLocale::SimplifiedChinese)
+            .to_string(),
+        "默认"
+    );
+    assert_eq!(
+        TaskBoardReasoningEffortOption(
+            Some(ReasoningEffortDto::High),
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese
+        )
+        .to_string(),
+        "High"
+    );
 }
 
 #[test]

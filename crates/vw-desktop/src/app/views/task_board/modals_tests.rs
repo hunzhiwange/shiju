@@ -171,7 +171,10 @@ fn context_menu_builds_regular_and_failed_task_variants() {
     let mut regular = Task::new(10);
     regular.id = "regular-task".to_string();
 
-    let regular_menu = super::build_context_menu(regular);
+    let regular_menu = super::build_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        regular,
+    );
     assert_eq!(regular_menu.as_widget().children().len(), 3);
     keep_element(regular_menu);
 
@@ -179,14 +182,20 @@ fn context_menu_builds_regular_and_failed_task_variants() {
     failed.id = "failed-task".to_string();
     failed.status = TaskStatus::Failed;
 
-    let failed_menu = super::build_context_menu(failed);
+    let failed_menu = super::build_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        failed,
+    );
     assert_eq!(failed_menu.as_widget().children().len(), 4);
     keep_element(failed_menu);
 
     let mut running = Task::new(30);
     running.id = "running-task".to_string();
     running.status = TaskStatus::Running;
-    let running_menu = super::build_context_menu(running);
+    let running_menu = super::build_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        running,
+    );
     assert_eq!(running_menu.as_widget().children().len(), 3);
     keep_element(running_menu);
 }

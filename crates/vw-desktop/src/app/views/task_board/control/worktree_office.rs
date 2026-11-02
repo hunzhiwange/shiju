@@ -72,67 +72,83 @@ pub(super) fn build_worktree_pixel_office<'a>(
     let maintenance_slots = maintenance_worktree_slots(snapshot);
 
     let summary_row = row![
-        build_worktree_summary_strip("空闲工位", snapshot.idle_count, WorktreeState::Idle),
-        build_worktree_summary_strip("执行中", snapshot.busy_count, WorktreeState::Busy),
-        build_worktree_summary_strip("待处理污染", snapshot.tainted_count, WorktreeState::Tainted),
         build_worktree_summary_strip(
-            "回收槽位",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("空闲工位"),
+            snapshot.idle_count,
+            WorktreeState::Idle
+        ),
+        build_worktree_summary_strip(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("执行中"),
+            snapshot.busy_count,
+            WorktreeState::Busy
+        ),
+        build_worktree_summary_strip(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("待处理污染"),
+            snapshot.tainted_count,
+            WorktreeState::Tainted
+        ),
+        build_worktree_summary_strip(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("回收槽位"),
             snapshot.recycling_count,
             WorktreeState::Recycling
         ),
-        build_worktree_summary_strip("停机槽位", snapshot.dead_count, WorktreeState::Dead),
+        build_worktree_summary_strip(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("停机槽位"),
+            snapshot.dead_count,
+            WorktreeState::Dead
+        ),
     ]
     .spacing(8)
     .width(Length::Fill);
 
     let task_status_summary = row![
         build_task_status_summary_strip(
-            "任务池",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("任务池"),
             visible_task_status_count(app, TaskStatus::Pool),
             TaskStatus::Pool
         ),
         build_task_status_summary_strip(
-            "待执行",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("待执行"),
             visible_task_status_count(app, TaskStatus::Pending),
             TaskStatus::Pending,
         ),
         build_task_status_summary_strip(
-            "拆分",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("拆分"),
             visible_task_status_count(app, TaskStatus::Planning),
             TaskStatus::Planning,
         ),
         build_task_status_summary_strip(
-            "执行中",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("执行中"),
             visible_task_status_count(app, TaskStatus::Running),
             TaskStatus::Running,
         ),
         build_task_status_summary_strip(
-            "暂停",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("暂停"),
             visible_task_status_count(app, TaskStatus::Paused),
             TaskStatus::Paused
         ),
         build_task_status_summary_strip(
-            "失败",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("失败"),
             visible_task_status_count(app, TaskStatus::Failed),
             TaskStatus::Failed
         ),
         build_task_status_summary_strip(
-            "完成",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("完成"),
             visible_task_status_count(app, TaskStatus::CodeComplete),
             TaskStatus::CodeComplete,
         ),
         build_task_status_summary_strip(
-            "审核",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("审核"),
             visible_task_status_count(app, TaskStatus::CodeReview),
             TaskStatus::CodeReview,
         ),
         build_task_status_summary_strip(
-            "合并",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("合并"),
             visible_task_status_count(app, TaskStatus::PrSubmitted),
             TaskStatus::PrSubmitted,
         ),
         build_task_status_summary_strip(
-            "已完成",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("已完成"),
             visible_task_status_count(app, TaskStatus::Completed),
             TaskStatus::Completed,
         ),
@@ -144,18 +160,23 @@ pub(super) fn build_worktree_pixel_office<'a>(
         container(
             column![
                 row![
-                    text("像素办公室").size(12).style(|theme: &Theme| iced::widget::text::Style {
-                        color: Some(theme.extended_palette().background.base.text),
-                    }),
-                    text("每个工位都展示槽位状态、房间布置与关键道具").size(11).style(
-                        |theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(
-                                    theme.extended_palette().background.base.text.scale_alpha(0.72),
-                                ),
-                            }
-                        }
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("像素办公室"))
+                        .size(12)
+                        .style(|theme: &Theme| iced::widget::text::Style {
+                            color: Some(theme.extended_palette().background.base.text),
+                        }),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("每个工位都展示槽位状态、房间布置与关键道具")
                     )
+                    .size(11)
+                    .style(|theme: &Theme| {
+                        iced::widget::text::Style {
+                            color: Some(
+                                theme.extended_palette().background.base.text.scale_alpha(0.72),
+                            ),
+                        }
+                    })
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),

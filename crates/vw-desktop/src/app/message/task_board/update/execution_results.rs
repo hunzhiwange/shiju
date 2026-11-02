@@ -63,20 +63,17 @@ pub(super) fn update(
                 }
             let late_success_after_timeout = is_late_success_after_running_timeout(task, &result);
             if task.status != TaskStatus::Running && !late_success_after_timeout {
-                task.add_log("任务状态已变化，忽略本次执行结果".to_string());
+                task.add_localized_log("任务状态已变化，忽略本次执行结果", vec![]);
             } else {
                 match result {
                     Ok(output) => {
                         if late_success_after_timeout {
-                            task.add_log("执行结果晚于超时返回，按成功结果继续处理".to_string());
+                            task.add_localized_log("执行结果晚于超时返回，按成功结果继续处理", vec![]);
                         }
                         let (body, git_summary, source_branch, target_branch, worktree_path) =
                             split_output_and_git_metadata(&output);
-                        let mut message = if body.is_empty() {
-                            "执行完成".to_string()
-                        } else {
-                            format!("执行完成: {}", truncate_for_ui(&body, TASK_LOG_UI_MAX_DETAIL_CHARS))
-                        };
+                        let source = if body.is_empty() { "执行完成%s" } else { "执行完成: %s" };
+                        let mut message = truncate_for_ui(&body, TASK_LOG_UI_MAX_DETAIL_CHARS);
                         if let Some(summary) = git_summary {
                             message.push_str(" | ");
                             message.push_str(&summary);
@@ -90,7 +87,7 @@ pub(super) fn update(
                         if worktree_path.is_some() {
                             task.selected_worktree_path = worktree_path;
                         }
-                        task.add_log(message);
+                        task.add_localized_log(source, vec![message.into()]);
                         task.mark_execution_succeeded();
                         // 正常来源 Running 走 ExecutionSucceeded 边；晚到成功来源为超时标记的
                         // Failed，按恢复语义用 ManualMove 放行，保留既有“晚到成功继续处理”行为。
@@ -105,7 +102,7 @@ pub(super) fn update(
                             should_recycle_worktree = true;
                             recycle_reason = task.pause_reason.clone();
                         } else {
-                            task.add_log("等待代码完成调度".to_string());
+                            task.add_localized_log("等待代码完成调度", vec![]);
                             should_schedule_auto_review_tick = true;
                         }
                         if matches!(task.status, TaskStatus::CodeReview | TaskStatus::PrSubmitted) {
@@ -113,10 +110,7 @@ pub(super) fn update(
                     }
                     Err(error) => {
                         let recycle_detail = format!("任务执行失败: {}", error);
-                        task.add_log(format!(
-                            "执行失败: {}",
-                            truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                        ));
+                        task.add_localized_log("执行失败: %s", vec![(truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)).to_string().into()]);
                         task.mark_execution_failed(error);
                         should_recycle_worktree = true;
                         recycle_reason = Some(recycle_detail);
@@ -131,7 +125,7 @@ pub(super) fn update(
                     .as_deref()
                     .map(|reason| truncate_for_ui(reason, TASK_LOG_UI_MAX_DETAIL_CHARS))
                     .unwrap_or_else(|| "任务执行结束".to_string());
-                task.add_log(format!("{reason}，等待网关运行时清理 worktree 槽位"));
+                task.add_localized_log("%s，等待网关运行时清理 worktree 槽位", vec![reason.into()]);
                 task_to_persist = Some(task.clone());
             }
         }
@@ -175,31 +169,22 @@ pub(super) fn update(
                 append_task_log_stream(task, &log);
             }
             if task.status != TaskStatus::CodeReview {
-                task.add_log("任务状态已变化，忽略本次审核结果".to_string());
+                task.add_localized_log("任务状态已变化，忽略本次审核结果", vec![]);
             } else {
                 match result {
                     Ok(output) => {
                         let review_output = output.trim().to_string();
                         if !review_output.is_empty() {
-                            task.add_log(format!(
-                                "审核结果: {}",
-                                truncate_for_ui(&review_output, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                            ));
+                            task.add_localized_log("审核结果: %s", vec![(truncate_for_ui(&review_output, TASK_LOG_UI_MAX_DETAIL_CHARS)).to_string().into()]);
                         } else {
-                            task.add_log("审核结果: 无输出".to_string());
+                            task.add_localized_log("审核结果: 无输出", vec![]);
                         }
                         match parse_review_decision(&output) {
                             Ok(()) => {
-                                task.add_log(format!(
-                                    "合并前校验: source={} target={} worktree={} project_path={}",
-                                    task.merge_source_branch.as_deref().unwrap_or("none"),
-                                    task.merge_target_branch.as_deref().unwrap_or("none"),
-                                    task.selected_worktree_path.as_deref().unwrap_or("none"),
-                                    app.project_path.as_deref().unwrap_or("none")
-                                ));
+                                task.add_localized_log("合并前校验: source=%s target=%s worktree=%s project_path=%s", vec![(task.merge_source_branch.as_deref().unwrap_or("none")).to_string().into(), (task.merge_target_branch.as_deref().unwrap_or("none")).to_string().into(), (task.selected_worktree_path.as_deref().unwrap_or("none")).to_string().into(), (app.project_path.as_deref().unwrap_or("none")).to_string().into()]);
                                 match validate_ready_for_merge(task, app.project_path.as_deref()) {
                                     Ok(()) => {
-                                        task.add_log("代码审核通过，进入合并阶段".to_string());
+                                        task.add_localized_log("代码审核通过，进入合并阶段", vec![]);
                                         let _ = task.apply_task_transition(
                                             TaskStatus::PrSubmitted,
                                             crate::app::task::TaskTransitionIntent::ReviewApproved,
@@ -240,7 +225,7 @@ pub(super) fn update(
                     .as_deref()
                     .map(|reason| truncate_for_ui(reason, TASK_LOG_UI_MAX_DETAIL_CHARS))
                     .unwrap_or_else(|| "代码审核结束".to_string());
-                task.add_log(format!("{reason}，等待网关运行时清理 worktree 槽位"));
+                task.add_localized_log("%s，等待网关运行时清理 worktree 槽位", vec![reason.into()]);
                 task_to_persist = Some(task.clone());
             }
             sync_viewing_logs(app, &task_id);
@@ -290,20 +275,17 @@ pub(super) fn update(
                 })
                 && result.is_ok();
             if task.status != TaskStatus::PrSubmitted && !late_success_after_timeout {
-                task.add_log("任务状态已变化，忽略本次合并结果".to_string());
+                task.add_localized_log("任务状态已变化，忽略本次合并结果", vec![]);
             } else {
                 match result {
                     Ok(output) => {
                         if late_success_after_timeout {
-                            task.add_log("合并结果晚于超时暂停返回，按成功结果完成任务".to_string());
+                            task.add_localized_log("合并结果晚于超时暂停返回，按成功结果完成任务", vec![]);
                         }
                         if output.trim().is_empty() {
-                            task.add_log("合并完成".to_string());
+                            task.add_localized_log("合并完成", vec![]);
                         } else {
-                            task.add_log(format!(
-                                "合并完成: {}",
-                                truncate_for_ui(&output, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                            ));
+                            task.add_localized_log("合并完成: %s", vec![(truncate_for_ui(&output, TASK_LOG_UI_MAX_DETAIL_CHARS)).to_string().into()]);
                         }
                         task.mark_execution_succeeded();
                         // 正常来源 PrSubmitted 走 MergeSucceeded 边；晚到成功来源为超时暂停的
@@ -323,14 +305,7 @@ pub(super) fn update(
                         let detail = truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS);
                         task.mark_paused(format!("合并失败: {}", detail));
                         recycle_reason = task.pause_reason.clone();
-                        task.add_log(format!(
-                            "合并失败详情: source={} target={} worktree={} project_path={} error={}",
-                            task.merge_source_branch.as_deref().unwrap_or("none"),
-                            task.merge_target_branch.as_deref().unwrap_or("none"),
-                            task.selected_worktree_path.as_deref().unwrap_or("none"),
-                            project_path_snapshot.as_deref().unwrap_or("none"),
-                            detail
-                        ));
+                        task.add_localized_log("合并失败详情: source=%s target=%s worktree=%s project_path=%s error=%s", vec![(task.merge_source_branch.as_deref().unwrap_or("none")).to_string().into(), (task.merge_target_branch.as_deref().unwrap_or("none")).to_string().into(), (task.selected_worktree_path.as_deref().unwrap_or("none")).to_string().into(), (project_path_snapshot.as_deref().unwrap_or("none")).to_string().into(), (detail).to_string().into()]);
                         record_task_worktree_recycle_after_failure(task, "合并失败");
                     }
                 }
@@ -340,7 +315,7 @@ pub(super) fn update(
         sync_viewing_logs(app, &task_id);
         if !merge_succeeded && !app.task_board_manual_merge_queue.is_empty() {
             app.task_board_manual_merge_queue.clear();
-            app.push_notification("批量合并已停止，请先处理当前合并失败".to_string());
+            app.push_localized_notification("批量合并已停止，请先处理当前合并失败", vec![]);
         }
         let continue_manual_merge = if merge_succeeded && !app.task_board_manual_merge_queue.is_empty() {
             iced::Task::done(Message::TaskBoard(TaskBoardMessage::ManualMergeQueueTick))
@@ -350,10 +325,7 @@ pub(super) fn update(
         if !merge_succeeded && let Some(reason) = recycle_reason.as_deref()
             && let Some(task) = app.task_board_tasks.iter_mut().find(|task| task.id == task_id)
         {
-            task.add_log(format!(
-                "{}，等待网关运行时清理 worktree 槽位",
-                truncate_for_ui(reason, TASK_LOG_UI_MAX_DETAIL_CHARS)
-            ));
+            task.add_localized_log("%s，等待网关运行时清理 worktree 槽位", vec![(truncate_for_ui(reason, TASK_LOG_UI_MAX_DETAIL_CHARS)).to_string().into()]);
             task_to_persist = Some(task.clone());
         }
         if let (Some(project_path), Some(task_clone)) = (&app.project_path, task_to_persist) {

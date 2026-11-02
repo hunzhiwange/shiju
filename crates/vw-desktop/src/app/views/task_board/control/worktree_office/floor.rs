@@ -198,25 +198,26 @@ fn build_worktree_floor_texture_fill<'a>() -> Element<'a, Message> {
 
 /// 构建 Worktree 走廊组件，显示任务流程和维护状态概览。
 fn build_worktree_corridor<'a>(
+    i18n: crate::app::i18n::I18n,
     snapshot: &'a WorktreePoolSnapshot,
     maintenance_hidden: bool,
 ) -> Element<'a, Message> {
     let summary = worktree_corridor_summary(snapshot, maintenance_hidden);
     let corridor_steps = if summary.busy_flow {
         row![
-            text("入口").size(10),
+            text(i18n.__("入口")).size(10),
             text("=>").size(10),
-            text("执行").size(10),
+            text(i18n.__("执行")).size(10),
             text("=>").size(10),
-            text("回收").size(10),
+            text(i18n.__("回收")).size(10),
         ]
     } else {
         row![
-            text("入口").size(10),
+            text(i18n.__("入口")).size(10),
             text(".").size(10),
-            text("空闲").size(10),
+            text(i18n.__("空闲")).size(10),
             text(".").size(10),
-            text("归档").size(10),
+            text(i18n.__("归档")).size(10),
         ]
     }
     .spacing(6)
@@ -224,21 +225,48 @@ fn build_worktree_corridor<'a>(
 
     container(
         column![
-            text("主走廊").size(11).style(|theme: &Theme| floor_text_alpha_style(theme, 0.82)),
-            text(summary.status)
+            text(i18n.__("主走廊"))
+                .size(11)
+                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.82)),
+            text(i18n.__(summary.status))
                 .size(10)
                 .style(|theme: &Theme| floor_text_alpha_style(theme, 0.62)),
             corridor_steps,
-            text(format!(
-                "活跃:{} 维护:{}",
-                snapshot.busy_count,
-                snapshot.tainted_count + snapshot.recycling_count
-            ))
+            text(
+                i18n.format(
+                    "活跃:%u 维护:%u",
+                    &[
+                        snapshot.busy_count.into(),
+                        (snapshot.tainted_count + snapshot.recycling_count).into()
+                    ]
+                )
+                .expect("valid corridor counts")
+            )
             .size(10)
             .style(|theme: &Theme| floor_text_alpha_style(theme, 0.56)),
-            text(summary.maintenance_hint)
-                .size(10)
-                .style(|theme: &Theme| floor_text_alpha_style(theme, 0.64)),
+            text(
+                if maintenance_hidden {
+                    i18n.format(
+                        "运维修复间已收起\n污染:%u 回收:%u 停机:%u",
+                        &[
+                            snapshot.tainted_count.into(),
+                            snapshot.recycling_count.into(),
+                            snapshot.dead_count.into(),
+                        ],
+                    )
+                } else {
+                    i18n.format(
+                        "运维修复间记录: %u",
+                        &[(snapshot.tainted_count
+                            + snapshot.recycling_count
+                            + snapshot.dead_count)
+                            .into()],
+                    )
+                }
+                .unwrap_or(summary.maintenance_hint)
+            )
+            .size(10)
+            .style(|theme: &Theme| floor_text_alpha_style(theme, 0.64)),
             text("│\n│\n│\n│\n│\n│\n│\n↓")
                 .size(11)
                 .style(|theme: &Theme| { floor_text_alpha_style(theme, 0.5) })
@@ -263,8 +291,12 @@ fn build_worktree_pixel_section<'a>(
 ) -> Element<'a, Message> {
     let cards_per_row = cards_per_row.max(1);
     let header = column![
-        text(title).size(12).style(|theme: &Theme| floor_text_alpha_style(theme, 1.0)),
-        text(subtitle).size(11).style(|theme: &Theme| floor_text_alpha_style(theme, 0.72)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__(title))
+            .size(12)
+            .style(|theme: &Theme| floor_text_alpha_style(theme, 1.0)),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__(subtitle))
+            .size(11)
+            .style(|theme: &Theme| floor_text_alpha_style(theme, 0.72)),
     ]
     .spacing(4)
     .width(Length::Fill);
@@ -274,7 +306,7 @@ fn build_worktree_pixel_section<'a>(
     if slots.is_empty() {
         room_rows = room_rows.push(
             container(
-                text("当前区域暂无工位")
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("当前区域暂无工位"))
                     .size(11)
                     .style(|theme: &Theme| floor_text_alpha_style(theme, 0.62)),
             )
@@ -321,7 +353,11 @@ pub(super) fn build_worktree_pixel_floor<'a>(
     ))
     .width(Length::Fill);
 
-    let corridor = build_worktree_corridor(snapshot, !has_maintenance_rooms);
+    let corridor = build_worktree_corridor(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        snapshot,
+        !has_maintenance_rooms,
+    );
 
     let maintenance_section = container(build_worktree_pixel_section(
         app,
@@ -355,9 +391,13 @@ pub(super) fn build_worktree_pixel_floor<'a>(
     container(
         column![
             build_worktree_floor_texture_fill(),
-            build_worktree_floor_strip("房间地板"),
+            build_worktree_floor_strip(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("房间地板")
+            ),
             room_line,
-            build_worktree_floor_strip("工位走道"),
+            build_worktree_floor_strip(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("工位走道")
+            ),
             build_worktree_floor_texture_fill(),
         ]
         .spacing(8)

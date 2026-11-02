@@ -162,15 +162,27 @@ fn corridor_covers_busy_maintenance_and_idle_states() {
     let maintenance = snapshot(0, 0, 1, 1, 1);
     let idle = snapshot(3, 0, 0, 0, 0);
 
-    let hidden = build_worktree_corridor(&maintenance, true);
+    let hidden = build_worktree_corridor(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &maintenance,
+        true,
+    );
     assert_eq!(hidden.as_widget().size().width, Length::Fixed(190.0));
 
-    let visible = build_worktree_corridor(&busy, false);
+    let visible = build_worktree_corridor(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &busy,
+        false,
+    );
     assert_eq!(visible.as_widget().size().width, Length::Fixed(120.0));
 
     keep_element(hidden);
     keep_element(visible);
-    keep_element(build_worktree_corridor(&idle, false));
+    keep_element(build_worktree_corridor(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &idle,
+        false,
+    ));
 }
 
 #[test]

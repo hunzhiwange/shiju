@@ -129,7 +129,7 @@ fn build_selector<'a>(app: &'a App, kind: TaskBoardModelSelectorKind) -> Element
 
 fn build_toggle_label(app: &App, auto_model: bool, model: &str) -> String {
     if auto_model {
-        return "自动模型".to_string();
+        return crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型").to_owned();
     }
 
     let parsed = if model.contains('/') {
@@ -210,19 +210,26 @@ fn build_model_popover<'a>(
         }
     };
 
-    let search = text_input("搜索模型…", &app.model_settings.query)
-        .on_input(|v| Message::Settings(SettingsMessage::ModelQueryChanged(v)))
-        .padding([8, 10])
-        .size(13)
-        .style(settings_text_input_style);
+    let search = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索模型…"),
+        &app.model_settings.query,
+    )
+    .on_input(|v| Message::Settings(SettingsMessage::ModelQueryChanged(v)))
+    .padding([8, 10])
+    .size(13)
+    .style(settings_text_input_style);
 
     let mut model_list = column![].spacing(8);
     let mut any_models = false;
 
     if app.model_settings.loading && app.model_settings.providers.is_empty() {
-        model_list = model_list.push(text("加载中…").size(13).style(|t: &Theme| {
-            iced::widget::text::Style { color: Some(t.extended_palette().background.base.text) }
-        }));
+        model_list = model_list.push(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中…")).size(13).style(
+                |t: &Theme| iced::widget::text::Style {
+                    color: Some(t.extended_palette().background.base.text),
+                },
+            ),
+        );
     } else {
         for p in &app.model_settings.providers {
             let mut models = p
@@ -267,9 +274,11 @@ fn build_model_popover<'a>(
                 let selected = !auto_model && is_selected(model, &provider_id, &model_id);
                 let selected_badge: Element<'_, Message> = if selected {
                     row![
-                        text("已选择").size(11).style(|theme: &Theme| iced::widget::text::Style {
-                            color: Some(theme.palette().primary),
-                        }),
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("已选择"))
+                            .size(11)
+                            .style(|theme: &Theme| iced::widget::text::Style {
+                                color: Some(theme.palette().primary),
+                            }),
                         svg::Svg::<iced::Theme>::new(assets::get_icon(Icon::Check))
                             .width(Length::Fixed(14.0))
                             .height(Length::Fixed(14.0))
@@ -365,12 +374,18 @@ fn build_model_popover<'a>(
                             .style(|_t: &Theme| iced::widget::text::Style {
                                 color: Some(Color::WHITE.scale_alpha(0.72)),
                             }),
-                        text(format!(
-                            "工具 {} · 图片输入 {} · 上下文限制 {}",
-                            if m.toolcall { "✓" } else { "✕" },
-                            if m.attachment { "✓" } else { "✕" },
-                            m.context_limit
-                        ))
+                        text(
+                            crate::app::i18n::I18n::new(app.desktop_locale)
+                                .format(
+                                    "工具 %s · 图片输入 %s · 上下文限制 %u",
+                                    &[
+                                        if m.toolcall { "✓" } else { "✕" }.into(),
+                                        if m.attachment { "✓" } else { "✕" }.into(),
+                                        m.context_limit.into()
+                                    ]
+                                )
+                                .expect("valid model capabilities template")
+                        )
                         .size(11)
                         .wrapping(iced::widget::text::Wrapping::Word)
                         .style(|_t: &Theme| iced::widget::text::Style {
@@ -391,12 +406,16 @@ fn build_model_popover<'a>(
         }
 
         if !any_models {
-            model_list =
-                model_list.push(text("暂无可选模型（请先在系统设置里启用模型）").size(13).style(
-                    |t: &Theme| iced::widget::text::Style {
-                        color: Some(t.extended_palette().background.base.text),
-                    },
-                ));
+            model_list = model_list.push(
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("暂无可选模型（请先在系统设置里启用模型）"),
+                )
+                .size(13)
+                .style(|t: &Theme| iced::widget::text::Style {
+                    color: Some(t.extended_palette().background.base.text),
+                }),
+            );
         }
     }
 
@@ -418,7 +437,11 @@ fn build_model_popover<'a>(
         .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(
             crate::app::components::system_settings::SystemTab::Models,
         )));
-        let tip = container(text("管理模型").size(12)).style(tooltip_dark_style).padding([6, 8]);
+        let tip = container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("管理模型")).size(12),
+        )
+        .style(tooltip_dark_style)
+        .padding([6, 8]);
         Tooltip::new(btn, tip, TooltipPosition::Right).gap(8).into()
     };
 
@@ -440,7 +463,11 @@ fn build_model_popover<'a>(
         .on_press(Message::View(ViewMessage::OpenSystemSettingsTab(
             crate::app::components::system_settings::SystemTab::Providers,
         )));
-        let tip = container(text("连接供应商").size(12)).style(tooltip_dark_style).padding([6, 8]);
+        let tip = container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("连接供应商")).size(12),
+        )
+        .style(tooltip_dark_style)
+        .padding([6, 8]);
         Tooltip::new(btn, tip, TooltipPosition::Right).gap(8).into()
     };
 
@@ -458,13 +485,19 @@ fn build_model_popover<'a>(
                                 }),
                         )
                         .on_press(Message::TaskBoard(kind.select_message("auto".to_string()))),
-                        container(text("自动模型自动选择可用模型").size(12))
-                            .style(tooltip_dark_style)
-                            .padding([6, 8]),
+                        container(
+                            text(
+                                crate::app::i18n::I18n::new(app.desktop_locale)
+                                    .__("自动模型自动选择可用模型")
+                            )
+                            .size(12)
+                        )
+                        .style(tooltip_dark_style)
+                        .padding([6, 8]),
                         TooltipPosition::Right,
                     )
                     .gap(8),
-                    text("自动模型"),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
                     container(text("")).width(Length::Fill),
                     toggler(auto_model).on_toggle({
                         let kind = kind;
@@ -478,20 +511,28 @@ fn build_model_popover<'a>(
         .padding([6, 8]),
         container(
             column![
-                text("手工填写模型").size(12),
-                text_input("auto / provider/model / 自定义模型", model)
-                    .on_input({
-                        let kind = kind;
-                        move |value| {
-                            Message::TaskBoard(
-                                kind.input_message(normalize_task_model_input(&value)),
-                            )
-                        }
-                    })
-                    .padding([8, 10])
-                    .size(13)
-                    .style(settings_text_input_style),
-                text("兼容特殊调度器或未出现在列表中的模型 ID").size(11).style(|theme: &Theme| {
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("手工填写模型")).size(12),
+                text_input(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("auto / provider/model / 自定义模型"),
+                    model
+                )
+                .on_input({
+                    let kind = kind;
+                    move |value| {
+                        Message::TaskBoard(kind.input_message(normalize_task_model_input(&value)))
+                    }
+                })
+                .padding([8, 10])
+                .size(13)
+                .style(settings_text_input_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("兼容特殊调度器或未出现在列表中的模型 ID")
+                        .to_owned()
+                )
+                .size(11)
+                .style(|theme: &Theme| {
                     let palette = theme.palette();
                     let is_dark =
                         palette.background.r + palette.background.g + palette.background.b < 1.5;

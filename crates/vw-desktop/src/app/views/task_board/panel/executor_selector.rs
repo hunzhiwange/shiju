@@ -129,8 +129,9 @@ pub fn build_bulk_executor_selector<'a>(app: &'a App) -> Element<'a, Message> {
 
 fn build_selector<'a>(app: &'a App, kind: TaskBoardExecutorSelectorKind) -> Element<'a, Message> {
     let current_executor = kind.current_executor(app);
-    let executor_label_text =
-        current_executor.as_deref().unwrap_or(DEFAULT_TASK_EXECUTOR_LABEL).to_string();
+    let executor_label_text = current_executor.as_deref().map(str::to_owned).unwrap_or_else(|| {
+        crate::app::i18n::I18n::new(app.desktop_locale).__(DEFAULT_TASK_EXECUTOR_LABEL).to_string()
+    });
 
     let executor_toggle = button(
         row![
@@ -183,7 +184,8 @@ fn build_executor_popover<'a>(
     let default_btn = button(
         row![
             acp_agent_icon(DEFAULT_TASK_EXECUTOR_LABEL, 14.0),
-            text(DEFAULT_TASK_EXECUTOR_LABEL).size(13),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(DEFAULT_TASK_EXECUTOR_LABEL))
+                .size(13),
             Space::new().width(Length::Fill),
             default_check
         ]

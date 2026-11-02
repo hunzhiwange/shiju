@@ -24,17 +24,26 @@ pub(crate) fn format_task_log_timestamp(timestamp_ms: u64) -> String {
 ///
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
+#[cfg(test)]
 pub(crate) fn task_logs_viewer_text(task: &Task) -> String {
+    localized_task_logs_viewer_text(
+        task,
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+    )
+}
+
+fn localized_task_logs_viewer_text(task: &Task, i18n: crate::app::i18n::I18n) -> String {
     task.logs
         .iter()
         .skip(task.logs.len().saturating_sub(TASK_BOARD_LOG_VIEWER_MAX_VISIBLE))
         .flat_map(|log| {
             let timestamp = format_task_log_timestamp(log.timestamp_ms);
-            log.message
+            crate::app::i18n::tasks::log_message(i18n, log)
                 .lines()
                 .map(str::trim)
                 .filter(|line| !line.is_empty())
-                .map(move |line| format!("{timestamp}{line}"))
+                .map(|line| format!("{timestamp}{line}"))
+                .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>()
         .join("\n")
@@ -45,7 +54,11 @@ pub(crate) fn task_logs_viewer_text(task: &Task) -> String {
 /// 参数由调用方提供，函数在当前模块的状态边界内完成处理。
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub(crate) fn sync_task_logs_editor(app: &mut crate::app::App, task: Option<&Task>) {
-    let next_text = task.map(task_logs_viewer_text).unwrap_or_default();
+    let next_text = task
+        .map(|task| {
+            localized_task_logs_viewer_text(task, crate::app::i18n::I18n::new(app.desktop_locale))
+        })
+        .unwrap_or_default();
     if app.task_board_logs_editor.text() == next_text.as_str() {
         if app.task_board_logs_auto_scroll {
             scroll_task_logs_to_bottom(app);

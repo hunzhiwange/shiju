@@ -5,7 +5,13 @@ use crate::app::task::{Task, TaskLogEntry, TaskStatus};
 use iced::widget::text_editor;
 
 fn log(timestamp_ms: u64, message: impl Into<String>) -> TaskLogEntry {
-    TaskLogEntry { timestamp_ms, status_from: None, status_to: None, message: message.into() }
+    TaskLogEntry {
+        localized_message: None,
+        timestamp_ms,
+        status_from: None,
+        status_to: None,
+        message: message.into(),
+    }
 }
 
 fn task(id: &str, status: TaskStatus, logs: Vec<TaskLogEntry>) -> Task {

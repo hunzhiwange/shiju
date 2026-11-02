@@ -140,6 +140,7 @@ fn task_log_entry_from_agent_scheduler(
     log: &vw_gateway_client::vw_api_types::agent_scheduler::AgentSchedulerTaskLogDto,
 ) -> TaskLogEntry {
     TaskLogEntry {
+        localized_message: None,
         timestamp_ms: timestamp_ms_to_u64(log.timestamp_ms),
         status_from: task_status_from_agent_scheduler_log(
             log.from_status_key.as_deref(),
@@ -435,7 +436,7 @@ fn mark_task_paused_after_worktree_preallocation_failure(task: &mut Task, error:
         task.last_execution_duration_ms = Some(now_ms().saturating_sub(started_at));
     }
     task.execution_started_at_ms = None;
-    task.add_log(format!("[WORKTREE] 执行前预分配失败: {}", error));
+    task.add_localized_log("[WORKTREE] 执行前预分配失败: %s", vec![(error).to_string().into()]);
     task.mark_paused(format!("Git/worktree 预分配失败: {}", error));
 }
 
@@ -1755,7 +1756,10 @@ pub fn update(
             for task in &mut tasks {
                 let previous_priority = task.priority;
                 task.priority = priority;
-                task.add_log(format!("批量设置优先级: {} -> {}", previous_priority, priority));
+                task.add_localized_log(
+                    "批量设置优先级: %s -> %s",
+                    vec![(previous_priority).to_string().into(), (priority).to_string().into()],
+                );
             }
 
             let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
@@ -1796,7 +1800,10 @@ pub fn update(
             for task in &mut tasks {
                 let previous_model = task.model.clone();
                 task.model = model.clone();
-                task.add_log(format!("批量设置模型: {} -> {}", previous_model, task.model));
+                task.add_localized_log(
+                    "批量设置模型: %s -> %s",
+                    vec![(previous_model).to_string().into(), (task.model).to_string().into()],
+                );
             }
 
             let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
@@ -1838,7 +1845,10 @@ pub fn update(
                 let previous_agent =
                     task.agent.clone().unwrap_or_else(|| MAIN_AGENT_KEY.to_string());
                 task.agent = Some(agent.clone());
-                task.add_log(format!("批量设置代理: {} -> {}", previous_agent, agent));
+                task.add_localized_log(
+                    "批量设置代理: %s -> %s",
+                    vec![(previous_agent).to_string().into(), (agent).to_string().into()],
+                );
             }
 
             let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
@@ -1892,11 +1902,13 @@ pub fn update(
             for task in &mut tasks {
                 let previous_executor = task_acp_agent_label(task.acp_agent.as_deref());
                 set_task_executor_selection(task, executor.clone());
-                task.add_log(format!(
-                    "批量设置 ACP 智能体: {} -> {}",
-                    previous_executor,
-                    task_acp_agent_label(task.acp_agent.as_deref())
-                ));
+                task.add_localized_log(
+                    "批量设置 ACP 智能体: %s -> %s",
+                    vec![
+                        (previous_executor).to_string().into(),
+                        (task_acp_agent_label(task.acp_agent.as_deref())).to_string().into(),
+                    ],
+                );
             }
 
             let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
@@ -1933,7 +1945,7 @@ pub fn update(
                 if let Some(task) = app.task_board_tasks.iter_mut().find(|task| &task.id == task_id)
                 {
                     task.reasoning_effort = reasoning_effort;
-                    task.add_log("批量设置推理强度".to_string());
+                    task.add_localized_log("批量设置推理强度", vec![]);
                     tasks.push(task.clone());
                 }
             }
@@ -1983,11 +1995,13 @@ pub fn update(
                 {
                     let previous_mode = task.task_split_mode;
                     task.task_split_mode = task_split_mode;
-                    task.add_log(format!(
-                        "批量设置任务拆分: {} -> {}",
-                        previous_mode.label(),
-                        task_split_mode.label()
-                    ));
+                    task.add_localized_log(
+                        "批量设置任务拆分: %s -> %s",
+                        vec![
+                            (previous_mode.label()).to_string().into(),
+                            (task_split_mode.label()).to_string().into(),
+                        ],
+                    );
                     tasks.push(task.clone());
                 }
             }
@@ -2095,7 +2109,7 @@ pub fn update(
             tasks.sort_by_key(|task| (task.priority, task.order));
             let task_ids = tasks.iter().map(|task| task.id.clone()).collect::<Vec<_>>();
             for task in &mut tasks {
-                task.add_log("手动批量合并已入队".to_string());
+                task.add_localized_log("手动批量合并已入队", vec![]);
             }
             app.task_board_manual_merge_queue = task_ids.clone();
             clear_selected_task_ids(app, &task_ids);
@@ -2244,12 +2258,17 @@ pub fn update(
                 return iced::Task::none();
             };
             if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_warning_toast("已有 worktree 操作进行中");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "已有 worktree 操作进行中",
+                    vec![],
+                );
             }
             if app.task_board_worktree_manual_confirm_kind != Some("cleanup") {
                 app.task_board_worktree_manual_confirm_kind = Some("cleanup");
-                app.push_notification(
-                    "一键清理风险较高，请再次点击“确认一键清理”继续，或点击“取消”返回".to_string(),
+                app.push_localized_notification(
+                    "一键清理风险较高，请再次点击“确认一键清理”继续，或点击“取消”返回",
+                    vec![],
                 );
                 app.notifications_expanded = true;
                 return iced::Task::none();
@@ -2278,15 +2297,15 @@ pub fn update(
         TaskBoardMessage::CleanAllWorktreesCompleted(result) => {
             poll_worktree_action_logs(app);
             match result {
-                Ok(count) => app.push_notification(format!(
-                    "已完成 worktree 一键清理，共处理 {} 个槽位",
-                    count
-                )),
+                Ok(count) => app.push_localized_notification(
+                    "已完成 worktree 一键清理，共处理 %s 个槽位",
+                    vec![count.to_string().into()],
+                ),
                 Err(error) => {
-                    app.push_notification(format!(
-                        "worktree 一键清理有失败，请查看右下角通知：{}",
-                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                    ));
+                    app.push_localized_notification(
+                        "worktree 一键清理有失败，请查看右下角通知：%s",
+                        vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
+                    );
                     app.notifications_expanded = true;
                 }
             }
@@ -2298,15 +2317,21 @@ pub fn update(
                 return iced::Task::none();
             };
             if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_warning_toast("已有 worktree 操作进行中");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "已有 worktree 操作进行中",
+                    vec![],
+                );
             }
             if app.task_board_worktree_manual_confirm_kind != Some("delete") {
                 app.task_board_worktree_manual_confirm_kind = Some("delete");
-                app.push_notification(
-                    "删除所有 worktree 风险极高，请再次点击“确认删除所有 worktree”继续，或点击“取消”返回".to_string(),
-                );
+                app.push_localized_notification("删除所有 worktree 风险极高，请再次点击“确认删除所有 worktree”继续，或点击“取消”返回", vec![]);
                 app.notifications_expanded = true;
-                return app.show_warning_toast("再次点击确认按钮才会删除 worktree");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "再次点击确认按钮才会删除 worktree",
+                    vec![],
+                );
             }
             let (log_tx, log_rx) = std::sync::mpsc::channel();
             app.task_board_worktree_manual_confirm_kind = None;
@@ -2332,20 +2357,39 @@ pub fn update(
             poll_worktree_action_logs(app);
             let toast_task = match result {
                 Ok(0) => {
-                    app.push_notification("没有找到可删除的受管 worktree".to_string());
-                    app.show_warning_toast("没有找到可删除的受管 worktree")
+                    app.push_localized_notification("没有找到可删除的受管 worktree", vec![]);
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Warning,
+                        "没有找到可删除的受管 worktree",
+                        vec![],
+                    )
                 }
                 Ok(count) => {
-                    app.push_notification(format!("已删除所有 worktree，共处理 {} 个槽位", count));
-                    app.show_success_toast(format!("已删除 {} 个 worktree", count))
+                    app.push_localized_notification(
+                        "已删除所有 worktree，共处理 %s 个槽位",
+                        vec![(count).to_string().into()],
+                    );
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已删除 %u 个 worktree",
+                        vec![count.into()],
+                    )
                 }
                 Err(error) => {
-                    app.push_notification(format!(
-                        "删除所有 worktree 有失败，请查看右下角通知：{}",
-                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                    ));
+                    app.push_localized_notification(
+                        "删除所有 worktree 有失败，请查看右下角通知：%s",
+                        vec![
+                            (truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS))
+                                .to_string()
+                                .into(),
+                        ],
+                    );
                     app.notifications_expanded = true;
-                    app.show_error_toast("删除所有 worktree 失败")
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "删除所有 worktree 失败",
+                        vec![],
+                    )
                 }
             };
             finish_worktree_action_logs(app);
@@ -2356,7 +2400,11 @@ pub fn update(
                 return iced::Task::none();
             };
             if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_warning_toast("已有 worktree 操作进行中");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "已有 worktree 操作进行中",
+                    vec![],
+                );
             }
             if let Some(snapshot) = &app.task_board_worktree_snapshot
                 && let Some(slot) = snapshot.slots.iter().find(|slot| slot.id == slot_id)
@@ -2366,7 +2414,11 @@ pub fn update(
                         | crate::app::task::WorktreeState::Recycling
                 )
             {
-                return app.show_warning_toast("该 worktree 正在使用中，暂不能回收");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "该 worktree 正在使用中，暂不能回收",
+                    vec![],
+                );
             }
 
             let (_log_tx, log_rx) = std::sync::mpsc::channel();
@@ -2393,17 +2445,32 @@ pub fn update(
             poll_worktree_action_logs(app);
             let toast_task = match result {
                 Ok(()) => {
-                    app.push_notification(format!("worktree 槽位已回收: {}", slot_id));
-                    app.show_success_toast(format!("已回收 worktree {}", slot_id))
+                    app.push_localized_notification(
+                        "worktree 槽位已回收: %s",
+                        vec![(slot_id).to_string().into()],
+                    );
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已回收 worktree %s",
+                        vec![slot_id.into()],
+                    )
                 }
                 Err(error) => {
-                    app.push_notification(format!(
-                        "worktree 槽位回收失败 slot={}：{}",
-                        slot_id,
-                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                    ));
+                    app.push_localized_notification(
+                        "worktree 槽位回收失败 slot=%s：%s",
+                        vec![
+                            (slot_id).to_string().into(),
+                            (truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS))
+                                .to_string()
+                                .into(),
+                        ],
+                    );
                     app.notifications_expanded = true;
-                    app.show_error_toast("worktree 槽位回收失败")
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "worktree 槽位回收失败",
+                        vec![],
+                    )
                 }
             };
             finish_worktree_action_logs(app);
@@ -2415,12 +2482,17 @@ pub fn update(
             };
             let tasks = app.task_board_tasks.clone();
             if app.task_board_worktree_manual_action_kind.is_some() {
-                return app.show_warning_toast("已有 worktree 操作进行中");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "已有 worktree 操作进行中",
+                    vec![],
+                );
             }
             if app.task_board_worktree_manual_confirm_kind != Some("merge") {
                 app.task_board_worktree_manual_confirm_kind = Some("merge");
-                app.push_notification(
-                    "一键合并风险较高，请再次点击“确认一键合并”继续，或点击“取消”返回".to_string(),
+                app.push_localized_notification(
+                    "一键合并风险较高，请再次点击“确认一键合并”继续，或点击“取消”返回",
+                    vec![],
                 );
                 app.notifications_expanded = true;
                 return iced::Task::none();
@@ -2451,15 +2523,15 @@ pub fn update(
         TaskBoardMessage::CommitMergeAllWorktreesCompleted(result) => {
             poll_worktree_action_logs(app);
             match result {
-                Ok(count) => app.push_notification(format!(
-                    "已完成 worktree 一键合并，共合并 {} 个分支",
-                    count
-                )),
+                Ok(count) => app.push_localized_notification(
+                    "已完成 worktree 一键合并，共合并 %s 个分支",
+                    vec![count.to_string().into()],
+                ),
                 Err(error) => {
-                    app.push_notification(format!(
-                        "worktree 一键合并有失败，请查看右下角通知：{}",
-                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                    ));
+                    app.push_localized_notification(
+                        "worktree 一键合并有失败，请查看右下角通知：%s",
+                        vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
+                    );
                     app.notifications_expanded = true;
                 }
             }
@@ -2476,7 +2548,10 @@ pub fn update(
                 "merge" => "一键合并",
                 _ => "worktree 操作",
             };
-            app.push_notification(format!("已取消 {} 确认，可重新发起操作", action_label));
+            app.push_localized_notification(
+                "已取消 %s 确认，可重新发起操作",
+                vec![(action_label).to_string().into()],
+            );
             iced::Task::none()
         }
         TaskBoardMessage::WorktreeActionLogTick => {
@@ -2544,10 +2619,14 @@ pub fn update(
                                 || task.status == TaskStatus::CodeReview
                                 || task.status == TaskStatus::PrSubmitted
                             {
-                                task.add_log(format!(
-                                    "后台 worktree 池维护失败: {}",
-                                    truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                                ));
+                                task.add_localized_log(
+                                    "后台 worktree 池维护失败: %s",
+                                    vec![
+                                        (truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS))
+                                            .to_string()
+                                            .into(),
+                                    ],
+                                );
                                 changed = true;
                             }
                         }
@@ -2601,11 +2680,13 @@ pub fn update(
                 return iced::Task::none();
             }
             if let Err(error) = result {
-                app.push_notification(format!(
-                    "任务 {} worktree 回收失败: {}",
-                    task_id,
-                    truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                ));
+                app.push_localized_notification(
+                    "任务 %s worktree 回收失败: %s",
+                    vec![
+                        (task_id).to_string().into(),
+                        (truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)).to_string().into(),
+                    ],
+                );
             }
             maybe_schedule_worktree_snapshot_refresh(app, true)
         }
@@ -2628,10 +2709,11 @@ pub fn update(
                         return iced::Task::none();
                     }
                     tracing::warn!(error = %error, "agent scheduler status sync failed");
-                    return app.show_warning_toast(format!(
-                        "同步 Agent Scheduler 状态失败: {}",
-                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                    ));
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Warning,
+                        "同步 Agent Scheduler 状态失败: %s",
+                        vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
+                    );
                 }
             };
             let response_project_id = response.project_id.clone();
@@ -2652,10 +2734,11 @@ pub fn update(
             let sync = sync_agent_scheduler_status_for_current_project(app);
             if let Err(error) = result {
                 return iced::Task::batch(vec![
-                    app.show_error_toast(format!(
-                        "保存任务结果失败: {}",
-                        truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS)
-                    )),
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "保存任务结果失败: %s",
+                        vec![truncate_for_ui(&error, TASK_LOG_UI_MAX_DETAIL_CHARS).into()],
+                    ),
                     sync,
                 ]);
             }
@@ -2693,7 +2776,7 @@ pub fn update(
                     let _ = append_task_log_stream(task, &log);
                 }
                 if task.status != TaskStatus::Planning {
-                    task.add_log("任务状态已变化，忽略本次拆分结果".to_string());
+                    task.add_localized_log("任务状态已变化，忽略本次拆分结果", vec![]);
                 } else {
                     match result {
                         Ok(outcome) => {
@@ -2708,33 +2791,55 @@ pub fn update(
                                 subtask.depends_on_batches = plan_subtask.depends_on_batches;
                                 task.subtasks.push(subtask);
                             }
-                            task.add_log(format!("任务拆分完成: {} 个子任务", task.subtasks.len()));
-                            task.add_log(format!(
-                                "create-task-plans 计划目录: {}",
-                                truncate_for_ui(&outcome.plan_dir, TASK_LOG_UI_MAX_ENTRY_CHARS)
-                            ));
-                            task.add_log(format!(
-                                "prompt.md: {}",
-                                truncate_for_ui(
-                                    &outcome.prompt_md_path,
-                                    TASK_LOG_UI_MAX_ENTRY_CHARS
-                                )
-                            ));
-                            task.add_log(format!(
-                                "批次摘要: {}",
-                                truncate_for_ui(
-                                    &summarize_subtask_batches(&task.subtasks),
-                                    TASK_LOG_UI_MAX_DETAIL_CHARS
-                                )
-                            ));
+                            task.add_localized_log(
+                                "任务拆分完成: %s 个子任务",
+                                vec![(task.subtasks.len()).to_string().into()],
+                            );
+                            task.add_localized_log(
+                                "create-task-plans 计划目录: %s",
+                                vec![
+                                    (truncate_for_ui(
+                                        &outcome.plan_dir,
+                                        TASK_LOG_UI_MAX_ENTRY_CHARS,
+                                    ))
+                                    .to_string()
+                                    .into(),
+                                ],
+                            );
+                            task.add_localized_log(
+                                "计划入口文件路径: %s",
+                                vec![
+                                    (truncate_for_ui(
+                                        &outcome.prompt_md_path,
+                                        TASK_LOG_UI_MAX_ENTRY_CHARS,
+                                    ))
+                                    .to_string()
+                                    .into(),
+                                ],
+                            );
+                            task.add_localized_log(
+                                "批次摘要: %s",
+                                vec![
+                                    (truncate_for_ui(
+                                        &summarize_subtask_batches(&task.subtasks),
+                                        TASK_LOG_UI_MAX_DETAIL_CHARS,
+                                    ))
+                                    .to_string()
+                                    .into(),
+                                ],
+                            );
                             if !outcome.raw_output.trim().is_empty() {
-                                task.add_log(format!(
-                                    "拆分结果: {}",
-                                    truncate_for_ui(
-                                        &outcome.raw_output,
-                                        TASK_LOG_UI_MAX_DETAIL_CHARS
-                                    )
-                                ));
+                                task.add_localized_log(
+                                    "拆分结果: %s",
+                                    vec![
+                                        (truncate_for_ui(
+                                            &outcome.raw_output,
+                                            TASK_LOG_UI_MAX_DETAIL_CHARS,
+                                        ))
+                                        .to_string()
+                                        .into(),
+                                    ],
+                                );
                             }
                             let _ = crate::app::task::write_task_plan_files(&project_path, task);
 
@@ -2747,12 +2852,12 @@ pub fn update(
                                     let _ = task.start_execution("开始执行任务".to_string());
                                     task.selected_worktree_path = assigned_worktree_path;
                                     if let Some(selected_path) = &task.selected_worktree_path {
-                                        task.add_log(format!(
-                                            "[WORKTREE] 执行前已分配工作区: {}",
-                                            selected_path
-                                        ));
+                                        task.add_localized_log(
+                                            "[WORKTREE] 执行前已分配工作区: %s",
+                                            vec![(selected_path).to_string().into()],
+                                        );
                                     }
-                                    task.add_log("子任务将按顺序串行执行".to_string());
+                                    task.add_localized_log("子任务将按顺序串行执行", vec![]);
                                     let _ = crate::app::task::write_task_plan_files(
                                         &project_path,
                                         task,
@@ -2876,7 +2981,7 @@ pub fn update(
                 &app.task_board_draft.model,
                 app.task_board_draft.acp_agent.as_deref(),
             );
-            app.push_notification("已复制导入提示词模板".to_string());
+            app.push_localized_notification("已复制导入提示词模板", vec![]);
             iced::clipboard::write(template).map(|_: ()| Message::None)
         }
         TaskBoardMessage::ImportEditorAction(action) => {
@@ -2899,7 +3004,7 @@ pub fn update(
             }
             #[cfg(target_arch = "wasm32")]
             {
-                app.push_notification("当前平台暂不支持文件选择，请粘贴内容导入".to_string());
+                app.push_localized_notification("当前平台暂不支持文件选择，请粘贴内容导入", vec![]);
                 iced::Task::none()
             }
         }
@@ -2920,7 +3025,7 @@ pub fn update(
                 Ok(content) => {
                     app.task_board_import_editor =
                         iced::widget::text_editor::Content::with_text(&content);
-                    app.push_notification("已将文件内容填入导入表单".to_string());
+                    app.push_localized_notification("已将文件内容填入导入表单", vec![]);
                 }
                 Err(err) => {
                     app.push_notification(err);

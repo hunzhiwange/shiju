@@ -37,12 +37,14 @@ fn task_with_logs() -> Task {
     let mut task = Task { id: "task-logs".to_string(), ..Task::default() };
     task.logs = vec![
         TaskLogEntry {
+            localized_message: None,
             timestamp_ms: 61_000,
             status_from: None,
             status_to: None,
             message: "started".to_string(),
         },
         TaskLogEntry {
+            localized_message: None,
             timestamp_ms: 125_999,
             status_from: None,
             status_to: None,
@@ -84,7 +86,11 @@ fn task_logs_modal_builds_public_and_content_entries() {
     assert_eq!(public_modal.as_widget().size().height, Length::Fill);
     keep_element(public_modal);
 
-    let content_modal = build_task_logs_modal_content("另一条子任务", &task);
+    let content_modal = build_task_logs_modal_content(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "另一条子任务",
+        &task,
+    );
     assert_eq!(content_modal.as_widget().size().width, Length::FillPortion(1));
     assert_eq!(content_modal.as_widget().size().height, Length::Fill);
     keep_element(content_modal);
@@ -94,7 +100,11 @@ fn task_logs_modal_builds_public_and_content_entries() {
 fn task_logs_modal_omits_subtask_section_when_empty() {
     let task = task_with_logs();
 
-    let modal = build_task_logs_modal_content("", &task);
+    let modal = build_task_logs_modal_content(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "",
+        &task,
+    );
 
     assert_eq!(modal.as_widget().size().width, Length::FillPortion(1));
     keep_element(modal);
@@ -109,8 +119,12 @@ fn subtask_section_covers_move_button_edges() {
         subtask("last", "last item", SubTaskStatus::Failed, 120_000),
     ];
 
-    let column: Element<'_, Message> =
-        build_subtasks_section(&task, iced::widget::column![]).into();
+    let column: Element<'_, Message> = build_subtasks_section(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &task,
+        iced::widget::column![],
+    )
+    .into();
 
     assert_eq!(column.as_widget().children().len(), 4);
 }
@@ -119,8 +133,13 @@ fn subtask_section_covers_move_button_edges() {
 fn add_subtask_section_uses_current_input_value_for_messages() {
     let task = Task { id: "task-add".to_string(), ..Task::default() };
 
-    let column: Element<'_, Message> =
-        build_add_subtask_section("新的子任务", &task, iced::widget::column![]).into();
+    let column: Element<'_, Message> = build_add_subtask_section(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        "新的子任务",
+        &task,
+        iced::widget::column![],
+    )
+    .into();
     assert_eq!(column.as_widget().children().len(), 4);
 
     match update_new_subtask_content_message("typed".to_string()) {
@@ -147,13 +166,19 @@ fn logs_section_formats_empty_and_multi_line_logs() {
     let task = task_with_logs();
     assert_eq!(format_logs_content(&task), "1:1 - started\n2:5 - finished");
 
-    let column: Element<'_, Message> = build_logs_section(&task, iced::widget::column![]).into();
+    let column: Element<'_, Message> = build_logs_section(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &task,
+        iced::widget::column![],
+    )
+    .into();
     assert_eq!(column.as_widget().children().len(), 3);
 }
 
 #[test]
 fn helper_formatters_preserve_existing_time_contracts() {
     let log = TaskLogEntry {
+        localized_message: None,
         timestamp_ms: 3_661_999,
         status_from: None,
         status_to: None,
@@ -168,12 +193,14 @@ fn helper_formatters_preserve_existing_time_contracts() {
 #[test]
 fn log_formatter_handles_minute_boundary_and_preserves_message_text() {
     let before_minute = TaskLogEntry {
+        localized_message: None,
         timestamp_ms: 59_999,
         status_from: None,
         status_to: None,
         message: "line one\nline two".to_string(),
     };
-    let at_minute = TaskLogEntry { timestamp_ms: 60_000, ..before_minute.clone() };
+    let at_minute =
+        TaskLogEntry { localized_message: None, timestamp_ms: 60_000, ..before_minute.clone() };
 
     assert_eq!(format_log_entry(&before_minute), "0:59 - line one\nline two");
     assert_eq!(format_log_entry(&at_minute), "1:0 - line one\nline two");

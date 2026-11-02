@@ -1051,7 +1051,10 @@ pub(crate) fn record_task_worktree_recycle_after_failure(
     task: &mut Task,
     reason: impl Into<String>,
 ) {
-    task.add_log(format!("{}，等待网关运行时清理 worktree 槽位", reason.into()));
+    task.add_localized_log(
+        "%s，等待网关运行时清理 worktree 槽位",
+        vec![(reason.into()).to_string().into()],
+    );
 }
 
 pub(crate) fn is_model_response_timeout_error(error: &str) -> bool {
@@ -1139,12 +1142,16 @@ pub(crate) fn apply_execution_timeouts(
                 if now.saturating_sub(timeout_anchor) >= running_timeout_ms {
                     if !task_has_current_timeout_grace(task) {
                         task.execution_started_at_ms = Some(now);
-                        task.add_log(format!(
-                            "{}: {}超过 {} 分钟未完成，本次不标记失败，继续等待一个周期",
-                            TASK_RUNNING_TIMEOUT_GRACE_LOG_MARKER,
-                            task.status.label(),
-                            app.task_board_settings.running_timeout_minutes.max(1)
-                        ));
+                        task.add_localized_log(
+                            "%s: %s超过 %s 分钟未完成，本次不标记失败，继续等待一个周期",
+                            vec![
+                                (TASK_RUNNING_TIMEOUT_GRACE_LOG_MARKER).to_string().into(),
+                                (task.status.label()).to_string().into(),
+                                (app.task_board_settings.running_timeout_minutes.max(1))
+                                    .to_string()
+                                    .into(),
+                            ],
+                        );
                     } else {
                         let timeout_reason = format!(
                             "{}连续超过 {} 分钟仍未完成，已自动标记失败",
@@ -1183,14 +1190,22 @@ pub(crate) fn apply_execution_timeouts(
                             .unwrap_or_else(|| "none".to_string());
                         let target_branch =
                             task.merge_target_branch.as_deref().unwrap_or("none").to_string();
-                        task.add_log(format!(
-                            "合并阶段超时检测: inactive_ms={} worktree={} target={} lock_holder={}",
-                            inactive_for_ms, selected_worktree, target_branch, holder
-                        ));
-                        task.add_log(format!(
-                            "合并阶段超时暂停: target={} project_path={}，gateway 锁由执行守卫释放",
-                            target_branch, project_path
-                        ));
+                        task.add_localized_log(
+                            "合并阶段超时检测: inactive_ms=%s worktree=%s target=%s lock_holder=%s",
+                            vec![
+                                (inactive_for_ms).to_string().into(),
+                                (selected_worktree).to_string().into(),
+                                (target_branch).to_string().into(),
+                                (holder).to_string().into(),
+                            ],
+                        );
+                        task.add_localized_log(
+                            "合并阶段超时暂停: target=%s project_path=%s，gateway 锁由执行守卫释放",
+                            vec![
+                                (target_branch).to_string().into(),
+                                (project_path).to_string().into(),
+                            ],
+                        );
                     }
                     let pause_reason =
                         format!("合并阶段静默超过 {} 秒未完成，已自动暂停", pr_stall_timeout_secs);

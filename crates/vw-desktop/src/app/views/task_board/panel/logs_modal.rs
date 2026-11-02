@@ -9,7 +9,9 @@ use crate::app::components::system_settings_common::{
     settings_close_button, settings_text_input_style,
 };
 use crate::app::message::TaskBoardMessage;
-use crate::app::task::{Task, TaskLogEntry};
+use crate::app::task::Task;
+#[cfg(test)]
+use crate::app::task::TaskLogEntry;
 use crate::app::{App, Message};
 
 use super::super::common::{button_style_danger, button_style_primary, button_style_secondary};
@@ -31,10 +33,15 @@ use super::styles::{
 /// 此函数不返回 `Result`；不可用状态会通过空视图、禁用控件或回退文案表达。
 #[allow(dead_code)]
 pub fn build_task_logs_modal<'a>(app: &'a App, task: &'a Task) -> Element<'a, Message> {
-    build_task_logs_modal_content(&app.task_board_new_subtask_content, task)
+    build_task_logs_modal_content(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        &app.task_board_new_subtask_content,
+        task,
+    )
 }
 
 fn build_task_logs_modal_content<'a>(
+    i18n: crate::app::i18n::I18n,
     new_subtask_content: &'a str,
     task: &'a Task,
 ) -> Element<'a, Message> {
@@ -51,12 +58,12 @@ fn build_task_logs_modal_content<'a>(
     let mut main_col = column![header, Space::new().height(12.0)].spacing(0).width(Length::Fill);
 
     if !task.subtasks.is_empty() {
-        main_col = build_subtasks_section(task, main_col);
+        main_col = build_subtasks_section(i18n, task, main_col);
     }
 
-    main_col = build_add_subtask_section(new_subtask_content, task, main_col);
+    main_col = build_add_subtask_section(i18n, new_subtask_content, task, main_col);
 
-    main_col = build_logs_section(task, main_col);
+    main_col = build_logs_section(i18n, task, main_col);
 
     let content = scrollable(main_col).width(Length::Fill).height(Length::Fill);
 
@@ -83,10 +90,11 @@ fn modal_panel_style(theme: &Theme) -> iced::widget::container::Style {
 }
 
 fn build_subtasks_section<'a>(
+    i18n: crate::app::i18n::I18n,
     task: &'a Task,
     mut main_col: iced::widget::Column<'a, Message>,
 ) -> iced::widget::Column<'a, Message> {
-    let subtasks_title = text("子任务")
+    let subtasks_title = text(i18n.__("子任务"))
         .size(13)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
     main_col = main_col.push(subtasks_title).push(Space::new().height(8.0));
@@ -107,7 +115,7 @@ fn build_subtasks_section<'a>(
         .center_x(Length::Fill)
         .center_y(Length::Fill);
         let status_label = container(
-            text(subtask_status_label(status))
+            text(i18n.__(subtask_status_label(status)))
                 .size(10)
                 .style(move |theme: &Theme| subtask_status_text_style(theme, status)),
         )
@@ -214,12 +222,13 @@ fn subtask_created_at_text_style(_theme: &Theme) -> iced::widget::text::Style {
 }
 
 fn build_add_subtask_section<'a>(
+    i18n: crate::app::i18n::I18n,
     new_subtask_content: &'a str,
     task: &'a Task,
     main_col: iced::widget::Column<'a, Message>,
 ) -> iced::widget::Column<'a, Message> {
-    let add_subtask_title = text("添加子任务").size(12);
-    let add_subtask_input = text_input("输入子任务内容...", new_subtask_content)
+    let add_subtask_title = text(i18n.__("添加子任务")).size(12);
+    let add_subtask_input = text_input(i18n.__("输入子任务内容..."), new_subtask_content)
         .on_input(update_new_subtask_content_message)
         .padding(8)
         .width(Length::Fill)
@@ -227,7 +236,7 @@ fn build_add_subtask_section<'a>(
 
     let content_for_add = new_subtask_content.to_string();
     let task_id_for_add = task.id.clone();
-    let add_subtask_btn = button(text("添加").size(11))
+    let add_subtask_btn = button(text(i18n.__("添加")).size(11))
         .on_press(add_subtask_message(task_id_for_add, content_for_add))
         .padding([8, 12])
         .style(button_style_primary);
@@ -250,15 +259,28 @@ fn add_subtask_message(task_id: String, content: String) -> Message {
 }
 
 fn build_logs_section<'a>(
+    i18n: crate::app::i18n::I18n,
     task: &'a Task,
     mut main_col: iced::widget::Column<'a, Message>,
 ) -> iced::widget::Column<'a, Message> {
-    let logs_title = text("任务日志")
+    let logs_title = text(i18n.__("任务日志"))
         .size(13)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
     main_col = main_col.push(logs_title).push(Space::new().height(8.0));
 
-    let logs_content = format_logs_content(task);
+    let logs_content = task
+        .logs
+        .iter()
+        .map(|entry| {
+            let timestamp = format!(
+                "{}:{} - ",
+                entry.timestamp_ms / 60000,
+                (entry.timestamp_ms % 60000) / 1000
+            );
+            format!("{timestamp}{}", crate::app::i18n::tasks::log_message(i18n, entry))
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
 
     let logs_widget =
         container(text(logs_content).size(11).wrapping(iced::widget::text::Wrapping::Word))
@@ -269,10 +291,12 @@ fn build_logs_section<'a>(
     main_col.push(scrollable_widget)
 }
 
+#[cfg(test)]
 fn format_logs_content(task: &Task) -> String {
     task.logs.iter().map(format_log_entry).collect::<Vec<_>>().join("\n")
 }
 
+#[cfg(test)]
 fn format_log_entry(log: &TaskLogEntry) -> String {
     let ts_mins = log.timestamp_ms / 60000;
     let ts_secs = (log.timestamp_ms % 60000) / 1000;

@@ -578,6 +578,8 @@ fn generate_task_id() -> String {
 /// 公开的 TaskLogEntry 结构体，承载该模块边界内传递的结构化状态。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskLogEntry {
+    #[serde(skip)]
+    pub localized_message: Option<crate::app::i18n::format::Message>,
     pub timestamp_ms: u64,
     pub status_from: Option<TaskStatus>,
     pub status_to: Option<TaskStatus>,
@@ -685,6 +687,7 @@ impl TaskLogEntry {
     /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
     pub fn new_status_change(from: TaskStatus, to: TaskStatus) -> Self {
         Self {
+            localized_message: None,
             timestamp_ms: now_ms(),
             status_from: Some(from),
             status_to: Some(to),
@@ -696,7 +699,13 @@ impl TaskLogEntry {
     ///
     /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
     pub fn new_message(message: String) -> Self {
-        Self { timestamp_ms: now_ms(), status_from: None, status_to: None, message }
+        Self {
+            localized_message: None,
+            timestamp_ms: now_ms(),
+            status_from: None,
+            status_to: None,
+            message,
+        }
     }
 }
 
@@ -867,6 +876,23 @@ impl Task {
     /// 公开的 add_log 函数。
     ///
     /// 参数由调用方提供，返回值表达该步骤的计算结果；遇到不可恢复的外部状态时通过现有返回类型向上层传播错误或空结果。
+    pub fn add_localized_log(
+        &mut self,
+        source: &str,
+        arguments: Vec<crate::app::i18n::format::Argument>,
+    ) {
+        let message = crate::app::i18n::format::Message::new(source, arguments);
+        let rendered = message
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .expect("valid task log template");
+        self.add_log(rendered);
+        if let Some(entry) = self.logs.last_mut() {
+            entry.localized_message = Some(message);
+        }
+    }
+
     pub fn add_log(&mut self, message: String) {
         let now = now_ms();
         self.logs.push(TaskLogEntry::new_message(message));

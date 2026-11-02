@@ -161,7 +161,10 @@ fn drag_preview_card_builds_for_priority_and_prompt_variants() {
         task_with(500, "medium priority", TaskStatus::Running),
         task_with(501, "neutral priority", TaskStatus::Completed),
     ] {
-        let _element = super::build_drag_preview_card(&task);
+        let _element = super::build_drag_preview_card(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task,
+        );
     }
 }
 
@@ -169,7 +172,11 @@ fn drag_preview_card_builds_for_priority_and_prompt_variants() {
 async fn drag_preview_card_draws_badges_and_theme_styles() {
     let task = task_with(100, "render the dragged task", TaskStatus::Running);
 
-    assert_element_draws(super::build_drag_preview_card(&task)).await;
+    assert_element_draws(super::build_drag_preview_card(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &task,
+    ))
+    .await;
 }
 
 #[test]

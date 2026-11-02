@@ -67,6 +67,7 @@ fn task_priority_badge_color(priority: u32) -> Color {
     }
 }
 
+#[cfg(test)]
 fn task_preview_content(prompt: &str) -> &str {
     if prompt.trim().is_empty() { "（无内容）" } else { prompt }
 }
@@ -120,7 +121,8 @@ pub fn build_drag_preview_layer<'a>(app: &'a App) -> Element<'a, Message> {
     if let Some((task_id, _)) = &app.task_board_dragging
         && let Some(task) = app.task_board_tasks.iter().find(|t| &t.id == task_id)
     {
-        let preview_card = build_drag_preview_card(task);
+        let preview_card =
+            build_drag_preview_card(crate::app::i18n::I18n::new(app.desktop_locale), task);
 
         return container(preview_card)
             .width(Length::Fill)
@@ -131,7 +133,10 @@ pub fn build_drag_preview_layer<'a>(app: &'a App) -> Element<'a, Message> {
     container(Space::new()).width(Length::Fill).height(Length::Fill).into()
 }
 
-fn build_drag_preview_card<'a>(task: &'a Task) -> Element<'a, Message> {
+fn build_drag_preview_card<'a>(
+    i18n: crate::app::i18n::I18n,
+    task: &'a Task,
+) -> Element<'a, Message> {
     let priority_color = task_priority_badge_color(task.priority);
 
     let priority_badge = container(text(format!("P{}", task.priority)).size(9))
@@ -142,11 +147,16 @@ fn build_drag_preview_card<'a>(task: &'a Task) -> Element<'a, Message> {
         .spacing(4)
         .align_y(iced::Alignment::Center);
 
-    let content = task_preview_content(&task.prompt);
+    let content = if task.prompt.trim().is_empty() {
+        i18n.__("（无内容）")
+    } else {
+        task.prompt.as_str()
+    };
     let (status_color, status_bg_color) = task_status_tag_colors(task.status);
-    let status_badge = container(text(task.status.label()).size(9))
-        .padding([1, 6])
-        .style(move |_theme: &Theme| status_badge_style(status_color, status_bg_color));
+    let status_badge =
+        container(text(crate::app::i18n::tasks::status_label(i18n, task.status)).size(9))
+            .padding([1, 6])
+            .style(move |_theme: &Theme| status_badge_style(status_color, status_bg_color));
     let title_row = row![
         text(&task.id).size(9).style(task_id_text_style),
         container(text(content).size(12).wrapping(iced::widget::text::Wrapping::Word))

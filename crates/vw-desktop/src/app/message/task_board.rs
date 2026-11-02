@@ -31,7 +31,7 @@ mod helpers;
 mod message;
 mod update;
 
-pub(crate) use helpers::import_prompt_template;
+pub(crate) use helpers::{import_prompt_template, sync_task_logs_editor};
 pub use message::TaskBoardMessage;
 pub(crate) use message::WorktreePoolMaintenanceOutcome;
 pub use update::update;

@@ -165,13 +165,25 @@ fn worktree_confirm_hint(confirm_kind: &str) -> &'static str {
     }
 }
 
-fn worktree_action_status(action_kind: Option<&'static str>, now_ms: u64) -> String {
+fn worktree_action_status(
+    i18n: crate::app::i18n::I18n,
+    action_kind: Option<&'static str>,
+    now_ms: u64,
+) -> String {
     match action_kind {
-        Some("cleanup") => format!("正在清理{}", running_dots(now_ms)),
-        Some("delete") => format!("正在删除所有 worktree{}", running_dots(now_ms)),
-        Some("merge") => format!("正在一键合并{}", running_dots(now_ms)),
-        Some("slot_recycle") => format!("正在回收 worktree{}", running_dots(now_ms)),
-        _ => "正在处理 worktree 操作".to_string(),
+        Some("cleanup") => i18n
+            .format("正在清理%s", &[running_dots(now_ms).into()])
+            .expect("valid action template"),
+        Some("delete") => i18n
+            .format("正在删除所有 worktree%s", &[running_dots(now_ms).into()])
+            .expect("valid action template"),
+        Some("merge") => i18n
+            .format("正在一键合并%s", &[running_dots(now_ms).into()])
+            .expect("valid action template"),
+        Some("slot_recycle") => i18n
+            .format("正在回收 worktree%s", &[running_dots(now_ms).into()])
+            .expect("valid action template"),
+        _ => i18n.__("正在处理 worktree 操作").to_string(),
     }
 }
 
@@ -186,13 +198,16 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
 
     let title = container(
         row![
-            text("任务看板")
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务看板"))
                 .size(20)
                 .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() }),
-            text("统一管理调度、工作池与批量任务动作。")
-                .size(12)
-                .width(Length::Fill)
-                .style(settings_muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("统一管理调度、工作池与批量任务动作。")
+            )
+            .size(12)
+            .width(Length::Fill)
+            .style(settings_muted_text_style),
         ]
         .spacing(10)
         .align_y(Alignment::Center),
@@ -213,9 +228,9 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
 
     let scheduler_chip = status_chip(
         if app.task_board_executor_running {
-            "调度运行中".to_string()
+            crate::app::i18n::I18n::new(app.desktop_locale).__("调度运行中").to_string()
         } else {
-            "调度待启动".to_string()
+            crate::app::i18n::I18n::new(app.desktop_locale).__("调度待启动").to_string()
         },
         if app.task_board_executor_running {
             Color::from_rgb8(0x2E, 0xB8, 0x72)
@@ -224,7 +239,9 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
         },
     );
     let completed_chip = status_chip(
-        format!("待归档 {}", completed_count),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("待归档 %u", &[(completed_count).into()])
+            .expect("valid task display template"),
         if completed_count > 0 {
             Color::from_rgb8(0xF2, 0xA9, 0x00)
         } else {
@@ -233,22 +250,31 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     );
     let worktree_chip = if should_render_worktree_controls(app) && worktree_manual_action_running {
         Some(status_chip(
-            format!("工作池处理中{}", running_dots(now_ms)),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("工作池处理中%s", &[(running_dots(now_ms)).into()])
+                .expect("valid task display template"),
             Color::from_rgb8(0xFF, 0x7A, 0x00),
         ))
     } else {
         None
     };
 
-    let settings_btn = button(text("看板设置").size(12))
-        .on_press(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal))
-        .padding([6, 12])
-        .style(button_style_secondary);
+    let settings_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("看板设置")).size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::OpenSettingsModal))
+            .padding([6, 12])
+            .style(button_style_secondary);
 
     let (exec_btn_label, exec_msg) = if app.task_board_executor_running {
-        ("停止任务调度".to_string(), TaskBoardMessage::StopExecution)
+        (
+            crate::app::i18n::I18n::new(app.desktop_locale).__("停止任务调度").to_string(),
+            TaskBoardMessage::StopExecution,
+        )
     } else {
-        ("开始任务调度".to_string(), TaskBoardMessage::StartExecution)
+        (
+            crate::app::i18n::I18n::new(app.desktop_locale).__("开始任务调度").to_string(),
+            TaskBoardMessage::StartExecution,
+        )
     };
     let exec_btn = button(text(exec_btn_label).size(12))
         .on_press(Message::TaskBoard(exec_msg))
@@ -259,28 +285,38 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             button_style_primary
         });
 
-    let new_task_btn = button(text("+ 新建任务").size(12))
-        .on_press(Message::TaskBoard(TaskBoardMessage::CreateTask))
-        .padding([6, 12])
-        .style(button_style_primary);
+    let new_task_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("+ 新建任务")).size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::CreateTask))
+            .padding([6, 12])
+            .style(button_style_primary);
 
-    let archive_completed_btn = button(text(format!("归档已完成 {}", completed_count)).size(12))
-        .on_press_maybe(
-            (completed_count > 0)
-                .then_some(Message::TaskBoard(TaskBoardMessage::ArchiveCompletedTasks)),
+    let archive_completed_btn = button(
+        text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("归档已完成 %u", &[(completed_count).into()])
+                .expect("valid task display template"),
         )
-        .padding([6, 12])
-        .style(button_style_secondary);
+        .size(12),
+    )
+    .on_press_maybe(
+        (completed_count > 0)
+            .then_some(Message::TaskBoard(TaskBoardMessage::ArchiveCompletedTasks)),
+    )
+    .padding([6, 12])
+    .style(button_style_secondary);
 
-    let refresh_btn = button(text("刷新任务").size(12))
-        .on_press(Message::TaskBoard(TaskBoardMessage::LoadTasks))
-        .padding([6, 12])
-        .style(button_style_secondary);
+    let refresh_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("刷新任务")).size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::LoadTasks))
+            .padding([6, 12])
+            .style(button_style_secondary);
 
-    let close_btn = button(text("关闭看板").size(12))
-        .on_press(Message::TaskBoard(TaskBoardMessage::CloseBoard))
-        .padding([6, 12])
-        .style(button_style_secondary);
+    let close_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭看板")).size(12))
+            .on_press(Message::TaskBoard(TaskBoardMessage::CloseBoard))
+            .padding([6, 12])
+            .style(button_style_secondary);
 
     let mut summary_row =
         row![scheduler_chip, completed_chip].spacing(8).align_y(Alignment::Center);
@@ -309,31 +345,41 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
     let mut content = column![top_controls].spacing(12);
     if should_render_worktree_controls(app) {
         if let Some(snapshot) = &app.task_board_worktree_snapshot {
-            let title_line = text("工作池").size(13).style(worktree_title_text_style);
+            let title_line = text(crate::app::i18n::I18n::new(app.desktop_locale).__("工作池"))
+                .size(13)
+                .style(worktree_title_text_style);
+            let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
             let lock_text = if snapshot.merge_target_locks.is_empty() {
-                "合并锁: 无".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale).__("合并锁: 无").to_string()
             } else {
-                format!(
-                    "合并锁: {}",
-                    snapshot
+                i18n.format(
+                    "合并锁: %s",
+                    &[(snapshot
                         .merge_target_locks
                         .iter()
                         .map(|(target, task_id)| format!("{}<-{}", target, task_id))
                         .collect::<Vec<_>>()
-                        .join(" | ")
+                        .join(" | "))
+                    .into()],
                 )
+                .expect("valid merge lock template")
             };
-            let summary_line = text(format!(
-                "待复用:{} 忙碌:{} 污染:{} 回收中:{} 失效:{} | 基线分支:{} | 目录:{} | {}",
-                snapshot.idle_count,
-                snapshot.busy_count,
-                snapshot.tainted_count,
-                snapshot.recycling_count,
-                snapshot.dead_count,
-                snapshot.base_branch,
-                snapshot.pool_root,
-                lock_text
-            ))
+            let summary_line = text(
+                i18n.format(
+                    "待复用:%u 忙碌:%u 污染:%u 回收中:%u 失效:%u | 基线分支:%s | 目录:%s | %s",
+                    &[
+                        snapshot.idle_count.into(),
+                        snapshot.busy_count.into(),
+                        snapshot.tainted_count.into(),
+                        snapshot.recycling_count.into(),
+                        snapshot.dead_count.into(),
+                        snapshot.base_branch.clone().into(),
+                        snapshot.pool_root.clone().into(),
+                        lock_text.into(),
+                    ],
+                )
+                .expect("valid worktree summary template"),
+            )
             .size(12)
             .style(worktree_summary_text_style);
 
@@ -342,27 +388,34 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             } else {
                 "展开槽位明细"
             };
-            let toggle_btn = button(text(toggle_label).size(12))
-                .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePanelExpanded))
-                .padding([4, 8])
-                .style(button_style_secondary);
+            let toggle_btn = button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(toggle_label)).size(12),
+            )
+            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePanelExpanded))
+            .padding([4, 8])
+            .style(button_style_secondary);
             let office_toggle_label = if app.task_board_worktree_pixel_office {
                 "切换列表视图"
             } else {
                 "切换像素办公室"
             };
-            let office_toggle_btn = button(text(office_toggle_label).size(12))
-                .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePixelOffice(
-                    !app.task_board_worktree_pixel_office,
-                )))
-                .padding([4, 8])
-                .style(button_style_secondary);
+            let office_toggle_btn = button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(office_toggle_label))
+                    .size(12),
+            )
+            .on_press(Message::TaskBoard(TaskBoardMessage::ToggleWorktreePixelOffice(
+                !app.task_board_worktree_pixel_office,
+            )))
+            .padding([4, 8])
+            .style(button_style_secondary);
             let clean_btn_label = if app.task_board_worktree_manual_action_kind == Some("cleanup") {
-                format!("一键清理进行中{}", running_dots(now_ms))
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("一键清理进行中%s", &[(running_dots(now_ms)).into()])
+                    .expect("valid task display template")
             } else if app.task_board_worktree_manual_confirm_kind == Some("cleanup") {
-                "确认一键清理".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale).__("确认一键清理").to_string()
             } else {
-                "一键清理".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale).__("一键清理").to_string()
             };
             let clean_btn = button(text(clean_btn_label).size(12))
                 .on_press_maybe(
@@ -376,11 +429,15 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                     button_style_secondary
                 });
             let delete_btn_label = if app.task_board_worktree_manual_action_kind == Some("delete") {
-                format!("删除所有 worktree 中{}", running_dots(now_ms))
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("删除所有 worktree 中%s", &[(running_dots(now_ms)).into()])
+                    .expect("valid task display template")
             } else if app.task_board_worktree_manual_confirm_kind == Some("delete") {
-                "确认删除所有 worktree".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("确认删除所有 worktree")
+                    .to_string()
             } else {
-                "一键删除".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale).__("一键删除").to_string()
             };
             let delete_btn = button(text(delete_btn_label).size(12))
                 .on_press_maybe(
@@ -394,11 +451,13 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                     button_style_secondary
                 });
             let merge_btn_label = if app.task_board_worktree_manual_action_kind == Some("merge") {
-                format!("一键合并进行中{}", running_dots(now_ms))
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("一键合并进行中%s", &[(running_dots(now_ms)).into()])
+                    .expect("valid task display template")
             } else if app.task_board_worktree_manual_confirm_kind == Some("merge") {
-                "确认一键合并".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale).__("确认一键合并").to_string()
             } else {
-                "一键合并".to_string()
+                crate::app::i18n::I18n::new(app.desktop_locale).__("一键合并").to_string()
             };
             let merge_btn = button(text(merge_btn_label).size(12))
                 .on_press_maybe((!worktree_manual_action_running).then_some(Message::TaskBoard(
@@ -414,15 +473,19 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                 .spacing(12)
                 .align_y(Alignment::Center);
             if app.task_board_worktree_manual_confirm_kind.is_some() {
-                let cancel_btn = button(text("取消确认").size(12))
-                    .on_press(Message::TaskBoard(TaskBoardMessage::CancelWorktreeManualConfirm))
-                    .padding([4, 8])
-                    .style(button_style_secondary);
+                let cancel_btn = button(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消确认")).size(12),
+                )
+                .on_press(Message::TaskBoard(TaskBoardMessage::CancelWorktreeManualConfirm))
+                .padding([4, 8])
+                .style(button_style_secondary);
                 title_row = title_row.push(cancel_btn);
             }
             title_row = title_row.push(office_toggle_btn).push(toggle_btn);
             if app.task_board_worktree_snapshot_loading {
-                let loading_text = format!("后台刷新中{}", running_dots(now_ms));
+                let loading_text = crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("后台刷新中%s", &[(running_dots(now_ms)).into()])
+                    .expect("valid task display template");
                 title_row = title_row
                     .push(text(loading_text).size(12).style(worktree_refreshing_text_style));
             }
@@ -430,9 +493,12 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             let mut panel_col = column![title_row, summary_line].spacing(4);
             if let Some(confirm_kind) = app.task_board_worktree_manual_confirm_kind {
                 let confirm_panel = container(
-                    text(worktree_confirm_hint(confirm_kind))
-                        .size(11)
-                        .style(confirm_hint_text_style),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__(worktree_confirm_hint(confirm_kind)),
+                    )
+                    .size(11)
+                    .style(confirm_hint_text_style),
                 )
                 .padding([8, 10])
                 .width(Length::Fill)
@@ -440,8 +506,11 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                 panel_col = panel_col.push(confirm_panel);
             }
             if worktree_manual_action_running || !app.task_board_worktree_action_logs.is_empty() {
-                let action_status =
-                    worktree_action_status(app.task_board_worktree_manual_action_kind, now_ms);
+                let action_status = worktree_action_status(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    app.task_board_worktree_manual_action_kind,
+                    now_ms,
+                );
                 let status_panel =
                     container(text(action_status).size(11).style(worktree_action_text_style))
                         .padding([8, 10])
@@ -454,30 +523,35 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                 for slot in &snapshot.slots {
                     let owner = slot.leased_task_id.as_deref().unwrap_or("-");
                     let taint = slot.taint_reason.as_deref().unwrap_or("-");
-                    let recycle_btn = button(text("回收").size(11))
-                        .on_press(Message::TaskBoard(
-                            TaskBoardMessage::RecycleWorktreeSlotPressed {
-                                slot_id: slot.id.clone(),
-                            },
-                        ))
-                        .padding([3, 8])
-                        .style(
-                            if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
-                                button_style_danger
-                            } else {
-                                button_style_secondary
-                            },
-                        );
+                    let recycle_btn = button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("回收")).size(11),
+                    )
+                    .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
+                        slot_id: slot.id.clone(),
+                    }))
+                    .padding([3, 8])
+                    .style(
+                        if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
+                            button_style_danger
+                        } else {
+                            button_style_secondary
+                        },
+                    );
                     let slot_row = container(
                         column![
                             row![
-                                text(format!(
-                                    "{} [{}] 分支={} 任务={} ",
-                                    slot.id,
-                                    worktree_state_label(slot.state),
-                                    slot.branch,
-                                    owner,
-                                ))
+                                text(
+                                    i18n.format(
+                                        "%s [%s] 分支=%s 任务=%s ",
+                                        &[
+                                            slot.id.clone().into(),
+                                            i18n.__(worktree_state_label(slot.state)).into(),
+                                            slot.branch.clone().into(),
+                                            owner.into()
+                                        ]
+                                    )
+                                    .expect("valid slot summary template")
+                                )
                                 .size(12)
                                 .width(Length::Fill)
                                 .style(worktree_slot_title_text_style),
@@ -485,12 +559,20 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
                             ]
                             .spacing(8)
                             .align_y(Alignment::Center),
-                            text(format!("路径={}", slot.path))
-                                .size(12)
-                                .style(worktree_slot_path_text_style),
-                            text(format!("污染原因={}", taint))
-                                .size(12)
-                                .style(worktree_slot_taint_text_style),
+                            text(
+                                crate::app::i18n::I18n::new(app.desktop_locale)
+                                    .format("路径=%s", &[(slot.path.clone()).into()])
+                                    .expect("valid task display template")
+                            )
+                            .size(12)
+                            .style(worktree_slot_path_text_style),
+                            text(
+                                crate::app::i18n::I18n::new(app.desktop_locale)
+                                    .format("污染原因=%s", &[(taint).into()])
+                                    .expect("valid task display template")
+                            )
+                            .size(12)
+                            .style(worktree_slot_taint_text_style),
                         ]
                         .spacing(2),
                     )
@@ -512,7 +594,11 @@ pub fn build_control_buttons<'a>(app: &'a App) -> Element<'a, Message> {
             }
         } else if app.project_path.is_some() && app.task_board_worktree_snapshot_loading {
             let loading_panel = container(
-                text("Worktree 池后台加载中...").size(12).style(worktree_loading_text_style),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("Worktree 池后台加载中..."),
+                )
+                .size(12)
+                .style(worktree_loading_text_style),
             )
             .padding([8, 10])
             .width(Length::Fill)

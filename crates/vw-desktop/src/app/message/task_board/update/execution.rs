@@ -15,7 +15,7 @@ fn should_continue_existing_session_for_manual_retry(task: &Task, manual: bool) 
 
 fn add_agent_scheduler_command_log_once(task: &mut Task, message: &str) {
     if !task.logs.iter().rev().take(16).any(|entry| entry.message == message) {
-        task.add_log(message.to_string());
+        task.add_localized_log(message, vec![]);
     }
 }
 
@@ -138,7 +138,7 @@ pub(super) fn update(
     dispatch_task_board_messages!(message,
     TaskBoardMessage::StartExecution => {
         if !app.project_is_git_repo {
-            return app.show_error_toast("当前项目不是 Git 仓库，无法启动依赖 worktree 的任务调度");
+            return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前项目不是 Git 仓库，无法启动依赖 worktree 的任务调度", vec![]);
         }
         app.task_board_executor_running = true;
         app.task_board_last_log_flush_at_ms = 0;
@@ -325,9 +325,7 @@ pub(super) fn update(
         }
         TaskBoardMessage::ExecuteTask { task_id } => {
             if !app.project_is_git_repo {
-                return app.show_error_toast(
-                    "当前项目不是 Git 仓库，无法执行依赖 worktree 的任务",
-                );
+                return app.show_localized_toast(crate::app::state::ToastKind::Error, "当前项目不是 Git 仓库，无法执行依赖 worktree 的任务", vec![]);
             }
             if let Some(task) = app.task_board_tasks.iter().find(|t| t.id == task_id).cloned() {
                 if let Some(project_path) = &app.project_path {
@@ -336,9 +334,7 @@ pub(super) fn update(
                         if let Some(task_in_list) =
                             app.task_board_tasks.iter_mut().find(|t| t.id == task_id)
                         {
-                            task_in_list.add_log(
-                                "任务已在执行或等待工作区，忽略重复启动".to_string(),
-                            );
+                            task_in_list.add_localized_log("任务已在执行或等待工作区，忽略重复启动", vec![]);
                         }
                         sync_viewing_logs(app, &task_id);
                         return iced::Task::none();

@@ -18,22 +18,24 @@ fn build_worktree_room_scene<'a>(
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
     let (base_actor_icon, actor_state) = worktree_state_actor(slot.state);
+    let actor_state = crate::app::i18n::I18n::new(app.desktop_locale).__(actor_state);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let now_ms = crate::app::time::now_ms();
-    let owner = slot.leased_task_id.as_deref().unwrap_or("未分配任务");
+    let owner = slot.leased_task_id.as_deref().unwrap_or(i18n.__("未分配任务"));
     let task = slot_task(app, slot);
     let detail = match slot.state {
-        WorktreeState::Tainted => slot.taint_reason.as_deref().unwrap_or("待清理"),
+        WorktreeState::Tainted => slot.taint_reason.as_deref().unwrap_or(i18n.__("待清理")),
         WorktreeState::Busy => owner,
-        WorktreeState::Recycling => "整理中",
-        WorktreeState::Dead => "离线",
-        WorktreeState::Idle => "可立即执行",
+        WorktreeState::Recycling => i18n.__("整理中"),
+        WorktreeState::Dead => i18n.__("离线"),
+        WorktreeState::Idle => i18n.__("可立即执行"),
     };
     let occupancy_label = match slot.state {
-        WorktreeState::Busy => "有人",
-        WorktreeState::Idle => "空座",
-        WorktreeState::Tainted => "封锁",
-        WorktreeState::Recycling => "整理",
-        WorktreeState::Dead => "停机",
+        WorktreeState::Busy => i18n.__("有人"),
+        WorktreeState::Idle => i18n.__("空座"),
+        WorktreeState::Tainted => i18n.__("封锁"),
+        WorktreeState::Recycling => i18n.__("整理"),
+        WorktreeState::Dead => i18n.__("停机"),
     };
     let props = worktree_room_props(slot.state);
     let is_tight = app.window_size.0 < 1520.0;
@@ -95,13 +97,21 @@ fn build_worktree_room_scene<'a>(
     } else {
         actor_state.to_string()
     };
-    let task_id_label = if is_busy { format!("任务 {owner}") } else { owner.to_string() };
+    let task_id_label = if is_busy {
+        i18n.format("任务 %s", &[owner.into()]).expect("valid task owner template")
+    } else {
+        owner.to_string()
+    };
     let task_line: Element<'a, Message> = if let Some(task) = task {
         let (status_color, status_bg_color) = task_status_tag_colors(task.status);
         let status_text = if task.status == TaskStatus::Running {
-            format!("{} {}", task.status.label(), running_dots(now_ms))
+            format!(
+                "{} {}",
+                crate::app::i18n::tasks::status_label(i18n, task.status),
+                running_dots(now_ms)
+            )
         } else {
-            task.status.label().to_string()
+            crate::app::i18n::tasks::status_label(i18n, task.status)
         };
         let mut task_row = row![
             text(task_id_label).size(11).style(move |theme: &Theme| {
@@ -152,14 +162,18 @@ fn build_worktree_room_scene<'a>(
         ]
         .spacing(4)
         .align_y(Alignment::Center),
-        text(format!("工位 {}", slot.id)).size(11).style(move |theme: &Theme| {
-            let (_, text_color, _) = worktree_state_palette(theme, slot.state);
-            iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
-        }),
-        text(format!("分支 {}", slot.branch)).size(11).style(move |theme: &Theme| {
-            let (_, text_color, _) = worktree_state_palette(theme, slot.state);
-            iced::widget::text::Style { color: Some(text_color.scale_alpha(0.82)) }
-        }),
+        text(i18n.format("工位 %s", &[slot.id.clone().into()]).expect("valid room template"))
+            .size(11)
+            .style(move |theme: &Theme| {
+                let (_, text_color, _) = worktree_state_palette(theme, slot.state);
+                iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
+            }),
+        text(i18n.format("分支 %s", &[slot.branch.clone().into()]).expect("valid room template"))
+            .size(11)
+            .style(move |theme: &Theme| {
+                let (_, text_color, _) = worktree_state_palette(theme, slot.state);
+                iced::widget::text::Style { color: Some(text_color.scale_alpha(0.82)) }
+            }),
         task_line,
     ]
     .spacing(3)
@@ -171,7 +185,11 @@ fn build_worktree_room_scene<'a>(
                 let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                 iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
             }),
-            text(worktree_state_hint(slot.state)).size(10).style(move |theme: &Theme| {
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale).__(worktree_state_hint(slot.state))
+            )
+            .size(10)
+            .style(move |theme: &Theme| {
                 let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                 iced::widget::text::Style { color: Some(text_color.scale_alpha(0.62)) }
             }),
@@ -419,16 +437,17 @@ pub(super) fn build_worktree_pixel_card<'a>(
     slot: &'a WorktreeSlotSnapshot,
 ) -> Element<'a, Message> {
     let room_plate = worktree_room_plate(&slot.id, slot.state);
-    let recycle_btn = button(text("回收").size(10))
-        .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
-            slot_id: slot.id.clone(),
-        }))
-        .padding([2, 8])
-        .style(if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
-            button_style_danger
-        } else {
-            button_style_secondary
-        });
+    let recycle_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("回收")).size(10))
+            .on_press(Message::TaskBoard(TaskBoardMessage::RecycleWorktreeSlotPressed {
+                slot_id: slot.id.clone(),
+            }))
+            .padding([2, 8])
+            .style(if matches!(slot.state, WorktreeState::Tainted | WorktreeState::Dead) {
+                button_style_danger
+            } else {
+                button_style_secondary
+            });
 
     container(
         column![
@@ -437,7 +456,12 @@ pub(super) fn build_worktree_pixel_card<'a>(
                     let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                     iced::widget::text::Style { color: Some(text_color) }
                 }),
-                text(worktree_state_label(slot.state)).size(11).style(move |theme: &Theme| {
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__(worktree_state_label(slot.state))
+                )
+                .size(11)
+                .style(move |theme: &Theme| {
                     let (_, text_color, _) = worktree_state_palette(theme, slot.state);
                     iced::widget::text::Style { color: Some(text_color.scale_alpha(0.76)) }
                 }),

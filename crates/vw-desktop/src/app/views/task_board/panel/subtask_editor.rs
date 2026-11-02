@@ -134,18 +134,21 @@ pub fn build_edit_mode_subtasks<'a>(
 
         // 构建子任务内容输入框
         // 输入内容变更时触发更新消息
-        let subtask_input = text_input("输入子任务内容...", &subtask.content)
-            .on_input(move |v| {
-                Message::TaskBoard(TaskBoardMessage::UpdateSubTaskContent {
-                    task_id: task_id_for_update.clone(),
-                    subtask_id: subtask_id_for_update.clone(),
-                    content: v,
-                })
+        let subtask_input = text_input(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
+            &subtask.content,
+        )
+        .on_input(move |v| {
+            Message::TaskBoard(TaskBoardMessage::UpdateSubTaskContent {
+                task_id: task_id_for_update.clone(),
+                subtask_id: subtask_id_for_update.clone(),
+                content: v,
             })
-            .padding([6, 8])
-            .size(12)
-            .width(Length::Fill)
-            .style(input_style);
+        })
+        .padding([6, 8])
+        .size(12)
+        .width(Length::Fill)
+        .style(input_style);
 
         // 初始化子任务行，包含徽章和输入框
         let mut subtask_row =
@@ -165,14 +168,26 @@ pub fn build_edit_mode_subtasks<'a>(
 
         let timing_label = subtask
             .display_execution_duration_ms(now_ms)
-            .map(|ms| format!("耗时 {}s", ms / 1000))
-            .unwrap_or_else(|| "耗时 -".to_string());
+            .map(|ms| {
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("耗时 %us", &[(ms / 1000).into()])
+                    .expect("valid duration template")
+            })
+            .unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("耗时 -").to_string()
+            });
         let started_label = subtask
             .execution_started_at_ms
-            .map(|ms| format!("开始 {}", format_subtask_started_at(ms)))
-            .unwrap_or_else(|| "开始 -".to_string());
+            .map(|ms| {
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("开始 %s", &[format_subtask_started_at(ms).into()])
+                    .expect("valid start template")
+            })
+            .unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("开始 -").to_string()
+            });
         let status_pill = container(
-            text(subtask_status_label(status))
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(subtask_status_label(status)))
                 .size(10)
                 .style(move |theme: &Theme| subtask_status_text_style(theme, status)),
         )
@@ -260,14 +275,17 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
 
         // 构建子任务内容输入框
         // 草稿模式下使用索引而非ID来标识子任务
-        let subtask_input = text_input("输入子任务内容...", subtask)
-            .on_input(move |v| {
-                Message::TaskBoard(TaskBoardMessage::UpdateDraftSubtask { index: idx, value: v })
-            })
-            .padding([6, 8])
-            .size(12)
-            .width(Length::Fill)
-            .style(input_style);
+        let subtask_input = text_input(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
+            subtask,
+        )
+        .on_input(move |v| {
+            Message::TaskBoard(TaskBoardMessage::UpdateDraftSubtask { index: idx, value: v })
+        })
+        .padding([6, 8])
+        .size(12)
+        .width(Length::Fill)
+        .style(input_style);
 
         // 构建操作按钮（草稿版本）
         let up_btn = build_draft_up_button(idx);
@@ -286,13 +304,14 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
     }
 
     // 构建"新增子任务"按钮
-    let add_subtask_btn = button(text("新增子任务").size(11))
-        .on_press(Message::TaskBoard(TaskBoardMessage::AddDraftSubtask))
-        .padding([6, 10])
-        .style(button_style_secondary);
+    let add_subtask_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增子任务")).size(11))
+            .on_press(Message::TaskBoard(TaskBoardMessage::AddDraftSubtask))
+            .padding([6, 10])
+            .style(button_style_secondary);
 
     // 构建标题文本
-    let subtasks_title = text("子任务")
+    let subtasks_title = text(crate::app::i18n::I18n::new(app.desktop_locale).__("子任务"))
         .size(13)
         .font(iced::Font { weight: iced::font::Weight::Bold, ..Default::default() });
 
@@ -331,16 +350,20 @@ pub fn build_draft_mode_subtasks<'a>(app: &'a App) -> Element<'a, Message> {
 /// ```
 fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Message> {
     // 标题文本
-    let add_subtask_title = text("添加子任务").size(12);
+    let add_subtask_title =
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加子任务")).size(12);
 
     // 子任务内容输入框
     // 绑定到应用状态中的 task_board_new_subtask_content 字段
-    let add_subtask_input = text_input("输入子任务内容...", &app.task_board_new_subtask_content)
-        .on_input(|v| Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(v)))
-        .padding([6, 8])
-        .size(12)
-        .width(Length::Fill)
-        .style(input_style);
+    let add_subtask_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("输入子任务内容..."),
+        &app.task_board_new_subtask_content,
+    )
+    .on_input(|v| Message::TaskBoard(TaskBoardMessage::UpdateNewSubtaskContent(v)))
+    .padding([6, 8])
+    .size(12)
+    .width(Length::Fill)
+    .style(input_style);
 
     // 克隆数据用于闭包捕获
     let content_for_add = app.task_board_new_subtask_content.clone();
@@ -348,13 +371,14 @@ fn build_add_subtask_section<'a>(app: &'a App, task_id: &str) -> Element<'a, Mes
 
     // 添加按钮
     // 点击时发送添加子任务消息
-    let add_subtask_btn = button(text("添加").size(11))
-        .on_press(Message::TaskBoard(TaskBoardMessage::AddSubTask {
-            task_id: task_id_for_add,
-            content: content_for_add,
-        }))
-        .padding([6, 12])
-        .style(button_style_primary);
+    let add_subtask_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加")).size(11))
+            .on_press(Message::TaskBoard(TaskBoardMessage::AddSubTask {
+                task_id: task_id_for_add,
+                content: content_for_add,
+            }))
+            .padding([6, 12])
+            .style(button_style_primary);
 
     // 组装添加区域布局
     column![

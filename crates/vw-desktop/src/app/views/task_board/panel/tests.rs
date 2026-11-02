@@ -160,17 +160,47 @@ fn contextual_rows_reject_irrelevant_or_blank_task_metadata() {
     let app = test_app();
     let mut task = Task::default();
 
-    assert!(build_failed_reason_row(&task).is_none());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_none()
+    );
     task.status = TaskStatus::Failed;
     task.last_error = Some("   ".to_string());
-    assert!(build_failed_reason_row(&task).is_none());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_none()
+    );
     task.status = TaskStatus::Paused;
     task.pause_reason = Some("   ".to_string());
-    assert!(build_failed_reason_row(&task).is_none());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_none()
+    );
 
-    assert!(build_selected_worktree_row(&task).is_none());
+    assert!(
+        build_selected_worktree_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_none()
+    );
     task.selected_worktree_path = Some("   ".to_string());
-    assert!(build_selected_worktree_row(&task).is_none());
+    assert!(
+        build_selected_worktree_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_none()
+    );
 
     task.merge_target_branch = Some("main".to_string());
     assert!(build_merge_lock_row(&app, &task).is_none());
@@ -183,17 +213,47 @@ fn contextual_rows_build_failure_pause_worktree_and_merge_lock_variants() {
 
     let mut task = Task { id: "task-1".to_string(), ..Task::default() };
     task.status = TaskStatus::Failed;
-    assert!(build_failed_reason_row(&task).is_some());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_some()
+    );
     task.last_error = Some("worker exited".to_string());
-    assert!(build_failed_reason_row(&task).is_some());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_some()
+    );
 
     task.status = TaskStatus::Paused;
-    assert!(build_failed_reason_row(&task).is_some());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_some()
+    );
     task.pause_reason = Some("waiting for review".to_string());
-    assert!(build_failed_reason_row(&task).is_some());
+    assert!(
+        build_failed_reason_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_some()
+    );
 
     task.selected_worktree_path = Some(" /repo/.worktrees/task-1 ".to_string());
-    assert!(build_selected_worktree_row(&task).is_some());
+    assert!(
+        build_selected_worktree_row(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &task
+        )
+        .is_some()
+    );
     task.merge_target_branch = Some("main".to_string());
 
     app.task_board_worktree_snapshot = Some(snapshot_with_lock(None));
@@ -271,6 +331,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
     ));
 
     let create_header = build_header_row(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "新建任务",
         None,
         None,
@@ -282,6 +343,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
         Task { id: "completed-task".to_string(), status: TaskStatus::Completed, ..Task::default() };
     completed_task.last_execution_duration_ms = Some(1_500);
     let completed_header = build_header_row(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "任务详情",
         Some(completed_task.id.as_str()),
         Some(&completed_task),
@@ -292,6 +354,7 @@ fn supporting_panel_builders_construct_tabs_headers_and_completion_options() {
     let running_task =
         Task { id: "running-task".to_string(), status: TaskStatus::Running, ..Task::default() };
     let running_header = build_header_row(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         "任务详情",
         Some(running_task.id.as_str()),
         Some(&running_task),

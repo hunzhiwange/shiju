@@ -111,7 +111,14 @@ fn kanban_columns(app: &App) -> Vec<KanbanColumn> {
 }
 
 fn task_status_label(app: &App, status: TaskStatus) -> String {
-    status.label_for_workflow_id(&app.task_board_settings.workflow_id)
+    {
+        let source = status.label_for_workflow_id(&app.task_board_settings.workflow_id);
+        if matches!(status, TaskStatus::Custom(_)) {
+            source
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__(&source).to_owned()
+        }
+    }
 }
 
 /// 构建对应界面片段。
@@ -185,12 +192,16 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
     };
 
     let selected_summary: Element<'a, Message> = if bulk_mode_active {
-        text(format!("已选 {}", selected_count))
-            .size(10)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.68)),
-            })
-            .into()
+        text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("已选 %u", &[(selected_count).into()])
+                .expect("valid task display template"),
+        )
+        .size(10)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().background.base.text.scale_alpha(0.68)),
+        })
+        .into()
     } else {
         Space::new().width(Length::Shrink).into()
     };
@@ -242,13 +253,16 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
 
     if bulk_mode_active {
         let selection_actions = row![
-            button(text("全选").size(10))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("全选")).size(10))
                 .padding([4, 8])
                 .style(button_style_secondary)
                 .on_press(Message::TaskBoard(TaskBoardMessage::SelectAllTasksInStatus(status))),
-            button(text("反选").size(10)).padding([4, 8]).style(button_style_secondary).on_press(
-                Message::TaskBoard(TaskBoardMessage::InvertTaskSelectionInStatus(status))
-            ),
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("反选")).size(10))
+                .padding([4, 8])
+                .style(button_style_secondary)
+                .on_press(Message::TaskBoard(TaskBoardMessage::InvertTaskSelectionInStatus(
+                    status
+                ))),
         ]
         .spacing(6)
         .align_y(Alignment::Center);
@@ -258,13 +272,14 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
 
     if bulk_mode_active && selected_count > 0 {
         let priority_actions = row![
-            text_input("优先级", &app.task_board_bulk_priority_input)
-                .on_input(|value| Message::TaskBoard(TaskBoardMessage::UpdateBulkPriorityInput(
-                    value
-                )))
-                .padding([5, 8])
-                .size(11),
-            button(text("应用").size(10))
+            text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("优先级"),
+                &app.task_board_bulk_priority_input
+            )
+            .on_input(|value| Message::TaskBoard(TaskBoardMessage::UpdateBulkPriorityInput(value)))
+            .padding([5, 8])
+            .size(11),
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用")).size(10))
                 .padding([5, 8])
                 .style(button_style_success)
                 .on_press(Message::TaskBoard(TaskBoardMessage::BulkSetPriorityInStatus(status))),
@@ -275,7 +290,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         let model_actions = column![
             build_bulk_model_selector(app),
             row![
-                button(text("应用").size(10))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用")).size(10))
                     .padding([5, 8])
                     .style(button_style_success)
                     .on_press(Message::TaskBoard(TaskBoardMessage::BulkSetModelInStatus(status))),
@@ -288,7 +303,7 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         let agent_actions = column![
             build_bulk_agent_selector(app),
             row![
-                button(text("应用").size(10))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用")).size(10))
                     .padding([5, 8])
                     .style(button_style_success)
                     .on_press(Message::TaskBoard(TaskBoardMessage::BulkSetAgentInStatus(status))),
@@ -301,12 +316,13 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         let executor_rows = column![
             build_bulk_executor_selector(app),
             row![
-                button(text("应用").size(10)).padding([5, 8]).style(button_style_success).on_press(
-                    Message::TaskBoard(TaskBoardMessage::BulkSetExecutorInStatus {
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用")).size(10))
+                    .padding([5, 8])
+                    .style(button_style_success)
+                    .on_press(Message::TaskBoard(TaskBoardMessage::BulkSetExecutorInStatus {
                         status,
                         executor: app.task_board_bulk_acp_agent.clone(),
-                    })
-                ),
+                    })),
             ]
             .spacing(6)
             .align_y(Alignment::Center)
@@ -318,15 +334,17 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
             column![
                 selector,
                 row![
-                    button(text("应用").size(10))
-                        .padding([5, 8])
-                        .style(button_style_success)
-                        .on_press(Message::TaskBoard(
-                            TaskBoardMessage::BulkSetReasoningEffortInStatus {
-                                status,
-                                reasoning_effort: app.task_board_bulk_reasoning_effort,
-                            }
-                        )),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用")).size(10)
+                    )
+                    .padding([5, 8])
+                    .style(button_style_success)
+                    .on_press(Message::TaskBoard(
+                        TaskBoardMessage::BulkSetReasoningEffortInStatus {
+                            status,
+                            reasoning_effort: app.task_board_bulk_reasoning_effort,
+                        }
+                    )),
                 ]
                 .spacing(6)
                 .align_y(Alignment::Center)
@@ -338,12 +356,13 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
         let task_split_rows = column![
             build_bulk_task_split_selector(app),
             row![
-                button(text("应用").size(10)).padding([5, 8]).style(button_style_success).on_press(
-                    Message::TaskBoard(TaskBoardMessage::BulkSetTaskSplitModeInStatus {
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("应用")).size(10))
+                    .padding([5, 8])
+                    .style(button_style_success)
+                    .on_press(Message::TaskBoard(TaskBoardMessage::BulkSetTaskSplitModeInStatus {
                         status,
                         task_split_mode: app.task_board_bulk_task_split_mode,
-                    })
-                ),
+                    })),
             ]
             .spacing(6)
             .align_y(Alignment::Center)
@@ -353,59 +372,81 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
 
         header = header
             .push(Space::new().height(8.0))
-            .push(text(format!("已选 {} 项", selected_count)).size(10).style(|theme: &Theme| {
-                iced::widget::text::Style {
+            .push(
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .format("已选 %u 项", &[(selected_count).into()])
+                        .expect("valid task display template"),
+                )
+                .size(10)
+                .style(|theme: &Theme| iced::widget::text::Style {
                     color: Some(theme.extended_palette().background.base.text.scale_alpha(0.72)),
-                }
-            }))
+                }),
+            )
             .push(Space::new().height(6.0))
-            .push(text("批量优先级").size(10))
+            .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量优先级")).size(10))
             .push(Space::new().height(4.0))
             .push(priority_actions)
             .push(Space::new().height(6.0))
-            .push(text("批量模型").size(10))
+            .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量模型")).size(10))
             .push(Space::new().height(4.0))
             .push(model_actions)
             .push(Space::new().height(6.0))
-            .push(text("批量代理").size(10))
+            .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量代理")).size(10))
             .push(Space::new().height(4.0))
             .push(agent_actions)
             .push(Space::new().height(6.0))
-            .push(text("批量 ACP 智能体").size(10))
+            .push(
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("批量 ACP 智能体")
+                        .to_owned(),
+                )
+                .size(10),
+            )
             .push(Space::new().height(4.0))
             .push(executor_rows)
             .push(Space::new().height(6.0))
-            .push(text("批量推理强度").size(10))
+            .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量推理强度")).size(10))
             .push(Space::new().height(4.0))
             .extend(reasoning_effort_rows.map(Into::into))
             .push(Space::new().height(6.0))
-            .push(text("批量任务拆分").size(10))
+            .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量任务拆分")).size(10))
             .push(Space::new().height(4.0))
             .push(task_split_rows)
             .push(Space::new().height(6.0));
 
         if status == TaskStatus::PrSubmitted {
             let merge_row = row![
-                button(text("批量合并").size(10))
-                    .padding([5, 8])
-                    .style(button_style_success)
-                    .on_press(Message::TaskBoard(TaskBoardMessage::BulkMergeTasksInStatus(status))),
+                button(
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量合并")).size(10)
+                )
+                .padding([5, 8])
+                .style(button_style_success)
+                .on_press(Message::TaskBoard(TaskBoardMessage::BulkMergeTasksInStatus(status))),
             ]
             .spacing(6)
             .align_y(Alignment::Center);
             header = header
-                .push(text("手动合并队列").size(10))
+                .push(
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("手动合并队列")
+                            .to_owned(),
+                    )
+                    .size(10),
+                )
                 .push(Space::new().height(4.0))
                 .push(merge_row)
                 .push(Space::new().height(6.0));
         }
 
         let action_row = row![
-            button(text("批量归档").size(10))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量归档")).size(10))
                 .padding([4, 8])
                 .style(button_style_primary)
                 .on_press(Message::TaskBoard(TaskBoardMessage::BulkArchiveTasksInStatus(status))),
-            button(text("批量删除").size(10))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量删除")).size(10))
                 .padding([4, 8])
                 .style(button_style_danger)
                 .on_press(Message::TaskBoard(TaskBoardMessage::BulkDeleteTasksInStatus(status))),
@@ -423,31 +464,50 @@ fn build_status_column<'a>(app: &'a App, status: TaskStatus, now_ms: u64) -> Ele
             let mut move_row = row![].spacing(6).width(Length::Fill);
             for target in chunk {
                 move_row = move_row.push(
-                    button(text(format!("移到{}", task_status_label(app, *target))).size(10))
-                        .padding([4, 6])
-                        .style(button_style_secondary)
-                        .on_press(Message::TaskBoard(TaskBoardMessage::BulkMoveTasksInStatus {
+                    button(
+                        text(
+                            crate::app::i18n::I18n::new(app.desktop_locale)
+                                .format("移到%s", &[(task_status_label(app, *target)).into()])
+                                .expect("valid task display template"),
+                        )
+                        .size(10),
+                    )
+                    .padding([4, 6])
+                    .style(button_style_secondary)
+                    .on_press(Message::TaskBoard(
+                        TaskBoardMessage::BulkMoveTasksInStatus {
                             from_status: status,
                             to_status: *target,
-                        })),
+                        },
+                    )),
                 );
             }
             move_rows = move_rows.push(move_row);
         }
         header = header
             .push(Space::new().height(6.0))
-            .push(text("批量移动").size(10).style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.68)),
-            }))
+            .push(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("批量移动"))
+                    .size(10)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(
+                            theme.extended_palette().background.base.text.scale_alpha(0.68),
+                        ),
+                    }),
+            )
             .push(Space::new().height(4.0))
             .push(move_rows);
     } else if bulk_mode_active {
         header = header.push(Space::new().height(8.0)).push(
-            text("勾选任务后可批量设置模型、优先级和 ACP 智能体").size(10).style(
-                |theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.extended_palette().background.base.text.scale_alpha(0.68)),
-                },
-            ),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("勾选任务后可批量设置模型、优先级和 ACP 智能体")
+                    .to_owned(),
+            )
+            .size(10)
+            .style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.extended_palette().background.base.text.scale_alpha(0.68)),
+            }),
         );
     }
 
@@ -603,7 +663,11 @@ fn build_task_card<'a>(
             ..Default::default()
         });
 
-    let content = task_card_preview(task);
+    let content = if task.prompt.trim().is_empty() {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("（无内容）").to_owned()
+    } else {
+        task_card_preview(task)
+    };
     let (status_color, status_bg_color) = task_status_tag_colors(task.status);
     let status_text = if task.status == TaskStatus::Running {
         format!("{} {}", task_status_label(app, task.status), running_dots(now_ms))
@@ -708,7 +772,7 @@ fn build_task_card<'a>(
 
     if task.retry_count > 0 {
         let retry_row = row![
-            text("重试次数").size(10),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("重试次数")).size(10),
             text(task.retry_count.to_string()).size(10).style(|theme: &Theme| {
                 iced::widget::text::Style {
                     color: Some(theme.extended_palette().background.base.text),
@@ -722,9 +786,13 @@ fn build_task_card<'a>(
 
     if let Some(duration_ms) = task.display_execution_duration_ms(now_ms) {
         let duration_text = if task.status == TaskStatus::Running {
-            format!("执行中 {}", format_duration_ms(duration_ms))
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("执行中 %s", &[(format_duration_ms(duration_ms)).into()])
+                .expect("valid task display template")
         } else {
-            format!("已执行 {}", format_duration_ms(duration_ms))
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("已执行 %s", &[(format_duration_ms(duration_ms)).into()])
+                .expect("valid task display template")
         };
         let duration_row = row![
             text("⏱").size(10),
@@ -738,23 +806,35 @@ fn build_task_card<'a>(
     }
 
     if task.status == TaskStatus::Failed {
-        let failed_reason = task.last_error.as_deref().unwrap_or("未知错误");
-        let reason_text = text(format!("失败原因: {}", failed_reason))
-            .size(10)
-            .wrapping(iced::widget::text::Wrapping::Word)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().danger),
-            });
+        let failed_reason = task
+            .last_error
+            .as_deref()
+            .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("未知错误"));
+        let reason_text = text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("失败原因: %s", &[(failed_reason).into()])
+                .expect("valid task display template"),
+        )
+        .size(10)
+        .wrapping(iced::widget::text::Wrapping::Word)
+        .style(|theme: &Theme| iced::widget::text::Style { color: Some(theme.palette().danger) });
         content_col = content_col.push(container(reason_text).width(Length::Fill));
     }
     if task.status == TaskStatus::Paused {
-        let paused_reason = task.pause_reason.as_deref().unwrap_or("人工暂停");
-        let reason_text = text(format!("暂停原因: {}", paused_reason))
-            .size(10)
-            .wrapping(iced::widget::text::Wrapping::Word)
-            .style(|theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.extended_palette().warning.base.color),
-            });
+        let paused_reason = task
+            .pause_reason
+            .as_deref()
+            .unwrap_or(crate::app::i18n::I18n::new(app.desktop_locale).__("人工暂停"));
+        let reason_text = text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("暂停原因: %s", &[(paused_reason).into()])
+                .expect("valid task display template"),
+        )
+        .size(10)
+        .wrapping(iced::widget::text::Wrapping::Word)
+        .style(|theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.extended_palette().warning.base.color),
+        });
         content_col = content_col.push(container(reason_text).width(Length::Fill));
     }
 
@@ -832,12 +912,15 @@ fn build_task_card<'a>(
     if let Some((open_id, x, y)) = context_menu
         && open_id == task.id
     {
-        return PointBelowOverlay::new(right_click, build_context_menu(task.clone()))
-            .show(true)
-            .anchor(iced::Point::new(x, y))
-            .gap(2.0)
-            .on_close(Message::TaskBoard(TaskBoardMessage::ContextMenuClosed))
-            .into();
+        return PointBelowOverlay::new(
+            right_click,
+            build_context_menu(crate::app::i18n::I18n::new(app.desktop_locale), task.clone()),
+        )
+        .show(true)
+        .anchor(iced::Point::new(x, y))
+        .gap(2.0)
+        .on_close(Message::TaskBoard(TaskBoardMessage::ContextMenuClosed))
+        .into();
     }
 
     right_click

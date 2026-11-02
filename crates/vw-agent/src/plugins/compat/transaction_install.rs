@@ -87,6 +87,9 @@ pub(crate) fn install_package_with_source(
 
         // Metadata is complete before the package becomes discoverable. An exclusive hard link
         // also claims this identity between concurrent installers without replacing any state.
+        let _guard = super::installed_state::lock(plugins_dir)?;
+        ensure_absent(&destination, "Destination plugin")?;
+        ensure_absent(&destination_metadata, "Plugin installation metadata")?;
         fs::hard_link(metadata_path(&staged)?, &destination_metadata)
             .context("failed to publish plugin installation metadata without overwriting")?;
         if let Err(error) = publish_directory(&staged, &destination) {

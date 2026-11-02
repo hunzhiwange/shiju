@@ -71,6 +71,7 @@ pub fn discover_plugins(options: &PluginDiscoveryOptions) -> Result<PluginDiscov
     let mut diagnostics = Vec::new();
 
     for source_dir in source_dirs {
+        let _guard = super::compat::installed_state::lock(&source_dir)?;
         for plugin_root in plugin_roots(&source_dir)? {
             let plugin = match load_discovered_plugin(&source_dir, &plugin_root) {
                 Ok(Some(plugin)) => plugin,

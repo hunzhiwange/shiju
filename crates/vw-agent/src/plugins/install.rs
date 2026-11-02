@@ -181,6 +181,7 @@ pub(super) fn set_next_post_copy_audit_result_for_test(result: Result<PluginMani
 /// Enable or disable an installed plugin by toggling its marker file.
 /// 写入或移除禁用标记以切换已安装插件状态。
 pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Result<()> {
+    let _guard = super::compat::installed_state::lock(plugins_dir)?;
     let plugin_dir = plugin_dir_for_name(plugins_dir, name)?;
     ensure_installed_plugin_dir(&plugin_dir, name)?;
     let marker = disabled_marker_path(plugins_dir, name);
@@ -217,6 +218,7 @@ pub fn set_plugin_enabled(plugins_dir: &Path, name: &str, enabled: bool) -> Resu
 /// Remove an installed plugin and its disabled marker.
 /// 删除经过名称与目录归属校验的已安装插件。
 pub fn remove_installed_plugin(plugins_dir: &Path, name: &str) -> Result<()> {
+    let _guard = super::compat::installed_state::lock(plugins_dir)?;
     let plugin_dir = plugin_dir_for_name(plugins_dir, name)?;
     ensure_installed_plugin_dir(&plugin_dir, name)?;
     super::compat::mcp_connection_sessions::close_plugin(&plugin_dir);

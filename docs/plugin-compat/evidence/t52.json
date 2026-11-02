@@ -1,0 +1,69 @@
+{
+  "task": 52,
+  "status": "已完成",
+  "dependency": "98c86e58 / t51.json",
+  "platform": "macOS arm64",
+  "implementation": [
+    "prepare_plugin_upgrade: audited source materialization and reviewable versions; current installation unchanged",
+    "activate_plugin_upgrade: checked snapshots, OS lifecycle lock, durable rollback/commit journal, package and metadata publication",
+    "installed_state::lock/recover: recovery before discovery; install publication, enable/disable/remove share lifecycle exclusion"
+  ],
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+    "exit_code": 101,
+    "effective_tests": 3,
+    "failure": "Two target behavior assertions fail with plugin upgrade not supported yet; callable skeleton compiles, panic runtime aborts afterward"
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "failed": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 12
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t51_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 1,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "locks_released": true,
+    "cache_retained": true
+  },
+  "assertions": [
+    "changed installed package invalidates pending preview",
+    "partial publication failure rolls back old package and metadata",
+    "journaled interruption restores previous package before read",
+    "concurrent discovery sees matching package and provenance versions",
+    "disabled marker and external data retained; other-market version unchanged",
+    "package content change invalidates existing hook content trust"
+  ],
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t52/README.md",
+  "reference": "baseline.json upgrade story; Codex marketplace_upgrade.rs and marketplace_upgrade/activation.rs",
+  "platform_references": [
+    "https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-a-handle-to-a-directory",
+    "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers"
+  ],
+  "limits": "Deterministic persisted interruption checkpoint and concurrent threads tested; no physical power-cut test or actual Windows/Linux platform acceptance claimed. Platform acceptance remains task 64. Unsupported filesystem flushes fail explicitly."
+}

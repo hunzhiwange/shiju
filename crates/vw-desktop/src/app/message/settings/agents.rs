@@ -624,16 +624,33 @@ pub(super) fn handle_agents_config_saved(
         Ok(()) => {
             app.agents_settings.save_error = None;
             if app.agents_settings.dirty {
-                app.show_success_toast("已保存提交的配置；后续修改尚未保存")
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "已保存提交的配置；后续修改尚未保存",
+                    vec![],
+                )
             } else {
-                app.show_success_toast("智能体配置已保存，将用于下一次请求")
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "智能体配置已保存，将用于下一次请求",
+                    vec![],
+                )
             }
         }
         Err(error) => {
             app.agents_settings.dirty = true;
             let message = format!("保存智能体配置失败：{error}");
             app.agents_settings.save_error = Some(message.clone());
-            app.show_error_toast(message)
+            app.agents_settings.save_error_translation =
+                Some(crate::app::i18n::format::Message::new(
+                    "保存智能体配置失败：%s",
+                    vec![error.clone().into()],
+                ));
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "保存智能体配置失败：%s",
+                vec![error.into()],
+            )
         }
     }
 }
@@ -668,7 +685,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::Refresh => {
             if app.agents_settings.dirty || app.agents_settings.save_in_flight {
-                return app.show_warning_toast("请先保存或放弃智能体配置修改，再刷新或切换项目");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "请先保存或放弃智能体配置修改，再刷新或切换项目",
+                    vec![],
+                );
             }
             app.agents_settings.loading = true;
             app.agents_settings.config_ready = false;
@@ -737,7 +758,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::ProjectSelected(project_path) => {
             if app.agents_settings.dirty || app.agents_settings.save_in_flight {
-                return app.show_warning_toast("智能体配置草稿仍保留在原项目，请先保存或放弃修改");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "智能体配置草稿仍保留在原项目，请先保存或放弃修改",
+                    vec![],
+                );
             }
             if app.project_path.as_deref() == Some(project_path.as_str()) {
                 return crate::app::projects::project_settings_refresh_task(project_path);
@@ -746,7 +771,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::ProjectChanged(project_path) => {
             if app.agents_settings.dirty || app.agents_settings.save_in_flight {
-                return app.show_warning_toast("智能体配置草稿仍保留在原项目，请先保存或放弃修改");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "智能体配置草稿仍保留在原项目，请先保存或放弃修改",
+                    vec![],
+                );
             }
             app.agents_settings.project_path = Some(project_path.clone());
             app.agents_settings.loading = true;
@@ -802,6 +831,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             if app.agents_settings.entries.iter().any(|entry| entry.key == key) {
                 app.agents_settings.save_error = Some(format!("智能体 {key} 已存在。"));
+                app.agents_settings.save_error_translation = Some(
+                    crate::app::i18n::format::Message::new("智能体 %s 已存在。", vec![key.into()]),
+                );
                 return Task::none();
             }
 

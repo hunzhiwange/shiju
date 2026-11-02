@@ -8,6 +8,7 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{McpMessage, SettingsMessage};
 use crate::app::state::{McpNewServerTransport, McpSettingsState, McpSettingsTab};
 use crate::app::{App, Message};
@@ -16,6 +17,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Background, Border, Color, Element, Length};
 use serde_json::Value;
+use vw_config_types::ui::DesktopLocale;
 use vw_gateway_client::vw_api_types::mcp::{
     McpConnectionStatusDto, McpInspectResponse, McpServerInspectDto,
 };
@@ -97,12 +99,13 @@ fn mcp_tab_labels() -> &'static [(&'static str, McpSettingsTab)] {
 }
 
 fn mcp_tab_button(
+    locale: DesktopLocale,
     label: &'static str,
     tab: McpSettingsTab,
     active_tab: McpSettingsTab,
 ) -> Element<'static, Message> {
     let is_active = tab == active_tab;
-    button(text(label).size(13))
+    button(text(tr(locale, label)).size(13))
         .padding([8, 14])
         .on_press(Message::Settings(SettingsMessage::Mcp(McpMessage::TabSelected(tab))))
         .style(move |theme: &iced::Theme, status| {
@@ -117,7 +120,10 @@ fn compact_text(value: &str, max_chars: usize) -> String {
     if chars.next().is_some() { format!("{truncated}...") } else { truncated }
 }
 
-fn configured_mcp_server_rows(editor_text: &str) -> Result<Vec<ConfiguredMcpServerRow>, String> {
+fn configured_mcp_server_rows(
+    locale: DesktopLocale,
+    editor_text: &str,
+) -> Result<Vec<ConfiguredMcpServerRow>, String> {
     let trimmed = editor_text.trim();
     if trimmed.is_empty() {
         return Ok(Vec::new());
@@ -125,16 +131,19 @@ fn configured_mcp_server_rows(editor_text: &str) -> Result<Vec<ConfiguredMcpServ
 
     let value =
         serde_json::from_str::<serde_json::Value>(trimmed).map_err(|err| err.to_string())?;
-    let servers = value.as_array().ok_or_else(|| "MCP 配置必须是数组".to_string())?;
+    let servers = value.as_array().ok_or_else(|| tr(locale, "MCP 配置必须是数组").to_string())?;
     let mut rows = Vec::with_capacity(servers.len());
     for (index, server) in servers.iter().enumerate() {
-        let object = server.as_object().ok_or_else(|| format!("mcpServers[{index}] 必须是对象"))?;
+        let object = server.as_object().ok_or_else(|| {
+            crate::__!(crate::app::i18n::I18n::new(locale), "mcpServers[%u] 必须是对象", index)
+                .expect("valid MCP row error template")
+        })?;
         let name = object
             .get("name")
             .and_then(serde_json::Value::as_str)
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .unwrap_or("未命名")
+            .unwrap_or(tr(locale, "未命名"))
             .to_string();
         let transport = object
             .get("type")
@@ -194,14 +203,18 @@ fn status_badge_style(theme: &iced::Theme) -> iced::widget::container::Style {
     }
 }
 
-fn status_badge(inspect: Option<&McpServerInspectDto>, enabled: bool) -> Element<'static, Message> {
+fn status_badge(
+    locale: DesktopLocale,
+    inspect: Option<&McpServerInspectDto>,
+    enabled: bool,
+) -> Element<'static, Message> {
     let (label, tone) = connection_status_label_and_tone(inspect, enabled);
     container(
         row![
             text("●").size(11).style(move |theme: &iced::Theme| {
                 iced::widget::text::Style { color: Some(status_dot_color(theme, tone)) }
             }),
-            text(label).size(13),
+            text(tr(locale, label)).size(13),
         ]
         .spacing(7)
         .align_y(Alignment::Center),
@@ -221,20 +234,27 @@ fn value_field(value: &Value, keys: &[&str]) -> Option<String> {
 }
 
 fn preview_section_header(
+    locale: DesktopLocale,
     title: &'static str,
     count: usize,
     error: Option<&str>,
 ) -> Element<'static, Message> {
     let label = match error {
-        Some(_) => format!("{title} · 错误"),
-        None => format!("{title} · {count}"),
+        Some(_) => crate::__!(crate::app::i18n::I18n::new(locale), "%s · 错误", title)
+            .expect("valid MCP template"),
+        None => crate::__!(crate::app::i18n::I18n::new(locale), "%s · %u", title, count)
+            .expect("valid MCP template"),
     };
     text(label).size(12).style(settings_muted_text_style).into()
 }
 
-fn tools_preview_section(inspect: &McpServerInspectDto) -> Element<'static, Message> {
+fn tools_preview_section(
+    locale: DesktopLocale,
+    inspect: &McpServerInspectDto,
+) -> Element<'static, Message> {
     let mut content = column![preview_section_header(
-        "工具",
+        locale,
+        tr(locale, "工具"),
         inspect.tools.len(),
         inspect.tools_error.as_deref()
     )]
@@ -248,7 +268,9 @@ fn tools_preview_section(inspect: &McpServerInspectDto) -> Element<'static, Mess
     }
 
     if inspect.tools.is_empty() {
-        return content.push(text("未发现工具").size(11).style(settings_muted_text_style)).into();
+        return content
+            .push(text(tr(locale, "未发现工具")).size(11).style(settings_muted_text_style))
+            .into();
     }
 
     for tool in inspect.tools.iter().take(8) {
@@ -272,9 +294,16 @@ fn tools_preview_section(inspect: &McpServerInspectDto) -> Element<'static, Mess
     let hidden_count = inspect.tools.len().saturating_sub(8);
     if hidden_count > 0 {
         content = content.push(
-            text(format!("另有 {hidden_count} 个工具未展开"))
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(locale),
+                    "另有 %u 个工具未展开",
+                    hidden_count
+                )
+                .expect("valid MCP template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     }
 
@@ -282,14 +311,16 @@ fn tools_preview_section(inspect: &McpServerInspectDto) -> Element<'static, Mess
 }
 
 fn value_preview_section(
+    locale: DesktopLocale,
     title: &'static str,
     items: &[Value],
     error: Option<&str>,
     primary_keys: &[&str],
     secondary_keys: &[&str],
 ) -> Element<'static, Message> {
-    let mut content =
-        column![preview_section_header(title, items.len(), error)].spacing(8).width(Length::Fill);
+    let mut content = column![preview_section_header(locale, title, items.len(), error)]
+        .spacing(8)
+        .width(Length::Fill);
 
     if let Some(error) = error {
         return content
@@ -298,11 +329,14 @@ fn value_preview_section(
     }
 
     if items.is_empty() {
-        return content.push(text("未发现条目").size(11).style(settings_muted_text_style)).into();
+        return content
+            .push(text(tr(locale, "未发现条目")).size(11).style(settings_muted_text_style))
+            .into();
     }
 
     for item in items.iter().take(6) {
-        let primary = value_field(item, primary_keys).unwrap_or_else(|| "未命名".to_string());
+        let primary =
+            value_field(item, primary_keys).unwrap_or_else(|| tr(locale, "未命名").to_string());
         let secondary = value_field(item, secondary_keys).unwrap_or_default();
         content = content.push(
             row![
@@ -320,9 +354,16 @@ fn value_preview_section(
     let hidden_count = items.len().saturating_sub(6);
     if hidden_count > 0 {
         content = content.push(
-            text(format!("另有 {hidden_count} 个条目未展开"))
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(locale),
+                    "另有 %u 个条目未展开",
+                    hidden_count
+                )
+                .expect("valid MCP template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     }
 
@@ -333,10 +374,17 @@ fn preview_action_message(enabled: bool) -> Option<Message> {
     enabled.then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::InspectRefresh)))
 }
 
-fn empty_preview(preview_enabled: bool, previewing: bool) -> Element<'static, Message> {
-    let label = if previewing { "预览中..." } else { "预览" };
+fn empty_preview(
+    locale: DesktopLocale,
+    preview_enabled: bool,
+    previewing: bool,
+) -> Element<'static, Message> {
+    let label = if previewing { tr(locale, "预览中...") } else { tr(locale, "预览") };
     row![
-        text("暂无预览结果").size(12).style(settings_muted_text_style).width(Length::Fill),
+        text(tr(locale, "暂无预览结果"))
+            .size(12)
+            .style(settings_muted_text_style)
+            .width(Length::Fill),
         toolbar_button(label, preview_action_message(preview_enabled)),
     ]
     .spacing(12)
@@ -345,12 +393,13 @@ fn empty_preview(preview_enabled: bool, previewing: bool) -> Element<'static, Me
 }
 
 fn capability_preview(
+    locale: DesktopLocale,
     inspect: Option<&McpServerInspectDto>,
     preview_enabled: bool,
     previewing: bool,
 ) -> Element<'static, Message> {
     let Some(inspect) = inspect else {
-        return empty_preview(preview_enabled, previewing);
+        return empty_preview(locale, preview_enabled, previewing);
     };
 
     if let Some(error) = &inspect.error {
@@ -358,14 +407,15 @@ fn capability_preview(
     }
 
     if inspect.connection_status == McpConnectionStatusDto::Disabled {
-        return text("服务器已禁用").size(12).style(settings_muted_text_style).into();
+        return text(tr(locale, "服务器已禁用")).size(12).style(settings_muted_text_style).into();
     }
 
     column![
-        tools_preview_section(inspect),
+        tools_preview_section(locale, inspect),
         settings_divider(),
         value_preview_section(
-            "资源",
+            locale,
+            tr(locale, "资源"),
             &inspect.resources,
             inspect.resources_error.as_deref(),
             &["name", "title", "uri"],
@@ -373,7 +423,8 @@ fn capability_preview(
         ),
         settings_divider(),
         value_preview_section(
-            "资源模板",
+            locale,
+            tr(locale, "资源模板"),
             &inspect.resource_templates,
             inspect.resource_templates_error.as_deref(),
             &["name", "title", "uriTemplate"],
@@ -381,6 +432,7 @@ fn capability_preview(
         ),
         settings_divider(),
         value_preview_section(
+            locale,
             "Prompts",
             &inspect.prompts,
             inspect.prompts_error.as_deref(),
@@ -394,6 +446,7 @@ fn capability_preview(
 }
 
 fn configured_server_panel<'a>(
+    locale: DesktopLocale,
     server: ConfiguredMcpServerRow,
     inspect: Option<&'a McpServerInspectDto>,
     preview_key: String,
@@ -402,7 +455,7 @@ fn configured_server_panel<'a>(
     preview_enabled: bool,
     previewing: bool,
 ) -> Element<'a, Message> {
-    let checkbox_label = if server.enabled { "启用" } else { "禁用" };
+    let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
     let server_index = server.index;
     let enabled_checkbox = checkbox(server.enabled)
         .label(checkbox_label)
@@ -421,25 +474,35 @@ fn configured_server_panel<'a>(
 
     let mut badges = row![
         settings_value_badge(server.transport.clone()),
-        status_badge(inspect, server.enabled),
+        status_badge(locale, inspect, server.enabled),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
     if server.required {
-        badges = badges.push(settings_value_badge("必需"));
+        badges = badges.push(settings_value_badge(tr(locale, "必需")));
     }
     if let Some(count) = inspect.and_then(|entry| entry.tool_count) {
-        badges = badges.push(settings_value_badge(format!("{count} 个工具")));
+        badges = badges.push(settings_value_badge(
+            crate::__!(crate::app::i18n::I18n::new(locale), "%u 个工具", count)
+                .expect("valid MCP template"),
+        ));
     }
     if let Some(count) = inspect.and_then(|entry| entry.resource_count) {
-        badges = badges.push(settings_value_badge(format!("{count} 个资源")));
+        badges = badges.push(settings_value_badge(
+            crate::__!(crate::app::i18n::I18n::new(locale), "%u 个资源", count)
+                .expect("valid MCP template"),
+        ));
     }
     if let Some(count) = inspect.and_then(|entry| entry.prompt_count) {
-        badges = badges.push(settings_value_badge(format!("{count} 个 prompts")));
+        badges = badges.push(settings_value_badge(
+            crate::__!(crate::app::i18n::I18n::new(locale), "%u 个 prompts", count)
+                .expect("valid MCP template"),
+        ));
     }
 
-    let preview_label = if previewing { "预览中..." } else { "预览" };
-    let preview_toggle_label = if preview_expanded { "收起" } else { "展开" };
+    let preview_label = if previewing { tr(locale, "预览中...") } else { tr(locale, "预览") };
+    let preview_toggle_label =
+        if preview_expanded { tr(locale, "收起") } else { tr(locale, "展开") };
     let preview_toggle_message = Some(Message::Settings(SettingsMessage::Mcp(
         McpMessage::PreviewExpandedToggled(preview_key),
     )));
@@ -461,8 +524,8 @@ fn configured_server_panel<'a>(
             .spacing(4)
             .width(Length::Fill),
             badges,
-            toolbar_button("编辑", edit_message),
-            toolbar_button("删除", delete_message),
+            toolbar_button(tr(locale, "编辑"), edit_message),
+            toolbar_button(tr(locale, "删除"), delete_message),
             toolbar_button(preview_label, preview_action_message(preview_enabled)),
             toolbar_button(preview_toggle_label, preview_toggle_message),
         ]
@@ -472,6 +535,7 @@ fn configured_server_panel<'a>(
     .spacing(12);
     if preview_expanded {
         content = content.push(settings_divider()).push(capability_preview(
+            locale,
             inspect,
             preview_enabled,
             previewing,
@@ -481,19 +545,27 @@ fn configured_server_panel<'a>(
     settings_panel(content).into()
 }
 
-fn new_server_panel_header(expanded: bool, editing: bool) -> Element<'static, Message> {
-    let toggle_label = if expanded { "收起" } else { "展开" };
-    let title = if editing { "编辑 MCP 服务器" } else { "新增 MCP 服务器" };
-    let description = if editing {
-        "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。"
+fn new_server_panel_header(
+    locale: DesktopLocale,
+    expanded: bool,
+    editing: bool,
+) -> Element<'static, Message> {
+    let toggle_label = if expanded { tr(locale, "收起") } else { tr(locale, "展开") };
+    let title = if editing {
+        tr(locale, "编辑 MCP 服务器")
     } else {
-        "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。"
+        tr(locale, "新增 MCP 服务器")
+    };
+    let description = if editing {
+        tr(locale, "修改当前服务器；高级 JSON 字段会在传输类型不变时保留。")
+    } else {
+        tr(locale, "按服务器逐项添加；复杂字段可继续在高级 JSON 中编辑。")
     };
     row![
         column![text(title).size(14), text(description).size(11).style(settings_muted_text_style),]
             .spacing(4)
             .width(Length::Fill),
-        settings_value_badge("全局配置"),
+        settings_value_badge(tr(locale, "全局配置")),
         toolbar_button(
             toggle_label,
             Some(Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerPanelToggled,))),
@@ -504,10 +576,17 @@ fn new_server_panel_header(expanded: bool, editing: bool) -> Element<'static, Me
     .into()
 }
 
-fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_, Message> {
+fn new_server_panel(
+    locale: DesktopLocale,
+    s: &McpSettingsState,
+    controls_enabled: bool,
+) -> Element<'_, Message> {
     let editing = s.editing_server_index.is_some();
     if !s.new_server_expanded {
-        return settings_panel(column![new_server_panel_header(false, editing)].spacing(12)).into();
+        return settings_panel(
+            column![new_server_panel_header(locale, false, editing)].spacing(12),
+        )
+        .into();
     }
 
     let input_style = |placeholder, value: &String, on_input: fn(String) -> McpMessage| {
@@ -519,9 +598,10 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
             .width(Length::Fill)
     };
 
-    let name_input = input_style("例如 local-filesystem", &s.new_server.name_input, |value| {
-        McpMessage::NewServerNameChanged(value)
-    });
+    let name_input =
+        input_style(tr(locale, "例如 local-filesystem"), &s.new_server.name_input, |value| {
+            McpMessage::NewServerNameChanged(value)
+        });
     let timeout_input = input_style("30", &s.new_server.timeout_input, |value| {
         McpMessage::NewServerTimeoutChanged(value)
     });
@@ -548,8 +628,9 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
                 |value| McpMessage::NewServerArgsChanged(value),
             );
             row![
-                container(form_field("命令", command_input)).width(Length::FillPortion(1)),
-                container(form_field("参数", args_input)).width(Length::FillPortion(2)),
+                container(form_field(tr(locale, "命令"), command_input))
+                    .width(Length::FillPortion(1)),
+                container(form_field(tr(locale, "参数"), args_input)).width(Length::FillPortion(2)),
             ]
             .spacing(12)
             .into()
@@ -563,7 +644,8 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
         }
     };
 
-    let submit_label = if editing { "保存修改" } else { "新增服务器" };
+    let submit_label =
+        if editing { tr(locale, "保存修改") } else { tr(locale, "新增服务器") };
     let submit_message = if editing { McpMessage::SaveServerEdit } else { McpMessage::AddServer };
     let mut add_button =
         button(text(submit_label).size(13)).padding([8, 16]).style(primary_action_btn_style);
@@ -572,7 +654,7 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
     }
     let cancel_button = editing.then(|| {
         toolbar_button(
-            "取消编辑",
+            tr(locale, "取消编辑"),
             controls_enabled
                 .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::ServerEditCanceled))),
         )
@@ -580,13 +662,13 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
 
     let mut actions = row![
         checkbox(s.new_server.enabled)
-            .label("启用")
+            .label(tr(locale, "启用"))
             .on_toggle(|value| {
                 Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerEnabledToggled(value)))
             })
             .style(settings_checkbox_style),
         checkbox(s.new_server.required)
-            .label("必需")
+            .label(tr(locale, "必需"))
             .on_toggle(|value| {
                 Message::Settings(SettingsMessage::Mcp(McpMessage::NewServerRequiredToggled(value)))
             })
@@ -601,12 +683,14 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
 
     settings_panel(
         column![
-            new_server_panel_header(true, editing),
+            new_server_panel_header(locale, true, editing),
             settings_divider(),
             row![
-                container(form_field("名称", name_input)).width(Length::FillPortion(2)),
-                container(form_field("类型", transport_pick)).width(Length::FillPortion(1)),
-                container(form_field("超时", timeout_input)).width(Length::FillPortion(1)),
+                container(form_field(tr(locale, "名称"), name_input)).width(Length::FillPortion(2)),
+                container(form_field(tr(locale, "类型"), transport_pick))
+                    .width(Length::FillPortion(1)),
+                container(form_field(tr(locale, "超时"), timeout_input))
+                    .width(Length::FillPortion(1)),
             ]
             .spacing(12),
             detail_fields,
@@ -618,6 +702,7 @@ fn new_server_panel(s: &McpSettingsState, controls_enabled: bool) -> Element<'_,
 }
 
 fn runtime_server_panel(
+    locale: DesktopLocale,
     server: &McpServerInspectDto,
     preview_key: String,
     preview_expanded: bool,
@@ -625,7 +710,7 @@ fn runtime_server_panel(
     preview_enabled: bool,
     previewing: bool,
 ) -> Element<'_, Message> {
-    let checkbox_label = if server.enabled { "启用" } else { "禁用" };
+    let checkbox_label = if server.enabled { tr(locale, "启用") } else { tr(locale, "禁用") };
     let server_name = server.name.clone();
     let enabled_checkbox = checkbox(server.enabled)
         .label(checkbox_label)
@@ -644,25 +729,35 @@ fn runtime_server_panel(
 
     let mut badges = row![
         settings_value_badge(server.transport.clone()),
-        status_badge(Some(server), server.enabled),
+        status_badge(locale, Some(server), server.enabled),
     ]
     .spacing(8)
     .align_y(Alignment::Center);
     if server.required {
-        badges = badges.push(settings_value_badge("必需"));
+        badges = badges.push(settings_value_badge(tr(locale, "必需")));
     }
     if let Some(count) = server.tool_count {
-        badges = badges.push(settings_value_badge(format!("{count} 个工具")));
+        badges = badges.push(settings_value_badge(
+            crate::__!(crate::app::i18n::I18n::new(locale), "%u 个工具", count)
+                .expect("valid MCP template"),
+        ));
     }
     if let Some(count) = server.resource_count {
-        badges = badges.push(settings_value_badge(format!("{count} 个资源")));
+        badges = badges.push(settings_value_badge(
+            crate::__!(crate::app::i18n::I18n::new(locale), "%u 个资源", count)
+                .expect("valid MCP template"),
+        ));
     }
     if let Some(count) = server.prompt_count {
-        badges = badges.push(settings_value_badge(format!("{count} 个 prompts")));
+        badges = badges.push(settings_value_badge(
+            crate::__!(crate::app::i18n::I18n::new(locale), "%u 个 prompts", count)
+                .expect("valid MCP template"),
+        ));
     }
 
-    let preview_label = if previewing { "预览中..." } else { "预览" };
-    let preview_toggle_label = if preview_expanded { "收起" } else { "展开" };
+    let preview_label = if previewing { tr(locale, "预览中...") } else { tr(locale, "预览") };
+    let preview_toggle_label =
+        if preview_expanded { tr(locale, "收起") } else { tr(locale, "展开") };
     let preview_toggle_message = Some(Message::Settings(SettingsMessage::Mcp(
         McpMessage::PreviewExpandedToggled(preview_key),
     )));
@@ -672,7 +767,7 @@ fn runtime_server_panel(
             enabled_checkbox,
             column![
                 text(server.name.as_str()).size(14),
-                text("插件或项目级 MCP").size(11).style(settings_muted_text_style),
+                text(tr(locale, "插件或项目级 MCP")).size(11).style(settings_muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),
@@ -686,6 +781,7 @@ fn runtime_server_panel(
     .spacing(12);
     if preview_expanded {
         content = content.push(settings_divider()).push(capability_preview(
+            locale,
             Some(server),
             preview_enabled,
             previewing,
@@ -697,10 +793,12 @@ fn runtime_server_panel(
 
 /// 构建 MCP 系统设置页。
 pub fn view(app: &App) -> Element<'_, Message> {
+    let locale = app.desktop_locale;
     let s = &app.mcp_settings;
-    let refresh_label = if s.loading { "刷新中..." } else { "刷新" };
-    let inspect_label = if s.inspect_loading { "预览中..." } else { "刷新预览" };
-    let save_label = if s.saving { "保存中..." } else { "保存" };
+    let refresh_label = if s.loading { tr(locale, "刷新中...") } else { tr(locale, "刷新") };
+    let inspect_label =
+        if s.inspect_loading { tr(locale, "预览中...") } else { tr(locale, "刷新预览") };
+    let save_label = if s.saving { tr(locale, "保存中...") } else { tr(locale, "保存") };
 
     let refresh_message = (!s.loading && !s.saving)
         .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)));
@@ -727,16 +825,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
     if s.active_tab == McpSettingsTab::Json {
         action_row = action_row
-            .push(toolbar_button("格式化", format_message))
-            .push(toolbar_button("插入模板", template_message));
+            .push(toolbar_button(tr(locale, "格式化"), format_message))
+            .push(toolbar_button(tr(locale, "插入模板"), template_message));
     }
     action_row = action_row.push(save_button);
 
     let mut content = column![
         row![
             container(settings_page_intro(
-                "MCP 配置",
-                "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。"
+                tr(locale, "MCP 配置"),
+                tr(locale, "配置全局 mcpServers；插件声明的 MCP 会随插件启用状态在运行时合并。")
             ))
             .width(Length::Fill),
             action_row,
@@ -744,19 +842,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .align_y(Alignment::Start)
         .spacing(12),
         row![
-            settings_value_badge(format!("{} 个服务器", s.server_count)),
-            settings_value_badge("全局配置"),
-            settings_value_badge(format!(
-                "{} 个运行时服务器",
-                s.inspect.as_ref().map(|inspect| inspect.servers.len()).unwrap_or(0)
-            )),
+            settings_value_badge(
+                crate::__!(crate::app::i18n::I18n::new(locale), "%u 个服务器", s.server_count)
+                    .expect("valid server count template")
+            ),
+            settings_value_badge(tr(locale, "全局配置")),
+            settings_value_badge(
+                crate::__!(
+                    crate::app::i18n::I18n::new(locale),
+                    "%u 个运行时服务器",
+                    s.inspect.as_ref().map(|inspect| inspect.servers.len()).unwrap_or(0)
+                )
+                .expect("valid runtime count template")
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center),
         mcp_tab_labels()
             .iter()
             .fold(row![].spacing(8).align_y(Alignment::Center), |row, (label, tab)| {
-                row.push(mcp_tab_button(label, *tab, s.active_tab))
+                row.push(mcp_tab_button(locale, label, *tab, s.active_tab))
             }),
     ]
     .spacing(16)
@@ -766,27 +871,50 @@ pub fn view(app: &App) -> Element<'_, Message> {
         content = content.push(settings_success_banner(message));
     }
     if let Some(error) = &s.save_error {
-        content = content.push(settings_error_banner(error));
+        let rendered = s
+            .save_error_translation
+            .as_ref()
+            .filter(|message| {
+                message
+                    .render(crate::app::i18n::I18n::new(DesktopLocale::SimplifiedChinese))
+                    .is_ok_and(|source| source == *error)
+            })
+            .map(|message| {
+                message
+                    .render(crate::app::i18n::I18n::new(locale))
+                    .expect("valid MCP error template")
+            })
+            .unwrap_or_else(|| crate::app::i18n::I18n::new(locale).__(error).to_owned());
+        content = content.push(settings_error_banner(rendered));
     }
     if let Some(error) = &s.inspect_error {
         content = content.push(settings_panel(
-            text(format!("MCP 预览失败: {}", compact_text(error, 180)))
-                .size(12)
-                .style(settings_muted_text_style),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(locale),
+                    "MCP 预览失败：%s",
+                    compact_text(error, 180)
+                )
+                .expect("valid preview error template"),
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         ));
     }
 
-    let configured_rows = configured_mcp_server_rows(&s.editor.text()).unwrap_or_default();
+    let configured_rows = configured_mcp_server_rows(locale, &s.editor.text()).unwrap_or_default();
     match s.active_tab {
         McpSettingsTab::Servers => {
             content = content.push(settings_section_card(
-                "全局 MCP 服务器",
-                "逐条启用、禁用和预览全局 mcpServers。",
+                tr(locale, "全局 MCP 服务器"),
+                tr(locale, "逐条启用、禁用和预览全局 mcpServers。"),
             ));
-            content = content.push(new_server_panel(s, !s.loading && !s.saving));
+            content = content.push(new_server_panel(locale, s, !s.loading && !s.saving));
             if configured_rows.is_empty() {
                 content = content.push(settings_panel(
-                    text("当前没有全局 MCP 服务器。").size(12).style(settings_muted_text_style),
+                    text(tr(locale, "当前没有全局 MCP 服务器。"))
+                        .size(12)
+                        .style(settings_muted_text_style),
                 ));
             } else {
                 let controls_enabled = !s.loading && !s.saving;
@@ -797,6 +925,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     let preview_expanded = s.expanded_previews.contains(&preview_key);
                     let inspect_entry = inspect_for_server(inspect, &server.name);
                     content = content.push(configured_server_panel(
+                        locale,
                         server,
                         inspect_entry,
                         preview_key,
@@ -810,13 +939,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
         McpSettingsTab::Runtime => {
             content = content.push(settings_section_card(
-                "运行时 MCP",
-                "展示项目配置和插件声明合并后的 MCP 连接、工具、资源与 prompts。",
+                tr(locale, "运行时 MCP"),
+                tr(locale, "展示项目配置和插件声明合并后的 MCP 连接、工具、资源与 prompts。"),
             ));
             if let Some(inspect) = s.inspect.as_ref() {
                 if inspect.servers.is_empty() {
                     content = content.push(settings_panel(
-                        text("当前运行时没有 MCP 服务器。")
+                        text(tr(locale, "当前运行时没有 MCP 服务器。"))
                             .size(12)
                             .style(settings_muted_text_style),
                     ));
@@ -827,6 +956,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         let preview_key = format!("runtime:{}", server.name);
                         let preview_expanded = s.expanded_previews.contains(&preview_key);
                         content = content.push(runtime_server_panel(
+                            locale,
                             server,
                             preview_key,
                             preview_expanded,
@@ -838,14 +968,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 }
             } else {
                 content = content.push(settings_panel(
-                    text("尚未加载 MCP 预览。").size(12).style(settings_muted_text_style),
+                    text(tr(locale, "尚未加载 MCP 预览。"))
+                        .size(12)
+                        .style(settings_muted_text_style),
                 ));
             }
         }
         McpSettingsTab::Json => {
             content = content.push(settings_section_card(
-                "高级 JSON",
-                "新增服务器或编辑 headers、env、allowedTools、deniedTools 等字段。",
+                tr(locale, "高级 JSON"),
+                tr(locale, "新增服务器或编辑 headers、env、allowedTools、deniedTools 等字段。"),
             ));
             content = content.push(settings_panel(
                 column![
@@ -869,7 +1001,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                         .height(Length::Fixed(360.0))
                         .style(settings_text_editor_style),
                     text(
-                        "支持 type=stdio/http/sse；可配置 headers、env、enabled、required、timeout、allowedTools、deniedTools。"
+                        tr(locale, "支持 type=stdio/http/sse；可配置 headers、env、enabled、required、timeout、allowedTools、deniedTools。")
                     )
                     .size(11)
                     .style(settings_muted_text_style),
@@ -884,6 +1016,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
 /// 在 MCP 设置页上叠加统一的删除确认模态框。
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     if app.mcp_settings.active_tab != McpSettingsTab::Servers {
         return dialog;
     }
@@ -891,17 +1024,25 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     let Some(index) = app.mcp_settings.delete_pending else {
         return dialog;
     };
-    let server_name = configured_mcp_server_rows(&app.mcp_settings.editor.text())
+    let server_name = configured_mcp_server_rows(locale, &app.mcp_settings.editor.text())
         .ok()
         .and_then(|rows| rows.get(index).map(|row| row.name.clone()))
-        .unwrap_or_else(|| format!("mcpServers[{index}]"));
+        .unwrap_or_else(|| {
+            crate::__!(crate::app::i18n::I18n::new(locale), "mcpServers[%u]", index)
+                .expect("valid MCP template")
+        });
     let confirm = Message::Settings(SettingsMessage::Mcp(McpMessage::ConfirmDelete(index)));
     let cancel = Message::Settings(SettingsMessage::Mcp(McpMessage::CancelDelete));
     let confirm_dialog = crate::app::components::toast::confirm_dialog(
-        "确认删除 MCP 服务器",
-        format!("将删除 MCP 服务器「{server_name}」。此操作不可撤销。"),
-        "确认删除",
-        "取消",
+        tr(locale, "确认删除 MCP 服务器"),
+        crate::__!(
+            crate::app::i18n::I18n::new(locale),
+            "将删除 MCP 服务器「%s」。此操作不可撤销。",
+            server_name.as_str()
+        )
+        .expect("valid MCP template"),
+        tr(locale, "确认删除"),
+        tr(locale, "取消"),
         confirm,
         cancel,
     );

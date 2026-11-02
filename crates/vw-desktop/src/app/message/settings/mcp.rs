@@ -57,25 +57,61 @@ fn save_runtime_overrides_task(runtime_overrides: Vec<Value>) -> Task<Message> {
     )
 }
 
-fn invalid(path: &str, expected: &str) -> String {
-    format!("Invalid {path}: expected {expected}")
+#[derive(Debug, Clone)]
+pub(super) enum McpSettingsError {
+    Raw(String),
+    Localized(crate::app::i18n::format::Message),
+}
+impl std::fmt::Display for McpSettingsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Raw(raw) => f.write_str(raw),
+            Self::Localized(message) => f.write_str(
+                &message
+                    .render(crate::app::i18n::I18n::new(
+                        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                    ))
+                    .expect("valid MCP validation template"),
+            ),
+        }
+    }
+}
+impl From<String> for McpSettingsError {
+    fn from(raw: String) -> Self {
+        Self::Raw(raw)
+    }
+}
+fn set_validation_error(app: &mut App, error: impl Into<McpSettingsError>) {
+    let error = error.into();
+    app.mcp_settings.save_error = Some(error.to_string());
+    app.mcp_settings.save_error_translation = match error {
+        McpSettingsError::Localized(message) => Some(message),
+        McpSettingsError::Raw(_) => None,
+    };
+}
+
+fn invalid(path: &str, expected: &str) -> McpSettingsError {
+    McpSettingsError::Localized(crate::app::i18n::format::Message::new(
+        "字段 %s 无效：需要 %s",
+        vec![path.into(), expected.into()],
+    ))
 }
 
 fn require_object<'a>(
     value: &'a Value,
     path: &str,
-) -> Result<&'a serde_json::Map<String, Value>, String> {
+) -> Result<&'a serde_json::Map<String, Value>, McpSettingsError> {
     value.as_object().ok_or_else(|| invalid(path, "object"))
 }
 
-fn non_empty_string(value: Option<&Value>, path: &str) -> Result<String, String> {
+fn non_empty_string(value: Option<&Value>, path: &str) -> Result<String, McpSettingsError> {
     match value.and_then(Value::as_str) {
         Some(value) if !value.trim().is_empty() => Ok(value.trim().to_string()),
         _ => Err(invalid(path, "non-empty string")),
     }
 }
 
-fn validate_optional_bool(value: Option<&Value>, path: &str) -> Result<(), String> {
+fn validate_optional_bool(value: Option<&Value>, path: &str) -> Result<(), McpSettingsError> {
     match value {
         None => Ok(()),
         Some(value) if value.is_boolean() => Ok(()),
@@ -83,7 +119,7 @@ fn validate_optional_bool(value: Option<&Value>, path: &str) -> Result<(), Strin
     }
 }
 
-fn validate_timeout(value: Option<&Value>, path: &str) -> Result<(), String> {
+fn validate_timeout(value: Option<&Value>, path: &str) -> Result<(), McpSettingsError> {
     let Some(value) = value else {
         return Ok(());
     };
@@ -103,7 +139,7 @@ fn validate_string_array(
     value: Option<&Value>,
     path: &str,
     allow_empty: bool,
-) -> Result<(), String> {
+) -> Result<(), McpSettingsError> {
     let Some(value) = value else {
         return Ok(());
     };
@@ -120,7 +156,7 @@ fn validate_string_array(
     Ok(())
 }
 
-fn validate_name_value_array(value: Option<&Value>, path: &str) -> Result<(), String> {
+fn validate_name_value_array(value: Option<&Value>, path: &str) -> Result<(), McpSettingsError> {
     let Some(value) = value else {
         return Ok(());
     };
@@ -134,7 +170,7 @@ fn validate_name_value_array(value: Option<&Value>, path: &str) -> Result<(), St
     Ok(())
 }
 
-fn validate_meta(value: Option<&Value>, path: &str) -> Result<(), String> {
+fn validate_meta(value: Option<&Value>, path: &str) -> Result<(), McpSettingsError> {
     match value {
         None | Some(Value::Null) => Ok(()),
         Some(Value::Object(_)) => Ok(()),
@@ -142,7 +178,7 @@ fn validate_meta(value: Option<&Value>, path: &str) -> Result<(), String> {
     }
 }
 
-pub(super) fn validate_mcp_servers(value: &Value) -> Result<usize, String> {
+pub(super) fn validate_mcp_servers(value: &Value) -> Result<usize, McpSettingsError> {
     let servers =
         value.as_array().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
 
@@ -178,7 +214,7 @@ pub(super) fn validate_mcp_servers(value: &Value) -> Result<usize, String> {
     Ok(servers.len())
 }
 
-fn validate_mcp_server_overrides(overrides: &[Value]) -> Result<(), String> {
+fn validate_mcp_server_overrides(overrides: &[Value]) -> Result<(), McpSettingsError> {
     for (index, raw_override) in overrides.iter().enumerate() {
         let path = format!("mcpServerOverrides[{index}] in global config");
         let override_entry = require_object(raw_override, &path)?;
@@ -201,22 +237,27 @@ fn validate_mcp_server_overrides(overrides: &[Value]) -> Result<(), String> {
     Ok(())
 }
 
-fn pretty(value: &Value) -> Result<String, String> {
-    serde_json::to_string_pretty(value).map_err(|err| err.to_string())
+fn pretty(value: &Value) -> Result<String, McpSettingsError> {
+    serde_json::to_string_pretty(value).map_err(|err| McpSettingsError::Raw(err.to_string()))
 }
 
-fn editor_value(editor: &text_editor::Content) -> Result<(Value, usize), String> {
+fn editor_value(editor: &text_editor::Content) -> Result<(Value, usize), McpSettingsError> {
     let text = editor.text();
     let value = if text.trim().is_empty() {
         Value::Array(Vec::new())
     } else {
-        serde_json::from_str::<Value>(&text).map_err(|err| format!("JSON 解析失败: {err}"))?
+        serde_json::from_str::<Value>(&text).map_err(|err| {
+            McpSettingsError::Localized(crate::app::i18n::format::Message::new(
+                "JSON 解析失败: %s",
+                vec![err.to_string().into()],
+            ))
+        })?
     };
     let count = validate_mcp_servers(&value)?;
     Ok((value, count))
 }
 
-fn optional_timeout(input: &str) -> Result<Option<Value>, String> {
+fn optional_timeout(input: &str) -> Result<Option<Value>, McpSettingsError> {
     let trimmed = input.trim();
     if trimmed.is_empty() {
         return Ok(None);
@@ -231,7 +272,7 @@ fn optional_timeout(input: &str) -> Result<Option<Value>, String> {
     Ok(Some(json!(seconds)))
 }
 
-fn new_server_value(input: &McpNewServerState) -> Result<Value, String> {
+fn new_server_value(input: &McpNewServerState) -> Result<Value, McpSettingsError> {
     let name = input.name_input.trim();
     if name.is_empty() {
         return Err(invalid("new MCP server name", "non-empty string"));
@@ -273,7 +314,7 @@ fn new_server_value(input: &McpNewServerState) -> Result<Value, String> {
 fn append_new_server(
     editor: &text_editor::Content,
     input: &McpNewServerState,
-) -> Result<(Value, usize), String> {
+) -> Result<(Value, usize), McpSettingsError> {
     let (mut value, _) = editor_value(editor)?;
     let servers =
         value.as_array_mut().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
@@ -285,7 +326,7 @@ fn append_new_server(
 fn server_edit_state(
     editor: &text_editor::Content,
     index: usize,
-) -> Result<McpNewServerState, String> {
+) -> Result<McpNewServerState, McpSettingsError> {
     let (value, _) = editor_value(editor)?;
     let server = value
         .as_array()
@@ -329,7 +370,7 @@ fn update_server(
     editor: &text_editor::Content,
     index: usize,
     input: &McpNewServerState,
-) -> Result<(Value, usize), String> {
+) -> Result<(Value, usize), McpSettingsError> {
     let (mut value, _) = editor_value(editor)?;
     let edited = new_server_value(input)?;
     let edited = edited.as_object().ok_or_else(|| invalid("edited MCP server", "object"))?;
@@ -371,7 +412,7 @@ fn set_server_enabled(
     editor: &text_editor::Content,
     index: usize,
     enabled: bool,
-) -> Result<(Value, usize), String> {
+) -> Result<(Value, usize), McpSettingsError> {
     let (mut value, _) = editor_value(editor)?;
     let servers =
         value.as_array_mut().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
@@ -384,12 +425,18 @@ fn set_server_enabled(
     Ok((value, count))
 }
 
-fn delete_server(editor: &text_editor::Content, index: usize) -> Result<(Value, usize), String> {
+fn delete_server(
+    editor: &text_editor::Content,
+    index: usize,
+) -> Result<(Value, usize), McpSettingsError> {
     let (mut value, _) = editor_value(editor)?;
     let servers =
         value.as_array_mut().ok_or_else(|| invalid("mcpServers in global config", "array"))?;
     if index >= servers.len() {
-        return Err(format!("Invalid mcpServers[{index}] in global config: index out of bounds"));
+        return Err(invalid(
+            &format!("mcpServers[{index}] in global config"),
+            "index within bounds",
+        ));
     }
     servers.remove(index);
     let count = validate_mcp_servers(&value)?;
@@ -408,7 +455,7 @@ fn set_runtime_server_enabled(
     overrides: &[Value],
     server_name: &str,
     enabled: bool,
-) -> Result<Vec<Value>, String> {
+) -> Result<Vec<Value>, McpSettingsError> {
     let name = server_name.trim();
     if name.is_empty() {
         return Err(invalid("runtime MCP server name", "non-empty string"));
@@ -487,11 +534,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         }
                         Err(err) => {
                             app.mcp_settings.server_count = 0;
-                            app.mcp_settings.save_error = Some(err);
+                            set_validation_error(app, err);
                         }
                     }
                 }
-                Err(err) => app.mcp_settings.save_error = Some(err),
+                Err(err) => set_validation_error(app, err),
             }
             Task::none()
         }
@@ -527,7 +574,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::none()
             }
             Err(err) => {
-                app.mcp_settings.save_error = Some(err);
+                set_validation_error(app, err);
                 Task::none()
             }
         },
@@ -595,7 +642,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     save_task(value)
                 }
                 Err(err) => {
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                     Task::none()
                 }
             }
@@ -609,7 +656,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.mcp_settings.new_server_expanded = true;
                     clear_edit_feedback(app);
                 }
-                Err(err) => app.mcp_settings.save_error = Some(err),
+                Err(err) => set_validation_error(app, err),
             }
             Task::none()
         }
@@ -638,7 +685,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     save_task(value)
                 }
                 Err(err) => {
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                     Task::none()
                 }
             }
@@ -655,7 +702,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     save_task(value)
                 }
                 Err(err) => {
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                     Task::none()
                 }
             }
@@ -669,7 +716,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     save_runtime_overrides_task(overrides)
                 }
                 Err(err) => {
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                     Task::none()
                 }
             }
@@ -702,7 +749,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(err) => {
                     app.mcp_settings.delete_pending = None;
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                 }
             }
             Task::none()
@@ -735,7 +782,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     save_task(value)
                 }
                 Err(err) => {
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                     Task::none()
                 }
             }
@@ -752,7 +799,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 save_task(value)
             }
             Err(err) => {
-                app.mcp_settings.save_error = Some(err);
+                set_validation_error(app, err);
                 Task::none()
             }
         },
@@ -768,7 +815,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     refresh_all_task()
                 }
                 Err(err) => {
-                    app.mcp_settings.save_error = Some(err);
+                    set_validation_error(app, err);
                     Task::none()
                 }
             }
@@ -781,125 +828,5 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 mod mcp_tests;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[test]
-    fn validate_mcp_servers_accepts_supported_transports() {
-        let value = json!([
-            {"name": "local", "type": "stdio", "command": "npx", "args": ["tool"], "env": [{"name": "TOKEN", "value": "x"}]},
-            {"name": "http", "type": "http", "url": "https://example.test/mcp", "headers": [{"name": "Authorization", "value": "Bearer x"}]},
-            {"name": "sse", "type": "sse", "url": "https://example.test/sse", "allowedTools": ["search"], "timeout": 15}
-        ]);
-
-        assert_eq!(validate_mcp_servers(&value).expect("valid"), 3);
-    }
-
-    #[test]
-    fn validate_mcp_servers_rejects_invalid_shape() {
-        let value = json!([{"name": "broken", "type": "http"}]);
-
-        let error = validate_mcp_servers(&value).expect_err("invalid");
-        assert!(error.contains("mcpServers[0] in global config.url"));
-    }
-
-    #[test]
-    fn set_server_enabled_updates_selected_server_only() {
-        let editor = text_editor::Content::with_text(
-            r#"[
-              {"name": "first", "command": "npx", "enabled": true},
-              {"name": "second", "command": "node", "enabled": false}
-            ]"#,
-        );
-
-        let (value, count) = set_server_enabled(&editor, 1, true).expect("updated");
-
-        assert_eq!(count, 2);
-        assert_eq!(value[0]["enabled"], true);
-        assert_eq!(value[1]["enabled"], true);
-    }
-
-    #[test]
-    fn set_runtime_server_enabled_appends_override() {
-        let overrides = set_runtime_server_enabled(&[], "plugin-mcp", false).expect("updated");
-
-        assert_eq!(overrides, vec![json!({"name": "plugin-mcp", "enabled": false})]);
-    }
-
-    #[test]
-    fn set_runtime_server_enabled_updates_existing_override_only() {
-        let raw = vec![
-            json!({"name": "plugin-mcp", "enabled": false, "required": true}),
-            json!({"name": "other", "enabled": false}),
-        ];
-
-        let overrides = set_runtime_server_enabled(&raw, "plugin-mcp", true).expect("updated");
-
-        assert_eq!(overrides[0]["enabled"], true);
-        assert_eq!(overrides[0]["required"], true);
-        assert_eq!(overrides[1]["enabled"], false);
-    }
-
-    #[test]
-    fn append_new_server_adds_stdio_server() {
-        let editor = text_editor::Content::with_text("[]");
-        let form = McpNewServerState {
-            name_input: "filesystem".to_string(),
-            command_input: "npx".to_string(),
-            args_input: "-y\n@modelcontextprotocol/server-filesystem\n/tmp".to_string(),
-            ..McpNewServerState::default()
-        };
-
-        let (value, count) = append_new_server(&editor, &form).expect("appended");
-
-        assert_eq!(count, 1);
-        assert_eq!(value[0]["name"], json!("filesystem"));
-        assert_eq!(value[0]["type"], json!("stdio"));
-        assert_eq!(value[0]["command"], json!("npx"));
-        assert_eq!(
-            value[0]["args"],
-            json!(["-y", "@modelcontextprotocol/server-filesystem", "/tmp"])
-        );
-        assert_eq!(value[0]["enabled"], json!(true));
-        assert_eq!(value[0]["timeout"], json!(30.0));
-    }
-
-    #[test]
-    fn append_new_server_adds_http_server_without_empty_timeout() {
-        let editor = text_editor::Content::with_text(r#"[{"name": "local", "command": "npx"}]"#);
-        let form = McpNewServerState {
-            name_input: "remote".to_string(),
-            transport: McpNewServerTransport::Http,
-            url_input: "https://example.test/mcp".to_string(),
-            timeout_input: String::new(),
-            enabled: false,
-            required: true,
-            ..McpNewServerState::default()
-        };
-
-        let (value, count) = append_new_server(&editor, &form).expect("appended");
-
-        assert_eq!(count, 2);
-        assert_eq!(value[1]["name"], json!("remote"));
-        assert_eq!(value[1]["type"], json!("http"));
-        assert_eq!(value[1]["url"], json!("https://example.test/mcp"));
-        assert_eq!(value[1]["enabled"], json!(false));
-        assert_eq!(value[1]["required"], json!(true));
-        assert!(value[1].get("timeout").is_none());
-    }
-
-    #[test]
-    fn append_new_server_rejects_missing_stdio_command() {
-        let editor = text_editor::Content::with_text("[]");
-        let form = McpNewServerState {
-            name_input: "broken".to_string(),
-            command_input: " ".to_string(),
-            ..McpNewServerState::default()
-        };
-
-        let error = append_new_server(&editor, &form).expect_err("invalid");
-
-        assert!(error.contains("new MCP stdio command"));
-    }
-}
+#[path = "mcp_behavior_tests.rs"]
+mod tests;

@@ -272,7 +272,8 @@ impl App {
     ) -> iced::Task<crate::app::Message> {
         let id = self.next_toast_id;
         self.next_toast_id += 1;
-        self.active_toast = Some(Toast { id, kind, message: message.into() });
+        self.active_toast =
+            Some(Toast { localized_message: None, id, kind, message: message.into() });
         crate::app::message::after(
             Duration::from_millis(2200),
             crate::app::Message::Notification(NotificationMessage::HideToast(id)),
@@ -281,6 +282,25 @@ impl App {
 
     /// 公开函数，执行 show_success_toast 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
+    pub fn show_localized_toast(
+        &mut self,
+        kind: ToastKind,
+        source: &str,
+        arguments: Vec<crate::app::i18n::format::Argument>,
+    ) -> iced::Task<crate::app::Message> {
+        let message = crate::app::i18n::format::Message::new(source, arguments);
+        let fallback = message
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .expect("valid toast template");
+        let task = self.show_toast(kind, fallback);
+        if let Some(toast) = &mut self.active_toast {
+            toast.localized_message = Some(message);
+        }
+        task
+    }
+
     pub fn show_success_toast(
         &mut self,
         message: impl Into<String>,

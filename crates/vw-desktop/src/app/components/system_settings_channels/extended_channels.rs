@@ -3,6 +3,7 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::{App, Message};
 use iced::Element;
 use iced::widget::column;
@@ -61,7 +62,7 @@ pub(super) fn whatsapp_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "session_path",
-                "Web 模式会话数据库路径",
+                tr(app.desktop_locale, "Web 模式会话数据库路径"),
                 cfg.session_path.as_deref().unwrap_or(""),
                 "whatsapp.session_path",
                 false,
@@ -69,7 +70,7 @@ pub(super) fn whatsapp_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "pair_phone",
-                "可选配对手机号",
+                tr(app.desktop_locale, "可选配对手机号"),
                 cfg.pair_phone.as_deref().unwrap_or(""),
                 "whatsapp.pair_phone",
                 false,
@@ -77,7 +78,7 @@ pub(super) fn whatsapp_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "pair_code",
-                "可选固定配对码",
+                tr(app.desktop_locale, "可选固定配对码"),
                 cfg.pair_code.as_deref().unwrap_or(""),
                 "whatsapp.pair_code",
                 false,
@@ -101,7 +102,7 @@ pub(super) fn whatsapp_panel(app: &App) -> Element<'_, Message> {
         app,
         "whatsapp",
         "WhatsApp",
-        "Cloud API 或 Web 模式字段共用一组表单。",
+        tr(app.desktop_locale, "Cloud API 或 Web 模式字段共用一组表单。"),
         s.whatsapp.is_some(),
         body,
     )
@@ -129,7 +130,7 @@ pub(super) fn linq_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "signing_secret",
-                "可选签名密钥",
+                tr(app.desktop_locale, "可选签名密钥"),
                 cfg.signing_secret.as_deref().unwrap_or(""),
                 "linq.signing_secret",
                 true,
@@ -142,7 +143,14 @@ pub(super) fn linq_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(app, "linq", "Linq", "Partner API、发信号码与签名校验。", s.linq.is_some(), body)
+    panel(
+        app,
+        "linq",
+        "Linq",
+        tr(app.desktop_locale, "Partner API、发信号码与签名校验。"),
+        s.linq.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `wati_panel` 对应的界面片段与交互数据。
@@ -174,7 +182,7 @@ pub(super) fn wati_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "tenant_id",
-                "可选 tenant id",
+                tr(app.desktop_locale, "可选 tenant id"),
                 cfg.tenant_id.as_deref().unwrap_or(""),
                 "wati.tenant_id",
                 false,
@@ -187,7 +195,14 @@ pub(super) fn wati_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(app, "wati", "WATI", "第三方 WhatsApp Business API 集成。", s.wati.is_some(), body)
+    panel(
+        app,
+        "wati",
+        "WATI",
+        tr(app.desktop_locale, "第三方 WhatsApp Business API 集成。"),
+        s.wati.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `nextcloud_talk_panel` 对应的界面片段与交互数据。
@@ -226,7 +241,7 @@ pub(super) fn nextcloud_talk_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "webhook_secret",
-                "可选 webhook 密钥",
+                tr(app.desktop_locale, "可选 webhook 密钥"),
                 cfg.webhook_secret.as_deref().unwrap_or(""),
                 "nextcloud_talk.webhook_secret",
                 true,
@@ -250,7 +265,7 @@ pub(super) fn nextcloud_talk_panel(app: &App) -> Element<'_, Message> {
         app,
         "nextcloud_talk",
         "Nextcloud Talk",
-        "基础地址、应用 token 与 webhook 密钥。",
+        tr(app.desktop_locale, "基础地址、应用 token 与 webhook 密钥。"),
         s.nextcloud_talk.is_some(),
         body,
     )
@@ -283,6 +298,7 @@ pub(super) fn email_panel(app: &App) -> Element<'_, Message> {
                 false,
             ),
             number_row(
+                app.desktop_locale,
                 "imap_port",
                 cfg.imap_port as u32,
                 1,
@@ -300,6 +316,7 @@ pub(super) fn email_panel(app: &App) -> Element<'_, Message> {
                 false,
             ),
             number_row(
+                app.desktop_locale,
                 "smtp_port",
                 cfg.smtp_port as u32,
                 1,
@@ -307,9 +324,29 @@ pub(super) fn email_panel(app: &App) -> Element<'_, Message> {
                 "",
                 "email.smtp_port",
             ),
-            bool_row("smtp_tls", cfg.smtp_tls, "SMTP 使用 TLS", "email.smtp_tls"),
-            text_row(app, "username", "邮箱用户名", &cfg.username, "email.username", false),
-            text_row(app, "password", "邮箱密码", &cfg.password, "email.password", true),
+            bool_row(
+                app.desktop_locale,
+                "smtp_tls",
+                cfg.smtp_tls,
+                tr(app.desktop_locale, "SMTP 使用 TLS"),
+                "email.smtp_tls"
+            ),
+            text_row(
+                app,
+                "username",
+                tr(app.desktop_locale, "邮箱用户名"),
+                &cfg.username,
+                "email.username",
+                false
+            ),
+            text_row(
+                app,
+                "password",
+                tr(app.desktop_locale, "邮箱密码"),
+                &cfg.password,
+                "email.password",
+                true
+            ),
             text_row(
                 app,
                 "from_address",
@@ -319,6 +356,7 @@ pub(super) fn email_panel(app: &App) -> Element<'_, Message> {
                 false,
             ),
             number_row(
+                app.desktop_locale,
                 "idle_timeout_secs",
                 cfg.idle_timeout_secs as u32,
                 60,
@@ -334,7 +372,14 @@ pub(super) fn email_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(app, "email", "Email", "IMAP / SMTP 收发邮件配置。", s.email.is_some(), body)
+    panel(
+        app,
+        "email",
+        "Email",
+        tr(app.desktop_locale, "IMAP / SMTP 收发邮件配置。"),
+        s.email.is_some(),
+        body,
+    )
 }
 
 /// 构建或处理 `irc_panel` 对应的界面片段与交互数据。
@@ -355,12 +400,20 @@ pub(super) fn irc_panel(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = if let Some(cfg) = s.irc.as_ref() {
         column![
             text_row(app, "server", "irc.example.com", &cfg.server, "irc.server", false),
-            number_row("port", cfg.port as u32, 1, u16::MAX as u32, "", "irc.port"),
+            number_row(
+                app.desktop_locale,
+                "port",
+                cfg.port as u32,
+                1,
+                u16::MAX as u32,
+                "",
+                "irc.port"
+            ),
             text_row(app, "nickname", "vibewindow_bot", &cfg.nickname, "irc.nickname", false),
             text_row(
                 app,
                 "username",
-                "可选 username",
+                tr(app.desktop_locale, "可选 username"),
                 cfg.username.as_deref().unwrap_or(""),
                 "irc.username",
                 false,
@@ -370,7 +423,7 @@ pub(super) fn irc_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "server_password",
-                "可选 server password",
+                tr(app.desktop_locale, "可选 server password"),
                 cfg.server_password.as_deref().unwrap_or(""),
                 "irc.server_password",
                 true,
@@ -378,7 +431,7 @@ pub(super) fn irc_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "nickserv_password",
-                "可选 NickServ 密码",
+                tr(app.desktop_locale, "可选 NickServ 密码"),
                 cfg.nickserv_password.as_deref().unwrap_or(""),
                 "irc.nickserv_password",
                 true,
@@ -386,15 +439,16 @@ pub(super) fn irc_panel(app: &App) -> Element<'_, Message> {
             text_row(
                 app,
                 "sasl_password",
-                "可选 SASL 密码",
+                tr(app.desktop_locale, "可选 SASL 密码"),
                 cfg.sasl_password.as_deref().unwrap_or(""),
                 "irc.sasl_password",
                 true,
             ),
             bool_row(
+                app.desktop_locale,
                 "verify_tls",
                 cfg.verify_tls.unwrap_or(true),
-                "验证 TLS 证书",
+                tr(app.desktop_locale, "验证 TLS 证书"),
                 "irc.verify_tls",
             ),
         ]
@@ -404,5 +458,12 @@ pub(super) fn irc_panel(app: &App) -> Element<'_, Message> {
         column![].into()
     };
 
-    panel(app, "irc", "IRC", "IRC over TLS、自动加入频道和认证口令。", s.irc.is_some(), body)
+    panel(
+        app,
+        "irc",
+        "IRC",
+        tr(app.desktop_locale, "IRC over TLS、自动加入频道和认证口令。"),
+        s.irc.is_some(),
+        body,
+    )
 }

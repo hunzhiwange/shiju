@@ -126,6 +126,7 @@ fn editor_action_allows_selection_but_ignores_text_edits() {
 fn hide_toast_only_clears_matching_toast() {
     let mut app = test_app();
     app.active_toast = Some(crate::app::state::Toast {
+        localized_message: None,
         id: 7,
         message: "toast".to_string(),
         kind: crate::app::state::ToastKind::Info,

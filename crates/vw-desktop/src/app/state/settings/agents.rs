@@ -340,6 +340,7 @@ pub(crate) struct AgentsSettingsState {
     pub(crate) registered_tools: Option<Vec<String>>,
     pub(crate) available_tools: Vec<String>,
     pub(crate) save_error: Option<String>,
+    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
     pub(crate) save_in_flight: bool,
     pub(crate) dirty: bool,
 }
@@ -381,6 +382,7 @@ impl Default for AgentsSettingsState {
             registered_tools: None,
             available_tools: Vec::new(),
             save_error: None,
+            save_error_translation: None,
             save_in_flight: false,
             dirty: false,
         }

@@ -195,6 +195,7 @@ pub(crate) struct SkillsSettingsState {
     pub(crate) selected_plugin_id: Option<String>,
     /// 插件操作状态提示
     pub(crate) plugin_status_message: Option<String>,
+    pub(crate) plugin_status_message_translation: Option<crate::app::i18n::format::Message>,
     /// 当前插件状态提示是否为错误
     pub(crate) plugin_status_is_error: bool,
     /// 当前选中的技能 ID
@@ -207,6 +208,7 @@ pub(crate) struct SkillsSettingsState {
     pub(crate) detail_error: Option<String>,
     /// 技能操作状态提示
     pub(crate) status_message: Option<String>,
+    pub(crate) status_message_translation: Option<crate::app::i18n::format::Message>,
     /// 当前状态提示是否为错误
     pub(crate) status_is_error: bool,
     /// 是否显示帮助对话框
@@ -232,12 +234,14 @@ impl Default for SkillsSettingsState {
             plugin_loading: false,
             selected_plugin_id: None,
             plugin_status_message: None,
+            plugin_status_message_translation: None,
             plugin_status_is_error: false,
             selected_skill_id: None,
             selected_skill_detail: None,
             detail_loading: false,
             detail_error: None,
             status_message: None,
+            status_message_translation: None,
             status_is_error: false,
             show_help_modal: false,
             save_error: None,

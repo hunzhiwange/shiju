@@ -126,7 +126,7 @@ fn toast_clone_preserves_every_kind_and_payload() {
         .into_iter()
         .enumerate()
     {
-        let toast = Toast { id, kind, message: format!("{kind:?}") };
+        let toast = Toast { localized_message: None, id, kind, message: format!("{kind:?}") };
         let cloned = toast.clone();
 
         assert_eq!(cloned.id, id);

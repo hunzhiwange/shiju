@@ -8,6 +8,7 @@ use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
     settings_segment_button_style, settings_value_badge,
 };
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_TOOLS_BUILTIN_TAB, AGENT_TOOLS_OPTIONAL_TAB, DelegateAgentSettingsEntry,
@@ -648,11 +649,19 @@ pub(super) fn view<'a>(
     let visible_tools: Vec<String> = visible_tool_ids.iter().map(|id| (*id).to_string()).collect();
 
     let tools_list: Element<'_, Message> = if settings.available_tools.is_empty() {
-        text("暂无可用工具列表").size(12).into()
+        text(tr(app.desktop_locale, "暂无可用工具列表")).size(12).into()
     } else {
         let tabs_row = row![
-            tools_list_tab_button("可选", AGENT_TOOLS_OPTIONAL_TAB, active_tab),
-            tools_list_tab_button("内置", AGENT_TOOLS_BUILTIN_TAB, active_tab),
+            tools_list_tab_button(
+                tr(app.desktop_locale, "可选"),
+                AGENT_TOOLS_OPTIONAL_TAB,
+                active_tab
+            ),
+            tools_list_tab_button(
+                tr(app.desktop_locale, "内置"),
+                AGENT_TOOLS_BUILTIN_TAB,
+                active_tab
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -675,7 +684,7 @@ pub(super) fn view<'a>(
                         let display_name = if meta.name == "未分类工具" {
                             fallback_name
                         } else {
-                            meta.name.to_string()
+                            tr(app.desktop_locale, meta.name).to_string()
                         };
 
                         let title: Element<'_, Message> = if locked {
@@ -689,7 +698,10 @@ pub(super) fn view<'a>(
                                     .style(move |theme: &Theme| iced::widget::text::Style {
                                         color: Some(theme.palette().text.scale_alpha(0.98)),
                                     }),
-                                settings_value_badge(builtin_tool_badge_label()),
+                                settings_value_badge(tr(
+                                    app.desktop_locale,
+                                    builtin_tool_badge_label()
+                                )),
                             ]
                             .spacing(8)
                             .align_y(Alignment::Center)
@@ -711,36 +723,39 @@ pub(super) fn view<'a>(
                                 .into()
                         };
 
-                        let mut card = button(
-                            column![
-                                title,
-                                text(meta.description).size(12).style(move |theme: &Theme| {
-                                    iced::widget::text::Style {
-                                        color: Some(theme.palette().text.scale_alpha(if checked {
-                                            0.72
-                                        } else {
-                                            0.66
-                                        })),
-                                    }
-                                }),
-                                text(tool_id.clone()).size(11).style(move |theme: &Theme| {
-                                    iced::widget::text::Style {
-                                        color: Some(theme.palette().text.scale_alpha(if checked {
-                                            0.56
-                                        } else {
-                                            0.46
-                                        })),
-                                    }
-                                }),
-                            ]
-                            .spacing(6)
-                            .width(Length::Fill),
-                        )
-                        .padding([10, 14])
-                        .width(Length::Fixed(220.0))
-                        .style(move |theme: &Theme, status| {
-                            tool_card_button_style(theme, status, checked)
-                        });
+                        let mut card =
+                            button(
+                                column![
+                                    title,
+                                    text(tr(app.desktop_locale, meta.description)).size(12).style(
+                                        move |theme: &Theme| {
+                                            iced::widget::text::Style {
+                                                color: Some(theme.palette().text.scale_alpha(
+                                                    if checked { 0.72 } else { 0.66 },
+                                                )),
+                                            }
+                                        }
+                                    ),
+                                    text(tool_id.clone()).size(11).style(move |theme: &Theme| {
+                                        iced::widget::text::Style {
+                                            color: Some(
+                                                theme.palette().text.scale_alpha(if checked {
+                                                    0.56
+                                                } else {
+                                                    0.46
+                                                }),
+                                            ),
+                                        }
+                                    }),
+                                ]
+                                .spacing(6)
+                                .width(Length::Fill),
+                            )
+                            .padding([10, 14])
+                            .width(Length::Fixed(220.0))
+                            .style(move |theme: &Theme, status| {
+                                tool_card_button_style(theme, status, checked)
+                            });
 
                         if let Some(message) =
                             tool_card_press_message(agent_key, tool_id, checked, locked)
@@ -758,12 +773,21 @@ pub(super) fn view<'a>(
                     Some(
                         column![
                             row![
-                                text(group_meta.label).size(14),
-                                settings_value_badge(format!("{} 项", cards.len())),
+                                text(tr(app.desktop_locale, group_meta.label)).size(14),
+                                settings_value_badge(
+                                    crate::__!(
+                                        crate::app::i18n::I18n::new(app.desktop_locale),
+                                        "%u 项",
+                                        cards.len()
+                                    )
+                                    .expect("valid tool count template")
+                                ),
                             ]
                             .spacing(8)
                             .align_y(Alignment::Center),
-                            text(group_meta.description).size(12).style(settings_muted_text_style),
+                            text(tr(app.desktop_locale, group_meta.description))
+                                .size(12)
+                                .style(settings_muted_text_style),
                             row(cards).spacing(12).wrap(),
                         ]
                         .spacing(10)
@@ -792,10 +816,18 @@ pub(super) fn view<'a>(
 
                     let button = button(
                         column![
-                            text(preset.label).size(14),
-                            text(format!("{} · {} 项", preset.description, count))
-                                .size(11)
-                                .style(settings_muted_text_style),
+                            text(tr(app.desktop_locale, preset.label)).size(14),
+                            text(
+                                crate::__!(
+                                    crate::app::i18n::I18n::new(app.desktop_locale),
+                                    "%s · %u 项",
+                                    tr(app.desktop_locale, preset.description),
+                                    count
+                                )
+                                .expect("valid preset count template")
+                            )
+                            .size(11)
+                            .style(settings_muted_text_style),
                         ]
                         .spacing(4),
                     )
@@ -822,27 +854,34 @@ pub(super) fn view<'a>(
             column![
                 tabs_row,
                 row![
-                    button(text("全选").size(12))
+                    button(text(tr(app.desktop_locale, "全选")).size(12))
                         .padding([8, 14])
                         .on_press(Message::Settings(SettingsMessage::Agents(
                             AgentsMessage::AllowedToolsSelectAll(entry.key.clone()),
                         )))
                         .style(rounded_action_btn_style),
-                    button(text("反选").size(12))
+                    button(text(tr(app.desktop_locale, "反选")).size(12))
                         .padding([8, 14])
                         .on_press(Message::Settings(SettingsMessage::Agents(
                             AgentsMessage::AllowedToolsInvertSelection(entry.key.clone()),
                         )))
                         .style(rounded_action_btn_style),
-                    settings_value_badge(format!(
-                        "已选 {}/{}",
-                        selected_optional,
-                        visible_tools.len(),
-                    )),
+                    settings_value_badge(
+                        crate::__!(
+                            crate::app::i18n::I18n::new(app.desktop_locale),
+                            "已选 %u/%u",
+                            selected_optional,
+                            visible_tools.len()
+                        )
+                        .expect("valid selected tool count template")
+                    ),
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
-                section_card("快捷预选", "按当前可用工具自动套用常见权限组合。"),
+                section_card(
+                    tr(app.desktop_locale, "快捷预选"),
+                    tr(app.desktop_locale, "按当前可用工具自动套用常见权限组合。")
+                ),
                 preset_row,
                 groups,
             ]
@@ -852,7 +891,10 @@ pub(super) fn view<'a>(
     };
 
     column![
-        section_card("注册工具", "选择在对话开始时注册给模型的工具。未选择的工具不可调用。"),
+        section_card(
+            tr(app.desktop_locale, "注册工具"),
+            tr(app.desktop_locale, "选择在对话开始时注册给模型的工具。未选择的工具不可调用。")
+        ),
         tools_list,
     ]
     .spacing(14)

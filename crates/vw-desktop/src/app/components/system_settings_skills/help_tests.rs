@@ -13,7 +13,7 @@ fn keep_element(element: Element<'_, Message>) {
 
 #[test]
 fn help_text_documents_skill_page_capabilities() {
-    let text = help_text();
+    let text = help_text(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
 
     for expected in
         ["项目目录 / 全部目录", "SKILL.md", "SKILL.toml", "启用、禁用、删除", "安装到当前项目目录"]
@@ -24,7 +24,7 @@ fn help_text_documents_skill_page_capabilities() {
 
 #[test]
 fn help_text_documents_configuration_fields_and_defaults() {
-    let text = help_text();
+    let text = help_text(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
 
     for expected in [
         "auto_load_project_skills",
@@ -46,7 +46,7 @@ fn help_text_documents_configuration_fields_and_defaults() {
 
 #[test]
 fn help_text_documents_local_skill_disable_marker_behavior() {
-    let text = help_text();
+    let text = help_text(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
 
     assert!(text.contains("SKILL.disabled"));
     assert!(text.contains("禁用后仍会在目录页显示"));

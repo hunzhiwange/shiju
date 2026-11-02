@@ -70,6 +70,7 @@ fn compact_text_handles_unicode_exact_and_truncated_limits() {
 #[test]
 fn configured_rows_apply_defaults_and_preserve_explicit_fields() {
     let rows = configured_mcp_server_rows(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         r#"[
             {},
             {"name":" custom ","type":" http ","enabled":false,"required":true}
@@ -91,14 +92,23 @@ fn configured_rows_apply_defaults_and_preserve_explicit_fields() {
 
 #[test]
 fn configured_rows_reject_invalid_json_non_arrays_and_non_objects() {
-    assert!(configured_mcp_server_rows("  ").expect("blank input is empty").is_empty());
-    assert!(configured_mcp_server_rows("{").is_err());
+    assert!(
+        configured_mcp_server_rows(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "  ")
+            .expect("blank input is empty")
+            .is_empty()
+    );
+    assert!(
+        configured_mcp_server_rows(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "{")
+            .is_err()
+    );
     assert_eq!(
-        configured_mcp_server_rows("{}").expect_err("object root must fail"),
+        configured_mcp_server_rows(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "{}")
+            .expect_err("object root must fail"),
         "MCP 配置必须是数组"
     );
     assert_eq!(
-        configured_mcp_server_rows("[null]").expect_err("non-object entry must fail"),
+        configured_mcp_server_rows(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "[null]")
+            .expect_err("non-object entry must fail"),
         "mcpServers[0] 必须是对象"
     );
 }
@@ -164,55 +174,98 @@ fn status_and_toolbar_elements_build_for_enabled_disabled_and_active_tabs() {
     }
 
     let connected = inspected_server("demo", McpConnectionStatusDto::Connected);
-    let _: iced::Element<'static, Message> = status_badge(Some(&connected), true);
-    let _: iced::Element<'static, Message> = status_badge(None, false);
+    let _: iced::Element<'static, Message> =
+        status_badge(vw_config_types::ui::DesktopLocale::SimplifiedChinese, Some(&connected), true);
+    let _: iced::Element<'static, Message> =
+        status_badge(vw_config_types::ui::DesktopLocale::SimplifiedChinese, None, false);
     let _ = toolbar_button("disabled", None);
     let _ = toolbar_button(
         "refresh",
         Some(Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh))),
     );
     let _: iced::Element<'_, Message> = form_field("field", iced::widget::text("control").size(12));
-    let _: iced::Element<'static, Message> =
-        mcp_tab_button("JSON", McpSettingsTab::Json, McpSettingsTab::Servers);
-    let _: iced::Element<'static, Message> =
-        mcp_tab_button("JSON", McpSettingsTab::Json, McpSettingsTab::Json);
+    let _: iced::Element<'static, Message> = mcp_tab_button(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "JSON",
+        McpSettingsTab::Json,
+        McpSettingsTab::Servers,
+    );
+    let _: iced::Element<'static, Message> = mcp_tab_button(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "JSON",
+        McpSettingsTab::Json,
+        McpSettingsTab::Json,
+    );
 }
 
 #[test]
 fn preview_sections_cover_empty_error_hidden_and_disabled_branches() {
     let mut server = inspected_server("demo", McpConnectionStatusDto::Connected);
-    let _: iced::Element<'static, Message> = empty_preview(true, false);
-    let _: iced::Element<'static, Message> = empty_preview(false, true);
-    let _: iced::Element<'static, Message> = tools_preview_section(&server);
+    let _: iced::Element<'static, Message> =
+        empty_preview(vw_config_types::ui::DesktopLocale::SimplifiedChinese, true, false);
+    let _: iced::Element<'static, Message> =
+        empty_preview(vw_config_types::ui::DesktopLocale::SimplifiedChinese, false, true);
+    let _: iced::Element<'static, Message> =
+        tools_preview_section(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &server);
 
     server.tools_error = Some("tool preview failed".repeat(20));
-    let _: iced::Element<'static, Message> = tools_preview_section(&server);
+    let _: iced::Element<'static, Message> =
+        tools_preview_section(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &server);
 
     server.tools_error = None;
     server.tools = (0..10).map(|idx| tool_spec(&format!("tool-{idx}"))).collect();
-    let _: iced::Element<'static, Message> = tools_preview_section(&server);
+    let _: iced::Element<'static, Message> =
+        tools_preview_section(vw_config_types::ui::DesktopLocale::SimplifiedChinese, &server);
 
     let many_values = (0..8)
         .map(|idx| json!({"name": format!("resource-{idx}"), "uri": format!("file:///{idx}")}))
         .collect::<Vec<_>>();
-    let _: iced::Element<'static, Message> =
-        value_preview_section("资源", &[], None, &["name"], &["uri"]);
     let _: iced::Element<'static, Message> = value_preview_section(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "资源",
+        &[],
+        None,
+        &["name"],
+        &["uri"],
+    );
+    let _: iced::Element<'static, Message> = value_preview_section(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         "资源",
         &many_values,
         None,
         &["name", "title"],
         &["uri", "description"],
     );
-    let _: iced::Element<'static, Message> =
-        value_preview_section("资源", &many_values, Some("resource error"), &["name"], &["uri"]);
+    let _: iced::Element<'static, Message> = value_preview_section(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "资源",
+        &many_values,
+        Some("resource error"),
+        &["name"],
+        &["uri"],
+    );
 
     let mut disabled = inspected_server("disabled", McpConnectionStatusDto::Disabled);
-    let _: iced::Element<'static, Message> = capability_preview(Some(&disabled), true, false);
+    let _: iced::Element<'static, Message> = capability_preview(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        Some(&disabled),
+        true,
+        false,
+    );
     disabled.connection_status = McpConnectionStatusDto::Error;
     disabled.error = Some("server failed".repeat(12));
-    let _: iced::Element<'static, Message> = capability_preview(Some(&disabled), true, true);
-    let _: iced::Element<'static, Message> = capability_preview(None, true, false);
+    let _: iced::Element<'static, Message> = capability_preview(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        Some(&disabled),
+        true,
+        true,
+    );
+    let _: iced::Element<'static, Message> = capability_preview(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        None,
+        true,
+        false,
+    );
 }
 
 #[test]
@@ -235,6 +288,7 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         required: true,
     };
     let _: iced::Element<'_, Message> = configured_server_panel(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         row.clone(),
         Some(&inspect),
         "global:demo".to_string(),
@@ -243,19 +297,42 @@ fn server_panels_build_configured_runtime_and_new_server_states() {
         true,
         false,
     );
-    let _: iced::Element<'_, Message> =
-        configured_server_panel(row, None, "global:demo".to_string(), false, false, false, true);
-    let _: iced::Element<'_, Message> =
-        runtime_server_panel(&inspect, "runtime:demo".to_string(), true, true, true, false);
+    let _: iced::Element<'_, Message> = configured_server_panel(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        row,
+        None,
+        "global:demo".to_string(),
+        false,
+        false,
+        false,
+        true,
+    );
+    let _: iced::Element<'_, Message> = runtime_server_panel(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        &inspect,
+        "runtime:demo".to_string(),
+        true,
+        true,
+        true,
+        false,
+    );
 
     app.mcp_settings.new_server_expanded = false;
-    let _: iced::Element<'_, Message> = new_server_panel(&app.mcp_settings, true);
+    let _: iced::Element<'_, Message> = new_server_panel(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        &app.mcp_settings,
+        true,
+    );
     app.mcp_settings.new_server_expanded = true;
     for transport in
         [McpNewServerTransport::Stdio, McpNewServerTransport::Http, McpNewServerTransport::Sse]
     {
         app.mcp_settings.new_server.transport = transport;
-        let _: iced::Element<'_, Message> = new_server_panel(&app.mcp_settings, false);
+        let _: iced::Element<'_, Message> = new_server_panel(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            &app.mcp_settings,
+            false,
+        );
     }
 }
 

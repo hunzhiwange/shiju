@@ -40,6 +40,7 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentConfigTabMessage, AgentsMessage, SettingsMessage};
 use crate::app::state::{
     AGENT_DETAIL_BASIC_TAB, AGENT_DETAIL_IDENTITY_TAB, AGENT_DETAIL_SKILLS_TAB,
@@ -168,7 +169,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let tabs = AGENT_CONFIG_TABS
         .iter()
         .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(descriptor.tab, descriptor.label))
+            row.push(tab_button(descriptor.tab, tr(app.desktop_locale, descriptor.label)))
         })
         .wrap();
 
@@ -240,7 +241,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut page = column![tabs].spacing(16).width(Length::Fill).height(Length::Fill);
     if let Some(error) = active_tab_save_error(app) {
-        page = page.push(settings_error_banner(error));
+        let rendered = app
+            .agents_settings
+            .save_error_translation
+            .as_ref()
+            .filter(|message| {
+                message
+                    .render(crate::app::i18n::I18n::new(
+                        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                    ))
+                    .is_ok_and(|source| source == error)
+            })
+            .map(|message| {
+                message
+                    .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                    .expect("valid agent error template")
+            })
+            .unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__(error).to_owned()
+            });
+        page = page.push(settings_error_banner(rendered));
     }
     page.push(content).into()
 }
@@ -266,17 +286,26 @@ fn agents_view(app: &App) -> Element<'_, Message> {
     if !settings.config_ready {
         return column![
             settings_page_intro(
-                "智能体配置",
-                "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
+                tr(app.desktop_locale, "智能体配置"),
+                tr(
+                    app.desktop_locale,
+                    "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。"
+                ),
             ),
             section_card(
-                "配置尚未就绪",
-                "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。",
+                tr(app.desktop_locale, "配置尚未就绪"),
+                tr(
+                    app.desktop_locale,
+                    "为防止启动默认值覆盖已保存配置，加载成功前此页面保持只读。"
+                ),
             ),
-            text("正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。")
-                .size(12)
-                .style(settings_muted_text_style),
-            button(text("重新加载").size(12))
+            text(tr(
+                app.desktop_locale,
+                "正在等待 Gateway 返回当前作用域的智能体配置；完成前不会使用默认值保存。"
+            ))
+            .size(12)
+            .style(settings_muted_text_style),
+            button(text(tr(app.desktop_locale, "重新加载")).size(12))
                 .padding([8, 14])
                 .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::Refresh)))
                 .style(rounded_action_btn_style),
@@ -293,22 +322,45 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         .iter()
         .map(|entry| {
             let is_selected = entry.key == settings.selected_agent;
-            let meta = if entry.key == "main" {
-                entry_kind_label(entry).to_string()
-            } else if entry.enabled {
-                format!("{} | 已启用", entry_kind_label(entry))
+            let spec = vw_config_types::agent::builtin_agent_spec(&entry.key);
+            let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+            let label = if spec.is_some_and(|spec| spec.label == entry.label) {
+                i18n.__(&entry.label)
             } else {
-                format!("{} | 已停用", entry_kind_label(entry))
+                &entry.label
+            };
+            let description = if spec.is_some_and(|spec| spec.description == entry.description) {
+                i18n.__(&entry.description)
+            } else {
+                &entry.description
+            };
+
+            let meta = if entry.key == "main" {
+                tr(app.desktop_locale, entry_kind_label(entry)).to_string()
+            } else if entry.enabled {
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "%s：已启用",
+                    tr(app.desktop_locale, entry_kind_label(entry))
+                )
+                .expect("valid agent status template")
+            } else {
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "%s：已停用",
+                    tr(app.desktop_locale, entry_kind_label(entry))
+                )
+                .expect("valid agent status template")
             };
             let model_text = if entry.model.trim().is_empty() {
-                "未选择 model".to_string()
+                tr(app.desktop_locale, "未选择 model").to_string()
             } else {
                 entry.model.clone()
             };
             let button = iced::widget::button(
                 container(
                     column![
-                        text(&entry.label).size(14).style(move |theme: &Theme| {
+                        text(label).size(14).style(move |theme: &Theme| {
                             iced::widget::text::Style {
                                 color: Some(theme.palette().text.scale_alpha(if is_selected {
                                     0.98
@@ -326,7 +378,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
                                 }),
                             }
                         }),
-                        text(&entry.description).size(12).style(move |theme: &Theme| {
+                        text(description).size(12).style(move |theme: &Theme| {
                             iced::widget::text::Style {
                                 color: Some(if is_selected {
                                     theme.palette().text.scale_alpha(0.72)
@@ -372,36 +424,43 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         .collect::<Vec<Element<'_, Message>>>();
 
     let title = settings_page_intro(
-        "智能体配置",
-        "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
+        tr(app.desktop_locale, "智能体配置"),
+        tr(
+            app.desktop_locale,
+            "按项目分别管理内建与自定义智能体的模型、身份文件、工具、技能和运行参数。",
+        ),
     );
     let project_options = agent_project_options(app);
     let selected_project = settings.project_path.clone();
     let project_switcher: Element<'_, Message> = if project_options.is_empty() {
-        text("尚未打开项目；当前编辑全局智能体配置。")
+        text(tr(app.desktop_locale, "尚未打开项目；当前编辑全局智能体配置。"))
             .size(12)
             .style(settings_muted_text_style)
             .into()
     } else {
         row![
-            text("项目目录").size(13).width(Length::Fixed(84.0)),
+            text(tr(app.desktop_locale, "项目目录")).size(13).width(Length::Fixed(84.0)),
             pick_list(project_options, selected_project, |path| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectSelected(path)))
             })
-            .placeholder("全局智能体配置")
+            .placeholder(tr(app.desktop_locale, "全局智能体配置"))
             .padding([9, 12])
             .text_size(12)
             .width(Length::Fill)
             .style(settings_pick_list_style)
             .menu_style(settings_pick_list_menu_style),
-            settings_value_badge(if settings.loading { "切换中" } else { "项目独立保存" }),
+            settings_value_badge(if settings.loading {
+                tr(app.desktop_locale, "切换中")
+            } else {
+                tr(app.desktop_locale, "项目独立保存")
+            }),
         ]
         .spacing(10)
         .align_y(Alignment::Center)
         .into()
     };
     let add_agent_bar = row![
-        text_input("新增智能体 key", &settings.new_agent_key_input)
+        text_input(tr(app.desktop_locale, "新增智能体 key"), &settings.new_agent_key_input)
             .on_input(|value| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentKeyChanged(value)))
             })
@@ -409,7 +468,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
             .size(13)
             .style(settings_text_input_style)
             .width(Length::Fill),
-        button(text("新增").size(12))
+        button(text(tr(app.desktop_locale, "新增")).size(12))
             .padding([8, 14])
             .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::AddAgentRequested,)))
             .style(rounded_action_btn_style),
@@ -419,10 +478,26 @@ fn agents_view(app: &App) -> Element<'_, Message> {
 
     let detail: Element<'_, Message> = if let Some(entry) = selected_entry(app) {
         let detail_tabs = row![
-            detail_tab_button("基础", AGENT_DETAIL_BASIC_TAB, &settings.active_detail_tab),
-            detail_tab_button("身份", AGENT_DETAIL_IDENTITY_TAB, &settings.active_detail_tab),
-            detail_tab_button("工具", AGENT_DETAIL_TOOLS_TAB, &settings.active_detail_tab),
-            detail_tab_button("技能", AGENT_DETAIL_SKILLS_TAB, &settings.active_detail_tab),
+            detail_tab_button(
+                tr(app.desktop_locale, "基础"),
+                AGENT_DETAIL_BASIC_TAB,
+                &settings.active_detail_tab
+            ),
+            detail_tab_button(
+                tr(app.desktop_locale, "身份"),
+                AGENT_DETAIL_IDENTITY_TAB,
+                &settings.active_detail_tab
+            ),
+            detail_tab_button(
+                tr(app.desktop_locale, "工具"),
+                AGENT_DETAIL_TOOLS_TAB,
+                &settings.active_detail_tab
+            ),
+            detail_tab_button(
+                tr(app.desktop_locale, "技能"),
+                AGENT_DETAIL_SKILLS_TAB,
+                &settings.active_detail_tab
+            ),
         ]
         .spacing(10)
         .wrap();
@@ -436,34 +511,44 @@ fn agents_view(app: &App) -> Element<'_, Message> {
 
         column![detail_tabs, detail_content].spacing(14).into()
     } else {
-        container(text("未找到代理配置")).into()
+        container(text(tr(app.desktop_locale, "未找到代理配置"))).into()
     };
 
     let mut content = column![
         title,
         section_card(
-            "项目配置作用域",
-            "修改后点击保存配置；切换项目之前请先保存或放弃修改。身份文件正文仍单独即时写入。",
+            tr(app.desktop_locale, "项目配置作用域"),
+            tr(
+                app.desktop_locale,
+                "修改后点击保存配置；切换项目之前请先保存或放弃修改。身份文件正文仍单独即时写入。"
+            ),
         ),
         project_switcher,
         row![
             text(if settings.save_in_flight {
-                "正在保存…"
+                tr(app.desktop_locale, "正在保存…")
             } else if settings.dirty {
-                "有未保存的修改"
+                tr(app.desktop_locale, "有未保存的修改")
             } else {
-                "无未保存的修改"
+                tr(app.desktop_locale, "无未保存的修改")
             })
             .size(12)
             .style(settings_muted_text_style),
-            button(text(if settings.save_in_flight { "保存中…" } else { "保存配置" }).size(13))
-                .on_press_maybe(
-                    (!settings.save_in_flight)
-                        .then_some(Message::Settings(SettingsMessage::Agents(AgentsMessage::Save)))
-                )
-                .padding([8, 14])
-                .style(primary_action_btn_style),
-            button(text("放弃修改并刷新").size(13))
+            button(
+                text(if settings.save_in_flight {
+                    tr(app.desktop_locale, "保存中…")
+                } else {
+                    tr(app.desktop_locale, "保存配置")
+                })
+                .size(13)
+            )
+            .on_press_maybe(
+                (!settings.save_in_flight)
+                    .then_some(Message::Settings(SettingsMessage::Agents(AgentsMessage::Save)))
+            )
+            .padding([8, 14])
+            .style(primary_action_btn_style),
+            button(text(tr(app.desktop_locale, "放弃修改并刷新")).size(13))
                 .on_press_maybe((!settings.save_in_flight).then_some(Message::Settings(
                     SettingsMessage::Agents(AgentsMessage::DiscardChanges)
                 )))
@@ -486,11 +571,18 @@ fn agents_view(app: &App) -> Element<'_, Message> {
                 column![
                     add_agent_bar,
                     row![
-                        settings_value_badge(format!("{} 个代理", settings.entries.len())),
+                        settings_value_badge(
+                            crate::__!(
+                                crate::app::i18n::I18n::new(app.desktop_locale),
+                                "%u 个代理",
+                                settings.entries.len()
+                            )
+                            .expect("valid agent count template")
+                        ),
                         settings_value_badge(if settings.loading {
-                            "同步中"
+                            tr(app.desktop_locale, "同步中")
                         } else {
-                            "已就绪"
+                            tr(app.desktop_locale, "已就绪")
                         }),
                     ]
                     .spacing(10)
@@ -519,7 +611,9 @@ fn agents_view(app: &App) -> Element<'_, Message> {
 
     if settings.loading {
         content = content.push(
-            text("正在刷新提供商 / 模型 / 工具列表 ...").size(12).style(settings_muted_text_style),
+            text(tr(app.desktop_locale, "正在刷新提供商 / 模型 / 工具列表 ..."))
+                .size(12)
+                .style(settings_muted_text_style),
         );
     }
 

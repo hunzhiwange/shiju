@@ -7,6 +7,7 @@ use crate::app::components::system_settings_common::{
     rounded_action_btn_style, settings_muted_text_style, settings_panel_style,
     settings_segment_button_style, settings_value_badge,
 };
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::{DelegateAgentSettingsEntry, SkillsCatalogItem, SkillsDirectoryScope};
 use crate::app::{App, Message};
@@ -14,6 +15,7 @@ use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
 use vw_config_types::agent::DelegateCapabilityPolicy;
+use vw_config_types::ui::DesktopLocale;
 
 pub(super) fn capability_policy_label(policy: DelegateCapabilityPolicy) -> &'static str {
     match policy {
@@ -38,15 +40,16 @@ pub(super) fn skill_policy_message(agent_key: String, policy: DelegateCapability
 }
 
 fn skill_policy_button(
+    locale: DesktopLocale,
     entry: &DelegateAgentSettingsEntry,
     policy: DelegateCapabilityPolicy,
 ) -> Element<'static, Message> {
     let selected = entry.skill_policy == policy;
-    let policy_button = button(text(capability_policy_label(policy)).size(12))
+    let policy_button = button(text(tr(locale, capability_policy_label(policy))).size(12))
         .padding([8, 12])
         .style(move |theme: &Theme, status| settings_segment_button_style(theme, status, selected))
         .on_press(skill_policy_message(entry.key.clone(), policy));
-    let tip = container(text(capability_policy_tooltip(policy)).size(12))
+    let tip = container(text(tr(locale, capability_policy_tooltip(policy))).size(12))
         .padding([6, 10])
         .style(settings_panel_style);
 
@@ -154,10 +157,14 @@ pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
 
 pub(super) fn discovery_order_text(app: &App) -> String {
     if let Some(project_path) = &app.project_path {
-        format!(
-            "{project_path}/skills -> {project_path}/.agents/skills -> 父级 skills、.agents/skills -> {}/skills",
-            vw_config_types::paths::tilde_config_path("")
+        crate::__!(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            "发现顺序：%s/skills -> %s/.agents/skills -> 父级 skills、.agents/skills -> %s/skills",
+            project_path.as_str(),
+            project_path.as_str(),
+            vw_config_types::paths::tilde_config_path("").as_str()
         )
+        .expect("valid discovery order template")
     } else {
         vw_config_types::paths::tilde_config_path("skills")
     }
@@ -187,14 +194,20 @@ pub(super) fn enabled_skill_ids(skills: &[&SkillsCatalogItem]) -> Vec<String> {
 }
 
 fn skill_card<'a>(
+    locale: DesktopLocale,
     entry: &'a DelegateAgentSettingsEntry,
     skill: &'a SkillsCatalogItem,
 ) -> Element<'a, Message> {
     let checked = entry.allowed_skills.iter().any(|selected| selected == &skill.id);
     let agent_key = entry.key.clone();
     let skill_id = skill.id.clone();
-    let source = skill_source_label(&skill.source);
-    let status = if skill.enabled { source.to_string() } else { format!("{source} · 已停用") };
+    let source = tr(locale, skill_source_label(&skill.source));
+    let status = if skill.enabled {
+        source.to_string()
+    } else {
+        crate::__!(crate::app::i18n::I18n::new(locale), "%s · 已停用", source)
+            .expect("valid skill status template")
+    };
 
     button(
         column![
@@ -258,14 +271,36 @@ pub(super) fn view<'a>(
     let project_open = app.project_path.is_some();
     let scope_filter = column![
         row![
-            scope_button("项目目录", SkillsDirectoryScope::Project, active_scope, project_open),
-            scope_button("父级目录", SkillsDirectoryScope::Ancestor, active_scope, project_open),
-            scope_button("全局目录", SkillsDirectoryScope::Global, active_scope, true),
-            scope_button("全部", SkillsDirectoryScope::All, active_scope, true),
+            scope_button(
+                tr(app.desktop_locale, "项目目录"),
+                SkillsDirectoryScope::Project,
+                active_scope,
+                project_open
+            ),
+            scope_button(
+                tr(app.desktop_locale, "父级目录"),
+                SkillsDirectoryScope::Ancestor,
+                active_scope,
+                project_open
+            ),
+            scope_button(
+                tr(app.desktop_locale, "全局目录"),
+                SkillsDirectoryScope::Global,
+                active_scope,
+                true
+            ),
+            scope_button(
+                tr(app.desktop_locale, "全部"),
+                SkillsDirectoryScope::All,
+                active_scope,
+                true
+            ),
         ]
         .spacing(8)
         .wrap(),
-        text(scope_description(active_scope)).size(12).style(settings_muted_text_style),
+        text(tr(app.desktop_locale, scope_description(active_scope)))
+            .size(12)
+            .style(settings_muted_text_style),
         text(discovery_order_text(app))
             .size(11)
             .width(Length::Fill)
@@ -277,13 +312,13 @@ pub(super) fn view<'a>(
     let skills_list: Element<'_, Message> = if skills.is_empty() {
         column![
             text(if app.skills_settings.loading {
-                "正在刷新技能目录 ..."
+                tr(app.desktop_locale, "正在刷新技能目录 ...")
             } else {
-                "当前筛选范围暂无可用技能"
+                tr(app.desktop_locale, "当前筛选范围暂无可用技能")
             })
             .size(12)
             .style(settings_muted_text_style),
-            button(text("刷新技能").size(12))
+            button(text(tr(app.desktop_locale, "刷新技能")).size(12))
                 .padding([8, 14])
                 .on_press(Message::Settings(SettingsMessage::SkillsRefresh))
                 .style(rounded_action_btn_style),
@@ -291,17 +326,20 @@ pub(super) fn view<'a>(
         .spacing(10)
         .into()
     } else {
-        let cards = skills.iter().map(|skill| skill_card(entry, *skill)).collect::<Vec<_>>();
+        let cards = skills
+            .iter()
+            .map(|skill| skill_card(app.desktop_locale, entry, *skill))
+            .collect::<Vec<_>>();
 
         column![
             row![
-                button(text("全选可用").size(12))
+                button(text(tr(app.desktop_locale, "全选可用")).size(12))
                     .padding([8, 14])
                     .on_press(Message::Settings(SettingsMessage::Agents(
                         AgentsMessage::AllowedSkillsSelectAll(entry.key.clone(), active_scope),
                     )))
                     .style(rounded_action_btn_style),
-                button(text("反选可用").size(12))
+                button(text(tr(app.desktop_locale, "反选可用")).size(12))
                     .padding([8, 14])
                     .on_press(Message::Settings(SettingsMessage::Agents(
                         AgentsMessage::AllowedSkillsInvertSelection(
@@ -310,7 +348,15 @@ pub(super) fn view<'a>(
                         ),
                     )))
                     .style(rounded_action_btn_style),
-                settings_value_badge(format!("已选 {}/{}", selected_count, enabled_skills.len(),)),
+                settings_value_badge(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        "已选 %u/%u",
+                        selected_count,
+                        enabled_skills.len()
+                    )
+                    .expect("valid skill count template")
+                ),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
@@ -320,20 +366,23 @@ pub(super) fn view<'a>(
         .into()
     };
     let policy_controls = row![
-        skill_policy_button(entry, DelegateCapabilityPolicy::Strict),
-        skill_policy_button(entry, DelegateCapabilityPolicy::Unrestricted),
+        skill_policy_button(app.desktop_locale, entry, DelegateCapabilityPolicy::Strict),
+        skill_policy_button(app.desktop_locale, entry, DelegateCapabilityPolicy::Unrestricted),
     ]
     .spacing(8)
     .wrap();
 
     column![
         section_card(
-            "默认技能",
-            "选择会在委托代理首步默认提示的已安装技能；严格限制时它们同时构成技能白名单。",
+            tr(app.desktop_locale, "默认技能"),
+            tr(
+                app.desktop_locale,
+                "选择会在委托代理首步默认提示的已安装技能；严格限制时它们同时构成技能白名单。"
+            ),
         ),
         column![
-            text("技能访问策略").size(14),
-            text("严格限制使用固定技能范围；不限制允许会话临时选择。")
+            text(tr(app.desktop_locale, "技能访问策略")).size(14),
+            text(tr(app.desktop_locale, "严格限制使用固定技能范围；不限制允许会话临时选择。"))
                 .size(12)
                 .style(settings_muted_text_style),
             policy_controls,

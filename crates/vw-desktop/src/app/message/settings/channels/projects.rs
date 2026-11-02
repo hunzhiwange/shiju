@@ -120,7 +120,11 @@ pub(super) fn loaded(
     if app.channels_settings.finish_project_choices(&scope, &instance, generation, result)
         && let Some(error) = error
     {
-        return app.show_error_toast(format!("项目加载失败：{error}"));
+        return app.show_localized_toast(
+            crate::app::state::ToastKind::Error,
+            "项目加载失败：%s",
+            vec![error.into()],
+        );
     }
     Task::none()
 }

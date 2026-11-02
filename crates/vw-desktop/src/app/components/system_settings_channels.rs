@@ -23,11 +23,13 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{ChannelsMessage, SettingsMessage};
 use crate::app::state::ChannelsSettingsTab;
 use crate::app::{App, Message};
 use iced::widget::{button, checkbox, column, container, row, svg, text, text_input};
 use iced::{Alignment, Background, Border, Color, Element, Length};
+use vw_config_types::ui::DesktopLocale;
 
 use self::common::{LABEL_WIDTH, enabled_channels, number_row};
 
@@ -97,9 +99,9 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
     settings_section_content(
         column![
             row![
-                text("CLI 通道").size(13).width(Length::Fixed(LABEL_WIDTH)),
+                text(tr(app.desktop_locale, "CLI 通道")).size(13).width(Length::Fixed(LABEL_WIDTH)),
                 checkbox(s.cli)
-                    .label("启用 CLI 通道")
+                    .label(tr(app.desktop_locale, "启用 CLI 通道"))
                     .on_toggle(|next| {
                         Message::Settings(SettingsMessage::Channels(ChannelsMessage::CliToggled(
                             next,
@@ -111,8 +113,8 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
             settings_divider(),
             row![
-                text("项目目录").size(13).width(Length::Fixed(LABEL_WIDTH)),
-                text_input("留空时按 workspace 推断", &s.project_dir_input)
+                text(tr(app.desktop_locale, "项目目录")).size(13).width(Length::Fixed(LABEL_WIDTH)),
+                text_input(tr(app.desktop_locale, "留空时按 workspace 推断"), &s.project_dir_input)
                     .on_input(|next| {
                         Message::Settings(SettingsMessage::Channels(
                             ChannelsMessage::ProjectDirChanged(next),
@@ -127,11 +129,12 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Center),
             settings_divider(),
             number_row(
-                "消息超时",
+                app.desktop_locale,
+                tr(app.desktop_locale, "消息超时"),
                 s.message_timeout_secs.max(1),
                 1,
                 86_400,
-                "秒",
+                tr(app.desktop_locale, "秒"),
                 "global.message_timeout_secs",
             ),
         ]
@@ -141,6 +144,7 @@ fn global_settings_content(app: &App) -> Element<'_, Message> {
 }
 
 fn tab_button(
+    locale: DesktopLocale,
     tab: ChannelsSettingsTab,
     active_tab: ChannelsSettingsTab,
     label: &'static str,
@@ -148,7 +152,7 @@ fn tab_button(
     let active = tab == active_tab;
     debug_assert_eq!(label, tab.label());
 
-    button(text(label).size(12))
+    button(text(tr(locale, label)).size(12))
         .padding([7, 12])
         .width(Length::Fill)
         .on_press(Message::Settings(SettingsMessage::Channels(ChannelsMessage::TabSelected(tab))))
@@ -241,6 +245,7 @@ fn china_channel_icon(tab: ChannelsSettingsTab) -> svg::Svg<'static> {
 }
 
 fn china_channel_card(
+    locale: DesktopLocale,
     descriptor: &SettingsTabDescriptor<ChannelsSettingsTab>,
     active_tab: ChannelsSettingsTab,
 ) -> Element<'static, Message> {
@@ -262,9 +267,9 @@ fn china_channel_card(
     );
     let content = row![
         icon,
-        text(descriptor.label).size(16),
+        text(tr(locale, descriptor.label)).size(16),
         container(text("")).width(Length::Fill),
-        text("配置").size(13).style(settings_muted_text_style),
+        text(tr(locale, "配置")).size(13).style(settings_muted_text_style),
     ]
     .spacing(12)
     .align_y(Alignment::Center);
@@ -312,6 +317,7 @@ fn china_channel_card(
 }
 
 fn china_channel_cards(
+    locale: DesktopLocale,
     descriptors: &[&SettingsTabDescriptor<ChannelsSettingsTab>],
     active_tab: ChannelsSettingsTab,
 ) -> Element<'static, Message> {
@@ -320,7 +326,8 @@ fn china_channel_cards(
         let mut card_row = row![].spacing(12).width(Length::Fill);
         for descriptor in cards_in_row {
             card_row = card_row.push(
-                container(china_channel_card(descriptor, active_tab)).width(Length::FillPortion(1)),
+                container(china_channel_card(locale, descriptor, active_tab))
+                    .width(Length::FillPortion(1)),
             );
         }
         for _ in cards_in_row.len()..CHINA_CHANNEL_CARD_COLUMNS {
@@ -331,7 +338,10 @@ fn china_channel_cards(
     rows.into()
 }
 
-fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
+fn channel_tabs(
+    locale: DesktopLocale,
+    active_tab: ChannelsSettingsTab,
+) -> Element<'static, Message> {
     let tabs = channel_tab_descriptors();
 
     let mut sections = column![].spacing(14).width(Length::Fill);
@@ -343,8 +353,8 @@ fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
         if group == ChannelTabGroup::China {
             sections = sections.push(
                 column![
-                    text(title).size(12).style(settings_muted_text_style),
-                    china_channel_cards(&group_tabs, active_tab),
+                    text(tr(locale, title)).size(12).style(settings_muted_text_style),
+                    china_channel_cards(locale, &group_tabs, active_tab),
                 ]
                 .spacing(8),
             );
@@ -355,7 +365,7 @@ fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
             let mut tab_row = row![].spacing(8).width(Length::Fill);
             for descriptor in tabs_in_row {
                 tab_row = tab_row.push(
-                    container(tab_button(descriptor.tab, active_tab, descriptor.label))
+                    container(tab_button(locale, descriptor.tab, active_tab, descriptor.label))
                         .width(Length::FillPortion(1)),
                 );
             }
@@ -364,8 +374,10 @@ fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
             }
             rows = rows.push(tab_row);
         }
-        sections = sections
-            .push(column![text(title).size(12).style(settings_muted_text_style), rows].spacing(8));
+        sections = sections.push(
+            column![text(tr(locale, title)).size(12).style(settings_muted_text_style), rows]
+                .spacing(8),
+        );
     }
 
     sections.into()
@@ -387,9 +399,18 @@ fn channel_tabs(active_tab: ChannelsSettingsTab) -> Element<'static, Message> {
 pub fn view(app: &App) -> Element<'_, Message> {
     let enabled = enabled_channels(app);
     let enabled_text = if enabled.is_empty() {
-        "当前未启用任何通道".to_string()
+        tr(app.desktop_locale, "当前未启用任何通道").to_string()
     } else {
-        format!("已启用：{}", enabled.join("、"))
+        crate::__!(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            "已启用：%s",
+            enabled
+                .iter()
+                .map(|label| tr(app.desktop_locale, label))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )
+        .expect("valid enabled channels template")
     };
 
     let active_tab = app.channels_settings.active_tab;
@@ -422,19 +443,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let mut content = column![
-        settings_page_intro("通道配置", "集中配置 CLI 与外部消息通道的接入参数。"),
-        settings_section_card("已启用通道", "快速查看当前已打开的入口，便于核对多通道部署状态。"),
+        settings_page_intro(
+            tr(app.desktop_locale, "通道配置"),
+            tr(app.desktop_locale, "集中配置 CLI 与外部消息通道的接入参数。")
+        ),
+        settings_section_card(
+            tr(app.desktop_locale, "已启用通道"),
+            tr(app.desktop_locale, "快速查看当前已打开的入口，便于核对多通道部署状态。")
+        ),
         settings_section_content(column![
             text(enabled_text).size(12).style(settings_muted_text_style)
         ]),
-        settings_section_card("通道", "选择一个通道进行配置。"),
-        channel_tabs(active_tab),
+        settings_section_card(
+            tr(app.desktop_locale, "通道"),
+            tr(app.desktop_locale, "选择一个通道进行配置。")
+        ),
+        channel_tabs(app.desktop_locale, active_tab),
     ]
     .spacing(16)
     .width(Length::Fill);
 
     if let Some(error) = &app.channels_settings.save_error {
-        content = content.push(settings_error_banner(error));
+        content = content
+            .push(settings_error_banner(crate::app::i18n::I18n::new(app.desktop_locale).__(error)));
     }
     content = content.push(selected_panel);
 

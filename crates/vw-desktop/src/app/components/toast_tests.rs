@@ -178,7 +178,12 @@ fn view_returns_empty_element_without_active_toast() {
 fn view_renders_active_toast_for_each_kind() {
     for kind in [ToastKind::Success, ToastKind::Info, ToastKind::Warning, ToastKind::Error] {
         let mut app = test_app();
-        app.active_toast = Some(Toast { id: 7, kind, message: format!("toast {kind:?}") });
+        app.active_toast = Some(Toast {
+            localized_message: None,
+            id: 7,
+            kind,
+            message: format!("toast {kind:?}"),
+        });
 
         keep_element(view(&app));
     }
@@ -190,6 +195,7 @@ fn cache_sync_pending_retry_exposes_retry_action_in_toast() {
     app.expert_hub.cache_sync =
         SkillCacheSyncState::PendingRetry { skill_id: 7, refresh_detail: false };
     app.active_toast = Some(Toast {
+        localized_message: None,
         id: 7,
         kind: ToastKind::Warning,
         message: "服务端已更新，本地缓存待同步".to_string(),

@@ -51,7 +51,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             form.request_id = id;
             if let Err(error) = form.begin_prepare() {
                 form.phase = PluginInstallPhase::Failed(error.clone());
-                return app.show_error_toast(error);
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    &error,
+                    vec![],
+                );
             }
             let source = form.source.clone();
             let update = form.update_id.clone();
@@ -88,7 +92,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if app.skills_settings.plugin_install.as_ref().is_some_and(|form| {
                 form.request_id == request_id && matches!(form.phase, PluginInstallPhase::Review(_))
             }) {
-                return app.show_info_toast("审计预览已就绪；请核对来源与声明后确认");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "审计预览已就绪；请核对来源与声明后确认",
+                    vec![],
+                );
             }
             Task::none()
         }
@@ -123,7 +131,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             match result {
                 Ok(_) => {
                     app.skills_settings.plugin_install = None;
-                    let toast = app.show_success_toast("插件操作已完成；未自动运行引导技能或钩子");
+                    let toast = app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "插件操作已完成；未自动运行引导技能或钩子",
+                        vec![],
+                    );
                     let refresh = super::skills::update(app, SettingsMessage::PluginsRefresh);
                     Task::batch([toast, refresh])
                 }
@@ -141,7 +153,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .as_ref()
                 .is_some_and(|f| matches!(f.phase, PluginInstallPhase::Committing(_)))
             {
-                return app.show_info_toast("正在提交插件操作，完成后关闭");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "正在提交插件操作，完成后关闭",
+                    vec![],
+                );
             }
             let token = app
                 .skills_settings
@@ -150,13 +166,21 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .and_then(|f| f.preview().map(|p| p.token.clone()));
             next_id(app);
             Task::batch([
-                app.show_info_toast("已取消插件操作"),
+                app.show_localized_toast(
+                    crate::app::state::ToastKind::Info,
+                    "已取消插件操作",
+                    vec![],
+                ),
                 token.map(discard).unwrap_or_else(Task::none),
             ])
         }
         SettingsMessage::PluginsPreviewDiscarded(result) => match result {
             Ok(()) => Task::none(),
-            Err(_) => app.show_warning_toast("预览已关闭；暂存清理未确认，服务端将在过期后清理"),
+            Err(_) => app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "预览已关闭；暂存清理未确认，服务端将在过期后清理",
+                vec![],
+            ),
         },
         _ => Task::none(),
     }

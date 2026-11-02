@@ -7,6 +7,7 @@ use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
     icon_svg, settings_panel_style, settings_value_badge,
 };
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::{
     SkillsCatalogItem as CatalogSkillMeta, SkillsCatalogKind as CatalogSkillKind,
 };
@@ -14,6 +15,7 @@ use crate::app::{Message, message};
 use iced::alignment::{Horizontal, Vertical};
 use iced::widget::{button, column, container, row, text};
 use iced::{Alignment, Background, Border, Element, Length};
+use vw_config_types::ui::DesktopLocale;
 
 /// 构建或处理 `catalog_matches_query` 对应的界面片段与交互数据。
 ///
@@ -28,7 +30,11 @@ use iced::{Alignment, Background, Border, Element, Length};
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub(super) fn catalog_matches_query(skill: &CatalogSkillMeta, query: &str) -> bool {
+pub(super) fn catalog_matches_query(
+    locale: DesktopLocale,
+    skill: &CatalogSkillMeta,
+    query: &str,
+) -> bool {
     if query.is_empty() {
         return true;
     }
@@ -38,6 +44,8 @@ pub(super) fn catalog_matches_query(skill: &CatalogSkillMeta, query: &str) -> bo
         || skill.title.to_ascii_lowercase().contains(&q)
         || skill.description.to_ascii_lowercase().contains(&q)
         || skill.source.to_ascii_lowercase().contains(&q)
+        || source_label(&skill.source).to_ascii_lowercase().contains(&q)
+        || tr(locale, source_label(&skill.source)).to_ascii_lowercase().contains(&q)
         || skill.source_path.as_ref().is_some_and(|path| path.to_ascii_lowercase().contains(&q))
 }
 
@@ -143,6 +151,7 @@ pub(super) fn catalog_item_button_style(
 }
 
 pub(super) fn catalog_item(
+    locale: DesktopLocale,
     skill: CatalogSkillMeta,
     is_selected: bool,
 ) -> Element<'static, Message> {
@@ -151,17 +160,21 @@ pub(super) fn catalog_item(
     let description = skill.description.clone();
     let skill_id = skill.id.clone();
     let resource_text = if skill.resource_count == 0 {
-        "仅 SKILL.md".to_string()
+        tr(locale, "仅 SKILL.md").to_string()
     } else {
-        format!("{} 个附加资源", skill.resource_count)
+        crate::__!(crate::app::i18n::I18n::new(locale), "%u 个附加资源", skill.resource_count)
+            .expect("valid skills display template")
     };
     let kind = skill.kind;
     let source = skill.source.clone();
 
     let status_badge = if skill.installed {
-        skill_badge(if skill.enabled { "已启用" } else { "已禁用" }, skill.enabled)
+        skill_badge(
+            if skill.enabled { tr(locale, "已启用") } else { tr(locale, "已禁用") },
+            skill.enabled,
+        )
     } else {
-        skill_badge("未安装", false)
+        skill_badge(tr(locale, "未安装"), false)
     };
 
     let details = column![
@@ -169,13 +182,17 @@ pub(super) fn catalog_item(
             text(title).size(15).width(Length::Fill).wrapping(iced::widget::text::Wrapping::Word),
             skill_badge(
                 match kind {
-                    CatalogSkillKind::Recommended => "Featured",
-                    CatalogSkillKind::System => "Built-in",
-                    CatalogSkillKind::Personal => "Local",
+                    CatalogSkillKind::Recommended => tr(locale, "推荐"),
+                    CatalogSkillKind::System => tr(locale, "内置"),
+                    CatalogSkillKind::Personal => tr(locale, "本地"),
                 },
                 matches!(kind, CatalogSkillKind::Recommended),
             ),
-            if is_selected { skill_badge("当前", true) } else { skill_badge("查看", false) },
+            if is_selected {
+                skill_badge(tr(locale, "当前"), true)
+            } else {
+                skill_badge(tr(locale, "查看"), false)
+            },
         ]
         .spacing(8)
         .align_y(Alignment::Center),
@@ -189,7 +206,7 @@ pub(super) fn catalog_item(
         row![
             skill_badge(skill_id, false),
             skill_badge(resource_text, false),
-            skill_badge(source_label(&source), false),
+            skill_badge(tr(locale, source_label(&source)), false),
             status_badge,
         ]
         .spacing(6)
@@ -282,6 +299,7 @@ pub(super) fn catalog_item(
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn catalog_group_section<'a>(
+    locale: DesktopLocale,
     source: &'static str,
     skills: Vec<CatalogSkillMeta>,
     selected_skill_id: Option<&str>,
@@ -290,7 +308,7 @@ pub(super) fn catalog_group_section<'a>(
     let skill_count = skills.len();
     let rows = skills.into_iter().fold(column![].spacing(8), |column, skill| {
         let is_selected = selected_skill_id == Some(skill.id.as_str());
-        column.push(catalog_item(skill, is_selected))
+        column.push(catalog_item(locale, skill, is_selected))
     });
 
     column![
@@ -308,8 +326,8 @@ pub(super) fn catalog_group_section<'a>(
                     }
                 }),
                 column![
-                    text(title).size(16),
-                    text(subtitle).size(12).style(|theme: &iced::Theme| {
+                    text(tr(locale, title)).size(16),
+                    text(tr(locale, subtitle)).size(12).style(|theme: &iced::Theme| {
                         iced::widget::text::Style {
                             color: Some(theme.palette().text.scale_alpha(0.62)),
                         }

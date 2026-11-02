@@ -30,11 +30,13 @@ fn clear_selected_plugin(app: &mut App) {
 }
 
 fn set_status(app: &mut App, message: impl Into<String>, is_error: bool) {
+    app.skills_settings.status_message_translation = None;
     app.skills_settings.status_message = Some(message.into());
     app.skills_settings.status_is_error = is_error;
 }
 
 fn set_plugin_status(app: &mut App, message: impl Into<String>, is_error: bool) {
+    app.skills_settings.plugin_status_message_translation = None;
     app.skills_settings.plugin_status_message = Some(message.into());
     app.skills_settings.plugin_status_is_error = is_error;
 }
@@ -258,7 +260,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(err) => {
                     app.skills_settings.plugin_catalog.clear();
-                    set_plugin_status(app, format!("读取插件目录失败: {err}"), true);
+                    set_plugin_status_localized(
+                        app,
+                        "读取插件目录失败: %s",
+                        vec![(err).into()],
+                        true,
+                    );
                 }
             }
             Task::none()
@@ -274,8 +281,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::PluginsSetEnabledCompleted { plugin_id, enabled, result } => {
             match result {
                 Ok(path) => {
-                    let action = if enabled { "已启用插件" } else { "已禁用插件" };
-                    set_plugin_status(app, format!("{action}: {path}"), false);
+                    set_plugin_status_localized(
+                        app,
+                        if enabled { "已启用插件: %s" } else { "已禁用插件: %s" },
+                        vec![path.into()],
+                        false,
+                    );
                     app.skills_settings.plugin_loading = true;
                     return plugins_refresh_task();
                 }
@@ -297,7 +308,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::PluginsDeleteCompleted { plugin_id, result } => {
             match result {
                 Ok(path) => {
-                    set_plugin_status(app, format!("已删除插件: {path}"), false);
+                    set_plugin_status_localized(app, "已删除插件: %s", vec![(path).into()], false);
                     if app.skills_settings.selected_plugin_id.as_deref() == Some(plugin_id.as_str())
                     {
                         clear_selected_plugin(app);
@@ -342,7 +353,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(err) => {
                     app.skills_settings.catalog.clear();
-                    set_status(app, format!("读取技能目录失败: {err}"), true);
+                    set_status_localized(app, "读取技能目录失败: %s", vec![(err).into()], true);
                 }
             }
             Task::none()
@@ -377,7 +388,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::SkillsCreateNewRequested => {
             let Some(project_path) = app.project_path.clone() else {
-                set_status(app, "请先打开一个项目，再创建技能。", true);
+                set_status_localized(app, "请先打开一个项目，再创建技能。", vec![], true);
                 return Task::none();
             };
             app.skills_settings.loading = true;
@@ -390,7 +401,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsCreateNewCompleted(result) => {
             match result {
                 Ok(path) => {
-                    set_status(app, format!("已创建新技能: {path}"), false);
+                    set_status_localized(app, "已创建新技能: %s", vec![(path).into()], false);
                     app.skills_settings.loading = true;
                     return refresh_task(app.project_path.clone());
                 }
@@ -406,7 +417,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::SkillsInstallBuiltInRequested(skill_id) => {
             let Some(project_path) = app.project_path.clone() else {
-                set_status(app, "请先打开一个项目，再安装内置技能。", true);
+                set_status_localized(app, "请先打开一个项目，再安装内置技能。", vec![], true);
                 return Task::none();
             };
 
@@ -419,7 +430,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsInstallBuiltInCompleted(result) => {
             match result {
                 Ok(path) => {
-                    set_status(app, format!("已安装到: {path}"), false);
+                    set_status_localized(app, "已安装到: %s", vec![(path).into()], false);
                     app.skills_settings.loading = true;
                     if let Some(skill_id) = app.skills_settings.selected_skill_id.clone() {
                         app.skills_settings.detail_loading = true;
@@ -449,8 +460,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsSetEnabledCompleted { skill_id, enabled, result } => {
             match result {
                 Ok(path) => {
-                    let action = if enabled { "已启用技能" } else { "已禁用技能" };
-                    set_status(app, format!("{action}: {path}"), false);
+                    set_status_localized(
+                        app,
+                        if enabled { "已启用技能: %s" } else { "已禁用技能: %s" },
+                        vec![path.into()],
+                        false,
+                    );
                     app.skills_settings.loading = true;
 
                     let mut tasks = vec![refresh_task(app.project_path.clone())];
@@ -476,7 +491,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         SettingsMessage::SkillsDeleteCompleted { skill_id, result } => {
             match result {
                 Ok(path) => {
-                    set_status(app, format!("已删除技能: {path}"), false);
+                    set_status_localized(app, "已删除技能: %s", vec![(path).into()], false);
                     if app.skills_settings.selected_skill_id.as_deref() == Some(skill_id.as_str()) {
                         clear_selected_detail(app);
                     }
@@ -525,3 +540,31 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "skills_tests.rs"]
 mod skills_tests;
+
+fn set_status_localized(
+    app: &mut App,
+    source: &str,
+    arguments: Vec<crate::app::i18n::format::Argument>,
+    is_error: bool,
+) {
+    let message = crate::app::i18n::format::Message::new(source, arguments);
+    let chinese = message
+        .render(crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
+        .expect("valid skills status template");
+    set_status(app, chinese, is_error);
+    app.skills_settings.status_message_translation = Some(message);
+}
+
+fn set_plugin_status_localized(
+    app: &mut App,
+    source: &str,
+    arguments: Vec<crate::app::i18n::format::Argument>,
+    is_error: bool,
+) {
+    let message = crate::app::i18n::format::Message::new(source, arguments);
+    let chinese = message
+        .render(crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
+        .expect("valid skills status template");
+    set_plugin_status(app, chinese, is_error);
+    app.skills_settings.plugin_status_message_translation = Some(message);
+}

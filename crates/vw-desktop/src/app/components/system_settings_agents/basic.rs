@@ -9,6 +9,7 @@ use crate::app::components::system_settings_common::{
     settings_checkbox_style, settings_pick_list_menu_style, settings_pick_list_style,
     settings_segment_button_style, settings_text_input_style,
 };
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
@@ -45,13 +46,13 @@ pub(super) fn view<'a>(
     let model_choices =
         with_selected_option(models_for_provider(app, &entry.provider), &entry.model);
     let agent_key = entry.key.clone();
-    let clear_provider = button(text("清除").size(12))
+    let clear_provider = button(text(tr(app.desktop_locale, "清除")).size(12))
         .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ProviderCleared(
             agent_key.clone(),
         ))))
         .padding([8, 10])
         .style(|theme, status| settings_segment_button_style(theme, status, false));
-    let clear_model = button(text("清除").size(12))
+    let clear_model = button(text(tr(app.desktop_locale, "清除")).size(12))
         .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ModelCleared(
             agent_key.clone(),
         ))))
@@ -59,7 +60,10 @@ pub(super) fn view<'a>(
         .style(|theme, status| settings_segment_button_style(theme, status, false));
 
     let provider_row = row![
-        label_col("提供商", "选择该代理调用的模型提供商。"),
+        label_col(
+            tr(app.desktop_locale, "提供商"),
+            tr(app.desktop_locale, "选择该代理调用的模型提供商。")
+        ),
         pick_list(
             provider_choices,
             (!entry.provider.trim().is_empty()).then_some(entry.provider.clone()),
@@ -82,7 +86,10 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let model_row = row![
-        label_col("模型", "从当前提供商的可用模型中选择。"),
+        label_col(
+            tr(app.desktop_locale, "模型"),
+            tr(app.desktop_locale, "从当前提供商的可用模型中选择。")
+        ),
         pick_list(
             model_choices,
             (!entry.model.trim().is_empty()).then_some(entry.model.clone()),
@@ -105,8 +112,11 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let api_key_row = row![
-        label_col("API 密钥", "可选覆盖该代理的提供商凭证。"),
-        text_input("可选", &entry.api_key_input)
+        label_col(
+            tr(app.desktop_locale, "API 密钥"),
+            tr(app.desktop_locale, "可选覆盖该代理的提供商凭证。")
+        ),
+        text_input(tr(app.desktop_locale, "可选"), &entry.api_key_input)
             .secure(true)
             .on_input({
                 let key = entry.key.clone();
@@ -136,7 +146,10 @@ pub(super) fn view<'a>(
     });
 
     let temperature_row = row![
-        label_col("温度", "控制生成发散度，范围 0.0 - 2.0。"),
+        label_col(
+            tr(app.desktop_locale, "温度"),
+            tr(app.desktop_locale, "控制生成发散度，范围 0.0 - 2.0。")
+        ),
         column![
             temperature_slider,
             text(format!("{:.2}", entry.temperature)).size(12).style(|theme: &Theme| {
@@ -153,15 +166,15 @@ pub(super) fn view<'a>(
         !entry.provider.trim().is_empty() && !entry.model.trim().is_empty();
     let force_model_selection_row = row![
         label_col(
-            "模型选择策略",
+            tr(app.desktop_locale, "模型选择策略"),
             if has_complete_model_binding {
-                "完整选择 provider 和 model 后，可固定使用该模型。"
+                tr(app.desktop_locale, "完整选择 provider 和 model 后，可固定使用该模型。")
             } else {
-                "需要同时选择 provider 和 model，强制设置才会生效。"
+                tr(app.desktop_locale, "需要同时选择 provider 和 model，强制设置才会生效。")
             },
         ),
         checkbox(entry.force_model_selection)
-            .label("强制使用所选模型")
+            .label(tr(app.desktop_locale, "强制使用所选模型"))
             .on_toggle_maybe(has_complete_model_binding.then(|| {
                 let key = entry.key.clone();
                 move |value| {
@@ -176,9 +189,12 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let enabled_row = row![
-        label_col("启用", "关闭后保留配置，但该智能体不会作为可用项参与注册。"),
+        label_col(
+            tr(app.desktop_locale, "启用"),
+            tr(app.desktop_locale, "关闭后保留配置，但该智能体不会作为可用项参与注册。")
+        ),
         checkbox(entry.enabled)
-            .label("启用该智能体")
+            .label(tr(app.desktop_locale, "启用该智能体"))
             .on_toggle({
                 let key = entry.key.clone();
                 move |value| {
@@ -205,7 +221,10 @@ pub(super) fn view<'a>(
     } else {
         Some(
             column![
-                section_card("可用性", "控制该智能体是否作为可用 Agent 暴露。"),
+                section_card(
+                    tr(app.desktop_locale, "可用性"),
+                    tr(app.desktop_locale, "控制该智能体是否作为可用 Agent 暴露。")
+                ),
                 column(registration_rows).spacing(14),
             ]
             .spacing(14)
@@ -214,9 +233,12 @@ pub(super) fn view<'a>(
     };
 
     let allow_as_subagent_row = row![
-        label_col("作为子智能体", "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。"),
+        label_col(
+            tr(app.desktop_locale, "作为子智能体"),
+            tr(app.desktop_locale, "只有开启后，该 Agent 才会出现在 AgentTool 的可选列表中。")
+        ),
         checkbox(entry.allow_as_subagent)
-            .label("允许作为子智能体")
+            .label(tr(app.desktop_locale, "允许作为子智能体"))
             .on_toggle({
                 let key = entry.key.clone();
                 move |value| {
@@ -231,7 +253,10 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let max_parallel_subagents_row = row![
-        label_col("子智能体数量", "该 Agent 每轮最多同时启动的子智能体数量。"),
+        label_col(
+            tr(app.desktop_locale, "子智能体数量"),
+            tr(app.desktop_locale, "该 Agent 每轮最多同时启动的子智能体数量。")
+        ),
         NumberInput::new(entry.max_parallel_subagents as f32, 1.0, 32.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -247,22 +272,31 @@ pub(super) fn view<'a>(
 
     let delegation_section: Element<'_, Message> = if shows_delegation_controls(entry) {
         column![
-            section_card("子智能体委托", "控制该 Agent 是否可被委托，以及它发起委托时的并发上限。"),
+            section_card(
+                tr(app.desktop_locale, "子智能体委托"),
+                tr(app.desktop_locale, "控制该 Agent 是否可被委托，以及它发起委托时的并发上限。")
+            ),
             column![allow_as_subagent_row, max_parallel_subagents_row].spacing(14),
         ]
         .spacing(14)
         .into()
     } else {
         column![section_card(
-            "角色边界",
-            "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。"
+            tr(app.desktop_locale, "角色边界"),
+            tr(
+                app.desktop_locale,
+                "委托资格、并发上限和递归深度由内置角色目录固定，不能在此放宽。"
+            )
         ),]
         .spacing(14)
         .into()
     };
 
     let max_depth_row = row![
-        label_col("最大深度", "委托嵌套深度上限，防止无限递归。"),
+        label_col(
+            tr(app.desktop_locale, "最大深度"),
+            tr(app.desktop_locale, "委托嵌套深度上限，防止无限递归。")
+        ),
         NumberInput::new(entry.max_depth as f32, 1.0, 32.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -278,9 +312,12 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let compact_context_row = row![
-        label_col("上下文压缩", "适合小模型，压缩该智能体的上下文体积。"),
+        label_col(
+            tr(app.desktop_locale, "上下文压缩"),
+            tr(app.desktop_locale, "适合小模型，压缩该智能体的上下文体积。")
+        ),
         checkbox(entry.compact_context)
-            .label("启用上下文压缩")
+            .label(tr(app.desktop_locale, "启用上下文压缩"))
             .on_toggle({
                 let key = entry.key.clone();
                 move |value| {
@@ -295,7 +332,10 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let max_history_messages_row = row![
-        label_col("历史消息上限", "该智能体保留给模型的会话历史消息上限。"),
+        label_col(
+            tr(app.desktop_locale, "历史消息上限"),
+            tr(app.desktop_locale, "该智能体保留给模型的会话历史消息上限。")
+        ),
         NumberInput::new(entry.max_history_messages as f32, 1.0, 1000.0, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -310,9 +350,12 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let parallel_tools_row = row![
-        label_col("并行工具", "该智能体是否允许同一轮并行执行多个工具。"),
+        label_col(
+            tr(app.desktop_locale, "并行工具"),
+            tr(app.desktop_locale, "该智能体是否允许同一轮并行执行多个工具。")
+        ),
         checkbox(entry.parallel_tools)
-            .label("启用并行工具执行")
+            .label(tr(app.desktop_locale, "启用并行工具执行"))
             .on_toggle({
                 let key = entry.key.clone();
                 move |value| {
@@ -328,7 +371,10 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let max_iterations_row = row![
-        label_col("最大迭代次数", "智能体模式下最多运行多少轮工具循环。"),
+        label_col(
+            tr(app.desktop_locale, "最大迭代次数"),
+            tr(app.desktop_locale, "智能体模式下最多运行多少轮工具循环。")
+        ),
         NumberInput::new(entry.max_iterations as f32, 1.0, u32::MAX as f32, 1.0, 0, 1.0, {
             let key = entry.key.clone();
             move |value| {
@@ -344,9 +390,12 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     let agentic_row = row![
-        label_col("智能体模式", "启用后允许该代理进入多轮工具调用循环。"),
+        label_col(
+            tr(app.desktop_locale, "智能体模式"),
+            tr(app.desktop_locale, "启用后允许该代理进入多轮工具调用循环。")
+        ),
         checkbox(entry.agentic)
-            .label("启用智能体模式")
+            .label(tr(app.desktop_locale, "启用智能体模式"))
             .on_toggle({
                 let key = entry.key.clone();
                 move |value| {

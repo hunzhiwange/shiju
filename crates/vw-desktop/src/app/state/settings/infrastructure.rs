@@ -153,6 +153,7 @@ pub(crate) struct McpSettingsState {
     pub(crate) inspect: Option<vw_gateway_client::vw_api_types::mcp::McpInspectResponse>,
     pub(crate) inspect_error: Option<String>,
     pub(crate) save_error: Option<String>,
+    pub(crate) save_error_translation: Option<crate::app::i18n::format::Message>,
     pub(crate) status_message: Option<String>,
     /// 待删除确认的 MCP 服务器索引。
     pub(crate) delete_pending: Option<usize>,
@@ -182,6 +183,7 @@ impl Default for McpSettingsState {
             inspect: None,
             inspect_error: None,
             save_error: None,
+            save_error_translation: None,
             status_message: None,
             delete_pending: None,
         }

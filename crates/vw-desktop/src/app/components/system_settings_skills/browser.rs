@@ -13,6 +13,7 @@ use crate::app::components::system_settings_common::{
     settings_muted_text_style, settings_panel_style, settings_pick_list_menu_style,
     settings_pick_list_style, settings_segment_button_style, settings_value_badge,
 };
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::{SkillsCatalogKind as CatalogSkillKind, SkillsDirectoryScope};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -21,6 +22,7 @@ use iced::widget::{
 };
 use iced::{Alignment, Background, Border, Element, Length};
 use vw_config_types::skills::SkillsDirectoryProvider;
+use vw_config_types::ui::DesktopLocale;
 
 #[derive(Clone, Copy)]
 pub(super) enum DetailActionStyle {
@@ -83,7 +85,10 @@ pub(super) fn catalog_panel_style(theme: &iced::Theme) -> iced::widget::containe
     style
 }
 
-pub(super) fn status_banner<'a>(message: &'a str, is_error: bool) -> Element<'a, Message> {
+pub(super) fn status_banner<'a>(
+    message: impl iced::widget::text::IntoFragment<'a>,
+    is_error: bool,
+) -> Element<'a, Message> {
     if is_error {
         return settings_error_banner(message);
     }
@@ -129,9 +134,10 @@ pub(super) fn scope_button(
         .into()
 }
 
-pub(super) fn refresh_button(loading: bool) -> Element<'static, Message> {
+pub(super) fn refresh_button(locale: DesktopLocale, loading: bool) -> Element<'static, Message> {
     detail_action_button(
-        if loading { "刷新中" } else { "刷新" },
+        locale,
+        if loading { tr(locale, "刷新中") } else { tr(locale, "刷新") },
         Icon::ArrowRepeat,
         DetailActionStyle::Secondary,
         (!loading).then_some(Message::Settings(message::SettingsMessage::SkillsRefresh)),
@@ -160,10 +166,10 @@ pub(super) fn scope_title(scope: SkillsDirectoryScope) -> &'static str {
 
 pub(super) fn provider_project_paths(provider: SkillsDirectoryProvider) -> &'static str {
     match provider {
-        SkillsDirectoryProvider::Vibewindow => ".shiju/skills、skills 与 .agents/skills",
-        SkillsDirectoryProvider::Codex => ".codex/skills、.agents/skills 与 skills",
-        SkillsDirectoryProvider::Claude => ".claude/skills、skills 与 .agents/skills",
-        SkillsDirectoryProvider::Cursor => ".cursor/skills、skills 与 .agents/skills",
+        SkillsDirectoryProvider::Vibewindow => ".shiju/skills, skills, .agents/skills",
+        SkillsDirectoryProvider::Codex => ".codex/skills, .agents/skills, skills",
+        SkillsDirectoryProvider::Claude => ".claude/skills, skills, .agents/skills",
+        SkillsDirectoryProvider::Cursor => ".cursor/skills, skills, .agents/skills",
     }
 }
 
@@ -172,38 +178,51 @@ pub(super) fn provider_global_paths(provider: SkillsDirectoryProvider) -> &'stat
         SkillsDirectoryProvider::Vibewindow => {
             #[cfg(debug_assertions)]
             {
-                "~/.shiju-agent-dev/skills 与 ~/.skills"
+                "~/.shiju-agent-dev/skills, ~/.skills"
             }
             #[cfg(not(debug_assertions))]
             {
-                "~/.shiju-agent/skills 与 ~/.skills"
+                "~/.shiju-agent/skills, ~/.skills"
             }
         }
-        SkillsDirectoryProvider::Codex => "~/.codex/skills 与 ~/.agents/skills",
+        SkillsDirectoryProvider::Codex => "~/.codex/skills, ~/.agents/skills",
         SkillsDirectoryProvider::Claude => "~/.claude/skills",
         SkillsDirectoryProvider::Cursor => "~/.cursor/skills",
     }
 }
 
 pub(super) fn scope_description(
+    locale: DesktopLocale,
     scope: SkillsDirectoryScope,
     provider: SkillsDirectoryProvider,
 ) -> String {
     match scope {
-        SkillsDirectoryScope::Project => {
-            format!("查看当前项目 {} 目录命中的技能。", provider_project_paths(provider))
+        SkillsDirectoryScope::Project => crate::__!(
+            crate::app::i18n::I18n::new(locale),
+            "查看当前项目 %s 目录命中的技能。",
+            (provider_project_paths(provider)).to_string()
+        )
+        .expect("valid skills display template"),
+        SkillsDirectoryScope::Ancestor => crate::__!(
+            crate::app::i18n::I18n::new(locale),
+            "查看从项目父级向上发现的 %s 技能。",
+            (provider_project_paths(provider)).to_string()
+        )
+        .expect("valid skills display template"),
+        SkillsDirectoryScope::Global => crate::__!(
+            crate::app::i18n::I18n::new(locale),
+            "查看当前用户 %s 中的全局技能。",
+            (provider_global_paths(provider)).to_string()
+        )
+        .expect("valid skills display template"),
+        SkillsDirectoryScope::Bundled => {
+            tr(locale, "查看产品随包提供、可安装到项目的内置技能。").to_string()
         }
-        SkillsDirectoryScope::Ancestor => {
-            format!("查看从项目父级向上发现的 {} 技能。", provider_project_paths(provider))
-        }
-        SkillsDirectoryScope::Global => {
-            format!("查看当前用户 {} 中的全局技能。", provider_global_paths(provider))
-        }
-        SkillsDirectoryScope::Bundled => "查看产品随包提供、可安装到项目的内置技能。".to_string(),
-        SkillsDirectoryScope::All => {
-            "全部结果包含当前项目、父级目录、全局目录以及内置技能，便于核对最终命中来源。"
-                .to_string()
-        }
+        SkillsDirectoryScope::All => tr(
+            locale,
+            "全部结果包含当前项目、父级目录、全局目录以及内置技能，便于核对最终命中来源。",
+        )
+        .to_string(),
     }
 }
 
@@ -218,51 +237,76 @@ pub(super) fn active_scope_badge(scope: SkillsDirectoryScope) -> &'static str {
 }
 
 pub(super) fn discovery_order_text(app: &App) -> String {
+    let locale = app.desktop_locale;
     if let Some(project_path) = &app.project_path {
-        return format!(
-            "{project_path}/{} -> 父级 {} -> {}",
-            provider_project_paths(app.skills_settings.directory_provider),
-            provider_project_paths(app.skills_settings.directory_provider),
-            provider_global_paths(app.skills_settings.directory_provider)
-        );
+        return crate::__!(
+            crate::app::i18n::I18n::new(locale),
+            "发现顺序：%s/%s -> 父级 %s -> %s",
+            (project_path).to_string(),
+            (provider_project_paths(app.skills_settings.directory_provider)).to_string(),
+            (provider_project_paths(app.skills_settings.directory_provider)).to_string(),
+            (provider_global_paths(app.skills_settings.directory_provider)).to_string()
+        )
+        .expect("valid skills display template");
     }
 
-    format!(
-        "未打开项目时，仅显示 {} 与内置技能。",
-        provider_global_paths(app.skills_settings.directory_provider)
+    crate::__!(
+        crate::app::i18n::I18n::new(locale),
+        "未打开项目时，仅显示 %s 与内置技能。",
+        (provider_global_paths(app.skills_settings.directory_provider)).to_string()
     )
+    .expect("valid skills display template")
 }
 
 pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     let project_open = app.project_path.is_some();
     let provider = app.skills_settings.directory_provider;
     let order = if project_open {
         vec![
             (
                 "1",
-                format!("当前项目 {}", provider_project_paths(provider)),
-                "项目私有技能，优先级最高。".to_string(),
+                crate::__!(
+                    crate::app::i18n::I18n::new(locale),
+                    "当前项目 %s",
+                    (provider_project_paths(provider)).to_string()
+                )
+                .expect("valid skills display template"),
+                tr(locale, "项目私有技能，优先级最高。").to_string(),
             ),
             (
                 "2",
-                format!("父级 {}", provider_project_paths(provider)),
-                "从项目父级向上发现，越近优先级越高。".to_string(),
+                crate::__!(
+                    crate::app::i18n::I18n::new(locale),
+                    "父级 %s",
+                    (provider_project_paths(provider)).to_string()
+                )
+                .expect("valid skills display template"),
+                tr(locale, "从项目父级向上发现，越近优先级越高。").to_string(),
             ),
             (
                 "3",
                 provider_global_paths(provider).to_string(),
-                "当前用户全局技能目录。".to_string(),
+                tr(locale, "当前用户全局技能目录。").to_string(),
             ),
-            ("4", "内置技能".to_string(), "产品随包提供，可安装到项目后覆盖。".to_string()),
+            (
+                "4",
+                tr(locale, "内置技能").to_string(),
+                tr(locale, "产品随包提供，可安装到项目后覆盖。").to_string(),
+            ),
         ]
     } else {
         vec![
             (
                 "1",
                 provider_global_paths(provider).to_string(),
-                "未打开项目时使用当前用户全局技能目录。".to_string(),
+                tr(locale, "未打开项目时使用当前用户全局技能目录。").to_string(),
             ),
-            ("2", "内置技能".to_string(), "产品随包提供，可安装到项目后覆盖。".to_string()),
+            (
+                "2",
+                tr(locale, "内置技能").to_string(),
+                tr(locale, "产品随包提供，可安装到项目后覆盖。").to_string(),
+            ),
         ]
     };
 
@@ -296,19 +340,24 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
             column![
                 row![
                     column![
-                        text("发现顺序").size(22),
-                        text("同名技能只展示最先命中的目录，保持项目优先，避免列表重复。")
-                            .size(13)
-                            .style(|theme: &iced::Theme| iced::widget::text::Style {
+                        text(tr(locale, "发现顺序")).size(22),
+                        text(tr(
+                            locale,
+                            "同名技能只展示最先命中的目录，保持项目优先，避免列表重复。"
+                        ))
+                        .size(13)
+                        .style(|theme: &iced::Theme| {
+                            iced::widget::text::Style {
                                 color: Some(theme.palette().text.scale_alpha(0.68)),
-                            }),
+                            }
+                        }),
                     ]
                     .spacing(6)
                     .width(Length::Fill),
                     settings_value_badge(if project_open {
-                        "项目已打开"
+                        tr(locale, "项目已打开")
                     } else {
-                        "未打开项目"
+                        tr(locale, "未打开项目")
                     }),
                 ]
                 .spacing(12)
@@ -333,8 +382,8 @@ pub(super) fn discovery_order_view<'a>(app: &'a App) -> Element<'a, Message> {
     .into()
 }
 
-pub(super) fn loading_banner<'a>() -> Element<'a, Message> {
-    container(text("正在通过 gateway 同步技能目录...").size(12))
+pub(super) fn loading_banner<'a>(locale: DesktopLocale) -> Element<'a, Message> {
+    container(text(tr(locale, "正在通过 gateway 同步技能目录...")).size(12))
         .padding([10, 12])
         .width(Length::Fill)
         .style(|theme: &iced::Theme| {
@@ -386,7 +435,10 @@ pub(super) fn empty_state<'a>(title: &'a str, description: &'a str) -> Element<'
     .into()
 }
 
-pub(super) fn detail_source_note(path: Option<&str>) -> Element<'static, Message> {
+pub(super) fn detail_source_note(
+    locale: DesktopLocale,
+    path: Option<&str>,
+) -> Element<'static, Message> {
     if let Some(path) = path {
         return container(
             text(path.to_string())
@@ -401,21 +453,25 @@ pub(super) fn detail_source_note(path: Option<&str>) -> Element<'static, Message
         .into();
     }
 
-    container(text("当前为内置技能文档，未关联本地目录。").size(11).style(|theme: &iced::Theme| {
-        iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.6)) }
-    }))
+    container(text(tr(locale, "当前为内置技能文档，未关联本地目录。")).size(11).style(
+        |theme: &iced::Theme| iced::widget::text::Style {
+            color: Some(theme.palette().text.scale_alpha(0.6)),
+        },
+    ))
     .width(Length::Fill)
     .into()
 }
 
 pub(super) fn detail_action_button(
+    locale: DesktopLocale,
     label: &'static str,
     icon: Icon,
     style: DetailActionStyle,
     on_press: Option<Message>,
 ) -> Element<'static, Message> {
-    let content =
-        row![icon_svg(icon, 14.0), text(label).size(12)].spacing(8).align_y(Alignment::Center);
+    let content = row![icon_svg(icon, 14.0), text(tr(locale, label)).size(12)]
+        .spacing(8)
+        .align_y(Alignment::Center);
 
     let mut btn = button(content).padding([10, 14]);
     if let Some(message) = on_press {
@@ -430,10 +486,11 @@ pub(super) fn detail_action_button(
 }
 
 pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     let s = &app.skills_settings;
 
     if s.detail_loading {
-        return loading_banner();
+        return loading_banner(locale);
     }
 
     if let Some(err) = &s.detail_error {
@@ -442,11 +499,11 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
 
     if let Some(detail) = &s.selected_skill_detail {
         let source_badge = match detail.source.as_str() {
-            "workspace" => "项目目录",
-            "ancestor" => "父级目录",
-            "global" => "全局目录",
-            "bundled" => "内置",
-            _ => "来源",
+            "workspace" => tr(locale, "项目目录"),
+            "ancestor" => tr(locale, "父级目录"),
+            "global" => tr(locale, "全局目录"),
+            "bundled" => tr(locale, "内置"),
+            _ => tr(locale, "来源"),
         };
         let busy = s.loading || s.detail_loading;
 
@@ -454,7 +511,8 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
 
         if detail.can_install {
             actions = actions.push(detail_action_button(
-                "安装到项目",
+                locale,
+                tr(locale, "安装到项目"),
                 Icon::Plus,
                 DetailActionStyle::Primary,
                 (!busy && project_open).then_some(Message::Settings(
@@ -465,7 +523,8 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
 
         if detail.can_toggle {
             actions = actions.push(detail_action_button(
-                if detail.enabled { "禁用" } else { "启用" },
+                locale,
+                if detail.enabled { tr(locale, "禁用") } else { tr(locale, "启用") },
                 if detail.enabled { Icon::EyeSlash } else { Icon::Eye },
                 DetailActionStyle::Secondary,
                 (!busy).then_some(Message::Settings(
@@ -479,7 +538,8 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
 
         if detail.can_delete {
             actions = actions.push(detail_action_button(
-                "删除",
+                locale,
+                tr(locale, "删除"),
                 Icon::Trash,
                 DetailActionStyle::Danger,
                 (!busy).then_some(Message::Settings(
@@ -503,9 +563,9 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
                     .width(Length::Fill),
                     skill_badge(
                         match detail.kind {
-                            CatalogSkillKind::Recommended => "Featured",
-                            CatalogSkillKind::System => "Built-in",
-                            CatalogSkillKind::Personal => "Local",
+                            CatalogSkillKind::Recommended => tr(locale, "推荐"),
+                            CatalogSkillKind::System => tr(locale, "内置"),
+                            CatalogSkillKind::Personal => tr(locale, "本地"),
                         },
                         matches!(detail.kind, CatalogSkillKind::Recommended),
                     ),
@@ -514,13 +574,21 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
                 .align_y(Alignment::Center),
                 row![
                     settings_value_badge(source_badge),
-                    settings_value_badge(if detail.installed { "已安装" } else { "未安装" }),
-                    settings_value_badge(if detail.enabled { "已启用" } else { "已禁用" }),
+                    settings_value_badge(if detail.installed {
+                        tr(locale, "已安装")
+                    } else {
+                        tr(locale, "未安装")
+                    }),
+                    settings_value_badge(if detail.enabled {
+                        tr(locale, "已启用")
+                    } else {
+                        tr(locale, "已禁用")
+                    }),
                     skill_badge(detail.document_name.clone(), true),
                 ]
                 .spacing(8)
                 .align_y(Alignment::Center),
-                detail_source_note(detail.source_path.as_deref()),
+                detail_source_note(locale, detail.source_path.as_deref()),
             ]
             .spacing(10),
         )
@@ -566,8 +634,11 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
     }
 
     empty_state(
-        "加载技能详情中",
-        "点击左侧技能卡片后，这里会显示 SKILL.md 或 SKILL.toml 内容，并提供启用、禁用、删除操作。",
+        tr(locale, "加载技能详情中"),
+        tr(
+            locale,
+            "点击左侧技能卡片后，这里会显示 SKILL.md 或 SKILL.toml 内容，并提供启用、禁用、删除操作。",
+        ),
     )
 }
 
@@ -585,25 +656,29 @@ pub(super) fn detail_modal_body<'a>(app: &'a App, project_open: bool) -> Element
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     let s = &app.skills_settings;
     if s.selected_skill_id.is_none() {
         return base;
     }
 
     let close_message = Message::Settings(message::SettingsMessage::SkillsDetailClosed);
-    let title =
-        s.selected_skill_detail.as_ref().map(|detail| detail.title.as_str()).unwrap_or("技能详情");
+    let title = s
+        .selected_skill_detail
+        .as_ref()
+        .map(|detail| detail.title.as_str())
+        .unwrap_or(tr(locale, "技能详情"));
     let subtitle = s
         .selected_skill_detail
         .as_ref()
         .map(|detail| match detail.source.as_str() {
-            "workspace" => "项目目录技能",
-            "ancestor" => "父级目录技能",
-            "global" => "全局目录技能",
-            "bundled" => "内置技能",
-            _ => "技能",
+            "workspace" => tr(locale, "项目目录技能"),
+            "ancestor" => tr(locale, "父级目录技能"),
+            "global" => tr(locale, "全局目录技能"),
+            "bundled" => tr(locale, "内置技能"),
+            _ => tr(locale, "技能"),
         })
-        .unwrap_or("读取技能文档中");
+        .unwrap_or(tr(locale, "读取技能文档中"));
 
     let card = settings_modal_card(
         column![
@@ -649,18 +724,19 @@ pub(super) fn view_overlays<'a>(app: &'a App, base: Element<'a, Message>) -> Ele
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
+    let locale = app.desktop_locale;
     let s = &app.skills_settings;
     let project_open = app.project_path.is_some();
     let all_skills = &s.catalog;
     let skills = s
         .catalog
         .iter()
-        .filter(|skill| catalog_matches_query(skill, s.query.trim()))
+        .filter(|skill| catalog_matches_query(locale, skill, s.query.trim()))
         .filter(|skill| scope_source_matches(s.directory_scope, &skill.source))
         .cloned()
         .collect::<Vec<_>>();
 
-    let search_input = text_input("搜索技能", &s.query)
+    let search_input = text_input(tr(locale, "搜索技能"), &s.query)
         .on_input(|value| Message::Settings(message::SettingsMessage::SkillsQueryChanged(value)))
         .padding([8, 0])
         .size(13)
@@ -668,23 +744,27 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .width(Length::Fill);
     let project_options = skill_project_options(app);
     let project_switcher: Element<'_, Message> = if project_options.is_empty() {
-        text("尚未打开项目；当前仅显示全局与内置技能。")
+        text(tr(locale, "尚未打开项目；当前仅显示全局与内置技能。"))
             .size(12)
             .style(settings_muted_text_style)
             .into()
     } else {
         row![
-            text("项目目录").size(13).width(Length::Fixed(84.0)),
+            text(tr(locale, "项目目录")).size(13).width(Length::Fixed(84.0)),
             pick_list(project_options, app.project_path.clone(), |path| {
                 Message::Settings(message::SettingsMessage::SkillsProjectSelected(path))
             })
-            .placeholder("选择项目目录")
+            .placeholder(tr(locale, "选择项目目录"))
             .padding([9, 12])
             .text_size(12)
             .width(Length::Fill)
             .style(settings_pick_list_style)
             .menu_style(settings_pick_list_menu_style),
-            settings_value_badge(if s.loading { "切换中" } else { "技能作用域" }),
+            settings_value_badge(if s.loading {
+                tr(locale, "切换中")
+            } else {
+                tr(locale, "技能作用域")
+            }),
         ]
         .spacing(10)
         .align_y(Alignment::Center)
@@ -695,8 +775,8 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
         column![
             row![
                 column![
-                    text("技能").size(22),
-                    text(scope_description(s.directory_scope, s.directory_provider))
+                    text(tr(locale, "技能")).size(22),
+                    text(scope_description(locale, s.directory_scope, s.directory_provider))
                         .size(13)
                         .style(|theme: &iced::Theme| iced::widget::text::Style {
                             color: Some(theme.palette().text.scale_alpha(0.68)),
@@ -704,8 +784,12 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
                 ]
                 .spacing(6)
                 .width(Length::Fill),
-                refresh_button(s.loading),
-                skill_badge(format!("{} 项技能", skills.len()), true),
+                refresh_button(locale, s.loading),
+                skill_badge(
+                    crate::__!(crate::app::i18n::I18n::new(locale), "%u 项技能", skills.len())
+                        .expect("valid skills display template"),
+                    true
+                ),
             ]
             .spacing(12)
             .align_y(Alignment::Center),
@@ -720,28 +804,50 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
             project_switcher,
             row![
                 scope_button(
-                    "项目目录",
+                    tr(locale, "项目目录"),
                     SkillsDirectoryScope::Project,
                     s.directory_scope,
                     project_open,
                 ),
                 scope_button(
-                    "父级目录",
+                    tr(locale, "父级目录"),
                     SkillsDirectoryScope::Ancestor,
                     s.directory_scope,
                     project_open,
                 ),
-                scope_button("全局目录", SkillsDirectoryScope::Global, s.directory_scope, true),
-                scope_button("内置技能", SkillsDirectoryScope::Bundled, s.directory_scope, true),
-                scope_button("全部目录", SkillsDirectoryScope::All, s.directory_scope, true),
+                scope_button(
+                    tr(locale, "全局目录"),
+                    SkillsDirectoryScope::Global,
+                    s.directory_scope,
+                    true
+                ),
+                scope_button(
+                    tr(locale, "内置技能"),
+                    SkillsDirectoryScope::Bundled,
+                    s.directory_scope,
+                    true
+                ),
+                scope_button(
+                    tr(locale, "全部目录"),
+                    SkillsDirectoryScope::All,
+                    s.directory_scope,
+                    true
+                ),
                 Space::new().width(Length::Fill),
-                settings_value_badge(active_scope_badge(s.directory_scope)),
+                settings_value_badge(tr(locale, active_scope_badge(s.directory_scope))),
                 settings_value_badge(if project_open {
-                    "项目已打开"
+                    tr(locale, "项目已打开")
                 } else {
-                    "未打开项目"
+                    tr(locale, "未打开项目")
                 }),
-                settings_value_badge(format!("总目录项 {}", all_skills.len())),
+                settings_value_badge(
+                    crate::__!(
+                        crate::app::i18n::I18n::new(locale),
+                        "总目录项 %u",
+                        all_skills.len()
+                    )
+                    .expect("valid skills display template")
+                ),
             ]
             .spacing(8)
             .align_y(Alignment::Center),
@@ -755,24 +861,36 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let mut content = column![header].spacing(16).width(Length::Fill);
 
     if let Some(message) = &s.status_message {
-        content = content.push(status_banner(message, s.status_is_error));
+        let rendered = s
+            .status_message_translation
+            .as_ref()
+            .map(|value| {
+                value
+                    .render(crate::app::i18n::I18n::new(locale))
+                    .expect("valid skills status template")
+            })
+            .unwrap_or_else(|| message.clone());
+        content = content.push(status_banner(rendered, s.status_is_error));
     }
 
     let mut catalog_panel = column![
         row![
             column![
-                text(scope_title(s.directory_scope)).size(18),
-                text(scope_description(s.directory_scope, s.directory_provider)).size(12).style(
-                    |theme: &iced::Theme| {
+                text(tr(locale, scope_title(s.directory_scope))).size(18),
+                text(scope_description(locale, s.directory_scope, s.directory_provider))
+                    .size(12)
+                    .style(|theme: &iced::Theme| {
                         iced::widget::text::Style {
                             color: Some(theme.palette().text.scale_alpha(0.64)),
                         }
-                    }
-                ),
+                    }),
             ]
             .spacing(4)
             .width(Length::Fill),
-            settings_value_badge(format!("{} results", skills.len())),
+            settings_value_badge(
+                crate::__!(crate::app::i18n::I18n::new(locale), "%u 项技能", skills.len())
+                    .expect("valid skill results template")
+            ),
         ]
         .spacing(10)
         .align_y(Alignment::Center),
@@ -781,7 +899,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     .width(Length::Fill);
 
     if s.loading {
-        catalog_panel = catalog_panel.push(loading_banner());
+        catalog_panel = catalog_panel.push(loading_banner(locale));
     }
 
     let workspace =
@@ -795,6 +913,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     if !workspace.is_empty() {
         catalog_panel = catalog_panel.push(catalog_group_section(
+            locale,
             "workspace",
             workspace,
             s.selected_skill_id.as_deref(),
@@ -802,6 +921,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     }
     if !ancestor.is_empty() {
         catalog_panel = catalog_panel.push(catalog_group_section(
+            locale,
             "ancestor",
             ancestor,
             s.selected_skill_id.as_deref(),
@@ -809,6 +929,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     }
     if !global.is_empty() {
         catalog_panel = catalog_panel.push(catalog_group_section(
+            locale,
             "global",
             global,
             s.selected_skill_id.as_deref(),
@@ -816,6 +937,7 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     }
     if !bundled.is_empty() {
         catalog_panel = catalog_panel.push(catalog_group_section(
+            locale,
             "bundled",
             bundled,
             s.selected_skill_id.as_deref(),
@@ -824,28 +946,36 @@ pub(super) fn view<'a>(app: &'a App) -> Element<'a, Message> {
 
     if skills.is_empty() && !s.loading {
         let (title, description) = match (s.directory_scope, project_open) {
-            (SkillsDirectoryScope::Project, false) => {
-                ("未打开项目目录", "打开项目后可查看当前工程的 skills 目录，或先切换到全部目录。")
-            }
+            (SkillsDirectoryScope::Project, false) => (
+                tr(locale, "未打开项目目录"),
+                tr(locale, "打开项目后可查看当前工程的 skills 目录，或先切换到全部目录。"),
+            ),
             (SkillsDirectoryScope::Project, true) => (
-                "项目目录下没有技能",
-                "当前项目目录没有命中技能，可以切换到全部目录查看父级、全局和内置技能。",
+                tr(locale, "项目目录下没有技能"),
+                tr(
+                    locale,
+                    "当前项目目录没有命中技能，可以切换到全部目录查看父级、全局和内置技能。",
+                ),
             ),
             (SkillsDirectoryScope::Ancestor, false) => {
-                ("未打开项目目录", "打开项目后可查看父级技能目录。")
+                (tr(locale, "未打开项目目录"), tr(locale, "打开项目后可查看父级技能目录。"))
             }
-            (SkillsDirectoryScope::Ancestor, true) => {
-                ("父级目录下没有技能", "项目父级目录没有命中技能，可以切换到全局目录或内置技能。")
-            }
-            (SkillsDirectoryScope::Global, _) => {
-                ("全局目录下没有技能", "当前目录提供方的全局技能目录没有命中技能。")
-            }
-            (SkillsDirectoryScope::Bundled, _) => {
-                ("没有内置技能", "内置技能目录为空，或当前搜索关键字没有匹配结果。")
-            }
-            (SkillsDirectoryScope::All, _) => {
-                ("没有匹配的技能", "试试清空搜索关键字，或稍后刷新技能目录。")
-            }
+            (SkillsDirectoryScope::Ancestor, true) => (
+                tr(locale, "父级目录下没有技能"),
+                tr(locale, "项目父级目录没有命中技能，可以切换到全局目录或内置技能。"),
+            ),
+            (SkillsDirectoryScope::Global, _) => (
+                tr(locale, "全局目录下没有技能"),
+                tr(locale, "当前目录提供方的全局技能目录没有命中技能。"),
+            ),
+            (SkillsDirectoryScope::Bundled, _) => (
+                tr(locale, "没有内置技能"),
+                tr(locale, "内置技能目录为空，或当前搜索关键字没有匹配结果。"),
+            ),
+            (SkillsDirectoryScope::All, _) => (
+                tr(locale, "没有匹配的技能"),
+                tr(locale, "试试清空搜索关键字，或稍后刷新技能目录。"),
+            ),
         };
         catalog_panel = catalog_panel.push(empty_state(title, description));
     }

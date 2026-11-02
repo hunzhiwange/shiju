@@ -151,10 +151,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = row![
         icon_badge,
         column![
-            text(palette.title)
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(palette.title))
                 .size(11)
                 .style(move |_theme: &Theme| iced::widget::text::Style { color: Some(accent) }),
-            text(&toast.message).size(13).style(|theme: &Theme| iced::widget::text::Style {
+            text(
+                toast
+                    .localized_message
+                    .as_ref()
+                    .map(|message| message
+                        .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid toast template"))
+                    .unwrap_or_else(|| toast.message.clone())
+            )
+            .size(13)
+            .style(|theme: &Theme| iced::widget::text::Style {
                 color: Some(toast_message_text_color(theme)),
             })
         ]

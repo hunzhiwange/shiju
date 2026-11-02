@@ -42,7 +42,7 @@ fn validate_mcp_servers_reports_precise_paths_for_invalid_common_fields() {
 
     for (value, expected_path) in cases {
         let error = validate_mcp_servers(&value).expect_err("invalid server must be rejected");
-        assert!(error.contains(expected_path), "{error}");
+        assert!(error.to_string().contains(expected_path), "{error}");
     }
 }
 
@@ -73,7 +73,7 @@ fn validate_mcp_servers_reports_precise_paths_for_transport_specific_fields() {
 
     for (value, expected_path) in cases {
         let error = validate_mcp_servers(&value).expect_err("invalid server must be rejected");
-        assert!(error.contains(expected_path), "{error}");
+        assert!(error.to_string().contains(expected_path), "{error}");
     }
 }
 
@@ -108,7 +108,7 @@ fn validate_mcp_server_overrides_accepts_full_override_and_rejects_invalid_field
     for (overrides, expected_path) in cases {
         let error = validate_mcp_server_overrides(&overrides)
             .expect_err("invalid override must be rejected");
-        assert!(error.contains(expected_path), "{error}");
+        assert!(error.to_string().contains(expected_path), "{error}");
     }
 }
 
@@ -119,7 +119,7 @@ fn optional_timeout_accepts_empty_and_positive_values_and_rejects_unsafe_values(
 
     for input in ["0", "-1", "NaN", "inf", "1e999", "not-a-number"] {
         let error = optional_timeout(input).expect_err("invalid timeout must be rejected");
-        assert!(error.contains("new MCP server timeout"));
+        assert!(error.to_string().contains("new MCP server timeout"));
     }
 }
 
@@ -132,7 +132,7 @@ fn editor_value_treats_blank_as_empty_and_rejects_malformed_json() {
 
     let malformed = text_editor::Content::with_text("[");
     let error = editor_value(&malformed).expect_err("malformed JSON must be rejected");
-    assert!(error.contains("JSON 解析失败"));
+    assert!(error.to_string().contains("JSON 解析失败"));
 }
 
 #[test]
@@ -169,6 +169,7 @@ fn new_server_value_trims_sse_fields_and_requires_remote_url() {
     assert!(
         new_server_value(&missing_url)
             .expect_err("missing URL must be rejected")
+            .to_string()
             .contains("new MCP server url")
     );
 }
@@ -188,7 +189,7 @@ fn set_server_enabled_rejects_missing_index_without_changing_source() {
 
     let error = set_server_enabled(&editor, 2, false).expect_err("missing server index");
 
-    assert!(error.contains("mcpServers[2] in global config"));
+    assert!(error.to_string().contains("mcpServers[2] in global config"));
     assert!(!editor.text().contains("enabled"));
 }
 
@@ -217,7 +218,7 @@ fn delete_server_rejects_missing_index_without_changing_source() {
 
     let error = delete_server(&editor, 1).expect_err("missing server index");
 
-    assert!(error.contains("mcpServers[1] in global config"));
+    assert!(error.to_string().contains("mcpServers[1] in global config"));
     assert!(editor.text().contains("local"));
 }
 
@@ -228,11 +229,12 @@ fn set_runtime_server_enabled_trims_names_and_rejects_invalid_existing_overrides
 
     let error = set_runtime_server_enabled(&[json!({"name": "", "enabled": true})], "other", false)
         .expect_err("invalid existing override must be rejected");
-    assert!(error.contains("mcpServerOverrides[0] in global config.name"));
+    assert!(error.to_string().contains("mcpServerOverrides[0] in global config.name"));
 
     assert!(
         set_runtime_server_enabled(&[], " ", true)
             .expect_err("blank name must be rejected")
+            .to_string()
             .contains("runtime MCP server name")
     );
 }
@@ -606,7 +608,7 @@ fn delete_request_rejects_invalid_index_and_confirm_without_pending_is_noop() {
         app.mcp_settings
             .save_error
             .as_deref()
-            .is_some_and(|error| { error.contains("mcpServers[1] in global config") })
+            .is_some_and(|error| { error.to_string().contains("mcpServers[1] in global config") })
     );
 
     let _ = update(&mut app, SettingsMessage::Mcp(McpMessage::ConfirmDelete(0)));

@@ -81,7 +81,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 HooksMessage::CatalogLoaded(Err(error)) => {
                     app.hooks_settings.catalog_loading = false;
                     app.hooks_settings.catalog_error = Some(error.clone());
-                    return app.show_error_toast(format!("读取插件 hook 清单失败：{error}"));
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "读取插件 hook 清单失败：%s",
+                        vec![error.into()],
+                    );
                 }
                 HooksMessage::AuditRefresh => {
                     app.hooks_settings.audit_loading = true;
@@ -97,7 +101,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 HooksMessage::AuditLoaded(Err(error)) => {
                     app.hooks_settings.audit_loading = false;
                     app.hooks_settings.audit_error = Some(error.clone());
-                    return app.show_error_toast(format!("读取 hook 审计失败：{error}"));
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "读取 hook 审计失败：%s",
+                        vec![error.into()],
+                    );
                 }
                 HooksMessage::TrustRequested { plugin_id, hook_hash } => {
                     app.hooks_settings.mutation_loading = true;
@@ -117,18 +125,30 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }) {
                         entry.trusted = result.trusted;
                     }
-                    let action = if result.trusted { "信任" } else { "撤销信任" };
+                    let source = if result.trusted {
+                        "已信任插件 hook"
+                    } else {
+                        "已撤销信任插件 hook"
+                    };
                     return Task::batch([
                         Task::done(Message::Settings(SettingsMessage::Hooks(
                             HooksMessage::CatalogRefresh,
                         ))),
-                        app.show_success_toast(format!("已{action}插件 hook")),
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            source,
+                            vec![],
+                        ),
                     ]);
                 }
                 HooksMessage::MutationCompleted(Err(error)) => {
                     app.hooks_settings.mutation_loading = false;
                     app.hooks_settings.mutation_error = Some(error.clone());
-                    return app.show_error_toast(format!("更新插件 hook 信任失败：{error}"));
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "更新插件 hook 信任失败：%s",
+                        vec![error.into()],
+                    );
                 }
             }
 

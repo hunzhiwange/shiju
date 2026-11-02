@@ -6,8 +6,8 @@
 use crate::app::{App, Message, message};
 use iced::Element;
 
-pub(super) fn help_text() -> &'static str {
-    r#"技能配置说明
+pub(super) fn help_text(locale: vw_config_types::ui::DesktopLocale) -> &'static str {
+    crate::app::i18n::I18n::new(locale).__(r#"技能配置说明
 
 一、作用
 - skills 用于控制技能系统加载来源与系统提示词注入方式。
@@ -21,7 +21,7 @@ pub(super) fn help_text() -> &'static str {
 - 对本地技能可直接执行启用、禁用、删除；对内置技能可在打开项目后安装到当前项目目录。
 
 2) 插件
-- 当前为占位页，暂不提供具体内容。
+- 在独立的插件页管理插件。
 
 3) 系统配置
 - 项目技能默认加载与注入模式配置集中在这里。
@@ -49,7 +49,7 @@ pub(super) fn help_text() -> &'static str {
 五、启用/禁用说明
 - 本地技能通过技能目录下的 `SKILL.disabled` 标记文件控制启用状态。
 - 禁用后仍会在目录页显示，但运行时会跳过加载，便于后续重新启用。
-"#
+"#)
 }
 
 /// 构建或处理 `view_overlays` 对应的界面片段与交互数据。
@@ -77,8 +77,8 @@ pub(super) fn view_overlays<'a>(
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
-        "Skills 配置帮助",
-        help_text(),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("Skills 配置帮助"),
+        help_text(app.desktop_locale),
         Message::Settings(message::SettingsMessage::SkillsHelpClose),
     )
 }

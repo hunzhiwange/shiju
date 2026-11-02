@@ -255,7 +255,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         ChannelsMessage::QrRequested(channel) => {
             if !matches!(channel.as_str(), "dingtalk" | "feishu" | "qq" | "wecom" | "wechat") {
-                return app.show_error_toast("该通道不支持扫码授权");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "该通道不支持扫码授权",
+                    vec![],
+                );
             }
             app.channels_settings.qr_flow.close();
             app.channels_settings.qr_flow.channel = Some(channel.clone());
@@ -272,7 +276,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(response) => {
                     if response.channel != channel {
                         app.channels_settings.qr_flow.close();
-                        return app.show_error_toast("网关返回了不匹配的扫码通道");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "网关返回了不匹配的扫码通道",
+                            vec![],
+                        );
                     }
                     let decoded = BASE64_STANDARD
                         .decode(response.qrcode_png_base64.as_bytes())
@@ -303,7 +311,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 }
                 Err(error) => {
                     app.channels_settings.qr_flow.close();
-                    app.show_error_toast(format!("获取二维码失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "获取二维码失败：%s",
+                        vec![error.into()],
+                    )
                 }
             }
         }
@@ -351,7 +363,11 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         match result {
                             Ok(()) => {
                                 app.channels_settings.qr_flow.credentials_ready = true;
-                                app.show_success_toast("扫码授权成功，请确认后保存")
+                                app.show_localized_toast(
+                                    crate::app::state::ToastKind::Success,
+                                    "扫码授权成功，请确认后保存",
+                                    vec![],
+                                )
                             }
                             Err(error) => {
                                 app.channels_settings.qr_flow.close();
@@ -361,12 +377,20 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                     ChannelQrStatusDto::Expired => {
                         app.channels_settings.qr_flow.close();
-                        app.show_warning_toast("二维码已过期，请重新获取")
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Warning,
+                            "二维码已过期，请重新获取",
+                            vec![],
+                        )
                     }
                     ChannelQrStatusDto::Failed => {
                         if app.channels_settings.qr_flow.scan_observed {
                             app.channels_settings.qr_flow.close();
-                            app.show_error_toast("扫码授权失败，请重新获取")
+                            app.show_localized_toast(
+                                crate::app::state::ToastKind::Error,
+                                "扫码授权失败，请重新获取",
+                                vec![],
+                            )
                         } else {
                             app.channels_settings.qr_flow.status =
                                 Some(ChannelQrStatusDto::Pending);

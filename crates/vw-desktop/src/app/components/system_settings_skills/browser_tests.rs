@@ -129,26 +129,26 @@ fn scope_titles_and_badges_cover_all_scopes() {
 #[test]
 fn provider_paths_match_directory_provider_contract() {
     let vibewindow_global =
-        format!("~/{}/skills 与 ~/.skills", vw_config_types::paths::HOME_CONFIG_DIR_NAME);
+        format!("~/{}/skills, ~/.skills", vw_config_types::paths::HOME_CONFIG_DIR_NAME);
     let cases = [
         (
             SkillsDirectoryProvider::Vibewindow,
-            ".shiju/skills、skills 与 .agents/skills",
+            ".shiju/skills, skills, .agents/skills",
             vibewindow_global.as_str(),
         ),
         (
             SkillsDirectoryProvider::Codex,
-            ".codex/skills、.agents/skills 与 skills",
-            "~/.codex/skills 与 ~/.agents/skills",
+            ".codex/skills, .agents/skills, skills",
+            "~/.codex/skills, ~/.agents/skills",
         ),
         (
             SkillsDirectoryProvider::Claude,
-            ".claude/skills、skills 与 .agents/skills",
+            ".claude/skills, skills, .agents/skills",
             "~/.claude/skills",
         ),
         (
             SkillsDirectoryProvider::Cursor,
-            ".cursor/skills、skills 与 .agents/skills",
+            ".cursor/skills, skills, .agents/skills",
             "~/.cursor/skills",
         ),
     ];
@@ -162,24 +162,44 @@ fn provider_paths_match_directory_provider_contract() {
 #[test]
 fn scope_descriptions_include_provider_specific_paths() {
     assert!(
-        scope_description(SkillsDirectoryScope::Project, SkillsDirectoryProvider::Codex)
-            .contains(".codex/skills")
+        scope_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            SkillsDirectoryScope::Project,
+            SkillsDirectoryProvider::Codex
+        )
+        .contains(".codex/skills")
     );
     assert!(
-        scope_description(SkillsDirectoryScope::Ancestor, SkillsDirectoryProvider::Claude)
-            .contains(".claude/skills")
+        scope_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            SkillsDirectoryScope::Ancestor,
+            SkillsDirectoryProvider::Claude
+        )
+        .contains(".claude/skills")
     );
     assert!(
-        scope_description(SkillsDirectoryScope::Global, SkillsDirectoryProvider::Cursor)
-            .contains("~/.cursor/skills")
+        scope_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            SkillsDirectoryScope::Global,
+            SkillsDirectoryProvider::Cursor
+        )
+        .contains("~/.cursor/skills")
     );
     assert!(
-        scope_description(SkillsDirectoryScope::Bundled, SkillsDirectoryProvider::Vibewindow)
-            .contains("内置技能")
+        scope_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            SkillsDirectoryScope::Bundled,
+            SkillsDirectoryProvider::Vibewindow
+        )
+        .contains("内置技能")
     );
     assert!(
-        scope_description(SkillsDirectoryScope::All, SkillsDirectoryProvider::Vibewindow)
-            .contains("全部")
+        scope_description(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            SkillsDirectoryScope::All,
+            SkillsDirectoryProvider::Vibewindow
+        )
+        .contains("全部")
     );
 }
 
@@ -209,15 +229,15 @@ fn scope_descriptions_are_exact_for_each_codex_scope() {
     let cases = [
         (
             SkillsDirectoryScope::Project,
-            "查看当前项目 .codex/skills、.agents/skills 与 skills 目录命中的技能。",
+            "查看当前项目 .codex/skills, .agents/skills, skills 目录命中的技能。",
         ),
         (
             SkillsDirectoryScope::Ancestor,
-            "查看从项目父级向上发现的 .codex/skills、.agents/skills 与 skills 技能。",
+            "查看从项目父级向上发现的 .codex/skills, .agents/skills, skills 技能。",
         ),
         (
             SkillsDirectoryScope::Global,
-            "查看当前用户 ~/.codex/skills 与 ~/.agents/skills 中的全局技能。",
+            "查看当前用户 ~/.codex/skills, ~/.agents/skills 中的全局技能。",
         ),
         (SkillsDirectoryScope::Bundled, "查看产品随包提供、可安装到项目的内置技能。"),
         (
@@ -227,7 +247,14 @@ fn scope_descriptions_are_exact_for_each_codex_scope() {
     ];
 
     for (scope, expected) in cases {
-        assert_eq!(scope_description(scope, provider), expected);
+        assert_eq!(
+            scope_description(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+                scope,
+                provider
+            ),
+            expected
+        );
     }
 }
 
@@ -238,13 +265,13 @@ fn discovery_order_text_distinguishes_project_context() {
 
     assert_eq!(
         discovery_order_text(&app),
-        "未打开项目时，仅显示 ~/.codex/skills 与 ~/.agents/skills 与内置技能。"
+        "未打开项目时，仅显示 ~/.codex/skills, ~/.agents/skills 与内置技能。"
     );
 
     app.project_path = Some("/workspace/demo".to_string());
     assert_eq!(
         discovery_order_text(&app),
-        "/workspace/demo/.codex/skills、.agents/skills 与 skills -> 父级 .codex/skills、.agents/skills 与 skills -> ~/.codex/skills 与 ~/.agents/skills"
+        "发现顺序：/workspace/demo/.codex/skills, .agents/skills, skills -> 父级 .codex/skills, .agents/skills, skills -> ~/.codex/skills, ~/.agents/skills"
     );
 }
 
@@ -276,20 +303,31 @@ fn browser_widgets_build_for_status_actions_and_common_states() {
         SkillsDirectoryScope::Project,
         false,
     );
-    let _ = refresh_button(false);
-    let _ = refresh_button(true);
-    let _ = loading_banner();
+    let _ = refresh_button(vw_config_types::ui::DesktopLocale::SimplifiedChinese, false);
+    let _ = refresh_button(vw_config_types::ui::DesktopLocale::SimplifiedChinese, true);
+    let _ = loading_banner(vw_config_types::ui::DesktopLocale::SimplifiedChinese);
     let _ = empty_state("空", "没有结果");
-    let _ = detail_source_note(Some("/tmp/skill"));
-    let _ = detail_source_note(None);
+    let _ = detail_source_note(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        Some("/tmp/skill"),
+    );
+    let _ = detail_source_note(vw_config_types::ui::DesktopLocale::SimplifiedChinese, None);
     let _ = detail_action_button(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         "执行",
         Icon::Plus,
         DetailActionStyle::Primary,
         Some(Message::Settings(SettingsMessage::SkillsRefresh)),
     );
-    let _ = detail_action_button("删除", Icon::Trash, DetailActionStyle::Danger, None);
     let _ = detail_action_button(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        "删除",
+        Icon::Trash,
+        DetailActionStyle::Danger,
+        None,
+    );
+    let _ = detail_action_button(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         "次要",
         Icon::ArrowRepeat,
         DetailActionStyle::Secondary,

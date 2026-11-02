@@ -176,6 +176,15 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
             SystemSettingsSearchTarget::TopLevel(SystemTab::Security) => {
                 entry.label = security_text(app.desktop_locale, "安全配置")
             }
+            SystemSettingsSearchTarget::Agents(_)
+            | SystemSettingsSearchTarget::Channels(_)
+            | SystemSettingsSearchTarget::AgentMcp(_)
+            | SystemSettingsSearchTarget::AgentSkills(_)
+            | SystemSettingsSearchTarget::TopLevel(SystemTab::Agents | SystemTab::Channels) => {
+                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+                entry.label = i18n.__(entry.original_label);
+                entry.parent_label = entry.original_parent_label.map(|label| i18n.__(label));
+            }
             _ => {}
         }
 

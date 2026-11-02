@@ -13,6 +13,7 @@ use crate::app::components::system_settings_common::{
     settings_segment_button_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::state::SkillsSettingsTab;
 use crate::app::{App, Message, message};
 use iced::widget::{button, checkbox, column, container, pick_list, row, text};
@@ -99,16 +100,19 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
         .width(Length::Fill);
 
     let provider_row = field_row(
-        "Directory provider",
-        "切换技能目录兼容模式；配置缺失时使用 ShiJu。",
+        tr(app.desktop_locale, "技能目录提供者"),
+        tr(app.desktop_locale, "切换技能目录兼容模式；配置缺失时使用 ShiJu。"),
         provider_pick,
     );
 
     let project_auto_load_row = field_row(
-        "Project skills",
-        "自动向委托代理提供项目及父级 skills、.agents/skills；无需逐项选择。",
+        tr(app.desktop_locale, "项目技能"),
+        tr(
+            app.desktop_locale,
+            "自动向委托代理提供项目及父级 skills、.agents/skills；无需逐项选择。",
+        ),
         checkbox(s.auto_load_project_skills)
-            .label("默认加载项目技能")
+            .label(tr(app.desktop_locale, "默认加载项目技能"))
             .on_toggle(|v| {
                 Message::Settings(message::SettingsMessage::SkillsProjectAutoLoadToggled(v))
             })
@@ -117,10 +121,10 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
 
     let mode_full = matches!(s.prompt_injection_mode, SkillsPromptInjectionMode::Full);
     let mode_row = field_row(
-        "Injection mode",
-        "compact 更省上下文，full 会注入完整技能内容。",
+        tr(app.desktop_locale, "提示注入模式"),
+        tr(app.desktop_locale, "compact 更省上下文，full 会注入完整技能内容。"),
         checkbox(mode_full)
-            .label("使用 full（关闭时为 compact）")
+            .label(tr(app.desktop_locale, "使用 full（关闭时为 compact）"))
             .on_toggle(|v| {
                 Message::Settings(message::SettingsMessage::SkillsPromptInjectionModeChanged(
                     if v {
@@ -136,8 +140,11 @@ fn system_config_view(app: &App) -> Element<'_, Message> {
     let config_card =
         column![
             settings_section_card(
-                "系统配置",
-                "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。",
+                tr(app.desktop_locale, "系统配置"),
+                tr(
+                    app.desktop_locale,
+                    "这里配置项目技能默认加载与 prompt injection；目录顺序单独展示。"
+                ),
             ),
             settings_section_content(
                 column![provider_row, project_auto_load_row, mode_row].spacing(0),
@@ -163,24 +170,29 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut page = column![
         row![
             container(settings_page_intro(
-                "技能配置",
-                "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。",
+                tr(app.desktop_locale, "技能配置"),
+                tr(
+                    app.desktop_locale,
+                    "技能、发现顺序与系统配置分开展示；技能页只保留浏览和搜索。"
+                ),
             ))
             .width(Length::Fill),
             help_btn,
         ]
         .align_y(Alignment::Start),
-        skills_tab_labels()
-            .iter()
-            .fold(row![].spacing(8).align_y(Alignment::Center), |row, (label, tab)| {
-                row.push(settings_tab_button(label, *tab, s.active_tab))
-            }),
+        skills_tab_labels().iter().fold(
+            row![].spacing(8).align_y(Alignment::Center),
+            |row, (label, tab)| {
+                row.push(settings_tab_button(tr(app.desktop_locale, label), *tab, s.active_tab))
+            }
+        ),
     ]
     .spacing(16)
     .width(Length::Fill);
 
     if let Some(error) = &s.save_error {
-        page = page.push(settings_error_banner(error));
+        page = page
+            .push(settings_error_banner(crate::app::i18n::I18n::new(app.desktop_locale).__(error)));
     }
     page.push(content).into()
 }
@@ -237,7 +249,7 @@ pub(crate) fn with_plugin_install<'a>(
     base: Element<'a, Message>,
 ) -> Element<'a, Message> {
     match app.skills_settings.plugin_install.as_ref() {
-        Some(form) => plugin_install_modal::view(base, form),
+        Some(form) => plugin_install_modal::view(app.desktop_locale, base, form),
         None => base,
     }
 }

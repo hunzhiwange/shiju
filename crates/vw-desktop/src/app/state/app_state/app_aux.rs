@@ -26,6 +26,7 @@ pub struct Toast {
     pub id: usize,
     pub kind: ToastKind,
     pub message: String,
+    pub localized_message: Option<crate::app::i18n::format::Message>,
 }
 
 #[derive(Debug)]

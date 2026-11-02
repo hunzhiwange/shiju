@@ -17,7 +17,12 @@ fn default_workspace_identity_root_uses_agent_key() {
 #[test]
 fn workspace_identity_hint_prefers_custom_root() {
     assert_eq!(
-        workspace_identity_hint(Some("profiles/reviewer"), "reviewer", "AGENTS.md"),
+        workspace_identity_hint(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            Some("profiles/reviewer"),
+            "reviewer",
+            "AGENTS.md"
+        ),
         "编辑身份文件 `AGENTS.md`，保存会直接写回 `profiles/reviewer/AGENTS.md`。"
     );
 }
@@ -25,14 +30,24 @@ fn workspace_identity_hint_prefers_custom_root() {
 #[test]
 fn workspace_identity_hint_uses_default_root_for_main_and_workers() {
     assert_eq!(
-        workspace_identity_hint(None, "main", "AGENTS.md"),
+        workspace_identity_hint(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            None,
+            "main",
+            "AGENTS.md"
+        ),
         format!(
             "编辑身份文件 `AGENTS.md`，保存会直接写回 `~/{}/workspace/AGENTS.md`。",
             vw_config_types::paths::HOME_CONFIG_DIR_NAME
         )
     );
     assert_eq!(
-        workspace_identity_hint(None, "reviewer", "AGENTS.md"),
+        workspace_identity_hint(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            None,
+            "reviewer",
+            "AGENTS.md"
+        ),
         format!(
             "编辑身份文件 `AGENTS.md`，保存会直接写回 `~/{}/workspace-reviewer/AGENTS.md`。",
             vw_config_types::paths::HOME_CONFIG_DIR_NAME
@@ -55,16 +70,41 @@ fn format_file_size_uses_human_readable_units() {
 #[test]
 fn workspace_identity_meta_line_combines_size_and_modified_time() {
     assert_eq!(
-        workspace_identity_meta_line(Some(1536), Some(0)),
+        workspace_identity_meta_line(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            Some(1536),
+            Some(0)
+        ),
         Some("1.5 KB · 刚刚".to_string())
     );
 }
 
 #[test]
 fn workspace_identity_meta_line_handles_single_and_missing_values() {
-    assert_eq!(workspace_identity_meta_line(Some(512), None), Some("512 B".to_string()));
-    assert_eq!(workspace_identity_meta_line(None, Some(0)), Some("刚刚".to_string()));
-    assert_eq!(workspace_identity_meta_line(None, None), None);
+    assert_eq!(
+        workspace_identity_meta_line(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            Some(512),
+            None
+        ),
+        Some("512 B".to_string())
+    );
+    assert_eq!(
+        workspace_identity_meta_line(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            None,
+            Some(0)
+        ),
+        Some("刚刚".to_string())
+    );
+    assert_eq!(
+        workspace_identity_meta_line(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            None,
+            None
+        ),
+        None
+    );
 }
 
 #[test]

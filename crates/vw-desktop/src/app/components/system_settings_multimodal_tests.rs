@@ -132,7 +132,7 @@ fn view_covers_loading_error_selected_and_empty_catalog_states() {
     keep_element(view(&app));
 
     app.model_settings.loading = false;
-    app.model_settings.save_error = Some("模型目录不可用".to_string());
+    app.model_settings.save_error = Some(("模型目录不可用".to_string()).into());
     keep_element(view(&app));
 
     app.model_settings.save_error = None;

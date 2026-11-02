@@ -45,13 +45,34 @@ fn service_cli_commands_match_copyable_server_commands() {
 
 #[test]
 fn service_command_labels_cover_all_known_commands() {
-    assert_eq!(service_command_label("stop"), "停止服务");
-    assert_eq!(service_command_label("uninstall"), "卸载服务");
-    assert_eq!(service_command_label("install"), "安装服务");
-    assert_eq!(service_command_label("start"), "启动服务");
-    assert_eq!(service_command_label("restart"), "重启服务");
-    assert_eq!(service_command_label("status"), "查询状态");
-    assert_eq!(service_command_label("unknown"), "服务命令");
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "stop"),
+        "停止服务"
+    );
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "uninstall"),
+        "卸载服务"
+    );
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "install"),
+        "安装服务"
+    );
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "start"),
+        "启动服务"
+    );
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "restart"),
+        "重启服务"
+    );
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "status"),
+        "查询状态"
+    );
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, "unknown"),
+        "服务命令"
+    );
 }
 
 #[test]
@@ -63,7 +84,10 @@ fn service_command_classification_handles_unknown_and_danger_commands() {
         assert!(!is_danger_service_command(command));
     }
 
-    assert_eq!(service_command_label(""), "服务命令");
+    assert_eq!(
+        service_display_label(vw_config_types::ui::DesktopLocale::SimplifiedChinese, ""),
+        "服务命令"
+    );
 }
 
 #[test]
@@ -114,7 +138,7 @@ fn gateway_save_error_banner_follows_tabs() {
     let mut app = test_app();
     assert_eq!(view(&app).as_widget().children().len(), 3);
 
-    app.gateway_settings.save_error = Some("gateway save failed".to_string());
+    app.gateway_settings.save_error = Some(("gateway save failed".to_string()).into());
     assert_eq!(view(&app).as_widget().children().len(), 4);
 }
 
@@ -261,7 +285,7 @@ fn view_builds_empty_and_populated_gateway_states() {
     populated.gateway_settings.node_control_enabled = true;
     populated.gateway_settings.node_control_auth_token_input = "node-secret".to_string();
     populated.gateway_settings.node_control_allowed_node_ids_input = "node-a\nnode-b".to_string();
-    populated.gateway_settings.save_error = Some("gateway save failed".to_string());
+    populated.gateway_settings.save_error = Some(("gateway save failed".to_string()).into());
     populated.gateway_settings.copied_service_command = Some("shiju server restart".to_string());
     let _ = view(&populated);
 }
@@ -366,13 +390,14 @@ fn overlays_handles_stop_confirmation() {
 #[test]
 fn view_with_non_empty_service_action_output() {
     let mut app = test_app();
-    app.gateway_settings.service_action_output = Some("  service is running  ".to_string());
+    app.gateway_settings.service_action_output =
+        Some(("  service is running  ".to_string()).into());
     let _ = view(&app);
 }
 
 #[test]
 fn view_with_blank_service_action_output_is_skipped() {
     let mut app = test_app();
-    app.gateway_settings.service_action_output = Some("   ".to_string());
+    app.gateway_settings.service_action_output = Some(("   ".to_string()).into());
     let _ = view(&app);
 }

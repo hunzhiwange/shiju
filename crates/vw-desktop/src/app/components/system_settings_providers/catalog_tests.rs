@@ -28,7 +28,7 @@ fn provider(id: &str, connected: bool) -> ProviderSummary {
     ProviderSummary {
         id: id.to_string(),
         name: id.to_string(),
-        source_label: "测试配置".to_string(),
+        source_label: "测试配置".to_string().into(),
         connected,
     }
 }
@@ -63,7 +63,7 @@ fn overlays_build_filtered_and_populated_catalogs() {
     app.provider_settings.providers = vec![ProviderSummary {
         id: "openai".to_string(),
         name: "OpenAI".to_string(),
-        source_label: "配置文件".to_string(),
+        source_label: "配置文件".to_string().into(),
         connected: true,
     }];
     app.provider_settings.popular_patterns = vec!["anthropic".to_string()];
@@ -161,9 +161,27 @@ fn catalog_treats_shiju_as_pinned_popular_provider() {
 
 #[test]
 fn model_count_label_formats_singular_and_plural_counts() {
-    assert_eq!(super::catalog::model_count_label(1), "1 个模型");
-    assert_eq!(super::catalog::model_count_label(0), "0 个模型");
-    assert_eq!(super::catalog::model_count_label(12), "12 个模型");
+    assert_eq!(
+        crate::app::i18n::settings_models::model_count(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            1
+        ),
+        "1 个模型"
+    );
+    assert_eq!(
+        crate::app::i18n::settings_models::model_count(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            0
+        ),
+        "0 个模型"
+    );
+    assert_eq!(
+        crate::app::i18n::settings_models::model_count(
+            vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            12
+        ),
+        "12 个模型"
+    );
 }
 
 #[test]

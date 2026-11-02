@@ -33,7 +33,7 @@ fn connect_app(provider_name: &str, api_key: &str, error: Option<&str>) -> App {
         provider_name: provider_name.to_string(),
         api_key: api_key.to_string(),
     });
-    app.provider_settings.connect_error = error.map(str::to_string);
+    app.provider_settings.connect_error = error.map(Into::into);
     app
 }
 
@@ -61,7 +61,7 @@ fn view_overlays_returns_original_base_dimensions_when_modal_is_closed() {
 #[test]
 fn view_overlays_ignores_stale_error_when_modal_is_closed() {
     let mut app = test_app();
-    app.provider_settings.connect_error = Some("连接失败".to_string());
+    app.provider_settings.connect_error = Some(("连接失败".to_string()).into());
     let base: Element<'_, Message> =
         container(text("dialog")).width(Length::Fixed(280.0)).height(Length::Fixed(90.0)).into();
 

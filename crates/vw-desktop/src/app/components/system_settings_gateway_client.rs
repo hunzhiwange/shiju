@@ -10,6 +10,10 @@ use crate::app::components::system_settings_common::{
     settings_section_card, settings_section_content, settings_text_input_style,
     with_settings_help_modal,
 };
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
+use crate::app::i18n::settings_models::messages::{Message as OwnedMessage, render as owned_text};
 use crate::app::message::settings::{GatewayClientMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{Space, button, column, container, row, text, text_input};
@@ -234,22 +238,32 @@ pub fn view(app: &App) -> Element<'_, Message> {
         })
         .collect::<Vec<_>>();
     let server_list: Element<'_, Message> = if server_items.is_empty() {
-        column![text("暂无网关").size(13).style(settings_muted_text_style)].into()
+        column![
+            text(connection_text(app.desktop_locale, ConnectionText::NoGateways))
+                .size(13)
+                .style(settings_muted_text_style)
+        ]
+        .into()
     } else {
         column(server_items).spacing(8).into()
     };
 
     let add_server = rounded_action_button(
-        row![text("+").size(16), text("新增网关").size(13)]
-            .spacing(8)
-            .align_y(Alignment::Center)
-            .into(),
+        row![
+            text("+").size(16),
+            text(connection_text(app.desktop_locale, ConnectionText::AddGateway)).size(13)
+        ]
+        .spacing(8)
+        .align_y(Alignment::Center)
+        .into(),
         true,
         Some(Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer))),
     );
     let can_remove_server = s.servers.len() > 1;
     let remove_server = rounded_action_button(
-        row![text("删除当前").size(13)].align_y(Alignment::Center).into(),
+        row![text(connection_text(app.desktop_locale, ConnectionText::DeleteSelected)).size(13)]
+            .align_y(Alignment::Center)
+            .into(),
         can_remove_server,
         can_remove_server.then(|| {
             Message::Settings(SettingsMessage::GatewayClient(
@@ -258,15 +272,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }),
     );
     let refresh_server = rounded_action_button(
-        row![text("刷新状态").size(13)].align_y(Alignment::Center).into(),
+        row![text(connection_text(app.desktop_locale, ConnectionText::RefreshStatus)).size(13)]
+            .align_y(Alignment::Center)
+            .into(),
         true,
         Some(Message::GatewayHealthTick),
     );
 
     let name_row = text_row(
-        "网关名称",
-        "用于区分多个客户端网关。",
-        "本地网关",
+        connection_text(app.desktop_locale, ConnectionText::GatewayName),
+        connection_text(app.desktop_locale, ConnectionText::NameUsedToDistinguishClient),
+        connection_text(app.desktop_locale, ConnectionText::LocalGateway),
         &s.name_input,
         |value| {
             Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::NameChanged(
@@ -275,8 +291,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let host_row = text_row(
-        "目标主机",
-        "桌面端请求所连接的 Gateway 主机。",
+        connection_text(app.desktop_locale, ConnectionText::TargetHost),
+        connection_text(app.desktop_locale, ConnectionText::GatewayHostUsedByDesktop),
         "127.0.0.1",
         &s.host_input,
         |value| {
@@ -286,8 +302,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let port_row = number_row(
-        "目标端口",
-        "桌面端请求所连接的 Gateway 端口。",
+        connection_text(app.desktop_locale, ConnectionText::TargetPort),
+        connection_text(app.desktop_locale, ConnectionText::GatewayPortUsedByDesktop),
         s.port as u32,
         1,
         u16::MAX as u32,
@@ -299,8 +315,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let platform_id_row = text_row(
-        "平台 ID",
-        "当前网关请求所属的平台租户。",
+        connection_text(app.desktop_locale, ConnectionText::PlatformId),
+        connection_text(app.desktop_locale, ConnectionText::PlatformTenantForRequestsTo),
         "10000",
         &s.platform_id_input,
         |value| {
@@ -310,8 +326,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let company_id_row = text_row(
-        "公司 ID",
-        "当前网关请求所属的公司租户。",
+        connection_text(app.desktop_locale, ConnectionText::CompanyId),
+        connection_text(app.desktop_locale, ConnectionText::CompanyTenantForRequestsTo),
         "100000000",
         &s.company_id_input,
         |value| {
@@ -322,8 +338,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
     let skey_row = secure_text_row(
         "skey",
-        "可选 skey，会作为 Authorization: Bearer 发送。",
-        "可选 skey",
+        connection_text(app.desktop_locale, ConnectionText::OptionalSkeySentThroughAuthorization),
+        connection_text(app.desktop_locale, ConnectionText::OptionalSkey),
         &s.skey_input,
         |value| {
             Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::SkeyChanged(
@@ -335,16 +351,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content = column![
         row![
             container(settings_page_intro(
-                "客户端网关",
-                "配置 Desktop 作为客户端访问一个或多个 Gateway 时使用的地址与认证信息。",
+                connection_text(app.desktop_locale, ConnectionText::ClientGateway),
+                connection_text(
+                    app.desktop_locale,
+                    ConnectionText::ConfigureAddressesAndCredentialsFor
+                ),
             ))
             .width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
         settings_section_card(
-            "网关服务",
-            "可以维护多个客户端网关，当前选中的网关会用于 Desktop 的 Gateway 请求。",
+            connection_text(app.desktop_locale, ConnectionText::GatewayServices),
+            connection_text(
+                app.desktop_locale,
+                ConnectionText::ManageMultipleClientGatewaysDesktop
+            ),
         ),
         settings_panel(
             row![
@@ -360,8 +382,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .align_y(Alignment::Start),
         ),
         settings_section_card(
-            "认证",
-            "可选填写 skey。请求会通过 Authorization: Bearer <skey> 发送。",
+            connection_text(app.desktop_locale, ConnectionText::AuthenticationText),
+            connection_text(app.desktop_locale, ConnectionText::OptionalSkeySentAsAuthorization),
         ),
         settings_section_content(column![skey_row].spacing(0)),
     ]
@@ -395,13 +417,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 GatewayClientMessage::RemoveServerCanceled,
             ));
             let confirm_dialog = crate::app::components::toast::confirm_dialog(
-                "确认删除客户端网关",
-                format!(
-                    "将删除客户端网关「{}」。此操作不可撤销。\n地址: {}:{}\nID: {}",
-                    server.name, server.host, server.port, server.id
+                connection_text(app.desktop_locale, ConnectionText::ConfirmClientGatewayDeletion),
+                owned_text(
+                    app.desktop_locale,
+                    OwnedMessage::DeleteGateway,
+                    &[
+                        server.name.clone(),
+                        server.host.clone(),
+                        server.port.to_string(),
+                        server.id.clone(),
+                    ],
                 ),
-                "确认删除",
-                "取消",
+                connection_text(app.desktop_locale, ConnectionText::ConfirmDeletion),
+                connection_text(app.desktop_locale, ConnectionText::Cancel),
                 confirm,
                 cancel,
             );
@@ -417,54 +445,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         return dialog;
     }
 
-    let help_text = r#"客户端网关配置说明
-
-一、作用
-- 这里配置桌面端发请求时要连接的 Gateway 地址、租户与认证信息。
-- 支持多个 Gateway 服务；当前选中的服务会成为 Desktop 的客户端请求目标。
-- 这些设置不会修改服务端网关的监听配置。
-
-二、字段含义
-1) host
-- 目标 Gateway 主机地址，默认 127.0.0.1。
-
-2) port
-- 目标 Gateway 端口，默认 14682。
-
-3) platform_id / company_id
-- 平台与公司租户 ID，默认 10000 / 100000000；不能为空。
-
-4) skey
-- 可选 skey。填写后会作为 Authorization: Bearer <skey> 发送给网关。
-
-三、示例
-{
-  "gateway_client": {
-    "active_server_id": "local",
-    "servers": [
-      {
-        "id": "local",
-        "name": "本地网关",
-        "host": "127.0.0.1",
-        "port": 14682,
-        "platform_id": "10000",
-        "company_id": "100000000",
-        "skey": ""
-      }
-    ],
-    "host": "127.0.0.1",
-    "port": 14682,
-    "platform_id": "10000",
-    "company_id": "100000000",
-    "skey": ""
-  }
-}
-"#;
+    let help_text = crate::app::i18n::settings_models::help::gateway_client(app.desktop_locale);
 
     with_settings_help_modal(
         app,
         dialog,
-        "客户端网关配置帮助",
+        connection_text(app.desktop_locale, ConnectionText::ClientGatewaySettingsHelp),
         help_text,
         Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::HelpClose)),
     )

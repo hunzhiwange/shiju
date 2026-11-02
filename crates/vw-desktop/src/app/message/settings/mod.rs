@@ -59,7 +59,8 @@ pub(crate) fn reload_agents_config_task(project_path: Option<String>) -> Task<Me
 }
 
 fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(), String>) {
-    let save_error = result.err().map(server_config_unreachable_error);
+    let raw_error = result.err();
+    let save_error = raw_error.as_ref().map(server_config_unreachable_error);
 
     match tag {
         "heartbeat" => app.heartbeat_settings.save_error = save_error,
@@ -80,8 +81,19 @@ fn apply_agent_config_saved(app: &mut App, tag: &'static str, result: Result<(),
         "hooks" => app.hooks_settings.save_error = save_error,
         "skills" => app.skills_settings.save_error = save_error,
         "runtime" => app.runtime_settings.save_error = save_error,
-        "model_routes" => app.model_routes_settings.save_error = save_error,
-        "embedding_routes" => app.embedding_routes_settings.save_error = save_error,
+        "model_routes" => {
+            app.model_routes_settings.save_error =
+                raw_error.map(crate::app::i18n::settings_models::messages::Feedback::gateway)
+        }
+        "embedding_routes" => {
+            app.embedding_routes_settings.save_success = raw_error.is_none();
+            app.embedding_routes_settings.save_error =
+                raw_error.map(crate::app::i18n::settings_models::messages::Feedback::gateway);
+        }
+        "gateway" => {
+            app.gateway_settings.save_error =
+                raw_error.map(crate::app::i18n::settings_models::messages::Feedback::gateway)
+        }
         "query_classification" => app.query_classification_settings.save_error = save_error,
         "autonomy" => app.autonomy_settings.save_error = save_error,
         _ => {}

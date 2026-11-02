@@ -19,7 +19,7 @@ pub(crate) struct ProviderSummary {
     /// 提供者显示名称
     pub(crate) name: String,
     /// 来源标签（如配置文件、内置等）
-    pub(crate) source_label: String,
+    pub(crate) source_label: crate::app::i18n::settings_models::messages::Feedback,
     /// 是否已连接
     pub(crate) connected: bool,
 }
@@ -255,7 +255,7 @@ pub(crate) struct ProviderSettingsState {
     /// 模型目录同步进度
     pub(crate) models_sync_progress: f32,
     /// 模型目录同步状态文案
-    pub(crate) models_sync_label: String,
+    pub(crate) models_sync_label: crate::app::i18n::settings_models::messages::Feedback,
     /// 提供者摘要列表
     pub(crate) providers: Vec<ProviderSummary>,
     /// 热门提供者模式名称列表
@@ -271,7 +271,7 @@ pub(crate) struct ProviderSettingsState {
     /// 连接对话框状态
     pub(crate) connect_modal: Option<ProviderConnectState>,
     /// 连接错误信息
-    pub(crate) connect_error: Option<String>,
+    pub(crate) connect_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
     /// 等待确认断开连接的提供者 ID
     pub(crate) disconnect_confirm_provider_id: Option<String>,
     /// 自定义提供者对话框是否打开
@@ -289,7 +289,7 @@ pub(crate) struct ProviderSettingsState {
     /// 自定义模型对话框状态
     pub(crate) custom_model_modal: Option<CustomProviderModelModalState>,
     /// 保存错误信息
-    pub(crate) save_error: Option<String>,
+    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
 }
 
 impl Default for ProviderSettingsState {
@@ -298,7 +298,7 @@ impl Default for ProviderSettingsState {
             loading: false,
             models_syncing: false,
             models_sync_progress: 0.0,
-            models_sync_label: String::new(),
+            models_sync_label: crate::app::i18n::settings_models::messages::Feedback::default(),
             providers: Vec::new(),
             popular_patterns: vec![
                 "OpenCode Zen".to_string(),
@@ -369,9 +369,9 @@ pub struct ProviderModelsSummary {
 #[derive(Debug, Clone)]
 pub(crate) struct ModelDetailRow {
     /// 行标签
-    pub(crate) label: String,
+    pub(crate) label: crate::app::i18n::settings_models::messages::Feedback,
     /// 行值
-    pub(crate) value: String,
+    pub(crate) value: crate::app::i18n::settings_models::messages::Feedback,
 }
 
 /// 模型详情对话框状态
@@ -429,7 +429,7 @@ pub(crate) struct ModelSettingsState {
     /// 提供者模型列表
     pub(crate) providers: Vec<ProviderModelsSummary>,
     /// 保存错误信息
-    pub(crate) save_error: Option<String>,
+    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
     /// 模型详情对话框状态
     pub(crate) detail_modal: Option<ModelDetailModalState>,
 }
@@ -457,7 +457,7 @@ pub(crate) struct EmbeddingRouteDraft {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct EmbeddingRoutesSettingsState {
     pub(crate) routes: Vec<EmbeddingRouteDraft>,
-    pub(crate) save_error: Option<String>,
+    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
     pub(crate) save_success: bool,
 }
 
@@ -480,7 +480,7 @@ pub(crate) struct ModelRoutesSettingsState {
     /// 路由列表。
     pub(crate) routes: Vec<ModelRoute>,
     /// 保存错误信息。
-    pub(crate) save_error: Option<String>,
+    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
 }
 
 /// 查询分类单条规则输入状态。

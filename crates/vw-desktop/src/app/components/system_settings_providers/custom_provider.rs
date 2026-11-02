@@ -19,6 +19,10 @@ use crate::app::components::system_settings_common::{
     settings_page_intro, settings_section_card, settings_section_content,
     settings_segment_button_style, settings_text_input_style, settings_value_badge,
 };
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
+use crate::app::i18n::settings_models::messages::{Message as OwnedMessage, render as owned_text};
 use crate::app::state::{CustomProviderModelFilter, CustomProviderTab};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -162,11 +166,21 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let header_row = row![
             container(settings_page_intro(
-                if is_editing { "编辑提供商" } else { "自定义提供商" },
                 if is_editing {
-                    "调整现有 provider 的连接地址、默认鉴权信息和模型列表。"
+                    connection_text(app.desktop_locale, ConnectionText::EditProvider)
                 } else {
-                    "按 base URL 接入一个与 OpenAI 兼容的 provider；模型可稍后配置。"
+                    connection_text(app.desktop_locale, ConnectionText::CustomProvider)
+                },
+                if is_editing {
+                    connection_text(
+                        app.desktop_locale,
+                        ConnectionText::EditTheProviderConnectionAddress,
+                    )
+                } else {
+                    connection_text(
+                        app.desktop_locale,
+                        ConnectionText::ConnectAnOpenaiCompatibleProviderText,
+                    )
                 },
             ))
             .width(Length::Fill),
@@ -176,14 +190,17 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let provider_id_row = if is_editing {
             field_row(
-                "提供商 ID",
-                "作为配置中的稳定标识，编辑模式下保持只读。",
+                connection_text(app.desktop_locale, ConnectionText::ProviderId),
+                connection_text(app.desktop_locale, ConnectionText::StableConfigurationIdReadOnly),
                 container(settings_value_badge(s.custom.provider_id.as_str())).width(Length::Fill),
             )
         } else {
             text_row(
-                "提供商 ID",
-                "作为配置中的稳定标识，只允许小写字母、数字、连字符或下划线。",
+                connection_text(app.desktop_locale, ConnectionText::ProviderId),
+                connection_text(
+                    app.desktop_locale,
+                    ConnectionText::StableConfigurationIdUsingLowercase,
+                ),
                 "myprovider",
                 &s.custom.provider_id,
                 |v| Message::Settings(message::SettingsMessage::CustomProviderIdChanged(v)),
@@ -191,16 +208,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         };
 
         let display_name_row = text_row(
-            "显示名称",
-            "展示给用户的 provider 名称。",
-            "我是 AI 提供商",
+            connection_text(app.desktop_locale, ConnectionText::DisplayName),
+            connection_text(app.desktop_locale, ConnectionText::ProviderNameShownToUsers),
+            connection_text(app.desktop_locale, ConnectionText::MyAiProvider),
             &s.custom.display_name,
             |v| Message::Settings(message::SettingsMessage::CustomProviderNameChanged(v)),
         );
 
         let base_url_row = text_row(
-            "基础 URL",
-            "OpenAI 兼容 API 根地址，例如 https://api.example.com/v1。",
+            connection_text(app.desktop_locale, ConnectionText::BaseUrl),
+            connection_text(app.desktop_locale, ConnectionText::OpenaiCompatibleApiRootFor),
             "https://api.example.com/v1",
             &s.custom.base_url,
             |v| Message::Settings(message::SettingsMessage::CustomProviderBaseUrlChanged(v)),
@@ -209,14 +226,18 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let api_key_row = if crate::app::state::is_shiju_official_provider_id(&s.custom.provider_id)
         {
             field_row(
-                "账户自动授权",
-                "登录识矩账户后自动配置模型，无需填写模型密钥。",
-                text("密钥由账户管理，不显示明文").style(settings_muted_text_style),
+                connection_text(app.desktop_locale, ConnectionText::AutomaticAccountAuthorization),
+                connection_text(app.desktop_locale, ConnectionText::SignInToYourShiju),
+                text(connection_text(
+                    app.desktop_locale,
+                    ConnectionText::AccountManagedKeyPlaintextIs,
+                ))
+                .style(settings_muted_text_style),
             )
         } else {
             secure_text_row(
                 "API Key",
-                "可选默认密钥；填写后会作为 Authorization 头使用。",
+                connection_text(app.desktop_locale, ConnectionText::OptionalDefaultKeySentIn),
                 "sk-...",
                 &s.custom.api_key,
                 |v| Message::Settings(message::SettingsMessage::CustomProviderApiKeyChanged(v)),
@@ -225,13 +246,17 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let mut headers_controls = column![
             row![
-                text(format!("已配置 {} 项", s.custom.headers.len()))
-                    .size(12)
-                    .style(settings_muted_text_style),
+                text(owned_text(
+                    app.desktop_locale,
+                    OwnedMessage::HeaderCount,
+                    &[s.custom.headers.len().to_string()]
+                ))
+                .size(12)
+                .style(settings_muted_text_style),
                 container(text(" ")).width(Length::Fill),
                 icon_btn(
                     Icon::Plus,
-                    "添加请求头",
+                    connection_text(app.desktop_locale, ConnectionText::AddHeader),
                     Some(Message::Settings(message::SettingsMessage::CustomProviderHeaderAdd))
                 ),
             ]
@@ -244,32 +269,42 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         for (i, h) in s.custom.headers.iter().enumerate() {
             headers_controls = headers_controls.push(
                 row![
-                    text_input("请求头名称", &h.key)
-                        .on_input(move |v| Message::Settings(
-                            message::SettingsMessage::CustomProviderHeaderKeyChanged(i, v)
-                        ))
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
-                        .width(Length::Fill),
-                    text_input("请求头值", &h.value)
-                        .on_input(move |v| Message::Settings(
-                            message::SettingsMessage::CustomProviderHeaderValueChanged(i, v)
-                        ))
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
-                        .width(Length::Fill),
+                    text_input(
+                        connection_text(app.desktop_locale, ConnectionText::HeaderName),
+                        &h.key
+                    )
+                    .on_input(move |v| Message::Settings(
+                        message::SettingsMessage::CustomProviderHeaderKeyChanged(i, v)
+                    ))
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .style(settings_text_input_style)
+                    .width(Length::Fill),
+                    text_input(
+                        connection_text(app.desktop_locale, ConnectionText::HeaderValue),
+                        &h.value
+                    )
+                    .on_input(move |v| Message::Settings(
+                        message::SettingsMessage::CustomProviderHeaderValueChanged(i, v)
+                    ))
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .style(settings_text_input_style)
+                    .width(Length::Fill),
                     if s.custom.headers.len() > 1 {
                         icon_btn(
                             Icon::Trash,
-                            "移除",
+                            connection_text(app.desktop_locale, ConnectionText::Remove),
                             Some(Message::Settings(
                                 message::SettingsMessage::CustomProviderHeaderRemove(i),
                             )),
                         )
                     } else {
-                        icon_btn(Icon::Trash, "移除", None)
+                        icon_btn(
+                            Icon::Trash,
+                            connection_text(app.desktop_locale, ConnectionText::Remove),
+                            None,
+                        )
                     },
                 ]
                 .spacing(10)
@@ -278,8 +313,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         }
 
         let headers_row = field_row(
-            "请求头",
-            "为特殊鉴权场景补充额外 header，例如代理网关或自定义令牌头。",
+            connection_text(app.desktop_locale, ConnectionText::Headers),
+            connection_text(app.desktop_locale, ConnectionText::AddHeadersForCustomAuthentication),
             headers_controls,
         );
 
@@ -292,16 +327,20 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let total_count =
             s.custom.models.iter().filter(|model| !model.model_id.trim().is_empty()).count();
         let mut model_actions = row![
-            settings_value_badge(format!("{enabled_count}/{total_count} 已启用")),
+            settings_value_badge(crate::app::i18n::settings_models::enabled_count(
+                app.desktop_locale,
+                enabled_count,
+                total_count
+            )),
             container(text(" ")).width(Length::Fill),
         ]
         .spacing(10)
         .align_y(Alignment::Center);
         model_actions = model_actions.push(
             button(text(if s.custom_models_discovering {
-                "发现中…"
+                connection_text(app.desktop_locale, ConnectionText::Discovering)
             } else {
-                "自动发现模型"
+                connection_text(app.desktop_locale, ConnectionText::DiscoverModels)
             }))
             .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
                 message::SettingsMessage::CustomProviderModelsDiscover,
@@ -315,19 +354,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         );
         model_actions = model_actions.push(icon_btn(
             Icon::Plus,
-            "添加模型",
+            connection_text(app.desktop_locale, ConnectionText::AddModel),
             Some(Message::Settings(message::SettingsMessage::CustomProviderModelOpen(None))),
         ));
 
         let filter_row = row![
-            model_filter_button("全部", CustomProviderModelFilter::All, s.custom_models_filter),
             model_filter_button(
-                "已启用",
+                connection_text(app.desktop_locale, ConnectionText::All),
+                CustomProviderModelFilter::All,
+                s.custom_models_filter
+            ),
+            model_filter_button(
+                connection_text(app.desktop_locale, ConnectionText::EnabledText),
                 CustomProviderModelFilter::Enabled,
                 s.custom_models_filter,
             ),
             model_filter_button(
-                "已禁用",
+                connection_text(app.desktop_locale, ConnectionText::DisabledText),
                 CustomProviderModelFilter::Disabled,
                 s.custom_models_filter,
             ),
@@ -337,12 +380,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let mut models_panel = column![
             field_row(
-                "模型",
-                "可留空，或自动发现该 provider 的模型；也可手动添加并启用/禁用。",
+                connection_text(app.desktop_locale, ConnectionText::Model),
+                connection_text(
+                    app.desktop_locale,
+                    ConnectionText::LeaveEmptyDiscoverModelsAutomatically
+                ),
                 model_actions,
             ),
             settings_divider(),
-            field_row("过滤", "按启用状态筛选模型列表。", filter_row),
+            field_row(
+                connection_text(app.desktop_locale, ConnectionText::Filter),
+                connection_text(app.desktop_locale, ConnectionText::FilterModelsByAvailability),
+                filter_row
+            ),
         ]
         .spacing(0);
 
@@ -353,12 +403,16 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             }
             visible_count += 1;
             let title = if m.display_name.trim().is_empty() {
-                if m.model_id.trim().is_empty() { "未命名模型" } else { m.model_id.as_str() }
+                if m.model_id.trim().is_empty() {
+                    connection_text(app.desktop_locale, ConnectionText::UnnamedModel)
+                } else {
+                    m.model_id.as_str()
+                }
             } else {
                 m.display_name.as_str()
             };
             let subtitle = if m.model_id.trim().is_empty() {
-                "尚未填写 model_id"
+                connection_text(app.desktop_locale, ConnectionText::NoModelIdYet)
             } else {
                 m.model_id.as_str()
             };
@@ -396,14 +450,18 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                         }),
                         icon_btn(
                             Icon::Pencil,
-                            "编辑",
+                            connection_text(app.desktop_locale, ConnectionText::Edit),
                             Some(Message::Settings(
                                 message::SettingsMessage::CustomProviderModelOpen(Some(i))
                             ))
                         ),
                         icon_btn(
                             Icon::Trash,
-                            if m.from_catalog { "禁用" } else { "移除" },
+                            if m.from_catalog {
+                                connection_text(app.desktop_locale, ConnectionText::Disabled)
+                            } else {
+                                connection_text(app.desktop_locale, ConnectionText::Remove)
+                            },
                             Some(remove_message),
                         ),
                     ]
@@ -419,9 +477,15 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             models_panel = models_panel.push(
                 container(
                     text(match s.custom_models_filter {
-                        CustomProviderModelFilter::All => "暂无模型",
-                        CustomProviderModelFilter::Enabled => "当前没有已启用的模型",
-                        CustomProviderModelFilter::Disabled => "当前没有已禁用的模型",
+                        CustomProviderModelFilter::All => {
+                            connection_text(app.desktop_locale, ConnectionText::NoModels)
+                        }
+                        CustomProviderModelFilter::Enabled => {
+                            connection_text(app.desktop_locale, ConnectionText::NoEnabledModels)
+                        }
+                        CustomProviderModelFilter::Disabled => {
+                            connection_text(app.desktop_locale, ConnectionText::NoDisabledModels)
+                        }
                     })
                     .size(12)
                     .style(settings_muted_text_style),
@@ -433,8 +497,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let basic_tab = column![
             settings_section_card(
-                "基础信息",
-                "命名 provider，并指定展示名称与 OpenAI 兼容接口地址。",
+                connection_text(app.desktop_locale, ConnectionText::BasicInformation),
+                connection_text(app.desktop_locale, ConnectionText::SetTheProviderIdDisplay),
             ),
             settings_section_content(
                 column![
@@ -450,8 +514,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16);
         let authentication_tab = column![
             settings_section_card(
-                "认证与请求头",
-                "设置默认 API Key，并为需要额外 header 的网关场景补充请求头。",
+                connection_text(app.desktop_locale, ConnectionText::AuthenticationAndHeaders),
+                connection_text(app.desktop_locale, ConnectionText::SetADefaultApiKey),
             ),
             settings_section_content(
                 column![api_key_row, settings_divider(), headers_row].spacing(0)
@@ -460,21 +524,29 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16);
         let models_tab = column![
             settings_section_card(
-                "模型",
-                "维护该 provider 的模型列表，后续聊天与生成界面会复用这里的配置。",
+                connection_text(app.desktop_locale, ConnectionText::Model),
+                connection_text(app.desktop_locale, ConnectionText::ManageTheProviderModelsUsed),
             ),
             settings_section_content(models_panel),
         ]
         .spacing(16);
 
         let tabs = row![
-            provider_tab_button("基础信息", CustomProviderTab::Basic, s.custom_provider_tab),
             provider_tab_button(
-                "认证与请求头",
+                connection_text(app.desktop_locale, ConnectionText::BasicInformation),
+                CustomProviderTab::Basic,
+                s.custom_provider_tab
+            ),
+            provider_tab_button(
+                connection_text(app.desktop_locale, ConnectionText::AuthenticationAndHeaders),
                 CustomProviderTab::Authentication,
                 s.custom_provider_tab,
             ),
-            provider_tab_button("模型", CustomProviderTab::Models, s.custom_provider_tab),
+            provider_tab_button(
+                connection_text(app.desktop_locale, ConnectionText::Model),
+                CustomProviderTab::Models,
+                s.custom_provider_tab
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -487,12 +559,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let footer_row =
             row![
-                button(text("取消"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::Cancel)))
                     .on_press(close_message.clone())
                     .padding([8, 14])
                     .style(rounded_action_btn_style),
                 container(text(" ")).width(Length::Fill),
-                button(text("保存"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::Save)))
                     .on_press_maybe((!s.custom_models_discovering).then_some(Message::Settings(
                         message::SettingsMessage::CustomProviderSave,
                     )))
@@ -513,7 +585,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let mut modal_col = column![header_row, tabs].spacing(16).height(Length::Fill);
         if let Some(err) = &s.save_error {
-            modal_col = modal_col.push(settings_error_banner(err));
+            modal_col = modal_col.push(settings_error_banner(err.display(app.desktop_locale)));
         }
         modal_col = modal_col.push(scroll_body).push(footer_row);
 

@@ -7,6 +7,9 @@ use crate::app::components::system_settings_common::{
     primary_action_btn_style, provider_logo_svg, rounded_action_btn_style, settings_modal_card,
     settings_modal_overlay, settings_muted_text_style, settings_text_input_style,
 };
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
 use crate::app::state::{ModelCatalogEntry, ProviderSummary, is_shiju_official_provider_id};
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -60,10 +63,6 @@ pub(super) fn visible_catalog_providers(
             })
         })
         .collect()
-}
-
-pub(super) fn model_count_label(model_count: usize) -> String {
-    if model_count == 1 { "1 个模型".to_string() } else { format!("{} 个模型", model_count) }
 }
 
 pub(super) fn catalog_surface_style(theme: &Theme) -> iced::widget::container::Style {
@@ -163,9 +162,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 in_popular,
             } = provider;
             let connect_btn = if is_connected {
-                button(text("已连接")).padding([6, 10]).style(rounded_action_btn_style)
+                button(text(connection_text(app.desktop_locale, ConnectionText::Connected)))
+                    .padding([6, 10])
+                    .style(rounded_action_btn_style)
             } else {
-                button(text("连接"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::Connect)))
                     .on_press(Message::Settings(message::SettingsMessage::ProviderConnectOpen(
                         provider_id.clone(),
                     )))
@@ -173,9 +174,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                     .style(primary_action_btn_style)
             };
             let add_btn = if in_popular {
-                button(text("已在热门")).padding([6, 10]).style(rounded_action_btn_style)
+                button(text(connection_text(
+                    app.desktop_locale,
+                    ConnectionText::AlreadyInFavorites,
+                )))
+                .padding([6, 10])
+                .style(rounded_action_btn_style)
             } else {
-                button(text("添加到热门"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::AddToFavorites)))
                     .on_press(Message::Settings(
                         message::SettingsMessage::ProviderCatalogAddToPopular(provider_id.clone()),
                     ))
@@ -183,7 +189,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                     .style(rounded_action_btn_style)
             };
 
-            let subtitle = model_count_label(model_count);
+            let subtitle =
+                crate::app::i18n::settings_models::model_count(app.desktop_locale, model_count);
             let row_item = container(
                 row![
                     container(provider_logo_svg(&provider_id, 16.0))
@@ -217,17 +224,22 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         }
 
         let body_content: Element<'_, Message> = if s.catalog_loading {
-            container(column![text("加载中…").size(14)].spacing(8))
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .center_x(Length::Fill)
-                .center_y(Length::Fill)
-                .into()
+            container(
+                column![
+                    text(connection_text(app.desktop_locale, ConnectionText::Loading)).size(14)
+                ]
+                .spacing(8),
+            )
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .center_x(Length::Fill)
+            .center_y(Length::Fill)
+            .into()
         } else if visible_count == 0 {
             let empty_text = if catalog_items.is_empty() {
-                "暂无可用模型提供商"
+                connection_text(app.desktop_locale, ConnectionText::NoModelProvidersAvailable)
             } else {
-                "未找到匹配的模型提供商"
+                connection_text(app.desktop_locale, ConnectionText::NoMatchingModelProviders)
             };
             container(text(empty_text).size(14).style(|t: &iced::Theme| text::Style {
                 color: Some(t.palette().text.scale_alpha(0.7)),
@@ -256,16 +268,22 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let search_block = container(
             column![
-                text("搜索与筛选").size(13),
-                text("按 provider 名称或 provider ID 快速定位可用目录。")
-                    .size(12)
-                    .style(settings_muted_text_style),
-                text_input("搜索模型提供商", &s.catalog_query)
-                    .on_input(|v| {
-                        Message::Settings(message::SettingsMessage::ProviderCatalogQueryChanged(v))
-                    })
-                    .width(Length::Fill)
-                    .style(settings_text_input_style),
+                text(connection_text(app.desktop_locale, ConnectionText::SearchAndFilter)).size(13),
+                text(connection_text(
+                    app.desktop_locale,
+                    ConnectionText::FindCatalogProvidersByName
+                ))
+                .size(12)
+                .style(settings_muted_text_style),
+                text_input(
+                    connection_text(app.desktop_locale, ConnectionText::SearchModelProviders),
+                    &s.catalog_query
+                )
+                .on_input(|v| {
+                    Message::Settings(message::SettingsMessage::ProviderCatalogQueryChanged(v))
+                })
+                .width(Length::Fill)
+                .style(settings_text_input_style),
             ]
             .spacing(8),
         )
@@ -275,10 +293,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let modal_col = column![
             row![
                 column![
-                    text("更多模型提供商").size(18),
-                    text("浏览模型目录中的 provider，并快速连接或加入热门。")
-                        .size(12)
-                        .style(settings_muted_text_style),
+                    text(connection_text(app.desktop_locale, ConnectionText::MoreModelProviders))
+                        .size(18),
+                    text(connection_text(
+                        app.desktop_locale,
+                        ConnectionText::BrowseTheModelCatalogAnd
+                    ))
+                    .size(12)
+                    .style(settings_muted_text_style),
                 ]
                 .spacing(4),
                 container(text("")).width(Length::Fill),

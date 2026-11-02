@@ -26,7 +26,7 @@ fn gateway_helpers_normalize_and_clamp() {
 fn gateway_update_generates_skeys_and_handles_help() {
     let mut app = app();
     app.gateway_settings.skeys.clear();
-    app.gateway_settings.save_error = Some("old".to_string());
+    app.gateway_settings.save_error = Some(("old".to_string()).into());
     app.gateway_settings.new_skey_calendar_open = true;
 
     assert_eq!(app.gateway_settings.active_tab, crate::app::state::GatewaySettingsTab::Config);
@@ -208,9 +208,12 @@ fn gateway_skey_helpers_validate_unicode_names_dates_and_mask_boundaries() {
     assert_eq!(normalize_skey_name(&format!("  {max_name}  ")), Ok(max_name));
     assert_eq!(
         normalize_skey_name(&"界".repeat(81)),
-        Err("skey 名称不能超过 80 个字符".to_string())
+        Err(Feedback::owned(OwnedMessage::SkeyNameTooLong, vec![]))
     );
-    assert_eq!(normalize_skey_name(" \n "), Err("skey 名称不能为空".to_string()));
+    assert_eq!(
+        normalize_skey_name(" \n "),
+        Err(Feedback::owned(OwnedMessage::SkeyNameRequired, vec![]))
+    );
 
     assert_eq!(mask_skey_for_display(" 1234567890123456789012345 "), "1234567890123456789012345");
     assert_eq!(hash_skey(" secret "), hash_skey("secret"));
@@ -285,7 +288,7 @@ fn gateway_expiration_messages_keep_calendar_and_input_consistent() {
 #[test]
 fn gateway_config_messages_clamp_values_and_preserve_ignored_pair_limit() {
     let mut app = app();
-    app.gateway_settings.save_error = Some("stale".to_string());
+    app.gateway_settings.save_error = Some(("stale".to_string()).into());
 
     let _ = update(&mut app, SettingsMessage::Gateway(GatewayMessage::PortChanged(0)));
     let _ = update(
@@ -455,7 +458,7 @@ fn gateway_service_messages_normalize_commands_and_report_recovery_results() {
 #[test]
 fn gateway_update_ignores_non_gateway_messages_and_copy_without_a_skey() {
     let mut app = app();
-    app.gateway_settings.save_error = Some("keep".to_string());
+    app.gateway_settings.save_error = Some(("keep".to_string()).into());
 
     let _ = update(&mut app, SettingsMessage::ProvidersRefresh);
     assert_eq!(app.gateway_settings.save_error.as_deref(), Some("keep"));

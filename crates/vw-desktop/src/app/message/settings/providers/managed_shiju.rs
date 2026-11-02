@@ -1,6 +1,7 @@
 //! 将账号登录态连接到识矩模型认证；秘密只在当前账号的结果被接受后写入。
 
 use crate::app::config;
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::message::account::AccountMessage;
 use crate::app::state::SHIJU_OFFICIAL_PROVIDER_ID;
 use crate::app::{App, Message};
@@ -9,15 +10,15 @@ use std::time::Duration;
 use vw_gateway_client::ShijuModelTokenDto;
 use vw_shared::auth;
 
-fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), &'static str> {
+fn save_token(path: &std::path::Path, token: &ShijuModelTokenDto) -> Result<(), Feedback> {
     if token.endpoint_url != "https://router.shiju.cloud/v1"
         || !token.key.expose().bytes().all(|byte| (33..=126).contains(&byte))
     {
-        return Err("识矩模型授权响应无效");
+        return Err(Feedback::owned(OwnedMessage::InvalidAuthorization, vec![]));
     }
     let info = auth::Info::Api(auth::ApiInfo { key: token.key.expose().to_string() });
     auth::store::set_to(path, SHIJU_OFFICIAL_PROVIDER_ID, &info)
-        .map_err(|_| "识矩模型凭据保存失败，请检查认证文件权限")
+        .map_err(|_| Feedback::owned(OwnedMessage::CredentialSaveFailed, vec![]))
 }
 
 /// 登录、启动恢复、切换账号及退出时统一撤销旧模型凭据。
@@ -40,7 +41,10 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
     let path = super::models::auth_filepath();
     if auth::store::get_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_some() {
         if auth::store::remove_from(&path, SHIJU_OFFICIAL_PROVIDER_ID).is_err() {
-            return app.show_error_toast("无法清理识矩模型凭据，请检查认证文件权限");
+            return app.show_error_toast(
+                Feedback::owned(OwnedMessage::CredentialRemoveFailed, vec![])
+                    .display(app.desktop_locale),
+            );
         }
     }
     for provider in &mut app.provider_settings.providers {
@@ -55,7 +59,11 @@ pub(crate) fn reset(app: &mut App, generation: u64) -> Task<Message> {
     let account_id = account.id().to_string();
     let credential = match account.skill_hub_credential().gateway_credential() {
         Ok(credential) => credential,
-        Err(_) => return app.show_error_toast("识矩登录凭据无效，请重新登录"),
+        Err(_) => {
+            return app.show_error_toast(
+                Feedback::owned(OwnedMessage::InvalidLogin, vec![]).display(app.desktop_locale),
+            );
+        }
     };
     Task::perform(
         async move { config::gateway_client()?.shiju_model_token(&credential).await },
@@ -86,7 +94,7 @@ pub(crate) fn token_loaded(
     };
     // 网关响应仍需在持久化边界校验，避免错误配置将模型密钥发送给其他服务。
     if let Err(error) = save_token(&super::models::auth_filepath(), &token) {
-        return app.show_error_toast(error);
+        return app.show_error_toast(error.display(app.desktop_locale));
     }
     Task::perform(
         async move {
@@ -115,7 +123,9 @@ pub(crate) fn configured(
     match result {
         Ok(()) => Task::batch([
             super::tasks::refresh_task(),
-            app.show_success_toast("识矩模型已自动配置"),
+            app.show_success_toast(
+                Feedback::owned(OwnedMessage::ModelsConfigured, vec![]).display(app.desktop_locale),
+            ),
         ]),
         Err(_) => retry_task(generation),
     }

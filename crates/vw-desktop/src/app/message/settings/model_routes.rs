@@ -2,6 +2,7 @@
 
 use crate::app::config::server_config_unreachable_error;
 use crate::app::config::update_system_settings_config;
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::{
     App, Message, load_model_routes_config, load_query_classification_config,
     state::{ModelRoute, QueryClassificationRuleInput},
@@ -48,7 +49,7 @@ fn sync_to_config(app: &mut App) {
     if let Err(err) = update_model_routes_config_result(|routes| {
         *routes = model_routes;
     }) {
-        app.model_routes_settings.save_error = Some(server_config_unreachable_error(err));
+        app.model_routes_settings.save_error = Some((server_config_unreachable_error(err)).into());
     }
 }
 
@@ -101,7 +102,7 @@ fn sync_query_classification(app: &mut App) {
     }
 }
 
-fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, String> {
+fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, Feedback> {
     let mut routes = Vec::with_capacity(app.model_routes_settings.routes.len());
     for (idx, route) in app.model_routes_settings.routes.iter().enumerate() {
         let pattern = route.pattern.trim();
@@ -113,16 +114,28 @@ fn validate_routes(app: &App) -> Result<Vec<ModelRouteConfig>, String> {
             continue;
         }
         if pattern.is_empty() {
-            return Err(format!("第 {} 条路由缺少 pattern", idx + 1));
+            return Err(Feedback::owned(
+                OwnedMessage::RouteMissingPattern,
+                vec![(idx + 1).to_string()],
+            ));
         }
         if provider.is_empty() {
-            return Err(format!("第 {} 条路由缺少 provider", idx + 1));
+            return Err(Feedback::owned(
+                OwnedMessage::RouteMissingProvider,
+                vec![(idx + 1).to_string()],
+            ));
         }
         if model.is_empty() {
-            return Err(format!("第 {} 条路由缺少 model", idx + 1));
+            return Err(Feedback::owned(
+                OwnedMessage::RouteMissingModel,
+                vec![(idx + 1).to_string()],
+            ));
         }
         if !priority.is_empty() && priority.parse::<u32>().is_err() {
-            return Err(format!("第 {} 条路由的 priority 不是有效数字", idx + 1));
+            return Err(Feedback::owned(
+                OwnedMessage::RoutePriorityInvalid,
+                vec![(idx + 1).to_string()],
+            ));
         }
 
         routes.push(ModelRouteConfig {
@@ -185,7 +198,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.model_routes_settings.save_error = if app.model_routes_settings.routes.is_empty()
                 && !query_classification.rules.is_empty()
             {
-                Some("已检测到 query_classification 规则，但桌面模型路由列表为空".to_string())
+                Some(Feedback::owned(OwnedMessage::ClassificationWithoutRoutes, vec![]))
             } else {
                 None
             };
@@ -217,7 +230,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     sync_to_config(app);
                     sync_query_classification(app);
                 }
-                Err(err) => app.model_routes_settings.save_error = Some(err),
+                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
             }
             Task::none()
         }
@@ -231,7 +244,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     sync_to_config(app);
                     sync_query_classification(app);
                 }
-                Err(err) => app.model_routes_settings.save_error = Some(err),
+                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
             }
             Task::none()
         }
@@ -245,7 +258,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     sync_to_config(app);
                     sync_query_classification(app);
                 }
-                Err(err) => app.model_routes_settings.save_error = Some(err),
+                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
             }
             Task::none()
         }
@@ -259,7 +272,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     sync_to_config(app);
                     sync_query_classification(app);
                 }
-                Err(err) => app.model_routes_settings.save_error = Some(err),
+                Err(err) => app.model_routes_settings.save_error = Some((err).into()),
             }
             Task::none()
         }

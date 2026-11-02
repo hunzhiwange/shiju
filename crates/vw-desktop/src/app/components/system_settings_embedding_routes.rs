@@ -9,6 +9,9 @@ use crate::app::components::system_settings_common::{
     settings_panel_style, settings_section_card, settings_success_banner,
     settings_text_input_style,
 };
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
 use crate::app::message::settings::EmbeddingRoutesMessage;
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, text, text_input};
@@ -108,13 +111,14 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let header = row![
         container(
-            text(
-                "按场景配置嵌入提供商、模型、维度和 API Key；在“嵌入与检索”中用 hint:模式名 引用。"
-            )
+            text(connection_text(
+                app.desktop_locale,
+                ConnectionText::ConfigureEmbeddingProvidersModelsDimensions
+            ))
             .style(settings_muted_text_style)
         )
         .width(Length::Fill),
-        button(text("添加路由"))
+        button(text(connection_text(app.desktop_locale, ConnectionText::AddRoute)))
             .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                 EmbeddingRoutesMessage::AddRoute,
             )))
@@ -126,18 +130,21 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     let templates_panel = settings_panel(
         column![
-            text("快捷模板").size(13),
-            text("一键插入常用配置，插入后仍可按需改 provider、模型、维度和 API Key。")
-                .size(11)
-                .style(settings_muted_text_style),
+            text(connection_text(app.desktop_locale, ConnectionText::QuickTemplates)).size(13),
+            text(connection_text(
+                app.desktop_locale,
+                ConnectionText::InsertACommonConfigurationThen
+            ))
+            .size(11)
+            .style(settings_muted_text_style),
             row![
                 template_button(
-                    "阿里 DashScope",
+                    connection_text(app.desktop_locale, ConnectionText::AlibabaDashscope),
                     "alibaba-cn / text-embedding-v4 / 1024",
                     EmbeddingRoutesMessage::InsertAlibabaTemplate,
                 ),
                 template_button(
-                    "豆包 Vision 250615",
+                    connection_text(app.desktop_locale, ConnectionText::DoubaoVision250615),
                     "custom:Volcengine Ark / doubao-embedding-vision-250615",
                     EmbeddingRoutesMessage::InsertDoubaoTemplate,
                 ),
@@ -157,25 +164,29 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         header,
         templates_panel,
         settings_section_card(
-            "路由规则",
-            "每条路由定义一个匹配模式，并映射到具体的嵌入 provider/model。"
+            connection_text(app.desktop_locale, ConnectionText::RouteRules),
+            connection_text(app.desktop_locale, ConnectionText::EachRouteMapsAScenario)
         ),
     ]
     .spacing(16)
     .width(Length::Fill);
 
     if s.save_error.is_none() && s.save_success {
-        content = content.push(settings_success_banner("保存成功"));
+        content = content.push(settings_success_banner(connection_text(
+            app.desktop_locale,
+            ConnectionText::SavedSuccessfully,
+        )));
     }
-    if let Some(error) = s.save_error.as_deref() {
-        content = content.push(settings_error_banner(error));
+    if let Some(error) = s.save_error.as_ref() {
+        content = content.push(settings_error_banner(error.display(app.desktop_locale)));
     }
 
     if s.routes.is_empty() {
         content = content.push(settings_panel(
             column![
-                text("暂无嵌入路由").size(14),
-                text("点击上方模板按钮或右上角「添加路由」创建第一条规则。")
+                text(connection_text(app.desktop_locale, ConnectionText::NoEmbeddingRoutes))
+                    .size(14),
+                text(connection_text(app.desktop_locale, ConnectionText::SelectATemplateOrAdd))
                     .size(12)
                     .style(settings_muted_text_style)
             ]
@@ -185,8 +196,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
 
     for (index, route) in s.routes.iter().enumerate() {
         let pattern_row = field_row(
-            "匹配模式",
-            "用于匹配业务或任务场景。",
+            connection_text(app.desktop_locale, ConnectionText::Pattern),
+            connection_text(app.desktop_locale, ConnectionText::MatchesABusinessOrTask),
             "semantic",
             &route.pattern,
             move |value| {
@@ -196,8 +207,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let provider_row = field_row(
-            "提供商",
-            "嵌入请求所使用的 provider。",
+            connection_text(app.desktop_locale, ConnectionText::Provider),
+            connection_text(app.desktop_locale, ConnectionText::ProviderUsedForEmbeddingRequests),
             "alibaba-cn",
             &route.provider,
             move |value| {
@@ -207,8 +218,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let model_row = field_row(
-            "模型",
-            "具体使用的 embedding 模型。",
+            connection_text(app.desktop_locale, ConnectionText::Model),
+            connection_text(app.desktop_locale, ConnectionText::EmbeddingModelToUse),
             "text-embedding-v4",
             &route.model,
             move |value| {
@@ -218,8 +229,8 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
             },
         );
         let dimensions_row = field_row(
-            "维度",
-            "留空时按模型默认维度运行。",
+            connection_text(app.desktop_locale, ConnectionText::Dimensions),
+            connection_text(app.desktop_locale, ConnectionText::LeaveEmptyToUseThe),
             "1024",
             &route.dimensions,
             move |value| {
@@ -230,7 +241,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         );
         let api_key_row = secure_field_row(
             "API Key",
-            "可选覆盖凭据；阿里填 DashScope API Key。",
+            connection_text(app.desktop_locale, ConnectionText::OptionalCredentialOverrideUseA),
             "DASHSCOPE_API_KEY",
             &route.api_key_input,
             move |value| {
@@ -241,12 +252,15 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
         );
 
         let route_title = row![
-            text(format!("路由 {}", index + 1)).size(14),
-            text("匹配模式 -> 提供商/模型").size(12).style(|t: &iced::Theme| {
-                iced::widget::text::Style { color: Some(t.palette().text.scale_alpha(0.65)) }
-            }),
+            text(crate::app::i18n::settings_models::route_title(app.desktop_locale, index + 1))
+                .size(14),
+            text(connection_text(app.desktop_locale, ConnectionText::PatternProviderModel))
+                .size(12)
+                .style(|t: &iced::Theme| {
+                    iced::widget::text::Style { color: Some(t.palette().text.scale_alpha(0.65)) }
+                }),
             container(text(" ")).width(Length::Fill),
-            button(text("删除"))
+            button(text(connection_text(app.desktop_locale, ConnectionText::Delete)))
                 .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                     EmbeddingRoutesMessage::RemoveRoute(index),
                 )))
@@ -276,7 +290,7 @@ pub fn embedded_view(app: &App) -> Element<'_, Message> {
     content = content.push(
         row![
             container(text(" ")).width(Length::Fill),
-            button(text("保存"))
+            button(text(connection_text(app.desktop_locale, ConnectionText::Save)))
                 .on_press(Message::Settings(message::SettingsMessage::EmbeddingRoutes(
                     EmbeddingRoutesMessage::Save,
                 )))

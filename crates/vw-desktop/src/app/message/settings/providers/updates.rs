@@ -1,5 +1,6 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::{
     App, Message,
     state::{
@@ -25,7 +26,7 @@ use super::tasks::{
 fn reset_models_sync_state(app: &mut App) {
     app.provider_settings.models_syncing = false;
     app.provider_settings.models_sync_progress = 0.0;
-    app.provider_settings.models_sync_label.clear();
+    app.provider_settings.models_sync_label = String::new().into();
 }
 
 fn replace_popular_patterns(app: &mut App, patterns: Vec<String>) {
@@ -99,7 +100,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.provider_settings.disconnect_confirm_provider_id = None;
             app.provider_settings.models_syncing = true;
             app.provider_settings.models_sync_progress = 0.08;
-            app.provider_settings.models_sync_label = "正在从 models.dev 拉取模型目录…".to_string();
+            app.provider_settings.models_sync_label =
+                Feedback::owned(OwnedMessage::SyncFetch, vec![]);
             sync_remote_task()
         }
         SettingsMessage::ProviderModelsSyncTick => {
@@ -109,11 +111,11 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let next = (app.provider_settings.models_sync_progress + 0.07).min(0.9);
             app.provider_settings.models_sync_progress = next;
             app.provider_settings.models_sync_label = if next < 0.35 {
-                "正在从 models.dev 拉取模型目录…".to_string()
+                Feedback::owned(OwnedMessage::SyncFetch, vec![])
             } else if next < 0.7 {
-                "正在写入本地缓存…".to_string()
+                Feedback::owned(OwnedMessage::SyncCache, vec![])
             } else {
-                "正在刷新提供商视图…".to_string()
+                Feedback::owned(OwnedMessage::SyncRefresh, vec![])
             };
             Task::none()
         }
@@ -133,7 +135,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Task::none()
             }
             Err(e) => {
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
                 app.provider_settings.catalog_loading = false;
                 reset_models_sync_state(app);
                 Task::none()
@@ -156,7 +158,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.provider_settings.loading = false;
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
                 app.provider_settings.catalog_loading = false;
                 Task::none()
             }
@@ -165,7 +167,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             if is_shiju_official_provider_id(&provider_id) {
                 app.provider_settings.connect_modal = None;
                 if app.account.active_account().is_none() {
-                    return app.show_warning_toast("请先登录识矩账户，模型将自动配置");
+                    return app.show_warning_toast(
+                        Feedback::owned(OwnedMessage::SignInFirst, vec![])
+                            .display(app.desktop_locale),
+                    );
                 }
                 return super::managed_shiju::sync(app);
             }
@@ -219,7 +224,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 return super::managed_shiju::sync(app);
             }
             if m.api_key.trim().is_empty() {
-                app.provider_settings.connect_error = Some("请输入 API 密钥".to_string());
+                app.provider_settings.connect_error =
+                    Some(Feedback::owned(OwnedMessage::ApiKeyRequired, vec![]));
                 return Task::none();
             }
             app.provider_settings.loading = true;
@@ -246,7 +252,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.provider_settings.loading = false;
-                app.provider_settings.connect_error = Some(e);
+                app.provider_settings.connect_error = Some((e).into());
                 Task::none()
             }
         },
@@ -291,7 +297,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.provider_settings.loading = false;
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
                 app.provider_settings.disconnect_confirm_provider_id = None;
                 Task::none()
             }
@@ -340,7 +346,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Err(e) => {
                 app.provider_settings.loading = false;
                 app.provider_settings.custom_models_discovering = false;
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
                 Task::none()
             }
         },
@@ -506,7 +512,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             };
             let model_id = m.model_id.trim().to_string();
             if model_id.is_empty() {
-                app.provider_settings.save_error = Some("模型 ID 不能为空".to_string());
+                app.provider_settings.save_error =
+                    Some(Feedback::owned(OwnedMessage::ModelIdRequired, vec![]));
                 return Task::none();
             }
             let new_model = CustomProviderModelDraft {
@@ -545,8 +552,10 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 .filter(|(index, _)| Some(*index) != m.edit_index)
                 .any(|(_, model)| model.model_id.trim() == new_model.model_id)
             {
-                app.provider_settings.save_error =
-                    Some(format!("模型 ID 已存在：{}", new_model.model_id));
+                app.provider_settings.save_error = Some(Feedback::owned(
+                    OwnedMessage::ModelIdExists,
+                    vec![new_model.model_id.clone()],
+                ));
                 return Task::none();
             }
             let mut next_models = app.provider_settings.custom.models.clone();
@@ -560,7 +569,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 next_models.push(new_model.clone());
             }
             if let Err(error) = validate_model_drafts(&next_models) {
-                app.provider_settings.save_error = Some(error);
+                app.provider_settings.save_error = Some((error).into());
                 return Task::none();
             }
             if let Some(i) = m.edit_index {
@@ -623,7 +632,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.provider_settings.save_error = None;
                 }
                 Err(error) => {
-                    app.provider_settings.save_error = Some(error);
+                    app.provider_settings.save_error = Some((error).into());
                 }
             }
             Task::none()
@@ -636,17 +645,18 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let provider_id = draft.provider_id.trim().to_string();
             if !is_valid_provider_id(&provider_id) {
                 app.provider_settings.save_error =
-                    Some("提供商 ID 仅支持小写字母、数字、连字符或下划线".to_string());
+                    Some(Feedback::owned(OwnedMessage::InvalidProviderId, vec![]));
                 return Task::none();
             }
             let base_url = draft.base_url.trim().to_string();
             if base_url.is_empty() {
-                app.provider_settings.save_error = Some("基础 URL 不能为空".to_string());
+                app.provider_settings.save_error =
+                    Some(Feedback::owned(OwnedMessage::BaseUrlRequired, vec![]));
                 return Task::none();
             }
 
             if let Err(error) = validate_model_drafts(&draft.models) {
-                app.provider_settings.save_error = Some(error);
+                app.provider_settings.save_error = Some((error).into());
                 return Task::none();
             }
 
@@ -681,7 +691,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Err(e) => {
                 app.provider_settings.loading = false;
                 app.provider_settings.custom_models_discovering = false;
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
                 Task::none()
             }
         },
@@ -702,7 +712,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         SettingsMessage::PopularProvidersSaved(res) => {
             if let Err(e) = res {
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
             }
             Task::none()
         }
@@ -732,7 +742,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.provider_settings.catalog_loading = false;
-                app.provider_settings.save_error = Some(e);
+                app.provider_settings.save_error = Some((e).into());
                 Task::none()
             }
         },

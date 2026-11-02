@@ -75,7 +75,7 @@ fn embedded_view_success_banner_requires_success_without_error() {
     let success_tree = element_tree(embedded_view(&app));
     assert_eq!(content_tree(&success_tree).children.len(), 6);
 
-    app.embedding_routes_settings.save_error = Some("保存失败".to_string());
+    app.embedding_routes_settings.save_error = Some(("保存失败".to_string()).into());
     let error_tree = element_tree(embedded_view(&app));
     assert_eq!(content_tree(&error_tree).children.len(), 6);
 }

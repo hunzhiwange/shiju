@@ -197,7 +197,7 @@ fn summarize_models_maps_status_capabilities_limits_and_serialized_detail() {
 #[test]
 fn models_refresh_clears_transient_state_and_success_replaces_providers() {
     let mut app = app();
-    app.model_settings.save_error = Some("stale".to_string());
+    app.model_settings.save_error = Some(("stale".to_string()).into());
     app.model_settings.providers = vec![provider_summary()];
     let _ = update(
         &mut app,
@@ -222,7 +222,7 @@ fn models_refresh_error_stops_loading_and_records_error() {
     app.model_settings.loading = true;
     app.model_settings.providers = vec![provider_summary()];
 
-    let _ = update(&mut app, SettingsMessage::ModelsRefreshed(Err("network".to_string())));
+    let _ = update(&mut app, SettingsMessage::ModelsRefreshed(Err("network".to_string().into())));
 
     assert!(!app.model_settings.loading);
     assert_eq!(app.model_settings.save_error.as_deref(), Some("network"));
@@ -244,7 +244,7 @@ fn model_toggle_updates_locally_and_starts_save_without_reloading() {
     let mut app = app();
     app.auto_model = false;
     app.model = "another-model".to_string();
-    app.model_settings.save_error = Some("stale".to_string());
+    app.model_settings.save_error = Some(("stale".to_string()).into());
     app.model_settings.providers = vec![provider_summary()];
     let _ = update(
         &mut app,
@@ -479,7 +479,7 @@ fn model_status_save_error_rolls_back_local_changes() {
     );
     let _ = update(
         &mut app,
-        SettingsMessage::ModelStatusesSaved(vec![change], Err("save failed".to_string())),
+        SettingsMessage::ModelStatusesSaved(vec![change], Err("save failed".to_string().into())),
     );
 
     assert!(!app.model_settings.saving);

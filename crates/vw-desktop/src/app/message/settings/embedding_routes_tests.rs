@@ -54,7 +54,7 @@ fn template_routes_contain_complete_provider_defaults() {
 #[test]
 fn add_and_template_messages_append_routes_and_clear_save_status() {
     let mut app = app();
-    app.embedding_routes_settings.save_error = Some("old error".to_string());
+    app.embedding_routes_settings.save_error = Some(("old error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
 
     let _ = update(&mut app, SettingsMessage::EmbeddingRoutes(EmbeddingRoutesMessage::AddRoute));
@@ -63,7 +63,7 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
     assert!(app.embedding_routes_settings.save_error.is_none());
     assert!(!app.embedding_routes_settings.save_success);
 
-    app.embedding_routes_settings.save_error = Some("another error".to_string());
+    app.embedding_routes_settings.save_error = Some(("another error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
     let _ = update(
         &mut app,
@@ -73,7 +73,7 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
     assert!(app.embedding_routes_settings.save_error.is_none());
     assert!(!app.embedding_routes_settings.save_success);
 
-    app.embedding_routes_settings.save_error = Some("last error".to_string());
+    app.embedding_routes_settings.save_error = Some(("last error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
     let _ = update(
         &mut app,
@@ -83,7 +83,7 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
     assert!(app.embedding_routes_settings.save_error.is_none());
     assert!(!app.embedding_routes_settings.save_success);
 
-    app.embedding_routes_settings.save_error = Some("final error".to_string());
+    app.embedding_routes_settings.save_error = Some(("final error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
     let _ = update(
         &mut app,
@@ -104,7 +104,7 @@ fn add_and_template_messages_append_routes_and_clear_save_status() {
 fn field_change_messages_update_every_editable_value() {
     let mut app = app();
     app.embedding_routes_settings.routes = vec![EmbeddingRouteDraft::default()];
-    app.embedding_routes_settings.save_error = Some("old error".to_string());
+    app.embedding_routes_settings.save_error = Some(("old error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
 
     for message in [
@@ -134,7 +134,7 @@ fn remove_route_deletes_only_an_existing_index() {
         route("first", "provider-a", "model-a", ""),
         route("second", "provider-b", "model-b", ""),
     ];
-    app.embedding_routes_settings.save_error = Some("old error".to_string());
+    app.embedding_routes_settings.save_error = Some(("old error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
 
     let _ =
@@ -155,7 +155,7 @@ fn out_of_bounds_field_changes_leave_the_existing_route_unchanged() {
     let mut app = app();
     app.embedding_routes_settings.routes = vec![route("docs", "openai", "model", "1536")];
     app.embedding_routes_settings.routes[0].api_key_input = "original-key".to_string();
-    app.embedding_routes_settings.save_error = Some("old error".to_string());
+    app.embedding_routes_settings.save_error = Some(("old error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
 
     for message in [
@@ -232,11 +232,11 @@ fn persist_rejects_zero_nonnumeric_and_overflowing_dimensions() {
 #[test]
 fn persist_accepts_empty_routes_blank_dimensions_and_u32_maximum() {
     let mut app = app();
-    app.embedding_routes_settings.save_error = Some("old error".to_string());
+    app.embedding_routes_settings.save_error = Some(("old error".to_string()).into());
 
     assert!(persist_embedding_routes_settings(&mut app).is_some());
     assert!(app.embedding_routes_settings.save_error.is_none());
-    assert!(app.embedding_routes_settings.save_success);
+    assert!(!app.embedding_routes_settings.save_success);
 
     app.embedding_routes_settings.routes = vec![
         route(" docs ", " openai ", " model ", " \n"),
@@ -247,7 +247,7 @@ fn persist_accepts_empty_routes_blank_dimensions_and_u32_maximum() {
 
     assert!(persist_embedding_routes_settings(&mut app).is_some());
     assert!(app.embedding_routes_settings.save_error.is_none());
-    assert!(app.embedding_routes_settings.save_success);
+    assert!(!app.embedding_routes_settings.save_success);
 }
 
 #[test]
@@ -265,7 +265,7 @@ fn save_message_exposes_validation_result_in_settings_state() {
     app.embedding_routes_settings.routes[0].dimensions = "1536".to_string();
     let _ = update(&mut app, SettingsMessage::EmbeddingRoutes(EmbeddingRoutesMessage::Save));
     assert!(app.embedding_routes_settings.save_error.is_none());
-    assert!(app.embedding_routes_settings.save_success);
+    assert!(!app.embedding_routes_settings.save_success);
 }
 
 // 消息与任务边界：确认输入消息产生预期状态或返回任务。
@@ -274,7 +274,7 @@ fn save_message_exposes_validation_result_in_settings_state() {
 fn non_embedding_message_leaves_embedding_routes_state_unchanged() {
     let mut app = app();
     app.embedding_routes_settings.routes = vec![route("docs", "openai", "model", "1536")];
-    app.embedding_routes_settings.save_error = Some("keep error".to_string());
+    app.embedding_routes_settings.save_error = Some(("keep error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
 
     let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);

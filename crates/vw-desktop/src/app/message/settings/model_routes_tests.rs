@@ -167,7 +167,7 @@ fn remove_route_updates_existing_rows_and_ignores_out_of_range_indexes() {
         route("chat", "openai", "gpt-5", "3"),
         route("code", "anthropic", "claude-sonnet", "9"),
     ];
-    app.model_routes_settings.save_error = Some("stale".to_string());
+    app.model_routes_settings.save_error = Some(("stale".to_string()).into());
 
     let _ = update(&mut app, SettingsMessage::ModelRoutes(ModelRoutesMessage::RemoveRoute(9)));
 
@@ -194,7 +194,7 @@ fn remove_route_updates_existing_rows_and_ignores_out_of_range_indexes() {
 fn update_ignores_messages_for_other_settings_sections() {
     let mut app = app();
     app.model_routes_settings.routes = vec![route("chat", "openai", "gpt-5", "3")];
-    app.model_routes_settings.save_error = Some("keep".to_string());
+    app.model_routes_settings.save_error = Some(("keep".to_string()).into());
 
     let _ = update(&mut app, SettingsMessage::ToggleSettingsSidebar);
 

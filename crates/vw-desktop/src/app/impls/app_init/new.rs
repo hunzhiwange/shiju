@@ -806,7 +806,9 @@ impl App {
                         api_key_input: route.api_key.unwrap_or_default(),
                     })
                     .collect(),
-                save_error: gateway_cfg_result.err().map(config::server_config_unreachable_error),
+                save_error: gateway_cfg_result
+                    .err()
+                    .map(crate::app::i18n::settings_models::messages::Feedback::gateway),
                 save_success: false,
             },
             model_routes_settings: super::state::ModelRoutesSettingsState {
@@ -827,7 +829,7 @@ impl App {
                 save_error: if model_routes_cfg.is_empty()
                     && !query_classification_cfg.rules.is_empty()
                 {
-                    Some("已检测到 query_classification 规则，但桌面模型路由列表为空".to_string())
+                    Some(crate::app::i18n::settings_models::messages::Feedback::owned(crate::app::i18n::settings_models::messages::Message::ClassificationWithoutRoutes, vec![]))
                 } else {
                     None
                 },

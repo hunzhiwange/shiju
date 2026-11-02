@@ -1,6 +1,7 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use crate::app::config::update_embedding_routes_config_async;
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::{App, Message, state::EmbeddingRouteDraft};
 use iced::Task;
 use vw_config_types::routing::EmbeddingRouteConfig;
@@ -46,20 +47,26 @@ fn persist_embedding_routes_settings(app: &mut App) -> Option<Task<Message>> {
         let model = draft.model.trim().to_string();
 
         if pattern.is_empty() {
-            app.embedding_routes_settings.save_error =
-                Some(format!("第 {} 条路由的 pattern 不能为空", index + 1));
+            app.embedding_routes_settings.save_error = Some(Feedback::owned(
+                OwnedMessage::RoutePatternRequired,
+                vec![(index + 1).to_string()],
+            ));
             app.embedding_routes_settings.save_success = false;
             return None;
         }
         if provider.is_empty() {
-            app.embedding_routes_settings.save_error =
-                Some(format!("第 {} 条路由的 provider 不能为空", index + 1));
+            app.embedding_routes_settings.save_error = Some(Feedback::owned(
+                OwnedMessage::RouteProviderRequired,
+                vec![(index + 1).to_string()],
+            ));
             app.embedding_routes_settings.save_success = false;
             return None;
         }
         if model.is_empty() {
-            app.embedding_routes_settings.save_error =
-                Some(format!("第 {} 条路由的 model 不能为空", index + 1));
+            app.embedding_routes_settings.save_error = Some(Feedback::owned(
+                OwnedMessage::RouteModelRequired,
+                vec![(index + 1).to_string()],
+            ));
             app.embedding_routes_settings.save_success = false;
             return None;
         }
@@ -70,8 +77,10 @@ fn persist_embedding_routes_settings(app: &mut App) -> Option<Task<Message>> {
             match draft.dimensions.trim().parse::<u32>() {
                 Ok(value) if value > 0 => Some(value as usize),
                 _ => {
-                    app.embedding_routes_settings.save_error =
-                        Some(format!("第 {} 条路由的 dimensions 必须是大于 0 的整数", index + 1));
+                    app.embedding_routes_settings.save_error = Some(Feedback::owned(
+                        OwnedMessage::RouteDimensionsInvalid,
+                        vec![(index + 1).to_string()],
+                    ));
                     app.embedding_routes_settings.save_success = false;
                     return None;
                 }
@@ -88,7 +97,7 @@ fn persist_embedding_routes_settings(app: &mut App) -> Option<Task<Message>> {
     }
 
     app.embedding_routes_settings.save_error = None;
-    app.embedding_routes_settings.save_success = true;
+    app.embedding_routes_settings.save_success = false;
     Some(update_embedding_routes_config_async(move |cfg| {
         *cfg = routes;
     }))

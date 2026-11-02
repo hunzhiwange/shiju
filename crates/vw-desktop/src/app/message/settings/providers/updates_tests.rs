@@ -33,8 +33,8 @@ fn loaded(
 #[test]
 fn refresh_starts_loading_and_clears_transient_errors() {
     let mut app = app();
-    app.provider_settings.connect_error = Some("connect".to_string());
-    app.provider_settings.save_error = Some("save".to_string());
+    app.provider_settings.connect_error = Some(("connect".to_string()).into());
+    app.provider_settings.save_error = Some(("save".to_string()).into());
     app.provider_settings.disconnect_confirm_provider_id = Some("openai".to_string());
 
     let _ = update(&mut app, SettingsMessage::ProvidersRefresh);
@@ -63,8 +63,10 @@ fn refresh_results_preserve_unconfigured_patterns_and_empty_catalog() {
     assert_eq!(app.provider_settings.popular_patterns, ["Existing"]);
     assert_eq!(app.provider_settings.catalog_items[0].provider_id, "existing");
 
-    let _ =
-        update(&mut app, SettingsMessage::ProvidersRefreshed(Err("refresh failed".to_string())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::ProvidersRefreshed(Err("refresh failed".to_string().into())),
+    );
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("refresh failed"));
 }
 
@@ -104,7 +106,7 @@ fn remote_sync_tick_keeps_fetch_label_during_initial_phase_and_ignores_busy_requ
     let mut app = app();
     app.provider_settings.models_syncing = true;
     app.provider_settings.models_sync_progress = 0.08;
-    app.provider_settings.models_sync_label = "starting".to_string();
+    app.provider_settings.models_sync_label = "starting".to_string().into();
 
     let _ = update(&mut app, SettingsMessage::ProviderModelsSyncRemote);
     assert_eq!(app.provider_settings.models_sync_progress, 0.08);
@@ -120,7 +122,7 @@ fn remote_sync_results_replace_configured_data_and_reset_progress() {
     let mut app = app();
     app.provider_settings.models_syncing = true;
     app.provider_settings.models_sync_progress = 0.8;
-    app.provider_settings.models_sync_label = "working".to_string();
+    app.provider_settings.models_sync_label = "working".to_string().into();
     app.provider_settings.catalog_loading = true;
 
     let _ = update(
@@ -140,8 +142,10 @@ fn remote_sync_results_replace_configured_data_and_reset_progress() {
     assert!(app.provider_settings.models_sync_label.is_empty());
 
     app.provider_settings.models_syncing = true;
-    let _ =
-        update(&mut app, SettingsMessage::ProviderModelsSyncDone(Err("sync failed".to_string())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::ProviderModelsSyncDone(Err("sync failed".to_string().into())),
+    );
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("sync failed"));
     assert!(!app.provider_settings.models_syncing);
 }
@@ -153,7 +157,7 @@ fn connect_modal_prefers_catalog_name_and_resets_competing_modals() {
     app.provider_settings.providers = vec![ProviderSummary {
         id: "openai".to_string(),
         name: "Provider OpenAI".to_string(),
-        source_label: "API".to_string(),
+        source_label: "API".to_string().into(),
         connected: true,
     }];
     app.provider_settings.catalog_open = true;
@@ -177,7 +181,7 @@ fn connect_modal_falls_back_to_provider_summary_then_provider_id() {
     app.provider_settings.providers = vec![ProviderSummary {
         id: "anthropic".to_string(),
         name: "Anthropic".to_string(),
-        source_label: "API".to_string(),
+        source_label: "API".to_string().into(),
         connected: false,
     }];
 
@@ -211,7 +215,8 @@ fn connect_submit_validates_key_and_handles_both_results() {
     assert!(app.provider_settings.loading);
     assert!(app.provider_settings.connect_error.is_none());
 
-    let _ = update(&mut app, SettingsMessage::ProviderConnectDone(Err("denied".to_string())));
+    let _ =
+        update(&mut app, SettingsMessage::ProviderConnectDone(Err("denied".to_string().into())));
     assert!(!app.provider_settings.loading);
     assert_eq!(app.provider_settings.connect_error.as_deref(), Some("denied"));
 
@@ -237,14 +242,14 @@ fn disconnect_messages_manage_confirmation_and_result_errors() {
     let _ = update(&mut app, SettingsMessage::ProviderDisconnectCanceled);
     assert!(app.provider_settings.disconnect_confirm_provider_id.is_none());
 
-    app.provider_settings.connect_error = Some("old".to_string());
+    app.provider_settings.connect_error = Some(("old".to_string()).into());
     let _ = update(&mut app, SettingsMessage::ProviderDisconnectConfirmed("openai".to_string()));
     assert!(app.provider_settings.loading);
     assert!(app.provider_settings.connect_error.is_none());
 
     let _ = update(
         &mut app,
-        SettingsMessage::ProviderDisconnectDone(Err("disconnect failed".to_string())),
+        SettingsMessage::ProviderDisconnectDone(Err("disconnect failed".to_string().into())),
     );
     assert!(!app.provider_settings.loading);
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("disconnect failed"));
@@ -262,7 +267,7 @@ fn disconnect_messages_manage_confirmation_and_result_errors() {
 #[test]
 fn custom_provider_open_close_and_edit_results_manage_modal_state() {
     let mut app = app();
-    app.provider_settings.connect_error = Some("old".to_string());
+    app.provider_settings.connect_error = Some(("old".to_string()).into());
     app.provider_settings.catalog_open = true;
 
     let _ = update(&mut app, SettingsMessage::CustomProviderOpen);
@@ -293,7 +298,7 @@ fn custom_provider_open_close_and_edit_results_manage_modal_state() {
 
     let _ = update(
         &mut app,
-        SettingsMessage::CustomProviderEditLoaded(Err("invalid config".to_string())),
+        SettingsMessage::CustomProviderEditLoaded(Err("invalid config".to_string().into())),
     );
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("invalid config"));
 }
@@ -624,7 +629,7 @@ fn custom_model_discovery_tracks_busy_state_and_merges_results() {
         &mut app,
         SettingsMessage::CustomProviderModelsDiscovered {
             provider_id: "custom".to_string(),
-            result: Err("发现失败".to_string()),
+            result: Err("发现失败".to_string().into()),
         },
     );
     assert!(!app.provider_settings.custom_models_discovering);
@@ -695,8 +700,10 @@ fn custom_provider_save_validates_each_boundary_and_handles_results() {
     assert!(app.provider_settings.loading);
     assert!(app.provider_settings.save_error.is_none());
 
-    let _ =
-        update(&mut app, SettingsMessage::CustomProviderSaveDone(Err("save failed".to_string())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::CustomProviderSaveDone(Err("save failed".to_string().into())),
+    );
     assert!(!app.provider_settings.loading);
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("save failed"));
 
@@ -722,7 +729,7 @@ fn catalog_open_reuses_cached_items_and_closes_competing_model_modal() {
     let mut app = app();
     app.provider_settings.catalog_items = vec![catalog_item("cached", "Cached")];
     app.provider_settings.catalog_query = "old".to_string();
-    app.provider_settings.save_error = Some("old save".to_string());
+    app.provider_settings.save_error = Some(("old save".to_string()).into());
     let _ = update(&mut app, SettingsMessage::CustomProviderModelOpen(None));
 
     let _ = update(&mut app, SettingsMessage::ProviderCatalogOpen);
@@ -752,8 +759,10 @@ fn catalog_and_popular_provider_messages_cover_success_error_and_bounds() {
     let _ = update(&mut app, SettingsMessage::ProviderCatalogQueryChanged("gpt".to_string()));
     assert_eq!(app.provider_settings.catalog_query, "gpt");
 
-    let _ =
-        update(&mut app, SettingsMessage::ProviderCatalogLoaded(Err("catalog failed".to_string())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::ProviderCatalogLoaded(Err("catalog failed".to_string().into())),
+    );
     assert!(!app.provider_settings.catalog_loading);
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("catalog failed"));
 
@@ -782,8 +791,10 @@ fn catalog_and_popular_provider_messages_cover_success_error_and_bounds() {
 
     let _ = update(&mut app, SettingsMessage::PopularProvidersSaved(Ok(())));
     assert!(app.provider_settings.save_error.is_none());
-    let _ =
-        update(&mut app, SettingsMessage::PopularProvidersSaved(Err("save failed".to_string())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::PopularProvidersSaved(Err("save failed".to_string().into())),
+    );
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("save failed"));
 
     let _ = update(&mut app, SettingsMessage::ProviderCatalogClose);

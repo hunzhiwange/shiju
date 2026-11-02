@@ -61,7 +61,7 @@ fn tab_selection_updates_only_visible_memory_section() {
     apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::Storage));
     assert_eq!(app.memory_settings.active_tab, MemorySettingsTab::Storage);
 
-    app.embedding_routes_settings.save_error = Some("route error".to_string());
+    app.embedding_routes_settings.save_error = Some(("route error".to_string()).into());
     app.embedding_routes_settings.save_success = true;
     apply(&mut app, MemoryMessage::TabSelected(MemorySettingsTab::EmbeddingRoutes));
     assert!(app.embedding_routes_settings.save_error.is_none());

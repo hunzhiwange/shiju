@@ -92,7 +92,7 @@ fn provider_and_model_summary_structs_preserve_public_fields() {
     let provider = ProviderSummary {
         id: "openai".to_string(),
         name: "OpenAI".to_string(),
-        source_label: "config".to_string(),
+        source_label: "config".to_string().into(),
         connected: true,
     };
     assert_eq!(provider.id, "openai");
@@ -176,7 +176,8 @@ fn model_detail_and_model_settings_defaults_are_stable() {
     );
     assert_eq!(custom_modal.output_modalities.as_deref(), Some(["text".to_string()].as_slice()));
 
-    let row = ModelDetailRow { label: "Context".to_string(), value: "128k".to_string() };
+    let row =
+        ModelDetailRow { label: "Context".to_string().into(), value: "128k".to_string().into() };
     let modal = ModelDetailModalState {
         provider_id: "openai".to_string(),
         provider_name: "OpenAI".to_string(),

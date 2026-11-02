@@ -58,7 +58,7 @@ fn provider(id: &str, name: &str, connected: bool) -> ProviderSummary {
     ProviderSummary {
         id: id.to_string(),
         name: name.to_string(),
-        source_label: "配置文件".to_string(),
+        source_label: "配置文件".to_string().into(),
         connected,
     }
 }
@@ -103,8 +103,8 @@ fn view_builds_loading_sync_empty_connected_popular_and_error_states() {
     app.provider_settings.loading = false;
     app.provider_settings.models_syncing = true;
     app.provider_settings.models_sync_progress = 0.42;
-    app.provider_settings.models_sync_label = "同步中".to_string();
-    app.provider_settings.save_error = Some("保存失败".to_string());
+    app.provider_settings.models_sync_label = "同步中".to_string().into();
+    app.provider_settings.save_error = Some(("保存失败".to_string()).into());
     keep_element(super::connected::view(&app));
 
     app.provider_settings.models_syncing = false;

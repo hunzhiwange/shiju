@@ -815,7 +815,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     if !tabbed_page_owns_save_error(active_tab)
                         && let Some(err) = active_tab_save_error(app, active_tab)
                     {
-                        content_with_help = content_with_help.push(settings_error_banner(err));
+                        let localized = match active_tab {
+                            SystemTab::Providers => app.provider_settings.save_error.as_ref(),
+                            SystemTab::GatewayClient => {
+                                app.gateway_client_settings.save_error.as_ref()
+                            }
+                            SystemTab::Gateway => app.gateway_settings.save_error.as_ref(),
+                            _ => None,
+                        }
+                        .map(|error| error.display(app.desktop_locale))
+                        .unwrap_or_else(|| err.to_string());
+                        content_with_help =
+                            content_with_help.push(settings_error_banner(localized));
                     }
                     content_with_help = content_with_help.push(content);
 

@@ -30,8 +30,8 @@ fn model_settings_error_banner_is_local_to_tabbed_view() {
         assert_eq!(Tree::new(view(&app).as_widget()).children.len(), 2);
     }
 
-    app.model_settings.save_error = Some(cases[0].1.to_string());
-    app.model_routes_settings.save_error = Some(cases[1].1.to_string());
+    app.model_settings.save_error = Some((cases[0].1.to_string()).into());
+    app.model_routes_settings.save_error = Some((cases[1].1.to_string()).into());
     app.query_classification_settings.save_error = Some(cases[2].1.to_string());
     app.multimodal_settings.save_error = Some(cases[3].1.to_string());
 
@@ -212,7 +212,7 @@ fn main_view_builds_empty_loading_error_and_filtered_states() {
     keep_element(main_view(&app));
 
     app.model_settings.query = "missing".to_string();
-    app.model_settings.save_error = Some("保存失败".to_string());
+    app.model_settings.save_error = Some(("保存失败".to_string()).into());
     keep_element(main_view(&app));
 }
 
@@ -228,7 +228,8 @@ fn overlays_return_dialog_or_model_detail_modal() {
         model_id: "gpt-5".to_string(),
         model_name: "GPT-5".to_string(),
         rows: vec![ModelDetailRow {
-            label: "模型名称".to_string(), value: "GPT-5".to_string()
+            label: "模型名称".to_string().into(),
+            value: "GPT-5".to_string().into(),
         }],
         raw_json: "{\n  \"id\": \"gpt-5\"\n}".to_string(),
         show_raw: false,

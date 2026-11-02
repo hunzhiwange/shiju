@@ -2,7 +2,8 @@
 
 use crate::app::Message;
 use crate::app::config;
-use crate::app::config::server_config_unreachable_error;
+use crate::app::i18n::settings_models::messages::Feedback;
+
 use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
 use crate::app::state::ModelCatalogEntry;
@@ -21,11 +22,11 @@ fn provider_models_sync_done_message(result: ProvidersLoaded) -> Message {
     Message::Settings(SettingsMessage::ProviderModelsSyncDone(result))
 }
 
-fn provider_catalog_loaded_message(result: Result<Vec<ModelCatalogEntry>, String>) -> Message {
+fn provider_catalog_loaded_message(result: Result<Vec<ModelCatalogEntry>, Feedback>) -> Message {
     Message::Settings(SettingsMessage::ProviderCatalogLoaded(result))
 }
 
-fn popular_providers_saved_message(result: Result<(), String>) -> Message {
+fn popular_providers_saved_message(result: Result<(), Feedback>) -> Message {
     Message::Settings(SettingsMessage::PopularProvidersSaved(result))
 }
 
@@ -46,11 +47,9 @@ pub fn refresh_task() -> Task<Message> {
     Task::perform(
         async move {
             model_provider::invalidate_cache().await;
-            let providers = load_gateway_providers().await?;
+            let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
             let raw_providers = provider_models::get().await;
-            let cfg = config::load_full_agent_config_async()
-                .await
-                .map_err(server_config_unreachable_error)?;
+            let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
             let (patterns, configured) = load_popular_providers_from_config(&cfg);
             let catalog = build_catalog_from_sources(&raw_providers, &providers);
             Ok((providers, patterns, configured, catalog))
@@ -72,11 +71,9 @@ pub fn sync_remote_task() -> Task<Message> {
         async move {
             provider_models::refresh().await;
             model_provider::invalidate_cache().await;
-            let providers = load_gateway_providers().await?;
+            let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
             let raw_providers = provider_models::get().await;
-            let cfg = config::load_full_agent_config_async()
-                .await
-                .map_err(server_config_unreachable_error)?;
+            let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
             let (patterns, configured) = load_popular_providers_from_config(&cfg);
             let catalog = build_catalog_from_sources(&raw_providers, &providers);
             Ok((providers, patterns, configured, catalog))
@@ -93,7 +90,7 @@ pub fn load_catalog_task() -> Task<Message> {
     Task::perform(
         async move {
             model_provider::invalidate_cache().await;
-            let providers = load_gateway_providers().await?;
+            let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
             let raw_providers = provider_models::get().await;
             Ok(build_catalog_from_sources(&raw_providers, &providers))
         },
@@ -110,7 +107,7 @@ pub fn save_popular_providers_task(list: Vec<String>) -> Task<Message> {
         async move {
             config::patch_full_agent_config_async(popular_providers_patch(list))
                 .await
-                .map_err(server_config_unreachable_error)
+                .map_err(Feedback::gateway)
         },
         popular_providers_saved_message,
     )

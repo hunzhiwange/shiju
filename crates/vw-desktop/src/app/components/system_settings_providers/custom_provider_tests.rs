@@ -108,7 +108,7 @@ fn overlays_build_edit_modal_headers_models_and_error_states() {
         crate::app::state::CustomProviderModelFilter::Disabled;
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
 
-    app.provider_settings.save_error = Some("保存失败".to_string());
+    app.provider_settings.save_error = Some(("保存失败".to_string()).into());
     keep_element(super::custom_provider::view_overlays(&app, text("dialog").into()));
 
     app.provider_settings.custom_models_discovering = true;

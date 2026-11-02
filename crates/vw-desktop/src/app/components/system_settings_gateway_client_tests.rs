@@ -107,7 +107,7 @@ fn button_builders_keep_server_width_and_action_height_across_states() {
 fn view_builds_empty_single_and_multi_server_states() {
     let mut empty = test_app();
     empty.gateway_client_settings.servers.clear();
-    empty.gateway_client_settings.save_error = Some("client save failed".to_string());
+    empty.gateway_client_settings.save_error = Some(("client save failed".to_string()).into());
     let empty_view = view(&empty);
     assert_size(&empty_view, Length::Fill, Length::Shrink);
 
@@ -165,14 +165,22 @@ fn view_keeps_intro_service_and_authentication_sections_across_server_counts() {
 
 #[test]
 fn tenant_controls_and_help_example_are_declared() {
-    let source = include_str!("system_settings_gateway_client.rs");
-
-    assert!(source.contains("平台 ID"));
-    assert!(source.contains("公司 ID"));
-    assert!(source.contains("PlatformIdChanged"));
-    assert!(source.contains("CompanyIdChanged"));
-    assert!(source.contains(r#""platform_id": "10000""#));
-    assert!(source.contains(r#""company_id": "100000000""#));
+    use crate::app::i18n::settings_models::{
+        connection_text::{Text, text},
+        help,
+    };
+    use vw_config_types::ui::DesktopLocale;
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        assert!(!text(locale, Text::PlatformId).is_empty());
+        assert!(!text(locale, Text::CompanyId).is_empty());
+        let example = help::gateway_client(locale);
+        assert!(example.contains(r#""platform_id": "10000""#));
+        assert!(example.contains(r#""company_id": "100000000""#));
+    }
 }
 
 #[test]

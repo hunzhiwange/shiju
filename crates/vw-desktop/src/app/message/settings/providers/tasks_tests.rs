@@ -48,8 +48,8 @@ fn providers_refreshed_message_preserves_success_payload() {
 // 重点确认现有状态与错误反馈不会被意外的部分更新污染。
 #[test]
 fn provider_result_messages_preserve_errors() {
-    let refreshed = providers_refreshed_message(Err("refresh failed".to_string()));
-    let synced = provider_models_sync_done_message(Err("sync failed".to_string()));
+    let refreshed = providers_refreshed_message(Err("refresh failed".to_string().into()));
+    let synced = provider_models_sync_done_message(Err("sync failed".to_string().into()));
 
     assert!(matches!(
         refreshed,
@@ -90,7 +90,7 @@ fn provider_models_sync_done_message_preserves_success_payload() {
 #[test]
 fn provider_catalog_loaded_message_preserves_success_and_error() {
     let loaded = provider_catalog_loaded_message(Ok(Vec::new()));
-    let failed = provider_catalog_loaded_message(Err("catalog failed".to_string()));
+    let failed = provider_catalog_loaded_message(Err("catalog failed".to_string().into()));
 
     assert!(matches!(
         loaded,
@@ -108,7 +108,7 @@ fn provider_catalog_loaded_message_preserves_success_and_error() {
 #[test]
 fn popular_providers_saved_message_preserves_success_and_error() {
     let saved = popular_providers_saved_message(Ok(()));
-    let failed = popular_providers_saved_message(Err("save failed".to_string()));
+    let failed = popular_providers_saved_message(Err("save failed".to_string().into()));
 
     assert!(matches!(saved, Message::Settings(SettingsMessage::PopularProvidersSaved(Ok(())))));
     assert!(matches!(

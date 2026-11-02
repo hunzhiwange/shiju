@@ -1,5 +1,6 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::message::settings::util::is_provider_connected;
 use crate::app::state::{ModelCatalogEntry, ProviderSummary};
 use std::collections::BTreeMap;
@@ -16,15 +17,19 @@ pub fn summarize_providers(
         .into_values()
         .map(|p| {
             let (source_label, connected) = match p.source {
-                model_provider::ProviderSource::Api => ("API 密钥", true),
-                model_provider::ProviderSource::Env => ("环境变量", true),
-                model_provider::ProviderSource::Config => ("配置", is_provider_connected(&p)),
-                model_provider::ProviderSource::Custom => ("内置", is_provider_connected(&p)),
+                model_provider::ProviderSource::Api => (OwnedMessage::SourceApi, true),
+                model_provider::ProviderSource::Env => (OwnedMessage::SourceEnv, true),
+                model_provider::ProviderSource::Config => {
+                    (OwnedMessage::SourceConfig, is_provider_connected(&p))
+                }
+                model_provider::ProviderSource::Custom => {
+                    (OwnedMessage::SourceBuiltin, is_provider_connected(&p))
+                }
             };
             ProviderSummary {
                 id: p.id,
                 name: p.name,
-                source_label: source_label.to_string(),
+                source_label: Feedback::owned(source_label, vec![]),
                 connected,
             }
         })

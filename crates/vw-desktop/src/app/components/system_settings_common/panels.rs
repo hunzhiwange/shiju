@@ -222,7 +222,9 @@ pub fn settings_control_with_hint<'a>(
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub fn settings_error_banner<'a>(message: &'a str) -> Element<'a, Message> {
+pub fn settings_error_banner<'a>(
+    message: impl iced::widget::text::IntoFragment<'a>,
+) -> Element<'a, Message> {
     container(text(message).size(13))
         .padding([10, 12])
         .width(Length::Fill)

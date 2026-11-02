@@ -350,11 +350,11 @@ pub(crate) struct GatewaySettingsState {
     pub(crate) node_control_auth_token_input: String,
     pub(crate) node_control_allowed_node_ids_input: String,
     pub(crate) service_action_running: Option<String>,
-    pub(crate) service_action_output: Option<String>,
+    pub(crate) service_action_output: Option<crate::app::i18n::settings_models::messages::Feedback>,
     pub(crate) copied_service_command: Option<String>,
     pub(crate) pending_service_command_confirmation: Option<String>,
     pub(crate) show_help_modal: bool,
-    pub(crate) save_error: Option<String>,
+    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
 }
 
 impl Default for GatewaySettingsState {
@@ -447,7 +447,7 @@ pub(crate) struct GatewayClientSettingsState {
     pub(crate) skey_input: String,
     pub(crate) pending_remove_server_id: Option<String>,
     pub(crate) show_help_modal: bool,
-    pub(crate) save_error: Option<String>,
+    pub(crate) save_error: Option<crate::app::i18n::settings_models::messages::Feedback>,
 }
 
 impl Default for GatewayClientSettingsState {

@@ -5,6 +5,9 @@ use crate::app::components::system_settings_common::{
     settings_error_banner, settings_page_intro, settings_segment_button_style,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, row, text};
 use iced::{Alignment, Element, Length, Theme};
@@ -15,6 +18,7 @@ pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
         "网页搜索",
         &[
             "web search",
+            "網頁搜尋",
             "DuckDuckGo",
             "Brave",
             "Brave 密钥",
@@ -29,6 +33,8 @@ pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
         SystemTab::HttpRequest,
         "网络请求",
         &[
+            "http requests",
+            "網路請求",
             "http request",
             "allowlist",
             "允许域名",
@@ -44,6 +50,7 @@ pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
         SystemTab::Browser,
         "浏览器",
         &[
+            "瀏覽器",
             "browser",
             "computer use",
             "窗口行为",
@@ -58,6 +65,7 @@ pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
         SystemTab::Proxy,
         "代理",
         &[
+            "代理",
             "proxy",
             "HTTP 代理",
             "HTTPS 代理",
@@ -72,6 +80,7 @@ pub(super) const NETWORK_TABS: &[SettingsTabDescriptor<SystemTab>] = &[
         SystemTab::Tunnel,
         "隧道",
         &[
+            "隧道",
             "tunnel",
             "public gateway",
             "Cloudflare",
@@ -98,11 +107,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
             })
     };
 
-    let tabs = NETWORK_TABS
-        .iter()
-        .fold(row![].spacing(8).align_y(Alignment::Center), |row, descriptor| {
-            row.push(tab_button(descriptor.tab, descriptor.label))
-        });
+    let tabs = NETWORK_TABS.iter().fold(
+        row![].spacing(8).align_y(Alignment::Center),
+        |row, descriptor| {
+            let key = match descriptor.tab {
+                SystemTab::WebSearch => ConnectionText::WebSearch,
+                SystemTab::HttpRequest => ConnectionText::HttpRequests,
+                SystemTab::Browser => ConnectionText::Browser,
+                SystemTab::Proxy => ConnectionText::Proxy,
+                SystemTab::Tunnel => ConnectionText::Tunnel,
+                _ => unreachable!("network descriptor"),
+            };
+            row.push(tab_button(descriptor.tab, connection_text(app.desktop_locale, key)))
+        },
+    );
 
     let content = match active_tab {
         SystemTab::HttpRequest => {
@@ -114,16 +132,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         _ => crate::app::components::system_settings_web_search::content(app),
     };
 
-    let mut sections =
-        column![
-            settings_page_intro(
-                "网络配置",
-                "通过标签切换网页搜索、网络请求、浏览器、代理与隧道配置。",
-            ),
-            tabs,
-        ]
-        .spacing(16)
-        .width(Length::Fill);
+    let mut sections = column![
+        settings_page_intro(
+            connection_text(app.desktop_locale, ConnectionText::NetworkSettings),
+            connection_text(app.desktop_locale, ConnectionText::SwitchTabsToConfigureWeb),
+        ),
+        tabs,
+    ]
+    .spacing(16)
+    .width(Length::Fill);
 
     if let Some(error) = active_save_error(app) {
         sections = sections.push(settings_error_banner(error));

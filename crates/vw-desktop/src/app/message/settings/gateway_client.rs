@@ -1,5 +1,6 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::state::GatewayClientServerDraft;
 use crate::app::{App, Message, update_gateway_client_config};
 use iced::Task;
@@ -29,14 +30,15 @@ fn selected_index(app: &App) -> Option<usize> {
         .position(|server| server.id == app.gateway_client_settings.selected_server_id)
 }
 
-fn sync_selected_server_from_inputs(app: &mut App) -> Result<(), String> {
+fn sync_selected_server_from_inputs(app: &mut App) -> Result<(), Feedback> {
     let Some(index) = selected_index(app) else {
         return Ok(());
     };
     let settings = &app.gateway_client_settings;
     let platform_id = settings.platform_id_input.trim();
     let company_id = settings.company_id_input.trim();
-    TenantScope::new(platform_id, company_id).map_err(|err| format!("租户配置无效：{err}"))?;
+    TenantScope::new(platform_id, company_id)
+        .map_err(|err| Feedback::owned(OwnedMessage::TenantInvalid, vec![err.to_string()]))?;
     let draft = GatewayClientServerDraft {
         id: settings.selected_server_id.clone(),
         name: normalize_name(&settings.name_input, index),
@@ -78,7 +80,7 @@ fn next_server_id(config: &GatewayClientSystemSettingsConfig) -> String {
     "gateway-new".to_string()
 }
 
-fn persist_gateway_client_settings(app: &mut App) -> Result<(), String> {
+fn persist_gateway_client_settings(app: &mut App) -> Result<(), Feedback> {
     sync_selected_server_from_inputs(app)?;
     let servers = app
         .gateway_client_settings
@@ -94,9 +96,9 @@ fn persist_gateway_client_settings(app: &mut App) -> Result<(), String> {
     Ok(())
 }
 
-fn tenant_validation_failure(app: &mut App, error: String) -> Task<Message> {
-    app.gateway_client_settings.save_error = Some(error.clone());
-    app.show_error_toast(error)
+fn tenant_validation_failure(app: &mut App, error: Feedback) -> Task<Message> {
+    app.gateway_client_settings.save_error = Some((error.clone()).into());
+    app.show_error_toast(error.display(app.desktop_locale))
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。

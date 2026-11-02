@@ -45,17 +45,27 @@ pub(super) const MODEL_TABS: &[SettingsTabDescriptor<ModelConfigTab>] = &[
     SettingsTabDescriptor::new(
         ModelConfigTab::Models,
         "模型",
-        &["搜索模型", "模型详情", "提供商", "模型 id", "上下文窗口", "最大输出", "温度"],
+        &[
+            "models",
+            "搜尋模型",
+            "搜索模型",
+            "模型详情",
+            "提供商",
+            "模型 id",
+            "上下文窗口",
+            "最大输出",
+            "温度",
+        ],
     ),
     SettingsTabDescriptor::new(
         ModelConfigTab::ModelRoutes,
         "模型路由",
-        &["routing", "匹配模式", "pattern", "priority", "优先级"],
+        &["model routes", "模型路由", "routing", "匹配模式", "pattern", "priority", "优先级"],
     ),
     SettingsTabDescriptor::new(
         ModelConfigTab::QueryClassification,
         "模型分类",
-        &["classification", "rules", "查询分类", "规则"],
+        &["model classification", "模型分類", "classification", "rules", "查询分类", "规则"],
     ),
     SettingsTabDescriptor::new(
         ModelConfigTab::Multimodal,
@@ -122,7 +132,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut sections = column![tabs].spacing(16).width(Length::Fill);
     if let Some(error) = active_tab_save_error(app) {
-        sections = sections.push(settings_error_banner(error));
+        let message = match app.model_settings.active_tab {
+            ModelConfigTab::Models => {
+                app.model_settings.save_error.as_ref().map(|e| e.display(app.desktop_locale))
+            }
+            ModelConfigTab::ModelRoutes => {
+                app.model_routes_settings.save_error.as_ref().map(|e| e.display(app.desktop_locale))
+            }
+            _ => Some(error.to_string()),
+        };
+        if let Some(message) = message {
+            sections = sections.push(settings_error_banner(message));
+        }
     }
 
     sections.push(content).into()
@@ -550,8 +571,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .align_y(Alignment::Center);
 
         let meta_row = row![
-            settings_value_badge(format!("Provider {}", mm.provider_id)),
-            settings_value_badge(format!("Model {}", mm.model_id)),
+            settings_value_badge(format!(
+                "{} {}",
+                model_text(app.desktop_locale, ModelText::Provider),
+                mm.provider_id
+            )),
+            settings_value_badge(format!(
+                "{} {}",
+                settings_models::connection_text::text(
+                    app.desktop_locale,
+                    settings_models::connection_text::Text::Model
+                ),
+                mm.model_id
+            )),
         ]
         .spacing(8)
         .wrap();
@@ -569,11 +601,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             for r in &mm.rows {
                 rows_col = rows_col.push(
                     row![
-                        text(&r.label)
+                        text(r.label.display(app.desktop_locale))
                             .size(13)
                             .style(settings_muted_text_style)
                             .width(Length::Fixed(240.0)),
-                        text(&r.value).size(13).width(Length::Fill)
+                        text(r.value.display(app.desktop_locale)).size(13).width(Length::Fill)
                     ]
                     .spacing(10)
                     .align_y(Alignment::Center),

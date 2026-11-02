@@ -15,6 +15,10 @@ use crate::app::components::system_settings_common::{
     settings_modal_card, settings_modal_overlay, settings_muted_text_style,
     settings_text_input_style,
 };
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
+use crate::app::i18n::settings_models::messages::{Message as OwnedMessage, render as owned_text};
 use crate::app::{App, Message, message};
 use iced::widget::{button, column, container, row, text, text_input};
 use iced::{Alignment, Element, Length};
@@ -67,8 +71,13 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             // 标题行：包含 Provider 名称、空白填充和关闭按钮
             row![
                 column![
-                    text(format!("配置 {} 的密钥", m.provider_name)).size(18),
-                    text("录入并保存当前 Provider 的 API 密钥。")
+                    text(owned_text(
+                        app.desktop_locale,
+                        OwnedMessage::ConfigureKey,
+                        &[m.provider_name.clone()]
+                    ))
+                    .size(18),
+                    text(connection_text(app.desktop_locale, ConnectionText::EnterAndSaveTheApi))
                         .size(12)
                         .style(settings_muted_text_style),
                 ]
@@ -84,20 +93,23 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         // 如果存在错误信息，在标题下方添加错误提示。
         if let Some(err) = &s.connect_error {
-            modal_col = modal_col.push(settings_error_banner(err));
+            modal_col = modal_col.push(settings_error_banner(err.display(app.desktop_locale)));
         }
 
         modal_col = modal_col.push(
             // API 密钥输入行
             row![
-                text("API 密钥").width(120),
-                text_input("输入 API 密钥", &m.api_key)
-                    .on_input(|v| Message::Settings(
-                        message::SettingsMessage::ProviderConnectApiKeyChanged(v)
-                    ))
-                    .width(Length::Fill)
-                    .padding([10, 12])
-                    .style(settings_text_input_style),
+                text(connection_text(app.desktop_locale, ConnectionText::ApiKey)).width(120),
+                text_input(
+                    connection_text(app.desktop_locale, ConnectionText::EnterApiKey),
+                    &m.api_key
+                )
+                .on_input(|v| Message::Settings(
+                    message::SettingsMessage::ProviderConnectApiKeyChanged(v)
+                ))
+                .width(Length::Fill)
+                .padding([10, 12])
+                .style(settings_text_input_style),
             ]
             .spacing(20)
             .align_y(Alignment::Center),
@@ -107,7 +119,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         modal_col = modal_col.push(
             row![
                 container(text("")).width(Length::Fill), // 弹性填充，将按钮推至右侧
-                button(text("保存密钥"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::SaveApiKey)))
                     .on_press(Message::Settings(message::SettingsMessage::ProviderConnectSubmit))
                     .padding([8, 14])
                     .style(primary_action_btn_style),

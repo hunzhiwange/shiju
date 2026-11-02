@@ -1,7 +1,7 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use crate::app::config;
-use crate::app::config::server_config_unreachable_error;
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::{
     App, Message,
     state::{ModelDetailModalState, ModelDetailRow, ModelSummary, ProviderModelsSummary},
@@ -50,8 +50,8 @@ pub(super) fn summarize_models(
     out
 }
 
-async fn load_models_for_settings() -> Result<Vec<ProviderModelsSummary>, String> {
-    Ok(summarize_models(load_gateway_providers().await?))
+async fn load_models_for_settings() -> Result<Vec<ProviderModelsSummary>, Feedback> {
+    Ok(summarize_models(load_gateway_providers().await.map_err(Feedback::gateway)?))
 }
 
 fn collect_model_status_changes(
@@ -209,9 +209,8 @@ fn save_model_statuses(app: &mut App, changes: Vec<ModelStatusChange>) -> Task<M
     Task::perform(
         async move {
             let patch = model_status_patch(&changes);
-            let result = config::patch_full_agent_config_async(patch)
-                .await
-                .map_err(server_config_unreachable_error);
+            let result =
+                config::patch_full_agent_config_async(patch).await.map_err(Feedback::gateway);
             (changes, result)
         },
         |(changes, result)| Message::Settings(SettingsMessage::ModelStatusesSaved(changes, result)),
@@ -230,15 +229,14 @@ fn reset_provider_model_statuses(
     Task::perform(
         async move {
             let result = async {
-                let full_config = config::load_full_agent_config_async()
-                    .await
-                    .map_err(server_config_unreachable_error)?;
+                let full_config =
+                    config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
                 if let Some(patch) = provider_model_status_reset_patch(&full_config, &provider_id) {
                     config::patch_full_agent_config_async(patch)
                         .await
-                        .map_err(server_config_unreachable_error)?;
+                        .map_err(Feedback::gateway)?;
                 }
-                load_models_for_settings().await.map_err(server_config_unreachable_error)
+                load_models_for_settings().await
             }
             .await;
             (changes, result)
@@ -258,10 +256,9 @@ mod models_tests;
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
 /// 返回的 `Task` 用于继续执行异步保存、加载或通知清理；没有后续动作时返回空任务。
 pub fn models_refresh_task() -> Task<Message> {
-    Task::perform(
-        async move { load_models_for_settings().await.map_err(server_config_unreachable_error) },
-        |res| Message::Settings(SettingsMessage::ModelsRefreshed(res)),
-    )
+    Task::perform(async move { load_models_for_settings().await }, |res| {
+        Message::Settings(SettingsMessage::ModelsRefreshed(res))
+    })
 }
 
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
@@ -288,7 +285,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Err(e) => {
                 app.model_settings.loading = false;
-                app.model_settings.save_error = Some(e);
+                app.model_settings.save_error = Some((e).into());
                 app.model_settings.detail_modal = None;
                 Task::none()
             }
@@ -349,7 +346,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                             change.previous_enabled,
                         );
                     }
-                    app.model_settings.save_error = Some(error);
+                    app.model_settings.save_error = Some((error).into());
                 }
             }
             Task::none()
@@ -370,19 +367,21 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                         change.previous_enabled,
                     );
                 }
-                app.model_settings.save_error = Some(error);
+                app.model_settings.save_error = Some((error).into());
             }
             Task::none()
         }
         SettingsMessage::ModelDetailOpen(provider_id, model_id) => {
             let provider = app.model_settings.providers.iter().find(|p| p.id == provider_id);
             let Some(provider) = provider else {
-                app.model_settings.save_error = Some("未找到提供商".to_string());
+                app.model_settings.save_error =
+                    Some(Feedback::owned(OwnedMessage::ProviderMissing, vec![]));
                 return Task::none();
             };
             let model = provider.models.iter().find(|m| m.id == model_id);
             let Some(model) = model else {
-                app.model_settings.save_error = Some("未找到模型".to_string());
+                app.model_settings.save_error =
+                    Some(Feedback::owned(OwnedMessage::ModelMissing, vec![]));
                 return Task::none();
             };
 
@@ -393,7 +392,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let get = |k: &str| detail_value.get(k).unwrap_or(&Value::Null);
             let get_str = |v: &Value| v.as_str().unwrap_or_default().to_string();
             let get_u64 = |v: &Value| v.as_u64().unwrap_or(0);
-            let yes_no = |b: bool| if b { "支持" } else { "不支持" }.to_string();
+            let yes_no = |b: bool| {
+                Feedback::owned(
+                    if b { OwnedMessage::Supported } else { OwnedMessage::Unsupported },
+                    vec![],
+                )
+            };
             let join_caps = |io: &Value| {
                 let mut out = Vec::new();
                 let obj = io.as_object();
@@ -405,83 +409,94 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     }
                 }
                 out.sort_unstable();
-                if out.is_empty() { "无".to_string() } else { out.join(", ") }
+                if out.is_empty() {
+                    Feedback::owned(OwnedMessage::None, vec![])
+                } else {
+                    out.join(", ").into()
+                }
             };
 
             let mut rows = Vec::<ModelDetailRow>::new();
             rows.push(ModelDetailRow {
-                label: "模型名称 (name)".to_string(),
-                value: model.name.clone(),
+                label: Feedback::owned(OwnedMessage::DetailName, vec![]),
+                value: (model.name.clone()).into(),
             });
             rows.push(ModelDetailRow {
-                label: "模型 ID (id)".to_string(),
-                value: model.id.clone(),
+                label: Feedback::owned(OwnedMessage::DetailId, vec![]),
+                value: (model.id.clone()).into(),
             });
             rows.push(ModelDetailRow {
-                label: "提供商 (providerID)".to_string(),
-                value: provider.id.clone(),
+                label: Feedback::owned(OwnedMessage::DetailProvider, vec![]),
+                value: (provider.id.clone()).into(),
             });
             rows.push(ModelDetailRow {
-                label: "状态 (status)".to_string(),
-                value: get_str(get("status")),
+                label: Feedback::owned(OwnedMessage::DetailStatus, vec![]),
+                value: (get_str(get("status"))).into(),
             });
             rows.push(ModelDetailRow {
-                label: "发布日期 (release_date)".to_string(),
-                value: get_str(get("release_date")),
+                label: Feedback::owned(OwnedMessage::DetailRelease, vec![]),
+                value: (get_str(get("release_date"))).into(),
             });
 
             let api = get("api");
             rows.push(ModelDetailRow {
-                label: "API Base URL (api.url)".to_string(),
-                value: api.get("url").and_then(Value::as_str).unwrap_or_default().to_string(),
+                label: Feedback::owned(OwnedMessage::DetailApiUrl, vec![]),
+                value: (api.get("url").and_then(Value::as_str).unwrap_or_default().to_string())
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "适配器 (api.adapter)".to_string(),
-                value: api.get("adapter").and_then(Value::as_str).unwrap_or_default().to_string(),
+                label: Feedback::owned(OwnedMessage::DetailAdapter, vec![]),
+                value: (api.get("adapter").and_then(Value::as_str).unwrap_or_default().to_string())
+                    .into(),
             });
 
             let limit = get("limit");
             rows.push(ModelDetailRow {
-                label: "上下文限制 (limit.context)".to_string(),
-                value: get_u64(limit.get("context").unwrap_or(&Value::Null)).to_string(),
+                label: Feedback::owned(OwnedMessage::DetailContext, vec![]),
+                value: (get_u64(limit.get("context").unwrap_or(&Value::Null)).to_string()).into(),
             });
             rows.push(ModelDetailRow {
-                label: "输入限制 (limit.input)".to_string(),
-                value: limit
+                label: Feedback::owned(OwnedMessage::DetailInput, vec![]),
+                value: (limit
                     .get("input")
                     .and_then(Value::as_u64)
                     .map(|v| v.to_string())
-                    .unwrap_or_else(|| "-".to_string()),
+                    .unwrap_or_else(|| "-".to_string()))
+                .into(),
             });
             rows.push(ModelDetailRow {
-                label: "输出限制 (limit.output)".to_string(),
-                value: get_u64(limit.get("output").unwrap_or(&Value::Null)).to_string(),
+                label: Feedback::owned(OwnedMessage::DetailOutput, vec![]),
+                value: (get_u64(limit.get("output").unwrap_or(&Value::Null)).to_string()).into(),
             });
 
             let caps = get("capabilities");
             rows.push(ModelDetailRow {
-                label: "支持工具调用 (capabilities.toolcall)".to_string(),
-                value: yes_no(caps.get("toolcall").and_then(Value::as_bool).unwrap_or(false)),
+                label: Feedback::owned(OwnedMessage::DetailTools, vec![]),
+                value: (yes_no(caps.get("toolcall").and_then(Value::as_bool).unwrap_or(false)))
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "支持附件 (capabilities.attachment)".to_string(),
-                value: yes_no(caps.get("attachment").and_then(Value::as_bool).unwrap_or(false)),
+                label: Feedback::owned(OwnedMessage::DetailAttachment, vec![]),
+                value: (yes_no(caps.get("attachment").and_then(Value::as_bool).unwrap_or(false)))
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "支持推理 (capabilities.reasoning)".to_string(),
-                value: yes_no(caps.get("reasoning").and_then(Value::as_bool).unwrap_or(false)),
+                label: Feedback::owned(OwnedMessage::DetailReasoning, vec![]),
+                value: (yes_no(caps.get("reasoning").and_then(Value::as_bool).unwrap_or(false)))
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "支持温度 (capabilities.temperature)".to_string(),
-                value: yes_no(caps.get("temperature").and_then(Value::as_bool).unwrap_or(false)),
+                label: Feedback::owned(OwnedMessage::DetailTemperature, vec![]),
+                value: (yes_no(caps.get("temperature").and_then(Value::as_bool).unwrap_or(false)))
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "输入模态 (capabilities.input.*)".to_string(),
-                value: join_caps(caps.get("input").unwrap_or(&Value::Null)),
+                label: Feedback::owned(OwnedMessage::DetailInputModality, vec![]),
+                value: (join_caps(caps.get("input").unwrap_or(&Value::Null))).into(),
             });
             rows.push(ModelDetailRow {
-                label: "输出模态 (capabilities.output.*)".to_string(),
-                value: join_caps(caps.get("output").unwrap_or(&Value::Null)),
+                label: Feedback::owned(OwnedMessage::DetailOutputModality, vec![]),
+                value: (join_caps(caps.get("output").unwrap_or(&Value::Null))).into(),
             });
 
             let interleaved = caps.get("interleaved").unwrap_or(&Value::Null);
@@ -496,44 +511,48 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             };
             if !interleaved_str.trim().is_empty() {
                 rows.push(ModelDetailRow {
-                    label: "混合输入 (capabilities.interleaved)".to_string(),
-                    value: interleaved_str,
+                    label: Feedback::owned(OwnedMessage::DetailInterleaved, vec![]),
+                    value: (interleaved_str).into(),
                 });
             }
 
             let cost = get("cost");
             let cache = cost.get("cache").unwrap_or(&Value::Null);
             rows.push(ModelDetailRow {
-                label: "输入价格 (cost.input)".to_string(),
-                value: cost.get("input").and_then(Value::as_f64).unwrap_or(0.0).to_string(),
+                label: Feedback::owned(OwnedMessage::DetailInputCost, vec![]),
+                value: (cost.get("input").and_then(Value::as_f64).unwrap_or(0.0).to_string())
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "输出价格 (cost.output)".to_string(),
-                value: cost.get("output").and_then(Value::as_f64).unwrap_or(0.0).to_string(),
+                label: Feedback::owned(OwnedMessage::DetailOutputCost, vec![]),
+                value: (cost.get("output").and_then(Value::as_f64).unwrap_or(0.0).to_string())
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "缓存读 (cost.cache.read)".to_string(),
-                value: cache.get("read").and_then(Value::as_f64).unwrap_or(0.0).to_string(),
+                label: Feedback::owned(OwnedMessage::DetailCacheRead, vec![]),
+                value: (cache.get("read").and_then(Value::as_f64).unwrap_or(0.0).to_string())
+                    .into(),
             });
             rows.push(ModelDetailRow {
-                label: "缓存写 (cost.cache.write)".to_string(),
-                value: cache.get("write").and_then(Value::as_f64).unwrap_or(0.0).to_string(),
+                label: Feedback::owned(OwnedMessage::DetailCacheWrite, vec![]),
+                value: (cache.get("write").and_then(Value::as_f64).unwrap_or(0.0).to_string())
+                    .into(),
             });
 
             let headers_count = get("headers").as_object().map(|o| o.len()).unwrap_or(0);
             let options_count = get("options").as_object().map(|o| o.len()).unwrap_or(0);
             let variants_count = get("variants").as_object().map(|o| o.len()).unwrap_or(0);
             rows.push(ModelDetailRow {
-                label: "请求头数量 (headers)".to_string(),
-                value: headers_count.to_string(),
+                label: Feedback::owned(OwnedMessage::DetailHeaders, vec![]),
+                value: (headers_count.to_string()).into(),
             });
             rows.push(ModelDetailRow {
-                label: "自定义选项数量 (options)".to_string(),
-                value: options_count.to_string(),
+                label: Feedback::owned(OwnedMessage::DetailOptions, vec![]),
+                value: (options_count.to_string()).into(),
             });
             rows.push(ModelDetailRow {
-                label: "变体数量 (variants)".to_string(),
-                value: variants_count.to_string(),
+                label: Feedback::owned(OwnedMessage::DetailVariants, vec![]),
+                value: (variants_count.to_string()).into(),
             });
 
             app.model_settings.detail_modal = Some(ModelDetailModalState {

@@ -1,7 +1,7 @@
 //! 处理模型提供商设置子模块的目录、认证和连接状态。
 
 use crate::app::config;
-use crate::app::config::server_config_unreachable_error;
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::provider::provider as model_provider;
 use crate::app::provider::provider_models;
 use crate::app::state::{CustomProviderDraft, ModelCapabilityDefaults, ModelCatalogEntry};
@@ -82,7 +82,7 @@ pub(crate) fn merge_discovered_model_drafts(
 #[cfg(not(target_arch = "wasm32"))]
 pub async fn discover_custom_provider_models(
     draft: CustomProviderDraft,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, Feedback> {
     use vw_provider_resolver::remote_models::{
         discover_openai_compatible_models, is_real_bearer, resolve_api_base,
     };
@@ -97,7 +97,7 @@ pub async fn discover_custom_provider_models(
             .filter(|key| is_real_bearer(key))
             .map(str::to_string)
     }
-    .ok_or_else(|| "请先填写或保存真实 API Key".to_string())?;
+    .ok_or_else(|| Feedback::owned(OwnedMessage::RealKeyRequired, vec![]))?;
 
     let configured_api = draft.base_url.trim();
     let api_base = if configured_api.is_empty() {
@@ -105,37 +105,27 @@ pub async fn discover_custom_provider_models(
     } else {
         Some(configured_api.trim_end_matches('/').to_string())
     }
-    .ok_or_else(|| "基础 URL 不能为空".to_string())?;
+    .ok_or_else(|| Feedback::owned(OwnedMessage::BaseUrlRequired, vec![]))?;
 
     let models = discover_openai_compatible_models(&api_base, &bearer)
         .await
         .map_err(|error| discovery_error_message(error.category()))?;
     if models.is_empty() {
-        return Err("未发现可用模型".to_string());
+        return Err(Feedback::owned(OwnedMessage::NoDiscoveredModels, vec![]));
     }
     Ok(models)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn discovery_error_message(category: &str) -> String {
-    let detail = match category {
-        "timeout" => "请求超时",
-        "request" => "网络请求失败",
-        "http_status" => "服务返回错误状态",
-        "redirect" => "服务返回重定向",
-        "response_too_large" => "响应过大",
-        "invalid_response" => "返回格式无效",
-        "client" => "请求初始化失败",
-        _ => "未知错误",
-    };
-    format!("自动发现模型失败：{detail}")
+fn discovery_error_message(category: &str) -> Feedback {
+    Feedback::discovery(category)
 }
 
 #[cfg(target_arch = "wasm32")]
 pub async fn discover_custom_provider_models(
     _draft: CustomProviderDraft,
-) -> Result<Vec<String>, String> {
-    Err("当前平台暂不支持自动发现模型".to_string())
+) -> Result<Vec<String>, Feedback> {
+    Err(Feedback::owned(OwnedMessage::DiscoveryUnsupported, vec![]))
 }
 
 /// 处理 `load_custom_provider_draft` 对应的用户输入、异步结果或状态转换。
@@ -144,9 +134,8 @@ pub async fn discover_custom_provider_models(
 /// 返回 `Err` 时保留原始错误文本，交由上层设置页展示。
 pub async fn load_custom_provider_draft(
     provider_id: String,
-) -> Result<CustomProviderDraft, String> {
-    let cfg =
-        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
+) -> Result<CustomProviderDraft, Feedback> {
+    let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
     let raw = cfg.providers.get(&provider_id);
     let settings_providers = model_provider::list_for_settings().await;
     let settings = settings_providers.get(&provider_id);
@@ -170,7 +159,9 @@ pub async fn load_custom_provider_draft(
         (None, Some(settings)) => {
             Ok(draft_from_settings_provider(&provider_id, settings, &catalog_model_ids))
         }
-        (None, None) => Err(format!("提供商 {} 不在系统配置的 providers 中", provider_id)),
+        (None, None) => {
+            Err(Feedback::owned(OwnedMessage::ProviderNotConfigured, vec![provider_id.to_string()]))
+        }
     }
 }
 
@@ -179,7 +170,7 @@ fn merge_custom_provider_draft(
     raw: &Value,
     settings: &model_provider::Info,
     catalog_model_ids: &HashSet<String>,
-) -> Result<CustomProviderDraft, String> {
+) -> Result<CustomProviderDraft, Feedback> {
     let mut draft = custom_provider_draft_from_value(provider_id, raw)?;
     let mut by_id = BTreeMap::new();
     for model in draft.models.drain(..) {
@@ -362,9 +353,12 @@ fn capability_io_modalities(io: &model_provider::CapabilityIO) -> Vec<String> {
 fn custom_provider_draft_from_value(
     provider_id: &str,
     raw: &Value,
-) -> Result<CustomProviderDraft, String> {
+) -> Result<CustomProviderDraft, Feedback> {
     let Some(obj) = raw.as_object() else {
-        return Err(format!("提供商 {} 的配置格式无效", provider_id));
+        return Err(Feedback::owned(
+            OwnedMessage::InvalidProviderConfig,
+            vec![provider_id.to_string()],
+        ));
     };
 
     let headers = extract_shared_headers(obj);
@@ -494,7 +488,7 @@ pub async fn connect_provider(
         bool,
         Vec<ModelCatalogEntry>,
     ),
-    String,
+    Feedback,
 > {
     let path = auth_filepath();
     shared_auth::store::set_to(
@@ -530,13 +524,10 @@ pub async fn connect_provider(
         let mut root = serde_json::Map::new();
         root.insert("providers".to_string(), serde_json::Value::Object(provider_obj));
         let patch = serde_json::Value::Object(root);
-        config::patch_full_agent_config_async(patch)
-            .await
-            .map_err(server_config_unreachable_error)?;
+        config::patch_full_agent_config_async(patch).await.map_err(Feedback::gateway)?;
     }
-    let providers = load_gateway_providers().await?;
-    let cfg =
-        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
+    let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
+    let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
     let (patterns, configured) = load_popular_providers_from_config(&cfg);
     let raw_providers = provider_models::get().await;
     let catalog = build_catalog_from_sources(&raw_providers, &providers);
@@ -556,17 +547,14 @@ pub async fn disconnect_provider(
         bool,
         Vec<ModelCatalogEntry>,
     ),
-    String,
+    Feedback,
 > {
     let path = auth_filepath();
     shared_auth::store::remove_from(&path, &provider_id).map_err(|e| e.to_string())?;
-    config::remove_global_provider_via_gateway(&provider_id)
-        .await
-        .map_err(server_config_unreachable_error)?;
+    config::remove_global_provider_via_gateway(&provider_id).await.map_err(Feedback::gateway)?;
     model_provider::invalidate_cache().await;
-    let providers = load_gateway_providers().await?;
-    let cfg =
-        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
+    let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
+    let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
     let (patterns, configured) = load_popular_providers_from_config(&cfg);
     let raw_providers = provider_models::get().await;
     let catalog = build_catalog_from_sources(&raw_providers, &providers);
@@ -586,15 +574,14 @@ pub async fn save_custom_provider(
         bool,
         Vec<ModelCatalogEntry>,
     ),
-    String,
+    Feedback,
 > {
     let provider_id = draft.provider_id.trim().to_string();
-    let cfg =
-        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
+    let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
     let existing_provider = cfg.providers.get(&provider_id);
     let (_, patch) = custom_provider_patch_from_draft(&draft, existing_provider)?;
 
-    config::patch_full_agent_config_async(patch).await.map_err(server_config_unreachable_error)?;
+    config::patch_full_agent_config_async(patch).await.map_err(Feedback::gateway)?;
     if !crate::app::state::is_shiju_official_provider_id(&provider_id)
         && !draft.api_key.trim().is_empty()
     {
@@ -607,9 +594,8 @@ pub async fn save_custom_provider(
         .map_err(|e| e.to_string())?;
     }
     model_provider::invalidate_cache().await;
-    let providers = load_gateway_providers().await?;
-    let cfg =
-        config::load_full_agent_config_async().await.map_err(server_config_unreachable_error)?;
+    let providers = load_gateway_providers().await.map_err(Feedback::gateway)?;
+    let cfg = config::load_full_agent_config_async().await.map_err(Feedback::gateway)?;
     let (patterns, configured) = load_popular_providers_from_config(&cfg);
     let raw_providers = provider_models::get().await;
     let catalog = build_catalog_from_sources(&raw_providers, &providers);
@@ -622,7 +608,7 @@ pub(crate) fn custom_provider_patch_from_draft(
 ) -> Result<(String, Value), String> {
     let provider_id = draft.provider_id.trim().to_string();
     let base_url = draft.base_url.trim().to_string();
-    validate_model_drafts(&draft.models)?;
+    validate_model_drafts(&draft.models).map_err(|e| e.to_string())?;
     let mut shared_headers = serde_json::Map::new();
     for h in &draft.headers {
         let k = h.key.trim();
@@ -758,7 +744,7 @@ pub(crate) fn custom_provider_patch_from_draft(
 
 pub(crate) fn validate_model_drafts(
     models: &[crate::app::state::CustomProviderModelDraft],
-) -> Result<(), String> {
+) -> Result<(), Feedback> {
     let mut ids = HashSet::new();
     for model in models {
         let model_id = model.model_id.trim();
@@ -766,14 +752,20 @@ pub(crate) fn validate_model_drafts(
             continue;
         }
         if !ids.insert(model_id.to_string()) {
-            return Err(format!("模型 ID 重复：{model_id}"));
+            return Err(Feedback::owned(
+                OwnedMessage::DuplicateModelId,
+                vec![model_id.to_string()],
+            ));
         }
         let context = parse_limit_field(model_id, "上下文", &model.context_limit, false)?;
         parse_limit_field(model_id, "输入", &model.input_limit, false)?;
         let output = parse_limit_field(model_id, "输出", &model.output_limit, true)?;
         if let (Some(context), Some(output)) = (context, output) {
             if output > context {
-                return Err(format!("模型 {model_id} 的输出限制不能超过上下文限制"));
+                return Err(Feedback::owned(
+                    OwnedMessage::OutputExceedsContext,
+                    vec![model_id.to_string()],
+                ));
             }
         }
     }
@@ -785,19 +777,21 @@ fn parse_limit_field(
     label: &str,
     value: &str,
     allow_zero: bool,
-) -> Result<Option<u64>, String> {
+) -> Result<Option<u64>, Feedback> {
     let value = value.trim();
     if value.is_empty() {
         return Ok(None);
     }
-    let parsed = value.parse::<u64>().map_err(|_| {
-        format!(
-            "模型 {model_id} 的{label}限制必须是{}",
-            if allow_zero { "非负整数" } else { "正整数" }
-        )
-    })?;
+    let key = match (label, allow_zero) {
+        ("上下文" | "context", _) => OwnedMessage::InvalidContextLimit,
+        ("输入" | "input", _) => OwnedMessage::InvalidInputLimit,
+        (_, true) => OwnedMessage::InvalidOutputLimit,
+        (_, false) => OwnedMessage::InvalidPositiveOutputLimit,
+    };
+    let invalid = || Feedback::owned(key, vec![model_id.to_string()]);
+    let parsed = value.parse::<u64>().map_err(|_| invalid())?;
     if !allow_zero && parsed == 0 {
-        return Err(format!("模型 {model_id} 的{label}限制必须是正整数"));
+        return Err(invalid());
     }
     Ok(Some(parsed))
 }
@@ -808,7 +802,8 @@ fn update_limit_field(
     value: &str,
     allow_zero: bool,
 ) -> Result<(), String> {
-    let parsed = parse_limit_field("当前模型", key, value, allow_zero)?;
+    let parsed =
+        parse_limit_field("当前模型", key, value, allow_zero).map_err(|e| e.to_string())?;
     if let Some(value) = parsed {
         limit.insert(key.to_string(), Value::Number(value.into()));
     } else {

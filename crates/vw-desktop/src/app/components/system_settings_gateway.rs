@@ -15,6 +15,10 @@ use crate::app::components::system_settings_common::{
     settings_text_input_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
+use crate::app::i18n::settings_models::messages::{Message as OwnedMessage, render as owned_text};
 use crate::app::message::settings::{GatewayMessage, SettingsMessage};
 use crate::app::state::{GatewaySettingsState, GatewaySettingsTab};
 use crate::app::{App, Message};
@@ -187,6 +191,8 @@ pub(super) const GATEWAY_TABS: &[SettingsTabDescriptor<GatewaySettingsTab>] = &[
         GATEWAY_TAB_LABELS[0].1,
         GATEWAY_TAB_LABELS[0].0,
         &[
+            "configuration",
+            "監聽地址",
             "监听地址",
             "端口",
             "auth_enabled",
@@ -200,7 +206,7 @@ pub(super) const GATEWAY_TABS: &[SettingsTabDescriptor<GatewaySettingsTab>] = &[
     SettingsTabDescriptor::new(
         GATEWAY_TAB_LABELS[1].1,
         GATEWAY_TAB_LABELS[1].0,
-        &["skey", "密钥", "过期时间", "鉴权"],
+        &["skey management", "skey 管理", "密鑰", "skey", "密钥", "过期时间", "鉴权"],
     ),
 ];
 
@@ -249,18 +255,6 @@ fn service_cli_command(command: &str) -> String {
 
 fn is_danger_service_command(command: &str) -> bool {
     matches!(command, "stop" | "uninstall")
-}
-
-fn service_command_label(command: &str) -> &'static str {
-    match command {
-        "stop" => "停止服务",
-        "uninstall" => "卸载服务",
-        "install" => "安装服务",
-        "start" => "启动服务",
-        "restart" => "重启服务",
-        "status" => "查询状态",
-        _ => "服务命令",
-    }
 }
 
 fn service_command_copy_button(
@@ -313,15 +307,45 @@ fn service_controls_content(app: &App) -> Element<'_, Message> {
     let copied_command = s.copied_service_command.as_deref();
     let actions = column![
         row![
-            service_action_cell("安装服务", "install", running, copied_command),
-            service_action_cell("启动服务", "start", running, copied_command),
-            service_action_cell("停止服务", "stop", running, copied_command),
+            service_action_cell(
+                connection_text(app.desktop_locale, ConnectionText::InstallService),
+                "install",
+                running,
+                copied_command
+            ),
+            service_action_cell(
+                connection_text(app.desktop_locale, ConnectionText::StartService),
+                "start",
+                running,
+                copied_command
+            ),
+            service_action_cell(
+                connection_text(app.desktop_locale, ConnectionText::StopService),
+                "stop",
+                running,
+                copied_command
+            ),
         ]
         .spacing(12),
         row![
-            service_action_cell("重启服务", "restart", running, copied_command),
-            service_action_cell("查询状态", "status", running, copied_command),
-            service_action_cell("卸载服务", "uninstall", running, copied_command),
+            service_action_cell(
+                connection_text(app.desktop_locale, ConnectionText::RestartService),
+                "restart",
+                running,
+                copied_command
+            ),
+            service_action_cell(
+                connection_text(app.desktop_locale, ConnectionText::QueryStatus),
+                "status",
+                running,
+                copied_command
+            ),
+            service_action_cell(
+                connection_text(app.desktop_locale, ConnectionText::UninstallService),
+                "uninstall",
+                running,
+                copied_command
+            ),
         ]
         .spacing(12),
     ]
@@ -332,9 +356,11 @@ fn service_controls_content(app: &App) -> Element<'_, Message> {
     if let Some(output) = s.service_action_output.as_ref().filter(|value| !value.trim().is_empty())
     {
         content = content.push(
-            container(text(output.as_str()).size(12).style(settings_muted_text_style))
-                .padding([10, 12])
-                .width(Length::Fill),
+            container(
+                text(output.display(app.desktop_locale)).size(12).style(settings_muted_text_style),
+            )
+            .padding([10, 12])
+            .width(Length::Fill),
         );
     }
 
@@ -392,7 +418,7 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
                 GatewayMessage::NewSkeyExpiresMonthChanged(1)
             )))
             .style(rounded_action_btn_style),
-        button(text("永不过期"))
+        button(text(connection_text(app.desktop_locale, ConnectionText::NeverExpires)))
             .padding([6, 12])
             .on_press(Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::NewSkeyExpiresAtCleared
@@ -402,16 +428,23 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
     .spacing(10)
     .align_y(Alignment::Center);
 
-    let weekdays = ["一", "二", "三", "四", "五", "六", "日"].into_iter().fold(
-        row![].spacing(6),
-        |row, label| {
-            row.push(
-                container(text(label).size(11).style(settings_muted_text_style))
-                    .width(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE))
-                    .center_x(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE)),
-            )
-        },
-    );
+    let weekdays = [
+        connection_text(app.desktop_locale, ConnectionText::Mon),
+        connection_text(app.desktop_locale, ConnectionText::Tue),
+        connection_text(app.desktop_locale, ConnectionText::Wed),
+        connection_text(app.desktop_locale, ConnectionText::Thu),
+        connection_text(app.desktop_locale, ConnectionText::Fri),
+        connection_text(app.desktop_locale, ConnectionText::Sat),
+        connection_text(app.desktop_locale, ConnectionText::Sun),
+    ]
+    .into_iter()
+    .fold(row![].spacing(6), |row, label| {
+        row.push(
+            container(text(label).size(11).style(settings_muted_text_style))
+                .width(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE))
+                .center_x(Length::Fixed(GATEWAY_SKEY_CALENDAR_CELL_SIZE)),
+        )
+    });
 
     let first_weekday = month.weekday().num_days_from_monday() as i32;
     let days = days_in_month(month.year(), month.month()) as i32;
@@ -454,17 +487,24 @@ fn skey_calendar_popover(app: &App) -> Element<'_, Message> {
 fn skey_date_picker(app: &App) -> Element<'_, Message> {
     let s = &app.gateway_settings;
     let selected_date = parse_skey_date(&s.new_skey_expires_at_input);
-    let action_label = if s.new_skey_calendar_open { "收起" } else { "日历" };
+    let action_label = if s.new_skey_calendar_open {
+        connection_text(app.desktop_locale, ConnectionText::Collapse)
+    } else {
+        connection_text(app.desktop_locale, ConnectionText::Calendar)
+    };
 
     let mut trigger = row![
-        text_input("YYYY-MM-DD，可手写", &s.new_skey_expires_at_input)
-            .on_input(|value| Message::Settings(SettingsMessage::Gateway(
-                GatewayMessage::NewSkeyExpiresAtChanged(value)
-            )))
-            .padding(SETTINGS_CONTROL_PADDING)
-            .size(SETTINGS_CONTROL_TEXT_SIZE)
-            .style(settings_text_input_style)
-            .width(Length::Fill),
+        text_input(
+            connection_text(app.desktop_locale, ConnectionText::YyyyMmDdOrType),
+            &s.new_skey_expires_at_input
+        )
+        .on_input(|value| Message::Settings(SettingsMessage::Gateway(
+            GatewayMessage::NewSkeyExpiresAtChanged(value)
+        )))
+        .padding(SETTINGS_CONTROL_PADDING)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
+        .style(settings_text_input_style)
+        .width(Length::Fill),
         button(text(action_label))
             .padding([6, 12])
             .on_press(Message::Settings(SettingsMessage::Gateway(
@@ -476,7 +516,7 @@ fn skey_date_picker(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
     if selected_date.is_some() {
         trigger = trigger.push(
-            button(text("永不过期"))
+            button(text(connection_text(app.desktop_locale, ConnectionText::NeverExpires)))
                 .padding([6, 12])
                 .on_press(Message::Settings(SettingsMessage::Gateway(
                     GatewayMessage::NewSkeyExpiresAtCleared,
@@ -514,8 +554,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_help_button(Message::Settings(SettingsMessage::Gateway(GatewayMessage::HelpOpen)));
 
     let port_row = number_row(
-        "端口",
-        "控制服务端 Gateway 的监听端口。",
+        connection_text(app.desktop_locale, ConnectionText::Port),
+        connection_text(app.desktop_locale, ConnectionText::PortOnWhichTheServer),
         s.port as u32,
         1,
         u16::MAX as u32,
@@ -525,28 +565,28 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let host_row = text_row_with_hint(
-        "主机地址",
-        "控制服务端 Gateway 的监听地址。",
+        connection_text(app.desktop_locale, ConnectionText::HostAddress),
+        connection_text(app.desktop_locale, ConnectionText::AddressOnWhichTheServer),
         "127.0.0.1",
         &s.host_input,
-        "若 host 非本地地址，建议仅在可信反向代理或隧道环境下使用。",
+        connection_text(app.desktop_locale, ConnectionText::ForNonLocalAddressesUse),
         |value| Message::Settings(SettingsMessage::Gateway(GatewayMessage::HostChanged(value))),
     );
 
     let auth_enabled_row = bool_row(
-        "启用 skey 鉴权",
-        "开启后，受保护请求必须通过 Authorization: Bearer 提供有效 skey。",
+        connection_text(app.desktop_locale, ConnectionText::EnableSkeyAuthentication),
+        connection_text(app.desktop_locale, ConnectionText::ProtectedRequestsMustSupplyA),
         s.auth_enabled,
-        "通过 Authorization: Bearer 校验 skey",
+        connection_text(app.desktop_locale, ConnectionText::ValidateSkeyThroughAuthorizationBearer),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::AuthEnabledToggled(value)))
         },
     );
     let allow_public_bind_row = bool_row(
-        "允许公网绑定",
-        "允许绑定到非本地地址。",
+        connection_text(app.desktop_locale, ConnectionText::AllowPublicBinding),
+        connection_text(app.desktop_locale, ConnectionText::AllowBindingToNonLocal),
         s.allow_public_bind,
-        "允许绑定到非本地地址",
+        connection_text(app.desktop_locale, ConnectionText::AllowBindingToNonLocalText),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::AllowPublicBindToggled(
                 value,
@@ -554,11 +594,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let trust_forwarded_headers_row = bool_row_with_hint(
-        "信任转发头",
-        "仅在可信反向代理后开启。",
+        connection_text(app.desktop_locale, ConnectionText::TrustForwardedHeaders),
+        connection_text(app.desktop_locale, ConnectionText::EnableOnlyBehindATrusted),
         s.trust_forwarded_headers,
-        "信任 X-Forwarded-For / X-Real-IP",
-        "仅在你完全信任前置代理时开启 forwarded headers。",
+        connection_text(app.desktop_locale, ConnectionText::TrustXForwardedForX),
+        connection_text(app.desktop_locale, ConnectionText::EnableForwardedHeadersOnlyWhen),
         |value| {
             Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::TrustForwardedHeadersToggled(value),
@@ -569,18 +609,21 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let skeys_section = settings_panel(
         column![
             field_row(
-                "skey 名称",
-                "用于列表展示和识别该 skey。",
+                connection_text(app.desktop_locale, ConnectionText::SkeyName),
+                connection_text(app.desktop_locale, ConnectionText::NameUsedToIdentifyThis),
                 row![
-                    text_input("例如 iPhone / CI Runner", &s.new_skey_name_input)
-                        .on_input(|value| Message::Settings(SettingsMessage::Gateway(
-                            GatewayMessage::NewSkeyNameChanged(value)
-                        )))
-                        .padding(SETTINGS_CONTROL_PADDING)
-                        .size(SETTINGS_CONTROL_TEXT_SIZE)
-                        .style(settings_text_input_style)
-                        .width(Length::Fill),
-                    button(text("生成 skey"))
+                    text_input(
+                        connection_text(app.desktop_locale, ConnectionText::ExampleIphoneCiRunner),
+                        &s.new_skey_name_input
+                    )
+                    .on_input(|value| Message::Settings(SettingsMessage::Gateway(
+                        GatewayMessage::NewSkeyNameChanged(value)
+                    )))
+                    .padding(SETTINGS_CONTROL_PADDING)
+                    .size(SETTINGS_CONTROL_TEXT_SIZE)
+                    .style(settings_text_input_style)
+                    .width(Length::Fill),
+                    button(text(connection_text(app.desktop_locale, ConnectionText::GenerateSkey)))
                         .padding([6, 12])
                         .on_press(Message::Settings(SettingsMessage::Gateway(
                             GatewayMessage::AddSkey
@@ -592,8 +635,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ),
             settings_divider(),
             field_row(
-                "过期日期",
-                "可手写 YYYY-MM-DD，也可点日历选择；为空表示永不过期。",
+                connection_text(app.desktop_locale, ConnectionText::ExpirationDate),
+                connection_text(app.desktop_locale, ConnectionText::TypeYyyyMmDdOr),
                 skey_date_picker(app)
             )
         ]
@@ -601,12 +644,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let last_created_skey_panel = s.last_created_skey.as_ref().map(|raw_skey| {
-        let copy_label = if s.last_created_skey_copied { "✓" } else { "复制" };
+        let copy_label = if s.last_created_skey_copied {
+            "✓"
+        } else {
+            connection_text(app.desktop_locale, ConnectionText::Copy)
+        };
         settings_panel(
             row![
                 column![
-                    text("原始 skey").size(13),
-                    text("仅展示一次，请立即复制。").size(11).style(settings_muted_text_style),
+                    text(connection_text(app.desktop_locale, ConnectionText::OriginalSkey))
+                        .size(13),
+                    text(connection_text(app.desktop_locale, ConnectionText::ShownOnceCopyItNow))
+                        .size(11)
+                        .style(settings_muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
@@ -631,9 +681,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let skeys_list: Element<'_, Message> = if s.skeys.is_empty() {
         settings_panel(
             column![
-                text("当前没有 skey。开启 skey 鉴权后，缺少有效 skey 的请求会被拒绝。",)
-                    .size(12)
-                    .style(settings_muted_text_style)
+                text(connection_text(
+                    app.desktop_locale,
+                    ConnectionText::NoSkeysWithSkeyAuthentication
+                ),)
+                .size(12)
+                .style(settings_muted_text_style)
             ]
             .spacing(0),
         )
@@ -652,8 +705,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 } else {
                     skey.masked_skey.clone()
                 };
-                let expires_at = skey.expires_at.as_deref().unwrap_or("永不过期");
-                let status = if skey.enabled { "启用" } else { "禁用" };
+                let expires_at = skey
+                    .expires_at
+                    .as_deref()
+                    .unwrap_or(connection_text(app.desktop_locale, ConnectionText::NeverExpires));
+                let status = if skey.enabled {
+                    connection_text(app.desktop_locale, ConnectionText::Enabled)
+                } else {
+                    connection_text(app.desktop_locale, ConnectionText::Disabled)
+                };
 
                 column.push(
                     container(
@@ -669,12 +729,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 .width(Length::Fixed(84.0)),
                             text(name).size(13).width(Length::Fixed(SETTINGS_LABEL_WIDTH)),
                             text(format!("{skey_display} · {expires_at}")).width(Length::Fill),
-                            button(text("删除"))
-                                .padding([6, 12])
-                                .on_press(Message::Settings(SettingsMessage::Gateway(
-                                    GatewayMessage::RemoveSkey(index),
-                                )))
-                                .style(rounded_action_btn_style),
+                            button(text(connection_text(
+                                app.desktop_locale,
+                                ConnectionText::Delete
+                            )))
+                            .padding([6, 12])
+                            .on_press(Message::Settings(SettingsMessage::Gateway(
+                                GatewayMessage::RemoveSkey(index),
+                            )))
+                            .style(rounded_action_btn_style),
                         ]
                         .spacing(20)
                         .align_y(Alignment::Center),
@@ -707,12 +770,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     };
 
     let webhook_rate_row = number_row(
-        "Webhook速率限制/分钟",
-        "限制 /webhook 每分钟可接受的请求数。",
+        connection_text(app.desktop_locale, ConnectionText::WebhookRateLimitPerMinute),
+        connection_text(app.desktop_locale, ConnectionText::MaximumWebhookRequestsAcceptedPer),
         s.webhook_rate_limit_per_minute,
         1,
         100_000,
-        "次/分钟",
+        connection_text(app.desktop_locale, ConnectionText::RequestsMin),
         |value| {
             Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::WebhookRateLimitPerMinuteChanged(value),
@@ -720,12 +783,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let rate_limit_max_keys_row = number_row(
-        "速率限制最大键数",
-        "约束网关内部 key map 规模。",
+        connection_text(app.desktop_locale, ConnectionText::MaximumRateLimitKeys),
+        connection_text(app.desktop_locale, ConnectionText::LimitTheSizeOfThe),
         s.rate_limit_max_keys,
         1,
         100_000,
-        "个键",
+        connection_text(app.desktop_locale, ConnectionText::Keys),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::RateLimitMaxKeysChanged(
                 value,
@@ -734,12 +797,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let idempotency_ttl_row = number_row(
-        "幂等性TTL(秒)",
-        "控制 webhook 幂等 key 的存活时间。",
+        connection_text(app.desktop_locale, ConnectionText::IdempotencyTtlSeconds),
+        connection_text(app.desktop_locale, ConnectionText::LifetimeOfWebhookIdempotencyKeys),
         s.idempotency_ttl_secs,
         1,
         86_400,
-        "秒",
+        connection_text(app.desktop_locale, ConnectionText::Seconds),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::IdempotencyTtlSecsChanged(
                 value,
@@ -747,12 +810,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let idempotency_max_keys_row = number_row(
-        "幂等性最大键数",
-        "控制幂等缓存允许保留的 key 数量。",
+        connection_text(app.desktop_locale, ConnectionText::MaximumIdempotencyKeys),
+        connection_text(app.desktop_locale, ConnectionText::MaximumKeysRetainedInThe),
         s.idempotency_max_keys,
         1,
         100_000,
-        "个键",
+        connection_text(app.desktop_locale, ConnectionText::Keys),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::IdempotencyMaxKeysChanged(
                 value,
@@ -761,10 +824,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
     );
 
     let node_control_enabled_row = bool_row(
-        "节点控制.已启用",
-        "启用实验性的 node-control API。",
+        connection_text(app.desktop_locale, ConnectionText::NodeControlEnabled),
+        connection_text(app.desktop_locale, ConnectionText::EnableTheExperimentalNodeControl),
         s.node_control_enabled,
-        "启用实验性的 node-control API",
+        connection_text(app.desktop_locale, ConnectionText::EnableExperimentalNodeControlApi),
         |value| {
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::NodeControlEnabledToggled(
                 value,
@@ -772,9 +835,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let node_control_auth_token_row = secure_text_row(
-        "节点控制.认证令牌",
-        "额外共享令牌，客户端需通过 X-Node-Control-Token 传递。",
-        "可选共享令牌",
+        connection_text(app.desktop_locale, ConnectionText::NodeControlAuthenticationToken),
+        connection_text(app.desktop_locale, ConnectionText::AdditionalSharedTokenSentThrough),
+        connection_text(app.desktop_locale, ConnectionText::OptionalSharedToken),
         &s.node_control_auth_token_input,
         |value| {
             Message::Settings(SettingsMessage::Gateway(
@@ -783,11 +846,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         },
     );
     let node_control_allowed_ids_row = text_row_with_hint(
-        "节点控制.允许的节点ID",
-        "留空表示不设置显式 allowlist；可使用 * 允许所有节点。",
-        "逗号或换行分隔，支持 *",
+        connection_text(app.desktop_locale, ConnectionText::NodeControlAllowedNodeIds),
+        connection_text(app.desktop_locale, ConnectionText::LeaveEmptyForNoExplicit),
+        connection_text(app.desktop_locale, ConnectionText::CommaOrNewlineSeparatedSupports),
         &s.node_control_allowed_node_ids_input,
-        "allowed_node_ids 留空表示不设置显式 allowlist；可使用 * 允许所有节点。",
+        connection_text(app.desktop_locale, ConnectionText::LeaveAllowedNodeIdsEmpty),
         |value| {
             Message::Settings(SettingsMessage::Gateway(
                 GatewayMessage::NodeControlAllowedNodeIdsChanged(value),
@@ -801,24 +864,39 @@ pub fn view(app: &App) -> Element<'_, Message> {
     }
     skey_management = skey_management.push(skeys_list);
 
-    let tab_bar = gateway_tab_labels()
-        .iter()
-        .fold(row![].spacing(8).align_y(Alignment::Center), |row, (label, tab)| {
-            row.push(gateway_tab_button(label, *tab, s.active_tab))
-        });
+    let tab_bar = gateway_tab_labels().iter().fold(
+        row![].spacing(8).align_y(Alignment::Center),
+        |row, (_label, tab)| {
+            let key = match tab {
+                GatewaySettingsTab::Config => ConnectionText::Configuration,
+                GatewaySettingsTab::Skeys => ConnectionText::SkeyManagement,
+            };
+            row.push(gateway_tab_button(
+                connection_text(app.desktop_locale, key),
+                *tab,
+                s.active_tab,
+            ))
+        },
+    );
 
     let config_content: Element<'_, Message> = column![
         settings_section_card(
-            "服务管理",
-            "通过本机 gateway 调用 shiju service 管理 OS 服务生命周期。"
+            connection_text(app.desktop_locale, ConnectionText::ServiceManagement),
+            connection_text(app.desktop_locale, ConnectionText::ManageOsServicesThroughShiju)
         ),
         service_controls_content(app),
         settings_section_card(
-            "监听地址",
-            "控制网关监听 host / port。默认仅绑定回环地址，避免意外暴露到公网。"
+            connection_text(app.desktop_locale, ConnectionText::ListenAddress),
+            connection_text(app.desktop_locale, ConnectionText::ConfigureTheGatewayHostAnd)
         ),
         settings_section_content(column![port_row, settings_divider(), host_row,].spacing(0)),
-        settings_section_card("安全开关", "控制 skey 鉴权、公网绑定与反向代理头信任策略。"),
+        settings_section_card(
+            connection_text(app.desktop_locale, ConnectionText::SecurityControls),
+            connection_text(
+                app.desktop_locale,
+                ConnectionText::ConfigureSkeyAuthenticationPublicBinding
+            )
+        ),
         settings_section_content(
             column![
                 auth_enabled_row,
@@ -829,17 +907,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
             ]
             .spacing(0),
         ),
-        settings_section_card("速率限制", "限制 /webhook 请求频率，并约束网关内部 key map 规模。"),
+        settings_section_card(
+            connection_text(app.desktop_locale, ConnectionText::RateLimits),
+            connection_text(app.desktop_locale, ConnectionText::LimitWebhookRequestsAndThe)
+        ),
         settings_section_content(
             column![webhook_rate_row, settings_divider(), rate_limit_max_keys_row].spacing(0),
         ),
-        settings_section_card("幂等性", "控制 webhook 幂等 key 的存活时间与内存上限。"),
+        settings_section_card(
+            connection_text(app.desktop_locale, ConnectionText::Idempotency),
+            connection_text(app.desktop_locale, ConnectionText::LimitWebhookIdempotencyKeyLifetime)
+        ),
         settings_section_content(
             column![idempotency_ttl_row, settings_divider(), idempotency_max_keys_row].spacing(0)
         ),
         settings_section_card(
             "Node Control",
-            "配置实验性的 node-control 协议，包括额外鉴权和允许的远端节点 ID。"
+            connection_text(
+                app.desktop_locale,
+                ConnectionText::ConfigureExperimentalNodeControlAuthentication
+            )
         ),
         settings_section_content(
             column![
@@ -858,8 +945,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let skeys_content: Element<'_, Message> = column![
         settings_section_card(
-            "skey 管理",
-            "维护 gateway.skeys 列表。原始 skey 不保存，仅保存哈希、脱敏 skey、名称和过期时间。",
+            connection_text(app.desktop_locale, ConnectionText::SkeyManagement),
+            connection_text(app.desktop_locale, ConnectionText::ManageGatewaySkeysOnlyHashes),
         ),
         skey_management,
     ]
@@ -875,8 +962,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         row![
             container(settings_page_intro(
-                "服务端网关配置",
-                "配置 Gateway 的监听地址、skey 鉴权、限流和实验性 node-control 行为。",
+                connection_text(app.desktop_locale, ConnectionText::ServerGatewaySettings),
+                connection_text(
+                    app.desktop_locale,
+                    ConnectionText::ConfigureTheGatewayListenAddress
+                ),
             ))
             .width(Length::Fill),
             container(help_btn).width(Length::Shrink),
@@ -889,8 +979,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16)
     .width(Length::Fill);
 
-    if let Some(error) = s.save_error.as_deref() {
-        content = content.push(settings_error_banner(error));
+    if let Some(error) = s.save_error.as_ref() {
+        content = content.push(settings_error_banner(error.display(app.desktop_locale)));
     }
 
     content.push(active_content).into()
@@ -912,10 +1002,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<'a, Message> {
     let s = &app.gateway_settings;
     if let Some(command) = s.pending_service_command_confirmation.as_deref() {
-        let label = service_command_label(command);
+        let label = service_display_label(app.desktop_locale, command);
         let command_text = service_cli_command(command);
-        let body = format!(
-            "{label} 是危险操作，可能会中断当前本机 gateway 连接、停止后台任务，卸载服务还会移除开机自启动配置。\n\n将执行命令：{command_text}\n\n确认继续？"
+        let body = owned_text(
+            app.desktop_locale,
+            OwnedMessage::DangerService,
+            &[label.to_string(), command_text.clone()],
         );
         let cancel_message =
             Message::Settings(SettingsMessage::Gateway(GatewayMessage::CancelDangerServiceCommand));
@@ -924,18 +1016,32 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         ));
         let card = settings_modal_card(
             column![
-                text(format!("确认{label}")).size(18),
+                text(owned_text(
+                    app.desktop_locale,
+                    OwnedMessage::ConfirmAction,
+                    &[label.to_string()]
+                ))
+                .size(18),
                 text(body).size(13).style(settings_muted_text_style),
                 row![
                     container(text(" ")).width(Length::Fill),
-                    button(text("取消").size(13))
-                        .padding([9, 14])
-                        .style(rounded_action_btn_style)
-                        .on_press(cancel_message.clone()),
-                    button(text(format!("确认{label}")).size(13))
-                        .padding([9, 14])
-                        .style(danger_action_btn_style)
-                        .on_press(confirm_message),
+                    button(
+                        text(connection_text(app.desktop_locale, ConnectionText::Cancel)).size(13)
+                    )
+                    .padding([9, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press(cancel_message.clone()),
+                    button(
+                        text(owned_text(
+                            app.desktop_locale,
+                            OwnedMessage::ConfirmAction,
+                            &[label.to_string()]
+                        ))
+                        .size(13)
+                    )
+                    .padding([9, 14])
+                    .style(danger_action_btn_style)
+                    .on_press(confirm_message),
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),
@@ -951,39 +1057,12 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         return dialog;
     }
 
-    let help_text = r#"服务端网关配置说明
-
-一、监听与暴露
-- gateway.port / gateway.host 控制 HTTP gateway 的监听地址。
-- allow_public_bind 默认关闭，防止在无隧道/代理保护的情况下直接暴露公网。
-
-二、安全与 skey
-- auth_enabled 开启后，客户端需通过 Authorization: Bearer <skey> 访问受保护端点。
-- 新增 skey 时只填写名称和可选过期日期；原始 skey 自动生成且仅展示一次。
-- skeys 只保存 enabled、skey_hash、脱敏 skey、名称和过期时间，原始 skey 不会写入配置。
-- 单个 skey 可禁用；禁用后不会通过鉴权。
-- trust_forwarded_headers 仅应在可信反向代理后开启。
-
-三、限流与幂等
-- webhook_rate_limit_per_minute 控制 webhook 每分钟请求上限。
-- rate_limit_max_keys 控制内存中追踪的客户端 key 数量。
-- idempotency_ttl_secs / idempotency_max_keys 控制 webhook 幂等缓存行为。
-
-四、Node Control
-- node_control.enabled 打开实验性 node-control API。
-- node_control.auth_token 为额外共享令牌，客户端需通过 X-Node-Control-Token 传递。
-- node_control.allowed_node_ids 为空表示不显式限制；可使用 * 允许所有节点。
-
-五、推荐默认
-- host 使用 127.0.0.1。
-- auth_enabled 默认关闭；对外暴露前再开启并配置 skey。
-- allow_public_bind 保持关闭。
-- trust_forwarded_headers 仅在受控代理链路后启用。"#;
+    let help_text = crate::app::i18n::settings_models::help::gateway(app.desktop_locale);
 
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
-        "Gateway 配置帮助",
+        connection_text(app.desktop_locale, ConnectionText::GatewaySettingsHelp),
         help_text,
         Message::Settings(SettingsMessage::Gateway(GatewayMessage::HelpClose)),
     )
@@ -991,3 +1070,19 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 #[cfg(test)]
 #[path = "system_settings_gateway_tests.rs"]
 mod system_settings_gateway_tests;
+
+fn service_display_label(
+    locale: vw_config_types::ui::DesktopLocale,
+    command: &str,
+) -> &'static str {
+    let key = match command {
+        "stop" => ConnectionText::StopService,
+        "uninstall" => ConnectionText::UninstallService,
+        "install" => ConnectionText::InstallService,
+        "start" => ConnectionText::StartService,
+        "restart" => ConnectionText::RestartService,
+        "status" => ConnectionText::QueryStatus,
+        _ => ConnectionText::ServiceCommand,
+    };
+    connection_text(locale, key)
+}

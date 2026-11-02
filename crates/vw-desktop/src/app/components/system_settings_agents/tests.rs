@@ -72,7 +72,7 @@ fn agents_view_missing_selection_uses_first_entry_and_unknown_tab_falls_back() {
     app.agents_settings.providers = vec![ProviderSummary {
         id: "provider-a".to_string(),
         name: "Provider A".to_string(),
-        source_label: "test".to_string(),
+        source_label: "test".to_string().into(),
         connected: true,
     }];
 

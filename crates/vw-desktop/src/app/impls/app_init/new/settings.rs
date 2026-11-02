@@ -24,7 +24,7 @@ pub(super) fn build_embedding_routes_settings(
         save_error: gateway_cfg_result
             .as_ref()
             .err()
-            .map(|err| config::server_config_unreachable_error(err.clone())),
+            .map(crate::app::i18n::settings_models::messages::Feedback::gateway),
         save_success: false,
     }
 }
@@ -53,7 +53,10 @@ pub(super) fn build_model_routes_settings(
             })
             .collect(),
         save_error: if model_routes_cfg.is_empty() && !query_classification_cfg.rules.is_empty() {
-            Some("已检测到 query_classification 规则，但桌面模型路由列表为空".to_string())
+            Some(crate::app::i18n::settings_models::messages::Feedback::owned(
+                crate::app::i18n::settings_models::messages::Message::ClassificationWithoutRoutes,
+                vec![],
+            ))
         } else {
             None
         },

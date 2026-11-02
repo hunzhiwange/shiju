@@ -1,6 +1,7 @@
 //! 处理系统设置页面中对应功能区的消息、校验和配置持久化。
 
 use super::types::AgentsLoaded;
+use crate::app::i18n::settings_models::messages::{Feedback, Message as OwnedMessage};
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::{
     App, Message,
@@ -26,19 +27,19 @@ fn summarize_providers(providers: std::collections::HashMap<String, Info>) -> Ve
         .into_values()
         .map(|provider| {
             let (source_label, connected) = match provider.source {
-                provider_types::ProviderSource::Api => ("API 密钥", true),
-                provider_types::ProviderSource::Env => ("环境变量", true),
+                provider_types::ProviderSource::Api => (OwnedMessage::SourceApi, true),
+                provider_types::ProviderSource::Env => (OwnedMessage::SourceEnv, true),
                 provider_types::ProviderSource::Config => {
-                    ("配置", is_provider_connected(&provider))
+                    (OwnedMessage::SourceConfig, is_provider_connected(&provider))
                 }
                 provider_types::ProviderSource::Custom => {
-                    ("内置", is_provider_connected(&provider))
+                    (OwnedMessage::SourceBuiltin, is_provider_connected(&provider))
                 }
             };
             ProviderSummary {
                 id: provider.id,
                 name: provider.name,
-                source_label: source_label.to_string(),
+                source_label: Feedback::owned(source_label, vec![]),
                 connected,
             }
         })

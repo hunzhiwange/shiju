@@ -23,13 +23,14 @@ pub type ProvidersLoaded = Result<
         bool,
         Vec<ModelCatalogEntry>,
     ),
-    String,
+    crate::app::i18n::settings_models::messages::Feedback,
 >;
 
 /// `ModelsLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。
-pub type ModelsLoaded = Result<Vec<ProviderModelsSummary>, String>;
+pub type ModelsLoaded =
+    Result<Vec<ProviderModelsSummary>, crate::app::i18n::settings_models::messages::Feedback>;
 /// `SkillsLoaded` 的加载结果类型。
 ///
 /// 使用别名让顶层设置消息保持可读，并统一错误文本传递方式。

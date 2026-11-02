@@ -48,6 +48,8 @@ impl<T> SettingsTabDescriptor<T> {
 /// 一个可导航系统设置目标的搜索元数据。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SystemSettingsSearchEntry {
+    original_label: &'static str,
+    original_parent_label: Option<&'static str>,
     /// 搜索结果的主标签。
     pub label: &'static str,
     /// 可选的上级设置分区标签。
@@ -65,7 +67,14 @@ impl SystemSettingsSearchEntry {
         keywords: &'static [&'static str],
         target: SystemSettingsSearchTarget,
     ) -> Self {
-        Self { label, parent_label, keywords, target }
+        Self {
+            label,
+            original_label: label,
+            original_parent_label: parent_label,
+            parent_label,
+            keywords,
+            target,
+        }
     }
 
     /// 使用文字、拼音全拼和首字母形式匹配查询；空查询匹配全部条目。
@@ -84,7 +93,11 @@ impl SystemSettingsSearchEntry {
     }
 
     fn searchable_texts(&self) -> impl Iterator<Item = &'static str> + '_ {
-        std::iter::once(self.label).chain(self.parent_label).chain(self.keywords.iter().copied())
+        std::iter::once(self.label)
+            .chain(std::iter::once(self.original_label))
+            .chain(self.parent_label)
+            .chain(self.original_parent_label)
+            .chain(self.keywords.iter().copied())
     }
 }
 
@@ -138,6 +151,27 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
     extend_tabs!(system_settings_network::NETWORK_TABS, "网络配置", Network);
     extend_tabs!(system_settings_mcp::MCP_TABS, "智能体 / MCP", AgentMcp);
     extend_tabs!(system_settings_skills::SKILLS_TABS, "智能体 / 技能", AgentSkills);
+    for entry in &mut entries {
+        if let Some(label) = connection_target_label(app.desktop_locale, entry.target) {
+            entry.label = label;
+            use crate::app::i18n::settings_models::{
+                self,
+                connection_text::{Text, text},
+            };
+            entry.parent_label = match entry.target {
+                SystemSettingsSearchTarget::Models(_) => {
+                    Some(settings_models::text(app.desktop_locale, settings_models::Text::Models))
+                }
+                SystemSettingsSearchTarget::Gateway(_) => {
+                    Some(text(app.desktop_locale, Text::ServerGatewaySettings))
+                }
+                SystemSettingsSearchTarget::Network(_) => {
+                    Some(text(app.desktop_locale, Text::NetworkSettings))
+                }
+                _ => entry.parent_label,
+            };
+        }
+    }
     entries
 }
 
@@ -210,4 +244,41 @@ fn push_unique(forms: &mut Vec<String>, form: String) {
     if !form.is_empty() && !forms.contains(&form) {
         forms.push(form);
     }
+}
+
+fn connection_target_label(
+    locale: vw_config_types::ui::DesktopLocale,
+    target: SystemSettingsSearchTarget,
+) -> Option<&'static str> {
+    use crate::app::i18n::settings_models::{self, Text as ModelText};
+    use SystemSettingsSearchTarget::{Gateway, Models, Network, TopLevel};
+    use settings_models::connection_text::{Text, text};
+    let key = match target {
+        Models(tab) => {
+            return Some(settings_models::text(
+                locale,
+                match tab {
+                    ModelConfigTab::Models => ModelText::Models,
+                    ModelConfigTab::ModelRoutes => ModelText::ModelRoutes,
+                    ModelConfigTab::QueryClassification => ModelText::ModelClassification,
+                    ModelConfigTab::Multimodal => ModelText::Multimodal,
+                },
+            ));
+        }
+        Gateway(GatewaySettingsTab::Config) => Text::Configuration,
+        Gateway(GatewaySettingsTab::Skeys) => Text::SkeyManagement,
+        TopLevel(SystemTab::Providers) => Text::ModelProviders,
+        TopLevel(SystemTab::Models) => {
+            return Some(settings_models::text(locale, ModelText::Models));
+        }
+        TopLevel(SystemTab::Gateway) => Text::ServerGatewaySettings,
+        TopLevel(SystemTab::GatewayClient) => Text::ClientGateway,
+        Network(SystemTab::WebSearch) | TopLevel(SystemTab::WebSearch) => Text::WebSearch,
+        Network(SystemTab::HttpRequest) | TopLevel(SystemTab::HttpRequest) => Text::HttpRequests,
+        Network(SystemTab::Browser) | TopLevel(SystemTab::Browser) => Text::Browser,
+        Network(SystemTab::Proxy) | TopLevel(SystemTab::Proxy) => Text::Proxy,
+        Network(SystemTab::Tunnel) | TopLevel(SystemTab::Tunnel) => Text::Tunnel,
+        _ => return None,
+    };
+    Some(text(locale, key))
 }

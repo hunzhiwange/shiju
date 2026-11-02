@@ -221,3 +221,24 @@ pub fn model_metadata(locale: DesktopLocale, tools: bool, images: bool, context:
         }
     }
 }
+
+pub mod connection_text;
+
+pub mod messages;
+
+pub mod help;
+
+/// Map known modality identifiers in the display layer; protocol values are untouched.
+pub fn modality_label(locale: DesktopLocale, modality: &str) -> &str {
+    match (locale, modality) {
+        (DesktopLocale::SimplifiedChinese, "text") => "文本",
+        (DesktopLocale::TraditionalChinese, "text") => "文字",
+        (DesktopLocale::SimplifiedChinese, "image") => "图片",
+        (DesktopLocale::TraditionalChinese, "image") => "圖片",
+        (DesktopLocale::SimplifiedChinese, "audio") => "音频",
+        (DesktopLocale::TraditionalChinese, "audio") => "音訊",
+        (DesktopLocale::SimplifiedChinese, "video") => "视频",
+        (DesktopLocale::TraditionalChinese, "video") => "影片",
+        _ => modality,
+    }
+}

@@ -16,7 +16,7 @@ fn test_module_is_wired() {
 fn update_forwards_close_and_clears_connect_state() {
     let (mut app, _) = crate::app::App::new();
     app.provider_settings.connect_modal = Some(crate::app::state::ProviderConnectState::default());
-    app.provider_settings.connect_error = Some("invalid key".to_string());
+    app.provider_settings.connect_error = Some(("invalid key".to_string()).into());
 
     let _ = super::update(&mut app, super::SettingsMessage::ProviderConnectClose);
 
@@ -51,7 +51,7 @@ fn update_forwards_disconnect_error_and_clears_confirmation() {
 
     let _ = super::update(
         &mut app,
-        super::SettingsMessage::ProviderDisconnectDone(Err("disconnect denied".to_string())),
+        super::SettingsMessage::ProviderDisconnectDone(Err("disconnect denied".to_string().into())),
     );
 
     assert_eq!(app.provider_settings.save_error.as_deref(), Some("disconnect denied"));

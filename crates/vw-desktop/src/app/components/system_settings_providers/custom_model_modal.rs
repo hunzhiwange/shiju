@@ -10,6 +10,9 @@ use crate::app::components::system_settings_common::{
     settings_modal_overlay, settings_muted_text_style, settings_page_intro, settings_section_card,
     settings_section_content, settings_segment_button_style, settings_text_input_style,
 };
+use crate::app::i18n::settings_models::connection_text::{
+    Text as ConnectionText, text as connection_text,
+};
 use crate::app::state::CustomProviderModelTab;
 use crate::app::{App, Message, message};
 use iced::widget::scrollable::{Direction, Scrollbar};
@@ -120,28 +123,35 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let close_message = Message::Settings(message::SettingsMessage::CustomProviderModelClose);
         let close_btn = settings_close_button(close_message.clone());
 
-        let title = if mm.edit_index.is_some() { "编辑模型" } else { "添加模型" };
+        let title = if mm.edit_index.is_some() {
+            connection_text(app.desktop_locale, ConnectionText::EditModel)
+        } else {
+            connection_text(app.desktop_locale, ConnectionText::AddModel)
+        };
 
         let id_row = text_row(
-            "模型 ID",
-            "用于请求 provider 的真实 model_id。",
-            "例如 gpt-4o-mini",
+            connection_text(app.desktop_locale, ConnectionText::ModelId),
+            connection_text(app.desktop_locale, ConnectionText::ActualModelIdSentTo),
+            connection_text(app.desktop_locale, ConnectionText::ExampleGpt4oMini),
             &mm.model_id,
             |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalIdChanged(v)),
         );
 
         let name_row = text_row(
-            "显示名称",
-            "仅影响 UI 展示，可留空回退为 model_id。",
-            "可选",
+            connection_text(app.desktop_locale, ConnectionText::DisplayName),
+            connection_text(app.desktop_locale, ConnectionText::DisplayOnlyLeaveEmptyTo),
+            connection_text(app.desktop_locale, ConnectionText::Optional),
             &mm.display_name,
             |v| Message::Settings(message::SettingsMessage::CustomProviderModelModalNameChanged(v)),
         );
 
         let family_row = text_row(
-            "模型家族",
-            "可选 family 元数据，用于区分同一厂商的模型系列。",
-            "例如 qwen、gpt、claude",
+            connection_text(app.desktop_locale, ConnectionText::ModelFamily),
+            connection_text(
+                app.desktop_locale,
+                ConnectionText::OptionalFamilyMetadataDistinguishingModel,
+            ),
+            connection_text(app.desktop_locale, ConnectionText::ExampleQwenGptClaude),
             &mm.family,
             |v| {
                 Message::Settings(message::SettingsMessage::CustomProviderModelModalFamilyChanged(
@@ -151,9 +161,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         );
 
         let context_limit_row = text_row(
-            "上下文限制（token）",
-            "总上下文窗口；留空时沿用内置基线或安全默认值。",
-            "例如 200000，留空使用默认值",
+            connection_text(app.desktop_locale, ConnectionText::ContextLimitTokens),
+            connection_text(app.desktop_locale, ConnectionText::TotalContextWindowLeaveEmpty),
+            connection_text(app.desktop_locale, ConnectionText::Example200000LeaveEmptyFor),
             &mm.context_limit,
             |v| {
                 Message::Settings(
@@ -162,9 +172,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             },
         );
         let input_limit_row = text_row(
-            "最大输入（token）",
-            "最大输入窗口；留空时沿用内置基线或安全默认值。",
-            "例如 200000，留空使用默认值",
+            connection_text(app.desktop_locale, ConnectionText::MaximumInputTokens),
+            connection_text(app.desktop_locale, ConnectionText::MaximumInputWindowLeaveEmpty),
+            connection_text(app.desktop_locale, ConnectionText::Example200000LeaveEmptyFor),
             &mm.input_limit,
             |v| {
                 Message::Settings(
@@ -173,9 +183,9 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             },
         );
         let output_limit_row = text_row(
-            "最大输出（token）",
-            "最大输出窗口；0 可表示该模型不产生文本输出。",
-            "例如 4096，留空使用默认值",
+            connection_text(app.desktop_locale, ConnectionText::MaximumOutputTokens),
+            connection_text(app.desktop_locale, ConnectionText::MaximumOutputWindowZeroCan),
+            connection_text(app.desktop_locale, ConnectionText::Example4096LeaveEmptyFor),
             &mm.output_limit,
             |v| {
                 Message::Settings(
@@ -191,7 +201,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 |capabilities| capabilities.reasoning,
                 false,
             ),
-            "推理",
+            connection_text(app.desktop_locale, ConnectionText::Reasoning),
             |value| {
                 Message::Settings(
                     message::SettingsMessage::CustomProviderModelModalReasoningChanged(value),
@@ -205,7 +215,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 |capabilities| capabilities.tool_call,
                 true,
             ),
-            "工具调用",
+            connection_text(app.desktop_locale, ConnectionText::ToolCalls),
             |value| {
                 Message::Settings(
                     message::SettingsMessage::CustomProviderModelModalToolCallChanged(value),
@@ -219,7 +229,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 |capabilities| capabilities.temperature,
                 false,
             ),
-            "温度",
+            connection_text(app.desktop_locale, ConnectionText::Temperature),
             |value| {
                 Message::Settings(
                     message::SettingsMessage::CustomProviderModelModalTemperatureChanged(value),
@@ -233,7 +243,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 |capabilities| capabilities.attachment,
                 false,
             ),
-            "附件",
+            connection_text(app.desktop_locale, ConnectionText::Attachments),
             |value| {
                 Message::Settings(
                     message::SettingsMessage::CustomProviderModelModalAttachmentChanged(value),
@@ -247,7 +257,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 |capabilities| capabilities.interleaved,
                 false,
             ),
-            "交错输入输出",
+            connection_text(app.desktop_locale, ConnectionText::InterleavedInputOutput),
             |value| {
                 Message::Settings(
                     message::SettingsMessage::CustomProviderModelModalInterleavedChanged(value),
@@ -255,8 +265,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             },
         );
         let capabilities_row = field_row(
-            "能力",
-            "未显式设置时沿用基线；新模型默认支持文本和工具调用。",
+            connection_text(app.desktop_locale, ConnectionText::Capabilities),
+            connection_text(app.desktop_locale, ConnectionText::UnsetValuesUseTheBaseline),
             row![reasoning, tool_call, temperature, attachment, interleaved].spacing(16),
         );
 
@@ -268,7 +278,13 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             let checked = modality_checked(mm.input_modalities.as_ref().or(inherited), modality);
             let modality = modality.to_string();
             checkbox(checked)
-                .label(modality.clone())
+                .label(
+                    crate::app::i18n::settings_models::modality_label(
+                        app.desktop_locale,
+                        &modality,
+                    )
+                    .to_string(),
+                )
                 .on_toggle(move |value| {
                     Message::Settings(
                         message::SettingsMessage::CustomProviderModelModalInputModalityToggled(
@@ -288,7 +304,13 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
             let checked = modality_checked(mm.output_modalities.as_ref().or(inherited), modality);
             let modality = modality.to_string();
             checkbox(checked)
-                .label(modality.clone())
+                .label(
+                    crate::app::i18n::settings_models::modality_label(
+                        app.desktop_locale,
+                        &modality,
+                    )
+                    .to_string(),
+                )
                 .on_toggle(move |value| {
                     Message::Settings(
                         message::SettingsMessage::CustomProviderModelModalOutputModalityToggled(
@@ -302,14 +324,14 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         });
         let modalities_row = column![
             field_row(
-                "输入模态",
-                "选择 provider 接受的输入类型；留空时按文本模型默认值处理。",
+                connection_text(app.desktop_locale, ConnectionText::InputModalities),
+                connection_text(app.desktop_locale, ConnectionText::ChooseProviderInputTypesLeave),
                 row(input_modality_checks).spacing(12),
             ),
             settings_divider(),
             field_row(
-                "输出模态",
-                "选择 provider 返回的输出类型；留空时按文本模型默认值处理。",
+                connection_text(app.desktop_locale, ConnectionText::OutputModalities),
+                connection_text(app.desktop_locale, ConnectionText::ChooseProviderOutputTypesLeave),
                 row(output_modality_checks).spacing(12),
             ),
         ]
@@ -317,8 +339,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let info_tab = column![
             settings_section_card(
-                "模型信息",
-                "模型 ID 会直接用于请求；显示名称和家族仅用于元数据。"
+                connection_text(app.desktop_locale, ConnectionText::ModelInformation),
+                connection_text(app.desktop_locale, ConnectionText::ModelIdIsSentIn)
             ),
             settings_section_content(
                 column![id_row, settings_divider(), name_row, settings_divider(), family_row]
@@ -328,8 +350,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16);
         let limits_tab = column![
             settings_section_card(
-                "限制",
-                "空值明确表示沿用内置基线或安全默认值，数值单位为 token。"
+                connection_text(app.desktop_locale, ConnectionText::Limits),
+                connection_text(app.desktop_locale, ConnectionText::EmptyValuesUseTheBuilt)
             ),
             settings_section_content(
                 column![
@@ -345,8 +367,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16);
         let capabilities_tab = column![
             settings_section_card(
-                "能力与模态",
-                "只保存用户显式设置的覆盖，保持自动发现模型的其它配置。"
+                connection_text(app.desktop_locale, ConnectionText::CapabilitiesAndModalities),
+                connection_text(
+                    app.desktop_locale,
+                    ConnectionText::SaveOnlyExplicitOverridesPreserving
+                )
             ),
             settings_section_content(
                 column![capabilities_row, settings_divider(), modalities_row].spacing(0)
@@ -355,9 +380,21 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         .spacing(16);
 
         let tabs = row![
-            model_tab_button("模型信息", CustomProviderModelTab::Info, mm.active_tab),
-            model_tab_button("限制", CustomProviderModelTab::Limits, mm.active_tab),
-            model_tab_button("能力与模态", CustomProviderModelTab::Capabilities, mm.active_tab,),
+            model_tab_button(
+                connection_text(app.desktop_locale, ConnectionText::ModelInformation),
+                CustomProviderModelTab::Info,
+                mm.active_tab
+            ),
+            model_tab_button(
+                connection_text(app.desktop_locale, ConnectionText::Limits),
+                CustomProviderModelTab::Limits,
+                mm.active_tab
+            ),
+            model_tab_button(
+                connection_text(app.desktop_locale, ConnectionText::CapabilitiesAndModalities),
+                CustomProviderModelTab::Capabilities,
+                mm.active_tab,
+            ),
         ]
         .spacing(8)
         .align_y(Alignment::Center);
@@ -370,14 +407,17 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
 
         let error_banner: Element<'_, Message> = s
             .save_error
-            .as_deref()
-            .map(settings_error_banner)
+            .as_ref()
+            .map(|error| settings_error_banner(error.display(app.desktop_locale)))
             .unwrap_or_else(|| container(text("")).height(0).into());
 
         let modal_col = column![
             row![
-                container(settings_page_intro(title, "填写模型 ID 和展示名称。"))
-                    .width(Length::Fill),
+                container(settings_page_intro(
+                    title,
+                    connection_text(app.desktop_locale, ConnectionText::EnterTheModelIdAnd)
+                ))
+                .width(Length::Fill),
                 close_btn,
             ]
             .align_y(Alignment::Start),
@@ -390,11 +430,11 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 .height(Length::Fill),
             row![
                 container(text("")).width(Length::Fill),
-                button(text("取消"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::Cancel)))
                     .on_press(close_message.clone())
                     .padding([8, 14])
                     .style(rounded_action_btn_style),
-                button(text("保存"))
+                button(text(connection_text(app.desktop_locale, ConnectionText::Save)))
                     .on_press(Message::Settings(
                         message::SettingsMessage::CustomProviderModelModalSave
                     ))

@@ -114,7 +114,9 @@ fn text_row<'a>(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 fn list_editor<'a>(
+    locale: vw_config_types::ui::DesktopLocale,
     kind: AutonomyListKind,
     label: &'static str,
     description: &'static str,
@@ -128,7 +130,7 @@ fn list_editor<'a>(
     };
     let add_message = Message::Settings(message::SettingsMessage::AutonomyListAdd(kind));
     let add_button = {
-        let button = button(text("添加"))
+        let button = button(text(crate::app::i18n::I18n::new(locale).__("添加")))
             .padding([9, 14])
             .style(|theme, status| settings_segment_button_style(theme, status, false));
         if draft.trim().is_empty() { button } else { button.on_press(add_message.clone()) }
@@ -140,7 +142,7 @@ fn list_editor<'a>(
         let selected = options.iter().find(|tool| tool.as_str() == draft).map(ToOwned::to_owned);
         row![
             pick_list(options, selected, draft_changed)
-                .placeholder("选择现有工具")
+                .placeholder(crate::app::i18n::I18n::new(locale).__("选择现有工具"))
                 .padding([10, 14])
                 .text_size(13)
                 .style(settings_pick_list_style)
@@ -153,7 +155,7 @@ fn list_editor<'a>(
         .into()
     } else {
         row![
-            text_input("输入单个列表项", draft)
+            text_input(crate::app::i18n::I18n::new(locale).__("输入单个列表项"), draft)
                 .on_input(draft_changed)
                 .on_submit(add_message)
                 .padding([10, 12])
@@ -172,7 +174,7 @@ fn list_editor<'a>(
         let mut item_content = column![
             row![
                 text(item).size(13).width(Length::Fill),
-                button(text("删除").size(12))
+                button(text(crate::app::i18n::I18n::new(locale).__("删除")).size(12))
                     .on_press(Message::Settings(
                         message::SettingsMessage::AutonomyListRemoveRequested(kind, index),
                     ))
@@ -186,8 +188,10 @@ fn list_editor<'a>(
         if pending_remove_index == Some(index) {
             item_content = item_content.push(
                 row![
-                    text("确认删除该列表项？").size(12).width(Length::Fill),
-                    button(text("取消").size(12))
+                    text(crate::app::i18n::I18n::new(locale).__("确认删除该列表项？"))
+                        .size(12)
+                        .width(Length::Fill),
+                    button(text(crate::app::i18n::I18n::new(locale).__("取消")).size(12))
                         .on_press(Message::Settings(
                             message::SettingsMessage::AutonomyListRemoveCanceled,
                         ))
@@ -195,7 +199,7 @@ fn list_editor<'a>(
                         .style(|theme, status| {
                             settings_segment_button_style(theme, status, false)
                         }),
-                    button(text("确认删除").size(12))
+                    button(text(crate::app::i18n::I18n::new(locale).__("确认删除")).size(12))
                         .on_press(Message::Settings(
                             message::SettingsMessage::AutonomyListRemoveConfirmed(kind, index),
                         ))
@@ -296,25 +300,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let level_row = || {
         field_row(
-            "级别",
-            "决定代理默认可执行的动作范围。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("级别"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("决定代理默认可执行的动作范围。"),
             row![
                 tab_button(
-                    "只读",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("只读"),
                     s.level == AutonomyLevel::ReadOnly,
                     Message::Settings(message::SettingsMessage::AutonomyLevelChanged(
                         AutonomyLevel::ReadOnly,
                     )),
                 ),
                 tab_button(
-                    "监督",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("监督"),
                     s.level == AutonomyLevel::Supervised,
                     Message::Settings(message::SettingsMessage::AutonomyLevelChanged(
                         AutonomyLevel::Supervised,
                     )),
                 ),
                 tab_button(
-                    "完全",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("完全"),
                     s.level == AutonomyLevel::Full,
                     Message::Settings(message::SettingsMessage::AutonomyLevelChanged(
                         AutonomyLevel::Full,
@@ -328,18 +332,20 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let workspace_only_row = || {
         bool_row(
-            "工作区限制",
-            "仅允许在工作区路径内操作，除非显式加入 allowed_roots。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("工作区限制"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("仅允许在工作区路径内操作，除非显式加入 allowed_roots。"),
             s.workspace_only,
-            "仅限工作区",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("仅限工作区"),
             |v| Message::Settings(message::SettingsMessage::AutonomyWorkspaceOnlyToggled(v)),
         )
     };
 
     let max_actions_row = || {
         field_row(
-            "每小时动作上限",
-            "限制自治过程中每小时可执行的动作数量。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("每小时动作上限"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("限制自治过程中每小时可执行的动作数量。"),
             NumberInput::new(s.max_actions_per_hour as f32, 1.0, 1_000_000.0, 1.0, 0, 1.0, |v| {
                 Message::Settings(message::SettingsMessage::AutonomyMaxActionsPerHourChanged(
                     v.round() as u32,
@@ -351,8 +357,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let max_cost_row = || {
         field_row(
-            "每日成本上限(分)",
-            "限制自治行为每天可消耗的成本预算。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("每日成本上限(分)"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("限制自治行为每天可消耗的成本预算。"),
             NumberInput::new(
                 s.max_cost_per_day_cents as f32,
                 1.0,
@@ -372,10 +379,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let approve_medium_row = || {
         bool_row(
-            "中风险审批",
-            "对中风险动作触发审批，而不是直接执行。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("中风险审批"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("对中风险动作触发审批，而不是直接执行。"),
             s.require_approval_for_medium_risk,
-            "中风险需审批",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("中风险需审批"),
             |v| {
                 Message::Settings(
                     message::SettingsMessage::AutonomyRequireApprovalForMediumRiskToggled(v),
@@ -386,10 +394,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let block_high_row = || {
         bool_row(
-            "高风险阻断",
-            "对高风险命令直接阻断，不进入执行链路。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("高风险阻断"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("对高风险命令直接阻断，不进入执行链路。"),
             s.block_high_risk_commands,
-            "阻断高风险",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("阻断高风险"),
             |v| {
                 Message::Settings(message::SettingsMessage::AutonomyBlockHighRiskCommandsToggled(v))
             },
@@ -398,11 +407,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let redirect_row = || {
         field_row(
-            "重定向策略",
-            "控制 shell 命令中的输出重定向如何处理。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("重定向策略"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("控制 shell 命令中的输出重定向如何处理。"),
             row![
                 tab_button(
-                    "阻断",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("阻断"),
                     s.shell_redirect_policy == ShellRedirectPolicy::Block,
                     Message::Settings(
                         message::SettingsMessage::AutonomyShellRedirectPolicyChanged(
@@ -411,7 +421,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ),
                 tab_button(
-                    "移除",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("移除"),
                     s.shell_redirect_policy == ShellRedirectPolicy::Strip,
                     Message::Settings(
                         message::SettingsMessage::AutonomyShellRedirectPolicyChanged(
@@ -420,7 +430,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ),
                 tab_button(
-                    "直接执行",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("直接执行"),
                     s.shell_redirect_policy == ShellRedirectPolicy::Allow,
                     Message::Settings(
                         message::SettingsMessage::AutonomyShellRedirectPolicyChanged(
@@ -436,11 +446,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mode_row = || {
         field_row(
-            "自然语言审批",
-            "控制非 CLI 场景下自然语言请求的执行方式。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("自然语言审批"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("控制非 CLI 场景下自然语言请求的执行方式。"),
             row![
                 tab_button(
-                    "禁用",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("禁用"),
                     s.non_cli_natural_language_approval_mode
                         == NonCliNaturalLanguageApprovalMode::Disabled,
                     Message::Settings(
@@ -450,7 +461,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ),
                 tab_button(
-                    "请求确认",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("请求确认"),
                     s.non_cli_natural_language_approval_mode
                         == NonCliNaturalLanguageApprovalMode::RequestConfirm,
                     Message::Settings(
@@ -460,7 +471,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     ),
                 ),
                 tab_button(
-                    "直接执行",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("直接执行"),
                     s.non_cli_natural_language_approval_mode
                         == NonCliNaturalLanguageApprovalMode::Direct,
                     Message::Settings(
@@ -477,9 +488,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let allowed_commands_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::AllowedCommands,
-            "允许命令",
-            "Shell 白名单，每次添加一个命令。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("允许命令"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("Shell 白名单，每次添加一个命令。"),
             &s.allowed_commands,
             s.list_editor.draft(AutonomyListKind::AllowedCommands),
             s.list_editor.pending_remove_index(AutonomyListKind::AllowedCommands),
@@ -489,9 +501,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let forbidden_paths_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::ForbiddenPaths,
-            "禁止路径",
-            "限制代理访问这些路径，即使在工作区外也保持拒绝。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("禁止路径"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("限制代理访问这些路径，即使在工作区外也保持拒绝。"),
             &s.forbidden_paths,
             s.list_editor.draft(AutonomyListKind::ForbiddenPaths),
             s.list_editor.pending_remove_index(AutonomyListKind::ForbiddenPaths),
@@ -501,9 +515,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let shell_env_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::ShellEnvPassthrough,
-            "环境变量透传",
-            "允许透传到 shell 的环境变量名，每次添加一个。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("环境变量透传"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("允许透传到 shell 的环境变量名，每次添加一个。"),
             &s.shell_env_passthrough,
             s.list_editor.draft(AutonomyListKind::ShellEnvPassthrough),
             s.list_editor.pending_remove_index(AutonomyListKind::ShellEnvPassthrough),
@@ -513,9 +529,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let auto_approve_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::AutoApprove,
-            "自动审批",
-            "从现有工具中选择无需额外审批即可执行的工具。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("自动审批"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("从现有工具中选择无需额外审批即可执行的工具。"),
             &s.auto_approve,
             s.list_editor.draft(AutonomyListKind::AutoApprove),
             s.list_editor.pending_remove_index(AutonomyListKind::AutoApprove),
@@ -525,9 +543,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let always_ask_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::AlwaysAsk,
-            "始终询问",
-            "从现有工具中选择始终要求确认的工具。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("始终询问"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("从现有工具中选择始终要求确认的工具。"),
             &s.always_ask,
             s.list_editor.draft(AutonomyListKind::AlwaysAsk),
             s.list_editor.pending_remove_index(AutonomyListKind::AlwaysAsk),
@@ -537,9 +557,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let roots_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::AllowedRoots,
-            "允许根目录",
-            "额外允许访问的目录，每次添加一个。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("允许根目录"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("额外允许访问的目录，每次添加一个。"),
             &s.allowed_roots,
             s.list_editor.draft(AutonomyListKind::AllowedRoots),
             s.list_editor.pending_remove_index(AutonomyListKind::AllowedRoots),
@@ -549,9 +571,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let excluded_tools_row = || {
         list_editor(
+            app.desktop_locale,
             AutonomyListKind::NonCliExcludedTools,
-            "非 CLI 排除工具",
-            "从现有工具中选择在非 CLI 通道里默认禁用的工具。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("非 CLI 排除工具"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("从现有工具中选择在非 CLI 通道里默认禁用的工具。"),
             &s.non_cli_excluded_tools,
             s.list_editor.draft(AutonomyListKind::NonCliExcludedTools),
             s.list_editor.pending_remove_index(AutonomyListKind::NonCliExcludedTools),
@@ -561,8 +585,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let approvers_row = || {
         text_row(
-            "审批人列表",
-            "格式为 channel:user，支持逗号或换行分隔。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("审批人列表"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("格式为 channel:user，支持逗号或换行分隔。"),
             "telegram:alice, *:bob",
             &s.non_cli_approval_approvers_input,
             |v| {
@@ -575,8 +600,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mode_by_channel_row = || {
         text_row(
-            "按通道模式",
-            "格式为 channel:mode；列表字段支持逗号或换行分隔。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("按通道模式"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("格式为 channel:mode；列表字段支持逗号或换行分隔。"),
             "telegram:direct, discord:request_confirm",
             &s.non_cli_natural_language_approval_mode_by_channel_input,
             |v| {
@@ -600,7 +626,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let (section, panel): (Element<'_, Message>, Element<'_, Message>) = match s.active_tab {
         AutonomySettingsTab::Permissions => (
-            settings_section_card("权限与审批", "核心执行级别、审批阈值与重定向策略。").into(),
+            settings_section_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("权限与审批"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("核心执行级别、审批阈值与重定向策略。"),
+            )
+            .into(),
             settings_section_content(
                 column![
                     level_row(),
@@ -620,15 +651,23 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AutonomySettingsTab::Budget => (
-            settings_section_card("预算", "限制单位时间的动作量与成本。").into(),
+            settings_section_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("预算"),
+                crate::app::i18n::I18n::new(app.desktop_locale).__("限制单位时间的动作量与成本。"),
+            )
+            .into(),
             settings_section_content(
                 column![max_actions_row(), settings_divider(), max_cost_row()].spacing(0),
             )
             .into(),
         ),
         AutonomySettingsTab::ToolsAndPaths => (
-            settings_section_card("工具与路径", "为 shell 命令、路径访问和自动审批设置边界。")
-                .into(),
+            settings_section_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("工具与路径"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("为 shell 命令、路径访问和自动审批设置边界。"),
+            )
+            .into(),
             settings_section_content(
                 column![
                     allowed_commands_row(),
@@ -648,7 +687,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .into(),
         ),
         AutonomySettingsTab::NonCli => (
-            settings_section_card("非 CLI 暴露", "控制外部通道中的工具暴露与审批人。").into(),
+            settings_section_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("非 CLI 暴露"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("控制外部通道中的工具暴露与审批人。"),
+            )
+            .into(),
             settings_section_content(
                 column![
                     excluded_tools_row(),
@@ -665,7 +709,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let mut col = column![
         row![
-            settings_page_intro("自治配置", "配置代理的权限边界、预算限制与审批规则。"),
+            settings_page_intro(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("自治配置"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("配置代理的权限边界、预算限制与审批规则。")
+            ),
             container(text(" ")).width(Length::Fill),
             help_btn,
         ]
@@ -796,8 +844,8 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
     crate::app::components::system_settings_common::with_settings_help_modal(
         app,
         dialog,
-        "自治配置帮助",
-        help_text,
+        crate::app::i18n::I18n::new(app.desktop_locale).__("自治配置帮助"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__(help_text),
         Message::Settings(message::SettingsMessage::AutonomyHelpClose),
     )
 }

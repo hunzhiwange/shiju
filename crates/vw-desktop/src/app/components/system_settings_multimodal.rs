@@ -80,44 +80,49 @@ fn bool_row<'a>(
 }
 
 fn image_model_options(app: &App) -> Vec<String> {
-    std::iter::once(NO_IMAGE_MODEL_OPTION.to_string())
-        .chain(
-            app.model_settings
-                .providers
-                .iter()
-                .filter(|provider| !provider.id.trim().is_empty())
-                .flat_map(|provider| {
-                    provider
-                        .models
-                        .iter()
-                        .filter(|model| {
-                            model.enabled
-                                && !model.id.trim().is_empty()
-                                && model.detail["capabilities"]["input"]["image"].as_bool()
-                                    == Some(true)
-                        })
-                        .map(|model| format!("{}/{}", provider.id, model.id))
-                }),
-        )
-        .collect()
+    std::iter::once(
+        crate::app::i18n::I18n::new(app.desktop_locale).__(NO_IMAGE_MODEL_OPTION).to_string(),
+    )
+    .chain(
+        app.model_settings
+            .providers
+            .iter()
+            .filter(|provider| !provider.id.trim().is_empty())
+            .flat_map(|provider| {
+                provider
+                    .models
+                    .iter()
+                    .filter(|model| {
+                        model.enabled
+                            && !model.id.trim().is_empty()
+                            && model.detail["capabilities"]["input"]["image"].as_bool()
+                                == Some(true)
+                    })
+                    .map(|model| format!("{}/{}", provider.id, model.id))
+            }),
+    )
+    .collect()
 }
 
 fn image_model_control(app: &App) -> Element<'_, Message> {
     let options = image_model_options(app);
     let configured = app.multimodal_settings.ocr_model.trim();
     let selected = if configured.is_empty() {
-        Some(NO_IMAGE_MODEL_OPTION.to_string())
+        Some(crate::app::i18n::I18n::new(app.desktop_locale).__(NO_IMAGE_MODEL_OPTION).to_string())
     } else {
         options.iter().find(|model| model.as_str() == configured).cloned()
     };
     let has_options = options.len() > 1;
     let configured_is_available = selected.is_some();
 
-    let picker = pick_list(options, selected, |value| {
-        let model = (value != NO_IMAGE_MODEL_OPTION).then_some(value).unwrap_or_default();
+    let picker = pick_list(options, selected, move |value| {
+        let model = (value
+            != crate::app::i18n::I18n::new(app.desktop_locale).__(NO_IMAGE_MODEL_OPTION))
+        .then_some(value)
+        .unwrap_or_default();
         Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::OcrModelChanged(model)))
     })
-    .placeholder("请选择支持图片输入的模型")
+    .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("请选择支持图片输入的模型"))
     .padding([10, 14])
     .text_size(13)
     .style(settings_pick_list_style)
@@ -126,28 +131,60 @@ fn image_model_control(app: &App) -> Element<'_, Message> {
 
     let mut status = column![picker].spacing(6);
     if app.model_settings.loading {
-        status = status.push(text("正在刷新模型目录…").size(11).style(settings_muted_text_style));
+        status = status.push(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("正在刷新模型目录…"))
+                .size(11)
+                .style(settings_muted_text_style),
+        );
     }
     if let Some(error) = app.model_settings.save_error.as_deref() {
         status = status.push(
-            text(format!("模型目录刷新失败：{error}")).size(11).style(settings_muted_text_style),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "模型目录刷新失败：%s",
+                    error
+                )
+                .expect("valid image status template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     }
     if !configured.is_empty() && !has_options {
         status = status.push(
-            text(format!("当前配置：{configured}（目录中暂无可用匹配项）"))
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "当前配置：%s（目录中暂无可用匹配项）",
+                    configured
+                )
+                .expect("valid image status template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     } else if !configured.is_empty() && !configured_is_available {
         status = status.push(
-            text(format!("当前配置：{configured}（模型未启用或不支持图片输入）"))
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "当前配置：%s（模型未启用或不支持图片输入）",
+                    configured
+                )
+                .expect("valid image status template"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     } else if !has_options {
         status = status.push(
-            text("暂无已启用且明确支持图片输入的模型。").size(11).style(settings_muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("暂无已启用且明确支持图片输入的模型。"),
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         );
     }
 
@@ -172,30 +209,30 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     let content = column![
         settings_page_intro(
-            "多模态配置",
-            "配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("多模态配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("配置本地图片附件的数量与大小上限，并决定是否允许抓取远程图片 URL。"),
         ),
         settings_section_card(
-            "图像输入限制",
-            "输入框附件优先使用本地文件；这里控制单次请求最多允许的图片数量、每张图片大小上限，以及是否允许抓取远程图片 URL。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("图像输入限制"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输入框附件优先使用本地文件；这里控制单次请求最多允许的图片数量、每张图片大小上限，以及是否允许抓取远程图片 URL。"),
         ),
         settings_section_content(
             column![
-                number_row("最大图片数量", "单次请求最多允许上传的图片数。", s.max_images, 1, 16, "张", |value| {
+                number_row(crate::app::i18n::I18n::new(app.desktop_locale).__("最大图片数量"), crate::app::i18n::I18n::new(app.desktop_locale).__("单次请求最多允许上传的图片数。"), s.max_images, 1, 16, crate::app::i18n::I18n::new(app.desktop_locale).__("张"), |value| {
                     Message::Settings(SettingsMessage::Multimodal(MultimodalMessage::MaxImagesChanged(
                         value,
                     )))
                 }),
-                number_row("单张图片大小上限", "每张图片允许的最大体积。", s.max_image_size_mb, 1, 20, "MB", |value| {
+                number_row(crate::app::i18n::I18n::new(app.desktop_locale).__("单张图片大小上限"), crate::app::i18n::I18n::new(app.desktop_locale).__("每张图片允许的最大体积。"), s.max_image_size_mb, 1, 20, "MB", |value| {
                     Message::Settings(SettingsMessage::Multimodal(
                         MultimodalMessage::MaxImageSizeMbChanged(value),
                     ))
                 }),
                 bool_row(
-                    "允许远程抓取",
-                    "本地附件始终可用；开启后才允许抓取 http/https 远程图片 URL。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("允许远程抓取"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("本地附件始终可用；开启后才允许抓取 http/https 远程图片 URL。"),
                     s.allow_remote_fetch,
-                    "允许抓取 http/https 远程图片 URL",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("允许抓取 http/https 远程图片 URL"),
                     |value| {
                         Message::Settings(SettingsMessage::Multimodal(
                             MultimodalMessage::AllowRemoteFetchToggled(value),
@@ -206,16 +243,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
             .spacing(0),
         ),
         settings_section_card(
-            "图片文字提取（OCR）",
-            "使用独立图片模型把附件转换为受限文本，再交给主模型处理。提取结果是不可信附件数据，且不等于完整视觉理解。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("图片文字提取（OCR）"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("使用独立图片模型把附件转换为受限文本，再交给主模型处理。提取结果是不可信附件数据，且不等于完整视觉理解。"),
         ),
         settings_section_content(
             column![
                 bool_row(
-                    "模型支持图片",
-                    "开启后优先把图片交给当前模型处理；即使启用 OCR，也不会先转换为 OCR 文本。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("模型支持图片"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("开启后优先把图片交给当前模型处理；即使启用 OCR，也不会先转换为 OCR 文本。"),
                     s.model_supports_images,
-                    "由当前模型直接处理图片",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("由当前模型直接处理图片"),
                     |value| {
                         Message::Settings(SettingsMessage::Multimodal(
                             MultimodalMessage::ModelSupportsImagesToggled(value),
@@ -223,10 +260,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     },
                 ),
                 bool_row(
-                    "启用 OCR",
-                    "关闭“模型支持图片”后，才会使用下方模型提取图片文字。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("启用 OCR"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("关闭“模型支持图片”后，才会使用下方模型提取图片文字。"),
                     s.ocr_enabled,
-                    "对图片附件执行文字提取",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("对图片附件执行文字提取"),
                     |value| {
                         Message::Settings(SettingsMessage::Multimodal(
                             MultimodalMessage::OcrEnabledToggled(value),
@@ -234,8 +271,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     },
                 ),
                 field_row(
-                    "图片模型",
-                    "仅在当前模型不支持图片时使用；只显示已启用且明确支持图片输入的 provider/model。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("图片模型"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("仅在当前模型不支持图片时使用；只显示已启用且明确支持图片输入的 provider/model。"),
                     image_model_control(app),
                 ),
             ]

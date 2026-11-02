@@ -64,6 +64,8 @@ pub(crate) struct AcpSettingsState {
     pub(crate) copied_agent: Option<String>,
     pub(crate) save_error: Option<String>,
     pub(crate) status_message: Option<String>,
+    pub(crate) status_translation: Option<crate::app::i18n::format::Message>,
+    pub(crate) error_translation: Option<crate::app::i18n::format::Message>,
 }
 
 impl Default for AcpSettingsState {
@@ -81,6 +83,8 @@ impl Default for AcpSettingsState {
             copied_agent: None,
             save_error: None,
             status_message: None,
+            status_translation: None,
+            error_translation: None,
         }
     }
 }

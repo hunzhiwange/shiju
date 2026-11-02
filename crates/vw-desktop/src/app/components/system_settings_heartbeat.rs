@@ -107,10 +107,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
         settings_help_button(Message::Settings(message::SettingsMessage::HeartbeatHelpOpen));
 
     let enabled_row = field_row(
-        "启用",
-        "控制是否开启周期心跳。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("控制是否开启周期心跳。"),
         checkbox(s.enabled)
-            .label("开启周期心跳")
+            .label(crate::app::i18n::I18n::new(app.desktop_locale).__("开启周期心跳"))
             .on_toggle(|v| Message::Settings(message::SettingsMessage::HeartbeatEnabledToggled(v)))
             .style(settings_checkbox_style),
     );
@@ -121,47 +121,67 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(280.0));
 
     let interval_row = field_row(
-        "间隔分钟",
-        "周期性触发心跳的时间间隔。",
-        row![interval_slider, settings_value_badge(format!("{} 分钟", s.interval_minutes)),]
-            .spacing(16)
-            .align_y(Alignment::Center),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("间隔分钟"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("周期性触发心跳的时间间隔。"),
+        row![
+            interval_slider,
+            settings_value_badge(
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "%u 分钟",
+                    s.interval_minutes
+                )
+                .expect("valid heartbeat interval template")
+            ),
+        ]
+        .spacing(16)
+        .align_y(Alignment::Center),
     );
 
     let message_row = text_row(
-        "消息",
-        "没有 HEARTBEAT.md 任务时的兜底说明。",
-        "可选",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("消息"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("没有 HEARTBEAT.md 任务时的兜底说明。"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("可选"),
         &s.message_input,
         |v| Message::Settings(message::SettingsMessage::HeartbeatMessageChanged(v)),
     );
 
     let target_row = text_row(
-        "目标通道",
-        "可选的心跳结果投递通道。",
-        "可选，例如 telegram",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("目标通道"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("可选的心跳结果投递通道。"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("可选，例如 telegram"),
         &s.target_input,
         |v| Message::Settings(message::SettingsMessage::HeartbeatTargetChanged(v)),
     );
 
     let to_row = text_row(
-        "接收者",
-        "目标通道对应的接收者标识。",
-        "可选",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("接收者"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("目标通道对应的接收者标识。"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("可选"),
         &s.to_input,
         |v| Message::Settings(message::SettingsMessage::HeartbeatToChanged(v)),
     );
 
     let col = column![
         row![
-            container(settings_page_intro("心跳配置", "配置心跳任务的间隔、兜底消息与投递目标。"))
-                .width(Length::Fill),
+            container(settings_page_intro(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("心跳配置"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("配置心跳任务的间隔、兜底消息与投递目标。")
+            ))
+            .width(Length::Fill),
             help_btn
         ]
         .align_y(Alignment::Start),
-        settings_section_card("基础行为", "控制心跳开关与执行间隔。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("控制心跳开关与执行间隔。")
+        ),
         settings_section_content(column![enabled_row, settings_divider(), interval_row].spacing(0)),
-        settings_section_card("投递内容", "配置兜底消息、目标通道和接收者。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("投递内容"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("配置兜底消息、目标通道和接收者。")
+        ),
         settings_section_content(
             column![message_row, settings_divider(), target_row, settings_divider(), to_row]
                 .spacing(0),

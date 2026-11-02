@@ -70,7 +70,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AcpMessage::Refresh => {
             app.acp_settings.loading = true;
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             app.acp_settings.status_message = None;
+            app.acp_settings.status_translation = None;
             refresh_task()
         }
         AcpMessage::Loaded(result) => {
@@ -79,6 +81,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(snapshot) => {
                     apply_snapshot(app, snapshot);
                     app.acp_settings.save_error = None;
+                    app.acp_settings.error_translation = None;
                 }
                 Err(err) => {
                     app.acp_settings.save_error = Some(err);
@@ -89,34 +92,51 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         AcpMessage::NewAgentPanelToggled => {
             app.acp_settings.new_agent_expanded = !app.acp_settings.new_agent_expanded;
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             Task::none()
         }
         AcpMessage::NewAgentNameChanged(value) => {
             app.acp_settings.new_agent_name_input = value;
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             Task::none()
         }
         AcpMessage::NewAgentCommandChanged(value) => {
             app.acp_settings.new_agent_command_input = value;
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             Task::none()
         }
         AcpMessage::NewAgentArgsChanged(value) => {
             app.acp_settings.new_agent_args_input = value;
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             Task::none()
         }
         AcpMessage::AddAgent => {
             let (agent, spec) = match new_agent_request(app) {
                 Ok(request) => request,
                 Err(error) => {
+                    let name = app.acp_settings.new_agent_name_input.trim();
+                    app.acp_settings.error_translation = Some(if name.is_empty() {
+                        crate::app::i18n::format::Message::new("ACP 名称不能为空", vec![])
+                    } else if app.acp_settings.catalog.contains_key(name) {
+                        crate::app::i18n::format::Message::new(
+                            "ACP 名称已存在: %s",
+                            vec![name.into()],
+                        )
+                    } else {
+                        crate::app::i18n::format::Message::new("ACP 启动命令不能为空", vec![])
+                    });
                     app.acp_settings.save_error = Some(error);
                     return Task::none();
                 }
             };
             app.acp_settings.adding_agent = true;
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             app.acp_settings.status_message = None;
+            app.acp_settings.status_translation = None;
             Task::perform(add_global_acp_agent_async(agent.clone(), spec), move |result| {
                 Message::Settings(SettingsMessage::Acp(AcpMessage::AddAgentCompleted {
                     agent,
@@ -134,6 +154,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                     app.acp_settings.new_agent_command_input.clear();
                     app.acp_settings.new_agent_args_input.clear();
                     app.acp_settings.save_error = None;
+                    app.acp_settings.error_translation = None;
+                    app.acp_settings.status_translation =
+                        Some(crate::app::i18n::format::Message::new(
+                            "%s 已新增并启用",
+                            vec![agent.clone().into()],
+                        ));
                     app.acp_settings.status_message = Some(format!("{agent} 已新增并启用"));
                 }
                 Err(error) => {
@@ -162,7 +188,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             let spec = app.acp_settings.catalog.get(&agent).cloned();
             app.acp_settings.saving_agent = Some(agent.clone());
             app.acp_settings.save_error = None;
+            app.acp_settings.error_translation = None;
             app.acp_settings.status_message = None;
+            app.acp_settings.status_translation = None;
             Task::perform(set_global_acp_agent_enabled_async(agent.clone(), enabled, spec), {
                 move |result| {
                     Message::Settings(SettingsMessage::Acp(AcpMessage::SetEnabledCompleted {
@@ -179,6 +207,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 Ok(snapshot) => {
                     apply_snapshot(app, snapshot);
                     app.acp_settings.save_error = None;
+                    app.acp_settings.error_translation = None;
+                    app.acp_settings.status_translation =
+                        Some(crate::app::i18n::format::Message::new(
+                            if enabled { "%s 已启用" } else { "%s 已禁用" },
+                            vec![agent.clone().into()],
+                        ));
                     app.acp_settings.status_message =
                         Some(format!("{} 已{}", agent, if enabled { "启用" } else { "禁用" }));
                 }

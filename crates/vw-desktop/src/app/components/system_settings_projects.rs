@@ -54,7 +54,7 @@ fn field_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let open_folder_btn = button(
-        container(text("打开文件夹"))
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("打开文件夹")))
             .width(Length::Fill)
             .align_x(iced::alignment::Horizontal::Center),
     )
@@ -71,10 +71,14 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .unwrap_or(false);
     let worktree_toggle: Element<'_, Message> = if let Some(project_path) = current_project {
         field_row(
-            "启用 Worktree",
-            "当前项目新建会话时允许选择/创建工作区。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("启用 Worktree"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("当前项目新建会话时允许选择/创建工作区。"),
             checkbox(current_project_worktree_enabled)
-                .label("当前项目新建会话时允许选择/创建工作区")
+                .label(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("当前项目新建会话时允许选择/创建工作区"),
+                )
                 .on_toggle(move |v| {
                     Message::Settings(message::SettingsMessage::ProjectEnableWorktreeToggled(
                         project_path.clone(),
@@ -85,22 +89,35 @@ pub fn view(app: &App) -> Element<'_, Message> {
         )
     } else {
         field_row(
-            "启用 Worktree",
-            "仅在打开一个项目后才能配置该开关。",
-            text("请先打开一个项目，再配置该项目的 Worktree 开关")
-                .size(12)
-                .style(settings_muted_text_style),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("启用 Worktree"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("仅在打开一个项目后才能配置该开关。"),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("请先打开一个项目，再配置该项目的 Worktree 开关"),
+            )
+            .size(12)
+            .style(settings_muted_text_style),
         )
     };
 
     let mut col = column![
         settings_page_intro(
-            "项目配置",
-            "配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。"
+            crate::app::i18n::I18n::new(app.desktop_locale).__("项目配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置项目打开入口、当前项目 Worktree 行为，以及历史项目管理。")
         ),
-        settings_section_card("当前项目", "打开项目并控制当前项目的新会话 Worktree 策略。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("当前项目"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("打开项目并控制当前项目的新会话 Worktree 策略。")
+        ),
         settings_section_content(column![open_folder_btn, worktree_toggle].spacing(12)),
-        settings_section_card("历史项目", "管理最近打开过的项目名称与快捷入口。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("历史项目"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("管理最近打开过的项目名称与快捷入口。")
+        ),
     ]
     .spacing(16);
 
@@ -111,13 +128,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
         let mut content = column![
             row![
-                container(text("名字")).width(Length::Fixed(52.0)).style(|t: &iced::Theme| {
-                    iced::widget::container::Style {
-                        text_color: Some(t.palette().text.scale_alpha(0.7)),
-                        ..Default::default()
-                    }
-                }),
-                text_input("项目名称", p)
+                container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("名字")))
+                    .width(Length::Fixed(52.0))
+                    .style(|t: &iced::Theme| {
+                        iced::widget::container::Style {
+                            text_color: Some(t.palette().text.scale_alpha(0.7)),
+                            ..Default::default()
+                        }
+                    }),
+                text_input(crate::app::i18n::I18n::new(app.desktop_locale).__("项目名称"), p)
                     .on_input(move |v| {
                         Message::Settings(message::SettingsMessage::RecentProjectRenameChanged(
                             i, v,
@@ -127,13 +146,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
                     .size(13)
                     .style(settings_text_input_style)
                     .width(Length::Fill),
-                button(text("保存"))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")))
                     .on_press(Message::Settings(message::SettingsMessage::RecentProjectRenameSave(
                         i
                     ),))
                     .padding([6, 10])
                     .style(rounded_action_btn_style),
-                button(text("删除"))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")))
                     .on_press(Message::Settings(
                         message::SettingsMessage::RecentProjectDeleteRequested(i),
                     ))
@@ -150,14 +169,17 @@ pub fn view(app: &App) -> Element<'_, Message> {
         if is_confirming_delete {
             content = content.push(
                 row![
-                    container(text("确认删除该项目？")).width(Length::Fill),
-                    button(text("取消"))
+                    container(text(
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除该项目？")
+                    ))
+                    .width(Length::Fill),
+                    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::RecentProjectDeleteCanceled,
                         ))
                         .padding([6, 10])
                         .style(rounded_action_btn_style),
-                    button(text("确认删除"))
+                    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认删除")))
                         .on_press(Message::Settings(
                             message::SettingsMessage::RecentProjectDeleteConfirmed(i),
                         ))
@@ -174,7 +196,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
             container(text(path.clone())).padding([6, 10]).style(settings_panel_style);
 
         let open_btn = button(
-            container(text("打开项目"))
+            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("打开项目")))
                 .width(Length::Fill)
                 .align_x(iced::alignment::Horizontal::Center),
         )

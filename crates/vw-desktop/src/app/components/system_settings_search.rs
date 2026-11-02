@@ -185,7 +185,11 @@ pub fn catalog(app: &App) -> Vec<SystemSettingsSearchEntry> {
                 entry.label = i18n.__(entry.original_label);
                 entry.parent_label = entry.original_parent_label.map(|label| i18n.__(label));
             }
-            _ => {}
+            _ => {
+                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+                entry.label = i18n.__(entry.original_label);
+                entry.parent_label = entry.original_parent_label.map(|label| i18n.__(label));
+            }
         }
 
         if let Some(label) = connection_target_label(app.desktop_locale, entry.target) {

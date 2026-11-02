@@ -137,7 +137,11 @@ fn bool_row<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     column![
-        settings_page_intro("浏览器配置", "配置允许站点、打开方式与浏览器自动化后端。"),
+        settings_page_intro(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("浏览器配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置允许站点、打开方式与浏览器自动化后端。")
+        ),
         content(app),
     ]
     .spacing(16)
@@ -149,20 +153,23 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     let s = &app.browser_settings;
 
     let enabled_row = bool_row(
-        "启用",
-        "控制浏览器与网页自动化相关工具。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("控制浏览器与网页自动化相关工具。"),
         s.enabled,
-        "启用浏览器相关工具",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用浏览器相关工具"),
         |value| Message::Settings(SettingsMessage::Browser(BrowserMessage::EnabledToggled(value))),
     );
 
     let allowed_domains_row = field_row_top(
-        "允许域名",
-        "限定浏览器工具可以访问的站点范围。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("允许域名"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("限定浏览器工具可以访问的站点范围。"),
         column![
             container(
                 text_editor(&s.allowed_domains_editor)
-                    .placeholder("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org")
+                    .placeholder(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("每行一个域名，或使用逗号分隔，例: example.com\n*.example.org")
+                    )
                     .on_action(|action| {
                         Message::Settings(SettingsMessage::Browser(
                             BrowserMessage::AllowedDomainsEditorAction(action),
@@ -173,14 +180,20 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                     .style(settings_text_editor_style),
             )
             .width(Length::Fill),
-            text("为空时将拒绝所有站点；可使用 `*` 允许全部公网域名。")
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("为空时将拒绝所有站点；可使用 `*` 允许全部公网域名。")
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         ]
         .spacing(8),
     );
 
-    let browser_open_options = browser_open_options();
+    let browser_open_options = browser_open_options().map(|mut option| {
+        option.label = crate::app::i18n::I18n::new(app.desktop_locale).__(option.label);
+        option
+    });
     let browser_open_selected =
         browser_open_options.iter().find(|opt| opt.value == s.browser_open).cloned();
     let browser_open_pick = pick_list(browser_open_options, browser_open_selected, |value| {
@@ -195,28 +208,35 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(300.0));
 
     let browser_open_row = field_row(
-        "打开方式",
-        "决定 `browser_open` 默认尝试的窗口行为。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("打开方式"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("决定 `browser_open` 默认尝试的窗口行为。"),
         column![
             browser_open_pick,
-            text("当前运行时完整支持 default；其余选项会先写入配置。")
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("当前运行时完整支持 default；其余选项会先写入配置。")
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         ]
         .spacing(8),
     );
 
     let session_name_row = text_row(
-        "会话名称",
-        "用于隔离浏览器 session 的可选标识。",
-        "可选，会话隔离名称",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("会话名称"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("用于隔离浏览器 session 的可选标识。"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("可选，会话隔离名称"),
         &s.session_name_input,
         |value| {
             Message::Settings(SettingsMessage::Browser(BrowserMessage::SessionNameChanged(value)))
         },
     );
 
-    let backend_options = backend_options();
+    let backend_options = backend_options().map(|mut option| {
+        option.label = crate::app::i18n::I18n::new(app.desktop_locale).__(option.label);
+        option
+    });
     let backend_selected = backend_options.iter().find(|opt| opt.value == s.backend).cloned();
     let backend_pick = pick_list(backend_options, backend_selected, |value| {
         Message::Settings(SettingsMessage::Browser(BrowserMessage::BackendChanged(
@@ -230,29 +250,34 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     .width(Length::Fixed(300.0));
 
     let backend_row = field_row(
-        "后端实现",
-        "选择浏览器工具背后的执行能力。",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("后端实现"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("选择浏览器工具背后的执行能力。"),
         column![
             backend_pick,
-            text("默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。")
-                .size(11)
-                .style(settings_muted_text_style),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("默认使用代理浏览器；原生浏览器需要可用 WebDriver；系统控制需要 sidecar。")
+            )
+            .size(11)
+            .style(settings_muted_text_style),
         ]
         .spacing(8),
     );
 
     let native_section = column![
         settings_section_card(
-            "Rust Native 后端",
-            "当后端为 native 时，使用 WebDriver 驱动浏览器自动化。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("Rust Native 后端"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("当后端为 native 时，使用 WebDriver 驱动浏览器自动化。"),
         ),
         settings_panel(
             column![
                 bool_row(
-                    "无头模式",
-                    "决定是否在无界面模式下启动浏览器。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("无头模式"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("决定是否在无界面模式下启动浏览器。"),
                     s.native_headless,
-                    "启用无头模式",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("启用无头模式"),
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
                             BrowserMessage::NativeHeadlessToggled(value),
@@ -261,8 +286,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "WebDriver 地址",
-                    "连接本地或远程 WebDriver 服务。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("WebDriver 地址"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("连接本地或远程 WebDriver 服务。"),
                     "http://127.0.0.1:9515",
                     &s.native_webdriver_url,
                     |value| {
@@ -273,9 +299,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "Chrome 路径",
-                    "可选，覆盖自动探测到的 Chrome/Chromium 路径。",
-                    "可选，Chrome/Chromium 可执行文件路径",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("Chrome 路径"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("可选，覆盖自动探测到的 Chrome/Chromium 路径。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("可选，Chrome/Chromium 可执行文件路径"),
                     &s.native_chrome_path_input,
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
@@ -290,14 +318,16 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
 
     let computer_use_section = column![
         settings_section_card(
-            "系统级控制",
-            "配置本地 sidecar 端点，用于鼠标、键盘、截图等系统级浏览器操作。",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("系统级控制"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置本地 sidecar 端点，用于鼠标、键盘、截图等系统级浏览器操作。"),
         ),
         settings_panel(
             column![
                 text_row(
-                    "操作端点",
-                    "接收系统级浏览器动作请求的 sidecar URL。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("操作端点"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("接收系统级浏览器动作请求的 sidecar URL。"),
                     "http://127.0.0.1:8787/v1/actions",
                     &s.computer_use_endpoint,
                     |value| {
@@ -308,9 +338,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "访问密钥",
-                    "为 sidecar 请求附带可选的 Bearer Token。",
-                    "可选，sidecar Bearer Token",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("访问密钥"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("为 sidecar 请求附带可选的 Bearer Token。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("可选，sidecar Bearer Token"),
                     &s.computer_use_api_key_input,
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
@@ -320,8 +352,9 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "超时时间（毫秒）",
-                    "控制系统级浏览器动作的请求超时。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("超时时间（毫秒）"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("控制系统级浏览器动作的请求超时。"),
                     "15000",
                     &s.computer_use_timeout_ms_input,
                     |value| {
@@ -332,10 +365,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 bool_row(
-                    "允许远程端点",
-                    "仅在明确可信时允许 sidecar 部署在公网。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("允许远程端点"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("仅在明确可信时允许 sidecar 部署在公网。"),
                     s.computer_use_allow_remote_endpoint,
-                    "允许公网 sidecar 端点",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("允许公网 sidecar 端点"),
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
                             BrowserMessage::ComputerUseAllowRemoteEndpointToggled(value),
@@ -344,9 +378,11 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "窗口白名单",
-                    "限定允许控制的窗口标题或进程名。",
-                    "逗号或换行分隔窗口标题/进程名",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("窗口白名单"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("限定允许控制的窗口标题或进程名。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("逗号或换行分隔窗口标题/进程名"),
                     &s.computer_use_window_allowlist_input,
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
@@ -356,9 +392,10 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "最大 X 坐标",
-                    "可选，限制鼠标操作的最大 X 边界。",
-                    "可选，限制最大 X 坐标",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("最大 X 坐标"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("可选，限制鼠标操作的最大 X 边界。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("可选，限制最大 X 坐标"),
                     &s.computer_use_max_coordinate_x_input,
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
@@ -368,9 +405,10 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "最大 Y 坐标",
-                    "可选，限制鼠标操作的最大 Y 边界。",
-                    "可选，限制最大 Y 坐标",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("最大 Y 坐标"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("可选，限制鼠标操作的最大 Y 边界。"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("可选，限制最大 Y 坐标"),
                     &s.computer_use_max_coordinate_y_input,
                     |value| {
                         Message::Settings(SettingsMessage::Browser(
@@ -385,7 +423,10 @@ pub(super) fn content(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let mut content = column![
-        settings_section_card("基础行为", "域名范围、窗口行为与运行后端。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("基础行为"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("域名范围、窗口行为与运行后端。")
+        ),
         settings_section_content(
             column![
                 enabled_row,

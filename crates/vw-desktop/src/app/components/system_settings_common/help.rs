@@ -114,6 +114,8 @@ pub fn with_settings_help_modal<'a>(
     close_message: Message,
 ) -> Element<'a, Message> {
     let help_text = help_text.into();
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let help_text = i18n.__(&help_text).to_string();
     let close_btn = settings_close_button(close_message.clone());
     let (copy_icon, copy_tip) = settings_help_copy_state(app.last_copied_code_hash, &help_text);
     let copy_tip = crate::app::i18n::settings_runtime::text(
@@ -121,9 +123,14 @@ pub fn with_settings_help_modal<'a>(
         if copy_tip == "已复制" { "已复制" } else { "复制帮助" },
     );
     let copy_btn = icon_btn(copy_icon, copy_tip, Some(Message::CopyCode(help_text.clone())));
-    let header = row![text(title).size(16), Space::new().width(Length::Fill), copy_btn, close_btn,]
-        .spacing(10)
-        .align_y(Alignment::Center);
+    let header = row![
+        text(i18n.__(title).to_string()).size(16),
+        Space::new().width(Length::Fill),
+        copy_btn,
+        close_btn,
+    ]
+    .spacing(10)
+    .align_y(Alignment::Center);
 
     let body = scrollable(
         container(text(help_text).size(13).style(settings_muted_text_style))

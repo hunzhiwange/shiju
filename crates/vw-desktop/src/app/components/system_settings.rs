@@ -584,19 +584,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let active_tab = app.system_settings_tab;
     let help_tab = active_settings_help_tab(app, active_tab);
     let filtered_tabs = search_results(app, &app.system_settings_query);
-    let query_input = text_input("搜索配置", &app.system_settings_query)
-        .on_input(|value| Message::Settings(message::SettingsMessage::SystemTabQueryChanged(value)))
-        .padding([8, 10])
-        .size(13)
-        .style(settings_text_input_style);
+    let query_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索配置"),
+        &app.system_settings_query,
+    )
+    .on_input(|value| Message::Settings(message::SettingsMessage::SystemTabQueryChanged(value)))
+    .padding([8, 10])
+    .size(13)
+    .style(settings_text_input_style);
 
     // 构建左侧标签页导航栏
     // 为每个标签页创建按钮，根据激活状态和悬停状态应用不同样式
     let tabs_bar: Element<'_, Message> = if filtered_tabs.is_empty() {
-        container(text("没有匹配的配置").size(12).style(settings_muted_text_style))
-            .padding([10, 12])
-            .width(Length::Fill)
-            .into()
+        container(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配的配置"))
+                .size(12)
+                .style(settings_muted_text_style),
+        )
+        .padding([10, 12])
+        .width(Length::Fill)
+        .into()
     } else {
         column(
             filtered_tabs
@@ -733,7 +740,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 左侧返回按钮和右侧关闭按钮执行相同的关闭操作
     let back_btn = icon_btn(
         Icon::ArrowLeft,
-        "返回",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("返回"),
         Some(Message::View(message::ViewMessage::ToggleSystemSettings)),
     );
     let close_btn =
@@ -746,10 +753,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
             container(
                 row![
                     column![
-                        row![text("配置").size(22), back_btn].spacing(8).align_y(Alignment::Center),
-                        text("管理运行、工具、模型与连接设置。")
-                            .size(12)
-                            .style(settings_muted_text_style),
+                        row![
+                            text(crate::app::i18n::I18n::new(app.desktop_locale).__("配置"))
+                                .size(22),
+                            back_btn
+                        ]
+                        .spacing(8)
+                        .align_y(Alignment::Center),
+                        text(
+                            crate::app::i18n::I18n::new(app.desktop_locale)
+                                .__("管理运行、工具、模型与连接设置。")
+                        )
+                        .size(12)
+                        .style(settings_muted_text_style),
                     ]
                     .spacing(4),
                     container(text(" ")).width(Length::Fill),
@@ -761,7 +777,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
             row![
                 container(
                     column![
-                        text("分类").size(11).style(settings_muted_text_style),
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("分类"))
+                            .size(11)
+                            .style(settings_muted_text_style),
                         query_input,
                         scrollable(
                             container(tabs_bar).padding(iced::Padding::default().right(10.0))

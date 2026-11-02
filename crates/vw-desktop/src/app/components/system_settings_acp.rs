@@ -92,22 +92,29 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     let copied = app.acp_settings.copied_agent.as_deref() == Some(agent.as_str());
     let command = command_line(config);
     let toggle_label = if saving {
-        "保存中..."
+        crate::app::i18n::I18n::new(app.desktop_locale).__("保存中...")
     } else if enabled {
-        "禁用"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("禁用")
     } else {
-        "启用"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("启用")
     };
 
     let mut header = row![
         column![
             row![
-                text(acp_title(&agent)).size(15),
-                settings_value_badge(if enabled { "已启用" } else { "未启用" }),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(acp_title(&agent)))
+                    .size(15),
+                settings_value_badge(if enabled {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("已启用")
+                } else {
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("未启用")
+                }),
             ]
             .spacing(10)
             .align_y(Alignment::Center),
-            text(acp_description(&agent)).size(12).style(settings_muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(acp_description(&agent)))
+                .size(12)
+                .style(settings_muted_text_style),
         ]
         .spacing(5)
         .width(Length::Fill),
@@ -133,16 +140,26 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     settings_panel(
         column![
             header,
-            text(setup_hint(&agent)).size(12).style(settings_muted_text_style),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__(setup_hint(&agent)))
+                .size(12)
+                .style(settings_muted_text_style),
             container(
                 row![
                     text(command.clone()).size(12).width(Length::Fill),
-                    button(text(if copied { "✓" } else { "复制" }).size(12))
-                        .padding([5, 10])
-                        .on_press(Message::Settings(SettingsMessage::Acp(
-                            AcpMessage::CopyCommand { agent: agent.clone(), command }
-                        )))
-                        .style(rounded_action_btn_style),
+                    button(
+                        text(if copied {
+                            "✓"
+                        } else {
+                            crate::app::i18n::I18n::new(app.desktop_locale).__("复制")
+                        })
+                        .size(12)
+                    )
+                    .padding([5, 10])
+                    .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::CopyCommand {
+                        agent: agent.clone(),
+                        command
+                    })))
+                    .style(rounded_action_btn_style),
                 ]
                 .align_y(Alignment::Center)
                 .spacing(8)
@@ -181,30 +198,38 @@ fn form_field<'a>(
 }
 
 fn new_agent_form(app: &App) -> Element<'_, Message> {
-    let name = text_input("例如：my-agent", &app.acp_settings.new_agent_name_input)
-        .on_input(|value| {
-            Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentNameChanged(value)))
-        })
-        .padding([8, 10])
-        .style(settings_text_input_style);
-    let command = text_input("例如：npx", &app.acp_settings.new_agent_command_input)
-        .on_input(|value| {
-            Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentCommandChanged(value)))
-        })
-        .padding([8, 10])
-        .style(settings_text_input_style);
-    let args =
-        text_input("例如：-y, @scope/my-acp（逗号分隔）", &app.acp_settings.new_agent_args_input)
-            .on_input(|value| {
-                Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentArgsChanged(value)))
-            })
-            .padding([8, 10])
-            .style(settings_text_input_style);
+    let name = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("例如：my-agent"),
+        &app.acp_settings.new_agent_name_input,
+    )
+    .on_input(|value| {
+        Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentNameChanged(value)))
+    })
+    .padding([8, 10])
+    .style(settings_text_input_style);
+    let command = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("例如：npx"),
+        &app.acp_settings.new_agent_command_input,
+    )
+    .on_input(|value| {
+        Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentCommandChanged(value)))
+    })
+    .padding([8, 10])
+    .style(settings_text_input_style);
+    let args = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("例如：-y, @scope/my-acp（逗号分隔）"),
+        &app.acp_settings.new_agent_args_input,
+    )
+    .on_input(|value| {
+        Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentArgsChanged(value)))
+    })
+    .padding([8, 10])
+    .style(settings_text_input_style);
 
     let mut save_button = button(text(if app.acp_settings.adding_agent {
-        "新增中..."
+        crate::app::i18n::I18n::new(app.desktop_locale).__("新增中...")
     } else {
-        "新增并启用"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("新增并启用")
     }))
     .padding([8, 16])
     .style(primary_action_btn_style);
@@ -215,14 +240,20 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
 
     settings_panel(
         column![
-            text("新增自定义 ACP").size(15),
-            text("名称必须唯一；启动命令需已安装并可从 PATH 访问。")
-                .size(12)
-                .style(settings_muted_text_style),
-            row![form_field("名称", name), form_field("启动命令", command)]
-                .spacing(12)
-                .align_y(Alignment::End),
-            form_field("参数", args),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("新增自定义 ACP")).size(15),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("名称必须唯一；启动命令需已安装并可从 PATH 访问。")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
+            row![
+                form_field(crate::app::i18n::I18n::new(app.desktop_locale).__("名称"), name),
+                form_field(crate::app::i18n::I18n::new(app.desktop_locale).__("启动命令"), command)
+            ]
+            .spacing(12)
+            .align_y(Alignment::End),
+            form_field(crate::app::i18n::I18n::new(app.desktop_locale).__("参数"), args),
             container(save_button).width(Length::Fill).align_x(iced::alignment::Horizontal::Right),
         ]
         .spacing(12),
@@ -232,13 +263,24 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
 
 /// 构建 ACP 系统设置页。
 pub fn view(app: &App) -> Element<'_, Message> {
-    let refresh_btn =
-        button(text(if app.acp_settings.loading { "刷新中..." } else { "刷新" }).size(13))
-            .padding([7, 14])
-            .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
-            .style(rounded_action_btn_style);
+    let refresh_btn = button(
+        text(if app.acp_settings.loading {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("刷新中...")
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("刷新")
+        })
+        .size(13),
+    )
+    .padding([7, 14])
+    .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::Refresh)))
+    .style(rounded_action_btn_style);
     let add_btn = button(
-        text(if app.acp_settings.new_agent_expanded { "收起新增" } else { "新增 ACP" }).size(13),
+        text(if app.acp_settings.new_agent_expanded {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("收起新增")
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("新增 ACP")
+        })
+        .size(13),
     )
     .padding([7, 14])
     .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::NewAgentPanelToggled)))
@@ -247,23 +289,46 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let mut content = column![
         row![
             container(settings_page_intro(
-                "ACP 配置",
-                "查看可用 ACP 智能体，按需初始化本机环境，并通过网关更新启用状态。"
+                crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 配置"),
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .__("查看可用 ACP 智能体，按需初始化本机环境，并通过网关更新启用状态。")
             ))
             .width(Length::Fill),
             row![add_btn, refresh_btn].spacing(8),
         ]
         .align_y(Alignment::Start),
-        settings_section_card("可用 ACP", "启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("可用 ACP"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("启用后会出现在聊天、任务和设计生成的 ACP 后端选择中。")
+        ),
     ]
     .spacing(16)
     .width(Length::Fill);
 
     if let Some(message) = &app.acp_settings.status_message {
-        content = content.push(settings_success_banner(message));
+        content = content.push(settings_success_banner(
+            app.acp_settings
+                .status_translation
+                .as_ref()
+                .map(|m| {
+                    m.render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid ACP status template")
+                })
+                .unwrap_or_else(|| message.clone()),
+        ));
     }
     if let Some(error) = &app.acp_settings.save_error {
-        content = content.push(settings_error_banner(error));
+        content = content.push(settings_error_banner(
+            app.acp_settings
+                .error_translation
+                .as_ref()
+                .map(|m| {
+                    m.render(crate::app::i18n::I18n::new(app.desktop_locale))
+                        .expect("valid ACP error template")
+                })
+                .unwrap_or_else(|| error.clone()),
+        ));
     }
     if app.acp_settings.new_agent_expanded {
         content = content.push(new_agent_form(app));
@@ -273,9 +338,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
     if agents.is_empty() {
         content = content.push(settings_panel(
             column![
-                text("暂未从网关加载到 ACP 目录，点击刷新后会重新读取。")
-                    .size(12)
-                    .style(settings_muted_text_style)
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("暂未从网关加载到 ACP 目录，点击刷新后会重新读取。")
+                )
+                .size(12)
+                .style(settings_muted_text_style)
             ]
             .spacing(0),
         ));

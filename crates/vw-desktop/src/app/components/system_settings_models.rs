@@ -36,6 +36,7 @@ use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::message::settings::{ModelConfigTabMessage, SettingsMessage};
 use crate::app::state::ModelConfigTab;
 use crate::app::{App, Message, message};
+use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::{button, column, container, row, scrollable, text, text_input, toggler};
 use iced::{Alignment, Element, Length, Theme};
 
@@ -524,6 +525,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
         let body: Element<'_, Message> = if mm.show_raw {
             // 显示原始 JSON 文本
             scrollable(container(text(&mm.raw_json).size(12)).padding([0, 12]).width(Length::Fill))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
                 .height(Length::Fill)
                 .into()
         } else {
@@ -543,6 +545,7 @@ pub fn view_overlays<'a>(app: &'a App, dialog: Element<'a, Message>) -> Element<
                 );
             }
             scrollable(container(rows_col).padding([0, 12]).width(Length::Fill))
+                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
                 .height(Length::Fill)
                 .into()
         };

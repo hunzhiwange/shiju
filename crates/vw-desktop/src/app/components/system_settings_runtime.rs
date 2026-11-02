@@ -9,6 +9,7 @@ use crate::app::components::system_settings_common::{
     settings_pick_list_style, settings_section_card, settings_section_content,
     settings_text_input_style,
 };
+use crate::app::i18n::settings_runtime::{Text, text as runtime_text};
 use crate::app::message::settings::{RuntimeMessage, SettingsMessage};
 use crate::app::{App, Message};
 use iced::widget::{checkbox, column, container, pick_list, row, text, text_input};
@@ -106,6 +107,7 @@ fn text_row_with_hint<'a>(
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn view(app: &App) -> Element<'_, Message> {
     let s = &app.runtime_settings;
+    let locale = app.desktop_locale;
 
     let kind_pick =
         pick_list(["native".to_string(), "docker".to_string()], Some(s.kind.clone()), |value| {
@@ -117,12 +119,16 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .menu_style(settings_pick_list_menu_style)
         .width(Length::Fixed(280.0));
 
-    let kind_row = field_row("运行时类型", "选择 native 或 docker 执行环境。", kind_pick);
+    let kind_row = field_row(
+        runtime_text(locale, Text::RuntimeKind),
+        runtime_text(locale, Text::EnvironmentHelp),
+        kind_pick,
+    );
 
     let reasoning_enabled_options = [
-        LabeledOption { value: "auto", label: "自动" },
-        LabeledOption { value: "true", label: "启用" },
-        LabeledOption { value: "false", label: "禁用" },
+        LabeledOption { value: "auto", label: runtime_text(locale, Text::Auto) },
+        LabeledOption { value: "true", label: runtime_text(locale, Text::Enabled) },
+        LabeledOption { value: "false", label: runtime_text(locale, Text::Disabled) },
     ];
     let reasoning_enabled_selected = reasoning_enabled_options
         .iter()
@@ -142,18 +148,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .width(Length::Fixed(280.0));
 
     let reasoning_enabled_row = field_row(
-        "启用推理",
-        "覆盖 runtime.reasoning_enabled 的兼容配置。",
+        runtime_text(locale, Text::EnableReasoning),
+        runtime_text(locale, Text::ReasoningHelp),
         reasoning_enabled_pick,
     );
 
     let reasoning_level_options = [
-        LabeledOption { value: "", label: "默认" },
-        LabeledOption { value: "minimal", label: "最小" },
-        LabeledOption { value: "low", label: "低" },
-        LabeledOption { value: "medium", label: "中" },
-        LabeledOption { value: "high", label: "高" },
-        LabeledOption { value: "xhigh", label: "超高" },
+        LabeledOption { value: "", label: runtime_text(locale, Text::Default) },
+        LabeledOption { value: "minimal", label: runtime_text(locale, Text::Minimal) },
+        LabeledOption { value: "low", label: runtime_text(locale, Text::Low) },
+        LabeledOption { value: "medium", label: runtime_text(locale, Text::Medium) },
+        LabeledOption { value: "high", label: runtime_text(locale, Text::High) },
+        LabeledOption { value: "xhigh", label: runtime_text(locale, Text::ExtraHigh) },
     ];
     let reasoning_level_selected = reasoning_level_options
         .iter()
@@ -172,19 +178,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
         .menu_style(settings_pick_list_menu_style)
         .width(Length::Fixed(280.0));
 
-    let reasoning_level_row =
-        field_row("推理级别", "兼容别名 runtime.reasoning_level。", reasoning_level_pick);
+    let reasoning_level_row = field_row(
+        runtime_text(locale, Text::ReasoningLevel),
+        runtime_text(locale, Text::LevelHelp),
+        reasoning_level_pick,
+    );
 
     let docker_section = column![
         settings_section_card(
-            "Docker 配置",
-            "当 kind=docker 时生效，用于控制镜像、资源限制和工作区挂载。",
+            runtime_text(locale, Text::DockerConfig),
+            runtime_text(locale, Text::DockerHelp),
         ),
         settings_section_content(
             column![
                 text_row(
-                    "镜像 (image)",
-                    "默认执行镜像。",
+                    runtime_text(locale, Text::Image),
+                    runtime_text(locale, Text::ImageHelp),
                     "alpine:3.20",
                     &s.docker_image,
                     |value| {
@@ -195,8 +204,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "网络模式 (network)",
-                    "控制容器的网络模式。",
+                    runtime_text(locale, Text::Network),
+                    runtime_text(locale, Text::NetworkHelp),
                     "none / bridge / host",
                     &s.docker_network,
                     |value| {
@@ -207,9 +216,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "内存限制 MB (memory_limit_mb)",
-                    "留空表示不限制。",
-                    "留空表示不限制",
+                    runtime_text(locale, Text::MemoryLimit),
+                    runtime_text(locale, Text::UnlimitedHelp),
+                    runtime_text(locale, Text::Unlimited),
                     &s.docker_memory_limit_mb_input,
                     |value| {
                         Message::Settings(SettingsMessage::Runtime(
@@ -219,9 +228,9 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row(
-                    "CPU 限制 (cpu_limit)",
-                    "例如 1 / 1.5 / 2。",
-                    "例如 1 / 1.5 / 2",
+                    runtime_text(locale, Text::CpuLimit),
+                    runtime_text(locale, Text::CpuExampleHelp),
+                    runtime_text(locale, Text::CpuExample),
                     &s.docker_cpu_limit_input,
                     |value| {
                         Message::Settings(SettingsMessage::Runtime(
@@ -231,10 +240,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 field_row(
-                    "只读根文件系统 (read_only_rootfs)",
-                    "限制容器根文件系统为只读。",
+                    runtime_text(locale, Text::ReadOnly),
+                    runtime_text(locale, Text::ReadOnlyHelp),
                     checkbox(s.docker_read_only_rootfs)
-                        .label("启用")
+                        .label(runtime_text(locale, Text::Enabled))
                         .on_toggle(|value| {
                             Message::Settings(SettingsMessage::Runtime(
                                 RuntimeMessage::DockerReadOnlyRootfsToggled(value),
@@ -244,10 +253,10 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 field_row(
-                    "挂载工作区 (mount_workspace)",
-                    "决定是否把工作区挂载进容器。",
+                    runtime_text(locale, Text::Mount),
+                    runtime_text(locale, Text::MountHelp),
                     checkbox(s.docker_mount_workspace)
-                        .label("启用")
+                        .label(runtime_text(locale, Text::Enabled))
                         .on_toggle(|value| {
                             Message::Settings(SettingsMessage::Runtime(
                                 RuntimeMessage::DockerMountWorkspaceToggled(value),
@@ -257,11 +266,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 ),
                 settings_divider(),
                 text_row_with_hint(
-                    "允许的工作区根目录 (allowed_workspace_roots)",
-                    "仅放行明确需要挂载的根目录。",
-                    "逗号或换行分隔路径",
+                    runtime_text(locale, Text::AllowedRoots),
+                    runtime_text(locale, Text::RootsHelp),
+                    runtime_text(locale, Text::PathsHint),
                     &s.docker_allowed_workspace_roots_input,
-                    "建议仅放行明确需要挂载的根目录。",
+                    runtime_text(locale, Text::RootsHint),
                     |value| {
                         Message::Settings(SettingsMessage::Runtime(
                             RuntimeMessage::DockerAllowedWorkspaceRootsChanged(value),
@@ -275,12 +284,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .spacing(16);
 
     let mut content = column![
-        settings_page_intro("运行时配置", "配置 native、docker 执行环境及推理覆盖项。"),
-        settings_section_card("基础行为", "运行时类型。"),
+        settings_page_intro(
+            runtime_text(locale, Text::RuntimeConfig),
+            runtime_text(locale, Text::RuntimeIntro)
+        ),
+        settings_section_card(
+            runtime_text(locale, Text::Basic),
+            runtime_text(locale, Text::KindHelp)
+        ),
         settings_section_content(column![kind_row].spacing(0)),
         settings_section_card(
-            "推理覆盖",
-            "该区域用于配置 runtime.reasoning_enabled 与兼容别名 runtime.reasoning_level。",
+            runtime_text(locale, Text::Overrides),
+            runtime_text(locale, Text::OverridesHelp),
         ),
         settings_section_content(
             column![reasoning_enabled_row, settings_divider(), reasoning_level_row].spacing(0),

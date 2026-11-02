@@ -31,3 +31,7 @@ pub fn save_error(locale: DesktopLocale, raw_error: &str) -> String {
 pub mod settings_models;
 #[cfg(test)]
 mod settings_models_tests;
+
+pub mod settings_runtime;
+#[cfg(test)]
+mod settings_runtime_tests;

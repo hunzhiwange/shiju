@@ -126,6 +126,7 @@ pub struct ToolUseContext {
     progress_tx: Option<Sender<String>>,
     abort_token: Option<CancellationToken>,
     hook_runner: Option<Arc<HookRunner>>,
+    plugin_snapshot: Option<Arc<crate::plugins::session_snapshot::PluginSessionSnapshot>>,
     non_cli_approval_context: Option<NonCliApprovalContext>,
     channel: Option<String>,
     provider: Option<String>,
@@ -171,6 +172,7 @@ impl fmt::Debug for ToolUseContext {
             .field("has_progress_tx", &self.progress_tx.is_some())
             .field("has_abort_token", &self.abort_token.is_some())
             .field("has_hook_runner", &self.hook_runner.is_some())
+            .field("has_plugin_snapshot", &self.plugin_snapshot.is_some())
             .field("has_non_cli_approval_context", &self.non_cli_approval_context.is_some())
             .finish()
     }
@@ -214,6 +216,7 @@ impl ToolUseContext {
             progress_tx: None,
             abort_token: None,
             hook_runner: None,
+            plugin_snapshot: None,
             non_cli_approval_context: None,
             channel: None,
             provider: None,
@@ -677,6 +680,21 @@ impl ToolUseContext {
     /// 注入取消令牌。
     pub fn with_abort_token(mut self, abort_token: CancellationToken) -> Self {
         self.abort_token = Some(abort_token);
+        self
+    }
+
+    /// The data snapshot never owns store locks.
+    pub(crate) fn plugin_snapshot(
+        &self,
+    ) -> Option<&Arc<crate::plugins::session_snapshot::PluginSessionSnapshot>> {
+        self.plugin_snapshot.as_ref()
+    }
+
+    pub(crate) fn with_plugin_snapshot(
+        mut self,
+        snapshot: Arc<crate::plugins::session_snapshot::PluginSessionSnapshot>,
+    ) -> Self {
+        self.plugin_snapshot = Some(snapshot);
         self
     }
 

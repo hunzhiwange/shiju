@@ -989,3 +989,37 @@ fn shell_outer_timeout_yield_does_not_cancel_process() {
         "process={id} survived two yield deadlines and bridge runtimes; cancelled and reaped"
     );
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn codex_plugin_compat_t57_toolset_bridge_preserves_turn_and_tenant() {
+    let root = tempfile::tempdir().unwrap();
+    let mut config = Config::default();
+    config.workspace_dir = root.path().join("workspace");
+    config.config_path = root.path().join("config/shiju.json");
+    let tenant =
+        vw_api_types::id::TenantScope::new("snapshot-platform", "snapshot-company").unwrap();
+    crate::session::ui_store::with_tenant_scope(tenant.clone(), async {
+        let turn = crate::plugins::session_snapshot::PluginTurnSnapshot::capture(&config).unwrap();
+        let context = Arc::new(
+            ToolUseContext::new("snapshot-bridge", None).with_plugin_snapshot(turn.data.clone()),
+        );
+        super::super::scope_tool_use_context_sync(context, || {
+            block_on(async {
+                assert_eq!(crate::session::ui_store::current_tenant_scope(), tenant);
+                assert!(
+                    crate::tools::current_tool_use_context().unwrap().plugin_snapshot().is_some()
+                );
+                let options = crate::plugins::PluginDiscoveryOptions::new(
+                    &config.workspace_dir,
+                    config.config_path.parent().unwrap(),
+                    config.plugins.clone(),
+                );
+                assert!(crate::plugins::session_snapshot::discover_for_runtime(&options).is_ok());
+                let mut foreign = options;
+                foreign.workspace_dir = root.path().join("foreign");
+                assert!(crate::plugins::session_snapshot::discover_for_runtime(&foreign).is_err());
+            })
+        });
+    })
+    .await;
+}

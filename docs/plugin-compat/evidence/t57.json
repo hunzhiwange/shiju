@@ -1,0 +1,145 @@
+{
+  "task": 57,
+  "status": "已完成（目标验收通过；已记录两个范围外回归失败）",
+  "dependencies": [
+    "a847c307 task56",
+    "e4feb92a task58, user-authorized reorder"
+  ],
+  "red": {
+    "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t57_ -- --nocapture",
+    "exit_code": 101,
+    "slot": 1,
+    "target_assertions_observed": [
+      "foreign workspace snapshot was accepted",
+      "live enabled-list selected beta instead of admitted alpha"
+    ],
+    "followup": {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t57_switches_version_at_turn_boundary -- --nocapture",
+      "exit_code": 101,
+      "slot": 2,
+      "target_assertion": "upgrade replaced package instead of waiting for active turn"
+    },
+    "note": "macOS test panic unwinding aborted the harness (SIGABRT); the original combined invocation recorded two target failures and the focused invocation recorded the boundary failure. A preliminary visibility compile error was corrected before behavioral evidence; it is not counted as red."
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t57_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 8,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t18_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 14,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t19_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 10,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t10_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 12,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t42_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 6,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features hooks::runtime_tests -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "slot": 1
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features required_execution_hook_missing -- --nocapture",
+      "exit_code": 0,
+      "passed": 1,
+      "slot": 1,
+      "note": "Focused security recheck; same required-hook test also appears in hooks::runtime_tests"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 1
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "runtime_assertions": [
+    "Package publication waits on real shared lifecycle leases until turn end; persistent context clones hold no leases",
+    "Existing package/market selection remains fixed after live enabled-list changes; next turn sees new version and selection",
+    "Newly created stores do not appear in an already admitted turn",
+    "Skills and MCP selection reject foreign workspace/config/tenant scopes and expired snapshots",
+    "Serialized invoked-skill records retain exact market-qualified identity and source; compaction neighbors pass",
+    "Cancelled asynchronous hook futures finish dropping resource guards before package lease release",
+    "Required model-hook policy is admitted once, refreshed on next boundary; unavailable next requirements fail visibly",
+    "Real Python stdio MCP process stays alive during old turn, retires after upgrade, and next turn starts a different PID",
+    "Tool construction and async bridge retain the admitted snapshot and tenant rather than rediscovering from an unscoped thread"
+  ],
+  "implementation": {
+    "capture": "plugins/compat/session_snapshot.rs::PluginTurnSnapshot::capture",
+    "boundary": "session/processor/runner.rs::run_in_project",
+    "model_admission": "hooks/runtime.rs::authorize_model_request",
+    "leases": "plugins/compat/installed_state.rs::read_lock",
+    "runtime_selection": [
+      "plugins/skills.rs::load_plugin_skill_inventory",
+      "plugins/mcp.rs::merge_enabled_plugin_mcp_servers"
+    ],
+    "bridge": "tools/toolset/mod.rs::block_on",
+    "stale_mcp": "plugins/compat/mcp_connections.rs::McpSessionConnections::with_client"
+  },
+  "neighbor_correction": {
+    "file": "crates/vw-agent/testdata/plugin_compat/t18/server.py",
+    "failure": "Original timeout test called hang but fixture advertised only pid, so catalog admission rejected it before timeout",
+    "change": "Advertise the existing hang handler; preserve timeout/cleanup assertions and runtime admission restrictions",
+    "result": "All 14 task18 tests pass"
+  },
+  "known_unrelated_failures": {
+    "command": "cargo test -p vw-agent --lib --all-features hook_runtime -- --nocapture",
+    "exit_code": 101,
+    "slot": 1,
+    "tests": [
+      "gateway::ws::mod_tests::gateway_websocket_passes_hook_runtime_to_tool_loop",
+      "agent::loop_::query_engine::query_engine_tests::query_engine_uses_hook_runtime_for_primary_and_retry_turns"
+    ],
+    "error": "invalid turn end hook input",
+    "assessment": "The broader substring filter selected unchanged legacy AgentLoop/WebSocket entry points whose Stop/Interrupt input fails required metadata validation. They do not use PluginTurnSnapshot or the changed processor entry point. Left unchanged; focused hooks::runtime_tests all pass. No all-suite compatibility claim."
+  },
+  "cargo": {
+    "slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR_final": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_TARGET_DIR_red_boundary": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_BUILD_BUILD_DIR": "same as active CARGO_TARGET_DIR",
+    "cache_retained": true,
+    "locks_released": true
+  },
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t57/README.md",
+  "reference": [
+    "codex-rs/core/src/session/plugin_selection.rs::Session::activate_plugin_selection",
+    "codex-rs/app-server/src/plugin_config_reload.rs::for_cwd"
+  ],
+  "limits": "Leases coordinate managed plugin lifecycle operations; manual external filesystem edits still rely on existing path/content/trust audits. External MCP authentication and global security policies are not widened by a plugin snapshot."
+}

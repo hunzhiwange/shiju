@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use super::audit::resolve_component_path;
 use super::compat::skill_frontmatter;
 use super::compat::skill_roots::{SkillPackageFormat, package_format, skill_files, skill_roots};
-use super::{DiscoveredPlugin, PluginDiscoveryOptions, discover_plugins};
+use super::{DiscoveredPlugin, PluginDiscoveryOptions};
 
 #[derive(Debug)]
 pub(super) struct PluginSkillDiagnostic {
@@ -47,7 +47,7 @@ pub(super) fn load_plugin_skill_inventory(
         plugin_config_dir(config),
         config.plugins.clone(),
     );
-    let discovery = match discover_plugins(&options) {
+    let discovery = match super::compat::session_snapshot::discover_for_runtime(&options) {
         Ok(discovery) => discovery,
         Err(error) => {
             return PluginSkillInventory {

@@ -10,10 +10,10 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use super::PluginDiscoveryOptions;
 use super::PluginManifest;
 use super::compat::mcp_legacy::{PluginMcpParseOutcome, parse_legacy_mcp};
 use super::compat::mcp_portable::parse_portable_mcp;
-use super::{PluginDiscoveryOptions, discover_plugins};
 
 /// Build plugin discovery inputs from the loaded agent runtime config.
 /// 根据代理配置构建插件 MCP 发现范围。
@@ -58,7 +58,8 @@ pub(crate) fn merge_enabled_plugin_mcp_servers(
     servers: &mut Vec<McpServer>,
     options: &PluginDiscoveryOptions,
 ) -> Result<()> {
-    let discovery = discover_plugins(options).context("failed to discover plugin MCP servers")?;
+    let (discovery, options) = super::compat::session_snapshot::selection_for_runtime(options)
+        .context("failed to discover plugin MCP servers")?;
     let user_server_names =
         servers.iter().map(|server| mcp_server_name(server).to_string()).collect::<HashSet<_>>();
     let mut merged_names = user_server_names.clone();
@@ -88,7 +89,7 @@ pub(crate) fn merge_enabled_plugin_mcp_servers(
         let plugin_servers = super::compat::mcp_environment::resolve_servers(
             outcome,
             &plugin,
-            options,
+            &options,
             &source_path.to_string_lossy(),
             &original_names,
         )

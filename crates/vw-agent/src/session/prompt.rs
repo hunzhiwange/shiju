@@ -55,7 +55,7 @@ fn environment(model: Option<&str>, root: Option<&str>) -> Vec<String> {
 ///
 /// - 在 WebAssembly 环境中调用时会 panic
 /// - 创建 Tokio 运行时失败时会 panic
-pub(super) fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
+pub(crate) fn block_on<T>(fut: impl std::future::Future<Output = T>) -> T {
     #[cfg(target_arch = "wasm32")]
     panic!("Cannot block_on in wasm async context");
 

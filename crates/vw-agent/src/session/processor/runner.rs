@@ -547,6 +547,22 @@ fn run_in_project(
             return;
         }
     };
+    let skill_workspace = req
+        .root
+        .as_deref()
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from("."));
+    let mut plugin_config = config.clone();
+    plugin_config.workspace_dir = skill_workspace.clone();
+    let mut plugin_turn =
+        match crate::plugins::session_snapshot::PluginTurnSnapshot::capture(&plugin_config) {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                on_event(StreamEvent::Error(format!("Plugin turn admission failed: {error:#}")));
+                return;
+            }
+        };
     let mut tool_use_context = with_request_model_context(
         ToolUseContext::new(req.session.clone(), req.root.clone()).inherit_delegated_authority(),
         selected_model.step_event_model(),
@@ -558,6 +574,8 @@ fn run_in_project(
     if let Some(name) = agent_key.as_deref() {
         tool_use_context = tool_use_context.with_agent_name(name);
     }
+    tool_use_context = tool_use_context.with_plugin_snapshot(plugin_turn.data.clone());
+    plugin_turn.own_async_hooks(tool_use_context.async_hooks.clone());
     let delegated_skill_policy = match req.options.get("delegate_skill_policy") {
         Some(value) => match serde_json::from_value::<
             vw_config_types::agent::DelegateCapabilityPolicy,
@@ -577,13 +595,8 @@ fn run_in_project(
             option_string_values(&req.options, "delegate_default_allowed_skills"),
         );
     }
-    match crate::hooks::execution_hook_runner(&config) {
-        Ok(Some(runner)) => tool_use_context = tool_use_context.with_hook_runner(runner),
-        Ok(None) => {}
-        Err(_) => {
-            on_event(StreamEvent::Error("required execution hooks unavailable".into()));
-            return;
-        }
+    if let Some(runner) = plugin_turn.data.hooks.clone() {
+        tool_use_context = tool_use_context.with_hook_runner(runner);
     }
     let trusted_user_selected_skills =
         option_string_values(&req.options, "delegate_trusted_user_selected_skills");
@@ -634,13 +647,9 @@ fn run_in_project(
         .with_session_tools(req.session_tools.clone());
     let _interrupt = InterruptGuard(ctx.tool_use_context().clone());
     let mut tool_state = ToolSessionState::default();
-    let skill_workspace = req
-        .root
-        .as_deref()
-        .map(PathBuf::from)
-        .or_else(|| std::env::current_dir().ok())
-        .unwrap_or_else(|| PathBuf::from("."));
-    let skills = crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config);
+    let skills = crate::tools::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
+        crate::app::agent::skills::load_skills_with_config(&skill_workspace, &config)
+    });
     let skill_policy_resolution = delegated_skill_policy_resolution(&skills, &req.options);
     let skills = if let Some(resolution) = skill_policy_resolution.as_ref() {
         skills

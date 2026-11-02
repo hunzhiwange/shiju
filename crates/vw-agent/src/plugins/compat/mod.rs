@@ -240,3 +240,7 @@ mod t58_tests;
 
 #[cfg(test)]
 mod plugin_window_fixture;
+
+pub(crate) mod session_snapshot;
+#[cfg(test)]
+mod t57_tests;

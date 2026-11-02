@@ -201,7 +201,11 @@ impl McpSessionConnections {
         timeout: Option<Duration>,
         f: impl for<'a> FnOnce(&'a RunningPeer) -> PeerFuture<'a, T>,
     ) -> Result<T> {
-        let abort = crate::tools::current_tool_use_context().and_then(|c| c.abort_token().cloned());
+        let context = crate::tools::current_tool_use_context();
+        if let Some(snapshot) = context.as_ref().and_then(|context| context.plugin_snapshot()) {
+            snapshot.validate_active()?;
+        }
+        let abort = context.and_then(|c| c.abort_token().cloned());
         if abort.as_ref().is_some_and(CancellationToken::is_cancelled) {
             bail!("MCP call cancelled");
         }

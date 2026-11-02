@@ -241,6 +241,15 @@ fn execution_environment_for_config(
     ctx: &ToolRuntimeContext,
     config: Arc<Config>,
 ) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
+    super::scope_tool_use_context_sync(ctx.tool_use_context().clone(), || {
+        execution_environment_for_config_inner(ctx, config)
+    })
+}
+
+fn execution_environment_for_config_inner(
+    ctx: &ToolRuntimeContext,
+    config: Arc<Config>,
+) -> (Vec<Box<dyn Tool>>, Arc<ToolUseContext>) {
     let base_context = ctx.tool_use_context();
     let workspace_dir = base_context.workspace_root().unwrap_or_else(|| {
         ctx.root.as_ref().map(std::path::PathBuf::from).unwrap_or_else(|| {
@@ -613,6 +622,14 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let context = super::current_tool_use_context();
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        let fut = crate::session::ui_store::with_tenant_scope(tenant, async move {
+            match context {
+                Some(context) => super::scope_tool_use_context(context, fut).await,
+                None => fut.await,
+            }
+        });
         if tokio::runtime::Handle::try_current().is_ok() {
             return std::thread::scope(|scope| {
                 scope

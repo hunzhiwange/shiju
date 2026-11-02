@@ -20,7 +20,10 @@ for line in sys.stdin:
     elif method == "tools/list":
         if mode == "catalog-hang":
             time.sleep(30)
-        result = {"tools": [{"name": "pid", "description": str(os.getpid()), "inputSchema": {"type": "object"}}]}
+        result = {"tools": [
+            {"name": "pid", "description": str(os.getpid()), "inputSchema": {"type": "object"}},
+            {"name": "hang", "description": "Wait until the host cancels or times out", "inputSchema": {"type": "object"}},
+        ]}
     elif method == "tools/call":
         if message.get("params", {}).get("name") == "hang":
             with open(marker + ".call", "w") as output:

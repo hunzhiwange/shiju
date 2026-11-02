@@ -111,7 +111,19 @@ pub(crate) fn execution_hook_runner(config: &Config) -> Result<Option<Arc<HookRu
 
 /// Check model admission immediately before a provider request, without exposing prompts.
 pub(crate) async fn authorize_model_request(config: &Config, model: &str) -> Result<bool> {
-    if let Some(runner) = execution_hook_runner(config)? {
+    let (runner, required) = if let Some(context) = crate::tools::current_tool_use_context()
+        && let Some(snapshot) = context.plugin_snapshot()
+    {
+        snapshot.validate_active()?;
+        (snapshot.hooks.clone(), snapshot.required_hooks)
+    } else {
+        (
+            execution_hook_runner(config)?,
+            !config.hooks.required.is_empty()
+                || std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS").is_some(),
+        )
+    };
+    if let Some(runner) = runner {
         match runner.run_before_llm_call(Vec::new(), model.to_owned()).await {
             super::HookResult::Cancel(reason) => bail!("model request denied by hook: {reason}"),
             super::HookResult::Continue((messages, selected)) => {
@@ -121,6 +133,5 @@ pub(crate) async fn authorize_model_request(config: &Config, model: &str) -> Res
             }
         }
     }
-    Ok(!config.hooks.required.is_empty()
-        || std::env::var_os("VW_REQUIRED_EXECUTION_HOOKS").is_some())
+    Ok(required)
 }

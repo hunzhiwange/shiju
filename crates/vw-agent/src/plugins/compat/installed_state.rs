@@ -29,7 +29,7 @@ pub(super) fn key_valid(key: &str) -> bool {
 }
 
 /// Lock lives beside the store so installing a lock never changes package contents.
-pub(crate) fn lock(root: &Path) -> Result<Option<File>> {
+fn open_lock(root: &Path) -> Result<Option<File>> {
     if !root.exists() {
         return Ok(None);
     }
@@ -53,9 +53,27 @@ pub(crate) fn lock(root: &Path) -> Result<Option<File>> {
     }
     let file = options.open(&path).context("failed to open plugin lifecycle lock")?;
     regular(&path)?;
-    file.lock().context("failed to lock plugin lifecycle")?;
-    recover(&canonical)?;
     Ok(Some(file))
+}
+pub(crate) fn lock(root: &Path) -> Result<Option<File>> {
+    let Some(file) = open_lock(root)? else { return Ok(None) };
+    file.lock().context("failed to lock plugin lifecycle")?;
+    recover(root)?;
+    Ok(Some(file))
+}
+/// Read leases coexist across turns; interrupted transactions recover under an exclusive lock.
+pub(crate) fn read_lock(root: &Path) -> Result<Option<File>> {
+    let Some(file) = open_lock(root)? else { return Ok(None) };
+    loop {
+        file.lock_shared().context("failed to read-lock plugin lifecycle")?;
+        if !journal_path(root).try_exists()? {
+            return Ok(Some(file));
+        }
+        file.unlock()?;
+        file.lock()?;
+        recover(root)?;
+        file.unlock()?;
+    }
 }
 pub(super) fn sync_dir(path: &Path) -> Result<()> {
     #[cfg(unix)]

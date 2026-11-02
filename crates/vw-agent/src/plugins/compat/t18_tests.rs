@@ -139,7 +139,7 @@ async fn codex_plugin_compat_t18_times_out_initialization_and_catalog_without_or
         settings(&mut server, 200, 1000);
         let pool = McpSessionConnections::default();
         let error = pid(&pool, &server).await.unwrap_err();
-        assert!(format!("{error:#}").contains("timed out"));
+        assert!(format!("{error:#}").contains("timed out"), "{error:#}");
         let started = fs::read_to_string(root.path().join("starts")).unwrap();
         #[cfg(unix)]
         exited(started.trim()).await;
@@ -426,7 +426,7 @@ async fn codex_plugin_compat_t18_applies_host_call_timeout_to_actual_dynamic_too
         Some(Duration::from_millis(100)),
     );
     let error = tool.call(json!({})).await.unwrap_err();
-    assert!(format!("{error:#}").contains("timed out"));
+    assert!(format!("{error:#}").contains("timed out"), "{error:#}");
     #[cfg(unix)]
     exited(&first).await;
     pool.shutdown();

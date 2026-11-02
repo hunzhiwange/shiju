@@ -99,7 +99,7 @@ pub fn build_file_tree_menu<'a>(
     // 创建菜单按钮的辅助闭包
     // 封装按钮的创建逻辑，包括样式、布局和交互行为
     let menu_btn = |label: &str, action: FileTreeAction| -> Element<'a, Message> {
-        let label = label.to_string();
+        let label = crate::app::i18n::I18n::new(app.desktop_locale).__(label).to_string();
         button(container(text(label).size(13)).width(Length::Fill).padding([2, 8]))
             .on_press(Message::Project(ProjectMessage::FileTreeAction(action)))
             .style(file_tree_menu_button_style)

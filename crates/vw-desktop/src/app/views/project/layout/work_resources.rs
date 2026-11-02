@@ -42,7 +42,7 @@ pub(super) fn body_kind(app: &App) -> ResourceBodyKind {
 
 fn active_session_title(app: &App) -> String {
     let Some(active_id) = app.active_session_id.as_deref() else {
-        return "暂无活动会话".to_string();
+        return crate::app::i18n::I18n::new(app.desktop_locale).__("暂无活动会话").to_string();
     };
     app.sessions
         .iter()
@@ -51,7 +51,9 @@ fn active_session_title(app: &App) -> String {
         .map(|session| session.title.trim())
         .filter(|title| !title.is_empty())
         .map(str::to_string)
-        .unwrap_or_else(|| "未命名会话".to_string())
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("未命名会话").to_string()
+        })
 }
 
 pub(super) fn overview_model(app: &App) -> OverviewModel {
@@ -61,7 +63,9 @@ pub(super) fn overview_model(app: &App) -> OverviewModel {
         .and_then(|name| name.to_str())
         .filter(|name| !name.is_empty())
         .map(str::to_string)
-        .unwrap_or_else(|| "未打开项目".to_string());
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("未打开项目").to_string()
+        });
     let session_count =
         app.project_path.as_ref().and_then(|path| app.project_sessions.get(path)).map_or_else(
             || {
@@ -78,7 +82,9 @@ pub(super) fn overview_model(app: &App) -> OverviewModel {
         session_title: active_session_title(app),
         session_count,
         changed_files: app.git_changed_files.len(),
-        branch: app.selected_branch.clone().unwrap_or_else(|| "未获取".to_string()),
+        branch: app.selected_branch.clone().unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("未获取").to_string()
+        }),
     }
 }
 
@@ -206,20 +212,32 @@ fn overview(app: &App) -> Element<'_, Message> {
     column![
         text(model.project_name).size(20),
         text(if model.project_path.is_empty() {
-            "请选择项目以查看资源".to_string()
+            crate::app::i18n::I18n::new(app.desktop_locale).__("请选择项目以查看资源").to_string()
         } else {
             model.project_path
         })
         .size(12)
         .style(|theme: &Theme| text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }),
         row![
-            overview_card("当前会话", model.session_title),
-            overview_card("项目会话", model.session_count.to_string()),
+            overview_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("当前会话"),
+                model.session_title
+            ),
+            overview_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("项目会话"),
+                model.session_count.to_string()
+            ),
         ]
         .spacing(10),
         row![
-            overview_card("Git 分支", model.branch),
-            overview_card("工作区更改", model.changed_files.to_string()),
+            overview_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("Git 分支"),
+                model.branch
+            ),
+            overview_card(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("工作区更改"),
+                model.changed_files.to_string()
+            ),
         ]
         .spacing(10),
     ]
@@ -252,28 +270,48 @@ pub(super) fn view(app: &App, corner_radius: f32) -> Element<'_, Message> {
     let [expand_left_icon, contract_right_icon, half_fullscreen_icon, fullscreen_icon] =
         resource_header_icons(app.work_resource_fullscreen);
     let selector = row![
-        selector_button("概览", WorkResourceMode::Overview, app.work_resource_mode),
-        selector_button("工作空间文件", WorkResourceMode::WorkspaceFiles, app.work_resource_mode,),
-        selector_button("浏览器", WorkResourceMode::Browser, app.work_resource_mode),
+        selector_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("概览"),
+            WorkResourceMode::Overview,
+            app.work_resource_mode
+        ),
+        selector_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("工作空间文件"),
+            WorkResourceMode::WorkspaceFiles,
+            app.work_resource_mode,
+        ),
+        selector_button(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("浏览器"),
+            WorkResourceMode::Browser,
+            app.work_resource_mode
+        ),
         Space::new().width(Length::Fill),
         resource_header_icon_button(
             expand_left_icon,
-            "向左扩展",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("向左扩展"),
             Message::View(ViewMessage::WorkSplitRatioChanged(app.work_split_ratio - 0.05,)),
         ),
         resource_header_icon_button(
             contract_right_icon,
-            "向右收起",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("向右收起"),
             Message::View(ViewMessage::WorkSplitRatioChanged(app.work_split_ratio + 0.05,)),
         ),
         resource_header_icon_button(
             half_fullscreen_icon,
-            if app.work_resource_half_fullscreen { "退出半屏" } else { "半屏" },
+            if app.work_resource_half_fullscreen {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("退出半屏")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("半屏")
+            },
             Message::View(ViewMessage::WorkResourceHalfFullscreenToggled),
         ),
         resource_header_icon_button(
             fullscreen_icon,
-            if app.work_resource_fullscreen { "退出全屏" } else { "全屏" },
+            if app.work_resource_fullscreen {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("退出全屏")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("全屏")
+            },
             Message::View(ViewMessage::WorkResourceFullscreenToggled),
         ),
     ]

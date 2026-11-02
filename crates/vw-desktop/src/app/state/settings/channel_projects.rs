@@ -41,20 +41,20 @@ impl ChannelsSettingsState {
         tenant: &str,
         key: &str,
         project: Option<&str>,
-    ) -> Result<(), String> {
+    ) -> Result<(), &'static str> {
         if !self
             .project_choices_request
             .as_ref()
             .is_some_and(|(scope, instance, _)| scope == tenant && instance == key)
         {
-            return Err("项目选择已过期，请重新加载当前实例的项目".into());
+            return Err("项目选择已过期，请重新加载当前实例的项目");
         }
         if let Some(project) = project {
             if self.project_choices_loading
                 || self.project_choices_error.is_some()
                 || !self.project_choices.iter().any(|(id, _)| id == project)
             {
-                return Err("项目不存在或候选尚未加载，请重新加载项目".into());
+                return Err("项目不存在或候选尚未加载，请重新加载项目");
             }
             self.instance_default_projects.insert(key.into(), project.into());
         } else {

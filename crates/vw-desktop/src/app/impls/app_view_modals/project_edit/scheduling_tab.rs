@@ -48,7 +48,9 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .cloned()
         .or_else(|| workflow_options.first().cloned());
     let workflow_row = row![
-        text("任务工作流").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务工作流"))
+            .size(13)
+            .width(Length::Fill),
         pick_list(workflow_options, selected_workflow, |option| {
             Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditWorkflowIdChanged(
@@ -61,7 +63,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style)
         .width(Length::Fixed(200.0)),
-        button(text("管理工作流").size(12))
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("管理工作流")).size(12))
             .on_press(Message::View(crate::app::message::view::ViewMessage::OpenWorkflowManager))
             .padding([6, 10])
             .style(rounded_action_btn_style),
@@ -73,7 +75,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .unwrap_or_else(|| Space::new().height(Length::Shrink).into());
 
     let max_concurrent_row = row![
-        text("并发任务数").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("并发任务数")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditMaxConcurrentChanged(
@@ -90,8 +92,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ),
                 )
             })
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -107,7 +109,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let scheduler_tick_interval_row = row![
-        text("执行唤醒间隔(秒)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("执行唤醒间隔(秒)")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditTaskBoardSchedulerTickIntervalSecondsChanged(
@@ -127,8 +129,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                 ),
             )
         })
-        .padding([8, 10])
-        .size(13)
+        .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+        .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
         .width(Length::Fixed(72.0))
         .style(settings_text_input_style),
         button(text("+").size(12))
@@ -144,7 +146,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let auto_promote_tick_interval_row = row![
-        text("任务池回推间隔(秒)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务池回推间隔(秒)")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditTaskBoardAutoPromoteTickIntervalSecondsChanged(
@@ -164,8 +166,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                 ),
             )
         })
-        .padding([8, 10])
-        .size(13)
+        .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+        .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
         .width(Length::Fixed(72.0))
         .style(settings_text_input_style),
         button(text("+").size(12))
@@ -181,7 +183,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let failed_retry_row = row![
-        text("失败重试(分钟)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("失败重试(分钟)")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditFailedRetryMinutesChanged(
@@ -198,8 +200,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ),
                 )
             })
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -215,7 +217,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let failed_retry_max_attempts_row = row![
-        text("最大重试(次)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("最大重试(次)")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditFailedRetryMaxAttemptsChanged(
@@ -232,8 +234,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ),
                 )
             })
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -249,7 +251,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let running_timeout_row = row![
-        text("运行超时(分钟)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("运行超时(分钟)")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditRunningTimeoutMinutesChanged(
@@ -266,8 +268,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ),
                 )
             })
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -287,7 +289,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let recycle_worktree_on_finish_toggle = checkbox(settings.recycle_worktree_on_task_finish)
-        .label("完成后回收 worktree")
+        .label(crate::app::i18n::I18n::new(app.desktop_locale).__("完成后回收 worktree"))
         .spacing(8)
         .on_toggle(|enabled| {
             Message::Project(
@@ -299,7 +301,7 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .style(settings_checkbox_style);
 
     let pr_stall_timeout_row = row![
-        text("合并锁超时(秒)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("合并锁超时(秒)")).size(13).width(Length::Fill),
         button(text("-").size(12))
             .on_press(Message::Project(
                 crate::app::message::project::ProjectMessage::ProjectEditPrSubmittedStallTimeoutSecondsChanged(
@@ -316,8 +318,8 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ),
                 )
             })
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -334,8 +336,9 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
 
     column![
         settings_section_card(
-            "调度与保护",
-            "限制并发、设置重试与超时，并控制 worktree 回收与合并锁。"
+            crate::app::i18n::I18n::new(app.desktop_locale).__("调度与保护"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("限制并发、设置重试与超时，并控制 worktree 回收与合并锁。")
         ),
         settings_panel(
             column![
@@ -359,11 +362,23 @@ pub(super) fn scheduling_tab<'a>(app: &'a App) -> Element<'a, Message> {
 
 fn workflow_cache_hint(app: &App) -> Option<String> {
     if app.workflow_manager.lifecycles_loading() {
-        Some("生命周期列表正在从网关加载。".to_string())
+        Some(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("生命周期列表正在从网关加载。")
+                .to_string(),
+        )
     } else if let Some(error) = app.workflow_manager.lifecycles_error() {
-        Some(format!("生命周期列表加载失败：{error}"))
+        Some(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .format("生命周期列表加载失败：%s", &[error.into()])
+                .expect("valid lifecycle error template"),
+        )
     } else if !app.workflow_manager.lifecycles_loaded() {
-        Some("生命周期列表尚未从网关加载，当前显示本地缓存。".to_string())
+        Some(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("生命周期列表尚未从网关加载，当前显示本地缓存。")
+                .to_string(),
+        )
     } else {
         None
     }

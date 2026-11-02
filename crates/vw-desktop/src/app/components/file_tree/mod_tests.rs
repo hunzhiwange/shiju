@@ -62,6 +62,7 @@ fn file_manager_view_active_find_results_tab_with_matching_tab() {
             preview: "fn main()".to_string(),
             match_len: 2,
         }],
+        localized_error: None,
         results_page: 0,
     }];
     let _ = view_file_manager(&app);
@@ -114,6 +115,7 @@ fn file_manager_view_with_saved_find_result_builds_single_mode_bar() {
         error: None,
         limit_reached: false,
         matches: vec![],
+        localized_error: None,
         results_page: 0,
     }];
     let _ = view_file_manager(&app);
@@ -142,6 +144,7 @@ fn file_manager_search_button_opens_or_reuses_search() {
         error: None,
         limit_reached: false,
         matches: vec![],
+        localized_error: None,
         results_page: 0,
     }];
 
@@ -221,6 +224,7 @@ fn file_manager_view_combines_change_count_refreshing_and_find_results_precedenc
             preview: "fn main()".to_string(),
             match_len: 4,
         }],
+        localized_error: None,
         results_page: 0,
     }];
 

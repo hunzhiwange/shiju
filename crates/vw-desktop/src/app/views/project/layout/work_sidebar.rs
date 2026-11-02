@@ -379,21 +379,27 @@ fn expert_hub_message(section: ExpertHubSection) -> Message {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn expert_hub_button() -> Element<'static, Message> {
+pub(super) fn expert_hub_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[5];
-    navigation_button(label, icon, Message::SkillHub(SkillHubMessage::Open), trailing)
+    navigation_button(i18n, label, icon, Message::SkillHub(SkillHubMessage::Open), trailing)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn shiju_apps_button() -> Element<'static, Message> {
+pub(super) fn shiju_apps_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[3];
-    navigation_button(label, icon, Message::ShijuApps(ShijuAppsMessage::Open), trailing)
+    navigation_button(i18n, label, icon, Message::ShijuApps(ShijuAppsMessage::Open), trailing)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub(super) fn shiju_skills_button() -> Element<'static, Message> {
+pub(super) fn shiju_skills_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let (label, icon, trailing) = navigation_specs()[4];
-    navigation_button(label, icon, Message::SkillHub(SkillHubMessage::OpenShijuSkills), trailing)
+    navigation_button(
+        i18n,
+        label,
+        icon,
+        Message::SkillHub(SkillHubMessage::OpenShijuSkills),
+        trailing,
+    )
 }
 
 pub(super) fn sidebar_style(theme: &Theme) -> container::Style {
@@ -463,25 +469,28 @@ fn header_control_style(active: bool) -> impl Fn(&Theme, button::Status) -> butt
 }
 
 fn header_icon_button(
+    i18n: crate::app::i18n::I18n,
     icon: Icon,
     label: &'static str,
     message: Message,
     active: bool,
 ) -> Element<'static, Message> {
-    header_icon_button_sized(icon, label, message, active, WORK_HEADER_CONTROL_SIZE)
+    header_icon_button_sized(i18n, icon, label, message, active, WORK_HEADER_CONTROL_SIZE)
 }
 
 fn header_icon_button_sized(
+    i18n: crate::app::i18n::I18n,
     icon: Icon,
     label: &'static str,
     message: Message,
     active: bool,
     control_size: f32,
 ) -> Element<'static, Message> {
-    header_icon_button_sized_maybe(icon, label, Some(message), active, control_size)
+    header_icon_button_sized_maybe(i18n, icon, label, Some(message), active, control_size)
 }
 
 fn header_icon_button_sized_maybe(
+    i18n: crate::app::i18n::I18n,
     icon: Icon,
     label: &'static str,
     message: Option<Message>,
@@ -504,7 +513,7 @@ fn header_icon_button_sized_maybe(
 
     Tooltip::new(
         control,
-        container(text(label).size(12)).padding([6, 8]).style(tooltip_dark_style),
+        container(text(i18n.__(label)).size(12)).padding([6, 8]).style(tooltip_dark_style),
         TooltipPosition::Bottom,
     )
     .gap(6)
@@ -537,11 +546,12 @@ fn filter_option_style(selected: bool) -> impl Fn(&Theme, button::Status) -> but
 }
 
 fn filter_option(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     selected: bool,
     message: Message,
 ) -> Element<'static, Message> {
-    let mut content = row![text(label).size(14), Space::new().width(Length::Fill)]
+    let mut content = row![text(i18n.__(label)).size(14), Space::new().width(Length::Fill)]
         .align_y(iced::Alignment::Center);
     if selected {
         content = content
@@ -591,87 +601,102 @@ fn filter_popover(app: &App) -> Element<'static, Message> {
     let status = app.work_sidebar_filter_status;
     let time = app.work_sidebar_filter_time;
     let content = column![
-        text("筛选状态").size(12).style(|theme: &Theme| text::Style {
-            color: Some(theme.palette().text.scale_alpha(0.52)),
-        }),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("筛选状态")).size(12).style(
+            |theme: &Theme| text::Style { color: Some(theme.palette().text.scale_alpha(0.52)) }
+        ),
         filter_option(
-            "全部状态",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全部状态"),
             status == WorkSidebarFilterStatus::All,
             Message::View(ViewMessage::WorkSidebarFilterStatusSelected(
                 WorkSidebarFilterStatus::All,
             )),
         ),
         filter_option(
-            "进行中",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("进行中"),
             status == WorkSidebarFilterStatus::InProgress,
             Message::View(ViewMessage::WorkSidebarFilterStatusSelected(
                 WorkSidebarFilterStatus::InProgress,
             )),
         ),
         filter_option(
-            "已完成",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("已完成"),
             status == WorkSidebarFilterStatus::Completed,
             Message::View(ViewMessage::WorkSidebarFilterStatusSelected(
                 WorkSidebarFilterStatus::Completed,
             )),
         ),
         filter_option(
-            "待处理",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("待处理"),
             status == WorkSidebarFilterStatus::Pending,
             Message::View(ViewMessage::WorkSidebarFilterStatusSelected(
                 WorkSidebarFilterStatus::Pending,
             )),
         ),
         filter_divider(),
-        text("筛选范围").size(12).style(|theme: &Theme| text::Style {
-            color: Some(theme.palette().text.scale_alpha(0.52)),
-        }),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("筛选范围")).size(12).style(
+            |theme: &Theme| text::Style { color: Some(theme.palette().text.scale_alpha(0.52)) }
+        ),
         filter_option(
-            "全部项目",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全部项目"),
             scope == WorkSidebarFilterScope::All,
             Message::View(
                 ViewMessage::WorkSidebarFilterScopeSelected(WorkSidebarFilterScope::All,)
             ),
         ),
         filter_option(
-            "当前项目",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("当前项目"),
             scope == WorkSidebarFilterScope::CurrentProject,
             Message::View(ViewMessage::WorkSidebarFilterScopeSelected(
                 WorkSidebarFilterScope::CurrentProject,
             )),
         ),
         filter_divider(),
-        text("筛选时间").size(12).style(|theme: &Theme| text::Style {
-            color: Some(theme.palette().text.scale_alpha(0.52)),
-        }),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("筛选时间")).size(12).style(
+            |theme: &Theme| text::Style { color: Some(theme.palette().text.scale_alpha(0.52)) }
+        ),
         filter_option(
-            "全部时间",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全部时间"),
             time == WorkSidebarFilterTime::All,
             Message::View(ViewMessage::WorkSidebarFilterTimeSelected(WorkSidebarFilterTime::All,)),
         ),
         filter_option(
-            "最近 24 小时",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近 24 小时"),
             time == WorkSidebarFilterTime::LastDay,
             Message::View(ViewMessage::WorkSidebarFilterTimeSelected(
                 WorkSidebarFilterTime::LastDay,
             )),
         ),
         filter_option(
-            "最近 7 天",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近 7 天"),
             time == WorkSidebarFilterTime::LastSevenDays,
             Message::View(ViewMessage::WorkSidebarFilterTimeSelected(
                 WorkSidebarFilterTime::LastSevenDays,
             )),
         ),
         filter_option(
-            "最近 30 天",
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("最近 30 天"),
             time == WorkSidebarFilterTime::LastThirtyDays,
             Message::View(ViewMessage::WorkSidebarFilterTimeSelected(
                 WorkSidebarFilterTime::LastThirtyDays,
             )),
         ),
         filter_divider(),
-        filter_option("重置筛选条件", false, Message::View(ViewMessage::WorkSidebarFilterReset),),
+        filter_option(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("重置筛选条件"),
+            false,
+            Message::View(ViewMessage::WorkSidebarFilterReset),
+        ),
     ]
     .spacing(4);
 
@@ -685,6 +710,7 @@ fn filter_popover(app: &App) -> Element<'static, Message> {
 fn filter_control(app: &App) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(app.work_sidebar_collapsed)[4];
     let trigger = header_icon_button_sized(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         icon,
         label,
         Message::View(ViewMessage::WorkSidebarFilterToggled),
@@ -698,9 +724,10 @@ fn filter_control(app: &App) -> Element<'static, Message> {
         .into()
 }
 
-fn search_control() -> Element<'static, Message> {
+fn search_control(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(false)[3];
     header_icon_button(
+        i18n,
         icon,
         label,
         Message::Batch(vec![
@@ -714,7 +741,13 @@ fn search_control() -> Element<'static, Message> {
 
 fn sidebar_toggle_control(app: &App) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(app.work_sidebar_collapsed)[0];
-    header_icon_button(icon, label, Message::View(ViewMessage::WorkSidebarToggled), false)
+    header_icon_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        icon,
+        label,
+        Message::View(ViewMessage::WorkSidebarToggled),
+        false,
+    )
 }
 
 pub(super) fn refresh_all_message(app: &App) -> Message {
@@ -733,23 +766,35 @@ pub(super) fn refresh_all_control(app: &App) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(app.work_sidebar_collapsed)[1];
     let is_refreshing =
         app.recent_projects.iter().any(|path| app.project_sessions_loading.contains(path));
-    header_icon_button(icon, label, refresh_all_message(app), is_refreshing)
+    header_icon_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        icon,
+        label,
+        refresh_all_message(app),
+        is_refreshing,
+    )
 }
 
 pub(super) fn task_pool_control(app: &App) -> Element<'static, Message> {
     let (icon, label) = header_icon_specs(app.work_sidebar_collapsed)[2];
-    header_icon_button(icon, label, Message::TaskBoard(TaskBoardMessage::ToggleBoard), false)
+    header_icon_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        icon,
+        label,
+        Message::TaskBoard(TaskBoardMessage::ToggleBoard),
+        false,
+    )
 }
 
 fn expanded_header(app: &App) -> Element<'static, Message> {
     row![
-        container(text("识矩").size(17))
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("识矩")).size(17))
             .width(Length::Fill)
             .align_y(iced::alignment::Vertical::Center),
         sidebar_toggle_control(app),
         refresh_all_control(app),
         task_pool_control(app),
-        search_control(),
+        search_control(crate::app::i18n::I18n::new(app.desktop_locale)),
         filter_control(app),
     ]
     .spacing(4)
@@ -766,7 +811,7 @@ fn collapsed_header(app: &App) -> Element<'static, Message> {
         sidebar_toggle_control(app),
         refresh_all_control(app),
         task_pool_control(app),
-        search_control(),
+        search_control(crate::app::i18n::I18n::new(app.desktop_locale)),
         filter_control(app),
     ]
     .spacing(6)
@@ -793,15 +838,17 @@ fn navigation_icon_enabled(icon: Icon, enabled: bool) -> svg::Svg<'static> {
 }
 
 fn navigation_button(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     icon: Icon,
     message: Message,
     trailing: Option<&'static str>,
 ) -> Element<'static, Message> {
-    navigation_button_maybe(label, icon, Some(message), trailing)
+    navigation_button_maybe(i18n, label, icon, Some(message), trailing)
 }
 
 fn navigation_button_maybe(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     icon: Icon,
     message: Option<Message>,
@@ -811,7 +858,7 @@ fn navigation_button_maybe(
     let mut content = row![
         container(navigation_icon_enabled(icon, enabled))
             .width(Length::Fixed(WORK_NAVIGATION_ICON_COLUMN_WIDTH)),
-        text(label).size(14).style(move |theme: &Theme| text::Style {
+        text(i18n.__(label)).size(14).style(move |theme: &Theme| text::Style {
             color: (!enabled).then(|| theme.palette().text.scale_alpha(0.32)),
         }),
         Space::new().width(Length::Fill),
@@ -821,8 +868,8 @@ fn navigation_button_maybe(
     .width(Length::Fill);
 
     if let Some(trailing) = trailing {
-        content = content.push(text(trailing).size(11).style(|theme: &Theme| text::Style {
-            color: Some(theme.palette().text.scale_alpha(0.48)),
+        content = content.push(text(i18n.__(trailing)).size(11).style(|theme: &Theme| {
+            text::Style { color: Some(theme.palette().text.scale_alpha(0.48)) }
         }));
     }
 
@@ -870,6 +917,7 @@ fn close_more_then(message: Message) -> Message {
 }
 
 fn more_menu_action(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     icon: Icon,
     message: Message,
@@ -877,7 +925,7 @@ fn more_menu_action(
     button(
         row![
             container(navigation_icon(icon)).width(Length::Fixed(28.0)),
-            text(label).size(15),
+            text(i18n.__(label)).size(15),
             Space::new().width(Length::Fill),
         ]
         .spacing(10)
@@ -891,19 +939,24 @@ fn more_menu_action(
     .into()
 }
 
-fn more_menu() -> Element<'static, Message> {
+fn more_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     let specs = more_menu_item_specs();
     let add_url = Message::Batch(vec![
         Message::View(ViewMessage::OpenApps),
         Message::View(ViewMessage::ToggleWebLinksMenu),
     ]);
     let content = column![
-        more_menu_action(specs[0].0, specs[0].1, add_url),
+        more_menu_action(i18n, specs[0].0, specs[0].1, add_url),
         more_menu_divider(),
-        more_menu_action(specs[1].0, specs[1].1, Message::View(ViewMessage::OpenKnowledge),),
-        more_menu_action(specs[2].0, specs[2].1, Message::View(ViewMessage::OpenWorkflowTool),),
+        more_menu_action(i18n, specs[1].0, specs[1].1, Message::View(ViewMessage::OpenKnowledge),),
+        more_menu_action(
+            i18n,
+            specs[2].0,
+            specs[2].1,
+            Message::View(ViewMessage::OpenWorkflowTool),
+        ),
         more_menu_divider(),
-        more_menu_action(specs[3].0, specs[3].1, Message::View(ViewMessage::OpenApps),),
+        more_menu_action(i18n, specs[3].0, specs[3].1, Message::View(ViewMessage::OpenApps),),
     ]
     .spacing(3);
 
@@ -913,14 +966,15 @@ fn more_menu() -> Element<'static, Message> {
 fn more_control(app: &App) -> Element<'static, Message> {
     let (_, icon, trailing) = navigation_specs()[7];
     let trigger = navigation_button(
-        "更多",
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("更多"),
         icon,
         Message::View(ViewMessage::WorkSidebarMoreOpened),
         trailing,
     );
     let hover_trigger =
         mouse_area(trigger).on_enter(Message::View(ViewMessage::WorkSidebarMoreOpened));
-    SideOverlay::new(hover_trigger, more_menu())
+    SideOverlay::new(hover_trigger, more_menu(crate::app::i18n::I18n::new(app.desktop_locale)))
         .show(app.work_sidebar_more_open)
         .gap(8.0)
         .on_close(Message::View(ViewMessage::WorkSidebarMoreClosed))
@@ -976,13 +1030,19 @@ pub(super) fn task_session_context_menu(
 
 fn task_button(app: &App, task: &WorkTaskItem) -> Element<'static, Message> {
     let raw_title = if task.title.trim().is_empty() {
-        "未命名任务".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("未命名任务").to_string()
     } else {
         task.title.clone()
     };
     let title = truncate_work_task_text(&raw_title, app.work_sidebar_width, false);
     let project_label = truncate_work_task_text(&task.project_label, app.work_sidebar_width, true);
-    let updated = crate::app::components::chat_panel::utils::relative_time_label(task.updated);
+    let updated = crate::app::i18n::chat::relative_time(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        crate::app::components::chat_panel::utils::relative_time_bucket(
+            task.updated,
+            crate::app::time::now_ms(),
+        ),
+    );
     let mut meta = row![
         text(project_label)
             .size(11)
@@ -993,7 +1053,11 @@ fn task_button(app: &App, task: &WorkTaskItem) -> Element<'static, Message> {
     .spacing(8)
     .align_y(iced::Alignment::Center)
     .width(Length::Fill);
-    if let Some(status) = task_status_badge(task.status, app.status_animation_frame) {
+    if let Some(status) = task_status_badge(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        task.status,
+        app.status_animation_frame,
+    ) {
         meta = meta.push(status);
     }
     meta = meta.push(text(updated).size(11).style(muted_task_text_style));
@@ -1029,6 +1093,7 @@ fn work_task_status_icon(id: &str, status: WorkTaskStatus) -> Element<'static, M
 }
 
 fn task_status_badge(
+    i18n: crate::app::i18n::I18n,
     status: WorkTaskStatus,
     animation_frame: usize,
 ) -> Option<Element<'static, Message>> {
@@ -1039,17 +1104,22 @@ fn task_status_badge(
                 text(spinner_frame(animation_frame))
                     .size(10)
                     .line_height(text::LineHeight::Relative(1.0)),
-                text("运行中").size(10),
+                text(i18n.__("运行中")).size(10),
             ]
             .spacing(3)
             .align_y(iced::Alignment::Center)
             .into(),
             Color::from_rgb8(239, 68, 68),
         ),
-        WorkTaskStatus::Queued(count) => {
-            (text(format!("排队 {count}")).size(10).into(), Color::from_rgb8(245, 158, 11))
+        WorkTaskStatus::Queued(count) => (
+            text(i18n.format("排队 %u", &[count.into()]).expect("valid queue template"))
+                .size(10)
+                .into(),
+            Color::from_rgb8(245, 158, 11),
+        ),
+        WorkTaskStatus::Updated => {
+            (text(i18n.__("有更新")).size(10).into(), Color::from_rgb8(46, 184, 114))
         }
-        WorkTaskStatus::Updated => (text("有更新").size(10).into(), Color::from_rgb8(46, 184, 114)),
     };
     Some(
         container(content)
@@ -1077,6 +1147,7 @@ pub(super) fn truncate_work_task_text(
 }
 
 fn space_tools_menu_action(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     icon: Icon,
     message: Message,
@@ -1084,7 +1155,7 @@ fn space_tools_menu_action(
     button(
         row![
             container(navigation_icon(icon)).width(Length::Fixed(28.0)),
-            text(label).size(15),
+            text(i18n.__(label)).size(15),
             Space::new().width(Length::Fill),
         ]
         .spacing(10)
@@ -1101,27 +1172,31 @@ fn space_tools_menu_action(
     .into()
 }
 
-fn space_tools_menu(path: String) -> Element<'static, Message> {
+fn space_tools_menu(i18n: crate::app::i18n::I18n, path: String) -> Element<'static, Message> {
     container(
         column![
             space_tools_menu_action(
-                "刷新任务",
+                i18n,
+                i18n.__("刷新任务"),
                 Icon::ArrowRepeat,
                 Message::Project(ProjectMessage::ProjectLoadSessions(path.clone())),
             ),
             space_tools_menu_action(
-                "编辑项目",
+                i18n,
+                i18n.__("编辑项目"),
                 Icon::Sliders,
                 Message::Project(ProjectMessage::ProjectEditOpened(path.clone())),
             ),
             more_menu_divider(),
             space_tools_menu_action(
-                "打开文件夹",
+                i18n,
+                i18n.__("打开文件夹"),
                 Icon::FolderOpen,
                 Message::Project(ProjectMessage::RecentRevealPressed(path.clone())),
             ),
             space_tools_menu_action(
-                "从列表中移除",
+                i18n,
+                i18n.__("从列表中移除"),
                 Icon::Trash,
                 Message::Project(ProjectMessage::RecentRemovePressed(path)),
             ),
@@ -1144,7 +1219,7 @@ fn space_row_style(selected: bool) -> impl Fn(&Theme) -> container::Style + Copy
     }
 }
 
-fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
+fn space_button(i18n: crate::app::i18n::I18n, space: &WorkSpaceItem) -> Element<'static, Message> {
     const SPACE_FOLDER_ICON_SIZE: f32 = 16.0;
     let switch = button(
         row![
@@ -1162,8 +1237,9 @@ fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
     .style(navigation_button_style);
 
     let toggle = header_icon_button_sized(
+        i18n,
         if space.expanded { Icon::ChevronUp } else { Icon::ChevronDown },
-        if space.expanded { "收起任务" } else { "展开任务" },
+        if space.expanded { i18n.__("收起任务") } else { i18n.__("展开任务") },
         space.toggle_message.clone(),
         false,
         28.0,
@@ -1171,24 +1247,33 @@ fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
 
     let actions: Element<'static, Message> = if space.hovered || space.tools_open {
         let tools_trigger = header_icon_button_sized(
+            i18n,
             Icon::DotsThreeVertical,
-            "空间操作",
+            i18n.__("空间操作"),
             space.tools_message.clone(),
             space.tools_open,
             30.0,
         );
         let tools: Element<'static, Message> =
-            BelowOverlay::new(tools_trigger, space_tools_menu(space.path.clone()))
+            BelowOverlay::new(tools_trigger, space_tools_menu(i18n, space.path.clone()))
                 .show(space.tools_open)
                 .gap(6.0)
                 .on_close(Message::Project(ProjectMessage::ProjectToolsMenuClosed))
                 .into();
         let create = if space.creating {
-            header_icon_button_sized_maybe(Icon::Plus, "任务创建中", None, false, 30.0)
+            header_icon_button_sized_maybe(
+                i18n,
+                Icon::Plus,
+                i18n.__("任务创建中"),
+                None,
+                false,
+                30.0,
+            )
         } else {
             header_icon_button_sized(
+                i18n,
                 Icon::Plus,
-                "新建任务",
+                i18n.__("新建任务"),
                 Message::Batch(vec![
                     Message::Project(ProjectMessage::ProjectToolsMenuClosed),
                     space.create_message.clone(),
@@ -1224,7 +1309,7 @@ fn space_button(space: &WorkSpaceItem) -> Element<'static, Message> {
 
 fn space_session_button(app: &App, session: &WorkSpaceSession) -> Element<'static, Message> {
     let raw_title = if session.title.trim().is_empty() {
-        "未命名任务".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("未命名任务").to_string()
     } else {
         session.title.clone()
     };
@@ -1232,9 +1317,15 @@ fn space_session_button(app: &App, session: &WorkSpaceSession) -> Element<'stati
     let content_row = row![
         work_task_status_icon(&session.id, session.status),
         text(title).size(12).wrapping(text::Wrapping::None).width(Length::Fill),
-        text(crate::app::components::chat_panel::utils::relative_time_label(session.updated))
-            .size(11)
-            .style(muted_task_text_style),
+        text(crate::app::i18n::chat::relative_time(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::components::chat_panel::utils::relative_time_bucket(
+                session.updated,
+                crate::app::time::now_ms()
+            )
+        ))
+        .size(11)
+        .style(muted_task_text_style),
     ]
     .spacing(8)
     .align_y(iced::Alignment::Center);
@@ -1250,9 +1341,16 @@ fn space_session_button(app: &App, session: &WorkSpaceSession) -> Element<'stati
 fn navigation_section(app: &App) -> Element<'static, Message> {
     let specs = navigation_specs();
     let create_task_button = if app.new_session_creating {
-        navigation_button_maybe("创建中...", specs[0].1, None, specs[0].2)
+        navigation_button_maybe(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("创建中..."),
+            specs[0].1,
+            None,
+            specs[0].2,
+        )
     } else {
         navigation_button(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             specs[0].0,
             specs[0].1,
             Message::View(ViewMessage::ProjectFileNewSession),
@@ -1264,21 +1362,23 @@ fn navigation_section(app: &App) -> Element<'static, Message> {
     #[cfg(not(target_arch = "wasm32"))]
     let navigation = navigation
         .push(navigation_button(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             specs[1].0,
             specs[1].1,
             expert_hub_message(ExpertHubSection::Experts),
             specs[1].2,
         ))
         .push(project_navigation_control(app))
-        .push(shiju_apps_button())
-        .push(shiju_skills_button())
-        .push(expert_hub_button());
+        .push(shiju_apps_button(crate::app::i18n::I18n::new(app.desktop_locale)))
+        .push(shiju_skills_button(crate::app::i18n::I18n::new(app.desktop_locale)))
+        .push(expert_hub_button(crate::app::i18n::I18n::new(app.desktop_locale)));
 
     #[cfg(target_arch = "wasm32")]
     let navigation = navigation.push(project_navigation_control(app));
 
     navigation
         .push(navigation_button(
+            crate::app::i18n::I18n::new(app.desktop_locale),
             specs[6].0,
             specs[6].1,
             Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Cron)),
@@ -1303,7 +1403,7 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
         row![
             container(navigation_icon(icon))
                 .width(Length::Fixed(WORK_NAVIGATION_ICON_COLUMN_WIDTH)),
-            text("项目").size(14),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("项目")).size(14),
             Space::new().width(Length::Fill),
         ]
         .spacing(10)
@@ -1316,8 +1416,9 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
     .style(navigation_button_style);
 
     let create = header_icon_button_sized(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         Icon::Plus,
-        "新建项目",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("新建项目"),
         project_create_message(),
         false,
         CREATE_CONTROL_SIZE,
@@ -1346,12 +1447,19 @@ fn project_navigation_control(app: &App) -> Element<'static, Message> {
         .into()
 }
 
-fn load_more_button(remaining: usize, message: Message) -> Element<'static, Message> {
+fn load_more_button(
+    i18n: crate::app::i18n::I18n,
+    remaining: usize,
+    message: Message,
+) -> Element<'static, Message> {
     button(
-        text(format!("加载更多 · 还有 {remaining} 条"))
-            .size(12)
-            .width(Length::Fill)
-            .align_x(iced::alignment::Horizontal::Center),
+        text(
+            i18n.format("加载更多 · 还有 %u 条", &[remaining.into()])
+                .expect("valid pagination template"),
+        )
+        .size(12)
+        .width(Length::Fill)
+        .align_x(iced::alignment::Horizontal::Center),
     )
     .on_press(message)
     .padding([8, 9])
@@ -1363,14 +1471,20 @@ fn load_more_button(remaining: usize, message: Message) -> Element<'static, Mess
 fn tasks_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Message> {
     let mut tasks = column![].spacing(3);
     if model.tasks.is_empty() {
-        tasks =
-            tasks.push(container(text("暂无任务").size(12)).padding([7, 9]).width(Length::Fill));
+        tasks = tasks.push(
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无任务")).size(12),
+            )
+            .padding([7, 9])
+            .width(Length::Fill),
+        );
     } else {
         for task in &model.tasks {
             tasks = tasks.push(task_button(app, task));
         }
         if model.tasks.len() < model.task_total {
             tasks = tasks.push(load_more_button(
+                crate::app::i18n::I18n::new(app.desktop_locale),
                 model.task_total - model.tasks.len(),
                 Message::View(ViewMessage::WorkSidebarLoadMorePressed),
             ));
@@ -1382,16 +1496,23 @@ fn tasks_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Messag
 fn spaces_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Message> {
     let mut spaces = column![].spacing(2);
     if model.spaces.is_empty() {
-        spaces =
-            spaces.push(container(text("暂无空间").size(12)).padding([7, 9]).width(Length::Fill));
+        spaces = spaces.push(
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无空间")).size(12),
+            )
+            .padding([7, 9])
+            .width(Length::Fill),
+        );
     } else {
         for space in &model.spaces {
-            spaces = spaces.push(space_button(space));
+            spaces =
+                spaces.push(space_button(crate::app::i18n::I18n::new(app.desktop_locale), space));
             for session in &space.sessions {
                 spaces = spaces.push(space_session_button(app, session));
             }
             if space.expanded && space.sessions.len() < space.session_total {
                 spaces = spaces.push(load_more_button(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
                     space.session_total - space.sessions.len(),
                     Message::View(ViewMessage::WorkSidebarSpaceTasksLoadMorePressed(
                         space.path.clone(),
@@ -1401,6 +1522,7 @@ fn spaces_section(app: &App, model: &WorkSidebarModel) -> Element<'static, Messa
         }
         if model.spaces.len() < model.space_total {
             spaces = spaces.push(load_more_button(
+                crate::app::i18n::I18n::new(app.desktop_locale),
                 model.space_total - model.spaces.len(),
                 Message::View(ViewMessage::WorkSidebarLoadMorePressed),
             ));
@@ -1433,13 +1555,14 @@ fn sidebar_tab_style(selected: bool) -> impl Fn(&Theme, button::Status) -> butto
 }
 
 fn sidebar_tab(
+    i18n: crate::app::i18n::I18n,
     label: &'static str,
     count: usize,
     tab: WorkSidebarTab,
     selected: bool,
 ) -> Element<'static, Message> {
     button(
-        row![text(label).size(13), text(format!("({count})")).size(11)]
+        row![text(i18n.__(label)).size(13), text(format!("({count})")).size(11)]
             .spacing(5)
             .align_y(iced::Alignment::Center),
     )
@@ -1450,16 +1573,22 @@ fn sidebar_tab(
     .into()
 }
 
-fn tabs(model: &WorkSidebarModel, selected: WorkSidebarTab) -> Element<'static, Message> {
+fn tabs(
+    i18n: crate::app::i18n::I18n,
+    model: &WorkSidebarModel,
+    selected: WorkSidebarTab,
+) -> Element<'static, Message> {
     row![
         sidebar_tab(
-            "任务",
+            i18n,
+            i18n.__("任务"),
             model.task_total,
             WorkSidebarTab::Tasks,
             selected == WorkSidebarTab::Tasks,
         ),
         sidebar_tab(
-            "空间",
+            i18n,
+            i18n.__("空间"),
             model.space_total,
             WorkSidebarTab::Spaces,
             selected == WorkSidebarTab::Spaces,
@@ -1501,10 +1630,15 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     .height(Length::Fill);
 
     container(
-        column![header, navigation_section(app), tabs(&model, app.work_sidebar_tab), scroll,]
-            .spacing(9)
-            .width(Length::Fill)
-            .height(Length::Fill),
+        column![
+            header,
+            navigation_section(app),
+            tabs(crate::app::i18n::I18n::new(app.desktop_locale), &model, app.work_sidebar_tab),
+            scroll,
+        ]
+        .spacing(9)
+        .width(Length::Fill)
+        .height(Length::Fill),
     )
     .width(Length::Fixed(app.work_sidebar_width))
     .height(Length::Fill)

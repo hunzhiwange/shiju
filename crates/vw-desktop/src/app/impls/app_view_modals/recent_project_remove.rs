@@ -38,10 +38,12 @@ pub(crate) fn with_recent_project_remove_confirm<'a>(
     let confirm = Message::Project(message::ProjectMessage::RecentRemoveConfirmed(path.clone()));
     let cancel = Message::Project(message::ProjectMessage::RecentRemoveCanceled);
     let dialog = confirm_dialog(
-        "确认移除项目",
-        format!("确定从列表中移除「{display_name}」吗？这不会删除磁盘上的文件。"),
-        "确认移除",
-        "取消",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("确认移除项目"),
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("确定从列表中移除「%s」吗？这不会删除磁盘上的文件。", &[display_name.into()])
+            .expect("valid removal template"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("确认移除"),
+        crate::app::i18n::I18n::new(app.desktop_locale).__("取消"),
         confirm,
         cancel,
     );

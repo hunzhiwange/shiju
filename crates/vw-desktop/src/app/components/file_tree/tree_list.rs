@@ -336,11 +336,15 @@ pub fn build_file_tree_list(app: &App) -> Element<'_, Message> {
     if let Some(tree) = tree {
         render_dir(app, &tree, String::new(), 0, root)
     } else {
-        column![text("暂无文件").size(13).color(Color::from_rgb(0.5, 0.5, 0.5)),]
-            .spacing(10)
-            .padding(10)
-            .align_x(iced::Alignment::Center)
-            .into()
+        column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无文件"))
+                .size(13)
+                .color(Color::from_rgb(0.5, 0.5, 0.5)),
+        ]
+        .spacing(10)
+        .padding(10)
+        .align_x(iced::Alignment::Center)
+        .into()
     }
 }
 
@@ -371,10 +375,14 @@ pub fn build_changes_list(app: &App) -> Element<'_, Message> {
     if files.is_empty() {
         if app.git_changed_files_loading {
             // 显示加载中状态
-            return column![text("加载中")].padding(10).into();
+            return column![text(crate::app::i18n::I18n::new(app.desktop_locale).__("加载中"))]
+                .padding(10)
+                .into();
         }
         // 显示无变更状态
-        return column![text("无变更")].padding(10).into();
+        return column![text(crate::app::i18n::I18n::new(app.desktop_locale).__("无变更"))]
+            .padding(10)
+            .into();
     }
 
     /// 递归渲染变更目录节点

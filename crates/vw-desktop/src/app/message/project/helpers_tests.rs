@@ -181,8 +181,8 @@ fn stabilize_image_attachment_reports_snapshot_directory_creation_failure() {
     let error = stabilize_image_attachment(&source, &metadata, None, &invalid_snapshot_dir)
         .expect_err("file cannot be used as snapshot directory");
 
-    assert!(error.contains("创建图片附件目录失败"));
-    assert!(error.contains(&invalid_snapshot_dir.display().to_string()));
+    assert!(error.fallback.contains("创建图片附件目录失败"));
+    assert!(error.fallback.contains(&invalid_snapshot_dir.display().to_string()));
 }
 
 #[test]
@@ -205,8 +205,8 @@ fn collect_local_attachments_skips_empty_missing_folders_and_duplicates() {
     );
 
     assert!(accepted.is_empty());
-    assert!(errors.iter().any(|error| error.contains("不支持文件夹")));
-    assert!(errors.iter().any(|error| error.contains("读取失败")));
+    assert!(errors.iter().any(|error| error.fallback.contains("不支持文件夹")));
+    assert!(errors.iter().any(|error| error.fallback.contains("读取失败")));
 }
 
 #[test]
@@ -247,7 +247,7 @@ fn collect_local_attachments_reports_image_limit_before_copying() {
 
     assert!(accepted.is_empty());
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].contains("已达图片上限"));
+    assert!(errors[0].fallback.contains("已达图片上限"));
 }
 
 // 失败与边界：覆盖非法、缺失、过期或冲突场景的既定处理规则。
@@ -265,8 +265,8 @@ fn collect_local_attachments_rejects_oversized_images() {
 
     assert!(accepted.is_empty());
     assert_eq!(errors.len(), 1);
-    assert!(errors[0].contains("图片过大"));
-    assert!(errors[0].contains("large.png"));
+    assert!(errors[0].fallback.contains("图片过大"));
+    assert!(errors[0].fallback.contains("large.png"));
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn persist_clipboard_image_attachment_rejects_invalid_rgba_buffer() {
     let error = persist_clipboard_image_attachment(1, 1, &[255, 0, 0])
         .expect_err("invalid rgba buffer should fail");
 
-    assert_eq!(error, "剪贴板图片数据无效");
+    assert_eq!(error.fallback, "剪贴板图片数据无效");
 }
 
 #[test]

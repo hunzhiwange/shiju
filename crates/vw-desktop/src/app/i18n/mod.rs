@@ -52,3 +52,10 @@ mod chat_tests;
 mod gettext_area_9_tests;
 
 pub mod input;
+
+#[cfg(test)]
+mod gettext_area_10_tests;
+
+pub mod project;
+#[cfg(test)]
+mod project_tests;

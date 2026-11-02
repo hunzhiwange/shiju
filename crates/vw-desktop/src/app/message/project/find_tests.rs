@@ -32,6 +32,7 @@ fn find_tab(id: &str) -> crate::app::state::FindInFolderTab {
         error: None,
         limit_reached: false,
         matches: Vec::new(),
+        localized_error: None,
         results_page: 0,
     }
 }
@@ -463,6 +464,7 @@ fn find_completed_updates_existing_tab_without_replacing_matches_on_error() {
             use_regex: false,
             matches: Vec::new(),
             error: Some("bad regex".to_string()),
+            localized_error: None,
             limit_reached: true,
         },
     );
@@ -503,6 +505,7 @@ fn find_completed_creates_missing_tab_with_matches() {
             use_regex: false,
             matches,
             error: None,
+            localized_error: None,
             limit_reached: false,
         },
     );
@@ -535,6 +538,7 @@ fn find_completed_success_replaces_existing_matches_and_clears_running() {
             use_regex: true,
             matches: vec![find_match("new")],
             error: None,
+            localized_error: None,
             limit_reached: false,
         },
     );
@@ -573,6 +577,7 @@ fn find_completed_reuses_existing_open_tab_without_duplication() {
             use_regex: false,
             matches: vec![find_match("main")],
             error: None,
+            localized_error: None,
             limit_reached: false,
         },
     );

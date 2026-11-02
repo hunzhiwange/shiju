@@ -25,10 +25,17 @@ fn worktree_toggled(value: bool) -> Message {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
     let start_script_input = column![
-        text("工作区启动脚本").size(13),
-        text("在创建工作区后执行，可填写多行命令。").size(11).style(settings_muted_text_style),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("工作区启动脚本")).size(13),
+        text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("在创建工作区后执行，可填写多行命令。")
+        )
+        .size(11)
+        .style(settings_muted_text_style),
         text_editor(&app.project_edit_start_script_editor)
-            .placeholder("例如：\nbun install\nbun dev")
+            .placeholder(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("例如：\nbun install\nbun dev")
+            )
             .on_action(start_script_editor_action)
             .height(Length::Fixed(96.0))
             .padding([8, 10])
@@ -38,15 +45,18 @@ pub(super) fn launch_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .spacing(6);
 
     let worktree_toggle = row![
-        text("启用 Worktree").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("启用 Worktree"))
+            .size(13)
+            .width(Length::Fill),
         toggler(app.project_edit_worktree_enabled).on_toggle(worktree_toggled)
     ]
     .align_y(iced::Alignment::Center);
 
     column![
         settings_section_card(
-            "启动与工作区",
-            "设置 worktree 启用策略，以及创建工作区后的启动命令。"
+            crate::app::i18n::I18n::new(app.desktop_locale).__("启动与工作区"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("设置 worktree 启用策略，以及创建工作区后的启动命令。")
         ),
         settings_panel(column![start_script_input, worktree_toggle].spacing(14))
     ]

@@ -401,11 +401,17 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
         );
     } else {
         // 遍历所有工作区选项
-        for (directory, label) in &app.new_session_picker_options {
+        for (index, (directory, label)) in app.new_session_picker_options.iter().enumerate() {
+            let display_label = crate::app::i18n::project::worktree_label(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                directory,
+                label,
+                index == 0,
+            );
             let item: Element<'a, Message> = if directory == "__create_worktree__" {
                 // 创建新工作区的特殊项
                 column![
-                    container(text(label.as_str().to_owned()).size(12))
+                    container(text(display_label.clone()).size(12))
                         .width(Length::Fill)
                         .padding([2, 6]),
                     // 工作区名称输入框
@@ -435,7 +441,7 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
                 .into()
             } else {
                 // 现有工作区项
-                let is_primary_workspace = label == "主工作区";
+                let is_primary_workspace = index == 0;
                 // 主工作区显示标签，其他工作区显示操作按钮
                 let action_buttons: Element<'a, Message> = if is_primary_workspace {
                     container(
@@ -477,7 +483,7 @@ pub fn new_session_picker_layer<'a>(app: &crate::app::App) -> Element<'a, Messag
                 button(
                     container(
                         row![
-                            container(text(label.clone()).size(12)).width(Length::Fill),
+                            container(text(display_label).size(12)).width(Length::Fill),
                             action_buttons,
                         ]
                         .align_y(iced::alignment::Vertical::Center)

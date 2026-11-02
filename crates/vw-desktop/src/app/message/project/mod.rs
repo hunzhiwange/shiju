@@ -167,6 +167,7 @@ pub enum ProjectMessage {
         use_regex: bool,
         matches: Vec<FindInFolderMatch>,
         error: Option<String>,
+        localized_error: Option<crate::app::i18n::input::Feedback>,
         limit_reached: bool,
     },
     FileTreeAddToChat {

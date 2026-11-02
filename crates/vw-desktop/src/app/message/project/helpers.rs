@@ -2,6 +2,7 @@
 //!
 //! 注释聚焦模块职责、消息边界和失败处理方式，帮助维护者在不改变逻辑的前提下理解代码。
 
+use crate::app::i18n::project::ProjectFeedback;
 use crate::app::message::project::ProjectMessage;
 use crate::app::{App, Message, state::FindInFolderMatch};
 use iced::Task;
@@ -110,7 +111,7 @@ fn stabilize_image_attachment(
     metadata: &std::fs::Metadata,
     project_root: Option<&Path>,
     snapshot_dir: &Path,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, ProjectFeedback> {
     if project_root.is_some_and(|root| path_within_dir(source, root))
         || path_within_dir(source, snapshot_dir)
     {
@@ -118,13 +119,20 @@ fn stabilize_image_attachment(
     }
 
     std::fs::create_dir_all(snapshot_dir).map_err(|error| {
-        format!("创建图片附件目录失败：{}（{}）", snapshot_dir.display(), error)
+        ProjectFeedback::new(
+            "创建图片附件目录失败：%s（%s）",
+            vec![snapshot_dir.display().to_string().into(), error.to_string().into()],
+        )
     })?;
 
     let target = build_image_attachment_snapshot_path(source, metadata, snapshot_dir);
     if !target.exists() {
-        std::fs::copy(source, &target)
-            .map_err(|error| format!("复制图片附件失败：{}（{}）", source.display(), error))?;
+        std::fs::copy(source, &target).map_err(|error| {
+            ProjectFeedback::new(
+                "复制图片附件失败：%s（%s）",
+                vec![source.display().to_string().into(), error.to_string().into()],
+            )
+        })?;
     }
 
     Ok(target)
@@ -144,7 +152,7 @@ fn attachment_name(path: &Path) -> String {
 pub(crate) fn collect_local_attachments(
     app: &App,
     picked: Vec<String>,
-) -> (Vec<String>, Vec<String>) {
+) -> (Vec<String>, Vec<ProjectFeedback>) {
     let max_images = app.multimodal_settings.max_images.clamp(1, 16) as usize;
     let max_bytes =
         (app.multimodal_settings.max_image_size_mb.clamp(1, 20) as u64).saturating_mul(1024 * 1024);
@@ -166,13 +174,19 @@ pub(crate) fn collect_local_attachments(
         let resolved = match source.canonicalize() {
             Ok(path) => path,
             Err(error) => {
-                errors.push(format!("读取失败：{}（{}）", source.display(), error));
+                errors.push(ProjectFeedback::new(
+                    "读取失败：%s（%s）",
+                    vec![source.display().to_string().into(), error.to_string().into()],
+                ));
                 continue;
             }
         };
 
         if !resolved.is_file() {
-            errors.push(format!("不支持文件夹：{}", resolved.display()));
+            errors.push(ProjectFeedback::new(
+                "不支持文件夹：%s",
+                vec![resolved.display().to_string().into()],
+            ));
             continue;
         }
 
@@ -180,31 +194,35 @@ pub(crate) fn collect_local_attachments(
             let metadata = match std::fs::metadata(&resolved) {
                 Ok(metadata) => metadata,
                 Err(error) => {
-                    errors.push(format!("读取大小失败：{}（{}）", resolved.display(), error));
+                    errors.push(ProjectFeedback::new(
+                        "读取大小失败：%s（%s）",
+                        vec![resolved.display().to_string().into(), error.to_string().into()],
+                    ));
                     continue;
                 }
             };
 
             if metadata.len() > max_bytes {
-                errors.push(format!(
-                    "图片过大：{}（超过 {} MB）",
-                    attachment_name(&resolved),
-                    app.multimodal_settings.max_image_size_mb.clamp(1, 20),
+                errors.push(ProjectFeedback::new(
+                    "图片过大：%s（超过 %u MB）",
+                    vec![
+                        attachment_name(&resolved).into(),
+                        app.multimodal_settings.max_image_size_mb.clamp(1, 20).into(),
+                    ],
                 ));
                 continue;
             }
 
             if image_count >= max_images {
-                errors.push(format!(
-                    "已达图片上限：{}（最多 {} 张）",
-                    attachment_name(&resolved),
-                    max_images,
+                errors.push(ProjectFeedback::new(
+                    "已达图片上限：%s（最多 %u 张）",
+                    vec![attachment_name(&resolved).into(), max_images.into()],
                 ));
                 continue;
             }
 
             let Some(snapshot_dir) = snapshot_dir.as_deref() else {
-                errors.push("无法确定图片附件目录".to_string());
+                errors.push(ProjectFeedback::new("无法确定图片附件目录", vec![]));
                 continue;
             };
 
@@ -252,7 +270,17 @@ pub(crate) fn append_local_attachments(app: &mut App, picked: Vec<String>) {
         app.files.extend(accepted);
     }
     if !errors.is_empty() {
-        app.push_notification(errors.join("\n"));
+        let fallback =
+            errors.iter().map(|error| error.fallback.as_str()).collect::<Vec<_>>().join("\n");
+        let message = crate::app::i18n::format::Message::lines(
+            errors
+                .into_iter()
+                .map(|error| crate::app::i18n::format::Message::new(error.source, error.arguments))
+                .collect(),
+        );
+        app.push_notification(fallback);
+        app.notifications.last_mut().expect("notification was inserted").localized_message =
+            Some(message);
     }
 }
 
@@ -265,22 +293,28 @@ pub(crate) fn persist_clipboard_image_attachment(
     width: u32,
     height: u32,
     rgba_bytes: &[u8],
-) -> Result<String, String> {
+) -> Result<String, ProjectFeedback> {
     let Some(snapshot_dir) = chat_image_attachment_dir() else {
-        return Err("无法确定图片附件目录".to_string());
+        return Err(ProjectFeedback::new("无法确定图片附件目录", vec![]));
     };
 
     std::fs::create_dir_all(&snapshot_dir).map_err(|error| {
-        format!("创建图片附件目录失败：{}（{}）", snapshot_dir.display(), error)
+        ProjectFeedback::new(
+            "创建图片附件目录失败：%s（%s）",
+            vec![snapshot_dir.display().to_string().into(), error.to_string().into()],
+        )
     })?;
 
     let target = build_clipboard_image_attachment_path(width, height, rgba_bytes, &snapshot_dir);
     if !target.exists() {
         let image = RgbaImage::from_raw(width, height, rgba_bytes.to_vec())
-            .ok_or_else(|| "剪贴板图片数据无效".to_string())?;
-        image
-            .save_with_format(&target, ImageFormat::Png)
-            .map_err(|error| format!("保存剪贴板图片失败：{}（{}）", target.display(), error))?;
+            .ok_or_else(|| ProjectFeedback::new("剪贴板图片数据无效", vec![]))?;
+        image.save_with_format(&target, ImageFormat::Png).map_err(|error| {
+            ProjectFeedback::new(
+                "保存剪贴板图片失败：%s（%s）",
+                vec![target.display().to_string().into(), error.to_string().into()],
+            )
+        })?;
     }
 
     Ok(target.to_string_lossy().to_string())
@@ -639,10 +673,10 @@ pub(crate) async fn load_project_worktree_picker_options(
                 .file_name()
                 .and_then(|value| value.to_str())
                 .filter(|value| !value.trim().is_empty())
-                .unwrap_or("工作树");
-            format!("独立工作区 ({name})")
+                .unwrap_or_default();
+            name.to_owned()
         } else {
-            format!("独立工作区 ({})", worktree.name)
+            worktree.name
         };
         options.push((worktree.directory, label));
     }
@@ -913,7 +947,7 @@ pub(crate) fn run_find_task(
         async move {
             crate::app::message::spawn_blocking_opt(move || {
                 let mut out = Vec::<FindInFolderMatch>::new();
-                let mut error: Option<String> = None;
+                let mut error: Option<crate::app::i18n::input::Feedback> = None;
                 let mut limit_reached = false;
                 let mut compiled_regex = None;
 
@@ -927,7 +961,10 @@ pub(crate) fn run_find_task(
                     match builder.build() {
                         Ok(re) => compiled_regex = Some(re),
                         Err(e) => {
-                            error = Some(format!("正则表达式错误: {}", e));
+                            error = Some(crate::app::i18n::input::Feedback::new(
+                                "正则表达式错误: %s",
+                                vec![e.to_string().into()],
+                            ));
                         }
                     }
                 }
@@ -1014,7 +1051,11 @@ pub(crate) fn run_find_task(
                 Some((out, error, limit_reached))
             })
             .await
-            .unwrap_or((Vec::new(), Some("搜索失败".to_string()), false))
+            .unwrap_or((
+                Vec::new(),
+                Some(crate::app::i18n::input::Feedback::new("搜索失败", vec![])),
+                false,
+            ))
         },
         move |(matches, error, limit_reached)| {
             Message::Project(ProjectMessage::FileTreeFindCompleted {
@@ -1027,7 +1068,8 @@ pub(crate) fn run_find_task(
                 whole_word,
                 use_regex,
                 matches,
-                error,
+                error: error.as_ref().map(|feedback| feedback.fallback.clone()),
+                localized_error: error,
                 limit_reached,
             })
         },

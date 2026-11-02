@@ -48,25 +48,31 @@ fn icon_preview_press_message(has_preview_image: bool, hovered: bool) -> Message
 /// 模块内可见函数，执行 general_tab 对应的应用流程。
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
-    let name_input = text_input("项目名称", &app.project_edit_name)
-        .on_input(|value| {
-            Message::Project(crate::app::message::project::ProjectMessage::ProjectEditNameChanged(
-                value,
-            ))
-        })
-        .padding([10, 12])
-        .size(13)
-        .style(settings_text_input_style);
-    let icon_input =
-        text_input("图标文本或图片路径（支持 file:/// 或本地绝对路径）", &app.project_edit_icon)
-            .on_input(|value| {
-                Message::Project(
-                    crate::app::message::project::ProjectMessage::ProjectEditIconChanged(value),
-                )
-            })
-            .padding([10, 12])
-            .size(13)
-            .style(settings_text_input_style);
+    let name_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("项目名称"),
+        &app.project_edit_name,
+    )
+    .on_input(|value| {
+        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditNameChanged(
+            value,
+        ))
+    })
+    .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+    .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
+    .style(settings_text_input_style);
+    let icon_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .__("图标文本或图片路径（支持 file:/// 或本地绝对路径）"),
+        &app.project_edit_icon,
+    )
+    .on_input(|value| {
+        Message::Project(crate::app::message::project::ProjectMessage::ProjectEditIconChanged(
+            value,
+        ))
+    })
+    .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+    .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
+    .style(settings_text_input_style);
 
     let icon_color_presets = [
         "#60a5fa", "#34d399", "#f59e0b", "#f97316", "#ef4444", "#ec4899", "#8b5cf6", "#6366f1",
@@ -110,9 +116,13 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
         preset_grid = preset_grid.push(preset_row);
     }
 
-    let icon_color_presets_row =
-        column![text("预设颜色").size(12).style(settings_muted_text_style), preset_grid,]
-            .spacing(4);
+    let icon_color_presets_row = column![
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("预设颜色"))
+            .size(12)
+            .style(settings_muted_text_style),
+        preset_grid,
+    ]
+    .spacing(4);
     let current_icon_color = current_icon_color(&app.project_edit_icon_color);
     let color_preview_btn = button(
         row![
@@ -127,7 +137,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
                     ..Default::default()
                 }
             }),
-            text("选择颜色").size(12)
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("选择颜色")).size(12)
         ]
         .spacing(6)
         .align_y(iced::Alignment::Center),
@@ -199,7 +209,11 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
         .on_press(icon_preview_press_message(has_preview_image, app.project_edit_icon_hovered));
 
     column![
-        settings_section_card("项目展示", "配置项目名称、图标来源与图标主题色。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("项目展示"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("配置项目名称、图标来源与图标主题色。")
+        ),
         settings_panel(
             column![
                 name_input,
@@ -209,7 +223,7 @@ pub(super) fn general_tab<'a>(app: &'a App) -> Element<'a, Message> {
                         icon_input,
                         icon_color_presets_row,
                         row![
-                            text("图标颜色")
+                            text(crate::app::i18n::I18n::new(app.desktop_locale).__("图标颜色"))
                                 .size(13)
                                 .style(settings_muted_text_style)
                                 .width(Length::Fill),

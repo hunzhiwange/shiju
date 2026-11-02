@@ -267,13 +267,17 @@ fn find_tab_menu_button_style(
     }
 }
 
-fn build_find_tab_menu<'a>(tab_id: &str) -> Element<'a, Message> {
+fn build_find_tab_menu<'a>(app: &App, tab_id: &str) -> Element<'a, Message> {
     let [close, close_left, close_right, close_all] = find_tab_menu_messages(tab_id);
     let menu_button = |label: &'static str, message: Message| {
-        button(container(text(label).size(13)).width(Length::Fill).padding([2, 8]))
-            .on_press(message)
-            .style(find_tab_menu_button_style)
-            .width(Length::Fill)
+        button(
+            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__(label)).size(13))
+                .width(Length::Fill)
+                .padding([2, 8]),
+        )
+        .on_press(message)
+        .style(find_tab_menu_button_style)
+        .width(Length::Fill)
     };
     let separator = || {
         container(Space::new()).width(Length::Fill).height(Length::Fixed(1.0)).style(
@@ -330,7 +334,11 @@ pub(super) fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
         let tab_id = tab.id.clone();
         let close_id = tab.id.clone();
         let menu_id = tab.id.clone();
-        let title = find_results_tab_title(&tab.query_input);
+        let title = if tab.query_input.trim().is_empty() {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("搜索").to_owned()
+        } else {
+            find_results_tab_title(&tab.query_input)
+        };
 
         let close = button(themed_icon_svg(Icon::X))
             .on_press(Message::Project(ProjectMessage::FileTreeFindTabClosed(close_id)))
@@ -370,7 +378,7 @@ pub(super) fn build_find_results_tabs(app: &App) -> Element<'_, Message> {
             None,
         ));
         let tab_item = if app.find_results_tab_menu_id.as_deref() == Some(tab.id.as_str()) {
-            PointBelowOverlay::new(right_click, build_find_tab_menu(&tab.id))
+            PointBelowOverlay::new(right_click, build_find_tab_menu(app, &tab.id))
                 .show(true)
                 .anchor(app.find_results_tab_menu_pos.unwrap_or(iced::Point::ORIGIN))
                 .on_close(Message::Project(ProjectMessage::FileTreeFindTabMenuClose))
@@ -589,10 +597,18 @@ pub(super) fn find_option_button(
 pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     // 检查是否有活动的搜索标签页
     let Some(tab_id) = app.active_find_results_tab_id.as_deref() else {
-        return column![text("无查找结果").size(13)].padding(10).into();
+        return column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("无查找结果")).size(13)
+        ]
+        .padding(10)
+        .into();
     };
     let Some(tab) = app.find_results_tabs.iter().find(|t| t.id == tab_id) else {
-        return column![text("无查找结果").size(13)].padding(10).into();
+        return column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("无查找结果")).size(13)
+        ]
+        .padding(10)
+        .into();
     };
 
     let root = app.project_path.as_deref().unwrap_or("");
@@ -600,7 +616,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
 
     // 构建搜索输入框
     let query_input = text_editor(&tab.query_editor)
-        .placeholder("搜索关键字")
+        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索关键字"))
         .on_action({
             let active_id = active_id.clone();
             move |a| {
@@ -657,7 +673,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
 
     // 构建替换输入框（可选功能）
     let replace_input = text_editor(&tab.replace_editor)
-        .placeholder("替换词语（可选）")
+        .placeholder(crate::app::i18n::I18n::new(app.desktop_locale).__("替换词语（可选）"))
         .on_action({
             let active_id = active_id.clone();
             move |a| {
@@ -689,7 +705,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     let options = row![
         find_option_button(
             "Aa",
-            "区分大小写",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("区分大小写"),
             FIND_CASE_SHORTCUT,
             tab.case_sensitive,
             Message::Project(ProjectMessage::FileTreeFindCaseSensitiveToggled(
@@ -699,7 +715,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
         ),
         find_option_button(
             "wd",
-            "全词匹配",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("全词匹配"),
             FIND_WHOLE_WORD_SHORTCUT,
             tab.whole_word,
             Message::Project(ProjectMessage::FileTreeFindWholeWordToggled(
@@ -709,7 +725,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
         ),
         find_option_button(
             ".*",
-            "使用正则",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("使用正则"),
             FIND_REGEX_SHORTCUT,
             tab.use_regex,
             Message::Project(ProjectMessage::FileTreeFindRegexToggled(
@@ -722,33 +738,45 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     .align_y(iced::Alignment::Center);
 
     let scope_value = find_scope_input_value(root, &tab.scope_path);
-    let scope_input = text_input("作用域（相对路径，留空为项目根目录）", &scope_value)
-        .on_input({
-            let active_id = active_id.clone();
-            move |value| {
-                Message::Project(ProjectMessage::FileTreeFindScopeChanged(active_id.clone(), value))
-            }
-        })
-        .padding([7, 8])
-        .size(12)
-        .width(Length::Fill)
-        .style(find_scope_input_style);
+    let scope_input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("作用域（相对路径，留空为项目根目录）"),
+        &scope_value,
+    )
+    .on_input({
+        let active_id = active_id.clone();
+        move |value| {
+            Message::Project(ProjectMessage::FileTreeFindScopeChanged(active_id.clone(), value))
+        }
+    })
+    .padding([7, 8])
+    .size(12)
+    .width(Length::Fill)
+    .style(find_scope_input_style);
 
     // 构建搜索按钮（搜索进行中时禁用）
-    let run_btn =
-        button(if tab.running { text("搜索中...").size(14) } else { text("搜索").size(14) })
-            .on_press_maybe(
-                (!tab.running).then_some(Message::Project(ProjectMessage::FileTreeFindRun(
-                    active_id.clone(),
-                ))),
-            )
-            .padding([10, 16])
-            .width(Length::Fill)
-            .style(find_run_button_style);
+    let run_btn = button(if tab.running {
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索中...")).size(14)
+    } else {
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索")).size(14)
+    })
+    .on_press_maybe(
+        (!tab.running)
+            .then_some(Message::Project(ProjectMessage::FileTreeFindRun(active_id.clone()))),
+    )
+    .padding([10, 16])
+    .width(Length::Fill)
+    .style(find_run_button_style);
 
     // 显示错误信息（如果存在）
     let error_line: Element<'_, Message> = if let Some(err) = &tab.error {
-        text(err.clone()).size(12).color(Color::from_rgb(0.82, 0.2, 0.2)).into()
+        text(crate::app::i18n::project::search_error(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            err,
+            tab.localized_error.as_ref(),
+        ))
+        .size(12)
+        .color(Color::from_rgb(0.82, 0.2, 0.2))
+        .into()
     } else {
         Space::new().height(Length::Fixed(2.0)).into()
     };
@@ -762,7 +790,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
         find_results_page_bounds(tab.matches.len(), tab.results_page);
     let previous = find_page_button(
         Icon::ChevronLeft,
-        "上一页",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("上一页"),
         (current_page > 0).then_some(Message::Project(
             ProjectMessage::FileTreeFindResultsPageChanged(
                 active_id.clone(),
@@ -772,7 +800,7 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     );
     let next = find_page_button(
         Icon::ChevronRight,
-        "下一页",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("下一页"),
         (current_page < page_count.saturating_sub(1)).then_some(Message::Project(
             ProjectMessage::FileTreeFindResultsPageChanged(
                 active_id.clone(),
@@ -781,13 +809,18 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
         )),
     );
     let page_summary = if page_count == 0 {
-        "0 条".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("0 条").to_string()
     } else {
-        format!("{} 条 · {}/{}", tab.matches.len(), current_page + 1, page_count)
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .format(
+                "%u 条 · %u/%u",
+                &[tab.matches.len().into(), (current_page + 1).into(), page_count.into()],
+            )
+            .expect("valid result count template")
     };
     let results_header = container(
         row![
-            text("搜索结果").size(13),
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索结果")).size(13),
             Space::new().width(Length::Fill),
             text(page_summary).size(11),
             previous,
@@ -809,9 +842,13 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
     let mut results_status = column![results_header].spacing(4).width(Length::Fill);
     if tab.limit_reached {
         results_status = results_status.push(
-            text(format!("结果已达上限 {} 条，已停止搜索。", FIND_RESULTS_LIMIT))
-                .size(12)
-                .color(Color::from_rgb(0.78, 0.48, 0.10)),
+            text(
+                crate::app::i18n::I18n::new(app.desktop_locale)
+                    .format("结果已达上限 %u 条，已停止搜索。", &[FIND_RESULTS_LIMIT.into()])
+                    .expect("valid result limit template"),
+            )
+            .size(12)
+            .color(Color::from_rgb(0.78, 0.48, 0.10)),
         );
     }
 
@@ -820,7 +857,8 @@ pub fn build_find_results_list(app: &App) -> Element<'_, Message> {
 
     if tab.matches.is_empty() {
         // 无匹配结果
-        results = results.push(text("没有匹配项").size(13));
+        results = results
+            .push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("没有匹配项")).size(13));
     } else {
         // 每次只构建当前页，避免大量复杂结果项阻塞 UI 主线程。
         for item in &tab.matches[visible_range] {

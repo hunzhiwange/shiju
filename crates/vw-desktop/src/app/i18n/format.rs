@@ -34,16 +34,26 @@ impl std::error::Error for FormatError {}
 type Result<T> = std::result::Result<T, FormatError>;
 
 #[derive(Debug, Clone)]
-pub struct Message {
-    source: String,
-    arguments: Vec<Argument>,
+pub enum Message {
+    Template { source: String, arguments: Vec<Argument> },
+    Lines(Vec<Message>),
 }
 impl Message {
     pub fn new(source: impl Into<String>, arguments: Vec<Argument>) -> Self {
-        Self { source: source.into(), arguments }
+        Self::Template { source: source.into(), arguments }
+    }
+    pub fn lines(messages: Vec<Message>) -> Self {
+        Self::Lines(messages)
     }
     pub fn render(&self, i18n: I18n) -> Result<String> {
-        i18n.format(&self.source, &self.arguments)
+        match self {
+            Self::Template { source, arguments } => i18n.format(source, arguments),
+            Self::Lines(messages) => messages
+                .iter()
+                .map(|message| message.render(i18n))
+                .collect::<Result<Vec<_>>>()
+                .map(|lines| lines.join("\n")),
+        }
     }
 }
 #[derive(Debug)]

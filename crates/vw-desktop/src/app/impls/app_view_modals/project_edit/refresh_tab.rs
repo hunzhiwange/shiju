@@ -76,28 +76,34 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
         refresh_interval_step_targets(task_board_refresh_interval_seconds);
 
     let task_board_auto_refresh_toggle = row![
-        text("任务看板自动刷新").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务看板自动刷新"))
+            .size(13)
+            .width(Length::Fill),
         toggler(app.project_edit_task_board_auto_refresh)
             .on_toggle(task_board_auto_refresh_toggled)
     ]
     .align_y(iced::Alignment::Center);
 
     let session_auto_refresh_toggle = row![
-        text("项目会话自动刷新").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("项目会话自动刷新"))
+            .size(13)
+            .width(Length::Fill),
         toggler(app.project_edit_session_auto_refresh).on_toggle(session_auto_refresh_toggled)
     ]
     .align_y(iced::Alignment::Center);
 
     let session_refresh_interval_row = row![
-        text("会话刷新(秒)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("会话刷新(秒)"))
+            .size(13)
+            .width(Length::Fill),
         button(text("-").size(12))
             .on_press(session_refresh_interval_changed(session_refresh_interval_decrease,))
             .padding([3, 8])
             .style(rounded_action_btn_style),
         text_input("1-3600", &app.project_edit_session_refresh_interval_seconds_input)
             .on_input(session_refresh_interval_input_changed)
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -109,15 +115,17 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     let task_board_refresh_interval_row = row![
-        text("任务看板刷新(秒)").size(13).width(Length::Fill),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("任务看板刷新(秒)"))
+            .size(13)
+            .width(Length::Fill),
         button(text("-").size(12))
             .on_press(task_board_refresh_interval_changed(task_board_refresh_interval_decrease,))
             .padding([3, 8])
             .style(rounded_action_btn_style),
         text_input("1-3600", &app.project_edit_task_board_refresh_interval_seconds_input)
             .on_input(task_board_refresh_interval_input_changed)
-            .padding([8, 10])
-            .size(13)
+            .padding(crate::app::components::system_settings_common::SETTINGS_CONTROL_PADDING)
+            .size(crate::app::components::system_settings_common::SETTINGS_CONTROL_TEXT_SIZE)
             .width(Length::Fixed(72.0))
             .style(settings_text_input_style),
         button(text("+").size(12))
@@ -129,7 +137,10 @@ pub(super) fn refresh_tab<'a>(app: &'a App) -> Element<'a, Message> {
     .align_y(iced::Alignment::Center);
 
     column![
-        settings_section_card("刷新策略", "统一项目会话与任务看板刷新策略。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("刷新策略"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("统一项目会话与任务看板刷新策略。")
+        ),
         settings_panel(
             column![
                 task_board_auto_refresh_toggle,

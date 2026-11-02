@@ -116,33 +116,38 @@ pub(super) fn matching_sessions(app: &App, query: &str) -> Vec<SessionSearchMatc
 
 pub fn overlay(app: &App) -> Element<'_, Message> {
     let close = Message::Search(message::SearchMessage::Toggle(false));
-    let input = text_input("搜索文件 / 项目 / 历史会话", &app.search_text)
-        .id(input_id())
-        .on_input(|value| Message::Search(message::SearchMessage::InputChanged(value)))
-        .padding([8, 10])
-        .size(14)
-        .style(search_input_style);
+    let input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索文件 / 项目 / 历史会话"),
+        &app.search_text,
+    )
+    .id(input_id())
+    .on_input(|value| Message::Search(message::SearchMessage::InputChanged(value)))
+    .padding([8, 10])
+    .size(14)
+    .style(search_input_style);
 
-    let close_btn = button(text("关闭").size(12)).on_press(close.clone()).padding([8, 12]).style(
-        |theme: &Theme, status| {
-            let palette = theme.extended_palette();
-            let background = match status {
-                iced::widget::button::Status::Hovered => palette.background.weak.color,
-                iced::widget::button::Status::Pressed => palette.background.strong.color,
-                _ => palette.background.base.color,
-            };
-            iced::widget::button::Style {
-                background: Some(Background::Color(background)),
-                text_color: palette.background.base.text,
-                border: iced::Border {
-                    width: 1.0,
-                    color: palette.background.strong.color,
-                    radius: 8.0.into(),
-                },
-                ..Default::default()
-            }
-        },
-    );
+    let close_btn =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭")).size(12))
+            .on_press(close.clone())
+            .padding([8, 12])
+            .style(|theme: &Theme, status| {
+                let palette = theme.extended_palette();
+                let background = match status {
+                    iced::widget::button::Status::Hovered => palette.background.weak.color,
+                    iced::widget::button::Status::Pressed => palette.background.strong.color,
+                    _ => palette.background.base.color,
+                };
+                iced::widget::button::Style {
+                    background: Some(Background::Color(background)),
+                    text_color: palette.background.base.text,
+                    border: iced::Border {
+                        width: 1.0,
+                        color: palette.background.strong.color,
+                        radius: 8.0.into(),
+                    },
+                    ..Default::default()
+                }
+            });
 
     let card = container(
         column![row![input, close_btn].spacing(8).align_y(iced::Alignment::Center), view(app)]
@@ -246,7 +251,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 如果有匹配的文件，添加到结果列表
     if !files.is_empty() {
         // 添加"文件"分组标题
-        content = content.push(text("文件"));
+        content = content.push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("文件")));
 
         // 为每个匹配的文件创建按钮
         for f in files {
@@ -270,7 +275,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 如果有匹配的项目，添加到结果列表
     if !projects.is_empty() {
         // 添加"项目"分组标题
-        content = content.push(text("项目"));
+        content = content.push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("项目")));
 
         // 为每个匹配的项目创建按钮
         for p in projects {
@@ -288,7 +293,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
     // 如果有匹配的会话，添加到结果列表
     if !sessions.is_empty() {
         // 添加"历史会话"分组标题
-        content = content.push(text("历史会话"));
+        content =
+            content.push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("历史会话")));
 
         // 为每个匹配的会话创建按钮
         for session in sessions {

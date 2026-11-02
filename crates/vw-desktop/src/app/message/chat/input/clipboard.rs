@@ -52,10 +52,15 @@ fn clipboard_image_dimensions(width: usize, height: usize) -> Result<(u32, u32),
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn clipboard_attachment_payload(result: Result<String, String>) -> ClipboardPastePayload {
+fn clipboard_attachment_payload(
+    result: Result<String, crate::app::i18n::project::ProjectFeedback>,
+) -> ClipboardPastePayload {
     match result {
         Ok(path) => ClipboardPastePayload::AttachmentPath(path),
-        Err(error) => ClipboardPastePayload::Error(error),
+        Err(error) => ClipboardPastePayload::LocalizedError {
+            source: error.source,
+            arguments: error.arguments,
+        },
     }
 }
 

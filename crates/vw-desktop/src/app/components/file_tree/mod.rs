@@ -95,7 +95,7 @@ mod widgets_tests;
 /// ```
 pub fn view(app: &App) -> Element<'_, Message> {
     if app.project_path.is_none() {
-        column![text("未打开项目")].into()
+        column![text(crate::app::i18n::I18n::new(app.desktop_locale).__("未打开项目"))].into()
     } else {
         let list_content = tree_list::build_file_tree_list(app);
         let list = column![list_content].spacing(2).width(Length::Fill);
@@ -146,7 +146,8 @@ pub fn view(app: &App) -> Element<'_, Message> {
 pub fn view_file_manager(app: &App) -> Element<'_, Message> {
     // 工作模式直接复用本函数；构建视图只读取文件管理器状态，不改写代码模式面板开关。
     if app.project_path.is_none() {
-        return column![text("未打开项目")].into();
+        return column![text(crate::app::i18n::I18n::new(app.desktop_locale).__("未打开项目"))]
+            .into();
     }
 
     let refresh_content = |refreshing: bool| {
@@ -195,8 +196,13 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
     // 构建更改按钮的标签文本
     // 根据更改文件数量和加载状态显示不同的文本
     let changes_count = app.git_changed_files.len();
-    let changes_label =
-        if changes_count > 0 { format!("{} 更改", changes_count) } else { "更改".to_string() };
+    let changes_label = if changes_count > 0 {
+        crate::app::i18n::I18n::new(app.desktop_locale)
+            .format("%u 更改", &[changes_count.into()])
+            .expect("valid changes template")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("更改").to_string()
+    };
 
     // 创建"更改"切换按钮
     // 点击后切换到显示 Git 更改的文件列表
@@ -218,7 +224,7 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
     // 创建"全部文件"切换按钮
     // 点击后切换到显示完整的文件树
     let files_btn = button(
-        container(text("全部文件").size(13))
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("全部文件")).size(13))
             .width(Length::Shrink)
             .align_x(iced::alignment::Horizontal::Center),
     )
@@ -249,7 +255,8 @@ pub fn view_file_manager(app: &App) -> Element<'_, Message> {
     .style(button::text);
     let search_btn = Tooltip::new(
         search_btn,
-        container(text("搜索").size(12)).padding([5, 8]),
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("搜索")).size(12))
+            .padding([5, 8]),
         TooltipPosition::Bottom,
     )
     .gap(6);

@@ -77,7 +77,11 @@ fn clipboard_image_dimensions_reports_width_and_height_overflow() {
 #[test]
 fn clipboard_attachment_payload_preserves_success_path_and_error() {
     let success = clipboard_attachment_payload(Ok("/tmp/clipboard.png".to_string()));
-    let failure = clipboard_attachment_payload(Err("persist failed".to_string()));
+    let failure =
+        clipboard_attachment_payload(Err(crate::app::i18n::project::ProjectFeedback::new(
+            "保存剪贴板图片失败：%s",
+            vec!["persist failed".into()],
+        )));
 
     assert!(matches!(
         success,
@@ -85,7 +89,7 @@ fn clipboard_attachment_payload_preserves_success_path_and_error() {
     ));
     assert!(matches!(
         failure,
-        ClipboardPastePayload::Error(error) if error == "persist failed"
+        ClipboardPastePayload::LocalizedError { source: "保存剪贴板图片失败：%s", arguments } if arguments.len() == 1
     ));
 }
 

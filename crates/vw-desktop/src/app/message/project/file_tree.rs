@@ -200,7 +200,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 || new_name.contains('/')
                 || new_name.contains('\\')
             {
-                app.error_message = Some("文件名不合法".to_string());
+                app.set_localized_input_error(
+                    crate::app::i18n::input::ErrorField::General,
+                    "文件名不合法",
+                    vec![],
+                );
                 return Some(iced::Task::none());
             }
             let old = std::path::PathBuf::from(&old_path);
@@ -246,14 +250,19 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     }
                     return Some(iced::Task::batch(vec![
                         refresh_file_index(app),
-                        app.show_success_toast(format!(
-                            "已重命名为 {}",
-                            path_display_name(&new_path)
-                        )),
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "已重命名为 %s",
+                            vec![path_display_name(&new_path).into()],
+                        ),
                     ]));
                 }
                 Err(err) => {
-                    app.error_message = Some(format!("重命名失败: {err}"));
+                    app.set_localized_input_error(
+                        crate::app::i18n::input::ErrorField::General,
+                        "重命名失败: %s",
+                        vec![err.into()],
+                    );
                 }
             }
             Some(refresh_file_index(app))
@@ -371,6 +380,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         error: None,
                         limit_reached: false,
                         matches: Vec::new(),
+                        localized_error: None,
                         results_page: 0,
                     });
 
@@ -402,7 +412,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         mode: FileTreeClipboardMode::Cut,
                         src_path: path,
                     });
-                    return Some(app.show_success_toast("已剪切到文件树剪贴板"));
+                    return Some(app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已剪切到文件树剪贴板",
+                        vec![],
+                    ));
                 }
                 // 复制：将文件/文件夹路径保存到剪贴板，模式为复制
                 FileTreeAction::Copy => {
@@ -410,7 +424,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                         mode: FileTreeClipboardMode::Copy,
                         src_path: path,
                     });
-                    return Some(app.show_success_toast("已复制到文件树剪贴板"));
+                    return Some(app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已复制到文件树剪贴板",
+                        vec![],
+                    ));
                 }
                 // 粘贴：根据剪贴板模式执行复制或移动操作
                 FileTreeAction::Paste => {
@@ -495,11 +513,19 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     }
                     return Some(iced::Task::batch(vec![
                         refresh_file_index(app),
-                        app.show_success_toast("文件树操作已完成"),
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "文件树操作已完成",
+                            vec![],
+                        ),
                     ]));
                 }
                 Err(err) => {
-                    app.error_message = Some(format!("粘贴失败: {err}"));
+                    app.set_localized_input_error(
+                        crate::app::i18n::input::ErrorField::General,
+                        "粘贴失败: %s",
+                        vec![err.into()],
+                    );
                 }
             }
             Some(refresh_file_index(app))
@@ -509,11 +535,19 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 Ok(()) => {
                     return Some(iced::Task::batch(vec![
                         refresh_file_index(app),
-                        app.show_success_toast("已删除"),
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "已删除",
+                            vec![],
+                        ),
                     ]));
                 }
                 Err(err) => {
-                    app.error_message = Some(format!("删除失败: {err}"));
+                    app.set_localized_input_error(
+                        crate::app::i18n::input::ErrorField::General,
+                        "删除失败: %s",
+                        vec![err.into()],
+                    );
                 }
             }
             Some(refresh_file_index(app))

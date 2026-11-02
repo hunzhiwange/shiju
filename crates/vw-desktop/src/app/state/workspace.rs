@@ -183,6 +183,8 @@ pub(crate) struct FindInFolderTab {
     pub(crate) running: bool,
     /// 错误信息（如果有）
     pub(crate) error: Option<String>,
+    /// 本地校验反馈保留中文模板与参数，显示时选择语言。
+    pub(crate) localized_error: Option<crate::app::i18n::input::Feedback>,
     /// 是否达到结果数量限制
     pub(crate) limit_reached: bool,
     /// 匹配结果列表

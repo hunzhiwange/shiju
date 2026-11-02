@@ -130,7 +130,9 @@ fn project_badge_button_builds_image_icon_branch() {
 
 #[test]
 fn open_project_badge_button_builds() {
-    let element: Element<'_, Message> = open_project_badge_button();
+    let element: Element<'_, Message> = open_project_badge_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
 
     std::hint::black_box(element);
 }
@@ -141,11 +143,17 @@ fn expert_hub_entry_follows_open_project_action() {
         project_list_action_order(),
         ["open_project", "expert_hub", "shiju_skills", "shiju_apps"]
     );
-    let element: Element<'_, Message> = expert_hub_badge_button();
+    let element: Element<'_, Message> = expert_hub_badge_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     std::hint::black_box(element);
-    let element: Element<'_, Message> = shiju_skills_badge_button();
+    let element: Element<'_, Message> = shiju_skills_badge_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     std::hint::black_box(element);
-    let element: Element<'_, Message> = shiju_apps_badge_button();
+    let element: Element<'_, Message> = shiju_apps_badge_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     std::hint::black_box(element);
 }
 

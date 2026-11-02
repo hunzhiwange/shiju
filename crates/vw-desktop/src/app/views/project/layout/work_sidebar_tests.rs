@@ -539,12 +539,16 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
             .await
             .expect("tiny-skia headless renderer should be available");
 
-    let mut shiju_apps = work_sidebar::shiju_apps_button();
+    let mut shiju_apps = work_sidebar::shiju_apps_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     let mut shiju_messages = click(&mut shiju_apps, &renderer);
     assert_eq!(shiju_messages.len(), 1);
     assert!(matches!(shiju_messages.remove(0), Message::ShijuApps(ShijuAppsMessage::Open)));
 
-    let mut shiju_skills = work_sidebar::shiju_skills_button();
+    let mut shiju_skills = work_sidebar::shiju_skills_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     let mut skill_messages = click(&mut shiju_skills, &renderer);
     assert_eq!(skill_messages.len(), 1);
     assert!(matches!(
@@ -552,7 +556,9 @@ async fn work_sidebar_routes_shiju_entries_and_expert_hub_separately() {
         Message::SkillHub(SkillHubMessage::OpenShijuSkills)
     ));
 
-    let mut expert_hub = work_sidebar::expert_hub_button();
+    let mut expert_hub = work_sidebar::expert_hub_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+    ));
     let mut expert_messages = click(&mut expert_hub, &renderer);
     assert_eq!(expert_messages.len(), 1);
     assert!(matches!(expert_messages.remove(0), Message::SkillHub(SkillHubMessage::Open)));

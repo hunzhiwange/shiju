@@ -445,37 +445,37 @@ fn navigation_badge_button<'a>(
     Tooltip::new(button, tooltip_content, TooltipPosition::Right).gap(8.0).into()
 }
 
-pub fn open_project_badge_button<'a>() -> Element<'a, Message> {
+pub fn open_project_badge_button<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
     navigation_badge_button(
         "+",
-        "打开项目",
+        i18n.__("打开项目"),
         Message::Project(message::ProjectMessage::OpenFolderPressed),
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn expert_hub_badge_button<'a>() -> Element<'a, Message> {
+pub fn expert_hub_badge_button<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
     navigation_badge_button(
-        "技",
-        "专家 · 技能 · 连接器",
+        i18n.__("技"),
+        i18n.__("专家 · 技能 · 连接器"),
         Message::SkillHub(crate::app::message::SkillHubMessage::Open),
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn shiju_skills_badge_button<'a>() -> Element<'a, Message> {
+pub fn shiju_skills_badge_button<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
     navigation_badge_button(
-        "识",
-        "识矩技能",
+        i18n.__("识"),
+        i18n.__("识矩技能"),
         Message::SkillHub(crate::app::message::SkillHubMessage::OpenShijuSkills),
     )
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn shiju_apps_badge_button<'a>() -> Element<'a, Message> {
+pub fn shiju_apps_badge_button<'a>(i18n: crate::app::i18n::I18n) -> Element<'a, Message> {
     navigation_badge_button(
-        "应",
-        "识矩应用",
+        i18n.__("应"),
+        i18n.__("识矩应用"),
         Message::ShijuApps(crate::app::message::ShijuAppsMessage::Open),
     )
 }
@@ -627,15 +627,24 @@ pub fn projects_list<'a>(
     #[cfg(not(target_arch = "wasm32"))]
     for action in PROJECT_LIST_ACTIONS {
         projects_col = projects_col.push(match action {
-            ProjectListAction::OpenProject => open_project_badge_button(),
-            ProjectListAction::ExpertHub => expert_hub_badge_button(),
-            ProjectListAction::ShijuSkills => shiju_skills_badge_button(),
-            ProjectListAction::ShijuApps => shiju_apps_badge_button(),
+            ProjectListAction::OpenProject => {
+                open_project_badge_button(crate::app::i18n::I18n::new(app.desktop_locale))
+            }
+            ProjectListAction::ExpertHub => {
+                expert_hub_badge_button(crate::app::i18n::I18n::new(app.desktop_locale))
+            }
+            ProjectListAction::ShijuSkills => {
+                shiju_skills_badge_button(crate::app::i18n::I18n::new(app.desktop_locale))
+            }
+            ProjectListAction::ShijuApps => {
+                shiju_apps_badge_button(crate::app::i18n::I18n::new(app.desktop_locale))
+            }
         });
     }
     #[cfg(target_arch = "wasm32")]
     {
-        projects_col = projects_col.push(open_project_badge_button());
+        projects_col = projects_col
+            .push(open_project_badge_button(crate::app::i18n::I18n::new(app.desktop_locale)));
     }
 
     // 包装为可滚动容器，填充可用空间

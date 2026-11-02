@@ -32,18 +32,20 @@ pub(crate) fn with_project_edit<'a>(
     mut root_content: Element<'a, Message>,
 ) -> Element<'a, Message> {
     if app.project_edit_path.is_some() {
-        let cancel = button(text("取消").size(13))
-            .on_press(Message::Project(
-                crate::app::message::project::ProjectMessage::ProjectEditCanceled,
-            ))
-            .padding([6, 12])
-            .style(rounded_action_btn_style);
-        let save = button(text("保存").size(13))
-            .on_press(Message::Project(
-                crate::app::message::project::ProjectMessage::ProjectEditSaved,
-            ))
-            .padding([6, 12])
-            .style(primary_action_btn_style);
+        let cancel =
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
+                .on_press(Message::Project(
+                    crate::app::message::project::ProjectMessage::ProjectEditCanceled,
+                ))
+                .padding([6, 12])
+                .style(rounded_action_btn_style);
+        let save =
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")).size(13))
+                .on_press(Message::Project(
+                    crate::app::message::project::ProjectMessage::ProjectEditSaved,
+                ))
+                .padding([6, 12])
+                .style(primary_action_btn_style);
 
         let active_tab_content: Element<'_, Message> = match app.project_edit_tab {
             ProjectEditTab::General => general_tab(app),
@@ -53,30 +55,38 @@ pub(crate) fn with_project_edit<'a>(
         };
 
         let active_tab_hint = match app.project_edit_tab {
-            ProjectEditTab::General => "项目名称、图标与展示信息",
-            ProjectEditTab::Launch => "工作区启动与 worktree 行为",
-            ProjectEditTab::Refresh => "自动刷新、代码审查与任务池联动",
-            ProjectEditTab::Scheduling => "调度频率、并发和超时保护",
+            ProjectEditTab::General => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("项目名称、图标与展示信息")
+            }
+            ProjectEditTab::Launch => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("工作区启动与 worktree 行为")
+            }
+            ProjectEditTab::Refresh => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("自动刷新、代码审查与任务池联动")
+            }
+            ProjectEditTab::Scheduling => {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("调度频率、并发和超时保护")
+            }
         };
 
         let tabs = row![
             tab_button(
-                "基础信息",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("基础信息"),
                 ProjectEditTab::General,
                 app.project_edit_tab == ProjectEditTab::General,
             ),
             tab_button(
-                "启动与工作区",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("启动与工作区"),
                 ProjectEditTab::Launch,
                 app.project_edit_tab == ProjectEditTab::Launch,
             ),
             tab_button(
-                "刷新策略",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("刷新策略"),
                 ProjectEditTab::Refresh,
                 app.project_edit_tab == ProjectEditTab::Refresh,
             ),
             tab_button(
-                "调度与保护",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("调度与保护"),
                 ProjectEditTab::Scheduling,
                 app.project_edit_tab == ProjectEditTab::Scheduling,
             ),
@@ -84,7 +94,11 @@ pub(crate) fn with_project_edit<'a>(
         .spacing(6)
         .align_y(iced::Alignment::Center);
 
-        let tab_panel = scrollable(active_tab_content).height(Length::Fixed(420.0));
+        let tab_panel = scrollable(container(active_tab_content).padding([0, 7]))
+            .direction(iced::widget::scrollable::Direction::Vertical(
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .height(Length::Fixed(420.0));
 
         let card = container(
             column![
@@ -130,7 +144,7 @@ pub(crate) fn with_project_edit<'a>(
                 .unwrap_or(Color::from_rgb8(96, 165, 250));
             let color_picker_card = container(
                 column![
-                    text("选择图标颜色").size(14),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("选择图标颜色")).size(14),
                     Space::new().height(8.0),
                     render_color_picker(
                         current_color,
@@ -155,7 +169,7 @@ pub(crate) fn with_project_edit<'a>(
                         || Message::None,
                     ),
                     Space::new().height(8.0),
-                    button(text("确定").size(13))
+                    button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
                         .on_press(Message::Project(
                             crate::app::message::project::ProjectMessage::ProjectEditIconColorPickerClosed,
                         ))

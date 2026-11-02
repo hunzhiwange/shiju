@@ -167,8 +167,13 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     Ok(scope_path) => {
                         tab.scope_path = scope_path;
                         tab.error = None;
+                        tab.localized_error = None;
                     }
-                    Err(error) => tab.error = Some(error.to_string()),
+                    Err(error) => {
+                        tab.error = Some(error.to_string());
+                        tab.localized_error =
+                            Some(crate::app::i18n::input::Feedback::new(error, vec![]));
+                    }
                 }
             }
             Some(iced::Task::none())
@@ -184,6 +189,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 tab.query_input = tab.query_editor.text().to_string();
                 // 清除之前的错误信息
                 tab.error = None;
+                tab.localized_error = None;
             }
             Some(iced::Task::none())
         }
@@ -278,6 +284,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if query.is_empty() {
                 if let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id) {
                     tab.error = Some("请输入查找关键字".to_string());
+                    tab.localized_error =
+                        Some(crate::app::i18n::input::Feedback::new("请输入查找关键字", vec![]));
                 }
                 return Some(iced::Task::none());
             }
@@ -294,6 +302,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == tab_id) {
                 tab.running = true;
                 tab.error = None;
+                tab.localized_error = None;
                 tab.limit_reached = false;
             }
 
@@ -331,6 +340,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if query.is_empty() {
                 if let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == active_id) {
                     tab.error = Some("请输入查找关键字".to_string());
+                    tab.localized_error =
+                        Some(crate::app::i18n::input::Feedback::new("请输入查找关键字", vec![]));
                 }
                 return Some(iced::Task::none());
             }
@@ -339,6 +350,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             if let Some(tab) = app.find_results_tabs.iter_mut().find(|t| t.id == active_id) {
                 tab.running = true;
                 tab.error = None;
+                tab.localized_error = None;
                 tab.limit_reached = false;
             }
 
@@ -384,7 +396,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 error: None,                                 // 无错误
                 limit_reached: false,                        // 未达到限制
                 matches: Vec::new(),                         // 匹配结果列表
-                results_page: 0,                             // 从首屏开始展示结果
+                localized_error: None,
+                results_page: 0, // 从首屏开始展示结果
             });
 
             // 设置为活动标签页
@@ -426,7 +439,8 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             use_regex,      // 正则表达式模式
             matches,        // 匹配结果列表
             error,          // 错误信息（如果有）
-            limit_reached,  // 是否达到结果限制
+            localized_error,
+            limit_reached, // 是否达到结果限制
         } => {
             // 生成打开标签页的 ID
             let open_tab_id = format!("find:{}", tab_id);
@@ -443,6 +457,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                 tab.use_regex = use_regex;
                 tab.running = false; // 标记为已完成
                 tab.error = error;
+                tab.localized_error = localized_error;
                 tab.limit_reached = limit_reached;
                 tab.results_page = 0;
 
@@ -470,6 +485,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
                     error,
                     limit_reached,
                     matches,
+                    localized_error,
                     results_page: 0,
                 });
             }

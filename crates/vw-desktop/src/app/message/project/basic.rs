@@ -193,7 +193,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             #[cfg(target_arch = "wasm32")]
             {
-                app.push_notification("当前平台暂不支持本地附件选择".to_string());
+                app.push_localized_notification("当前平台暂不支持本地附件选择", vec![]);
                 Some(iced::Task::none())
             }
         }
@@ -242,7 +242,11 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             if app.file_manager_file_tree_refreshing {
                 app.file_manager_file_tree_refreshing = false;
-                return Some(app.show_success_toast("文件树已刷新"));
+                return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "文件树已刷新",
+                    vec![],
+                ));
             }
             Some(iced::Task::none())
         }

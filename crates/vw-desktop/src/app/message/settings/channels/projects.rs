@@ -130,17 +130,19 @@ pub(super) fn loaded(
 }
 
 pub(super) fn select(app: &mut App, instance: String, project: Option<String>) -> Task<Message> {
-    let result = configured(app, &instance).and_then(|()| {
+    let context = configured(app, &instance).and_then(|()| {
         let client = crate::app::config::gateway_client()?;
-        app.channels_settings.select_default_project(
-            &tenant(&client)?,
-            &instance,
-            project.as_deref(),
-        )
+        tenant(&client)
     });
-    match result {
+    let scope = match context {
+        Ok(scope) => scope,
+        Err(error) => return app.show_error_toast(error),
+    };
+    match app.channels_settings.select_default_project(&scope, &instance, project.as_deref()) {
         Ok(()) => persist_channels_settings(app).unwrap_or_else(Task::none),
-        Err(error) => app.show_error_toast(error),
+        Err(source) => {
+            app.show_localized_toast(crate::app::state::ToastKind::Error, source, vec![])
+        }
     }
 }
 

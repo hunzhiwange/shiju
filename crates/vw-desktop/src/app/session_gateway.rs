@@ -848,7 +848,7 @@ pub async fn gateway_skill_market_skill_set_install_async(
 /// 返回值表达处理结果；失败时保留错误信息给上层界面或调度逻辑。
 pub async fn gateway_plugins_async() -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
     let client = gateway_client()?;
-    client.plugins_get().await
+    client.plugins_status_get().await
 }
 
 /// 读取当前已发现插件声明的 hook 清单。

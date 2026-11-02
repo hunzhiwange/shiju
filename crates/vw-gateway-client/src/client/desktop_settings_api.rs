@@ -67,6 +67,10 @@ pub struct DesktopPluginCatalogEntryDto {
     pub source_path: Option<String>,
     #[serde(default)]
     pub dependency_checks: Vec<DesktopPluginDependencyDto>,
+    #[serde(default)]
+    pub origin: DesktopPluginSourceDto,
+    #[serde(default)]
+    pub hook_review: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -91,6 +95,10 @@ pub struct DesktopPluginDetailDto {
     pub can_delete: bool,
     #[serde(default)]
     pub dependency_checks: Vec<DesktopPluginDependencyDto>,
+    #[serde(default)]
+    pub origin: DesktopPluginSourceDto,
+    #[serde(default)]
+    pub hook_review: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -105,6 +113,8 @@ pub struct DesktopPluginSourceDto {
     pub resolved_version: Option<String>,
     pub revision: Option<String>,
     pub sha256: Option<String>,
+    #[serde(default)]
+    pub marketplace: Option<String>,
 }
 
 /// Audited package preview awaiting explicit, single-use activation.
@@ -442,6 +452,11 @@ impl GatewayClient {
     /// 读取已发现插件目录。
     pub async fn plugins_get(&self) -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
         self.get_json("/v1/plugins", &[]).await
+    }
+
+    /// Read state-bound plugin diagnostics from the running authenticated gateway.
+    pub async fn plugins_status_get(&self) -> Result<Vec<DesktopPluginCatalogEntryDto>, String> {
+        self.get_json("/v1/plugins/status", &[]).await
     }
 
     /// 读取指定插件详情。

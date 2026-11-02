@@ -19,6 +19,9 @@ fn plugin(
         enabled,
         component_count: 2,
         source_path: source_path.map(ToOwned::to_owned),
+        dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     }
 }
 
@@ -32,6 +35,9 @@ fn desktop_plugins_tab_renders_catalog_items() {
         enabled: true,
         component_count: 3,
         source_path: Some("/tmp/demo-plugin".to_string()),
+        dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     };
 
     assert!(super::plugin_matches_query(&plugin, "DEMO"));
@@ -63,6 +69,9 @@ fn plugin_initials_use_name_words_then_fall_back_to_uppercase_id() {
         enabled: false,
         component_count: 0,
         source_path: None,
+        dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     };
 
     assert_eq!(super::plugin_initials(&plugin), "RS");
@@ -81,6 +90,9 @@ fn plugin_query_trims_whitespace_and_matches_empty_query() {
         enabled: true,
         component_count: 1,
         source_path: None,
+        dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     };
 
     assert!(super::plugin_matches_query(&plugin, "   "));

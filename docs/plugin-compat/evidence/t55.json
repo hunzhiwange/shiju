@@ -1,0 +1,79 @@
+{
+  "task": 55,
+  "status": "已完成",
+  "dependency": "e4feb92a task58 authorized before task55; ce20c258 task54",
+  "platform": "macOS arm64",
+  "red": {
+    "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t55_ -- --nocapture",
+    "exit_code": 101,
+    "passed": 0,
+    "failed": 3,
+    "slot": 2,
+    "failure": "Summary skeleton hides missing/unknown dependencies and returns identical status for isolated entries",
+    "registration_correction": "Initial app/mod.rs registration produced zero binary-target tests; corrected to main.rs and obtained three actual target assertion failures. Zero-test run is not red/green evidence."
+  },
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t55_ -- --nocapture",
+      "exit_code": 0,
+      "passed": 3,
+      "slot": 2
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features plugins_tests -- --nocapture",
+      "exit_code": 0,
+      "passed": 5,
+      "slot": 2
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "slot": 2
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "native_window": {
+    "build_commands": [
+      "cargo test -p vw-agent --lib --all-features --no-run --message-format=json",
+      "cargo test -p vw-desktop --test plugin-compat-window --all-features --no-run --message-format=json"
+    ],
+    "launch": "<slot-1 plugin-compat-window executable> <slot-1 vw_agent test executable> /tmp/shiju-plugin-ui-t55.Uz9zM1",
+    "exit_code": 0,
+    "backend_fixture_passed": 1,
+    "slot": 1,
+    "screenshots": [
+      "t55-light.png",
+      "t55-dark.png"
+    ],
+    "result": "t55-window.json",
+    "assertions": [
+      "real authenticated catalog identifies node missing from explicit PATH",
+      "actual hook review is pending",
+      "Unicode and real long filesystem path render in both themes without shaping panic",
+      "original package bytes unchanged, sentinel script not executed",
+      "read-only window closed without mutation"
+    ],
+    "review_fix": "Corrected dark card inherited black text and local icon color; reran and visually inspected both screenshots"
+  },
+  "cargo": {
+    "slots": [
+      1,
+      2
+    ],
+    "CARGO_TARGET_DIR_final": "/Users/xiangmin/worker/code/shiju/target/rust-slot-2",
+    "CARGO_TARGET_DIR_native": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
+    "CARGO_BUILD_BUILD_DIR": "same as active CARGO_TARGET_DIR",
+    "locks_released": true,
+    "cache_retained": true
+  },
+  "fixture": "crates/vw-agent/testdata/plugin_compat/t55/README.md",
+  "implementation": "Source/version metadata, read-only dependency facts, real hook trust status, pending MCP/auth hints, scoped gateway catalog and theme-correct plugin page",
+  "limits": "No complete compatibility claimed from counts or presence; installation cancellation belongs to task56."
+}

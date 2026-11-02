@@ -127,3 +127,9 @@ name = "recovery-window"
 path = "src/recovery_window_main.rs"
 harness = false
 test = false
+
+[[test]]
+name = "plugin-compat-window"
+path = "src/plugin_compat_window_main.rs"
+harness = false
+test = false

@@ -138,7 +138,7 @@ pub(crate) fn collect_plugin_catalog(
     let mut items = discovery
         .installed
         .into_iter()
-        .map(|plugin| catalog_entry(&plugin, &install_dir))
+        .map(|plugin| catalog_entry(&plugin, &install_dir, &options.workspace_dir))
         .collect::<Vec<_>>();
     items.sort_by(|left, right| {
         left.display_name.cmp(&right.display_name).then(left.id.cmp(&right.id))
@@ -162,7 +162,7 @@ pub(crate) fn resolve_plugin_detail(
         .into_iter()
         .find(|plugin| plugin.identity.as_key() == plugin_id)
         .ok_or_else(|| anyhow::anyhow!("Plugin not found: {plugin_id}"))?;
-    Ok(detail_entry(&plugin, &install_dir))
+    Ok(detail_entry(&plugin, &install_dir, &options.workspace_dir))
 }
 
 fn config_dir_from_config(config: &crate::config::Config) -> PathBuf {
@@ -181,7 +181,11 @@ fn normalize_plugin_id(plugin_id: &str) -> Result<String> {
     Ok(plugin_id.to_string())
 }
 
-fn catalog_entry(plugin: &DiscoveredPlugin, _install_dir: &Path) -> DesktopPluginCatalogEntryDto {
+fn catalog_entry(
+    plugin: &DiscoveredPlugin,
+    install_dir: &Path,
+    workspace: &Path,
+) -> DesktopPluginCatalogEntryDto {
     let manifest = &plugin.manifest;
     DesktopPluginCatalogEntryDto {
         id: plugin.identity.as_key(),
@@ -191,11 +195,17 @@ fn catalog_entry(plugin: &DiscoveredPlugin, _install_dir: &Path) -> DesktopPlugi
         enabled: plugin.disabled_marker.is_none(),
         component_count: component_count(manifest),
         dependency_checks: dependency_checks(manifest),
+        origin: source_origin(plugin.install_metadata.as_ref(), manifest.version.clone()),
+        hook_review: hook_review(manifest, install_dir.parent().unwrap_or(install_dir), workspace),
         source_path: Some(path_string(&manifest.root)),
     }
 }
 
-fn detail_entry(plugin: &DiscoveredPlugin, install_dir: &Path) -> DesktopPluginDetailDto {
+fn detail_entry(
+    plugin: &DiscoveredPlugin,
+    install_dir: &Path,
+    workspace: &Path,
+) -> DesktopPluginDetailDto {
     let manifest = &plugin.manifest;
     let manageable = plugin.source_dir == install_dir;
     DesktopPluginDetailDto {
@@ -208,6 +218,8 @@ fn detail_entry(plugin: &DiscoveredPlugin, install_dir: &Path) -> DesktopPluginD
         manifest_path: path_string(&manifest.manifest_path),
         capabilities: plugin_capabilities(manifest),
         dependency_checks: dependency_checks(manifest),
+        origin: source_origin(plugin.install_metadata.as_ref(), manifest.version.clone()),
+        hook_review: hook_review(manifest, install_dir.parent().unwrap_or(install_dir), workspace),
         can_toggle: manageable,
         can_delete: manageable,
     }
@@ -299,4 +311,62 @@ fn dependency_status(checks: &[vw_gateway_client::DesktopPluginDependencyDto]) -
         "checked_presence"
     }
     .into()
+}
+
+fn source_origin(
+    metadata: Option<&crate::plugins::PluginInstallMetadata>,
+    version: Option<String>,
+) -> vw_gateway_client::DesktopPluginSourceDto {
+    let value: serde_json::Value =
+        metadata.and_then(|m| serde_json::from_str(&m.source).ok()).unwrap_or_default();
+    let field = |key| value.get(key).and_then(serde_json::Value::as_str).map(str::to_owned);
+    vw_gateway_client::DesktopPluginSourceDto {
+        kind: if metadata.is_none() {
+            "directory"
+        } else if value.get("npm").is_some() {
+            "npm"
+        } else if value.get("git").is_some() {
+            "git"
+        } else {
+            "local"
+        }
+        .into(),
+        resolved_version: field("version").or(version),
+        revision: field("commit"),
+        sha256: field("sha256"),
+        marketplace: metadata.and_then(|m| m.identity.marketplace_name()).map(str::to_owned),
+    }
+}
+fn hook_review(manifest: &PluginManifest, config_dir: &Path, workspace: &Path) -> String {
+    use crate::plugins::{
+        PluginHookTrustStatus, PluginHookTrustStore, PluginHooksManifest, load_plugin_hook_source,
+        plugin_hook_trust_file,
+    };
+    if manifest.hooks.is_empty() {
+        return "not_declared".into();
+    }
+    let result = (|| -> Result<&str> {
+        let store = PluginHookTrustStore::load_or_default(&plugin_hook_trust_file(config_dir))?;
+        let mut pending = false;
+        for source in &manifest.hooks {
+            match load_plugin_hook_source(source, &manifest.root, workspace)? {
+                PluginHooksManifest::Legacy(hooks) => {
+                    pending |= hooks.iter().any(|hook| {
+                        store.review_status(&manifest.name, hook) != PluginHookTrustStatus::Trusted
+                    })
+                }
+                PluginHooksManifest::Codex(hooks) => {
+                    if !hooks.diagnostics().is_empty() {
+                        return Ok("unsupported");
+                    }
+                    if hooks.hooks.values().any(|group| !group.is_empty()) {
+                        pending |=
+                            !store.codex_hooks_trusted(&manifest.name, &manifest.root, &hooks)?;
+                    }
+                }
+            }
+        }
+        Ok(if pending { "pending" } else { "trusted" })
+    })();
+    result.unwrap_or("unverified").into()
 }

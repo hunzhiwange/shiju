@@ -137,6 +137,9 @@ fn skills_catalog_models_preserve_metadata_and_support_every_kind() {
         enabled: true,
         component_count: 4,
         source_path: Some("plugins/plugin-id".to_string()),
+        dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     };
     assert_eq!(plugin.id, "plugin-id");
     assert_eq!(plugin.display_name, "Plugin");

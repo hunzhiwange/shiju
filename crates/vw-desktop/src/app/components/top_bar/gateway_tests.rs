@@ -120,6 +120,9 @@ fn plugin_tab_content_includes_toggle_and_management_actions() {
         enabled: true,
         component_count: 4,
         source_path: Some("/tmp/demo-plugin".to_string()),
+        dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     });
 
     let rows = plugin_tab_content(&app);

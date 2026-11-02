@@ -11,6 +11,7 @@ use vw_gateway_client::DesktopPluginPreviewDto;
 
 pub(super) fn router() -> Router<AppState> {
     Router::new()
+        .route("/plugins/status", get(status))
         .route("/plugins/prepare-install", post(prepare_install))
         .route("/plugins/install", post(install))
         .route("/plugins/prepare-update", post(prepare_update))
@@ -83,21 +84,25 @@ fn validate_source(source: &str) -> Result<()> {
 fn origin(manifest: &PluginManifest) -> Result<vw_gateway_client::DesktopPluginSourceDto> {
     let metadata = crate::plugins::plugin_install_metadata(&manifest.root, manifest)?
         .ok_or_else(|| anyhow::anyhow!("prepared plugin provenance is missing"))?;
-    let value: serde_json::Value = serde_json::from_str(&metadata.source).unwrap_or_default();
-    let field = |key| value.get(key).and_then(serde_json::Value::as_str).map(str::to_owned);
-    Ok(vw_gateway_client::DesktopPluginSourceDto {
-        kind: if value.get("npm").is_some() {
-            "npm"
-        } else if value.get("git").is_some() {
-            "git"
-        } else {
-            "local"
-        }
-        .into(),
-        resolved_version: field("version").or(metadata.version),
-        revision: field("commit"),
-        sha256: field("sha256"),
+    Ok(super::source_origin(Some(&metadata), manifest.version.clone()))
+}
+async fn status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<DesktopPluginCatalogEntryDto>>, ApiError> {
+    authorize(&state, &headers)?;
+    let config = state.config.lock().clone();
+    tokio::task::spawn_blocking(move || {
+        super::collect_plugin_catalog(
+            config.workspace_dir.clone(),
+            super::config_dir_from_config(&config),
+            config.plugins.clone(),
+        )
     })
+    .await
+    .map_err(|_| ApiError::internal("plugin status task failed"))?
+    .map(Json)
+    .map_err(bad)
 }
 fn preview(
     token: String,

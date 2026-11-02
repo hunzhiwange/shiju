@@ -1,13 +1,14 @@
 //! 构建代理设置中的插件检索、详情与管理页面。
 
 use super::browser::{
-    DetailActionStyle, catalog_panel_style, detail_action_button, empty_state, header_panel_style,
-    loading_banner, search_bar_style, search_text_input_style, status_banner,
+    DetailActionStyle, catalog_panel_style, empty_state, header_panel_style, loading_banner,
+    search_bar_style, search_text_input_style, status_banner,
 };
 use super::catalog::{section_card_style, skill_badge};
 use crate::app::assets::Icon;
 use crate::app::components::system_settings_common::{
-    icon_svg, settings_panel_style, settings_value_badge,
+    danger_action_btn_style, icon_svg as base_icon_svg, primary_action_btn_style,
+    rounded_action_btn_style, settings_panel_style, settings_value_badge,
 };
 use crate::app::state::PluginCatalogItem;
 use crate::app::{App, Message, message};
@@ -73,6 +74,7 @@ pub(super) fn plugin_catalog_item(
     let version = plugin.version.clone();
     let description = plugin.description.clone();
     let component_text = format!("{} 个组件", plugin.component_count);
+    let compatibility = super::plugin_dependency_summary(&plugin.dependency_checks);
     let status = if plugin.enabled { "已启用" } else { "已禁用" };
 
     let details = column![
@@ -86,6 +88,7 @@ pub(super) fn plugin_catalog_item(
         ]
         .spacing(8)
         .align_y(Alignment::Center),
+        text(compatibility).size(12),
         text(description)
             .size(12)
             .width(Length::Fill)
@@ -114,11 +117,7 @@ pub(super) fn plugin_catalog_item(
                 .style(move |theme: &iced::Theme| {
                     let palette = theme.extended_palette();
                     iced::widget::container::Style {
-                        text_color: Some(if plugin.enabled {
-                            palette.success.base.color
-                        } else {
-                            theme.palette().text.scale_alpha(0.62)
-                        }),
+                        text_color: Some(theme.palette().text),
                         background: Some(Background::Color(if plugin.enabled {
                             palette.success.weak.color.scale_alpha(0.55)
                         } else {
@@ -157,7 +156,10 @@ pub(super) fn plugin_catalog_item(
         .width(Length::Fill)
         .padding(0)
         .on_press(Message::Settings(message::SettingsMessage::PluginsSelected(plugin.id)))
-        .style(|_theme: &iced::Theme, _status| iced::widget::button::Style::default())
+        .style(|theme: &iced::Theme, _status| iced::widget::button::Style {
+            text_color: theme.palette().text,
+            ..Default::default()
+        })
         .into()
 }
 
@@ -167,7 +169,7 @@ fn plugin_path_note(path: Option<&str>) -> Element<'static, Message> {
         text(text_value)
             .size(11)
             .width(Length::Fill)
-            .wrapping(iced::widget::text::Wrapping::Word)
+            .wrapping(iced::widget::text::Wrapping::Glyph)
             .style(|theme: &iced::Theme| iced::widget::text::Style {
                 color: Some(theme.palette().text.scale_alpha(0.6)),
             }),
@@ -236,7 +238,11 @@ pub(super) fn plugin_detail_panel(
             ]
             .spacing(8)
             .align_y(Alignment::Center),
+            text(source_label(plugin)).size(12),
+            text(super::plugin_dependency_summary(&plugin.dependency_checks)).size(13),
+            text(hook_label(&plugin.hook_review)).size(12),
             plugin_path_note(path.as_deref()),
+            dependency_panel(&plugin.dependency_checks),
             actions,
         ]
         .spacing(14),
@@ -248,7 +254,7 @@ pub(super) fn plugin_detail_panel(
 }
 
 /// 组合插件搜索、目录与详情面板的完整设置页面。
-pub(in crate::app::components) fn view<'a>(app: &'a App) -> Element<'a, Message> {
+pub(crate) fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let s = &app.skills_settings;
     let plugins = s
         .plugin_catalog
@@ -274,7 +280,7 @@ pub(in crate::app::components) fn view<'a>(app: &'a App) -> Element<'a, Message>
             row![
                 column![
                     text("插件").size(22),
-                    text("本地插件包、组件数量与启用状态。").size(13).style(
+                    text("原包来源、依赖观察与信任状态；文件存在不代表运行兼容。").size(13).style(
                         |theme: &iced::Theme| iced::widget::text::Style {
                             color: Some(theme.palette().text.scale_alpha(0.68)),
                         }
@@ -330,7 +336,7 @@ pub(in crate::app::components) fn view<'a>(app: &'a App) -> Element<'a, Message>
     });
 
     let list_panel = container(
-        scrollable(list)
+        scrollable(list.padding([0, 7]))
             .direction(Direction::Vertical(Scrollbar::new().width(4)))
             .height(Length::Fixed(460.0)),
     )
@@ -354,3 +360,81 @@ pub(in crate::app::components) fn view<'a>(app: &'a App) -> Element<'a, Message>
 #[cfg(test)]
 #[path = "plugins_tests.rs"]
 mod plugins_tests;
+
+fn source_label(plugin: &PluginCatalogItem) -> String {
+    let kind = match plugin.origin.kind.as_str() {
+        "git" => "Git",
+        "npm" => "npm",
+        "local" => "本地安装",
+        "directory" => "目录发现",
+        _ => "来源待确认",
+    };
+    let market = plugin.origin.marketplace.as_deref().unwrap_or("无市场归属");
+    format!(
+        "来源：{kind} · {market} · 解析版本 {}",
+        plugin.origin.resolved_version.as_deref().unwrap_or("未记录")
+    )
+}
+fn hook_label(status: &str) -> &'static str {
+    match status {
+        "not_declared" => "未声明钩子",
+        "pending" => "钩子待信任；审核前不会执行",
+        "trusted" => "已记录钩子信任；仍受宿主策略约束",
+        "unsupported" => "钩子含不支持的声明",
+        _ => "钩子信任状态待验证",
+    }
+}
+fn dependency_panel(
+    checks: &[vw_gateway_client::DesktopPluginDependencyDto],
+) -> Element<'static, Message> {
+    let content = checks.iter().fold(column![].spacing(9), |column, check| {
+        let label = match check.status.as_str() {
+            "present" => "已检测存在",
+            "missing_host" => "缺少宿主程序",
+            "missing_package" => "包内资源缺失",
+            "unverified" => "待验证",
+            "scope_excluded" => "范围外托管能力",
+            "invalid" => "声明无效",
+            _ => "未知状态",
+        };
+        column.push(
+            column![
+                text(format!("{} · {}：{label}", check.component, check.dependency))
+                    .size(12)
+                    .wrapping(iced::widget::text::Wrapping::Glyph),
+                text(check.detail.clone()).size(11).wrapping(iced::widget::text::Wrapping::Glyph)
+            ]
+            .spacing(3),
+        )
+    });
+    scrollable(content.padding([0, 7]))
+        .direction(Direction::Vertical(Scrollbar::new().width(4)))
+        .height(Length::Fixed(180.0))
+        .into()
+}
+
+fn icon_svg(icon: Icon, size: f32) -> iced::widget::Svg<'static> {
+    base_icon_svg(icon, size).style(|theme: &iced::Theme, _| iced::widget::svg::Style {
+        color: Some(theme.palette().text),
+    })
+}
+fn detail_action_button(
+    label: &'static str,
+    icon: Icon,
+    style: DetailActionStyle,
+    on_press: Option<Message>,
+) -> Element<'static, Message> {
+    let contrast = matches!(&style, DetailActionStyle::Primary | DetailActionStyle::Danger);
+    let icon =
+        base_icon_svg(icon, 14.).style(move |theme: &iced::Theme, _| iced::widget::svg::Style {
+            color: Some(if contrast { iced::Color::WHITE } else { theme.palette().text }),
+        });
+    let button = button(row![icon, text(label).size(12)].spacing(8).align_y(Alignment::Center))
+        .padding([10, 14])
+        .on_press_maybe(on_press);
+    match style {
+        DetailActionStyle::Primary => button.style(primary_action_btn_style).into(),
+        DetailActionStyle::Secondary => button.style(rounded_action_btn_style).into(),
+        DetailActionStyle::Danger => button.style(danger_action_btn_style).into(),
+    }
+}

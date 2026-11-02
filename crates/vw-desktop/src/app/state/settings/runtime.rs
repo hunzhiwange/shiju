@@ -162,6 +162,9 @@ pub(crate) struct PluginCatalogItem {
     pub(crate) enabled: bool,
     pub(crate) component_count: usize,
     pub(crate) source_path: Option<String>,
+    pub(crate) dependency_checks: Vec<vw_gateway_client::DesktopPluginDependencyDto>,
+    pub(crate) origin: vw_gateway_client::DesktopPluginSourceDto,
+    pub(crate) hook_review: String,
 }
 
 #[derive(Debug, Clone)]

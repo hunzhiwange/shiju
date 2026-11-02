@@ -183,6 +183,9 @@ fn map_plugin_catalog_items(items: Vec<DesktopPluginCatalogEntryDto>) -> Vec<Plu
             enabled: item.enabled,
             component_count: item.component_count,
             source_path: item.source_path,
+            dependency_checks: item.dependency_checks,
+            origin: item.origin,
+            hook_review: item.hook_review,
         })
         .collect()
 }

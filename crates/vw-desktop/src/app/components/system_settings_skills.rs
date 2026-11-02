@@ -3,7 +3,7 @@
 mod browser;
 mod catalog;
 mod help;
-pub(super) mod plugins;
+pub(crate) mod plugins;
 
 use crate::app::components::system_settings_common::{
     SETTINGS_LABEL_WIDTH, settings_checkbox_style, settings_error_banner, settings_help_button,
@@ -198,3 +198,35 @@ mod help_tests;
 #[cfg(test)]
 #[path = "system_settings_skills_tests.rs"]
 mod system_settings_skills_tests;
+
+/// Summarize only observed dependency facts, never infer runtime compatibility from counts.
+pub fn plugin_dependency_summary(
+    checks: &[vw_gateway_client::DesktopPluginDependencyDto],
+) -> &'static str {
+    if checks.iter().any(|c| {
+        !matches!(
+            c.status.as_str(),
+            "present"
+                | "missing_host"
+                | "missing_package"
+                | "unverified"
+                | "scope_excluded"
+                | "invalid"
+        )
+    }) {
+        "未知检查结果，需重新审计"
+    } else if checks.iter().any(|c| matches!(c.status.as_str(), "missing_host" | "missing_package"))
+    {
+        "缺少运行依赖"
+    } else if checks.iter().any(|c| c.status == "invalid") {
+        "依赖声明无效"
+    } else if checks.iter().any(|c| c.status == "unverified") {
+        "运行依赖待验证"
+    } else if checks.is_empty() {
+        "未声明依赖，运行待验证"
+    } else if checks.iter().any(|c| c.status == "scope_excluded") {
+        "含范围外托管能力"
+    } else {
+        "依赖文件已检测，运行待验证"
+    }
+}

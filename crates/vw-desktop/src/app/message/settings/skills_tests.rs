@@ -60,6 +60,8 @@ fn plugin(id: &str) -> DesktopPluginCatalogEntryDto {
         component_count: 3,
         source_path: Some(format!("/tmp/plugins/{id}")),
         dependency_checks: Vec::new(),
+        origin: Default::default(),
+        hook_review: String::new(),
     }
 }
 

@@ -735,3 +735,63 @@ fn workflow_explicit_model_unspecified_uses_runtime_default() {
     let llm = node("llm", "llm", json!({}));
     assert_eq!(workflow_node_model(&llm, "default"), "default");
 }
+
+struct ExplicitModelStreamProvider {
+    calls: std::sync::Mutex<Vec<String>>,
+}
+
+#[async_trait::async_trait]
+impl Provider for ExplicitModelStreamProvider {
+    async fn chat_with_system(
+        &self,
+        _: Option<&str>,
+        _: &str,
+        _: &str,
+        _: f64,
+    ) -> anyhow::Result<String> {
+        panic!("streaming must not fall back to non-streaming")
+    }
+
+    fn supports_streaming(&self) -> bool {
+        true
+    }
+
+    fn stream_chat_with_history(
+        &self,
+        _: &[ChatMessage],
+        model: &str,
+        _: f64,
+        _: StreamOptions,
+    ) -> futures_util::stream::BoxStream<
+        'static,
+        crate::providers::traits::StreamResult<crate::providers::traits::StreamChunk>,
+    > {
+        self.calls.lock().unwrap().push(model.to_string());
+        Box::pin(futures_util::stream::iter(vec![Ok(crate::providers::traits::StreamChunk {
+            delta: "unknown model".to_string(),
+            is_final: true,
+            token_count: 0,
+        })]))
+    }
+}
+
+#[tokio::test]
+async fn workflow_explicit_model_streaming_error_does_not_fall_back() {
+    let provider = Arc::new(ExplicitModelStreamProvider { calls: Default::default() });
+    let runtime = WorkflowRuntime {
+        provider: provider.clone(),
+        knowledge_provider: None,
+        document_extractor: None,
+        tool_provider: None,
+        agent_provider: None,
+        pause_store: None,
+        model: "default".into(),
+        temperature: 0.0,
+    };
+    let llm = node("llm", "llm", json!({"model": {"name": "missing"}}));
+    let error = run_llm_chat_streaming(&runtime, &llm, 0, &[], "missing", &mut |_| {})
+        .await
+        .expect_err("unknown model must fail");
+    assert!(error.contains("unknown model"));
+    assert_eq!(*provider.calls.lock().unwrap(), vec!["missing"]);
+}

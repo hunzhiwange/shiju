@@ -155,7 +155,7 @@ struct ShijuManifest {
     version: String,
     published_at: String,
     release_url: String,
-    assets: Vec<ShijuAsset>,
+    assets: Vec<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
@@ -187,18 +187,27 @@ fn parse_desktop_release(
             {
                 bail!("Unsupported or invalid desktop manifest");
             }
-            for asset in &raw.assets {
+            // Inspect only the routing fields before decoding supported installers.
+            // Future package formats and targets must not break older clients.
+            let specs = installer_specs(&version);
+            let mut assets = Vec::new();
+            for value in raw.assets {
+                let supported = specs.iter().any(|(target, kind, _)| {
+                    value["target"].as_str() == Some(*target)
+                        && serde_json::to_value(kind).ok().as_ref() == Some(&value["kind"])
+                });
+                if !supported {
+                    continue;
+                }
+                let asset: ShijuAsset = serde_json::from_value(value)?;
                 if asset.github_url
                     != format!("{GITHUB_ROOT}/download/v{version}/{}", asset.installer.name)
                 {
                     bail!("Unexpected GitHub installer URL");
                 }
+                assets.push(asset.installer);
             }
-            DesktopRelease {
-                source,
-                version,
-                assets: raw.assets.into_iter().map(|a| a.installer).collect(),
-            }
+            DesktopRelease { source, version, assets }
         }
         UpdateSource::Github => {
             let raw: GithubManifest = serde_json::from_value(payload)?;

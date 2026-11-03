@@ -421,5 +421,20 @@ async fn desktop_release_consumes_generated_eight_installer_manifest() {
     }
     let mut invalid = payload["manifest"].clone();
     invalid["assets"][0]["kind"] = json!("zip");
-    assert!(parse_desktop_release(UpdateSource::Shiju, invalid).is_err());
+    assert_eq!(parse_desktop_release(UpdateSource::Shiju, invalid).unwrap().assets.len(), 7);
+}
+
+#[test]
+fn desktop_release_ignores_future_packages_and_targets() {
+    let (mut payload, _) = manifests();
+    let expected = parse_desktop_release(UpdateSource::Shiju, payload.clone()).unwrap();
+    for kind in ["dep", "appimage", "zip", "future-package"] {
+        payload["assets"].as_array_mut().unwrap().push(json!({
+            "kind": kind, "target": "x86_64-unknown-linux-gnu"
+        }));
+    }
+    payload["assets"].as_array_mut().unwrap().push(json!({
+        "kind": "rpm", "target": "future-platform"
+    }));
+    assert_eq!(parse_desktop_release(UpdateSource::Shiju, payload).unwrap(), expected);
 }

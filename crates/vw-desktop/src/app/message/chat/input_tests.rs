@@ -747,12 +747,17 @@ fn scroll_autoscroll_threshold_is_relaxed_during_hold_window() {
 #[test]
 fn manual_scroll_requires_tail_threshold_to_resume_autoscroll() {
     let (mut app, _) = crate::app::App::new();
+    app.chat =
+        (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
+    app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 40]);
+    app.chat_virtualizer.set_viewport_height(300.0);
     app.chat_auto_scroll = false;
+    let max_scroll = app.chat_virtualizer.max_scroll_top_px();
 
-    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.974, 0.0, 100.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.974, max_scroll * 0.974, 300.0);
     assert!(!app.chat_auto_scroll);
 
-    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.975, 0.0, 100.0);
+    let _ = super::input::apply_chat_scroll_changed(&mut app, 0.975, max_scroll * 0.975, 300.0);
     assert!(app.chat_auto_scroll);
 }
 
@@ -983,4 +988,40 @@ fn typing_during_request_does_not_clone_runtime_or_prepare_transcript_chunks() {
         app.session_runtime_states["typing"].pending_stream_delta,
         "生成中的长缓冲".repeat(10_000)
     );
+}
+
+#[test]
+fn upward_scroll_near_tail_cancels_stream_follow_and_pending_followups() {
+    for hold_until in [0, u64::MAX] {
+        let (mut app, _) = crate::app::App::new();
+        app.chat =
+            (0..40).map(|idx| chat_entry(ChatRole::Assistant, &format!("message {idx}"))).collect();
+        app.chat_virtualizer = ChatVirtualizer::from_estimated_heights(&[100.0; 40]);
+        app.chat_virtualizer.set_viewport_height(300.0);
+        app.chat_virtualizer.snap_to_tail();
+        app.chat_auto_scroll = true;
+        app.chat_autoscroll_hold_until_ms = hold_until;
+        let generation = app.chat_autoscroll_generation;
+        let max_scroll = app.chat_virtualizer.max_scroll_top_px();
+        let offset = max_scroll - 20.0;
+
+        let _ =
+            super::input::apply_chat_scroll_changed(&mut app, offset / max_scroll, offset, 300.0);
+
+        assert!(!app.chat_auto_scroll);
+        assert_ne!(app.chat_autoscroll_generation, generation);
+        assert!((app.chat_virtualizer.scroll_top_px() - offset).abs() < 0.01);
+        assert!(super::throttled_stream_autoscroll_task(&mut app).is_none());
+
+        // Repeated layout callbacks near the bottom must not undo the pause.
+        let _ =
+            super::input::apply_chat_scroll_changed(&mut app, offset / max_scroll, offset, 300.0);
+        assert!(!app.chat_auto_scroll);
+
+        // Scrolling down into the tolerance area resumes before reaching the end.
+        let offset = max_scroll - 10.0;
+        let _ =
+            super::input::apply_chat_scroll_changed(&mut app, offset / max_scroll, offset, 300.0);
+        assert!(app.chat_auto_scroll);
+    }
 }

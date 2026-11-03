@@ -83,6 +83,10 @@ pub(super) fn finished(
             }
             Task::none()
         }
-        Err(_) => app.show_warning_toast("识矩原生技能自动安装或登录同步失败，可在安装页重试"),
+        Err(_) => app.show_localized_toast(
+            crate::app::state::ToastKind::Warning,
+            "识矩原生技能自动安装或登录同步失败，可在安装页重试",
+            vec![],
+        ),
     }
 }

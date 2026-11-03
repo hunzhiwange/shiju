@@ -516,8 +516,11 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                         let mut rows = column![].spacing(4);
                         for tool_id in group_tools {
                             let selected = runtime.tool_selector.is_manual_tool_selected(&tool_id);
-                            let tool_label =
-                                format!("{} · {}", tool_display_name(&tool_id), tool_id);
+                            let tool_label = format!(
+                                "{} · {}",
+                                crate::app::i18n::other::tool_name(i18n, &tool_id),
+                                tool_id
+                            );
                             let check: Element<'_, Message> = if selected {
                                 icon_svg(Icon::Check)
                                     .width(Length::Fixed(14.0))

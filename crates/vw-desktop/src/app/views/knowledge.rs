@@ -87,7 +87,19 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let workspace = responsive(move |size| build_workspace(app, size));
 
     let mut content = column![].spacing(12).width(Length::Fill).height(Length::Fill);
-    if let Some(notification) = &app.knowledge.notification {
+    if let Some(raw) = &app.knowledge.notification {
+        let notification = app
+            .knowledge
+            .notification_feedback
+            .as_ref()
+            .map(|feedback| {
+                if feedback.as_str() == raw {
+                    feedback.render(crate::app::i18n::I18n::new(app.desktop_locale))
+                } else {
+                    raw.clone()
+                }
+            })
+            .unwrap_or_else(|| raw.clone());
         let banner = if app.knowledge.notification_is_error {
             settings_error_banner(notification)
         } else {

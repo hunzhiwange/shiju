@@ -7,6 +7,7 @@ use crate::app::Message;
 use crate::app::state::NativeStartupState;
 
 pub(crate) fn view<'a>(
+    i18n: crate::app::i18n::I18n,
     state: &'a NativeStartupState,
     animation_frame: usize,
     theme: &'a Theme,
@@ -14,10 +15,17 @@ pub(crate) fn view<'a>(
     let palette = theme.extended_palette();
     let (title, detail) = match state {
         NativeStartupState::Starting => (
-            format!("{} 正在启动工作环境", super::status_animation::spinner_frame(animation_frame)),
-            "服务就绪后将自动进入主界面",
+            crate::__!(
+                i18n,
+                "%s 正在启动工作环境",
+                super::status_animation::spinner_frame(animation_frame)
+            )
+            .expect("valid startup template"),
+            i18n.__("服务就绪后将自动进入主界面"),
         ),
-        NativeStartupState::Ready => ("本地服务已就绪".to_string(), "正在进入主界面"),
+        NativeStartupState::Ready => {
+            (i18n.__("本地服务已就绪").to_string(), i18n.__("正在进入主界面"))
+        }
     };
     let phase = animation_frame % 40;
     let progress = if phase < 20 { phase + 1 } else { 40 - phase } as f32 / 20.0;

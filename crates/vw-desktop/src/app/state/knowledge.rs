@@ -171,6 +171,7 @@ pub struct KnowledgeUiState {
     pub(crate) pending_batch_document_action:
         Option<vw_gateway_client::vw_api_types::knowledge::KnowledgeDocumentsBatchAction>,
     pub(crate) notification: Option<String>,
+    pub(crate) notification_feedback: Option<crate::app::i18n::workflow::Feedback>,
     pub(crate) notification_is_error: bool,
 }
 
@@ -246,6 +247,7 @@ impl Default for KnowledgeUiState {
             batch_updating_documents: false,
             pending_batch_document_action: None,
             notification: None,
+            notification_feedback: None,
             notification_is_error: false,
         }
     }

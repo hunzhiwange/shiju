@@ -44,6 +44,7 @@ impl App {
             {
                 return match self.main_window_view_kind() {
                     MainWindowViewKind::StartupTransition => components::startup_transition::view(
+                        crate::app::i18n::I18n::new(self.desktop_locale),
                         &self.startup_state,
                         self.status_animation_frame,
                         &self.app_theme,
@@ -174,7 +175,9 @@ impl App {
             let card =
                 container(
                     column![
-                        text("操作失败").size(20).color(Color::from_rgb(0.86, 0.2, 0.2)),
+                        text(crate::app::i18n::I18n::new(self.desktop_locale).__("操作失败"))
+                            .size(20)
+                            .color(Color::from_rgb(0.86, 0.2, 0.2)),
                         text(self.render_input_error(
                             crate::app::i18n::input::ErrorField::General,
                             error
@@ -183,14 +186,17 @@ impl App {
                         .width(Length::Fill),
                         row![
                             container(text("")).width(Length::Fill),
-                            button(text("知道了").size(14))
-                                .on_press(Message::CloseError)
-                                .padding([8, 12])
-                                .style(|theme, status| {
-                                    let mut style = button::primary(theme, status);
-                                    style.border.radius = 8.0.into();
-                                    style
-                                })
+                            button(
+                                text(crate::app::i18n::I18n::new(self.desktop_locale).__("知道了"))
+                                    .size(14)
+                            )
+                            .on_press(Message::CloseError)
+                            .padding([8, 12])
+                            .style(|theme, status| {
+                                let mut style = button::primary(theme, status);
+                                style.border.radius = 8.0.into();
+                                style
+                            })
                         ]
                         .align_y(iced::Alignment::Center)
                     ]

@@ -69,18 +69,21 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
                                     color: Some(palette.success.base.color),
                                 }
                             }),
-                            iced::widget::text(format!("LSP: {} (即将完成...)", key))
-                                .size(12)
-                                .style(move |theme: &iced::Theme| {
-                                    let palette = theme.extended_palette();
-                                    iced::widget::text::Style {
-                                        color: Some(if is_dark_theme(theme) {
-                                            palette.background.base.text.scale_alpha(0.84)
-                                        } else {
-                                            theme.palette().text.scale_alpha(0.74)
-                                        }),
-                                    }
-                                })
+                            iced::widget::text(crate::app::i18n::other::lsp_finishing(
+                                crate::app::i18n::I18n::new(app.desktop_locale),
+                                key
+                            ))
+                            .size(12)
+                            .style(move |theme: &iced::Theme| {
+                                let palette = theme.extended_palette();
+                                iced::widget::text::Style {
+                                    color: Some(if is_dark_theme(theme) {
+                                        palette.background.base.text.scale_alpha(0.84)
+                                    } else {
+                                        theme.palette().text.scale_alpha(0.74)
+                                    }),
+                                }
+                            })
                         ]
                         .spacing(5)
                         .align_y(iced::Alignment::Center)
@@ -184,7 +187,7 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
                 })
                 .into()
         } else {
-            iced::widget::text("就绪")
+            iced::widget::text(crate::app::i18n::I18n::new(app.desktop_locale).__("就绪"))
                 .size(12)
                 .style(move |theme: &iced::Theme| {
                     let palette = theme.extended_palette();
@@ -199,7 +202,7 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
                 .into()
         }
     } else {
-        iced::widget::text("就绪")
+        iced::widget::text(crate::app::i18n::I18n::new(app.desktop_locale).__("就绪"))
             .size(12)
             .style(move |theme: &iced::Theme| {
                 let palette = theme.extended_palette();

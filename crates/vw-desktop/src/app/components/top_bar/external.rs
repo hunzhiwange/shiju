@@ -128,18 +128,22 @@ pub(super) fn open_external_module(app: &App) -> Element<'_, Message> {
         external_app_logo_element(target, app.open_external_platform)
     };
 
-    let open_external_tip = "在外部应用打开项目";
+    let open_external_tip =
+        crate::app::i18n::I18n::new(app.desktop_locale).__("在外部应用打开项目");
     let can_open_external_preferred =
         app.project_path.is_some() && app.can_open_external(app.open_external_app);
     let open_external_primary: Element<'_, Message> = {
         let enabled = can_open_external_preferred;
         let text_alpha = if enabled { 1.0 } else { 0.35 };
         let logo = app_logo(app.open_external_app);
-        let label = text(external_app_label(app.open_external_app, app.open_external_platform))
-            .size(13)
-            .style(move |theme: &Theme| iced::widget::text::Style {
-                color: Some(theme.palette().text.scale_alpha(text_alpha)),
-            });
+        let label = text(
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__(external_app_label(app.open_external_app, app.open_external_platform)),
+        )
+        .size(13)
+        .style(move |theme: &Theme| iced::widget::text::Style {
+            color: Some(theme.palette().text.scale_alpha(text_alpha)),
+        });
         let content: Element<'_, Message> = row![
             container(logo).width(Length::Fixed(18.0)).height(Length::Fixed(18.0)),
             Space::new().width(6),
@@ -207,7 +211,7 @@ pub(super) fn open_external_module(app: &App) -> Element<'_, Message> {
 
     let open_external_menu_btn = icon_toggle_button_opt(
         Icon::ChevronDown,
-        "选择外部应用",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("选择外部应用"),
         TooltipPosition::Bottom,
         app.active_menu == Some(MenuType::OpenExternal),
         Some(Message::View(message::ViewMessage::ToggleMenu(Some(MenuType::OpenExternal)))),
@@ -218,7 +222,8 @@ pub(super) fn open_external_module(app: &App) -> Element<'_, Message> {
         let enabled = app.can_open_external(target);
         open_external_items.push(menu_item_icon_btn(
             app_logo(target),
-            external_app_label(target, app.open_external_platform),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__(external_app_label(target, app.open_external_platform)),
             (app.open_external_app == target).then_some("✓"),
             enabled
                 .then_some(Message::View(message::ViewMessage::OpenProjectInExternalWith(target))),
@@ -241,7 +246,7 @@ pub(super) fn open_external_module(app: &App) -> Element<'_, Message> {
     let can_copy_path = app.project_path.is_some();
     open_external_items.push(menu_item_icon_btn(
         icon_svg(Icon::Copy).into(),
-        "复制路径",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("复制路径"),
         None,
         can_copy_path.then_some(Message::View(message::ViewMessage::CopyProjectPath)),
     ));

@@ -108,7 +108,7 @@ use crate::app::components::chat_panel::{
 };
 use crate::app::components::input_panel::icons::acp_agent_icon;
 use crate::app::components::overlays::AboveOverlay;
-use crate::app::state::tool_display_name;
+
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, TodoPanelPlacement, message};
 use drop_area::DropArea;
@@ -452,8 +452,15 @@ pub(super) fn selected_context_summary(app: &App) -> Option<String> {
         return None;
     }
 
-    let tool_names =
-        selected_tools.iter().map(|tool_id| tool_display_name(tool_id)).collect::<Vec<_>>();
+    let tool_names = selected_tools
+        .iter()
+        .map(|tool_id| {
+            crate::app::i18n::other::tool_name(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                tool_id,
+            )
+        })
+        .collect::<Vec<_>>();
     let skill_names =
         selected_skills.iter().map(|skill_id| skill_title(app, skill_id)).collect::<Vec<_>>();
 

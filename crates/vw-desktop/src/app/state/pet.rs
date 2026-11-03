@@ -46,6 +46,7 @@ pub(crate) struct TaskPetItem {
     pub(crate) session_id: String,
     pub(crate) title: String,
     pub(crate) detail: String,
+    pub(crate) detail_feedback: Option<crate::app::i18n::input::Feedback>,
     pub(crate) project: Option<String>,
     pub(crate) status: TaskPetStatus,
     pub(crate) last_click_at: Option<web_time::Instant>,
@@ -63,6 +64,10 @@ impl TaskPetItem {
             request_id: request.id,
             session_id: request.session.clone(),
             title: snapshot.title,
+            detail_feedback: snapshot
+                .detail
+                .is_none()
+                .then(|| crate::app::i18n::input::Feedback::new("思考中...", vec![])),
             detail: snapshot.detail.unwrap_or_else(|| "思考中...".to_string()),
             project: task_pet_project_label(request.root.as_deref()),
             status: TaskPetStatus::Running,
@@ -216,6 +221,10 @@ impl App {
         for item in &mut self.task_pet_items {
             if item.status == TaskPetStatus::Running && !active_ids.contains(&item.request_id) {
                 item.status = TaskPetStatus::Completed;
+                if item.detail.trim().is_empty() {
+                    item.detail_feedback =
+                        Some(crate::app::i18n::input::Feedback::new("已完成", vec![]));
+                }
                 item.detail = if item.detail.trim().is_empty() {
                     "已完成".to_string()
                 } else {
@@ -239,6 +248,7 @@ impl App {
                 existing.title = snapshot.title;
                 existing.session_id = request.session.clone();
                 if let Some(detail) = snapshot.detail {
+                    existing.detail_feedback = None;
                     existing.detail = detail;
                 }
                 existing.project = task_pet_project_label(request.root.as_deref());

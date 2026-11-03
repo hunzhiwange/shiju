@@ -22,6 +22,7 @@ fn task_item(request_id: u64, status: TaskPetStatus) -> TaskPetItem {
         session_id: format!("session-{request_id}"),
         title: "正在处理一个较长的任务标题用于截断".to_string(),
         detail: "正在读取文件并整理上下文，稍后继续执行".to_string(),
+        detail_feedback: None,
         project: Some("vibe-window".to_string()),
         status,
         last_click_at: None,
@@ -138,15 +139,23 @@ fn task_card_builds_running_completed_hovered_and_replying_states() {
 #[test]
 fn leaf_widgets_and_status_icons_build() {
     keep_element(robot_pet_sprite(&test_app(), PET_COLLAPSED_SIZE));
-    keep_element(task_pet_context_menu());
+    keep_element(task_pet_context_menu(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::English,
+    )));
     keep_element(human_pet_sprite(PET_BEAUTY_HANDLE.clone(), PET_COLLAPSED_SIZE, 4.0));
     keep_element(code_effect(7));
     keep_element(avatar_cycle_button());
     keep_element(badge_button(12));
     keep_element(expand_collapse_button(true));
     keep_element(expand_collapse_button(false));
-    keep_element(reply_button(1));
-    keep_element(reply_input("hello"));
+    keep_element(reply_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        1,
+    ));
+    keep_element(reply_input(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        "hello",
+    ));
     keep_element(centered_button_label("发送", 12));
     keep_element(task_detail_line("detail"));
     keep_element(completed_status_icon());

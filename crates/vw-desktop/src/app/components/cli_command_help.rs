@@ -77,7 +77,11 @@ const SERVICE_COMMANDS: &[(&str, &str)] = &[
     ("shiju service uninstall", "卸载系统服务"),
 ];
 
-pub(crate) fn view(tab: CliCommandsTab, copied_hash: Option<u64>) -> Element<'static, Message> {
+pub(crate) fn view(
+    i18n: crate::app::i18n::I18n,
+    tab: CliCommandsTab,
+    copied_hash: Option<u64>,
+) -> Element<'static, Message> {
     let mut tabs = row![].spacing(6);
     for (value, label) in [
         (CliCommandsTab::Common, "常用命令"),
@@ -85,7 +89,7 @@ pub(crate) fn view(tab: CliCommandsTab, copied_hash: Option<u64>) -> Element<'st
         (CliCommandsTab::All, "全部命令"),
     ] {
         tabs = tabs.push(
-            button(label)
+            button(i18n.__(label))
                 .on_press(Message::View(ViewMessage::CliCommandsTabSelected(value)))
                 .padding([7, 12])
                 .style(move |theme, status| {
@@ -100,9 +104,11 @@ pub(crate) fn view(tab: CliCommandsTab, copied_hash: Option<u64>) -> Element<'st
     };
     let mut content = column![
         tabs,
-        text("在终端运行；点击标签页切换。全部命令页提供各入口的帮助，可继续查看子命令与参数。")
-            .size(12)
-            .style(settings_muted_text_style),
+        text(i18n.__(
+            "在终端运行；点击标签页切换。全部命令页提供各入口的帮助，可继续查看子命令与参数。"
+        ))
+        .size(12)
+        .style(settings_muted_text_style),
     ]
     .spacing(10);
     for &(command, description) in commands {
@@ -111,11 +117,11 @@ pub(crate) fn view(tab: CliCommandsTab, copied_hash: Option<u64>) -> Element<'st
             row![
                 column![
                     text(command).size(13),
-                    text(description).size(12).style(settings_muted_text_style),
+                    text(i18n.__(description)).size(12).style(settings_muted_text_style),
                 ]
                 .spacing(3)
                 .width(Length::Fill),
-                button(if copied { "已复制" } else { "复制" })
+                button(i18n.__(if copied { "已复制" } else { "复制" }))
                     .on_press(Message::CopyCode(command.to_owned()))
                     .padding([7, 12])
                     .style(rounded_action_btn_style),

@@ -39,7 +39,9 @@ fn assert_work_project_toolbar_shape(element: &Element<'_, Message>) {
 
 #[test]
 fn settings_button_builds_compact_tooltip_control() {
-    let element = controls::settings_button();
+    let element = controls::settings_button(crate::app::i18n::I18n::new(
+        vw_config_types::ui::DesktopLocale::English,
+    ));
 
     assert_eq!(element.as_widget().size(), Size::new(Length::Shrink, Length::Fixed(24.0)));
     assert_eq!(element.as_widget().children().len(), 2);

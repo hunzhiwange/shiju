@@ -39,18 +39,21 @@ impl MenuEntry {
         }
     }
 
-    fn into_element(self) -> Element<'static, Message> {
+    fn into_element(self, i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
         match self {
             Self::Item { label, shortcut, message, .. } => {
-                menu_item_btn(label, shortcut, Some(*message))
+                menu_item_btn(i18n.__(label), shortcut, Some(*message))
             }
             Self::Separator => menu_separator(),
         }
     }
 }
 
-fn menu_entries(entries: Vec<MenuEntry>) -> Element<'static, Message> {
-    Column::with_children(entries.into_iter().map(MenuEntry::into_element)).into()
+fn menu_entries(
+    i18n: crate::app::i18n::I18n,
+    entries: Vec<MenuEntry>,
+) -> Element<'static, Message> {
+    Column::with_children(entries.into_iter().map(|entry| entry.into_element(i18n))).into()
 }
 
 pub(crate) fn file_menu_entries(is_project: bool) -> Vec<MenuEntry> {
@@ -289,9 +292,16 @@ pub(crate) fn help_menu_entries() -> Vec<MenuEntry> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn file_menu(app: &App) -> Element<'_, Message> {
     let is_project = matches!(app.screen, Screen::Project);
-    let file_btn = menu_btn("文件", MenuType::File, app.active_menu);
+    let file_btn = menu_btn(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("文件"),
+        MenuType::File,
+        app.active_menu,
+    );
 
-    let file_content = menu_container(menu_entries(file_menu_entries(is_project)));
+    let file_content = menu_container(menu_entries(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        file_menu_entries(is_project),
+    ));
 
     BelowOverlay::new(file_btn, file_content)
         .show(app.active_menu == Some(MenuType::File))
@@ -314,9 +324,16 @@ pub(super) fn file_menu(app: &App) -> Element<'_, Message> {
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn edit_menu(app: &App) -> Element<'_, Message> {
     let is_project = matches!(app.screen, Screen::Project);
-    let edit_btn = menu_btn("编辑", MenuType::Edit, app.active_menu);
+    let edit_btn = menu_btn(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("编辑"),
+        MenuType::Edit,
+        app.active_menu,
+    );
 
-    let edit_content = menu_container(menu_entries(edit_menu_entries(is_project)));
+    let edit_content = menu_container(menu_entries(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        edit_menu_entries(is_project),
+    ));
 
     BelowOverlay::new(edit_btn, edit_content)
         .show(app.active_menu == Some(MenuType::Edit))
@@ -338,12 +355,15 @@ pub(super) fn edit_menu(app: &App) -> Element<'_, Message> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn view_menu(app: &App) -> Element<'_, Message> {
-    let view_btn = menu_btn("视图", MenuType::View, app.active_menu);
-    let view_content = menu_container(menu_entries(view_menu_entries(
-        app.workspace_mode,
-        app.show_file_manager,
-        app.file_manager_show_changes,
-    )));
+    let view_btn = menu_btn(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("视图"),
+        MenuType::View,
+        app.active_menu,
+    );
+    let view_content = menu_container(menu_entries(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        view_menu_entries(app.workspace_mode, app.show_file_manager, app.file_manager_show_changes),
+    ));
 
     BelowOverlay::new(view_btn, view_content)
         .show(app.active_menu == Some(MenuType::View))
@@ -365,7 +385,11 @@ pub(super) fn view_menu(app: &App) -> Element<'_, Message> {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub(super) fn help_menu(app: &App) -> Element<'_, Message> {
-    let help_btn = menu_btn("帮助", MenuType::Help, app.active_menu);
+    let help_btn = menu_btn(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("帮助"),
+        MenuType::Help,
+        app.active_menu,
+    );
     let help_btn = if let Some(release) = app.desktop_update.notification_release() {
         use iced::widget::{Space, container, row, text, tooltip};
         let dot = container(Space::new().width(6).height(6)).style(|theme: &iced::Theme| {
@@ -375,7 +399,13 @@ pub(super) fn help_menu(app: &App) -> Element<'_, Message> {
                 ..Default::default()
             }
         });
-        let hint = format!("当前版本 {}，可升级至 {}", env!("CARGO_PKG_VERSION"), release.version);
+        let hint = crate::__!(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            "当前版本 %s，可升级至 %s",
+            env!("CARGO_PKG_VERSION"),
+            release.version.as_str()
+        )
+        .expect("valid update hint");
         tooltip(
             row![help_btn, dot].spacing(2).align_y(iced::Alignment::Center),
             container(text(hint).size(12))
@@ -387,7 +417,10 @@ pub(super) fn help_menu(app: &App) -> Element<'_, Message> {
     } else {
         help_btn
     };
-    let help_content = menu_container(menu_entries(help_menu_entries()));
+    let help_content = menu_container(menu_entries(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        help_menu_entries(),
+    ));
 
     BelowOverlay::new(help_btn, help_content)
         .show(app.active_menu == Some(MenuType::Help))

@@ -253,7 +253,13 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
         AccountMessage::RepositoryLoaded(result) => {
             match result {
                 Ok(repository) => app.account.replace_repository(repository),
-                Err(error) => return app.show_error_toast(format!("账户配置加载失败：{error}")),
+                Err(error) => {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "账户配置加载失败：%s",
+                        vec![error.to_string().into()],
+                    );
+                }
             }
             let reload = crate::app::message::skill_hub::account_changed(app);
             let models = super::settings::providers::managed_shiju::sync(app);
@@ -285,7 +291,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             let Some(skey) =
                 app.account.active_account().map(|account| account.skill_hub_credential())
             else {
-                return app.show_warning_toast("当前没有可更新的账户");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "当前没有可更新的账户",
+                    vec![],
+                );
             };
             app.account.cancel_password_editor();
             let generation = app.account.begin_profile_editor(AccountProfileEditorState::Loading);
@@ -309,12 +319,20 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                         let message = error.to_string();
                         app.account.profile_editor =
                             AccountProfileEditorState::Failed(message.clone());
-                        app.show_error_toast(format!("账户资料加载失败：{message}"))
+                        app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "账户资料加载失败：%s",
+                            vec![message.to_string().into()],
+                        )
                     }
                 },
                 Err(error) => {
                     app.account.profile_editor = AccountProfileEditorState::Failed(error.clone());
-                    app.show_error_toast(format!("账户资料加载失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "账户资料加载失败：%s",
+                        vec![error.to_string().into()],
+                    )
                 }
             }
         }
@@ -344,7 +362,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             let Some(skey) =
                 app.account.active_account().map(|account| account.skill_hub_credential())
             else {
-                return app.show_warning_toast("当前没有可更新的账户");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "当前没有可更新的账户",
+                    vec![],
+                );
             };
             let generation =
                 app.account.begin_profile_editor(AccountProfileEditorState::Saving(draft));
@@ -360,13 +382,21 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                     let mut repository = app.account.repository().clone();
                     if let Err(error) = repository.refresh_active_profile(profile) {
                         app.account.profile_editor = AccountProfileEditorState::Editing(draft);
-                        return app.show_error_toast(format!("账户资料更新失败：{error}"));
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "账户资料更新失败：%s",
+                            vec![error.to_string().into()],
+                        );
                     }
                     profile_persist_task(repository, generation)
                 }
                 Err(error) => {
                     app.account.profile_editor = AccountProfileEditorState::Editing(draft);
-                    app.show_error_toast(format!("账户资料更新失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "账户资料更新失败：%s",
+                        vec![error.to_string().into()],
+                    )
                 }
             }
         }
@@ -384,17 +414,29 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                         .unwrap_or(fallback);
                     app.account.replace_repository(repository);
                     app.account.profile_editor = AccountProfileEditorState::Editing(draft);
-                    app.show_success_toast("账户资料已更新")
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "账户资料已更新",
+                        vec![],
+                    )
                 }
                 Err(error) => {
                     app.account.profile_editor = AccountProfileEditorState::Editing(fallback);
-                    app.show_error_toast(format!("账户资料保存失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "账户资料保存失败：%s",
+                        vec![error.to_string().into()],
+                    )
                 }
             }
         }
         AccountMessage::OpenPasswordEditor => {
             if app.account.active_account().is_none() {
-                return app.show_warning_toast("当前没有可更新的账户");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "当前没有可更新的账户",
+                    vec![],
+                );
             }
             app.account.cancel_profile_editor();
             app.account.begin_password_editor(AccountPasswordEditorState::Editing(
@@ -435,7 +477,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             let Some(skey) =
                 app.account.active_account().map(|account| account.skill_hub_credential())
             else {
-                return app.show_warning_toast("当前没有可更新的账户");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "当前没有可更新的账户",
+                    vec![],
+                );
             };
             let generation =
                 app.account.begin_password_editor(AccountPasswordEditorState::Saving(draft));
@@ -449,7 +495,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             match result {
                 Ok(()) => {
                     app.account.cancel_password_editor();
-                    app.show_success_toast("密码已修改")
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "密码已修改",
+                        vec![],
+                    )
                 }
                 Err(error) => {
                     app.account.password_editor =
@@ -485,7 +535,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 return Task::none();
             }
             app.account.cancel();
-            app.show_info_toast("已取消等待授权")
+            app.show_localized_toast(crate::app::state::ToastKind::Info, "已取消等待授权", vec![])
         }
         AccountMessage::LoginStarted { generation, result } => {
             if !app.account.is_current(generation) {
@@ -495,7 +545,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 Ok(challenge) => {
                     if open::that(challenge.authorization_url().as_str()).is_err() {
                         app.account.finish();
-                        return app.show_error_toast("无法打开登录授权页面");
+                        return app.show_localized_toast(
+                            crate::app::state::ToastKind::Error,
+                            "无法打开登录授权页面",
+                            vec![],
+                        );
                     }
                     let interval = challenge.poll_interval();
                     app.account.operation = AccountOperation::WaitingAuthorization {
@@ -515,7 +569,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 }
                 Err(error) => {
                     app.account.finish();
-                    app.show_error_toast(format!("登录失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "登录失败：%s",
+                        vec![error.to_string().into()],
+                    )
                 }
             }
         }
@@ -530,7 +588,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             };
             if started_at.elapsed() >= LOGIN_TIMEOUT {
                 app.account.cancel();
-                return app.show_warning_toast("登录授权已超时，已取消等待");
+                return app.show_localized_toast(
+                    crate::app::state::ToastKind::Warning,
+                    "登录授权已超时，已取消等待",
+                    vec![],
+                );
             }
             poll_task(generation, challenge.state().to_string())
         }
@@ -541,7 +603,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 return Task::none();
             }
             app.account.cancel();
-            app.show_warning_toast("登录授权已超时，已取消等待")
+            app.show_localized_toast(
+                crate::app::state::ToastKind::Warning,
+                "登录授权已超时，已取消等待",
+                vec![],
+            )
         }
         AccountMessage::LoginPolled { generation, result } => {
             if !app.account.is_current(generation) {
@@ -562,12 +628,20 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 Ok(LoginPoll::Approved(skey)) => {
                     app.account.operation = AccountOperation::Validating;
                     let validation = validate_task(skey, generation, AccountOrigin::BrowserLogin);
-                    let feedback = app.show_info_toast("授权成功，正在加载账户信息");
+                    let feedback = app.show_localized_toast(
+                        crate::app::state::ToastKind::Info,
+                        "授权成功，正在加载账户信息",
+                        vec![],
+                    );
                     Task::batch([validation, feedback])
                 }
                 Err(error) => {
                     app.account.finish();
-                    app.show_error_toast(format!("登录失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "登录失败：%s",
+                        vec![error.to_string().into()],
+                    )
                 }
             }
         }
@@ -588,7 +662,11 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 }
                 Err(error) => {
                     app.account.finish();
-                    app.show_error_toast(format!("账户校验失败：{error}"))
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "账户校验失败：%s",
+                        vec![error.to_string().into()],
+                    )
                 }
             }
         }
@@ -643,20 +721,42 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                         app.account.details_open = false;
                     }
                     let feedback = match notice {
-                        AccountNotice::ManualLogin => app.show_success_toast("账户已登录"),
-                        AccountNotice::BrowserLogin => {
-                            app.show_success_toast("登录成功，请手动关闭授权页面")
-                        }
-                        AccountNotice::Switch => app.show_success_toast("账户已切换"),
-                        AccountNotice::SignOut => app.show_success_toast("已退出登录"),
-                        AccountNotice::Delete => app.show_success_toast("账户已删除"),
+                        AccountNotice::ManualLogin => app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "账户已登录",
+                            vec![],
+                        ),
+                        AccountNotice::BrowserLogin => app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "登录成功，请手动关闭授权页面",
+                            vec![],
+                        ),
+                        AccountNotice::Switch => app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "账户已切换",
+                            vec![],
+                        ),
+                        AccountNotice::SignOut => app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "已退出登录",
+                            vec![],
+                        ),
+                        AccountNotice::Delete => app.show_localized_toast(
+                            crate::app::state::ToastKind::Success,
+                            "账户已删除",
+                            vec![],
+                        ),
                     };
                     let reload = crate::app::message::skill_hub::account_changed(app);
                     let sync = shiju_key_sync_task(app, notice);
                     let models = super::settings::providers::managed_shiju::sync(app);
                     Task::batch([feedback, reload, sync, models])
                 }
-                Err(error) => app.show_error_toast(format!("账户配置保存失败：{error}")),
+                Err(error) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "账户配置保存失败：%s",
+                    vec![error.to_string().into()],
+                ),
             }
         }
         AccountMessage::NativeShijuSkillPrepared { generation, revision, result } => {

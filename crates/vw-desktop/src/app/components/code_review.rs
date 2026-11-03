@@ -49,14 +49,14 @@ pub(super) fn build_code_review_view_from_diff(
     files: Vec<String>,
     patches: std::collections::HashMap<String, String>,
 ) -> Element<'_, Message> {
-    let refresh =
-        button(text("刷新")).on_press(Message::Git(message::GitMessage::RefreshGitPanelData));
+    let refresh = button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("刷新")))
+        .on_press(Message::Git(message::GitMessage::RefreshGitPanelData));
 
     let header = row![text("Git Diff"), refresh].spacing(10);
 
     let mut list = column![header].spacing(10);
     if files.is_empty() {
-        list = list.push(text("无变更"));
+        list = list.push(text(crate::app::i18n::I18n::new(app.desktop_locale).__("无变更")));
         return scrollable(container(list).width(Length::Fill)).into();
     }
 

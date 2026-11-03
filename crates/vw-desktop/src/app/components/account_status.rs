@@ -21,7 +21,7 @@ fn install_guide_message() -> Message {
 /// 返回账号入口当前应展示的操作状态或登录人及公司。
 pub(crate) fn trigger_label(app: &App) -> String {
     if let Some(label) = app.account.operation.label() {
-        return label.to_string();
+        return crate::app::i18n::I18n::new(app.desktop_locale).__(label).to_string();
     }
     app.account
         .active_account()
@@ -32,7 +32,9 @@ pub(crate) fn trigger_label(app: &App) -> String {
                 None => company.to_string(),
             }
         })
-        .unwrap_or_else(|| "登录账号".to_string())
+        .unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("登录账号").to_string()
+        })
 }
 
 fn account_label(app: &App, index: usize) -> String {
@@ -50,7 +52,13 @@ fn account_label(app: &App, index: usize) -> String {
         company_name.to_string()
     } else {
         let position = matching.iter().position(|candidate| *candidate == index).unwrap_or(0) + 1;
-        format!("{company_name} · 账户 {position}")
+        crate::__!(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            "%s · 账户 %u",
+            company_name,
+            position
+        )
+        .expect("valid account label")
     }
 }
 
@@ -206,9 +214,13 @@ fn menu(app: &App) -> Element<'_, Message> {
     let mut account_rows = column![].spacing(3).width(Length::Fill);
     if app.account.accounts().is_empty() {
         account_rows = account_rows.push(
-            container(text("暂无本地账户").size(12).style(|theme: &Theme| {
-                iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.58)) }
-            }))
+            container(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无本地账户"))
+                    .size(12)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        color: Some(theme.palette().text.scale_alpha(0.58)),
+                    }),
+            )
             .padding([8, 10]),
         );
     } else {
@@ -231,7 +243,9 @@ fn menu(app: &App) -> Element<'_, Message> {
                 )));
             }
             let mut delete =
-                button(text("删除").size(12)).padding([8, 10]).style(delete_account_button_style);
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")).size(12))
+                    .padding([8, 10])
+                    .style(delete_account_button_style);
             if !busy {
                 delete = delete.on_press(account_message(AccountMessage::DeleteSaved(
                     account.id().to_string(),
@@ -247,18 +261,24 @@ fn menu(app: &App) -> Element<'_, Message> {
         scrollable(account_rows).height(Length::Fixed(148.0)).direction(Direction::Vertical(
             Scrollbar::new().width(ACCOUNT_SCROLLBAR_WIDTH).scroller_width(ACCOUNT_SCROLLBAR_WIDTH),
         ));
-    let input = text_input("手工输入 skey", app.account.manual_input.expose())
-        .secure(true)
-        .on_input(|value| {
-            account_message(AccountMessage::ManualInputChanged(
-                crate::app::account::ManualSkeyInput::new(value),
-            ))
-        })
-        .on_submit(account_message(AccountMessage::SubmitManual))
-        .padding([7, 9])
-        .size(12)
-        .style(login_input_style);
-    let mut confirm = button(text("确认").size(12)).padding([7, 12]).style(login_button_style);
+    let input = text_input(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("手工输入 skey"),
+        app.account.manual_input.expose(),
+    )
+    .secure(true)
+    .on_input(|value| {
+        account_message(AccountMessage::ManualInputChanged(
+            crate::app::account::ManualSkeyInput::new(value),
+        ))
+    })
+    .on_submit(account_message(AccountMessage::SubmitManual))
+    .padding([7, 9])
+    .size(12)
+    .style(login_input_style);
+    let mut confirm =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确认")).size(12))
+            .padding([7, 12])
+            .style(login_button_style);
     if !busy && !app.account.manual_input.expose().trim().is_empty() {
         confirm = confirm.on_press(account_message(AccountMessage::SubmitManual));
     }
@@ -267,11 +287,11 @@ fn menu(app: &App) -> Element<'_, Message> {
         crate::app::state::AccountOperation::WaitingAuthorization { .. }
     );
     let browser_label = if waiting_for_authorization {
-        "取消等待"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("取消等待")
     } else if app.account.active_account().is_some() {
-        "切换账号登录"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("切换账号登录")
     } else {
-        "登录"
+        crate::app::i18n::I18n::new(app.desktop_locale).__("登录")
     };
     let mut browser = button(text(browser_label).size(13))
         .width(Length::Fill)
@@ -284,7 +304,12 @@ fn menu(app: &App) -> Element<'_, Message> {
     }
 
     let mut content = column![
-        text(if active_id.is_some() { "账户" } else { "登录账户系统" }).size(14),
+        text(if active_id.is_some() {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("账户")
+        } else {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("登录账户系统")
+        })
+        .size(14),
         accounts,
         row![input, confirm].spacing(6).align_y(iced::Alignment::Center),
         browser,
@@ -292,21 +317,25 @@ fn menu(app: &App) -> Element<'_, Message> {
     .spacing(8)
     .width(Length::Fill);
     if active_id.is_some() {
-        let mut details = button(text("账户信息").size(13))
-            .width(Length::Fill)
-            .padding([9, 10])
-            .style(login_button_style);
+        let mut details =
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("账户信息")).size(13))
+                .width(Length::Fill)
+                .padding([9, 10])
+                .style(login_button_style);
         if !busy {
             details = details.on_press(account_message(AccountMessage::OpenDetails));
         }
-        let mut sign_out = button(text("退出登录").size(13))
-            .width(Length::Fill)
-            .padding([9, 10])
-            .style(login_button_style);
-        let mut install_guide = button(text("安装识矩技能").size(13))
-            .width(Length::Fill)
-            .padding([9, 10])
-            .style(login_button_style);
+        let mut sign_out =
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("退出登录")).size(13))
+                .width(Length::Fill)
+                .padding([9, 10])
+                .style(login_button_style);
+        let mut install_guide = button(
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩技能")).size(13),
+        )
+        .width(Length::Fill)
+        .padding([9, 10])
+        .style(login_button_style);
         if !busy {
             install_guide = install_guide.on_press(install_guide_message());
             sign_out = sign_out.on_press(account_message(AccountMessage::SignOut));

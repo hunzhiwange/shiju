@@ -46,7 +46,11 @@ fn active_gateway_healthy(app: &App) -> bool {
         .is_some_and(|server| gateway_server_healthy(app, server))
 }
 
-fn gateway_services_button(active: bool, usable: bool) -> Element<'static, Message> {
+fn gateway_services_button(
+    i18n: crate::app::i18n::I18n,
+    active: bool,
+    usable: bool,
+) -> Element<'static, Message> {
     let gateway_icon = container(icon_svg(Icon::HddNetwork).style(|theme: &Theme, _status| {
         svg::Style { color: Some(theme.palette().text.scale_alpha(0.88)) }
     }))
@@ -92,19 +96,20 @@ fn gateway_services_button(active: bool, usable: bool) -> Element<'static, Messa
         }
     });
 
-    let tip_content = container(text("网关服务")).padding([6, 10]).style(|theme: &Theme| {
-        iced::widget::container::Style {
-            text_color: Some(theme.palette().text),
-            background: Some(iced::Background::Color(theme.palette().background)),
-            border: iced::Border {
-                width: 1.0,
-                color: theme.extended_palette().background.strong.color,
-                radius: 8.0.into(),
-            },
-            shadow: iced::Shadow::default(),
-            snap: false,
-        }
-    });
+    let tip_content =
+        container(text(i18n.__("网关服务"))).padding([6, 10]).style(|theme: &Theme| {
+            iced::widget::container::Style {
+                text_color: Some(theme.palette().text),
+                background: Some(iced::Background::Color(theme.palette().background)),
+                border: iced::Border {
+                    width: 1.0,
+                    color: theme.extended_palette().background.strong.color,
+                    radius: 8.0.into(),
+                },
+                shadow: iced::Shadow::default(),
+                snap: false,
+            }
+        });
 
     Tooltip::new(btn, tip_content, TooltipPosition::Bottom).gap(10).into()
 }
@@ -341,16 +346,31 @@ fn mcp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     let mut rows: Vec<Element<'_, Message>> = Vec::new();
 
     if app.mcp_settings.loading {
-        rows.push(gateway_row(status_dot(false), "MCP 配置加载中".to_string(), Some("..."), None));
+        rows.push(gateway_row(
+            status_dot(false),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("MCP 配置加载中").to_string(),
+            Some("..."),
+            None,
+        ));
     }
     if app.mcp_settings.saving {
-        rows.push(gateway_row(status_dot(true), "MCP 配置保存中".to_string(), Some("..."), None));
+        rows.push(gateway_row(
+            status_dot(true),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("MCP 配置保存中").to_string(),
+            Some("..."),
+            None,
+        ));
     }
 
     if let Some(error) = &app.mcp_settings.save_error {
         rows.push(gateway_row(
             status_dot(false),
-            format!("MCP 配置错误: {}", compact_gateway_label(error, 34)),
+            crate::__!(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                "MCP 配置错误: %s",
+                compact_gateway_label(error, 34)
+            )
+            .expect("valid MCP error label"),
             Some("!"),
             None,
         ));
@@ -359,9 +379,9 @@ fn mcp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
             Ok(summaries) => {
                 for server in &summaries {
                     let mark = if !server.enabled {
-                        Some("禁用")
+                        Some(crate::app::i18n::I18n::new(app.desktop_locale).__("禁用"))
                     } else if server.required {
-                        Some("必需")
+                        Some(crate::app::i18n::I18n::new(app.desktop_locale).__("必需"))
                     } else {
                         None
                     };
@@ -380,7 +400,9 @@ fn mcp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
                 if summaries.is_empty() && !app.mcp_settings.loading && !app.mcp_settings.saving {
                     rows.push(gateway_row(
                         status_dot(false),
-                        "暂无 MCP 服务器".to_string(),
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("暂无 MCP 服务器")
+                            .to_string(),
                         None,
                         None,
                     ));
@@ -401,10 +423,14 @@ fn mcp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
 
     let refresh_message = (!app.mcp_settings.loading && !app.mcp_settings.saving)
         .then(|| Message::Settings(SettingsMessage::Mcp(McpMessage::Refresh)));
-    let refresh_label = if app.mcp_settings.loading { "刷新中..." } else { "刷新 MCP 配置" };
+    let refresh_label = if app.mcp_settings.loading {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("刷新中...")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("刷新 MCP 配置")
+    };
     rows.push(gateway_menu_item_btn_keep_open(refresh_label, refresh_message));
     rows.push(menu_item_btn(
-        "管理 MCP 配置",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("管理 MCP 配置"),
         None,
         Some(Message::Batch(vec![
             Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::Agents)),
@@ -421,14 +447,23 @@ fn plugin_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     let mut rows: Vec<Element<'_, Message>> = Vec::new();
 
     if app.skills_settings.plugin_loading && app.skills_settings.plugin_catalog.is_empty() {
-        rows.push(gateway_row(status_dot(false), "插件列表加载中".to_string(), Some("…"), None));
+        rows.push(gateway_row(
+            status_dot(false),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("插件列表加载中").to_string(),
+            Some("…"),
+            None,
+        ));
     }
 
     for plugin in &app.skills_settings.plugin_catalog {
         rows.push(gateway_row_keep_open(
             status_dot(plugin.enabled),
             format!("{}  v{}", plugin.display_name, plugin.version),
-            Some(if plugin.enabled { "禁用" } else { "启用" }),
+            Some(if plugin.enabled {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("禁用")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("启用")
+            }),
             Some(Message::Settings(SettingsMessage::PluginsSetEnabledRequested {
                 plugin_id: plugin.id.clone(),
                 enabled: !plugin.enabled,
@@ -437,14 +472,23 @@ fn plugin_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     }
 
     if app.skills_settings.plugin_catalog.is_empty() && !app.skills_settings.plugin_loading {
-        rows.push(gateway_row(status_dot(false), "暂无已安装插件".to_string(), None, None));
+        rows.push(gateway_row(
+            status_dot(false),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("暂无已安装插件").to_string(),
+            None,
+            None,
+        ));
     }
 
     rows.push(gateway_menu_item_btn_keep_open(
-        "刷新插件状态",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("刷新插件状态"),
         Some(Message::Settings(SettingsMessage::PluginsRefresh)),
     ));
-    rows.push(menu_item_btn("管理插件", None, Some(manage_plugins_message())));
+    rows.push(menu_item_btn(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("管理插件"),
+        None,
+        Some(manage_plugins_message()),
+    ));
     rows
 }
 
@@ -473,12 +517,12 @@ fn gateway_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     }
 
     rows.push(menu_item_btn(
-        "管理客户端网关",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("管理客户端网关"),
         None,
         Some(Message::View(message::ViewMessage::OpenSystemSettingsTab(SystemTab::GatewayClient))),
     ));
     rows.push(menu_item_btn(
-        "新增网关服务",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("新增网关服务"),
         None,
         Some(Message::Batch(vec![
             Message::Settings(SettingsMessage::GatewayClient(GatewayClientMessage::AddServer)),
@@ -501,7 +545,12 @@ fn lsp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
 
     let mut rows = Vec::new();
     if app.lsp_disabled {
-        rows.push(gateway_row(status_dot(false), "LSP 已禁用".to_string(), None, None));
+        rows.push(gateway_row(
+            status_dot(false),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 已禁用").to_string(),
+            None,
+            None,
+        ));
         return rows;
     }
 
@@ -521,7 +570,14 @@ fn lsp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
                     .unwrap_or_default();
                 format!("LSP  {}{}{}", progress.title, percent, message)
             })
-            .unwrap_or_else(|| format!("LSP  {server_key} 就绪"));
+            .unwrap_or_else(|| {
+                crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "LSP  %s 就绪",
+                    server_key.as_str()
+                )
+                .expect("valid LSP label")
+            });
         rows.push(gateway_row(status_dot(true), detail, working.then_some("…"), None));
     }
 
@@ -540,27 +596,31 @@ fn lsp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
 fn lsp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     let connected = active_gateway_healthy(app);
     let status = if connected {
-        "LSP 由网关提供".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 由网关提供").to_string()
     } else {
-        "LSP 等待网关连接".to_string()
+        crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 等待网关连接").to_string()
     };
     vec![gateway_row(status_dot(connected), status, None, None)]
 }
 
 pub(super) fn gateway_services_module(app: &App) -> Element<'_, Message> {
     let active = app.active_menu == Some(MenuType::GatewayServices);
-    let button = gateway_services_button(active, active_gateway_healthy(app));
+    let button = gateway_services_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        active,
+        active_gateway_healthy(app),
+    );
 
     let tabs = row![
         tab_label(
-            "网关",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("网关"),
             TopBarGatewayTab::Gateway,
             app.top_bar_gateway_tab == TopBarGatewayTab::Gateway
         ),
         tab_label("MCP", TopBarGatewayTab::Mcp, app.top_bar_gateway_tab == TopBarGatewayTab::Mcp),
         tab_label("LSP", TopBarGatewayTab::Lsp, app.top_bar_gateway_tab == TopBarGatewayTab::Lsp),
         tab_label(
-            "插件",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("插件"),
             TopBarGatewayTab::Plugins,
             app.top_bar_gateway_tab == TopBarGatewayTab::Plugins
         ),

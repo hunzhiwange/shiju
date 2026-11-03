@@ -463,7 +463,11 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
                     app.knowledge.datasets.insert(0, dataset);
                     app.knowledge.sync_retrieve_defaults_from_selected_dataset();
                     Task::batch([
-                        set_success(app, "知识库已创建"),
+                        set_feedback(
+                            app,
+                            false,
+                            crate::app::i18n::workflow::Feedback::new("知识库已创建", vec![]),
+                        ),
                         load_datasets_task(),
                         load_status_task(),
                     ])
@@ -492,7 +496,14 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
         }
         KnowledgeToolMessage::CopyDatasetId(dataset_id) => {
             app.knowledge.close_dataset_menu();
-            Task::batch([iced::clipboard::write(dataset_id), set_success(app, "知识库 ID 已复制")])
+            Task::batch([
+                iced::clipboard::write(dataset_id),
+                set_feedback(
+                    app,
+                    false,
+                    crate::app::i18n::workflow::Feedback::new("知识库 ID 已复制", vec![]),
+                ),
+            ])
         }
         KnowledgeToolMessage::OpenDeleteDocumentConfirm(document_id) => {
             app.knowledge.pending_delete_dataset_id = None;
@@ -520,7 +531,11 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
                     app.knowledge.selected_chunk_id = None;
                     app.knowledge.clear_document_selection();
                     app.knowledge.close_document_rename_modal();
-                    let toast = set_success(app, "知识库已删除");
+                    let toast = set_feedback(
+                        app,
+                        false,
+                        crate::app::i18n::workflow::Feedback::new("知识库已删除", vec![]),
+                    );
                     if let Some(dataset_id) = app.knowledge.selected_dataset_id.clone() {
                         app.knowledge.loading_documents = true;
                         Task::batch([toast, load_documents_task(dataset_id)])
@@ -553,7 +568,11 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
                     app.knowledge.close_document_rename_modal();
                     app.knowledge.document_name_input.clear();
                     app.knowledge.document_content_editor = text_editor::Content::new();
-                    let toast = set_success(app, "文档已添加并入库");
+                    let toast = set_feedback(
+                        app,
+                        false,
+                        crate::app::i18n::workflow::Feedback::new("文档已添加并入库", vec![]),
+                    );
                     app.knowledge.loading_documents = true;
                     Task::batch([toast, load_documents_task(dataset_id)])
                 }
@@ -655,7 +674,11 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
                     }
                     app.knowledge.selected_document_ids.remove(&document.id);
                     app.knowledge.prune_document_selection();
-                    set_success(app, "文档已删除")
+                    set_feedback(
+                        app,
+                        false,
+                        crate::app::i18n::workflow::Feedback::new("文档已删除", vec![]),
+                    )
                 }
                 Err(error) => set_error(app, error),
             }
@@ -684,7 +707,11 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
                     app.knowledge.selected_document_id = Some(document.id.clone());
                     app.knowledge.selected_chunk_id = None;
                     app.knowledge.loaded_chunks.clear();
-                    let toast = set_success(app, "文档已重新入库");
+                    let toast = set_feedback(
+                        app,
+                        false,
+                        crate::app::i18n::workflow::Feedback::new("文档已重新入库", vec![]),
+                    );
                     if app.knowledge.selected_dataset_id.as_deref()
                         == Some(document.dataset_id.as_str())
                     {
@@ -728,7 +755,11 @@ pub fn update(app: &mut App, message: KnowledgeToolMessage) -> Task<Message> {
             match result {
                 Ok(response) => {
                     app.knowledge.retrieve_results = response.chunks;
-                    set_success(app, "召回测试完成")
+                    set_feedback(
+                        app,
+                        false,
+                        crate::app::i18n::workflow::Feedback::new("召回测试完成", vec![]),
+                    )
                 }
                 Err(error) => set_error(app, error),
             }
@@ -791,14 +822,22 @@ fn create_dataset(app: &mut App) -> Task<Message> {
     }
     let name = app.knowledge.dataset_name_input.trim().to_string();
     if name.is_empty() {
-        return set_error(app, "知识库名称不能为空");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("知识库名称不能为空", vec![]),
+        );
     }
     let keyword_count =
         parse_usize_input(&app.knowledge.dataset_keyword_count_input, 10).clamp(1, 250);
     let top_k = parse_usize_input(&app.knowledge.dataset_top_k_input, 10).clamp(1, 50);
     let Some(score_threshold) = parse_score_threshold(&app.knowledge.dataset_score_threshold_input)
     else {
-        return set_error(app, "Score 阈值必须是 0 到 1 之间的数字");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("Score 阈值必须是 0 到 1 之间的数字", vec![]),
+        );
     };
     app.knowledge.creating_dataset = true;
     let body = KnowledgeDatasetCreateRequest {
@@ -843,7 +882,11 @@ fn delete_selected_dataset(app: &mut App) -> Task<Message> {
         .clone()
         .or_else(|| app.knowledge.selected_dataset_id.clone())
     else {
-        return set_error(app, "请先选择知识库");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请先选择知识库", vec![]),
+        );
     };
     app.knowledge.pending_delete_dataset_id = None;
     app.knowledge.pending_delete_document_id = None;
@@ -858,15 +901,27 @@ fn create_document(app: &mut App) -> Task<Message> {
         return Task::none();
     }
     let Some(dataset_id) = app.knowledge.selected_dataset_id.clone() else {
-        return set_error(app, "请先选择知识库");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请先选择知识库", vec![]),
+        );
     };
     let name = app.knowledge.document_name_input.trim().to_string();
     if name.is_empty() {
-        return set_error(app, "文档名称不能为空");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("文档名称不能为空", vec![]),
+        );
     }
     let content = app.knowledge.document_content_editor.text();
     if content.trim().is_empty() {
-        return set_error(app, "文档内容不能为空");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("文档内容不能为空", vec![]),
+        );
     }
     app.knowledge.creating_document = true;
     let body =
@@ -913,11 +968,19 @@ fn import_selected_files(app: &mut App) -> Task<Message> {
         return Task::none();
     }
     let Some(dataset_id) = app.knowledge.selected_dataset_id.clone() else {
-        return set_error(app, "请先选择知识库");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请先选择知识库", vec![]),
+        );
     };
     let files = app.knowledge.file_imports.clone();
     if files.is_empty() {
-        return set_error(app, "请先选择入库文件");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请先选择入库文件", vec![]),
+        );
     }
 
     app.knowledge.importing_file = true;
@@ -1052,11 +1115,19 @@ fn retrieve(app: &mut App) -> Task<Message> {
         return Task::none();
     }
     let Some(dataset_id) = app.knowledge.selected_dataset_id.clone() else {
-        return set_error(app, "请先选择知识库");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请先选择知识库", vec![]),
+        );
     };
     let query = app.knowledge.retrieve_query_input.trim().to_string();
     if query.is_empty() {
-        return set_error(app, "请输入召回测试文本");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请输入召回测试文本", vec![]),
+        );
     }
     let top_k =
         app.knowledge.retrieve_top_k_input.trim().parse::<usize>().unwrap_or(10).clamp(1, 50);
@@ -1234,22 +1305,38 @@ fn mime_type_for_filename(filename: &str) -> Option<String> {
     Some(mime.to_string())
 }
 
-fn import_success_message(response: &KnowledgeDocumentImportQueuedResponse) -> String {
+fn import_success_message(
+    response: &KnowledgeDocumentImportQueuedResponse,
+) -> crate::app::i18n::workflow::Feedback {
     if response.warnings.is_empty() {
-        return format!("文件已入队：{}，后台入库中", response.filename);
+        return crate::app::i18n::workflow::Feedback::new(
+            "文件已入队：%s，后台入库中",
+            vec![response.filename.clone()],
+        );
     }
-    format!("文件已入队：{}（{} 条警告），后台入库中", response.filename, response.warnings.len())
+    crate::app::i18n::workflow::Feedback::new(
+        "文件已入队：%s（%s 条警告），后台入库中",
+        vec![response.filename.clone(), response.warnings.len().to_string()],
+    )
 }
 
-fn import_batch_success_message(responses: &[KnowledgeDocumentImportQueuedResponse]) -> String {
+fn import_batch_success_message(
+    responses: &[KnowledgeDocumentImportQueuedResponse],
+) -> crate::app::i18n::workflow::Feedback {
     if responses.len() == 1 {
         return import_success_message(&responses[0]);
     }
     let warning_count = responses.iter().map(|response| response.warnings.len()).sum::<usize>();
     if warning_count == 0 {
-        return format!("已入队 {} 个文件，后台入库中", responses.len());
+        return crate::app::i18n::workflow::Feedback::new(
+            "已入队 %s 个文件，后台入库中",
+            vec![responses.len().to_string()],
+        );
     }
-    format!("已入队 {} 个文件（{} 条警告），后台入库中", responses.len(), warning_count)
+    crate::app::i18n::workflow::Feedback::new(
+        "已入队 %s 个文件（%s 条警告），后台入库中",
+        vec![responses.len().to_string(), warning_count.to_string()],
+    )
 }
 
 fn schedule_import_polling_task(enabled: bool) -> Task<Message> {
@@ -1263,15 +1350,27 @@ fn schedule_import_polling_task(enabled: bool) -> Task<Message> {
     }
 }
 
-fn embedding_test_success_message(response: &KnowledgeEmbeddingTestResponse) -> String {
+fn embedding_test_success_message(
+    response: &KnowledgeEmbeddingTestResponse,
+) -> crate::app::i18n::workflow::Feedback {
     response
         .observed_dimensions
-        .map(|dimensions| format!("嵌入连接测试通过：{dimensions} 维"))
-        .unwrap_or_else(|| "嵌入连接测试通过".to_string())
+        .map(|dimensions| {
+            crate::app::i18n::workflow::Feedback::new(
+                "嵌入连接测试通过：%s 维",
+                vec![dimensions.to_string()],
+            )
+        })
+        .unwrap_or_else(|| crate::app::i18n::workflow::Feedback::new("嵌入连接测试通过", vec![]))
 }
 
-fn embedding_test_failure_message(response: &KnowledgeEmbeddingTestResponse) -> String {
-    format!("嵌入连接测试失败：{}", response.message)
+fn embedding_test_failure_message(
+    response: &KnowledgeEmbeddingTestResponse,
+) -> crate::app::i18n::workflow::Feedback {
+    crate::app::i18n::workflow::Feedback::new(
+        "嵌入连接测试失败：%s",
+        vec![response.message.clone()],
+    )
 }
 
 fn sanitize_sensitive_display_text(message: &str) -> String {
@@ -1358,7 +1457,11 @@ fn submit_document_update(
         return Task::none();
     }
     let Some(body) = build_document_patch_request(name, enabled, archived) else {
-        return set_error(app, "请提供有效的文档更新内容");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请提供有效的文档更新内容", vec![]),
+        );
     };
     app.knowledge.updating_document_id = Some(document_id.clone());
     Task::perform(update_document_async(document_id, body), |result| {
@@ -1384,7 +1487,11 @@ fn handle_document_updated(
             if document.status == KnowledgeDocumentStatus::Archived {
                 close_preview_if_selected_document(app, document.id.as_str());
             }
-            set_success(app, "文档已更新")
+            set_feedback(
+                app,
+                false,
+                crate::app::i18n::workflow::Feedback::new("文档已更新", vec![]),
+            )
         }
         Err(error) => set_error(app, error),
     }
@@ -1400,7 +1507,11 @@ fn submit_batch_document_action(
     let Some(body) =
         build_batch_document_action_request(&app.knowledge.selected_document_ids, action.clone())
     else {
-        return set_error(app, "请先选择文档");
+        return set_feedback(
+            app,
+            true,
+            crate::app::i18n::workflow::Feedback::new("请先选择文档", vec![]),
+        );
     };
     app.knowledge.batch_updating_documents = true;
     app.knowledge.pending_batch_document_action = Some(action);
@@ -1577,18 +1688,38 @@ async fn embedding_test_async(
     crate::app::gateway_client()?.knowledge_embedding_test(&body).await
 }
 
-fn set_success(app: &mut App, message: impl Into<String>) -> Task<Message> {
-    let message = message.into();
-    app.knowledge.notification = Some(message.clone());
-    app.knowledge.notification_is_error = false;
-    Task::batch([app.show_success_toast(message), clear_notification_task()])
+fn set_success(
+    app: &mut App,
+    message: impl Into<crate::app::i18n::workflow::Feedback>,
+) -> Task<Message> {
+    set_feedback(app, false, message.into())
 }
 
-fn set_error(app: &mut App, message: impl Into<String>) -> Task<Message> {
-    let message = message.into();
-    app.knowledge.notification = Some(message.clone());
-    app.knowledge.notification_is_error = true;
-    Task::batch([app.show_error_toast(message), clear_notification_task()])
+fn set_error(
+    app: &mut App,
+    message: impl Into<crate::app::i18n::workflow::Feedback>,
+) -> Task<Message> {
+    set_feedback(app, true, message.into())
+}
+
+fn set_feedback(
+    app: &mut App,
+    is_error: bool,
+    feedback: crate::app::i18n::workflow::Feedback,
+) -> Task<Message> {
+    let fallback = feedback.as_str().to_owned();
+    let message = feedback.message();
+    app.knowledge.notification = Some(fallback.clone());
+    app.knowledge.notification_feedback = Some(feedback);
+    app.knowledge.notification_is_error = is_error;
+    let kind = if is_error {
+        crate::app::state::ToastKind::Error
+    } else {
+        crate::app::state::ToastKind::Success
+    };
+    let toast = app.show_toast(kind, fallback);
+    app.active_toast.as_mut().expect("inserted knowledge toast").localized_message = Some(message);
+    Task::batch([toast, clear_notification_task()])
 }
 
 fn clear_notification_task() -> Task<Message> {

@@ -66,7 +66,11 @@ fn mode_item_style(
     }
 }
 
-fn mode_item(mode: WorkspaceMode, selected: bool) -> Element<'static, Message> {
+fn mode_item(
+    i18n: crate::app::i18n::I18n,
+    mode: WorkspaceMode,
+    selected: bool,
+) -> Element<'static, Message> {
     let (label, description) = copy(mode);
     let check: Element<'static, Message> = if selected {
         container(icon_svg(Icon::Check))
@@ -84,7 +88,7 @@ fn mode_item(mode: WorkspaceMode, selected: bool) -> Element<'static, Message> {
             row![
                 centered_icon(mode, selected),
                 column![
-                    text(label)
+                    text(i18n.__(label))
                         .size(14)
                         .line_height(LineHeight::Relative(1.0))
                         .font(mode_label_font())
@@ -95,11 +99,12 @@ fn mode_item(mode: WorkspaceMode, selected: bool) -> Element<'static, Message> {
                                 0.88
                             }),),
                         }),
-                    text(description).size(12).line_height(LineHeight::Relative(1.0)).style(
-                        |theme: &Theme| iced::widget::text::Style {
+                    text(i18n.__(description))
+                        .size(12)
+                        .line_height(LineHeight::Relative(1.0))
+                        .style(|theme: &Theme| iced::widget::text::Style {
                             color: Some(theme.palette().text.scale_alpha(0.58)),
-                        }
-                    )
+                        })
                 ]
                 .spacing(4)
                 .width(Length::Fill),
@@ -121,8 +126,16 @@ fn mode_item(mode: WorkspaceMode, selected: bool) -> Element<'static, Message> {
 pub(super) fn menu(app: &App) -> Element<'_, Message> {
     container(
         column![
-            mode_item(WorkspaceMode::Work, app.workspace_mode == WorkspaceMode::Work),
-            mode_item(WorkspaceMode::Code, app.workspace_mode == WorkspaceMode::Code),
+            mode_item(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                WorkspaceMode::Work,
+                app.workspace_mode == WorkspaceMode::Work
+            ),
+            mode_item(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                WorkspaceMode::Code,
+                app.workspace_mode == WorkspaceMode::Code
+            ),
         ]
         .spacing(3),
     )
@@ -133,6 +146,7 @@ pub(super) fn menu(app: &App) -> Element<'_, Message> {
 }
 
 pub(super) fn selector(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let (label, _) = copy(app.workspace_mode);
     let chevron = container(icon_svg(Icon::ChevronDown).style(|theme: &Theme, _| {
         iced::widget::svg::Style { color: Some(theme.palette().text.scale_alpha(0.62)) }
@@ -144,7 +158,10 @@ pub(super) fn selector(app: &App) -> Element<'_, Message> {
     let toggle_content = container(
         row![
             centered_icon(app.workspace_mode, true),
-            text(label).size(13).line_height(LineHeight::Relative(1.0)).font(mode_label_font()),
+            text(i18n.__(label))
+                .size(13)
+                .line_height(LineHeight::Relative(1.0))
+                .font(mode_label_font()),
             chevron
         ]
         .spacing(5)

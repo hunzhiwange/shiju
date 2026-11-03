@@ -375,21 +375,24 @@ fn pet_control(app: &App, size: f32, collapsed: bool) -> Element<'_, Message> {
     );
 
     if let Some((x, y)) = app.task_pet_context_menu_pos {
-        PointBelowOverlay::new(pet_control, task_pet_context_menu())
-            .show(true)
-            .anchor(Point::new(x, y))
-            .gap(2.0)
-            .on_close(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
-            .into()
+        PointBelowOverlay::new(
+            pet_control,
+            task_pet_context_menu(crate::app::i18n::I18n::new(app.desktop_locale)),
+        )
+        .show(true)
+        .anchor(Point::new(x, y))
+        .gap(2.0)
+        .on_close(Message::View(message::ViewMessage::TaskPetContextMenuClosed))
+        .into()
     } else {
         pet_control
     }
 }
 
-fn task_pet_context_menu() -> Element<'static, Message> {
+fn task_pet_context_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     mouse_area(
         button(
-            container(text("关闭宠物").size(13))
+            container(text(i18n.__("关闭宠物")).size(13))
                 .width(Length::Fill)
                 .padding([6, 10])
                 .align_x(iced::alignment::Horizontal::Left),
@@ -604,7 +607,14 @@ fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, Message> {
                 .line_height(1.06)
                 .color(Color::WHITE)
                 .width(Length::Fill),
-            task_detail_line(&item.detail),
+            task_detail_line(
+                &item
+                    .detail_feedback
+                    .as_ref()
+                    .map(|feedback| feedback
+                        .render(crate::app::i18n::I18n::new(app.desktop_locale), &item.detail))
+                    .unwrap_or_else(|| item.detail.clone())
+            ),
         ]
         .spacing(2)
         .width(Length::Fill),
@@ -631,7 +641,7 @@ fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, Message> {
                 .padding(iced::Padding::default().top(0).right(0).bottom(10).left(12)),
         )
         .push(
-            container(reply_button(request_id))
+            container(reply_button(crate::app::i18n::I18n::new(app.desktop_locale), request_id))
                 .width(Length::Fill)
                 .height(Length::Fixed(PET_CARD_HEIGHT))
                 .align_x(iced::alignment::Horizontal::Right)
@@ -645,7 +655,7 @@ fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, Message> {
     let content: Element<'_, Message> = if replying {
         column![
             container(card).height(Length::Fixed(PET_CARD_HEIGHT)),
-            reply_input(&app.task_pet_reply_input),
+            reply_input(crate::app::i18n::I18n::new(app.desktop_locale), &app.task_pet_reply_input),
         ]
         .spacing(6)
         .into()
@@ -661,8 +671,8 @@ fn task_card<'a>(app: &'a App, item: &'a TaskPetItem) -> Element<'a, Message> {
         .into()
 }
 
-fn reply_button(request_id: u64) -> Element<'static, Message> {
-    button(centered_button_label("回复", 12))
+fn reply_button(i18n: crate::app::i18n::I18n, request_id: u64) -> Element<'static, Message> {
+    button(centered_button_label(i18n.__("回复"), 12))
         .width(Length::Fixed(42.0))
         .height(Length::Fixed(22.0))
         .padding(0)
@@ -671,16 +681,16 @@ fn reply_button(request_id: u64) -> Element<'static, Message> {
         .into()
 }
 
-fn reply_input(value: &str) -> Element<'_, Message> {
+fn reply_input(i18n: crate::app::i18n::I18n, value: &str) -> Element<'_, Message> {
     row![
-        text_input("继续说点什么...", value)
+        text_input(i18n.__("继续说点什么..."), value)
             .on_input(|next| Message::View(message::ViewMessage::TaskPetReplyInputChanged(next)))
             .on_submit(Message::View(message::ViewMessage::TaskPetReplySubmit))
             .padding([8, 10])
             .size(13)
             .style(reply_input_style)
             .width(Length::Fill),
-        button(centered_button_label("发送", 12))
+        button(centered_button_label(i18n.__("发送"), 12))
             .width(Length::Fixed(42.0))
             .height(Length::Fixed(30.0))
             .padding(0)
@@ -701,7 +711,7 @@ fn centered_button_label(label: &'static str, size: u32) -> Element<'static, Mes
         .into()
 }
 
-fn task_detail_line(detail: &str) -> Element<'_, Message> {
+fn task_detail_line(detail: &str) -> Element<'static, Message> {
     text(truncate_for_card(detail, 46))
         .size(TASK_DETAIL_SIZE)
         .line_height(1.12)

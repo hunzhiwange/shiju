@@ -262,8 +262,16 @@ fn gateway_and_plugin_tabs_cover_empty_and_loading_states() {
 fn basic_gateway_widgets_can_be_built_for_all_states() {
     let _: Element<'static, Message> = status_dot(true);
     let _: Element<'static, Message> = status_dot(false);
-    let _: Element<'static, Message> = gateway_services_button(true, true);
-    let _: Element<'static, Message> = gateway_services_button(false, false);
+    let _: Element<'static, Message> = gateway_services_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        true,
+        true,
+    );
+    let _: Element<'static, Message> = gateway_services_button(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+        false,
+        false,
+    );
     let _: Element<'static, Message> = tab_label("网关", TopBarGatewayTab::Gateway, true);
     let _: Element<'static, Message> = tab_label("插件", TopBarGatewayTab::Plugins, false);
     let _: Element<'static, Message> = gateway_row(

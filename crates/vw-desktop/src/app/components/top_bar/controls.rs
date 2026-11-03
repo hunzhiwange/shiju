@@ -24,10 +24,10 @@ use iced::widget::{Space, row};
 /// # 错误处理
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub(super) fn settings_button() -> Element<'static, Message> {
+pub(super) fn settings_button(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     icon_button(
         Icon::Gear,
-        "系统配置",
+        i18n.__("系统配置"),
         TooltipPosition::Bottom,
         Message::View(message::ViewMessage::ToggleSystemSettings),
     )
@@ -54,28 +54,28 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
                 tools = tools
                     .push(icon_toggle_button(
                         Icon::LayoutSidebar,
-                        "切换左侧面板",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换左侧面板"),
                         TooltipPosition::Bottom,
                         app.show_settings,
                         Message::View(message::ViewMessage::ToggleSettingsPanel),
                     ))
                     .push(icon_toggle_button(
                         Icon::Terminal,
-                        "切换终端",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换终端"),
                         TooltipPosition::Bottom,
                         app.terminal.is_visible,
                         Message::View(message::ViewMessage::ToggleTerminalPanel),
                     ))
                     .push(icon_toggle_button(
                         Icon::Columns,
-                        "切换审查",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换审查"),
                         TooltipPosition::Bottom,
                         app.show_diff,
                         Message::View(message::ViewMessage::ToggleDiffPanel),
                     ))
                     .push(icon_toggle_button(
                         Icon::LayoutSidebarReverse,
-                        "切换文件树",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换文件树"),
                         TooltipPosition::Bottom,
                         app.show_file_manager,
                         Message::View(message::ViewMessage::FileManagerPanelVisible(
@@ -87,14 +87,14 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
                 tools = tools
                     .push(icon_toggle_button(
                         Icon::LayoutSidebar,
-                        "切换工作侧栏",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换工作侧栏"),
                         TooltipPosition::Bottom,
                         !app.work_sidebar_collapsed,
                         Message::View(message::ViewMessage::WorkSidebarToggled),
                     ))
                     .push(icon_toggle_button(
                         Icon::LayoutSidebarReverse,
-                        "切换工作空间",
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("切换工作空间"),
                         TooltipPosition::Bottom,
                         app.work_resources_visible,
                         Message::View(message::ViewMessage::WorkResourcesToggled),
@@ -104,7 +104,7 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
 
         let tools = tools.push(icon_button(
             Icon::Search,
-            "搜索",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("搜索"),
             TooltipPosition::Bottom,
             Message::Search(message::SearchMessage::Open),
         ));
@@ -112,7 +112,7 @@ pub(super) fn project_view_tools(app: &App) -> Element<'_, Message> {
         #[cfg(not(target_arch = "wasm32"))]
         let tools = tools.push(icon_toggle_button(
             Icon::Robot,
-            "切换小宠物",
+            crate::app::i18n::I18n::new(app.desktop_locale).__("切换小宠物"),
             TooltipPosition::Bottom,
             app.task_pet_window_id.is_some(),
             Message::View(message::ViewMessage::TaskPetToggleWindow),

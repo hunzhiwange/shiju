@@ -175,7 +175,11 @@ pub fn view_app_update(app: &crate::app::App) -> Element<'_, Message> {
         app.last_copied_code_hash,
         Some(&app.desktop_update),
         (!app.cli_install_modal_use_app_update_action).then(|| {
-            super::cli_command_help::view(app.cli_commands_tab, app.last_copied_code_hash)
+            super::cli_command_help::view(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                app.cli_commands_tab,
+                app.last_copied_code_hash,
+            )
         }),
     )
 }

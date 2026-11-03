@@ -8,7 +8,11 @@ fn startup_transition_builds_starting_view_for_light_and_dark_themes() {
     for theme in [iced::Theme::Light, iced::Theme::Dark] {
         let starting = NativeStartupState::Starting;
 
-        let _: iced::Element<'_, crate::app::Message> =
-            startup_transition::view(&starting, 3, &theme);
+        let _: iced::Element<'_, crate::app::Message> = startup_transition::view(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+            &starting,
+            3,
+            &theme,
+        );
     }
 }

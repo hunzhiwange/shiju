@@ -121,33 +121,36 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
         row![
             toolbar_icon_button(
                 Icon::ArrowLeft,
-                "后退",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("后退"),
                 browser_active.then_some(Message::View(ViewMessage::WorkBrowserBack))
             ),
             toolbar_icon_button(
                 Icon::ArrowRight,
-                "前进",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("前进"),
                 browser_active.then_some(Message::View(ViewMessage::WorkBrowserForward))
             ),
-            text_input("输入网址", &app.work_browser.address)
-                .on_input(|address| Message::View(ViewMessage::WorkBrowserAddressChanged(address)))
-                .on_submit(Message::View(ViewMessage::WorkBrowserNavigate))
-                .padding([5, 10])
-                .size(12)
-                .style(address_style),
+            text_input(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("输入网址"),
+                &app.work_browser.address
+            )
+            .on_input(|address| Message::View(ViewMessage::WorkBrowserAddressChanged(address)))
+            .on_submit(Message::View(ViewMessage::WorkBrowserNavigate))
+            .padding([5, 10])
+            .size(12)
+            .style(address_style),
             toolbar_icon_button(
                 Icon::ArrowClockwise,
-                "刷新",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("刷新"),
                 browser_active.then_some(Message::View(ViewMessage::WorkBrowserReload))
             ),
             toolbar_icon_button(
                 Icon::Globe,
-                "在外部浏览器中打开",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("在外部浏览器中打开"),
                 external_browser_message(&app.work_browser.address)
             ),
             toolbar_icon_button(
                 Icon::X,
-                "关闭当前浏览",
+                crate::app::i18n::I18n::new(app.desktop_locale).__("关闭当前浏览"),
                 browser_active.then_some(Message::View(ViewMessage::WorkBrowserClose))
             ),
         ]
@@ -161,11 +164,12 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let surface: Element<'_, Message> = if let Some(error) = app.work_browser.error.as_deref() {
         container(
             column![
-                text("内置浏览器不可用").size(16),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("内置浏览器不可用"))
+                    .size(16),
                 text(error).size(12).style(|theme: &Theme| text::Style {
                     color: Some(theme.extended_palette().danger.base.color),
                 }),
-                button(text("重试").size(12))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("重试")).size(12))
                     .on_press(Message::View(ViewMessage::WorkBrowserNavigate))
                     .padding([6, 10])
                     .style(control_style),

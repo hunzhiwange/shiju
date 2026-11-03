@@ -203,12 +203,14 @@ pub(super) fn build_hover_tip<'a>(
             if let Some(provider) = provider
                 && let Some(model) = provider.models.iter().find(|m| &m.id == model_id)
             {
-                let meta = format!(
-                    "工具 {} · 图片输入 {} · 上下文限制 {}",
+                let meta = crate::__!(
+                    crate::app::i18n::I18n::new(app.desktop_locale),
+                    "工具 %s · 图片输入 %s · 上下文限制 %u",
                     if model.toolcall { "✓" } else { "✕" },
                     if model.attachment { "✓" } else { "✕" },
                     model.context_limit
-                );
+                )
+                .expect("valid model metadata template");
 
                 Some(
                     container(

@@ -815,7 +815,10 @@ impl Task {
             status: TaskStatus::Pool,
             created_at_ms: now,
             updated_at_ms: now,
-            logs: vec![TaskLogEntry::new_message("任务创建".to_string())],
+            logs: vec![TaskLogEntry {
+                localized_message: Some(crate::app::i18n::format::Message::new("任务创建", vec![])),
+                ..TaskLogEntry::new_message("任务创建".to_string())
+            }],
             order: 0,
             deleted: false,
             archived: false,
@@ -866,7 +869,7 @@ impl Task {
     ) -> Result<(), TaskTransitionError> {
         let machine = TaskStateMachine::default_lifecycle();
         if let Err(error) = machine.validate_transition(self.status, new_status, intent) {
-            self.add_log(format!("状态转移被状态机拒绝: {error}"));
+            self.add_localized_log("状态转移被状态机拒绝: %s", vec![error.to_string().into()]);
             return Err(error);
         }
         self.set_status(new_status);
@@ -912,12 +915,12 @@ impl Task {
             TaskStatus::Running,
             TaskTransitionIntent::StartExecution,
         ) {
-            self.add_log(format!("拒绝开始执行: {error}"));
+            self.add_localized_log("拒绝开始执行: %s", vec![error.to_string().into()]);
             return Err(error);
         }
         if self.last_error.is_some() {
             self.retry_count = self.retry_count.saturating_add(1);
-            self.add_log(format!("进入重试，第 {} 次", self.retry_count));
+            self.add_localized_log("进入重试，第 %u 次", vec![self.retry_count.into()]);
         }
         self.pause_reason = None;
         self.merge_source_branch = None;
@@ -959,7 +962,7 @@ impl Task {
         }
         self.execution_started_at_ms = None;
         self.set_status(TaskStatus::Failed);
-        self.add_log(format!("失败原因: {}", error));
+        self.add_localized_log("失败原因: %s", vec![error.into()]);
     }
 
     /// 公开的 mark_execution_succeeded 函数。
@@ -985,7 +988,7 @@ impl Task {
         }
         self.execution_started_at_ms = None;
         self.set_status(TaskStatus::Paused);
-        self.add_log(format!("暂停原因: {}", reason));
+        self.add_localized_log("暂停原因: %s", vec![reason.into()]);
     }
 
     /// 公开的 running_duration_ms 函数。

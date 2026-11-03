@@ -24,7 +24,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let edit_menu = menus::edit_menu(app);
     let view_menu = menus::view_menu(app);
     let help_menu = menus::help_menu(app);
-    let settings = controls::settings_button();
+    let settings = controls::settings_button(crate::app::i18n::I18n::new(app.desktop_locale));
     let open_external_module = external::open_external_module(app);
     let gateway_services = gateway::gateway_services_module(app);
     let project_view_tools = controls::project_view_tools(app);

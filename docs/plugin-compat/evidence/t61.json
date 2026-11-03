@@ -90,5 +90,24 @@
     "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1",
     "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-1/build",
     "lease_released": true
+  },
+  "revalidation_2026_11_03": {
+    "command": "XDG_CACHE_HOME=/tmp/shiju-t61-hook-cache XDG_CONFIG_HOME=/tmp/shiju-t61-hook-config T61_EVERYTHING_DEPS=/tmp/shiju-t61-everything-deps cargo test -p vw-agent --lib --all-features codex_plugin_compat_t61_ -- --include-ignored --skip codex_plugin_compat_t61_original_reports_missing_dependency --nocapture",
+    "exit_code": 0,
+    "effective_tests": 10,
+    "failed": 0,
+    "ignored": 0,
+    "record": "t61/revalidation-2026-11-03.txt",
+    "clippy": {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "record": "t61/revalidation-clippy-2026-11-03.txt"
+    },
+    "cargo": {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+      "lease_released": true
+    }
   }
 }

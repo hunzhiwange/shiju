@@ -1,0 +1,13 @@
+Build progress omitted; final output:
+    Checking oauth2 v5.0.0
+    Checking vw-shared v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-shared)
+    Checking vibewindow-aisdk v0.7.1 (https://github.com/hunzhiwange/aisdk.git#1a87cb54)
+    Checking opentelemetry-otlp v0.31.0
+    Checking rmcp v0.8.5
+    Checking nostr-sdk v0.37.0
+    Checking vw-acp v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-acp)
+    Checking vw-gateway-client v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-gateway-client)
+    Checking vw-provider-resolver v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-provider-resolver)
+    Checking vw-agent v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Checking vw-cli v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 46s

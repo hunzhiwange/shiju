@@ -1,22 +1,11 @@
-Execute multiple independent tool calls concurrently to reduce latency.
+Execute independent tool calls concurrently (up to 4 at a time).
 
-Payload format (JSON array):
-[{"tool": "read", "parameters": {"filePath": "src/index.ts", "limit": 350}},{"tool": "grep", "parameters": {"pattern": "Session\\.updatePart", "include": "src/**/*.ts"}},{"tool": "shell", "parameters": {"command": "git status", "description": "Show the working tree status"}}]
+Payload format (JSON object):
+{"tool_calls": [{"tool": "file_read", "args": {"path": "Cargo.toml", "limit": 20}}]}
 
-Notes:
-- Include 1-25 tool calls per batch.
-- All calls start in parallel; execution order is not guaranteed.
-- A partial failure does not stop the other tool calls.
-- Do not use the batch tool inside another batch tool call.
-
-Good use cases:
-- Reading many files
-- Combining grep, glob, and read calls
-- Running multiple shell commands
-- Applying multi-part edits to the same file or different files
-
-When not to use it:
-- Operations that depend on the output of an earlier tool call (for example, creating and then reading the same file)
-- Ordered state mutations where sequence matters
-
-Batching tool calls has been shown to improve efficiency by 2-5x and provide a better user experience.
+- Supply 1-25 calls. Calls beyond 25 are discarded and reported as failures.
+- tool is the exact registered tool ID; args is an object matching that tool's schema and defaults to {} when omitted.
+- Execution order is not guaranteed. Only group independent operations, such as reading separate files or independent searches.
+- Do not batch edits to the same file, dependent operations, or mutations requiring an order. Execute those sequentially.
+- Recursive batch calls are rejected. Inner calls retain ordinary permission and safety checks.
+- Partial failure does not stop other calls. Inspect the per-call errors and retry only failed operations after correcting their cause.

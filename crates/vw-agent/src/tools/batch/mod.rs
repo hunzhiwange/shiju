@@ -54,7 +54,8 @@ impl BatchTool {
                         "type": "object",
                         "additionalProperties": true,
                         "properties": {
-                            "tool": { "type": "string", "description": "Name of the tool to execute" }
+                            "tool": { "type": "string", "description": "Exact registered tool ID" },
+                            "args": { "type": "object", "description": "Arguments matching the selected tool schema; defaults to {} when omitted" }
                         },
                         "required": ["tool"]
                     }
@@ -111,7 +112,7 @@ impl Tool for BatchTool {
                 success: false,
                 output: String::new(),
                 error: Some(
-                    "batch 工具参数无效：\n  - tool_calls：至少提供一个工具调用\n\n期望的 payload 格式：\n  [{\"tool\": \"tool_name\", \"args\": {...}}, {...}]"
+                    "batch 工具参数无效：\n  - tool_calls：至少提供一个工具调用\n\n期望的 payload 格式：\n  {\"tool_calls\": [{\"tool\": \"file_read\", \"args\": {\"path\": \"Cargo.toml\"}}]}"
                         .to_string(),
                 ),
             });

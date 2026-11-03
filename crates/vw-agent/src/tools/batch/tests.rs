@@ -187,3 +187,27 @@ async fn batch_discards_calls_over_the_limit() {
     assert!(result.output.contains("call-24"));
     assert!(!result.output.contains("call-25\n\n"));
 }
+
+#[tokio::test]
+async fn batch_documented_example_executes_with_registered_tool_ids() {
+    let dir = tempfile::tempdir().unwrap();
+    std::fs::write(dir.path().join("Cargo.toml"), "example manifest").unwrap();
+    let security = Arc::new(crate::app::agent::security::SecurityPolicy {
+        workspace_dir: dir.path().to_path_buf(),
+        ..Default::default()
+    });
+    let tool = BatchTool::new(Arc::new(vec![Arc::new(FileReadTool::new(security))]));
+    let description = tool.description();
+    let start = description.find("{\"tool_calls\"").expect("object payload example");
+    let payload = description[start..].lines().next().unwrap();
+    let args = serde_json::from_str(payload).unwrap();
+    let result = tool.execute(args).await.unwrap();
+    assert!(result.success);
+    assert!(result.output.contains("全部 1 个工具均执行成功"));
+}
+
+#[test]
+fn batch_schema_declares_nested_args() {
+    let schema = BatchTool::schema();
+    assert_eq!(schema["properties"]["tool_calls"]["items"]["properties"]["args"]["type"], "object");
+}

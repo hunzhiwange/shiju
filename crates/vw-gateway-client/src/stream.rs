@@ -270,11 +270,11 @@ pub(crate) async fn stream_json_sse(
     use crate::http::{apply_request_context, log_request, response_error, transport_error};
 
     log_request::<serde_json::Value>("GET", endpoint, path, query, None);
-    let client = reqwest::Client::builder()
+    let builder = reqwest::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
-        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS))
-        .build()
-        .map_err(|error| transport_error("GET", endpoint, path, error))?;
+        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS));
+    let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
+    let client = builder.build().map_err(|error| transport_error("GET", endpoint, path, error))?;
     let request = apply_request_context(
         client.get(format!("{}{}", endpoint.base_url(), path)).query(query),
         endpoint,
@@ -518,6 +518,8 @@ async fn stream_chat_attempt(
     #[cfg(target_arch = "wasm32")]
     let builder = reqwest::Client::builder();
 
+    #[cfg(not(target_arch = "wasm32"))]
+    let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
     let client =
         builder.build().map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;
     let mut request =
@@ -658,11 +660,12 @@ pub fn stream_chat_blocking(
     };
 
     log_request("POST", endpoint, CHAT_STREAM_PATH, &directory_query(directory), Some(body));
-    let client = reqwest::blocking::Client::builder()
+    let builder = reqwest::blocking::Client::builder()
         .connect_timeout(std::time::Duration::from_secs(STREAM_CONNECT_TIMEOUT_SECS))
-        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS))
-        .build()
-        .map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;
+        .timeout(std::time::Duration::from_secs(STREAM_REQUEST_TIMEOUT_SECS));
+    let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
+    let client =
+        builder.build().map_err(|err| transport_error("POST", endpoint, CHAT_STREAM_PATH, err))?;
     let mut request =
         client.post(format!("{}{}", endpoint.base_url(), CHAT_STREAM_PATH)).json(body);
     if let Some(directory) = directory.filter(|value| !value.trim().is_empty()) {

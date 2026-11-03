@@ -94,6 +94,8 @@ impl GatewayClient {
         #[cfg(target_arch = "wasm32")]
         let builder = reqwest::Client::builder();
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
         let client = builder
             .build()
             .map_err(|err| transport_error("POST", endpoint, TASK_PLAN_RUN_STREAM_PATH, err))?;

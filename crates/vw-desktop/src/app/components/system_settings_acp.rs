@@ -435,14 +435,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
         }
     }
 
+    let content: Element<'_, Message> =
+        scrollable(container(content).padding(iced::Padding::default().left(7.0).right(7.0)))
+            .direction(iced::widget::scrollable::Direction::Vertical(
+                iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4),
+            ))
+            .height(Length::Fill)
+            .into();
+
     if app.acp_settings.new_agent_expanded {
         settings_modal_overlay(
-            Some(content.into()),
+            Some(content),
             acp_message(AcpMessage::CancelEditor),
             new_agent_form(app),
         )
     } else {
-        content.into()
+        content
     }
 }
 #[cfg(test)]

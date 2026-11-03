@@ -217,6 +217,10 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
     let (mut app, _) = crate::app::App::new();
+    app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
+    for name in super::ACP_ORDER {
+        app.acp_settings.catalog.insert((*name).into(), AcpAgentConfig::default());
+    }
     for agent in super::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
         for theme in [Theme::Dark, Theme::Light] {
             let config = AcpAgentConfig { command: "示例命令".into(), ..Default::default() };
@@ -226,7 +230,7 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
             app.acp_settings.new_agent_command_input = config.command.clone();
             app.acp_settings.editor_args = vec!["中文参数,空格 ".into()];
             app.acp_settings.editor_env = vec![("TOKEN".into(), "中文值".into())];
-            let mut element = super::new_agent_form(&app);
+            let mut element = crate::app::components::system_settings_agents::view(&app);
             let mut renderer =
                 <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
                     .await
@@ -238,6 +242,7 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
                 &renderer,
                 &layout::Limits::new(Size::ZERO, bounds),
             );
+            assert_eq!(node.size(), bounds, "the long catalog must stay inside the viewport");
             element.as_widget().draw(
                 &tree,
                 &mut renderer,

@@ -73,5 +73,47 @@
   ],
   "reference": "baseline.json skill-dependency.*; frozen loader.rs, plugins/render.rs and skills/metadata.rs",
   "fixture": "crates/vw-agent/testdata/plugin_compat/t58/README.md",
-  "limits": "Presence is not service readiness or complete compatibility. Dynamic module discovery, unknown/custom working directories, host tool mappings and remote service/authentication validation remain explicitly unverified; hosted connectors remain excluded."
+  "limits": "Presence is not service readiness or complete compatibility. Dynamic module discovery, unknown/custom working directories, host tool mappings and remote service/authentication validation remain explicitly unverified; hosted connectors remain excluded.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "implementation_commit": "e4feb92a",
+    "dependency": "c5d4e98e / t57.json revalidation: 8 target tests, clippy passed",
+    "platform": "macOS arm64",
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t58_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 6,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features mcp_inspect_tests -- --nocapture",
+        "exit_code": 0,
+        "passed": 5,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t54_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 4,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "cargo": {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "note": "Reused committed implementation and original behavioral red evidence; no Rust changes, so cargo fmt not repeated. Current tests verify missing host runtime before launch, missing bundled resources, invalid traversal/symlink rejection, package isolation and no script/import execution. Presence diagnostics do not claim remote readiness or complete compatibility."
+  }
 }

@@ -70,8 +70,9 @@
   ],
   "source_hashes_match_baseline": true,
   "log_sha256": {
-    "tests.txt": "1efc7078ed2f490dd145f16ad7bf5f92a83e73ab5de412005c9cb34c0efdf769",
+    "tests.txt": "07e9144d45eb8b152c8c2023eab0b1f967061dc707098e763c735c214c79c43b",
     "clippy.txt": "6f1cb31889f9afbce22b4da0d11caf0ae141fb872f58d54ae23a23a0a738581e",
     "adjacent.txt": "f4d097c651a6bee972b0c94b583a6d7dc5e679e6ea4c2dee5fc4d391acaffbdc"
-  }
+  },
+  "log_normalization": "Test log trailing blank line removed for diff whitespace check; command output content unchanged."
 }

@@ -9,4 +9,3 @@ test plugins::compat::t64_tests::codex_plugin_compat_t64_preserves_isolation ...
 test plugins::compat::t64_tests::codex_plugin_compat_t64_uses_platform_command_and_unicode_paths ... ok
 
 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 10976 filtered out; finished in 0.06s
-

@@ -13,7 +13,7 @@ use vw_config_types::config::AcpAgentConfig;
 
 const ACP_ORDER: &[&str] = &[
     "claude", "gemini", "opencode", "codex", "openclaw", "copilot", "pi", "auggie", "cursor",
-    "droid", "iflow", "kilocode", "qwen",
+    "droid", "iflow", "kilocode", "qwen", "kimi", "kiro", "qoder", "trae",
 ];
 
 pub(super) fn acp_title(agent: &str) -> &'static str {
@@ -23,14 +23,18 @@ pub(super) fn acp_title(agent: &str) -> &'static str {
         "gemini" => "Gemini CLI",
         "copilot" => "GitHub Copilot",
         "openclaw" => "OpenClaw",
-        "pi" => "Pi ACP",
+        "pi" => "PI",
         "auggie" => "Auggie CLI",
-        "cursor" => "Cursor Agent",
+        "cursor" => "Cursor",
         "droid" => "Factory droid",
         "iflow" => "iFlow",
         "kilocode" => "Kilocode",
         "opencode" => "OpenCode",
         "qwen" => "Qwen Code",
+        "kimi" => "Kimi Code CLI",
+        "kiro" => "Kiro",
+        "qoder" => "Qoder CLI",
+        "trae" => "TRAE CLI",
         _ => "自定义 ACP",
     }
 }

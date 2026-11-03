@@ -39,7 +39,7 @@ fn acp_title_description_and_setup_hint_cover_known_and_custom_agents() {
     assert_eq!(acp_title("gemini"), "Gemini CLI");
     assert_eq!(acp_title("copilot"), "GitHub Copilot");
     assert_eq!(acp_title("openclaw"), "OpenClaw");
-    assert_eq!(acp_title("pi"), "Pi ACP");
+    assert_eq!(acp_title("pi"), "PI");
     assert_eq!(acp_title("custom"), "自定义 ACP");
 
     assert!(acp_description("codex").contains("Codex"));
@@ -58,7 +58,7 @@ fn acp_title_description_and_setup_hint_cover_known_and_custom_agents() {
 fn acp_metadata_covers_remaining_catalog_agents() {
     let cases = [
         ("auggie", "Auggie CLI", "Auggie"),
-        ("cursor", "Cursor Agent", "Cursor"),
+        ("cursor", "Cursor", "Cursor"),
         ("droid", "Factory droid", "droid"),
         ("iflow", "iFlow", "iFlow"),
         ("kilocode", "Kilocode", "Kilocode"),
@@ -146,4 +146,19 @@ fn acp_view_builds_saving_agent_state() {
     app.acp_settings.saving_agent = Some("codex".to_string());
 
     let _: iced::Element<'_, crate::app::Message> = view(&app);
+}
+
+#[test]
+fn acp_catalog_displays_registered_agents() {
+    for (key, title) in [
+        ("kimi", "Kimi Code CLI"),
+        ("kiro", "Kiro"),
+        ("qoder", "Qoder CLI"),
+        ("trae", "TRAE CLI"),
+        ("cursor", "Cursor"),
+        ("pi", "PI"),
+    ] {
+        assert_eq!(acp_title(key), title, "{key}");
+    }
+    assert_eq!(acp_title("my-custom-agent"), "自定义 ACP");
 }

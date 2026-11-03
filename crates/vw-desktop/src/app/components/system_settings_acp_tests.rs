@@ -151,6 +151,17 @@ fn acp_view_builds_saving_agent_state() {
 #[test]
 fn acp_catalog_displays_registered_agents() {
     for (key, title) in [
+        ("auggie", "Auggie CLI"),
+        ("claude", "Claude Code"),
+        ("codex", "Codex CLI"),
+        ("copilot", "GitHub Copilot"),
+        ("droid", "Factory droid"),
+        ("gemini", "Gemini CLI"),
+        ("iflow", "iFlow"),
+        ("kilocode", "Kilocode"),
+        ("opencode", "OpenCode"),
+        ("openclaw", "OpenClaw"),
+        ("qwen", "Qwen Code"),
         ("kimi", "Kimi Code CLI"),
         ("kiro", "Kiro"),
         ("qoder", "Qoder CLI"),
@@ -161,4 +172,41 @@ fn acp_catalog_displays_registered_agents() {
         assert_eq!(acp_title(key), title, "{key}");
     }
     assert_eq!(acp_title("my-custom-agent"), "自定义 ACP");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn acp_catalog_displays_registered_agents_render_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+    let (mut app, _) = crate::app::App::new();
+    for agent in super::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
+        for theme in [Theme::Dark, Theme::Light] {
+            let config = AcpAgentConfig { command: "示例命令".into(), ..Default::default() };
+            app.acp_settings.enabled.insert(agent.into());
+            let mut element = super::acp_card(&app, agent.into(), &config);
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .expect("headless renderer");
+            let bounds = Size::new(960.0, 500.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style::default(),
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0), "{agent}");
+        }
+    }
 }

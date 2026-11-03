@@ -5,7 +5,39 @@ VibeWindow 提供两个方向不同的 ACP 入口：
 - `acp`：VibeWindow 作为 ACP **Client**，连接或启动外部 Agent 的现有桥接程序。
 - `shiju acp`：VibeWindow 作为 ACP **Agent**，由外部 ACP Client 通过标准输入输出启动。
 
-本文只描述 `shiju acp` 的对外 Agent 接入。
+本文先介绍桌面端连接外部 Agent 的配置流程，再描述 `shiju acp` 的对外 Agent 接入。
+
+## 桌面端连接外部 Agent
+
+在系统设置的智能体配置中打开「ACP 配置」，刷新网关目录。内置驱动与自定义驱动使用同一配置弹窗；点击「新增 ACP」创建配置，点击已有条目的编辑按钮修改配置。已有名称不可重命名。
+
+- 启动命令填写网关主机可执行的程序或路径；参数逐项添加，每项对应一个 argv，空格、逗号和空参数原样保留，无需添加 shell 引号。
+- 环境变量按名称和值逐项填写，名称不能为空、重复或包含等号、空字符；值在编辑器中遮罩显示。不要把密钥写入命令行或截图。
+- 保存后界面回读网关配置。编辑已有驱动保留原启用状态；新增驱动保存后启用。关闭后重新打开编辑器，可核对实际保存的命令、参数和环境变量。
+- 启用的驱动会出现在聊天后端选择中。命令、路径及运行环境均以网关主机为准。
+
+点击「测试连接 / 重试」显式诊断当前草稿，未保存的字段也会参与诊断。诊断只启动进程并进行 ACP 初始化握手，不创建会话、不发送提示、不自动认证，也不授予文件或终端权限。结果区分进程启动失败、握手失败、超时、需要认证和连接成功；需要认证时，请在网关主机按驱动要求完成认证后重试。
+
+取消诊断、修改草稿或关闭编辑器会使当前诊断失效，并请求网关停止该诊断；迟到结果不会覆盖新草稿状态。连接成功只证明初始化握手可用，不保证后续模型请求成功。弹窗标题和底部操作固定，长参数及环境变量列表在中间滚动。
+
+选择 ACP 后端并建立聊天会话后，在输入区的会话菜单打开「ACP 会话选项」。模型、模式和其他参数来自后端实际声明的能力；未连接或未声明的选项不展示为可选配置。选择经后端确认后才更新并保存，失败保留原值；本地权限不随模式切换扩大。会话选项属于当前会话，不会改写驱动启动配置。
+
+### 配置体验回归
+
+回归使用临时配置文件和可控本地 ACP 子进程，无需付费服务。按仓库共享槽位规则领取槽位并设置绝对路径 `CARGO_TARGET_DIR` 后，运行以下具名测试（不得用零测试代替通过）：
+
+```bash
+cargo test -p vw-desktop --all-features acp_configuration_flow_regression -- --nocapture
+cargo test -p vw-desktop --all-features acp_catalog_displays_registered_agents -- --nocapture
+cargo test -p vw-desktop --all-features acp_edit_preserves_enabled_state -- --nocapture
+cargo test -p vw-desktop --all-features acp_editor_validates_and_saves_fields -- --nocapture
+cargo test -p vw-acp --all-features acp_diagnostic_classifies_failures_and_reaps_process -- --nocapture
+cargo test -p vw-desktop -p vw-agent -p vw-gateway-client --all-features acp_diagnostic_ignores_stale_results -- --nocapture
+cargo test -p vw-desktop -p vw-agent -p vw-gateway-client --all-features acp_session_options_follow_capabilities -- --nocapture
+cargo clippy --all-targets --all-features -- -D warnings
+```
+
+渲染回归通过 Iced 布局、绘制和像素输出路径检查明暗主题、中文动态文本以及长表单头尾位置与留白；4px 滚动条另有静态约束断言。交付时还应检查实际截图的文字对比度与滚动交互，不能以仅构建 `Element` 代替渲染验收。
 
 ## 启动与配置
 

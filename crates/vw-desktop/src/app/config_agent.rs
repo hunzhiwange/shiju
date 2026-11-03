@@ -126,13 +126,6 @@ fn build_acp_agent_create_patch(
     if spec.command.is_empty() {
         return Err("acp agent command must not be empty".to_string());
     }
-    spec.args = spec
-        .args
-        .into_iter()
-        .map(|arg| arg.trim().to_string())
-        .filter(|arg| !arg.is_empty())
-        .collect();
-
     build_acp_agent_enabled_patch(agent_name, true, Some(spec), catalog, configured)
 }
 

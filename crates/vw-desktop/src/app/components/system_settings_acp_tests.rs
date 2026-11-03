@@ -307,3 +307,87 @@ async fn acp_diagnostic_ignores_stale_results_render_both_themes() {
         }
     }
 }
+
+/// Exercise shaping and layout with overflowing fields, rather than only building Element.
+#[tokio::test(flavor = "multi_thread")]
+async fn acp_configuration_flow_regression_long_editor_keeps_actions_visible() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.new_agent_expanded = true;
+    app.acp_settings.new_agent_name_input = "中文自定义代理".into();
+    app.acp_settings.new_agent_command_input = "/usr/bin/python3".into();
+    app.acp_settings.diagnostic_status =
+        Some("启动成功 · 握手成功 · 需要认证（未自动认证）".into());
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut fixed_bounds = None;
+        for count in [1, 40] {
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .expect("headless renderer");
+            app.acp_settings.editor_args =
+                (0..count).map(|i| format!("参数 {i}, 保留空格 ")).collect();
+            app.acp_settings.editor_env =
+                (0..count).map(|i| (format!("KEY_{i}"), "中文值".into())).collect();
+            let mut element = super::new_agent_form(&app);
+            let bounds = Size::new(960.0, 640.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            let card = Layout::new(&node);
+            let column = card.children().next().expect("modal content");
+            let rows: Vec<_> = column.children().collect();
+            assert_eq!(rows.len(), 4, "title, diagnostic, scrolling fields, actions");
+            let header = rows[0].bounds();
+            let viewport = rows[2].bounds();
+            let footer = rows[3].bounds();
+            assert!(header.y >= 0.0);
+            assert!(viewport.y >= header.y + header.height);
+            assert!(viewport.y + viewport.height <= footer.y);
+            assert!(footer.y + footer.height <= card.bounds().height);
+            let fields_container = rows[2].children().next().expect("scroll content");
+            let fields = fields_container.children().next().expect("padded fields").bounds();
+            assert!((fields.x - fields_container.bounds().x - 7.0).abs() < 0.1);
+            assert!((fields_container.bounds().width - fields.width - 14.0).abs() < 0.1);
+            if count == 40 {
+                assert!(fields.height > viewport.height, "long form must actually overflow");
+            }
+            if let Some(expected) = fixed_bounds {
+                assert_eq!((header, footer), expected, "field count must not move modal actions");
+            }
+            fixed_bounds = Some((header, footer));
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                card,
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(960, 640), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+            if count == 40
+                && let Some(directory) = std::env::var_os("ACP_REGRESSION_SCREENSHOTS")
+            {
+                let directory = std::path::PathBuf::from(directory);
+                std::fs::create_dir_all(&directory).unwrap();
+                image::save_buffer(
+                    directory.join(if theme == Theme::Dark { "dark.png" } else { "light.png" }),
+                    &pixels,
+                    960,
+                    640,
+                    image::ColorType::Rgba8,
+                )
+                .unwrap();
+            }
+        }
+    }
+    assert!(SOURCE.contains("Scrollbar::new().width(4).scroller_width(4)"));
+}

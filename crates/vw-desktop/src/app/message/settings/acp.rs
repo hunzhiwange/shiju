@@ -81,7 +81,92 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     if app.acp_settings.adding_agent && !matches!(message, AcpMessage::AddAgentCompleted { .. }) {
         return Task::none();
     }
-    match message {
+    let invalidates = matches!(
+        message,
+        AcpMessage::AddAgent
+            | AcpMessage::EditAgent(_)
+            | AcpMessage::CancelEditor
+            | AcpMessage::NewAgentPanelToggled
+            | AcpMessage::NewAgentNameChanged(_)
+            | AcpMessage::NewAgentCommandChanged(_)
+            | AcpMessage::NewAgentArgsChanged(_)
+            | AcpMessage::ArgumentChanged(..)
+            | AcpMessage::AddArgument
+            | AcpMessage::RemoveArgument(_)
+            | AcpMessage::EnvironmentChanged(..)
+            | AcpMessage::AddEnvironment
+            | AcpMessage::RemoveEnvironment(_)
+    );
+    let cancellation = if invalidates {
+        app.acp_settings.diagnostic_status = None;
+        cancel_diagnostic(app)
+    } else {
+        Task::none()
+    };
+    let task = match message {
+        AcpMessage::DiagnosticCancelled => Task::none(),
+        AcpMessage::StartDiagnostic => {
+            let (_, config) = match new_agent_request(app) {
+                Ok(request) => request,
+                Err(error) => return app.show_error_toast(error),
+            };
+            let previous = cancel_diagnostic(app);
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let id = format!(
+                "{}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos(),
+                NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            );
+            app.acp_settings.diagnostic_id = Some(id.clone());
+            app.acp_settings.diagnostic_status = Some("正在网关启动进程并验证 ACP 握手…".into());
+            Task::batch([
+                previous,
+                Task::perform(
+                    async move {
+                        let result = async {
+                            let client = crate::app::config::gateway_client()?;
+                            let value = serde_json::to_value(config).map_err(|e| e.to_string())?;
+                            client.acp_diagnostic(&id, &value).await
+                        }
+                        .await;
+                        (id, result)
+                    },
+                    |(id, result)| {
+                        Message::Settings(SettingsMessage::Acp(AcpMessage::DiagnosticCompleted {
+                            id,
+                            result,
+                        }))
+                    },
+                ),
+            ])
+        }
+        AcpMessage::CancelDiagnostic => {
+            let task = cancel_diagnostic(app);
+            app.acp_settings.diagnostic_status = Some("诊断已取消".into());
+            task
+        }
+        AcpMessage::DiagnosticCompleted { id, result } => {
+            if app.acp_settings.diagnostic_id.as_deref() != Some(&id) {
+                return Task::none();
+            }
+            app.acp_settings.diagnostic_id = None;
+            let status = match result.as_deref() {
+                Ok("connected") => "启动成功 · 握手成功",
+                Ok("authentication_required") => "启动成功 · 握手成功 · 需要认证（未自动认证）",
+                Ok("startup_failed") => "进程启动失败，请检查网关主机上的命令与环境",
+                Ok("handshake_failed") => "启动成功 · ACP 握手失败",
+                Ok("timed_out") => "启动成功 · ACP 握手超时",
+                Ok("cancelled") => "诊断已取消",
+                _ => "网关诊断不可用或不支持，请检查网关版本与连接",
+            }
+            .to_string();
+            app.acp_settings.diagnostic_status = Some(status.clone());
+            app.show_info_toast(status)
+        }
         AcpMessage::EditAgent(agent) => {
             if let Some(config) = app.acp_settings.catalog.get(&agent) {
                 app.acp_settings.editing_agent = Some(agent.clone());
@@ -306,7 +391,28 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             Task::none()
         }
-    }
+    };
+    Task::batch([cancellation, task])
+}
+
+fn cancel_diagnostic(app: &mut App) -> Task<Message> {
+    let Some(id) = app.acp_settings.diagnostic_id.take() else {
+        return Task::none();
+    };
+    Task::perform(
+        async move {
+            if let Ok(client) = crate::app::config::gateway_client() {
+                // Cancellation can overtake the start on a separate connection.
+                for _ in 0..40 {
+                    match client.acp_diagnostic_cancel(&id).await {
+                        Ok(true) | Err(_) => break,
+                        Ok(false) => tokio::time::sleep(Duration::from_millis(250)).await,
+                    }
+                }
+            }
+        },
+        |_| Message::Settings(SettingsMessage::Acp(AcpMessage::DiagnosticCancelled)),
+    )
 }
 
 #[cfg(test)]

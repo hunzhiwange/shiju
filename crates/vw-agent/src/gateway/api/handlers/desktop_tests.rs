@@ -602,3 +602,59 @@ fn validate_project_path_accepts_nonblank_and_rejects_whitespace() {
 fn router_can_be_constructed_for_unit_state() {
     let _router = router::<()>();
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_diagnostic_ignores_stale_results_gateway_probes_draft() {
+    let dir = tempfile::tempdir().unwrap();
+    let script = dir.path().join("probe.py");
+    std::fs::write(&script, r#"
+import sys,json,os
+r=json.loads(sys.stdin.readline())
+assert r['method']=='initialize'
+assert sys.argv[1]=='argument with spaces'
+assert os.environ['ACP_FIXTURE']=='draft value'
+print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':{'protocolVersion':1,'agentCapabilities':{},'authMethods':[]}}),flush=True)
+for line in sys.stdin:
+    raise RuntimeError('unexpected request')
+"#).unwrap();
+    let config = vw_acp::AcpAgentConfig {
+        command: "python3".into(),
+        args: vec![script.to_string_lossy().into_owned(), "argument with spaces".into()],
+        env: [("ACP_FIXTURE".into(), "draft value".into())].into(),
+    };
+    let Json(result) =
+        acp_diagnostic_post(Path("draft-fixture".into()), Json(config)).await.unwrap();
+    assert_eq!(result, "connected");
+    assert!(!acp_probes().lock().unwrap().contains_key("draft-fixture"));
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_diagnostic_ignores_stale_results_gateway_cancels_and_cleans_up() {
+    let id = "cancel-fixture".to_string();
+    let probe_id = id.clone();
+    let probe = tokio::spawn(async move {
+        acp_diagnostic_post(
+            Path(probe_id),
+            Json(vw_acp::AcpAgentConfig {
+                command: "python3".into(),
+                args: vec!["-c".into(), "import time; time.sleep(30)".into()],
+                env: Default::default(),
+            }),
+        )
+        .await
+    });
+    tokio::time::timeout(std::time::Duration::from_secs(5), async {
+        loop {
+            if acp_diagnostic_cancel(Path(id.clone())).await.0 {
+                break;
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+    assert_eq!(probe.await.unwrap().unwrap().0, "cancelled");
+    assert!(!acp_probes().lock().unwrap().contains_key(&id));
+}

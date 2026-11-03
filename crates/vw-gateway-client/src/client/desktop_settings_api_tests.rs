@@ -599,3 +599,21 @@ async fn hooks_client_uses_typed_contracts() {
     assert_eq!(server.take_request().path, "/v1/hooks/audit");
     server.join();
 }
+
+#[tokio::test]
+async fn acp_diagnostic_ignores_stale_results_transport_preserves_draft() {
+    let scope = TenantScope::new("desktop-platform", "desktop-company").unwrap();
+    let server = test_support::server_with_tenant_scope(
+        vec![(200, json!("connected")), (200, json!(true))],
+        scope,
+    );
+    let draft =
+        json!({"command":"fixture", "args":["a,b", "with spaces"], "env":{"TOKEN":"draft"}});
+    assert_eq!(server.client().acp_diagnostic("fixture-id", &draft).await.unwrap(), "connected");
+    assert!(server.client().acp_diagnostic_cancel("fixture-id").await.unwrap());
+    let requests = [server.take_request(), server.take_request()];
+    server.join();
+    assert_eq!(requests[0].path, "/v1/desktop/acp-diagnostic/fixture-id");
+    assert_eq!(requests[0].body, draft);
+    assert_eq!(requests[1].method, "DELETE");
+}

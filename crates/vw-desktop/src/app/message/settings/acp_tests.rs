@@ -382,3 +382,67 @@ fn acp_editor_validates_and_saves_fields() {
         serde_json::to_value(&spec).unwrap()
     );
 }
+
+#[test]
+fn acp_diagnostic_ignores_stale_results_after_edit_and_cancel() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.new_agent_name_input = "fixture".into();
+    app.acp_settings.new_agent_command_input = "draft-command".into();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::StartDiagnostic));
+    let id = app.acp_settings.diagnostic_id.clone().unwrap();
+    let _ =
+        update(&mut app, SettingsMessage::Acp(AcpMessage::NewAgentCommandChanged("edited".into())));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::DiagnosticCompleted {
+            id,
+            result: Ok("connected".into()),
+        }),
+    );
+    assert!(app.acp_settings.diagnostic_status.is_none());
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::StartDiagnostic));
+    let id = app.acp_settings.diagnostic_id.clone().unwrap();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::CancelDiagnostic));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::DiagnosticCompleted {
+            id,
+            result: Ok("connected".into()),
+        }),
+    );
+    assert_eq!(app.acp_settings.diagnostic_status.as_deref(), Some("诊断已取消"));
+}
+
+#[test]
+fn acp_diagnostic_ignores_stale_results_retry_accepts_only_current_request() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.new_agent_name_input = "fixture".into();
+    app.acp_settings.new_agent_command_input = "draft-command".into();
+    app.acp_settings.editor_args = vec!["a,b".into(), "with spaces".into()];
+    app.acp_settings.editor_env = vec![("TOKEN".into(), "draft".into())];
+    let (_, spec) = new_agent_request(&app).unwrap();
+    assert_eq!(spec.args, ["a,b", "with spaces"]);
+    assert_eq!(spec.env["TOKEN"], "draft");
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::StartDiagnostic));
+    let old = app.acp_settings.diagnostic_id.clone().unwrap();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::StartDiagnostic));
+    let current = app.acp_settings.diagnostic_id.clone().unwrap();
+    assert_ne!(old, current);
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::DiagnosticCompleted {
+            id: old,
+            result: Ok("startup_failed".into()),
+        }),
+    );
+    assert_eq!(app.acp_settings.diagnostic_id.as_deref(), Some(current.as_str()));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::DiagnosticCompleted {
+            id: current,
+            result: Ok("connected".into()),
+        }),
+    );
+    assert_eq!(app.acp_settings.diagnostic_status.as_deref(), Some("启动成功 · 握手成功"));
+    assert!(app.acp_settings.diagnostic_id.is_none());
+}

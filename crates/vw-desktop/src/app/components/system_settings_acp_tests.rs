@@ -252,3 +252,46 @@ async fn acp_editor_validates_and_saves_fields_render_both_themes() {
         }
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn acp_diagnostic_ignores_stale_results_render_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+    let (mut app, _) = crate::app::App::new();
+    for agent in super::ACP_ORDER.iter().copied().chain(["中文自定义代理"]) {
+        for theme in [Theme::Dark, Theme::Light] {
+            let config = AcpAgentConfig { command: "示例命令".into(), ..Default::default() };
+            app.acp_settings.enabled.insert(agent.into());
+            app.acp_settings.new_agent_expanded = true;
+            app.acp_settings.new_agent_name_input = agent.into();
+            app.acp_settings.new_agent_command_input = config.command.clone();
+            app.acp_settings.diagnostic_status = Some("启动成功 · 握手成功 · 需要认证".into());
+            app.acp_settings.editor_args = vec!["中文参数,空格 ".into()];
+            app.acp_settings.editor_env = vec![("TOKEN".into(), "中文值".into())];
+            let mut element = super::new_agent_form(&app);
+            let mut renderer =
+                <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                    .await
+                    .expect("headless renderer");
+            let bounds = Size::new(960.0, 500.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style::default(),
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(960, 500), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0), "{agent}");
+        }
+    }
+}

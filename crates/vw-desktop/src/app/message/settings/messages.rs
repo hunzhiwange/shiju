@@ -362,6 +362,13 @@ pub enum GatewayClientMessage {
 /// ACP 设置页消息。
 #[derive(Debug, Clone)]
 pub enum AcpMessage {
+    StartDiagnostic,
+    CancelDiagnostic,
+    DiagnosticCancelled,
+    DiagnosticCompleted {
+        id: String,
+        result: Result<String, String>,
+    },
     EditAgent(String),
     CancelEditor,
     ArgumentChanged(usize, String),

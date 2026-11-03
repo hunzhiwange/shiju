@@ -223,6 +223,14 @@ impl TryFrom<&str> for DesktopServiceCommand {
 }
 
 impl GatewayClient {
+    pub async fn acp_diagnostic(&self, id: &str, config: &Value) -> Result<String, String> {
+        self.post_json(&format!("/v1/desktop/acp-diagnostic/{id}"), &[], config).await
+    }
+    pub async fn acp_diagnostic_cancel(&self, id: &str) -> Result<bool, String> {
+        self.delete_json(&format!("/v1/desktop/acp-diagnostic/{id}"), &[], &serde_json::json!({}))
+            .await
+    }
+
     /// List statically audited plugin hook declarations in stable order.
     pub async fn hooks_get(&self) -> Result<Vec<HookCatalogEntryDto>, String> {
         self.get_json("/v1/hooks", &[]).await

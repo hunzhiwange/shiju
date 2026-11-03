@@ -301,6 +301,14 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
                 settings_close_button(acp_message(AcpMessage::CancelEditor))
             ]
             .align_y(Alignment::Center),
+            text(
+                app.acp_settings
+                    .diagnostic_status
+                    .as_deref()
+                    .unwrap_or("诊断使用当前草稿，在网关主机执行，不发送消息或自动认证")
+            )
+            .size(12)
+            .style(settings_muted_text_style),
             scrollable(container(fields).padding([0, 7]))
                 .direction(iced::widget::scrollable::Direction::Vertical(
                     iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4)
@@ -311,6 +319,20 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
                     .padding([8, 16])
                     .style(rounded_action_btn_style)
                     .on_press(acp_message(AcpMessage::CancelEditor)),
+                button(text(if app.acp_settings.diagnostic_id.is_some() {
+                    "取消诊断"
+                } else {
+                    "测试连接 / 重试"
+                }))
+                .padding([8, 16])
+                .style(rounded_action_btn_style)
+                .on_press(acp_message(
+                    if app.acp_settings.diagnostic_id.is_some() {
+                        AcpMessage::CancelDiagnostic
+                    } else {
+                        AcpMessage::StartDiagnostic
+                    }
+                )),
                 save
             ]
             .spacing(8)

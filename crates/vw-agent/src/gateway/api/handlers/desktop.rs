@@ -43,6 +43,10 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
+        .route(
+            "/desktop/acp-diagnostic/{id}",
+            post(acp_diagnostic_post).delete(acp_diagnostic_cancel),
+        )
         .route("/desktop/preferences", get(preferences_get).patch(preferences_patch))
         .route("/desktop/tool-content/{tool_type}", get(tool_content_get).put(tool_content_put))
         .route("/desktop/skills", get(super::desktop_skills::catalog_get))
@@ -886,5 +890,64 @@ fn open_project_path_in_external(path: &str, target: &str) -> Result<(), String>
             }
         }
         _ => Err("unsupported external app target".to_string()),
+    }
+}
+
+// Probes execute on the authenticated gateway host, never on the UI host.
+fn acp_probes()
+-> &'static std::sync::Mutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>
+{
+    static PROBES: std::sync::OnceLock<
+        std::sync::Mutex<std::collections::HashMap<String, tokio_util::sync::CancellationToken>>,
+    > = std::sync::OnceLock::new();
+    PROBES.get_or_init(Default::default)
+}
+
+struct AcpProbeGuard(String);
+impl Drop for AcpProbeGuard {
+    fn drop(&mut self) {
+        if let Some(token) = acp_probes().lock().unwrap_or_else(|e| e.into_inner()).remove(&self.0)
+        {
+            token.cancel();
+        }
+    }
+}
+
+async fn acp_diagnostic_post(
+    Path(id): Path<String>,
+    Json(config): Json<vw_acp::AcpAgentConfig>,
+) -> Result<Json<String>, ApiError> {
+    if id.len() > 128 || config.command.trim().is_empty() {
+        return Err(ApiError::bad_request("invalid ACP diagnostic request"));
+    }
+    let cancellation = tokio_util::sync::CancellationToken::new();
+    {
+        let mut probes = acp_probes().lock().unwrap_or_else(|e| e.into_inner());
+        if probes.len() >= 4 || probes.contains_key(&id) {
+            return Err(ApiError::bad_request("ACP diagnostic busy"));
+        }
+        probes.insert(id.clone(), cancellation.clone());
+    }
+    let _guard = AcpProbeGuard(id.clone());
+    let result =
+        vw_acp::AcpClient::new("diagnostic", config).diagnose_connection(cancellation).await;
+    let status = match result {
+        vw_acp::ConnectionDiagnostic::StartupFailed => "startup_failed",
+        vw_acp::ConnectionDiagnostic::HandshakeFailed => "handshake_failed",
+        vw_acp::ConnectionDiagnostic::AuthenticationRequired => "authentication_required",
+        vw_acp::ConnectionDiagnostic::Connected => "connected",
+        vw_acp::ConnectionDiagnostic::TimedOut => "timed_out",
+        vw_acp::ConnectionDiagnostic::Cancelled => "cancelled",
+    };
+    Ok(Json(status.into()))
+}
+
+async fn acp_diagnostic_cancel(Path(id): Path<String>) -> Json<bool> {
+    let probes = acp_probes().lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(token) = probes.get(&id) {
+        token.cancel();
+        Json(true)
+    } else {
+        Json(false)
     }
 }

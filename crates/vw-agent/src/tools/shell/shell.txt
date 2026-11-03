@@ -5,7 +5,7 @@ Parameters:
 - `description` (required): Describe what the command does in 5-10 words.
 - `timeout` (optional): Optional positive execution deadline in milliseconds; no default deadline.
 - `workdir` (optional): Working directory; prefer this parameter over `cd`.
-- `approved` (optional): Explicitly approve the command in supervised mode.
+- `approved` (optional): Set true only after actual user approval of this command; never self-authorize.
 
 Security restrictions:
 - Commands run in the working-directory sandbox.
@@ -14,10 +14,10 @@ Security restrictions:
 - Dangerous commands require user confirmation.
 
 Recommended usage:
-- Use the Glob/Grep tools instead of `find`/`grep` commands.
-- Use the FileEdit tool instead of `sed`/`awk` commands.
-- Use the FileRead tool instead of `cat`/`head`/`tail` commands.
-- Use the FileWrite tool instead of `echo > file` commands.
+- Use the glob/grep tools instead of `find`/`grep` commands.
+- Use the file_edit tool instead of `sed`/`awk` commands.
+- Use the file_read tool instead of `cat`/`head`/`tail` commands.
+- Use the file_write tool instead of `echo > file` commands.
 
 Process sessions:
 - `yield_time_ms` defaults to 10000, integer range 250–30000. It controls the initial wait; waiting does not kill a running command.

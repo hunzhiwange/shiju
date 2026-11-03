@@ -5,7 +5,7 @@ Use this tool to ask the user multiple-choice questions during execution. This l
 4. Present clearly comparable directions to the user.
 
 Usage:
-- `questions` accepts at most 4 questions, and each question accepts at most 4 `options`. Question text and option labels must each be unique within their respective scope.
+- `questions` accepts 1–4 questions, and each question accepts 2–4 `options`. Question text and option labels must each be unique within their respective scope.
 - Custom answers are allowed by default. Enabling `custom` automatically provides a custom input, so do not manually add a fallback option such as "Other."
 - Use `multiSelect: true` to allow multiple selections; the legacy `multiple` field remains supported.
 - If you recommend a specific option, place it first and append " (Recommended)" to its label.

@@ -703,7 +703,7 @@ impl Tool for ShellTool {
                 },
                 "approved": {
                     "type": "boolean",
-                    "description": "Set to true to explicitly approve medium/high-risk commands in supervised mode",
+                    "description": "Set true only after actual user approval of this command; never self-authorize",
                     "default": false
                 }
             },

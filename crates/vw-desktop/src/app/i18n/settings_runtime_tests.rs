@@ -41,7 +41,7 @@ fn desktop_i18n_settings_runtime_dynamic_errors_preserve_raw_content() {
     );
     assert_eq!(
         validation_error(DesktopLocale::TraditionalChinese, "列表项不能为空"),
-        "列表項目不可為空"
+        "清單項目不得為空"
     );
 }
 

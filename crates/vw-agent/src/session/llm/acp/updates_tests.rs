@@ -760,3 +760,12 @@ fn forward_acp_message_saturates_delta_count_at_usize_max() {
     assert_eq!(delta_count, usize::MAX);
     assert!(matches!(&events[..], [StreamEvent::Delta(text)] if text == "still emitted"));
 }
+
+#[test]
+fn message_delta_ignores_transport_fallback_notice() {
+    let message = update_message(json!({
+        "sessionUpdate": "agent_message_chunk",
+        "content": {"type": "text", "text": "Warning: Falling back from WebSockets to HTTPS transport. stream disconnected before completion: tls handshake eof"}
+    }));
+    assert!(extract_delta_from_acp_message(&message).is_none());
+}

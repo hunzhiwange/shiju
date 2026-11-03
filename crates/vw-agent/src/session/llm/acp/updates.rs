@@ -315,6 +315,12 @@ pub(crate) fn extract_delta_from_acp_message(message: &AcpJsonRpcMessage) -> Opt
     }
     let content = update.get("content")?;
     let text = extract_text_content(content).or_else(|| content.as_str())?;
+    // Codex ACP can emit transport recovery notices as agent text.
+    // Keep this exact diagnostic out of reply text without hiding other warnings.
+    if text.trim_start().starts_with("Warning: Falling back from WebSockets to HTTPS transport.") {
+        tracing::debug!("ACP transport fell back from WebSockets to HTTPS");
+        return None;
+    }
     (!text.is_empty()).then(|| text.to_string())
 }
 

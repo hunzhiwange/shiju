@@ -35,7 +35,7 @@ use time::format_description;
 const PROMPT_UNIFIED: &str = include_str!("prompt/unified.txt");
 
 pub(crate) const UNIFIED_PROMPT_MARKER: &str =
-    "You are VibeWindow, a general-purpose autonomous assistant";
+    "You are ShiJu, a general-purpose autonomous assistant";
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct RuntimePromptModes {

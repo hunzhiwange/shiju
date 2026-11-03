@@ -1530,8 +1530,11 @@ impl App {
             lsp_hover_hide_deadline: None,
             #[cfg(not(target_arch = "wasm32"))]
             lsp_progress: HashMap::new(),
+            preview_messages: std::collections::HashMap::new(),
             #[cfg(not(target_arch = "wasm32"))]
             lsp_status: None,
+            #[cfg(not(target_arch = "wasm32"))]
+            lsp_status_message: None,
 
             // ========== 预览导航 ==========
             pending_preview_goto: None,

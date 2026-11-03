@@ -75,7 +75,10 @@ pub(super) fn preview_tab_menu_container_style(theme: &Theme) -> container::Styl
 }
 
 /// 构建预览标签页右键菜单。
-pub fn build_preview_tab_menu<'a>(path: &str) -> Element<'a, Message> {
+pub fn build_preview_tab_menu<'a>(
+    i18n: crate::app::i18n::I18n,
+    path: &str,
+) -> Element<'a, Message> {
     let [close, close_left, close_right, close_all] = preview_tab_menu_messages(path);
 
     let menu_btn = |label: String, msg: Message| -> Element<'a, Message> {
@@ -95,12 +98,12 @@ pub fn build_preview_tab_menu<'a>(path: &str) -> Element<'a, Message> {
     };
 
     let content = column![
-        menu_btn("关闭".to_string(), close),
+        menu_btn(i18n.__("关闭").to_string(), close),
         separator(),
-        menu_btn("关闭左侧".to_string(), close_left),
-        menu_btn("关闭右侧".to_string(), close_right),
+        menu_btn(i18n.__("关闭左侧").to_string(), close_left),
+        menu_btn(i18n.__("关闭右侧").to_string(), close_right),
         separator(),
-        menu_btn("关闭所有".to_string(), close_all),
+        menu_btn(i18n.__("关闭所有").to_string(), close_all),
     ]
     .width(Length::Fixed(140.0))
     .padding(2)

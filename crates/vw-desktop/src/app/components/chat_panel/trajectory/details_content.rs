@@ -74,7 +74,7 @@ pub(crate) fn trajectory_details_body<'a>(
     match body {
         TrajectoryDetailContent::Fields(fields) => fields_view(i18n, fields, state),
         TrajectoryDetailContent::Text(value) => {
-            container(selectable_value(0, value, Font::DEFAULT, 12.0, state))
+            container(selectable_value(i18n, 0, value, Font::DEFAULT, 12.0, state))
                 .padding(10)
                 .width(Length::Fill)
                 .style(styles::details_section_style)
@@ -211,7 +211,7 @@ fn fields_view<'a>(
                     .style(|theme: &Theme| iced::widget::text::Style {
                         color: Some(styles::details_label_color(theme)),
                     }),
-                selectable_value(index, value, Font::DEFAULT, 12.0, state),
+                selectable_value(i18n, index, value, Font::DEFAULT, 12.0, state),
             ]
             .spacing(8)
             .align_y(Alignment::Start),
@@ -221,6 +221,7 @@ fn fields_view<'a>(
 }
 
 fn selectable_value<'a>(
+    i18n: crate::app::i18n::I18n,
     index: usize,
     value: String,
     font: Font,
@@ -244,6 +245,7 @@ fn selectable_value<'a>(
     };
     let position = state.context_menu_position(index);
     wrap_with_copy_context_menu(
+        i18n,
         content,
         TextEditorContextMenuState { open: position.is_some(), position },
         move |point| {

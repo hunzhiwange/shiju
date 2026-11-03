@@ -176,23 +176,28 @@ pub(crate) fn sync_lsp_for_path(app: &mut App, path: &str) -> bool {
                 tab.lsp_uri = Some(uri.clone());
                 tab.lsp_language_id = Some(language.language_id.to_string());
                 // 返回：无通知消息、服务器就绪状态、成功标志
-                (None, Some(format!("{} 就绪", language.server_key)), true)
+                (None, Some(("%s 就绪", vec![language.server_key.into()])), true)
             }
             Err(err) => {
                 // 启动失败，清除服务器标识
                 tab.lsp_server_key = None;
                 // 返回：错误通知、失败状态、失败标志
-                (Some(format!("LSP 启动失败: {}", err)), Some(format!("LSP 失败: {}", err)), false)
+                (Some(err.clone()), Some(("LSP 失败: %s", vec![err.into()])), false)
             }
         }
     };
 
     // 如果有通知消息，推送到应用通知队列
     if let Some(message) = notify {
-        app.push_notification(message);
+        app.push_localized_notification("LSP 启动失败: %s", vec![message.into()]);
     }
     // 更新全局 LSP 状态显示
-    app.lsp_status = status;
+    if let Some((source, arguments)) = status {
+        crate::app::i18n::editor::set_lsp_status(app, source, arguments);
+    } else {
+        app.lsp_status = None;
+        app.lsp_status_message = None;
+    }
     success
 }
 
@@ -204,7 +209,7 @@ pub(crate) fn disable_lsp(app: &mut App) {
         detach_lsp_for_tab(tab);
     }
     app.lsp_progress.clear();
-    app.lsp_status = Some("LSP 已禁用".to_string());
+    crate::app::i18n::editor::set_lsp_status(app, "LSP 已禁用", vec![]);
     if let Some(manager) = app.lsp_manager.as_mut() {
         manager.shutdown_all();
     }
@@ -212,7 +217,7 @@ pub(crate) fn disable_lsp(app: &mut App) {
 
 pub(crate) fn enable_lsp(app: &mut App) {
     app.lsp_disabled = false;
-    app.lsp_status = Some("LSP 已启用".to_string());
+    crate::app::i18n::editor::set_lsp_status(app, "LSP 已启用", vec![]);
     if let (Some(manager), Some(project_path)) =
         (app.lsp_manager.as_mut(), app.project_path.as_deref())
     {
@@ -758,7 +763,7 @@ pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
                 }
                 LspEvent::Formatting { .. } => {
                     // 预览编辑器尚未接入 LSP 格式化请求与编辑应用流程。
-                    app.push_notification("暂不支持 LSP 格式化".to_string());
+                    app.push_localized_notification("暂不支持 LSP 格式化", vec![]);
                 }
                 // 处理 LSP 服务器进度事件
                 LspEvent::Progress { token, server_key, title, message, percentage, done } => {
@@ -772,9 +777,14 @@ pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
                             }
                         }
                         // 更新状态为就绪
-                        app.lsp_status = Some(format!("{} Ready", server_key));
+                        crate::app::i18n::editor::set_lsp_status(
+                            app,
+                            "%s 就绪",
+                            vec![server_key.into()],
+                        );
                     } else {
                         // 进度进行中，更新状态和进度映射
+                        app.lsp_status_message = None;
                         app.lsp_status = Some(format!("{} {}", server_key, title));
                         app.lsp_progress
                             .entry(server_key)
@@ -785,7 +795,7 @@ pub(crate) fn drain_lsp_events(app: &mut App) -> Task<Message> {
                 // 处理 LSP 日志事件
                 LspEvent::Log { server_key: _, message } => {
                     // 将日志显示为应用通知
-                    app.push_notification(format!("LSP 日志: {}", message));
+                    app.push_localized_notification("LSP 日志: %s", vec![message.into()]);
                 }
             },
             // 事件队列为空，将接收器放回并退出循环

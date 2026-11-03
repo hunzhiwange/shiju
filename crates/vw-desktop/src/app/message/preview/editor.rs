@@ -239,10 +239,14 @@ fn update_context_target_from_editor_event(app: &mut App, evt: &iced_code_editor
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn reveal_in_file_manager(path: &str) -> Result<(), String> {
+fn reveal_in_file_manager(path: &str) -> Result<(), crate::app::i18n::format::Message> {
+    use crate::app::i18n::format::Message as Feedback;
     let path = std::path::Path::new(path);
     if !path.is_file() {
-        return Err(format!("无法在文件管理器中显示：文件不存在 {}", path.display()));
+        return Err(Feedback::new(
+            "无法在文件管理器中显示：文件不存在 %s",
+            vec![path.display().to_string().into()],
+        ));
     }
 
     #[cfg(target_os = "macos")]
@@ -261,17 +265,20 @@ fn reveal_in_file_manager(path: &str) -> Result<(), String> {
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     let mut command = {
-        let directory =
-            path.parent().ok_or_else(|| format!("无法确定文件所在目录：{}", path.display()))?;
+        let directory = path.parent().ok_or_else(|| {
+            Feedback::new("无法确定文件所在目录：%s", vec![path.display().to_string().into()])
+        })?;
         let mut command = std::process::Command::new("xdg-open");
         command.arg(directory);
         command
     };
 
-    command
-        .spawn()
-        .map(|_| ())
-        .map_err(|error| format!("无法在文件管理器中显示 {}：{error}", path.display()))
+    command.spawn().map(|_| ()).map_err(|error| {
+        Feedback::new(
+            "无法在文件管理器中显示 %s：%s",
+            vec![path.display().to_string().into(), error.to_string().into()],
+        )
+    })
 }
 
 /// 处理预览编辑器的消息更新
@@ -341,10 +348,24 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                     #[cfg(not(target_arch = "wasm32"))]
                     {
                         let Some(path) = app.active_preview_path.as_deref() else {
-                            return app.show_error_toast("无法在文件管理器中显示：没有活动文件");
+                            return app.show_localized_toast(
+                                crate::app::state::ToastKind::Error,
+                                "无法在文件管理器中显示：没有活动文件",
+                                vec![],
+                            );
                         };
                         if let Err(error) = reveal_in_file_manager(path) {
-                            return app.show_error_toast(error);
+                            if let crate::app::i18n::format::Message::Template {
+                                source,
+                                arguments,
+                            } = error
+                            {
+                                return app.show_localized_toast(
+                                    crate::app::state::ToastKind::Error,
+                                    &source,
+                                    arguments,
+                                );
+                            }
                         }
                     }
                     return Task::none();

@@ -398,6 +398,9 @@ fn preview_context_menu_reveal_rejects_missing_file_without_spawning() {
     let error = super::reveal_in_file_manager(&missing.to_string_lossy())
         .expect_err("missing paths must not be sent to the file manager");
 
+    let error = error
+        .render(crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese))
+        .unwrap();
     assert!(error.contains("文件不存在"));
     assert!(error.contains(&missing.to_string_lossy().to_string()));
 }

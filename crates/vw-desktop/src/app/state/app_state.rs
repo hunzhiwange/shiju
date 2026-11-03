@@ -1011,9 +1011,14 @@ pub struct App {
     /// LSP 进度映射（文件路径 -> 进度 ID -> 进度信息）（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) lsp_progress: HashMap<String, HashMap<String, LspProgress>>,
+    /// Semantic preview notices, separate from file contents.
+    pub(crate) preview_messages:
+        std::collections::HashMap<String, crate::app::i18n::format::Message>,
     /// LSP 状态信息（仅非 wasm32 平台）
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) lsp_status: Option<String>,
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) lsp_status_message: Option<(String, crate::app::i18n::format::Message)>,
     /// 待跳转的预览位置（文件路径，行号，列号）
     pub(crate) pending_preview_goto: Option<(String, usize, usize)>,
     /// 预览导航回退栈

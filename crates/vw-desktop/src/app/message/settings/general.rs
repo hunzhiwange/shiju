@@ -29,6 +29,7 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     match message {
         GeneralSettingsMessage::LocaleSelected(locale) => {
             app.desktop_locale = locale;
+            crate::app::i18n::editor::refresh(app);
             crate::apps::workflow::refresh_top_tab_title(app);
             crate::app::i18n::apps::refresh_hub_titles(app);
             let viewing_task = app.task_board_viewing_logs.clone();

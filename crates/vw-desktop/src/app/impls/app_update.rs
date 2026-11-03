@@ -330,6 +330,7 @@ impl App {
     ) {
         if !self.desktop_locale_selected {
             self.desktop_locale = system.desktop_locale;
+            crate::app::i18n::editor::refresh(self);
         }
         #[cfg(target_arch = "wasm32")]
         vw_provider_resolver::config::set_wasm_gateway_endpoint({

@@ -279,6 +279,7 @@ fn selectable_value<'a>(
     let position = state.context_menu_position(index);
 
     wrap_with_copy_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         content,
         TextEditorContextMenuState { open: position.is_some(), position },
         move |point| {

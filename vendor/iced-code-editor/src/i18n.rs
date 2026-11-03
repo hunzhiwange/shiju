@@ -102,7 +102,7 @@ pub struct Translations {
 impl Translations {
     /// Creates a new `Translations` instance with the specified language.
     ///
-    /// This sets the global rust-i18n locale to the specified language.
+    /// Each lookup uses this instance’s locale explicitly.
     ///
     /// # Examples
     ///
@@ -134,7 +134,7 @@ impl Translations {
 
     /// Sets the language for translations.
     ///
-    /// This updates the global rust-i18n locale.
+    /// This updates only this instance’s locale.
     ///
     /// # Examples
     ///

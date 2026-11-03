@@ -645,7 +645,7 @@ fn drain_lsp_events_clears_blank_hover_and_completed_progress() {
     assert!(!app.lsp_overlay.hover_visible);
     assert!(app.lsp_overlay_path.is_none());
     assert!(!app.lsp_progress.contains_key("rust-analyzer"));
-    assert_eq!(app.lsp_status.as_deref(), Some("rust-analyzer Ready"));
+    assert_eq!(app.lsp_status.as_deref(), Some("rust-analyzer 就绪"));
 }
 
 #[test]

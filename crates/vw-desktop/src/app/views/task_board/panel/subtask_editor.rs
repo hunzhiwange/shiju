@@ -680,6 +680,7 @@ fn build_task_logs_panel<'a>(app: &'a App, size: Size) -> Element<'a, Message> {
         });
 
     let editor = wrap_with_context_menu(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         editor,
         TextEditorContextMenuState {
             open: app.task_board_logs_context_menu_open,

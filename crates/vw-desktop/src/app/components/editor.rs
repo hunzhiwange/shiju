@@ -182,6 +182,11 @@ impl Editor {
     /// use iced_code_editor::i18n::Language;
     /// editor.set_ui_language(Language::ZhCn);
     /// ```
+    #[cfg(test)]
+    pub(crate) fn ui_language(&self) -> i18n::Language {
+        self.inner.language()
+    }
+
     pub fn set_ui_language(&mut self, language: i18n::Language) {
         self.inner.set_language(language);
         if self.preview_context_menu_configured {
@@ -543,11 +548,16 @@ impl Editor {
 }
 
 fn preview_context_menu_entries(language: i18n::Language) -> Vec<ContextMenuEntry> {
-    let (insert_selection, insert_positions) = match language {
-        i18n::Language::ChineseSimplified => ("插入选择到聊天", "插入选区位置信息"),
-        i18n::Language::ChineseTraditional => ("將選取內容插入聊天", "插入選取範圍位置資訊"),
-        _ => ("Insert selection into chat", "Insert selection positions"),
+    let locale = match language {
+        i18n::Language::ChineseSimplified => vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        i18n::Language::ChineseTraditional => {
+            vw_config_types::ui::DesktopLocale::TraditionalChinese
+        }
+        _ => vw_config_types::ui::DesktopLocale::English,
     };
+    let i18n = crate::app::i18n::I18n::new(locale);
+    let insert_selection = i18n.__("插入选择到聊天");
+    let insert_positions = i18n.__("插入选区位置信息");
 
     vec![
         ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION, insert_selection),

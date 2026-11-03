@@ -49,7 +49,15 @@ pub enum PreviewMessage {
     /// - `path`: 文件路径
     /// - `content`: 文件内容
     /// - `truncated`: 内容是否因过大而被截断
-    OpenLoaded { path: String, content: String, truncated: bool },
+    OpenLoaded {
+        path: String,
+        content: String,
+        truncated: bool,
+    },
+    OpenFailed {
+        path: String,
+        error: String,
+    },
 
     /// 切换到指定路径的标签页（已打开则聚焦，否则打开）
     ///
@@ -247,13 +255,24 @@ pub enum PreviewMessage {
     SaveFile,
 
     /// 保存指定路径的文件。
-    SaveFilePath { path: String, notify: bool },
+    SaveFilePath {
+        path: String,
+        notify: bool,
+    },
 
     /// 指定文件保存完成。
-    SaveFileFinished { path: String, content: String, notify: bool, result: Result<(), String> },
+    SaveFileFinished {
+        path: String,
+        content: String,
+        notify: bool,
+        result: Result<(), String>,
+    },
 
     /// 自动保存延迟已到达。
-    AutoSaveDelayElapsed { path: String, revision: u64 },
+    AutoSaveDelayElapsed {
+        path: String,
+        revision: u64,
+    },
 
     /// 窗口失去焦点。
     WindowUnfocused,
@@ -342,6 +361,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
         // 标签页管理相关消息：文件打开、关闭、选择、导航历史、保存
         PreviewMessage::Open(_)
         | PreviewMessage::OpenLoaded { .. }
+        | PreviewMessage::OpenFailed { .. }
         | PreviewMessage::Select(_)
         | PreviewMessage::Close(_)
         | PreviewMessage::TraceBack

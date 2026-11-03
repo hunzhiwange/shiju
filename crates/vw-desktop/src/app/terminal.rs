@@ -40,6 +40,7 @@ impl std::fmt::Display for TerminalTheme {
 pub struct TerminalTab {
     pub id: u64,
     pub title: String,
+    pub default_title: bool,
     #[cfg(not(target_arch = "wasm32"))]
     pub term: iced_term::Terminal,
     #[cfg(target_arch = "wasm32")]
@@ -418,6 +419,7 @@ impl TerminalState {
             self.tabs.push(TerminalTab {
                 id,
                 title: format!("终端 {}", id),
+                default_title: true,
                 term,
                 edit_title: None,
             });
@@ -466,7 +468,7 @@ impl TerminalState {
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
         let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
-        self.tabs.push(TerminalTab { id, title, term, edit_title: None });
+        self.tabs.push(TerminalTab { id, title, default_title: false, term, edit_title: None });
         self.active_id = Some(id);
         Some(id)
     }
@@ -510,7 +512,7 @@ impl TerminalState {
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
         let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
-        self.tabs.push(TerminalTab { id, title, term, edit_title: None });
+        self.tabs.push(TerminalTab { id, title, default_title: false, term, edit_title: None });
         self.active_id = Some(id);
         Some(id)
     }
@@ -587,7 +589,7 @@ fi
         let _ = term.handle(iced_term::Command::ChangeFont(fs));
         let _ = term.handle(iced_term::Command::AddBindings(enter_sends_cr_bindings()));
 
-        self.tabs.push(TerminalTab { id, title, term, edit_title: None });
+        self.tabs.push(TerminalTab { id, title, default_title: false, term, edit_title: None });
         self.active_id = Some(id);
         Some(id)
     }

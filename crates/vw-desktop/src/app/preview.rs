@@ -525,14 +525,25 @@ pub fn format_text_preview_content(content: &str) -> (String, bool) {
 }
 
 pub fn preview_open_error(path: &str) -> Option<String> {
+    preview_open_error_message(path).map(|message| {
+        message
+            .render(crate::app::i18n::I18n::new(
+                vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+            ))
+            .expect("preview error template")
+    })
+}
+
+pub fn preview_open_error_message(path: &str) -> Option<crate::app::i18n::format::Message> {
+    use crate::app::i18n::format::Message;
     if let Some(kind) = unsupported_preview_kind(path) {
-        return Some(format!("不支持展开该文件：{} 文件无法打开", kind));
+        let kind =
+            if kind == "PDF" { Message::literal(kind.into()) } else { Message::new(kind, vec![]) };
+        return Some(Message::nested("不支持展开该文件：%s 文件无法打开".into(), vec![kind]));
     }
-
     if !file_looks_like_text(path) {
-        return Some("不支持展开该文件：二进制文件无法打开".to_string());
+        return Some(Message::new("不支持展开该文件：二进制文件无法打开", vec![]));
     }
-
     None
 }
 
@@ -672,4 +683,18 @@ pub fn compute_search_matches(content: &str, terms: &[String]) -> Vec<(usize, us
     // 按行号和列号排序
     out.sort_by(|a, b| (a.0, a.1).cmp(&(b.0, b.1)));
     out
+}
+
+/// Semantic metadata for previews that cannot display editable text.
+pub fn preview_description(path: &str) -> Option<crate::app::i18n::format::Message> {
+    use crate::app::i18n::format::Message;
+    let name =
+        std::path::Path::new(path).file_name().and_then(|name| name.to_str()).unwrap_or(path);
+    let kind = unsupported_preview_kind(path)?;
+    let kind =
+        if kind == "PDF" { Message::literal(kind.into()) } else { Message::new(kind, vec![]) };
+    Some(Message::nested(
+        "文件: %s\n类型: %s\n不支持文本预览\n".into(),
+        vec![Message::literal(name.into()), kind],
+    ))
 }

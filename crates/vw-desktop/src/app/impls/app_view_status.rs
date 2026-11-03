@@ -140,7 +140,7 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
                         })
                         .into()
                 }
-            } else if let Some(status) = &app.lsp_status {
+            } else if let Some(status) = crate::app::i18n::editor::lsp_status(app) {
                 iced::widget::text(status)
                     .size(12)
                     .style(move |theme: &iced::Theme| {
@@ -169,7 +169,7 @@ pub(super) fn status_bar(app: &App) -> Element<'_, Message> {
                     })
                     .into()
             }
-        } else if let Some(status) = &app.lsp_status {
+        } else if let Some(status) = crate::app::i18n::editor::lsp_status(app) {
             iced::widget::text(status)
                 .size(12)
                 .style(move |theme: &iced::Theme| {

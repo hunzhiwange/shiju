@@ -63,6 +63,7 @@ pub enum SelectionActionOutcome {
 ///
 /// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
 pub fn wrap_with_context_menu<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     content: impl Into<Element<'a, Message>>,
     menu_state: TextEditorContextMenuState,
     on_open: impl Fn(Point) -> Message + 'a,
@@ -74,7 +75,7 @@ pub fn wrap_with_context_menu<'a, Message: Clone + 'a>(
     let show = menu_state.open && menu_state.position.is_some();
     let close_message = messages.close.clone();
 
-    PointBelowOverlay::new(content, context_menu(messages))
+    PointBelowOverlay::new(content, context_menu(i18n, messages))
         .show(show)
         .anchor(Point::new(anchor.0, anchor.1))
         .gap(0.0)
@@ -84,6 +85,7 @@ pub fn wrap_with_context_menu<'a, Message: Clone + 'a>(
 
 /// 为只读文本区域提供仅包含“复制”的右键菜单。
 pub fn wrap_with_copy_context_menu<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     content: impl Into<Element<'a, Message>>,
     menu_state: TextEditorContextMenuState,
     on_open: impl Fn(Point) -> Message + 'a,
@@ -95,7 +97,7 @@ pub fn wrap_with_copy_context_menu<'a, Message: Clone + 'a>(
     let show = menu_state.open && menu_state.position.is_some();
     let close_message = messages.close.clone();
 
-    PointBelowOverlay::new(content, copy_context_menu(messages.copy))
+    PointBelowOverlay::new(content, copy_context_menu(i18n, messages.copy))
         .show(show)
         .anchor(Point::new(anchor.0, anchor.1))
         .gap(0.0)
@@ -283,6 +285,7 @@ pub fn paste_action(content: String) -> text_editor::Action {
 }
 
 pub(super) fn context_menu<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     messages: TextEditorContextMenuMessages<Message>,
 ) -> Element<'a, Message> {
     let menu_button = |label: &'static str, shortcut: &'static str, message: Message| {
@@ -299,27 +302,30 @@ pub(super) fn context_menu<'a, Message: Clone + 'a>(
         .on_press(message)
     };
     let mut actions = column![
-        menu_button("复制选择", copy_shortcut(), messages.copy),
-        menu_button("剪切", cut_shortcut(), messages.cut),
-        menu_button("粘贴", paste_shortcut(), messages.paste),
-        menu_button("删除", "Del", messages.delete),
+        menu_button(i18n.__("复制选择"), copy_shortcut(), messages.copy),
+        menu_button(i18n.__("剪切"), cut_shortcut(), messages.cut),
+        menu_button(i18n.__("粘贴"), paste_shortcut(), messages.paste),
+        menu_button(i18n.__("删除"), "Del", messages.delete),
     ]
     .spacing(4)
     .width(Length::Fixed(176.0));
     if let Some(message) = messages.undo {
-        actions = actions.push(menu_button("撤销", undo_shortcut(), message));
+        actions = actions.push(menu_button(i18n.__("撤销"), undo_shortcut(), message));
     }
     if let Some(message) = messages.redo {
-        actions = actions.push(menu_button("重做", redo_shortcut(), message));
+        actions = actions.push(menu_button(i18n.__("重做"), redo_shortcut(), message));
     }
 
     container(actions).padding(6).style(popover_style).into()
 }
 
-fn copy_context_menu<'a, Message: Clone + 'a>(copy: Message) -> Element<'a, Message> {
+fn copy_context_menu<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
+    copy: Message,
+) -> Element<'a, Message> {
     container(
         button(row![
-            text("复制").size(12),
+            text(i18n.__("复制")).size(12),
             Space::new().width(Length::Fill),
             text(copy_shortcut()).size(11).style(shortcut_text_style),
         ])

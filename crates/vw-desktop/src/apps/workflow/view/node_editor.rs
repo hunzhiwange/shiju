@@ -281,6 +281,7 @@ pub(super) fn build_node_advanced_dsl_section<'a>(
         .height(Length::Fixed(360.0))
         .style(editor_style);
     let editor = wrap_with_context_menu(
+        i18n,
         editor,
         TextEditorContextMenuState {
             open: state.node_editor_dsl_context_menu_open,

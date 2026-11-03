@@ -114,7 +114,13 @@ pub fn view(app: &App) -> Element<'_, Message> {
         // 计算标签页宽度：基于标题字符数量
         // 公式：字符数 * 8.4（每字符平均宽度）+ 62.0（内边距和图标预留）
         // 限制在 92.0-260.0 范围内
-        let tab_width = terminal_tab_width(&t.title);
+        let title = if t.default_title {
+            crate::__!(crate::app::i18n::I18n::new(app.desktop_locale), "终端 %u", t.id)
+                .expect("terminal title template")
+        } else {
+            t.title.clone()
+        };
+        let tab_width = terminal_tab_width(&title);
 
         // 关闭按钮尺寸
         let close_btn_size = 18.0;
@@ -127,7 +133,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         // 点击此区域可切换到对应标签页
         let select_btn = button(
             container(
-                text(t.title.clone())
+                text(title)
                     .size(13)
                     .width(Length::Shrink)
                     .height(Length::Fill)

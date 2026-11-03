@@ -220,6 +220,11 @@ fn active_preview_lsp_badge(app: &App) -> Option<Element<'_, Message>> {
     });
     let (label, tone) =
         active_preview_lsp_badge_state(tab.lsp_server_key, has_progress, language.is_some());
+    let label = if label == "Plain Text" {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("纯文本")
+    } else {
+        label
+    };
     let badge_theme = app.effective_editor_theme();
     let dot = active_preview_lsp_badge_dot_color(&badge_theme, tone);
     let (background, text_color, border_color) =

@@ -18,7 +18,7 @@ fn open_copy_modal_with_text(app: &mut App, text: String) {
         let theme = app.effective_editor_theme();
         let font_size = app.current_font_size.clamp(10.0, 30.0);
         let line_height = app.current_line_height.clamp(10.0, 60.0);
-        let language = app.current_language;
+        let language = crate::app::i18n::editor::language(app.desktop_locale);
         configure_git_code_editor(
             theme,
             font_size,
@@ -165,7 +165,7 @@ pub(super) fn update(app: &mut App, message: GitMessage) -> Task<Message> {
                 let theme = app.effective_editor_theme();
                 let font_size = app.current_font_size.clamp(10.0, 30.0);
                 let line_height = app.current_line_height.clamp(10.0, 60.0);
-                let language = app.current_language;
+                let language = crate::app::i18n::editor::language(app.desktop_locale);
                 configure_git_code_editor(
                     theme,
                     font_size,

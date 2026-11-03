@@ -526,9 +526,11 @@ fn lsp_tab_content(app: &App) -> Vec<Element<'_, Message>> {
     }
 
     if rows.is_empty() {
-        let status = app.lsp_status.clone().unwrap_or_else(|| "LSP 尚未连接".to_string());
+        let status = crate::app::i18n::editor::lsp_status(app).unwrap_or_else(|| {
+            crate::app::i18n::I18n::new(app.desktop_locale).__("LSP 尚未连接").to_string()
+        });
         rows.push(gateway_row(status_dot(false), status, None, None));
-    } else if let Some(status) = &app.lsp_status {
+    } else if let Some(status) = crate::app::i18n::editor::lsp_status(app) {
         rows.push(gateway_row(status_dot(true), status.clone(), None, None));
     }
     rows

@@ -99,3 +99,5 @@ mod modals_tests;
 
 #[cfg(test)]
 mod gettext_area_16_tests;
+
+pub mod editor;

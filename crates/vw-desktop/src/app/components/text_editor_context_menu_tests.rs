@@ -87,8 +87,13 @@ fn wrap_with_context_menu_builds_closed_content() {
     let content = text("editor").width(Length::Fill);
     let state = TextEditorContextMenuState { open: false, position: Some((1.0, 2.0)) };
 
-    let element: Element<'_, TestMessage> =
-        wrap_with_context_menu(content, state, |_| TestMessage::Opened, messages());
+    let element: Element<'_, TestMessage> = wrap_with_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        content,
+        state,
+        |_| TestMessage::Opened,
+        messages(),
+    );
 
     assert_eq!(element.as_widget().children().len(), 2);
 }
@@ -98,8 +103,13 @@ fn wrap_with_context_menu_ignores_open_state_without_position() {
     let content = text("editor").width(Length::Fill);
     let state = TextEditorContextMenuState { open: true, position: None };
 
-    let element: Element<'_, TestMessage> =
-        wrap_with_context_menu(content, state, |_| TestMessage::Opened, messages());
+    let element: Element<'_, TestMessage> = wrap_with_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        content,
+        state,
+        |_| TestMessage::Opened,
+        messages(),
+    );
 
     assert_eq!(element.as_widget().children().len(), 2);
 }
@@ -109,15 +119,23 @@ fn wrap_with_context_menu_builds_open_overlay_when_position_exists() {
     let content = text("editor").width(Length::Fill);
     let state = TextEditorContextMenuState { open: true, position: Some((24.0, 48.0)) };
 
-    let element: Element<'_, TestMessage> =
-        wrap_with_context_menu(content, state, |_| TestMessage::Opened, messages());
+    let element: Element<'_, TestMessage> = wrap_with_context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        content,
+        state,
+        |_| TestMessage::Opened,
+        messages(),
+    );
 
     assert_eq!(element.as_widget().children().len(), 2);
 }
 
 #[test]
 fn context_menu_builds_action_buttons() {
-    let _element: Element<'_, TestMessage> = context_menu(messages());
+    let _element: Element<'_, TestMessage> = context_menu(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        messages(),
+    );
 }
 
 #[test]

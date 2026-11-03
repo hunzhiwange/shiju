@@ -138,13 +138,14 @@ fn mode_button_style(
 /// let switch = mode_switch(MarkdownViewMode::Edit, |m| Message::ChangeMode(m));
 /// ```
 pub fn mode_switch<'a, Message: Clone + 'a>(
+    i18n: crate::app::i18n::I18n,
     mode: MarkdownViewMode,
     on_change: fn(MarkdownViewMode) -> Message,
 ) -> Element<'a, Message> {
     // 内部辅助函数，用于创建单个模式切换按钮
     let btn = |label: &'static str, target: MarkdownViewMode| {
         let selected = mode == target;
-        let b = button(text(label).size(12)).padding([6, 12]);
+        let b = button(text(i18n.__(label)).size(12)).padding([6, 12]);
         if selected {
             // 当前选中的模式使用主要样式，不可点击
             b.style(move |theme, status| mode_button_style(theme, status, selected))

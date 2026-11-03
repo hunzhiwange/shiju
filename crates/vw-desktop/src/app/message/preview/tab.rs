@@ -82,7 +82,10 @@ fn gateway_preview_target(
     Ok((parent.to_string(), file_name.to_string()))
 }
 
-async fn load_preview_text_content(project_path: Option<String>, path: String) -> (String, bool) {
+async fn load_preview_text_content(
+    project_path: Option<String>,
+    path: String,
+) -> Result<(String, bool), String> {
     let result = async {
         let client = crate::app::gateway_client()?;
         let (directory, relative_path) = gateway_preview_target(project_path.as_deref(), &path)?;
@@ -94,7 +97,7 @@ async fn load_preview_text_content(project_path: Option<String>, path: String) -
     }
     .await;
 
-    result.unwrap_or_else(|error| (format!("读取失败：{error}\n"), false))
+    result
 }
 
 async fn persist_preview_file(
@@ -256,13 +259,23 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_theme(app.effective_editor_theme());
                 editor.set_font_size(app.current_font_size);
                 editor.set_line_height(app.current_line_height.clamp(10.0, 60.0));
-                editor.set_ui_language(app.current_language);
+                editor.set_ui_language(crate::app::i18n::editor::language(app.desktop_locale));
                 editor.set_search_replace_enabled(true);
                 editor.configure_preview_context_menu(
-                    app.current_language,
+                    crate::app::i18n::editor::language(app.desktop_locale),
                     cfg!(not(target_arch = "wasm32")),
                 );
 
+                app.preview_messages.remove(&path_clone);
+                if !instant_preview {
+                    app.preview_messages.insert(
+                        path_clone.clone(),
+                        crate::app::i18n::format::Message::new("加载中…", vec![]),
+                    );
+                }
+                if let Some(description) = crate::app::preview::preview_description(&path_clone) {
+                    app.preview_messages.insert(path_clone.clone(), description);
+                }
                 app.preview_tabs.push(PreviewTab {
                     path: path_clone.clone(),
                     title,
@@ -293,11 +306,16 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                     let msg_path = path_clone.clone();
                     load_task = Task::perform(
                         load_preview_text_content(project_path, load_path),
-                        move |(content, truncated)| {
-                            Message::Preview(PreviewMessage::OpenLoaded {
-                                path: msg_path.clone(),
-                                content,
-                                truncated,
+                        move |result| {
+                            Message::Preview(match result {
+                                Ok((content, truncated)) => PreviewMessage::OpenLoaded {
+                                    path: msg_path.clone(),
+                                    content,
+                                    truncated,
+                                },
+                                Err(error) => {
+                                    PreviewMessage::OpenFailed { path: msg_path.clone(), error }
+                                }
                             })
                         },
                     );
@@ -334,11 +352,26 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             app.screen = Screen::Preview;
             load_task
         }
+        PreviewMessage::OpenFailed { path, error } => {
+            if app.preview_tabs.iter().any(|tab| tab.path == path) {
+                app.preview_messages.insert(
+                    path,
+                    crate::app::i18n::format::Message::new("读取失败：%s\n", vec![error.into()]),
+                );
+            }
+            Task::none()
+        }
         PreviewMessage::OpenLoaded { path, content, truncated } => {
+            app.preview_messages.remove(&path);
+            let content = if truncated {
+                content.strip_prefix("文件较大，预览已截断。\n\n").unwrap_or(&content).to_string()
+            } else {
+                content
+            };
             let editor_theme = app.effective_editor_theme();
             let font_size = app.current_font_size;
             let line_height = app.current_line_height;
-            let language = app.current_language;
+            let language = crate::app::i18n::editor::language(app.desktop_locale);
 
             if let Some(tab) = app.preview_tabs.iter_mut().find(|t| t.path == path) {
                 tab.content = content.clone();
@@ -394,6 +427,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
             Task::none()
         }
         PreviewMessage::Close(path) => {
+            app.preview_messages.remove(&path);
             if let Some(pos) = app.preview_tabs.iter().position(|t| t.path == path) {
                 #[cfg(not(target_arch = "wasm32"))]
                 {

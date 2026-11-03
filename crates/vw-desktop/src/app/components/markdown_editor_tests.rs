@@ -141,7 +141,11 @@ fn unselected_mode_button_style_covers_idle_hover_pressed_and_disabled_states() 
 #[test]
 fn mode_switch_builds_with_each_selected_mode() {
     for mode in [MarkdownViewMode::Edit, MarkdownViewMode::Preview, MarkdownViewMode::Split] {
-        let element: Element<'_, ()> = mode_switch(mode, ignore_mode);
+        let element: Element<'_, ()> = mode_switch(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            mode,
+            ignore_mode,
+        );
 
         std::hint::black_box(element);
     }

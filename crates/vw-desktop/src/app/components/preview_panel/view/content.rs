@@ -58,10 +58,32 @@ pub fn build_content_base(app: &App) -> Element<'_, Message> {
                     .id(tab.scroll_id.clone())
                     .into()
             } else {
+                if let Some(message) = app.preview_messages.get(&tab.path) {
+                    return container(text(
+                        message
+                            .render(crate::app::i18n::I18n::new(app.desktop_locale))
+                            .expect("preview template"),
+                    ))
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .into();
+                }
                 let editor_view = tab
                     .editor
                     .content_view(|e| Message::Preview(message::PreviewMessage::EditorEvent(e)));
 
+                let editor_view: Element<'_, Message> = if tab.truncated {
+                    iced::widget::column![
+                        text(
+                            crate::app::i18n::I18n::new(app.desktop_locale)
+                                .__("文件较大，预览已截断。")
+                        ),
+                        editor_view
+                    ]
+                    .into()
+                } else {
+                    editor_view
+                };
                 #[cfg(not(target_arch = "wasm32"))]
                 {
                     let overlay = lsp_overlay::lsp_overlay(app);

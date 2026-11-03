@@ -244,12 +244,18 @@ pub fn build_header_tabs(app: &App) -> Element<'_, Message> {
             if tab_context_menu_matches(app.preview_tab_menu_path.as_deref(), &path_for_menu_check)
             {
                 // 如果当前标签页是菜单目标，则在标签页下方显示菜单叠加层
-                PointBelowOverlay::new(right_click, build_preview_tab_menu(&path_for_menu_check))
-                    .show(true)
-                    .anchor(tab_menu_anchor(app.preview_tab_menu_pos))
-                    .on_close(Message::Preview(message::PreviewMessage::TabMenuClose))
-                    .capture_outside_click(false)
-                    .into()
+                PointBelowOverlay::new(
+                    right_click,
+                    build_preview_tab_menu(
+                        crate::app::i18n::I18n::new(app.desktop_locale),
+                        &path_for_menu_check,
+                    ),
+                )
+                .show(true)
+                .anchor(tab_menu_anchor(app.preview_tab_menu_pos))
+                .on_close(Message::Preview(message::PreviewMessage::TabMenuClose))
+                .capture_outside_click(false)
+                .into()
             } else {
                 // 否则只显示标签页本身
                 right_click

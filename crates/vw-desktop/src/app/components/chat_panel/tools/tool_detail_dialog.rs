@@ -140,6 +140,7 @@ pub(super) fn build_editor_panel<'a>(app: &'a App, size: Size) -> Element<'a, Me
     });
 
     let editor = wrap_with_context_menu(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         editor,
         TextEditorContextMenuState {
             // open 保存该结构在渲染、解析或测试断言中需要直接访问的数据。

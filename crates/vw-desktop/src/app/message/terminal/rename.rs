@@ -66,7 +66,19 @@ fn cancel_edit(edit_title: &mut Option<String>) {
 /// let task = update(&mut app, TerminalMessage::RenameSave(tab_id));
 /// ```
 pub fn update(app: &mut App, message: TerminalMessage) -> Task<Message> {
-    update_terminal(&mut app.terminal, message)
+    let start_id = if let TerminalMessage::RenameStart(id) = &message { Some(*id) } else { None };
+    let task = update_terminal(&mut app.terminal, message);
+    if let Some(id) = start_id {
+        if let Some(tab) =
+            app.terminal.tabs.iter_mut().find(|tab| tab.id == id && tab.default_title)
+        {
+            tab.edit_title = Some(
+                crate::__!(crate::app::i18n::I18n::new(app.desktop_locale), "终端 %u", id)
+                    .expect("terminal title template"),
+            );
+        }
+    }
+    task
 }
 
 fn update_terminal(terminal: &mut TerminalState, message: TerminalMessage) -> Task<Message> {
@@ -104,6 +116,9 @@ fn update_terminal(terminal: &mut TerminalState, message: TerminalMessage) -> Ta
 
             // 提取编辑缓冲区内容并应用
             if let Some(tab) = terminal.tabs.iter_mut().find(|t| t.id == id) {
+                if tab.edit_title.as_ref().is_some_and(|title| !title.trim().is_empty()) {
+                    tab.default_title = false;
+                }
                 save_edit(&mut tab.title, &mut tab.edit_title);
             }
             Task::none()

@@ -117,7 +117,7 @@ pub use cli_public::{
     RootPromptAction, build_public_cli_plan, configure_public_cli, detect_agent_token,
     resolve_dynamic_agent_command, resolve_root_prompt_action,
 };
-pub use client::AcpClient;
+pub use client::{AcpClient, ConnectionDiagnostic};
 pub use codex_compat::{is_codex_acp_command, is_codex_invocation};
 pub use config::{
     ConfigAgentEntry, ConfigDisplay, ConfigError, InitGlobalConfigFileResult, ResolvedAcpxConfig,

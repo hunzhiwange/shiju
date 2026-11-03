@@ -56,3 +56,86 @@ impl AcpClient {
         self.actor_state.lock().reusable_session_id = session_id;
     }
 }
+
+/// Sanitized outcome of an explicit initialize-only connection probe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConnectionDiagnostic {
+    StartupFailed,
+    HandshakeFailed,
+    AuthenticationRequired,
+    Connected,
+    TimedOut,
+    Cancelled,
+}
+
+struct DiagnosticClient;
+
+#[async_trait::async_trait(?Send)]
+impl acp::Client for DiagnosticClient {
+    async fn request_permission(
+        &self,
+        _: acp::RequestPermissionRequest,
+    ) -> acp::Result<acp::RequestPermissionResponse> {
+        Err(acp::Error::method_not_found())
+    }
+    async fn session_notification(&self, _: acp::SessionNotification) -> acp::Result<()> {
+        Ok(())
+    }
+}
+
+impl AcpClient {
+    /// Probe initialization without authentication, sessions or client capabilities.
+    /// Cancellation requests cleanup; dropping the waiter also requests cleanup.
+    pub async fn diagnose_connection(
+        &self,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> ConnectionDiagnostic {
+        let config = self.config.clone();
+        let (tx, rx) = oneshot::channel();
+        let spawned = thread::Builder::new().name("acp-diagnostic".into()).spawn(move || {
+            let Ok(runtime) = tokio::runtime::Builder::new_current_thread().enable_all().build() else {
+                let _ = tx.send(ConnectionDiagnostic::StartupFailed);
+                return;
+            };
+            runtime.block_on(tokio::task::LocalSet::new().run_until(async move {
+                let client = AcpClient::new("connection-diagnostic", config);
+                let mut tx = tx;
+                if cancellation.is_cancelled() || tx.is_closed() {
+                    let _ = tx.send(ConnectionDiagnostic::Cancelled);
+                    return;
+                }
+                let Ok(ProcessHandles { mut child, stderr_task }) = client.spawn_child_with_stderr(true) else {
+                    let _ = tx.send(ConnectionDiagnostic::StartupFailed);
+                    return;
+                };
+                // Diagnostic spawning directs stderr to the null device.
+                debug_assert!(stderr_task.is_none());
+                let targets = process_cleanup_targets(child.id());
+                let outgoing = child.stdin.take().expect("piped stdin").compat_write();
+                let incoming = child.stdout.take().expect("piped stdout").compat();
+                let (conn, io) = acp::ClientSideConnection::new(DiagnosticClient, outgoing, incoming, |future| { tokio::task::spawn_local(future); });
+                let io_task = tokio::task::spawn_local(async move { let _ = io.await; });
+                let result = tokio::select! {
+                    biased;
+                    _ = cancellation.cancelled() => ConnectionDiagnostic::Cancelled,
+                    _ = tx.closed() => ConnectionDiagnostic::Cancelled,
+                    response = timeout(Duration::from_secs(10), conn.initialize(acp::InitializeRequest::new(acp::ProtocolVersion::V1))) => match response {
+                        Err(_) => ConnectionDiagnostic::TimedOut,
+                        Ok(Err(_)) => ConnectionDiagnostic::HandshakeFailed,
+                        Ok(Ok(response)) if !response.auth_methods.is_empty() => ConnectionDiagnostic::AuthenticationRequired,
+                        Ok(Ok(_)) => ConnectionDiagnostic::Connected,
+                    }
+                };
+                drop(conn);
+                io_task.abort();
+                let _ = io_task.await;
+                let _ = client.finalize_child_with_cleanup_targets(child, None, targets).await;
+                let _ = tx.send(result);
+            }));
+        });
+        if spawned.is_err() {
+            return ConnectionDiagnostic::StartupFailed;
+        }
+        rx.await.unwrap_or(ConnectionDiagnostic::StartupFailed)
+    }
+}

@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 use crate::AgentLifecycleExit;
 use crate::types::AcpAgentConfig;
 
-use super::{AcpClient, AcpClientActorHandle, ChildExitSummary};
+use super::{AcpClient, AcpClientActorHandle, ChildExitSummary, ConnectionDiagnostic};
 
 fn client() -> AcpClient {
     AcpClient::new(
@@ -131,5 +131,80 @@ fn invalidate_actor_clears_handle_session_and_pid() {
         && let Some(thread) = handle.thread.take()
     {
         thread.join().expect("join actor handle thread");
+    }
+}
+
+#[tokio::test]
+async fn acp_diagnostic_classifies_failures_and_reaps_process() {
+    let client = AcpClient::new(
+        "diagnostic",
+        AcpAgentConfig {
+            command: "/nonexistent-acp-diagnostic".into(),
+            args: vec![],
+            env: HashMap::new(),
+        },
+    );
+    assert_eq!(
+        client.diagnose_connection(tokio_util::sync::CancellationToken::new()).await,
+        ConnectionDiagnostic::StartupFailed
+    );
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_diagnostic_classifies_failures_and_reaps_process_protocol_paths() {
+    use super::ConnectionDiagnostic;
+    for (mode, expected) in [
+        ("success", ConnectionDiagnostic::Connected),
+        ("auth", ConnectionDiagnostic::AuthenticationRequired),
+        ("error", ConnectionDiagnostic::HandshakeFailed),
+        ("cancel", ConnectionDiagnostic::Cancelled),
+        ("timeout", ConnectionDiagnostic::TimedOut),
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let pid_file = dir.path().join("pid");
+        let script = r#"
+import sys,json,os,time
+open(sys.argv[2],'w').write(str(os.getpid()))
+mode=sys.argv[1]
+r=json.loads(sys.stdin.readline())
+assert r['method']=='initialize'
+assert not r['params'].get('clientCapabilities',{}).get('terminal',False)
+if mode in ('cancel','timeout'):
+    time.sleep(30)
+else:
+    result={'protocolVersion':1,'agentCapabilities':{},'authMethods':[]}
+    if mode=='auth': result['authMethods']=[{'id':'login','name':'Login'}]
+    response={'jsonrpc':'2.0','id':r['id']}
+    if mode=='error': response['error']={'code':-32603,'message':'SECRET'}
+    else: response['result']=result
+    print(json.dumps(response),flush=True)
+    for line in sys.stdin:
+        raise RuntimeError('unexpected request: '+line)
+"#;
+        let client = AcpClient::new(
+            "probe",
+            AcpAgentConfig {
+                command: "python3".into(),
+                args: vec![
+                    "-c".into(),
+                    script.into(),
+                    mode.into(),
+                    pid_file.to_string_lossy().into_owned(),
+                ],
+                env: HashMap::new(),
+            },
+        );
+        let cancel = tokio_util::sync::CancellationToken::new();
+        if mode == "cancel" {
+            let token = cancel.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                token.cancel();
+            });
+        }
+        assert_eq!(client.diagnose_connection(cancel).await, expected, "{mode}");
+        let pid: i32 = std::fs::read_to_string(pid_file).unwrap().parse().unwrap();
+        assert_eq!(unsafe { libc::kill(pid, 0) }, -1, "{mode}: process remains");
     }
 }

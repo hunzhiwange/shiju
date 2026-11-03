@@ -190,3 +190,5 @@ pub struct AcpClient {
 #[cfg(test)]
 #[path = "client_tests.rs"]
 mod tests;
+
+pub use lifecycle::ConnectionDiagnostic;

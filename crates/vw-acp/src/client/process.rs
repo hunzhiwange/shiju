@@ -12,6 +12,13 @@ impl AcpClient {
     /// 管道。命令为空或进程启动失败时返回 [`AcpError`]。在 Unix 上，子进程会被
     /// 放入独立进程组，便于后续关闭时收敛整组进程。
     pub(crate) fn spawn_child(&self) -> Result<ProcessHandles, AcpError> {
+        self.spawn_child_with_stderr(false)
+    }
+
+    pub(super) fn spawn_child_with_stderr(
+        &self,
+        discard_stderr: bool,
+    ) -> Result<ProcessHandles, AcpError> {
         if self.config.command.trim().is_empty() {
             return Err(AcpError::EmptyCommand);
         }
@@ -25,7 +32,7 @@ impl AcpClient {
         cmd.args(self.config.args.iter())
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(if discard_stderr { Stdio::null() } else { Stdio::piped() })
             .kill_on_drop(true);
         #[cfg(unix)]
         unsafe {

@@ -49,5 +49,47 @@
   ],
   "red": "Not applicable: explicitly approved existing-behavior acceptance; no artificial regression",
   "fixture": "crates/vw-agent/testdata/plugin_compat/t51/README.md",
-  "reference": "baseline.json identity/store/toggles, frozen Codex store.rs/toggles.rs"
+  "reference": "baseline.json identity/store/toggles, frozen Codex store.rs/toggles.rs",
+  "revalidation": {
+    "date": "2026-11-03",
+    "implementation_commit": "98c86e58",
+    "dependency": "23f51cfd / t50.json revalidation; implementation 30116fe93008d077d907b728255816eb818a7620",
+    "platform": "macOS arm64",
+    "cargo": {
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t51_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 3,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t06_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 10,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 12,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "note": "Existing committed implementation and acceptance tests reused under recorded 2026-11-02 authorization. No Rust changes, artificial red-stage regression or formatting mutation needed. Fresh discovery restores exact market/source/version/disabled state; corrupt metadata rejected; workspace precedence, exact uninstall, retained external data and original manifest bytes verified. Adjacent t08 tests cover staged atomic publication."
+  }
 }

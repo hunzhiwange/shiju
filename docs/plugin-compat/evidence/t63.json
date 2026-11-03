@@ -1,0 +1,40 @@
+{
+  "task": 63,
+  "status": "waived_by_user",
+  "waiver_date": "2026-11-03",
+  "waiver": "User cancelled real-account OAuth authorization, call and revocation acceptance",
+  "full_oauth_host_chain_verified": false,
+  "compatibility_claim": false,
+  "production_changes": false,
+  "t63_tests_passed": null,
+  "prior_checks": [
+    {
+      "kind": "Linear public discovery and unauthorized initialize",
+      "result": "metadata JSON; HTTP 401 without credentials"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t27_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 22,
+      "failed": 0,
+      "ignored": 0,
+      "scope": "adjacent tests only",
+      "cargo_slot": 2,
+      "target_dir_relative_to_repository": "target/rust-slot-2",
+      "lease_released": true
+    },
+    {
+      "kind": "SondaHub independent interactive protocol probe",
+      "read_http_status": 200,
+      "revocation_http_status": 200,
+      "old_token_after_revocation_http_status": 200,
+      "host_chain_verified": false
+    }
+  ],
+  "validation_this_change": "Documentation only; no Cargo rerun",
+  "remaining_unverified": [
+    "t63 behavior tests",
+    "real-account complete host OAuth chain",
+    "server-side immediate token revocation"
+  ]
+}

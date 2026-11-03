@@ -251,7 +251,7 @@ fn prompt_request_defaults_to_new_session_and_accepts_strategy_override() {
     let request = PromptRequest::new(PathBuf::from("/tmp/project"), "hello");
 
     assert_eq!(request.cwd, PathBuf::from("/tmp/project"));
-    assert_eq!(request.prompt, "hello");
+    assert_eq!(request.prompt, crate::text_prompt("hello"));
     assert_eq!(request.session_strategy, SessionStrategy::New);
 
     let request = request.with_session_strategy(SessionStrategy::Resume("session-1".to_string()));

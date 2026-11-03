@@ -34,6 +34,7 @@ use crate::app::agent::session::message;
 use super::types::{Error, StreamEvent, ToolCall};
 
 mod config;
+mod content;
 mod replay;
 pub(super) mod request;
 mod session;

@@ -63,6 +63,16 @@ impl GatewayEndpoint {
         if trimmed.is_empty() { "127.0.0.1" } else { trimmed }
     }
 
+    /// 本机网关必须直连，避免代理环境影响进程间通信。
+    pub fn is_loopback(&self) -> bool {
+        let host = self.normalized_host();
+        host.eq_ignore_ascii_case("localhost")
+            || host
+                .trim_matches(['[', ']'])
+                .parse::<std::net::IpAddr>()
+                .is_ok_and(|address| address.is_loopback())
+    }
+
     /// 生成 HTTP 请求使用的基础 URL。
     ///
     /// 当前统一使用 HTTP 协议，协议升级策略由网关部署侧负责。

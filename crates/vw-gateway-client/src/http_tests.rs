@@ -325,7 +325,7 @@ fn response_error_blocking_includes_status_and_body_when_present() {
 }
 
 #[tokio::test]
-async fn transport_error_returns_original_reqwest_message() {
+async fn transport_error_includes_underlying_connection_failure() {
     let listener = TcpListener::bind("127.0.0.1:0").expect("bind unused port");
     let port = listener.local_addr().expect("local addr").port();
     drop(listener);
@@ -336,7 +336,9 @@ async fn transport_error_returns_original_reqwest_message() {
         .await
         .expect_err("closed port should fail");
 
+    let cause = std::error::Error::source(&error).expect("connection error source").to_string();
     let message = super::transport_error("GET", &endpoint, "/closed", error);
+    assert!(message.contains(&cause));
 
     assert!(!message.trim().is_empty());
     assert!(super::is_gateway_unavailable_error(&message));

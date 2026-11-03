@@ -132,12 +132,13 @@ pub(crate) async fn do_stream_request_acp(
     let mut force_new_session = requested_force_new_session;
     let mut recovered_session_change = false;
     loop {
-        let prompt = build_request_prompt(
+        let prompt = super::content::build_request_content(
             chat_messages,
             force_new_session,
             replay_strategy,
             replay_recent_count,
-        );
+        )
+        .map_err(to_api_error)?;
         if prompt.is_empty() {
             tracing::warn!(
                 target: "vw_agent",
@@ -259,7 +260,7 @@ pub(crate) async fn do_stream_request_acp(
             let mut on_prompt_event = |_event: vw_acp::PromptEvent| {};
             prompt_client
                 .run_prompt(
-                    PromptRequest::new(prompt_cwd, prompt_text)
+                    PromptRequest::from_content(prompt_cwd, prompt_text)
                         // 历史由 ACP 对端保存；恢复失败不能静默换成没有历史的新会话。
                         .with_session_strategy(SessionStrategy::ResumeOrLoad(prompt_session_id)),
                     &mut on_prompt_event,

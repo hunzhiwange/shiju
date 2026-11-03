@@ -357,7 +357,7 @@ fn prompt_request_uses_display_text_and_default_resume_strategy() {
         Some(SessionResumePolicy::AllowNew),
     );
 
-    assert_eq!(request.prompt, "hello");
+    assert_eq!(request.prompt, crate::text_prompt("hello"));
     assert!(request.cwd.is_absolute());
     assert_eq!(request.session_strategy, SessionStrategy::ResumeLoadOrNew("session-1".to_string()));
 }
@@ -801,4 +801,14 @@ async fn run_session_prompt_closes_client_callback_on_prompt_error() {
     assert_eq!(client_closed_count.load(AtomicOrdering::SeqCst), 1);
     // 代理直接返回错误、未产生任何提示事件时，不宣布流式轮次已活动。
     assert_eq!(prompt_active_count.load(AtomicOrdering::SeqCst), 0);
+}
+
+#[test]
+fn prompt_request_preserves_image_blocks() {
+    let prompt = crate::parse_prompt_source(
+        r#"[{"type":"text","text":"look"},{"type":"image","mimeType":"image/png","data":"YQ=="}]"#,
+    )
+    .unwrap();
+    let request = prompt_request_for_session("session-1".into(), ".", &prompt, None);
+    assert_eq!(request.prompt, prompt);
 }

@@ -335,13 +335,17 @@ pub enum SessionStrategy {
 #[derive(Debug, Clone)]
 pub struct PromptRequest {
     pub cwd: PathBuf,
-    pub prompt: String,
+    pub prompt: crate::prompt_content::PromptInput,
     pub session_strategy: SessionStrategy,
 }
 
 impl PromptRequest {
     pub fn new(cwd: PathBuf, prompt: impl Into<String>) -> Self {
-        Self { cwd, prompt: prompt.into(), session_strategy: SessionStrategy::New }
+        Self::from_content(cwd, crate::prompt_content::text_prompt(prompt.into()))
+    }
+
+    pub fn from_content(cwd: PathBuf, prompt: crate::prompt_content::PromptInput) -> Self {
+        Self { cwd, prompt, session_strategy: SessionStrategy::New }
     }
 
     pub fn with_session_strategy(mut self, session_strategy: SessionStrategy) -> Self {

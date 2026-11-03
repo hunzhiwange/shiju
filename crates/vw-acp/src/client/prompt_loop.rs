@@ -50,7 +50,7 @@ impl AcpClient {
 
         let prompt_future = runtime.conn.prompt(acp::PromptRequest::new(
             acp::SessionId::new(session_id.clone()),
-            vec![request.prompt.into()],
+            request.prompt,
         ));
         tokio::pin!(prompt_future);
 

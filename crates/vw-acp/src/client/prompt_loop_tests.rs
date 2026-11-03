@@ -48,6 +48,7 @@ struct TestAgentState {
     prompt_response_rx:
         tokio::sync::Mutex<Option<oneshot::Receiver<acp::Result<acp::PromptResponse>>>>,
     prompt_session_ids: Mutex<Vec<String>>,
+    prompt_contents: Mutex<Vec<Vec<acp::ContentBlock>>>,
     cancelled_session_ids: Mutex<Vec<String>>,
 }
 
@@ -66,6 +67,7 @@ impl TestAgent {
                     cancel_received: tokio::sync::Notify::new(),
                     prompt_response_rx: tokio::sync::Mutex::new(Some(prompt_response_rx)),
                     prompt_session_ids: Mutex::new(Vec::new()),
+                    prompt_contents: Mutex::new(Vec::new()),
                     cancelled_session_ids: Mutex::new(Vec::new()),
                 }),
             },
@@ -115,6 +117,7 @@ impl acp::Agent for TestAgent {
 
     async fn prompt(&self, args: acp::PromptRequest) -> acp::Result<acp::PromptResponse> {
         self.state.prompt_session_ids.lock().push(args.session_id.0.to_string());
+        self.state.prompt_contents.lock().push(args.prompt);
         self.state.prompt_started.notify_waiters();
         let prompt_response_rx = self
             .state
@@ -505,4 +508,26 @@ fn drain_prompt_events(event_rx: &mut mpsc::UnboundedReceiver<PromptEvent>) -> V
         events.push(event);
     }
     events
+}
+
+#[tokio::test]
+async fn run_actor_prompt_transmits_images_over_jsonrpc() {
+    let (agent, response_tx) = TestAgent::new("session-1", false);
+    with_runtime(agent, async |client, mut runtime, _internal_tx, agent| {
+        let content = vec![
+            "look".into(),
+            acp::ContentBlock::Image(acp::ImageContent::new("YQ==", "image/png")),
+        ];
+        let request = PromptRequest::from_content(PathBuf::from("."), content.clone());
+        let (event_tx, _event_rx) = mpsc::unbounded_channel();
+        let drive = async {
+            agent.wait_for_prompt().await;
+            assert_eq!(*agent.state.prompt_contents.lock(), vec![content]);
+            response_tx.send(Ok(acp::PromptResponse::new(acp::StopReason::EndTurn))).unwrap();
+        };
+        let (result, ()) =
+            tokio::join!(client.run_actor_prompt(&mut runtime, request, event_tx), drive);
+        result.unwrap();
+    })
+    .await;
 }

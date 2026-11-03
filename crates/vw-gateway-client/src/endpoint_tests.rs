@@ -21,3 +21,13 @@ fn gateway_endpoint_switches_tenant_scope_with_chainable_builder() {
 
     assert_eq!(endpoint.tenant_scope(), &tenant_scope);
 }
+
+#[test]
+fn loopback_detection_excludes_remote_and_lookalike_hosts() {
+    for host in ["", "localhost", "LOCALHOST", "127.0.0.1", "127.0.0.2", "::1", "[::1]"] {
+        assert!(super::GatewayEndpoint::new(host, 42617).is_loopback(), "{host}");
+    }
+    for host in ["localhost.example.com", "192.168.1.1", "example.com", "::"] {
+        assert!(!super::GatewayEndpoint::new(host, 42617).is_loopback(), "{host}");
+    }
+}

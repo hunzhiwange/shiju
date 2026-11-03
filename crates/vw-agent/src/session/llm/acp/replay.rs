@@ -29,8 +29,8 @@ pub(crate) fn build_request_prompt(
 
 /// 构造当前 ACP 会话的单条 prompt。
 ///
-/// AGENTS.md 和 skill 协议以瞬态 meta 消息存在于本地消息列表中。ACP 只接收一条
-/// 文本 prompt，因此不能像普通 OpenAI 请求一样把这些消息独立发送；这里显式收集、
+/// AGENTS.md 和 skill 协议以瞬态 meta 消息存在于本地消息列表中。
+/// ACP 请求将这些消息合并到文本内容块；这里显式收集、
 /// 去重并放在当前用户请求之前。没有协议消息时保留原有的纯用户文本格式。
 fn build_current_prompt(chat_messages: &Value) -> String {
     let Some(items) = chat_messages.as_array() else {
@@ -123,7 +123,7 @@ fn content_to_text(content: &Value) -> String {
     out.trim().to_string()
 }
 
-/// ACP accepts a single text prompt, so transient protocol messages need an
+/// Transient protocol messages are combined in the text block and need an
 /// explicit serialization boundary. They are not ordinary conversation turns
 /// and must not be replayed once per historical request.
 fn is_protocol_meta_message(role: &str, content: &str) -> bool {

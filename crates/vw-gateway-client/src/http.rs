@@ -228,7 +228,13 @@ pub fn transport_error(
     path: &str,
     err: reqwest::Error,
 ) -> String {
-    let msg = err.to_string();
+    let mut msg = err.to_string();
+    let mut source = std::error::Error::source(&err);
+    while let Some(cause) = source {
+        use std::fmt::Write;
+        let _ = write!(msg, ": {cause}");
+        source = cause.source();
+    }
     #[cfg(not(target_arch = "wasm32"))]
     let is_unavailable = err.is_connect() || err.is_timeout() || is_gateway_unavailable_error(&msg);
     #[cfg(target_arch = "wasm32")]

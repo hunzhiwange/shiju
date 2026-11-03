@@ -42,9 +42,33 @@ async fn check_server(client: &reqwest::Client, server: &GatewayClientServerDraf
     let Some(url) = server_health_key(server) else {
         return false;
     };
-    match client.get(url).send().await {
+    #[cfg(not(target_arch = "wasm32"))]
+    let direct_client = {
+        let host = reqwest::Url::parse(&url)
+            .ok()
+            .and_then(|url| url.host_str().map(str::to_owned))
+            .unwrap_or_default();
+        if vw_gateway_client::GatewayEndpoint::new(host, server.port).is_loopback() {
+            match reqwest::Client::builder()
+                .no_proxy()
+                .timeout(std::time::Duration::from_secs(4))
+                .build()
+            {
+                Ok(client) => Some(client),
+                Err(_) => return false,
+            }
+        } else {
+            None
+        }
+    };
+    #[cfg(not(target_arch = "wasm32"))]
+    let client = direct_client.as_ref().unwrap_or(client);
+    match client.get(&url).send().await {
         Ok(response) => response.status() == reqwest::StatusCode::OK,
-        Err(_) => false,
+        Err(error) => {
+            tracing::debug!(target: "vw_desktop", url = %url, error = ?error, "gateway health request failed");
+            false
+        }
     }
 }
 

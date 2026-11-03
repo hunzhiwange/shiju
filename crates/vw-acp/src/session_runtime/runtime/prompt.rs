@@ -13,7 +13,7 @@ use agent_client_protocol::{McpServer, StopReason};
 use parking_lot::Mutex;
 
 use crate::perf_metrics::{format_perf_metric, measure_perf, start_perf_timer};
-use crate::prompt_content::{PromptInput, prompt_to_display_text};
+use crate::prompt_content::PromptInput;
 use crate::queue_lease_store::wait_ms;
 use crate::session_events::{
     SessionEventAppendOptions, SessionEventWriter, SessionEventWriterOptions,
@@ -192,11 +192,7 @@ fn prompt_request_for_session(
         SessionStrategy::ResumeLoadOrNew(session_id)
     };
 
-    PromptRequest {
-        cwd: absolute_path(cwd),
-        prompt: prompt_to_display_text(prompt),
-        session_strategy: strategy,
-    }
+    PromptRequest { cwd: absolute_path(cwd), prompt: prompt.clone(), session_strategy: strategy }
 }
 
 fn should_retry_prompt(error: &SessionRuntimeError) -> bool {

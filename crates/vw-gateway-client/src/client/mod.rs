@@ -151,6 +151,8 @@ impl GatewayClient {
             .timeout(std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS));
         #[cfg(target_arch = "wasm32")]
         let builder = reqwest::Client::builder();
+        #[cfg(not(target_arch = "wasm32"))]
+        let builder = if endpoint.is_loopback() { builder.no_proxy() } else { builder };
         let client = builder.build().map_err(|err| err.to_string())?;
         Ok(Self { endpoint, client })
     }

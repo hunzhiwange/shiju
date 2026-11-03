@@ -57,5 +57,40 @@
   "reference": "baseline.json marketplace.npm.archive/unpack; Codex npm_source::validate_npm_package_metadata and plugin_bundle_archive::unpack_plugin_bundle_tar",
   "fixture": "crates/vw-agent/testdata/plugin_compat/t50/README.md",
   "dependencies": "flate2 already transitive, tar 0.4 added for actual archive parsing; no npm subprocess",
-  "limitations": "Version/tag selector restrictions and public HTTPS network policy from task 49 remain explicit."
+  "limitations": "Version/tag selector restrictions and public HTTPS network policy from task 49 remain explicit.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "implementation_commit": "30116fe93008d077d907b728255816eb818a7620",
+    "platform": "macOS arm64",
+    "cargo": {
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t50_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 3,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features plugin_install_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 15,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "note": "Existing committed implementation and original red/green evidence verified; no Rust changes or repeated red-stage mutation required."
+  }
 }

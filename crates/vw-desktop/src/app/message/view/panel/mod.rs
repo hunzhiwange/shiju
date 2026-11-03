@@ -75,6 +75,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ProjectFileShowProjects
         | ViewMessage::ProjectFileSaveAll
         | ViewMessage::ToggleSystemSettings
+        | ViewMessage::OpenAcpSettings
         | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::ToggleAboutModal

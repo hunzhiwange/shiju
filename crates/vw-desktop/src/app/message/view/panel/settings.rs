@@ -152,6 +152,18 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             app.system_settings_help_tab = None;
             Task::none()
         }
+        ViewMessage::OpenAcpSettings => {
+            app.show_system_settings = true;
+            app.system_settings_help_tab = None;
+            app.active_menu = None;
+            app.show_acp_popover = false;
+            app.system_settings_tab = crate::app::components::system_settings::SystemTab::Agents;
+            Task::done(Message::Settings(SettingsMessage::AgentConfigTab(
+                crate::app::message::settings::AgentConfigTabMessage::Selected(
+                    crate::app::state::AgentConfigTab::Acp,
+                ),
+            )))
+        }
         ViewMessage::OpenSystemSettingsTab(tab) => {
             app.show_system_settings = true;
             app.system_settings_help_tab = None;

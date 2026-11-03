@@ -300,6 +300,13 @@ pub(super) fn acp_selector_button<'a>(
         );
     }
 
+    list = list.push(
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 配置")).size(13))
+            .padding(8)
+            .style(iced::widget::button::text)
+            .on_press(Message::View(message::ViewMessage::OpenAcpSettings)),
+    );
+
     let popover: Element<'_, Message> = container(
         scrollable(container(list).padding(iced::Padding {
             top: 0.0,

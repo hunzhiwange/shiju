@@ -148,6 +148,7 @@ pub enum ViewMessage {
     ///
     /// # 参数
     /// - 标签页标识，指定要打开的系统设置标签
+    OpenAcpSettings,
     OpenSystemSettingsTab(crate::app::components::system_settings::SystemTab),
     /// 打开系统设置中的模型详情页
     ///
@@ -667,6 +668,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             | ViewMessage::WorkResourceFullscreenToggled
             | ViewMessage::WorkResourceHalfFullscreenToggled
             | ViewMessage::ToggleSystemSettings
+            | ViewMessage::OpenAcpSettings
             | ViewMessage::OpenSystemSettingsTab(_)
             | ViewMessage::OpenSystemSettingsModelDetail(_, _)
             | ViewMessage::GoHome
@@ -794,7 +796,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ProjectFileShowProjects
         | ViewMessage::ProjectFileSaveAll
         | ViewMessage::ToggleSystemSettings
-        | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenAcpSettings
+            | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::ToggleAboutModal
         | ViewMessage::RestartApp

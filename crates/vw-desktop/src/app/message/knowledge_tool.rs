@@ -1028,7 +1028,10 @@ fn handle_import_job_polled(
     let job = match result {
         Ok(job) => job,
         Err(error) => {
-            return set_error(app, format!("入库轮询失败：{error}"));
+            return set_error(
+                app,
+                crate::app::i18n::workflow::Feedback::new("入库轮询失败：%s", vec![error]),
+            );
         }
     };
 
@@ -1053,9 +1056,12 @@ fn handle_import_job_polled(
             let tracked = app.knowledge.import_polling_jobs.remove(index);
             sync_document_status_from_index_job(app, &job);
             let message = if job.error_message.trim().is_empty() {
-                format!("{} 入库失败", tracked.filename)
+                crate::app::i18n::workflow::Feedback::new("%s 入库失败", vec![tracked.filename])
             } else {
-                format!("{} 入库失败：{}", tracked.filename, job.error_message)
+                crate::app::i18n::workflow::Feedback::new(
+                    "%s 入库失败：%s",
+                    vec![tracked.filename, job.error_message.clone()],
+                )
             };
             let refresh = refresh_import_polling_documents(app, &job);
             Task::batch([set_error(app, message), refresh])
@@ -1568,13 +1574,13 @@ fn close_preview_if_selected_document(app: &mut App, document_id: &str) {
 fn batch_document_action_success_message(
     action: Option<&KnowledgeDocumentsBatchAction>,
     updated_count: usize,
-) -> String {
-    let action_label = match action.unwrap_or(&KnowledgeDocumentsBatchAction::Enable) {
-        KnowledgeDocumentsBatchAction::Enable => "启用",
-        KnowledgeDocumentsBatchAction::Disable => "停用",
-        KnowledgeDocumentsBatchAction::Archive => "归档",
+) -> crate::app::i18n::workflow::Feedback {
+    let source = match action.unwrap_or(&KnowledgeDocumentsBatchAction::Enable) {
+        KnowledgeDocumentsBatchAction::Enable => "已批量启用 %s 篇文档",
+        KnowledgeDocumentsBatchAction::Disable => "已批量停用 %s 篇文档",
+        KnowledgeDocumentsBatchAction::Archive => "已批量归档 %s 篇文档",
     };
-    format!("已批量{action_label} {updated_count} 篇文档")
+    crate::app::i18n::workflow::Feedback::new(source, vec![updated_count.to_string()])
 }
 
 async fn status_async() -> Result<KnowledgeRuntimeStatus, String> {

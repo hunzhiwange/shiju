@@ -5219,5 +5219,11 @@
   "任务创建": "Task created",
   "状态转移被状态机拒绝: %s": "State transition rejected: %s",
   "拒绝开始执行: %s": "Execution start rejected: %s",
-  "进入重试，第 %u 次": "Retry attempt %u"
+  "进入重试，第 %u 次": "Retry attempt %u",
+  "入库轮询失败：%s": "Import polling failed: %s",
+  "%s 入库失败": "%s import failed",
+  "%s 入库失败：%s": "%s import failed: %s",
+  "已批量启用 %s 篇文档": "Enabled %s documents",
+  "已批量停用 %s 篇文档": "Disabled %s documents",
+  "已批量归档 %s 篇文档": "Archived %s documents"
 }

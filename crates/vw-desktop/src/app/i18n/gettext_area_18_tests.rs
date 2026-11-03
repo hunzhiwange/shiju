@@ -47,3 +47,17 @@ async fn desktop_gettext_area_18_knowledge_feedback_switches_after_creation() {
         );
     }
 }
+
+#[test]
+fn desktop_gettext_area_18_builtin_tabs_translate_without_changing_user_titles() {
+    for locale in [
+        DesktopLocale::SimplifiedChinese,
+        DesktopLocale::TraditionalChinese,
+        DesktopLocale::English,
+    ] {
+        let i18n = I18n::new(locale);
+        assert_eq!(super::other::tab_label(i18n, "knowledge", "cached"), i18n.__("知识库"));
+        assert_eq!(super::other::tab_label(i18n, "project:user", "知识库/%s/%n"), "知识库/%s/%n");
+        assert_eq!(super::other::tool_name(i18n, "自定义/%s/%n"), "自定义/%s/%n");
+    }
+}

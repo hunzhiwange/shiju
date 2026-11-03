@@ -175,7 +175,11 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let hovered = app.hovered_tab_id.as_deref() == Some(&tab.id);
         tabs_row = tabs_row.push(tab_btn(
             tab.id.clone(),
-            tab.title.clone(),
+            crate::app::i18n::other::tab_label(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                &tab.id,
+                &tab.title,
+            ),
             active,
             hovered,
             Message::View(ViewMessage::TabSelected(tab.id.clone())),

@@ -3257,3 +3257,184 @@ workflow:
 "#
     .to_string()
 }
+
+#[test]
+fn talking_head_workflow_sample_exists() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("testdata/workflow/talking_head.yaml");
+    let yaml = std::fs::read_to_string(path).expect("talking head sample");
+    let graph = parse_workflow_yaml(&yaml).expect("sample graph");
+    assert_eq!(graph.nodes["keywords"].node_type, "llm");
+    assert_eq!(graph.nodes["visuals"].node_type, "llm");
+    assert_eq!(graph.nodes["validate"].node_type, "code");
+}
+
+struct TalkingHeadProvider {
+    barrier: tokio::sync::Barrier,
+    calls: Mutex<Vec<String>>,
+    invalid: bool,
+}
+
+#[async_trait::async_trait]
+impl Provider for TalkingHeadProvider {
+    async fn chat_with_system(&self, _: Option<&str>, _: &str, _: &str, _: f64) -> Result<String> {
+        Err(anyhow!("unexpected transport"))
+    }
+
+    async fn chat(&self, request: ChatRequest<'_>, model: &str, _: f64) -> Result<ChatResponse> {
+        assert_eq!(model, "deepseek/deepseek-flash");
+        assert!(request.tools.is_none());
+        assert_eq!(request.messages.len(), 1);
+        let prompt = &request.messages[0].content;
+        assert!(!prompt.contains("HISTORY_SENTINEL"));
+        assert!(!prompt.contains("UNREFERENCED_SENTINEL"));
+        assert!(!prompt.contains("KEYWORD_RESULT_SENTINEL"));
+        assert!(!prompt.contains("VISUAL_RESULT_SENTINEL"));
+        self.calls.lock().unwrap().push(prompt.clone());
+        let text = if prompt.contains("Return only a short brief") {
+            assert!(prompt.contains("STYLE_SENTINEL"));
+            assert!(prompt.contains("REQUIREMENTS_SENTINEL"));
+            "BRIEF_SENTINEL".to_string()
+        } else {
+            assert!(prompt.contains("BRIEF_SENTINEL"));
+            assert!(!prompt.contains("STYLE_SENTINEL"));
+            assert!(!prompt.contains("REQUIREMENTS_SENTINEL"));
+            tokio::time::timeout(std::time::Duration::from_secs(5), self.barrier.wait())
+                .await
+                .expect("branches must enter concurrently");
+            if prompt.contains("keyword visual segments") {
+                json!([{"anchor": if self.invalid {"absent"} else {"A"}, "start":0,"end":1,"visual_type":"keyword","assets":["KEYWORD_RESULT_SENTINEL"]}]).to_string()
+            } else {
+                json!([
+                    {"anchor":"B","start":1,"end":2,"visual_type":"b_roll","assets":["VISUAL_RESULT_SENTINEL"]},
+                    {"anchor":"C","start":2,"end":3,"visual_type":"motion_graphic","assets":["diagram"]}
+                ]).to_string()
+            }
+        };
+        Ok(ChatResponse {
+            text: Some(text),
+            tool_calls: vec![],
+            usage: None,
+            reasoning_content: None,
+        })
+    }
+}
+
+async fn talking_head_run(invalid: bool) {
+    let provider = Arc::new(TalkingHeadProvider {
+        barrier: tokio::sync::Barrier::new(2),
+        calls: Mutex::new(vec![]),
+        invalid,
+    });
+    let runtime = WorkflowRuntime {
+        provider: provider.clone(),
+        knowledge_provider: None,
+        document_extractor: None,
+        tool_provider: None,
+        agent_provider: None,
+        pause_store: None,
+        model: "unused-default".into(),
+        temperature: 0.0,
+    };
+    let request = WorkflowRunRequest {
+        workflow_yaml: Some(include_str!("../../testdata/workflow/talking_head.yaml").into()),
+        inputs: BTreeMap::from([
+            ("transcript".into(), json!("A B C")),
+            (
+                "timestamps".into(),
+                json!([
+                    {"word":"A","start":0,"end":1},
+                    {"word":"B","start":1,"end":2},
+                    {"word":"C","start":2,"end":3}
+                ]),
+            ),
+            ("style".into(), json!("STYLE_SENTINEL")),
+            ("requirements".into(), json!("REQUIREMENTS_SENTINEL")),
+            ("unreferenced".into(), json!("UNREFERENCED_SENTINEL")),
+        ]),
+        query: Some("HISTORY_SENTINEL".into()),
+        max_steps: 20,
+        ..Default::default()
+    };
+    let response = run_workflow(runtime, request).await.expect("workflow response");
+    assert_eq!(provider.calls.lock().unwrap().len(), 3);
+    if invalid {
+        assert_eq!(response.status, WorkflowRunStatus::Failed);
+        assert!(response.answer.as_deref().unwrap_or_default().is_empty());
+        let validation = response.nodes.iter().find(|node| node.node_id == "validate").unwrap();
+        assert_eq!(validation.status, vw_api_types::workflow::WorkflowNodeRunStatus::Failed);
+        assert!(validation.error.as_deref().unwrap_or_default().contains("invalid anchor"));
+        assert!(!response.nodes.iter().any(|node| node.node_id == "answer"));
+    } else {
+        assert_eq!(response.status, WorkflowRunStatus::Succeeded);
+        let answer: Value = serde_json::from_str(response.answer.as_deref().unwrap()).unwrap();
+        assert_eq!(answer["segments"].as_array().unwrap().len(), 3);
+        assert_eq!(answer["duration"], json!(3));
+        let assets = answer["segments"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|segment| segment["assets"].as_array().unwrap())
+            .collect::<Vec<_>>();
+        assert!(assets.contains(&&json!("KEYWORD_RESULT_SENTINEL")));
+        assert!(assets.contains(&&json!("VISUAL_RESULT_SENTINEL")));
+        let ids: Vec<_> = response.nodes.iter().map(|n| n.node_id.as_str()).collect();
+        let join = ids.iter().position(|id| *id == "validate").unwrap();
+        assert!(ids.iter().position(|id| *id == "keywords").unwrap() < join);
+        assert!(ids.iter().position(|id| *id == "visuals").unwrap() < join);
+    }
+}
+
+#[tokio::test]
+async fn talking_head_workflow_isolates_parallel_branches_and_joins() {
+    talking_head_run(false).await;
+}
+
+#[tokio::test]
+async fn talking_head_workflow_rejects_invalid_anchor() {
+    talking_head_run(true).await;
+}
+
+#[tokio::test]
+async fn talking_head_workflow_validator_rejects_invalid_segments_and_timestamps() {
+    let graph = parse_workflow_yaml(include_str!("../../testdata/workflow/talking_head.yaml"))
+        .expect("sample graph");
+    let code = graph.nodes["validate"].data["code"].as_str().expect("validator code");
+    let keywords = json!([{
+        "anchor":"A", "start":0, "end":1, "visual_type":"keyword", "assets":["title"]
+    }]);
+    let visuals = json!([
+        {"anchor":"B", "start":1, "end":2, "visual_type":"b_roll", "assets":["scene"]},
+        {"anchor":"C", "start":2, "end":3, "visual_type":"motion_graphic", "assets":["diagram"]}
+    ]);
+    for (field, value, expected_error) in [
+        ("anchor", json!("absent"), "invalid anchor"),
+        ("start", json!(-1), "invalid time"),
+        ("start", json!(2), "invalid time"),
+        ("start", json!(true), "invalid time"),
+        ("end", json!(4), "invalid time"),
+        ("assets", json!([]), "missing assets"),
+        ("assets", json!([" "]), "missing assets"),
+        ("visual_type", json!("b_roll"), "need three visual types"),
+        ("branch", json!([]), "missing branch"),
+        ("timestamps", json!([{"start":false,"end":3}]), "invalid timestamps"),
+    ] {
+        let mut branch = keywords.clone();
+        let mut timestamps = json!([{"word":"A B C","start":0,"end":3}]);
+        match field {
+            "branch" => branch = value,
+            "timestamps" => timestamps = value,
+            _ => branch[0][field] = value,
+        }
+        let inputs = BTreeMap::from([
+            ("transcript".into(), json!("A B C")),
+            ("timestamps".into(), timestamps),
+            ("keywords".into(), json!(branch.to_string())),
+            ("visuals".into(), json!(visuals.to_string())),
+        ]);
+        let error = super::code_runner::run_code_node("python3", code, &inputs)
+            .await
+            .expect_err("invalid plan must fail");
+        assert!(error.contains(expected_error), "{field}: {error}");
+    }
+}

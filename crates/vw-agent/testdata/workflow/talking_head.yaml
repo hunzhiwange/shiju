@@ -1,0 +1,70 @@
+# Produces an editing plan, not a rendered video.
+workflow:
+  graph:
+    nodes:
+      - id: start
+        data:
+          type: start
+          variables:
+            - {variable: transcript}
+            - {variable: timestamps}
+            - {variable: style}
+            - {variable: requirements}
+      - id: plan
+        data:
+          type: llm
+          model: {name: deepseek/deepseek-flash}
+          prompt_template:
+            - role: user
+              text: 'Plan a concise talking-head edit. Return only a short brief. Transcript: {{#start.transcript#}} Style: {{#start.style#}} Requirements: {{#start.requirements#}}'
+      - id: keywords
+        data:
+          type: llm
+          model: {name: deepseek/deepseek-flash}
+          prompt_template:
+            - role: user
+              text: 'Return only a JSON array of keyword visual segments. Each needs anchor (exact original words), start, end (seconds), visual_type, assets (nonempty array). visual_type must be keyword. Brief: {{#plan.text#}} Transcript: {{#start.transcript#}} Word timestamps: {{#start.timestamps#}}'
+      - id: visuals
+        data:
+          type: llm
+          model: {name: deepseek/deepseek-flash}
+          prompt_template:
+            - role: user
+              text: 'Return only a JSON array of dynamic visual segments. Each needs anchor (exact original words), start, end (seconds), visual_type, assets (nonempty array). Include both b_roll and motion_graphic visual types. Brief: {{#plan.text#}} Transcript: {{#start.transcript#}} Word timestamps: {{#start.timestamps#}}'
+      - id: validate
+        data:
+          type: code
+          code_language: python3
+          variables:
+            - {variable: transcript, value_selector: [start, transcript]}
+            - {variable: timestamps, value_selector: [start, timestamps]}
+            - {variable: keywords, value_selector: [keywords, text]}
+            - {variable: visuals, value_selector: [visuals, text]}
+          code: |
+            import json
+            import math
+            def main(transcript, timestamps, keywords, visuals):
+                words = json.loads(timestamps) if isinstance(timestamps, str) else timestamps
+                assert isinstance(words, list) and words and all(all(isinstance(w[k], (int, float)) and not isinstance(w[k], bool) and math.isfinite(w[k]) for k in ("start", "end")) and 0 <= w["start"] < w["end"] for w in words), "invalid timestamps"
+                duration = max(w["end"] for w in words)
+                branches = [json.loads(keywords), json.loads(visuals)]
+                assert all(isinstance(b, list) and b for b in branches), "missing branch"
+                segments = branches[0] + branches[1]
+                for s in segments:
+                    assert isinstance(s["anchor"], str) and s["anchor"] and s["anchor"] in transcript, "invalid anchor"
+                    assert all(isinstance(s[k], (int, float)) and not isinstance(s[k], bool) and math.isfinite(s[k]) for k in ("start", "end")), "invalid time"
+                    assert 0 <= s["start"] < s["end"] <= duration, "invalid time"
+                    assert isinstance(s["assets"], list) and s["assets"] and all(isinstance(a, str) and a.strip() for a in s["assets"]), "missing assets"
+                assert {s["visual_type"] for s in segments} >= {"keyword", "b_roll", "motion_graphic"}, "need three visual types"
+                return {"plan": json.dumps({"duration": duration, "segments": segments}, ensure_ascii=False)}
+      - id: answer
+        data:
+          type: answer
+          answer: '{{#validate.plan#}}'
+    edges:
+      - {source: start, target: plan}
+      - {source: plan, target: keywords}
+      - {source: plan, target: visuals}
+      - {source: keywords, target: validate}
+      - {source: visuals, target: validate}
+      - {source: validate, target: answer}

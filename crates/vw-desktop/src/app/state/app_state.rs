@@ -626,6 +626,8 @@ pub struct App {
     /// 应用主题
     pub(crate) app_theme: Theme,
     /// 用于模型聊天时间上下文的 IANA 时区
+    pub(crate) generated_session_titles:
+        std::collections::HashMap<String, crate::app::i18n::input::Feedback>,
     pub(crate) desktop_locale: vw_config_types::ui::DesktopLocale,
     pub(crate) desktop_locale_selected: bool,
     pub(crate) desktop_locale_saving: bool,

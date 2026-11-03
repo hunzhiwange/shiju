@@ -1974,6 +1974,7 @@ fn plan_run_started_messages_register_planning_and_execution_sessions() {
 
     match planning_message {
         super::Message::Chat(super::message::ChatMessage::PlanRunSessionStarted {
+            title_feedback: _,
             parent_request_id,
             parent_session_id,
             session_id,
@@ -1993,6 +1994,7 @@ fn plan_run_started_messages_register_planning_and_execution_sessions() {
 
     match subtask_message {
         super::Message::Chat(super::message::ChatMessage::PlanRunSessionStarted {
+            title_feedback: _,
             session_id,
             title,
             query,

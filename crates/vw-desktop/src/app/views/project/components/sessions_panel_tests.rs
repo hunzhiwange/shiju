@@ -413,6 +413,7 @@ fn plan_run_live_children_integrate_with_session_visibility() {
 
     for message in [
         message::ChatMessage::PlanRunSessionStarted {
+            title_feedback: None,
             parent_request_id: REQUEST_ID,
             parent_session_id: MAIN_ID.to_string(),
             session_id: PLANNING_ID.to_string(),
@@ -425,6 +426,7 @@ fn plan_run_live_children_integrate_with_session_visibility() {
             delta: "已生成两批计划".to_string(),
         },
         message::ChatMessage::PlanRunSessionStarted {
+            title_feedback: None,
             parent_request_id: REQUEST_ID,
             parent_session_id: MAIN_ID.to_string(),
             session_id: BATCH_ONE_ID.to_string(),
@@ -437,6 +439,7 @@ fn plan_run_live_children_integrate_with_session_visibility() {
             delta: "第一批执行中".to_string(),
         },
         message::ChatMessage::PlanRunSessionStarted {
+            title_feedback: None,
             parent_request_id: REQUEST_ID,
             parent_session_id: MAIN_ID.to_string(),
             session_id: BATCH_TWO_ID.to_string(),

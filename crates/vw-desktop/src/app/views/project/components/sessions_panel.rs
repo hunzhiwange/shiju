@@ -623,7 +623,7 @@ fn session_tree_row<'a>(
 ) -> Element<'a, Message> {
     let s = tree_row.session;
     let id = s.id.clone();
-    let session_title = s.title.clone();
+    let session_title = crate::app::i18n::other::session_title(app, &s.id, &s.title);
     let active = app.active_session_id.as_ref() == Some(&id);
     let runtime = app.session_runtime_states.get(&id);
     let is_running = runtime.map(|r| r.is_requesting).unwrap_or(false);

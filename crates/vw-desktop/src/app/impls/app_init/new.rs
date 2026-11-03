@@ -720,6 +720,7 @@ impl App {
             terminals_by_project: HashMap::new(),
             diff_theme: DiffTheme::GitHub,
             app_theme: effective_app_theme,
+            generated_session_titles: std::collections::HashMap::new(),
             desktop_locale: system_settings_cfg.desktop_locale,
             desktop_locale_selected: false,
             desktop_locale_saving: false,

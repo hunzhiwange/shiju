@@ -501,21 +501,27 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             stream_events::handle_agent_workflow_node_update(app, id, raw_tool_block)
         }
         ChatMessage::PlanRunSessionStarted {
+            title_feedback,
             parent_request_id,
             parent_session_id,
             session_id,
             title,
             directory,
             query,
-        } => stream_events::handle_plan_run_session_started(
-            app,
-            parent_request_id,
-            parent_session_id,
-            session_id,
-            title,
-            directory,
-            query,
-        ),
+        } => {
+            if let Some(feedback) = title_feedback {
+                app.generated_session_titles.insert(session_id.clone(), feedback);
+            }
+            stream_events::handle_plan_run_session_started(
+                app,
+                parent_request_id,
+                parent_session_id,
+                session_id,
+                title,
+                directory,
+                query,
+            )
+        }
         ChatMessage::PlanRunSessionDelta { session_id, delta } => {
             stream_events::queue_agent_session_delta(app, session_id, delta)
         }

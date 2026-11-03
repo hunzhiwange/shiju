@@ -22,3 +22,10 @@ pub(crate) fn tab_label(i18n: I18n, id: &str, raw: &str) -> String {
     };
     i18n.__(source).to_owned()
 }
+
+pub(crate) fn session_title(app: &crate::app::App, id: &str, raw: &str) -> String {
+    app.generated_session_titles
+        .get(id)
+        .map(|feedback| feedback.render(I18n::new(app.desktop_locale), raw))
+        .unwrap_or_else(|| raw.to_owned())
+}

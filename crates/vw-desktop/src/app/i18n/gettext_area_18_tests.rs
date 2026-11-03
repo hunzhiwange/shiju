@@ -76,3 +76,16 @@ async fn desktop_gettext_area_18_account_validation_retains_semantic_feedback() 
         "skey 不能為空"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_18_generated_session_titles_preserve_renames() {
+    let (mut app, _) = crate::app::App::new();
+    let feedback = super::input::Feedback::new("规划 · %s", vec!["id/%s/%n".into()]);
+    let raw = feedback.fallback.clone();
+    app.generated_session_titles.insert("child".into(), feedback);
+    app.desktop_locale = DesktopLocale::English;
+    assert_eq!(super::other::session_title(&app, "child", &raw), "Planning · id/%s/%n");
+    app.desktop_locale = DesktopLocale::TraditionalChinese;
+    assert_eq!(super::other::session_title(&app, "child", &raw), "規劃 · id/%s/%n");
+    assert_eq!(super::other::session_title(&app, "child", "用户/%s/%n"), "用户/%s/%n");
+}

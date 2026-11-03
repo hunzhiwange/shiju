@@ -29,7 +29,7 @@ pub fn get_session_title(app: &App) -> String {
         if let Some(session) =
             sessions.find(|session| &session.id == session_id && !session.title.trim().is_empty())
         {
-            return session.title.clone();
+            return crate::app::i18n::other::session_title(app, &session.id, &session.title);
         }
     }
     crate::app::i18n::I18n::new(app.desktop_locale).__("暂无").to_string()

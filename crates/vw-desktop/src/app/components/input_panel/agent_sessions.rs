@@ -162,7 +162,7 @@ fn append_running_descendants(
             title: if is_planning {
                 planning_row_label(&session.title, &session.id)
             } else {
-                session.title.clone()
+                crate::app::i18n::other::session_title(app, &session.id, &session.title)
             },
             directory: session.directory.clone(),
             kind: if is_planning {

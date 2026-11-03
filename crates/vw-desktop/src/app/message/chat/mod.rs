@@ -490,6 +490,7 @@ pub enum ChatMessage {
 
     /// plan-run 已创建规划或执行子会话，桌面应在后台登记它。
     PlanRunSessionStarted {
+        title_feedback: Option<crate::app::i18n::input::Feedback>,
         parent_request_id: u64,
         parent_session_id: String,
         session_id: String,

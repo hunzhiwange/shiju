@@ -1421,7 +1421,26 @@ fn plan_run_session_started_message(
         } => (session_id, reason.clone()),
         _ => return None,
     };
+    let title_feedback = match event {
+        vw_api_types::task::TaskPlanRunStreamEventDto::PlanningStarted { task_id, .. } => {
+            Some(crate::app::i18n::input::Feedback::new("规划 · %s", vec![task_id.clone().into()]))
+        }
+        vw_api_types::task::TaskPlanRunStreamEventDto::SubtaskStarted {
+            subtask_id, title, ..
+        } if title.trim().is_empty() => Some(crate::app::i18n::input::Feedback::new(
+            "子任务 · %s",
+            vec![subtask_id.clone().into()],
+        )),
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalTurnStarted { turn, .. } => Some(
+            crate::app::i18n::input::Feedback::new("目标续轮 · 第 %u 轮", vec![(*turn).into()]),
+        ),
+        vw_api_types::task::TaskPlanRunStreamEventDto::GoalEvaluated { turn, .. } => Some(
+            crate::app::i18n::input::Feedback::new("目标验收 · 第 %u 轮", vec![(*turn).into()]),
+        ),
+        _ => None,
+    };
     Some(Message::Chat(message::ChatMessage::PlanRunSessionStarted {
+        title_feedback,
         parent_request_id,
         parent_session_id: parent_session_id.to_string(),
         session_id: session_id.clone(),

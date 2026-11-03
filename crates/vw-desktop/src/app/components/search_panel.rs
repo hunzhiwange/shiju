@@ -100,6 +100,9 @@ pub(super) fn matching_sessions(app: &App, query: &str) -> Vec<SessionSearchMatc
             let preview =
                 app.session_previews.get(&session.id).map(String::as_str).unwrap_or_default();
             session.title.to_ascii_lowercase().contains(&needle)
+                || crate::app::i18n::other::session_title(app, &session.id, &session.title)
+                    .to_ascii_lowercase()
+                    .contains(&needle)
                 || preview.to_ascii_lowercase().contains(&needle)
                 || session.directory.to_ascii_lowercase().contains(&needle)
                 || session.id.to_ascii_lowercase().contains(&needle)
@@ -107,7 +110,7 @@ pub(super) fn matching_sessions(app: &App, query: &str) -> Vec<SessionSearchMatc
         .take(8)
         .map(|session| SessionSearchMatch {
             id: session.id.clone(),
-            title: session.title.clone(),
+            title: crate::app::i18n::other::session_title(app, &session.id, &session.title),
             preview: app.session_previews.get(&session.id).cloned(),
             directory: session.directory.clone(),
         })
@@ -298,7 +301,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
         // 为每个匹配的会话创建按钮
         for session in sessions {
-            let mut label = column![text(session.title.clone())].spacing(2);
+            let mut label = column![text(crate::app::i18n::other::session_title(
+                app,
+                &session.id,
+                &session.title
+            ))]
+            .spacing(2);
             if let Some(preview) = session.preview.filter(|value| !value.trim().is_empty()) {
                 label = label.push(text(preview).size(12).style(|theme: &Theme| {
                     iced::widget::text::Style {

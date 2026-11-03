@@ -455,9 +455,21 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                         tab.editor.lsp_did_save();
                     }
                 }
-                if notify { app.show_success_toast("已保存") } else { Task::none() }
+                if notify {
+                    app.show_localized_toast(
+                        crate::app::state::ToastKind::Success,
+                        "已保存",
+                        vec![],
+                    )
+                } else {
+                    Task::none()
+                }
             }
-            Err(error) => app.show_error_toast(format!("保存失败: {error}")),
+            Err(error) => app.show_localized_toast(
+                crate::app::state::ToastKind::Error,
+                "保存失败: %s",
+                vec![error.into()],
+            ),
         },
         PreviewMessage::AutoSaveDelayElapsed { path, revision } => {
             if !matches!(

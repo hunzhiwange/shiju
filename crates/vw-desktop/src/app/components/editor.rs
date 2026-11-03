@@ -545,6 +545,7 @@ impl Editor {
 fn preview_context_menu_entries(language: i18n::Language) -> Vec<ContextMenuEntry> {
     let (insert_selection, insert_positions) = match language {
         i18n::Language::ChineseSimplified => ("插入选择到聊天", "插入选区位置信息"),
+        i18n::Language::ChineseTraditional => ("將選取內容插入聊天", "插入選取範圍位置資訊"),
         _ => ("Insert selection into chat", "Insert selection positions"),
     };
 

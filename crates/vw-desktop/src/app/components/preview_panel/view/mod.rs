@@ -527,12 +527,16 @@ fn fullscreen_controls<'a>(app: &'a App) -> Element<'a, Message> {
         .style(overlay_icon_button_style)
         .on_press(Message::Git(message::GitMessage::ToggleHalfFullscreen))
         .into(),
-        "半屏",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("半屏"),
     );
 
     let fullscreen_icon =
         if app.git_diff_fullscreen { Icon::FullscreenExit } else { Icon::Fullscreen };
-    let fullscreen_label = if app.git_diff_fullscreen { "退出全屏" } else { "全屏" };
+    let fullscreen_label = if app.git_diff_fullscreen {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("退出全屏")
+    } else {
+        crate::app::i18n::I18n::new(app.desktop_locale).__("全屏")
+    };
 
     let fullscreen_button: Element<'a, Message> = fullscreen_control_tooltip(
         button(

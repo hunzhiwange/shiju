@@ -96,3 +96,6 @@ pub mod modals;
 
 #[cfg(test)]
 mod modals_tests;
+
+#[cfg(test)]
+mod gettext_area_16_tests;

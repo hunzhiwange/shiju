@@ -173,8 +173,13 @@ pub fn build_settings_overlay<'a>(
     let content = column![
         row![
             column![
-                text("编辑器设置").size(22),
-                text("统一调整字号、行高、语言与主题。").size(12).style(settings_muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("编辑器设置")).size(22),
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("统一调整字号、行高、语言与主题。")
+                )
+                .size(12)
+                .style(settings_muted_text_style),
             ]
             .spacing(4)
             .width(Length::Fill),
@@ -184,8 +189,8 @@ pub fn build_settings_overlay<'a>(
         settings_panel(
             column![
                 setting_row(
-                    "字号",
-                    "调整编辑器基础字体大小。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("字号"),
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("调整编辑器基础字体大小。"),
                     row![
                         slider(10.0..=30.0, app.current_font_size, |value| {
                             control_message(SettingsControl::FontSize(value))
@@ -198,10 +203,11 @@ pub fn build_settings_overlay<'a>(
                 ),
                 settings_divider(),
                 setting_row(
-                    "自动行高",
-                    "启用后根据字体大小自动匹配行距。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("自动行高"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("启用后根据字体大小自动匹配行距。"),
                     checkbox(app.auto_adjust_line_height)
-                        .label("启用")
+                        .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
                         .on_toggle(|enabled| {
                             control_message(SettingsControl::AutoLineHeight(enabled))
                         })
@@ -209,8 +215,9 @@ pub fn build_settings_overlay<'a>(
                 ),
                 settings_divider(),
                 setting_row(
-                    "行高",
-                    "关闭自动行高后可手动微调阅读密度。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("行高"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("关闭自动行高后可手动微调阅读密度。"),
                     row![
                         slider(10.0..=50.0, app.current_line_height, |value| {
                             control_message(SettingsControl::LineHeight(value))
@@ -222,25 +229,36 @@ pub fn build_settings_overlay<'a>(
                     .align_y(Alignment::Center),
                 ),
                 settings_divider(),
-                setting_row("语言", "选择编辑器语法与显示语言。", language_pick),
+                setting_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("语言"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("选择编辑器语法与显示语言。"),
+                    language_pick
+                ),
                 settings_divider(),
                 setting_row(
-                    "跟随系统主题",
-                    "启用后编辑器自动同步桌面主题。",
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("跟随系统主题"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("启用后编辑器自动同步桌面主题。"),
                     checkbox(app.editor_follow_system_theme)
-                        .label("启用")
+                        .label(crate::app::i18n::I18n::new(app.desktop_locale).__("启用"))
                         .on_toggle(|enabled| {
                             control_message(SettingsControl::FollowSystemTheme(enabled))
                         })
                         .style(settings_checkbox_style),
                 ),
                 settings_divider(),
-                setting_row("主题", "关闭跟随后可单独指定编辑器主题。", theme_pick),
+                setting_row(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("主题"),
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("关闭跟随后可单独指定编辑器主题。"),
+                    theme_pick
+                ),
             ]
             .spacing(0),
         ),
         container(
-            button(text("完成").size(13))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("完成")).size(13))
                 .on_press(close_message.clone())
                 .padding([10, 18])
                 .style(primary_action_btn_style),

@@ -305,7 +305,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 .style(|theme: &Theme, _| iced::widget::svg::Style {
                                     color: Some(theme.palette().text),
                                 }),
-                            text("重命名")
+                            text(crate::app::i18n::I18n::new(app.desktop_locale).__("重命名"))
                         ]
                         .spacing(6)
                         .align_y(iced::Alignment::Center),
@@ -343,7 +343,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 .style(|theme: &Theme, _| iced::widget::svg::Style {
                                     color: Some(theme.palette().text),
                                 }),
-                            text("关闭")
+                            text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭"))
                         ]
                         .spacing(6)
                         .align_y(iced::Alignment::Center),
@@ -592,24 +592,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
         && let Some(t) = app.terminal.tabs.iter().find(|t| t.id == active_id)
         && let Some(edit_title) = &t.edit_title
     {
-        let rename_input = text_input("输入新名称", edit_title)
-            .on_input(move |v| {
-                Message::Terminal(message::TerminalMessage::RenameChanged(active_id, v))
-            })
-            .on_submit(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
-            .padding([10, 12])
-            .size(14)
-            .width(Length::Fill)
-            .style(settings_text_input_style);
+        let rename_input = text_input(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("输入新名称"),
+            edit_title,
+        )
+        .on_input(move |v| Message::Terminal(message::TerminalMessage::RenameChanged(active_id, v)))
+        .on_submit(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
+        .padding([10, 12])
+        .size(14)
+        .width(Length::Fill)
+        .style(settings_text_input_style);
 
         let actions = row![
             Space::new().width(Length::Fill),
-            button(text("取消").size(14))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(14))
                 .on_press(Message::Terminal(message::TerminalMessage::RenameCancel(active_id)))
                 .padding([8, 18])
                 .height(Length::Fixed(38.0))
                 .style(rounded_action_btn_style),
-            button(text("确定").size(14))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(14))
                 .on_press(Message::Terminal(message::TerminalMessage::RenameSave(active_id)))
                 .padding([8, 18])
                 .height(Length::Fixed(38.0))
@@ -622,10 +623,15 @@ pub fn view(app: &App) -> Element<'_, Message> {
         let modal = center(
             settings_modal_card(
                 column![
-                    text("重命名终端")
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__("重命名终端"))
                         .size(18)
                         .font(Font { weight: iced::font::Weight::Semibold, ..Font::DEFAULT }),
-                    text("输入一个便于识别的新名称").size(12).style(settings_muted_text_style),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("输入一个便于识别的新名称")
+                    )
+                    .size(12)
+                    .style(settings_muted_text_style),
                     rename_input,
                     actions,
                 ]

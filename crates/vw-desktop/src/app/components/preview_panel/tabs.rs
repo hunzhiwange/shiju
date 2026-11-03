@@ -115,9 +115,10 @@ pub(super) struct DisplayLanguage(pub(super) Language);
 
 /// 返回可选界面语言列表。
 pub(super) fn all_languages() -> &'static [DisplayLanguage] {
-    const LANGUAGES: [DisplayLanguage; 8] = [
+    const LANGUAGES: [DisplayLanguage; 9] = [
         DisplayLanguage(Language::English),
         DisplayLanguage(Language::ChineseSimplified),
+        DisplayLanguage(Language::ChineseTraditional),
         DisplayLanguage(Language::French),
         DisplayLanguage(Language::Spanish),
         DisplayLanguage(Language::German),
@@ -133,6 +134,7 @@ impl std::fmt::Display for DisplayLanguage {
         match self.0 {
             Language::English => write!(f, "English"),
             Language::ChineseSimplified => write!(f, "简体中文"),
+            Language::ChineseTraditional => write!(f, "繁體中文"),
             Language::French => write!(f, "Français"),
             Language::Spanish => write!(f, "Español"),
             Language::German => write!(f, "Deutsch"),

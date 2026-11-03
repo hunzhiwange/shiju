@@ -207,7 +207,11 @@ pub fn view<'a>(app: &App, on_save: Option<Message>, is_dirty: bool) -> Element<
     if let Some(save_msg) = on_save {
         let save_btn = icon_button(
             Icon::Save,
-            if is_dirty { "保存文件 (已修改)" } else { "保存文件" },
+            if is_dirty {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("保存文件 (已修改)")
+            } else {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("保存文件")
+            },
             TooltipPosition::Bottom,
             save_msg,
             is_dirty, // 文件修改时高亮显示保存按钮
@@ -218,7 +222,7 @@ pub fn view<'a>(app: &App, on_save: Option<Message>, is_dirty: bool) -> Element<
     // 创建撤销按钮
     let undo_btn = icon_button(
         Icon::ArrowCounterClockwise,
-        "撤销",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("撤销"),
         TooltipPosition::Bottom,
         Message::Editor(crate::app::message::editor::EditorMessage::Undo),
         false,
@@ -227,7 +231,7 @@ pub fn view<'a>(app: &App, on_save: Option<Message>, is_dirty: bool) -> Element<
     // 创建重做按钮
     let redo_btn = icon_button(
         Icon::ArrowClockwise,
-        "重做",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("重做"),
         TooltipPosition::Bottom,
         Message::Editor(crate::app::message::editor::EditorMessage::Redo),
         false,
@@ -236,7 +240,7 @@ pub fn view<'a>(app: &App, on_save: Option<Message>, is_dirty: bool) -> Element<
     // 创建搜索按钮
     let search_btn = icon_button(
         Icon::Search,
-        "搜索",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("搜索"),
         TooltipPosition::Bottom,
         Message::Editor(crate::app::message::editor::EditorMessage::OpenSearch),
         false,
@@ -245,7 +249,7 @@ pub fn view<'a>(app: &App, on_save: Option<Message>, is_dirty: bool) -> Element<
     // 创建替换按钮
     let replace_btn = icon_button(
         Icon::ArrowRepeat,
-        "替换",
+        crate::app::i18n::I18n::new(app.desktop_locale).__("替换"),
         TooltipPosition::Bottom,
         Message::Editor(crate::app::message::editor::EditorMessage::OpenReplace),
         false,

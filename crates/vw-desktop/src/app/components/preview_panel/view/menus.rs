@@ -62,27 +62,27 @@ fn build_context_menu(app: &App) -> Element<'_, Message> {
     let tab_opt = app.preview_tabs.iter().find(|t| t.path == *path);
     let items: Element<'_, Message> = if tab_opt.is_some() {
         column![
-            button(text("复制选择"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("复制选择")))
                 .style(menu_button_style)
                 .on_press(Message::Preview(message::PreviewMessage::ContextMenuCopy))
                 .width(Length::Fill),
-            button(text("剪切"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("剪切")))
                 .style(menu_button_style)
                 .on_press(Message::Preview(message::PreviewMessage::ContextMenuCut))
                 .width(Length::Fill),
-            button(text("粘贴"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("粘贴")))
                 .style(menu_button_style)
                 .on_press(Message::Preview(message::PreviewMessage::ContextMenuPaste))
                 .width(Length::Fill),
-            button(text("删除"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")))
                 .style(menu_button_style)
                 .on_press(Message::Preview(message::PreviewMessage::ContextMenuDelete))
                 .width(Length::Fill),
-            button(text("插入选择到chat"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("插入选择到chat")))
                 .style(menu_button_style)
                 .on_press(Message::Chat(message::ChatMessage::InsertSelected))
                 .width(Length::Fill),
-            button(text("插入选区位置信息"))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("插入选区位置信息")))
                 .style(menu_button_style)
                 .on_press(Message::Chat(message::ChatMessage::InsertSelectionPositions))
                 .width(Length::Fill),

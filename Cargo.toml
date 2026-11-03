@@ -13,7 +13,7 @@ members = [
   "crates/vw-webview",
   "crates/vw-provider-resolver",
 ]
-exclude = ["vendor/block", "vendor/block/test_utils"]
+exclude = ["vendor/iced-code-editor", "vendor/block", "vendor/block/test_utils"]
 resolver = "3"
 
 [profile.dev]
@@ -30,3 +30,6 @@ lto = "thin"
 [patch.crates-io]
 # block 0.1.6 declares an uninhabited extern static (rust-lang/rust#74840).
 block = { path = "vendor/block" }
+
+[patch."https://github.com/doyouhaobaby/iced-code-editor.git"]
+iced-code-editor = { path = "vendor/iced-code-editor" }

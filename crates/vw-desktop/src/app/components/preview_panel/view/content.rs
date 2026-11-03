@@ -78,17 +78,20 @@ pub fn build_content_base(app: &App) -> Element<'_, Message> {
                 }
             }
         } else {
-            container(text("未找到预览")).width(Length::Fill).height(Length::Fill).into()
+            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("未找到预览")))
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .into()
         }
     } else if matches!(app.screen, crate::app::Screen::Preview) {
-        container(text("未选择文件"))
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("未选择文件")))
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(iced::alignment::Horizontal::Center)
             .align_y(iced::alignment::Vertical::Center)
             .into()
     } else if !app.file_manager_show_changes {
-        container(text("未选择文件"))
+        container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("未选择文件")))
             .width(Length::Fill)
             .height(Length::Fill)
             .align_x(iced::alignment::Horizontal::Center)

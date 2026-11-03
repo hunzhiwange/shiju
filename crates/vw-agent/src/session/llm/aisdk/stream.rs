@@ -169,6 +169,7 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     request_url: String,
     enforce_strict_tool_schema: bool,
     messages: Vec<aisdk::core::Message>,
+    wire_messages: Option<Value>,
     tools: &HashMap<String, tools::ToolSpec>,
     temperature: Option<f64>,
     top_p: Option<f64>,
@@ -248,6 +249,9 @@ pub(crate) async fn do_stream_request_aisdk_with_model<
     }
 
     let mut request_body = Map::new();
+    if let Some(messages) = wire_messages {
+        request_body.insert("messages".into(), messages);
+    }
     if provider_id.eq_ignore_ascii_case("token-plan") {
         request_body.insert(
             "stream_options".to_string(),

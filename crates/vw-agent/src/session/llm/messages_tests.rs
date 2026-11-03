@@ -283,6 +283,22 @@ fn build_chat_messages_preserves_non_object_messages_while_filtering_reasoning()
 }
 
 #[test]
+fn build_chat_messages_keeps_declared_reasoning_field_for_routed_model() {
+    let mut model = test_model("shiju", "deepseek-v4.1-flash", "openai-compatible");
+    model.capabilities.interleaved =
+        provider::InterleavedCapability::Field { field: "reasoning_content".into() };
+    let out = build_chat_messages(
+        &[],
+        &[json!({
+            "role": "assistant", "content": "", "reasoning_content": "reasoning",
+            "tool_calls": [{"id":"call-1","type":"function","function":{"name":"bash","arguments":"{}"}}]
+        })],
+        &model,
+    );
+    assert_eq!(out[0]["reasoning_content"], "reasoning");
+}
+
+#[test]
 // 仅 DeepSeek 推理模型保留 reasoning_content，其他模型发送前移除。
 fn build_chat_messages_keeps_reasoning_content_for_deepseek_reasoner_model_id() {
     let model = test_model("test-provider", "deepseek-reasoner-v3", "openai-compatible");

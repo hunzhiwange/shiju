@@ -96,6 +96,7 @@ pub(crate) async fn dispatch_stream_request(
                 request_info.request_url,
                 request_info.enforce_strict_tool_schema,
                 request_info.messages,
+                request_info.wire_messages,
                 tools,
                 temperature,
                 top_p,

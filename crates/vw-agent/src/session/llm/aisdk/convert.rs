@@ -46,6 +46,8 @@ pub(crate) struct AisdkRequestInfo {
     pub(crate) enforce_strict_tool_schema: bool,
     /// 转换后的 AI SDK 格式消息列表
     pub(crate) messages: Vec<aisdk::core::Message>,
+    /// SDK 的通用消息不保留交错推理字段；Chat 请求使用已规范化的协议消息。
+    pub(crate) wire_messages: Option<Value>,
 }
 
 /// 计算并构建 AI SDK 请求信息
@@ -98,6 +100,7 @@ pub(crate) fn compute_request_info(
             path_override: Some("messages".into()),
             enforce_strict_tool_schema: false,
             messages: openai_messages_to_aisdk_messages(chat_messages, model)?,
+            wire_messages: None,
         });
     }
     // 提取并规范化 API URL，移除首尾空白和末尾斜杠
@@ -226,6 +229,40 @@ pub(crate) fn compute_request_info(
 
     // 将 OpenAI 格式的消息转换为 AI SDK 格式
     let messages = openai_messages_to_aisdk_messages(chat_messages, model)?;
+    let wire_messages = if request_url.ends_with("/chat/completions")
+        && matches!(&model.capabilities.interleaved,
+            provider::InterleavedCapability::Field { field } if field == "reasoning_content")
+    {
+        Some(Value::Array(
+            chat_messages
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|message| {
+                    let source = message.as_object()?;
+                    let mut wire = serde_json::Map::new();
+                    for key in [
+                        "role",
+                        "content",
+                        "name",
+                        "tool_calls",
+                        "tool_call_id",
+                        "reasoning_content",
+                    ] {
+                        if let Some(value) = source.get(key) {
+                            wire.insert(key.into(), value.clone());
+                        }
+                    }
+                    if wire.get("role").and_then(Value::as_str) == Some("developer") {
+                        wire.insert("role".into(), Value::String("system".into()));
+                    }
+                    Some(Value::Object(wire))
+                })
+                .collect(),
+        ))
+    } else {
+        None
+    };
 
     // 返回构建完成的请求信息
     Ok(AisdkRequestInfo {
@@ -234,6 +271,7 @@ pub(crate) fn compute_request_info(
         path_override,
         enforce_strict_tool_schema,
         messages,
+        wire_messages,
     })
 }
 #[cfg(test)]

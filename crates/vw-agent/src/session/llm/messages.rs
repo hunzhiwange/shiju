@@ -178,8 +178,11 @@ pub fn build_chat_messages(system: &[String], msgs: &[Value], model: &provider::
     // 确保工具调用序列符合 OpenAI 规范
     ensure_openai_tool_call_sequence(&mut out);
 
-    // 检查是否允许保留推理内容（仅 DeepSeek 相关模型支持）
-    let allow_reasoning_content = model.api.id.contains("deepseek-reasoner")
+    // 优先遵守模型声明；经过路由代理时 provider ID 不再是模型供应商名。
+    let allow_reasoning_content = matches!(
+        &model.capabilities.interleaved,
+        provider::InterleavedCapability::Field { field } if field == "reasoning_content"
+    ) || model.api.id.contains("deepseek-reasoner")
         || model.provider_id.to_ascii_lowercase().contains("deepseek");
 
     // 如果不允许推理内容，从所有消息中移除 reasoning_content 字段

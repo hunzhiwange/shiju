@@ -1521,7 +1521,11 @@ pub(crate) fn run_batch_tool_and_record(
         }
 
         // 提取工具参数（默认为空对象）
-        let params = call.get("parameters").cloned().unwrap_or_else(empty_object);
+        let params = call
+            .get("args")
+            .or_else(|| call.get("parameters"))
+            .cloned()
+            .unwrap_or_else(empty_object);
         let input_raw = params.to_string();
 
         // 对 todowrite 工具进行特殊处理

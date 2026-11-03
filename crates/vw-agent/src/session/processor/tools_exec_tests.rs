@@ -950,6 +950,29 @@ fn run_batch_tool_and_record_summarizes_single_and_parallel_successful_batches()
 }
 
 #[test]
+fn run_batch_tool_and_record_passes_schema_args_and_legacy_parameters() {
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("input.txt");
+    std::fs::write(&file, "batch argument fixture").unwrap();
+    for key in ["args", "parameters"] {
+        let session_id = unique_session("batch-schema-args");
+        let mut session = Session::new(session_id.clone());
+        let mut call = json!({"tool":"file_read"});
+        call[key] = json!({"path":file});
+        let output = super::run_batch_tool_and_record(
+            &mut session,
+            &json!({"tool_calls":[call]}).to_string(),
+            &ctx_with_root(&session_id, dir.path()),
+            false,
+            &mut |_| true,
+            &mut new_state(),
+        );
+        assert!(output.contains("batch argument fixture"), "{key}: {output}");
+        assert!(output.contains("全部 1 个工具均执行成功"));
+    }
+}
+
+#[test]
 fn describe_batch_call_handles_aliases_trimmed_values_and_missing_paths() {
     assert_eq!(
         super::describe_batch_call("shell", &json!({ "command": "  printf ok  " })),

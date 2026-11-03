@@ -71,6 +71,7 @@ async fn run_termination_response(
         format!("http://{address}/v1/chat/completions"),
         false,
         vec![Message::User("protocol fixture".into())],
+        None,
         &HashMap::new(),
         None,
         None,

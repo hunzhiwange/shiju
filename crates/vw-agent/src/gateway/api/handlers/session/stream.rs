@@ -1804,7 +1804,10 @@ fn commit_stream_session_trajectory(
     let finished_steps = recorder
         .steps
         .iter()
-        .filter(|step| step.finished_ms.is_some())
+        .filter(|step| {
+            step.finished_ms.is_some()
+                && !(step.model.is_none() && step.finish_reason.as_deref() == Some("workflow"))
+        })
         .map(|step| (recorder.turn_id.clone(), step.index))
         .collect::<Vec<_>>();
     let claims = raw_commit::claim(tenant, scope, session_id, &finished_steps)?;

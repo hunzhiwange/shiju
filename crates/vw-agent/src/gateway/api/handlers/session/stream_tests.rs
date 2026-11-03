@@ -1217,6 +1217,113 @@ fn make_docs_workspace() -> tempfile::TempDir {
     temp
 }
 
+#[tokio::test(flavor = "multi_thread")]
+async fn native_workflow_gateway_persists_bound_graph_without_llm_artifacts() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::create_dir(temp.path().join(".shiju")).unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    std::fs::write(
+        temp.path().join(".shiju/workflow_commands.json"),
+        serde_json::json!({
+            "platform_id":tenant.platform_id().as_ref(),
+            "company_id":tenant.company_id().as_ref(),
+            "commands":[{"command":"/shiju 剪辑","workflow_file":"preview.yaml"}]
+        })
+        .to_string(),
+    )
+    .unwrap();
+    std::fs::write(
+        temp.path().join("preview.yaml"),
+        r#"
+workflow:
+  graph:
+    nodes:
+      - id: start
+        data: {type: start}
+      - id: answer
+        data: {type: answer, answer: 'verified preview'}
+    edges:
+      - {source: start, target: answer}
+"#,
+    )
+    .unwrap();
+    let session_id = format!("ses_workflow_gateway_{}", uuid::Uuid::new_v4());
+    let request = GatewayChatStreamRequest {
+        session_id: Some(session_id.clone().into()),
+        messages: vec![serde_json::json!({"role":"user","content":"/shiju 剪辑 sp7"})],
+        model: Some("model-recovery/original".into()),
+        ..Default::default()
+    };
+    let directory = temp.path().to_string_lossy().to_string();
+    let mut seen = Vec::new();
+    let collected =
+        collect_gateway_chat_stream_with_observer(directory.clone(), request, |event| {
+            seen.push(event["type"].as_str().unwrap_or_default().to_string());
+        })
+        .await
+        .expect("workflow gateway stream should finish and persist");
+    assert!(collected.output.ends_with("verified preview"));
+    assert_eq!(seen.last().map(String::as_str), Some("chat.done"));
+    assert!(collected.message_id.is_some());
+    let scope = crate::session::ui_store::resolve_session_scope_id_for_tenant(
+        &tenant,
+        Some(&directory),
+        None,
+    )
+    .unwrap();
+    let stored = crate::session::ui_store::load_session_scoped_for_tenant(
+        &tenant,
+        &session_id,
+        Some(&scope),
+    )
+    .unwrap();
+    assert_eq!(stored.steps.len(), 1);
+    assert_eq!(stored.steps[0].finish_reason.as_deref(), Some("workflow"));
+    assert!(stored.steps[0].tool_timings.iter().any(|tool| tool.name == "workflow"));
+    assert!(stored.messages.last().unwrap().content.ends_with("verified preview"));
+}
+
+#[test]
+fn stream_trajectory_commit_rejects_llm_without_raw_artifacts() {
+    let project = tempfile::tempdir().unwrap();
+    let directory = project.path().to_string_lossy().to_string();
+    let scope = crate::session::ui_store::resolve_session_scope_id(Some(&directory), None).unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    for reason in ["stop", "workflow"] {
+        let session_id = format!("ses_missing_raw_{}", uuid::Uuid::new_v4());
+        let ids = StreamTurnMessageIds::new("missing-raw-turn", "missing-raw-user");
+        let mut recorder = StreamTrajectoryRecorder::new(ids.assistant_id.clone());
+        recorder.record(&agent_session::processor::StreamEvent::StepFinish {
+            step_index: 0,
+            finished_ms: 20,
+            usage: Default::default(),
+            finish_reason: Some(reason.into()),
+            model: Some("fixture/model".into()),
+        });
+        let error = commit_stream_session_trajectory(
+            &tenant,
+            Some(&scope),
+            &session_id,
+            &directory,
+            "inspect",
+            "answer",
+            Some("fixture/model"),
+            &ids,
+            &recorder,
+            10,
+            20,
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("missing raw LLM artifacts"));
+    }
+}
+
 #[tokio::test]
 async fn collect_gateway_chat_stream_runs_docs_request_and_persists_done_message_ids() {
     let temp = make_docs_workspace();

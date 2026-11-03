@@ -799,7 +799,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::ProjectFileSaveAll
         | ViewMessage::ToggleSystemSettings
         | ViewMessage::OpenAcpSettings
-            | ViewMessage::OpenSystemSettingsTab(_)
+        | ViewMessage::OpenSystemSettingsTab(_)
         | ViewMessage::OpenSystemSettingsModelDetail(_, _)
         | ViewMessage::ToggleAboutModal
         | ViewMessage::RestartApp

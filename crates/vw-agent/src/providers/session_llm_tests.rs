@@ -357,3 +357,53 @@ fn session_provider_with_options_defaults_vision_enabled() {
     let disabled = SessionLlmProvider::with_options(&options);
     assert!(!disabled.supports_vision());
 }
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn gateway_output_separates_reasoning_at_every_chunk_boundary() {
+    let source = "<think>思考</think>\n[1,2]\n<think>late</think>";
+    for split in source.char_indices().map(|(index, _)| index).chain([source.len()]) {
+        let mut output = super::output::GatewayOutput::default();
+        let mut visible = output.push(&source[..split]);
+        visible.push_str(&output.push(&source[split..]));
+        let (tail, reasoning) = output.finish().unwrap();
+        visible.push_str(&tail);
+        assert_eq!(visible, "\n[1,2]\n", "split={split}");
+        assert_eq!(reasoning.as_deref(), Some("思考late"));
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn gateway_output_streams_visible_text_without_leaking_partial_tags() {
+    let mut output = super::output::GatewayOutput::default();
+    for chunk in ["<", "thi", "nk>", "推理", "</thi", "nk>"] {
+        assert_eq!(output.push(chunk), "");
+    }
+    assert_eq!(output.push("["), "[");
+    assert_eq!(output.push("1]"), "1]");
+    let (tail, reasoning) = output.finish().unwrap();
+    assert!(tail.is_empty());
+    assert_eq!(reasoning.as_deref(), Some("推理"));
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn gateway_output_preserves_plain_text_and_incomplete_literal_prefix() {
+    let mut output = super::output::GatewayOutput::default();
+    let mut visible = output.push("中文 <thing> x <thi");
+    let (tail, reasoning) = output.finish().unwrap();
+    visible.push_str(&tail);
+    assert_eq!(visible, "中文 <thing> x <thi");
+    assert!(reasoning.is_none());
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn gateway_output_rejects_unclosed_reasoning_without_disclosing_it() {
+    let mut output = super::output::GatewayOutput::default();
+    assert_eq!(output.push("<think>PRIVATE_SENTINEL</thi"), "");
+    let error = output.finish().unwrap_err();
+    assert_eq!(error, "gateway reasoning block was not closed");
+    assert!(!error.contains("PRIVATE_SENTINEL"));
+}

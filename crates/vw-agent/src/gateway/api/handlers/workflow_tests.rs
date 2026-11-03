@@ -1433,3 +1433,129 @@ async fn talking_head_api_saved_sample_requires_auth_and_isolates_tenants() {
     assert_eq!(status, StatusCode::OK, "{response}");
     assert_eq!(provider.calls.lock().len(), 3);
 }
+
+// 显式手工运行；普通回归不会使用真实模型或产生模型费用。
+#[tokio::test]
+#[ignore = "requires a configured local gateway and incurs real model usage"]
+async fn talking_head_api_live_configured_gateway_returns_validated_plans() {
+    use futures_util::StreamExt;
+
+    let config = crate::config::get_blocking();
+    println!("live upstream host={} port={}", config.gateway.host, config.gateway.port);
+    let mut state = test_state();
+    state.provider = Arc::new(crate::providers::session_llm::SessionLlmProvider::new());
+    state.pairing = Arc::new(PairingGuard::new(true, &["talking-head-test-skey".to_string()]));
+    let app = crate::gateway::bootstrap::client_router(
+        state.clone(),
+        axum::Router::new(),
+        axum::Router::new(),
+    )
+    .with_state(state);
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let client = reqwest::Client::builder().timeout(Duration::from_secs(120)).build().unwrap();
+    for (mode, visual_model) in [
+        ("streaming", "deepseek/deepseek-flash"),
+        ("blocking", "deepseek/deepseek-flash"),
+        ("streaming", "shiju/deepseek-v4.1-flash"),
+    ] {
+        let mut body = talking_head_api_body(mode);
+        body["application_workflow"] = json!(
+            body["application_workflow"]
+                .as_str()
+                .unwrap()
+                .replace("visual-provider/visual-model", visual_model)
+        );
+        body["query"] = json!("生成口播剪辑方案");
+        body["inputs"] = json!({
+            "transcript":"今天介绍本地工作流。模型并行生成关键词和画面建议。最后校验剪辑方案。",
+            "timestamps":[
+                {"word":"今天介绍本地工作流。","start":0,"end":3},
+                {"word":"模型并行生成关键词和画面建议。","start":3,"end":7},
+                {"word":"最后校验剪辑方案。","start":7,"end":10}
+            ],
+            "style":"简洁科技风", "requirements":"含三种画面类型；仅返回要求的 JSON，不要 Markdown 围栏。"
+        });
+        let start = std::time::Instant::now();
+        let response = client
+            .post(format!("http://{address}/v1/workflow/applications/chat-messages"))
+            .header("authorization", "Bearer talking-head-test-skey")
+            .header(vw_api_types::id::PLATFORM_ID_HEADER, "talking-head-api-live")
+            .header(vw_api_types::id::COMPANY_ID_HEADER, "local-acceptance")
+            .json(&body)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let text = if mode == "streaming" {
+            let mut chunks = response.bytes_stream();
+            let mut bytes = Vec::new();
+            let mut parsed = 0;
+            while let Some(chunk) = chunks.next().await {
+                bytes.extend_from_slice(&chunk.unwrap());
+                while let Some(relative) = bytes[parsed..].iter().position(|byte| *byte == b'\n') {
+                    let end = parsed + relative;
+                    if let Some(payload) = bytes[parsed..end].strip_prefix(b"data: ") {
+                        let event: serde_json::Value = serde_json::from_slice(payload).unwrap();
+                        if event["event"] == "node_started" || event["event"] == "node_finished" {
+                            println!(
+                                "live event={} node={} observed_seconds={:.3}",
+                                event["event"],
+                                event["data"]["node_id"],
+                                start.elapsed().as_secs_f64()
+                            );
+                        }
+                    }
+                    parsed = end + 1;
+                }
+            }
+            String::from_utf8(bytes).unwrap()
+        } else {
+            response.text().await.unwrap()
+        };
+        if mode == "blocking" {
+            let response: serde_json::Value = serde_json::from_str(&text).unwrap();
+            let plan: serde_json::Value =
+                serde_json::from_str(response["answer"].as_str().unwrap()).unwrap();
+            assert_eq!(plan["duration"], 10);
+            assert!(plan["segments"].as_array().unwrap().len() >= 3);
+        } else {
+            let events = talking_head_api_events(&text);
+            for event in events.iter().filter(|e| e["event"] == "node_finished") {
+                let data = &event["data"];
+                println!(
+                    "live node={} status={} input_json_chars={} elapsed_seconds={}",
+                    data["node_id"],
+                    data["status"],
+                    data["inputs"].to_string().chars().count(),
+                    data["elapsed_time"]
+                );
+            }
+            let done = events.iter().find(|e| e["event"] == "workflow_finished").unwrap();
+            assert_eq!(done["data"]["status"], "succeeded", "{}", done["data"]["error"]);
+            let nodes: Vec<_> = events.iter().filter(|e| e["event"] == "node_finished").collect();
+            assert_eq!(nodes.len(), 6);
+            for node in nodes {
+                assert_eq!(node["data"]["status"], "succeeded");
+            }
+            let answer = events
+                .iter()
+                .find(|e| {
+                    e["event"] == "text_chunk"
+                        && e["data"]["from_variable_selector"] == json!(["answer", "text"])
+                })
+                .unwrap();
+            let plan: serde_json::Value =
+                serde_json::from_str(answer["data"]["text"].as_str().unwrap()).unwrap();
+            assert_eq!(plan["duration"], 10);
+            assert!(plan["segments"].as_array().unwrap().len() >= 3);
+        }
+        println!(
+            "live mode={mode} plan_model=deepseek/deepseek-flash visual_model={visual_model} elapsed_seconds={:.3} validated=true",
+            start.elapsed().as_secs_f64()
+        );
+    }
+    server.abort();
+    let _ = server.await;
+}

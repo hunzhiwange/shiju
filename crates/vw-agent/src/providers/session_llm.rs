@@ -12,6 +12,10 @@ use crate::app::agent::providers::traits::{
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream};
 
+#[cfg(not(target_arch = "wasm32"))]
+#[path = "session_llm_output.rs"]
+mod output;
+
 /// 基于当前会话 gateway 的 LLM provider。
 pub struct SessionLlmProvider {
     support_vision: bool,
@@ -128,9 +132,10 @@ impl SessionLlmProvider {
     fn stream_gateway_chat_blocking(
         messages: Vec<serde_json::Value>,
         model: &str,
-    ) -> anyhow::Result<(String, Option<TokenUsage>)> {
+    ) -> anyhow::Result<ChatResponse> {
         let endpoint = Self::gateway_endpoint();
         let mut output = String::new();
+        let mut projection = output::GatewayOutput::default();
         let mut stream_error = None;
         let mut usage = None;
 
@@ -141,7 +146,7 @@ impl SessionLlmProvider {
             |event| {
                 match event {
                     vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
-                        output.push_str(&delta)
+                        output.push_str(&projection.push(&delta))
                     }
                     vw_gateway_client::GatewayChatStreamEvent::Done {
                         usage: done_usage, ..
@@ -158,6 +163,7 @@ impl SessionLlmProvider {
                         if Self::is_tool_lifecycle_event(&event) {
                             // 嵌套 ACP 会话在工具前可能发送说明性文字；工具完成后只保留最终答复阶段。
                             output.clear();
+                            projection = output::GatewayOutput::default();
                         }
                     }
                 }
@@ -170,7 +176,9 @@ impl SessionLlmProvider {
             anyhow::bail!(error);
         }
 
-        Ok((output, usage))
+        let (tail, reasoning_content) = projection.finish().map_err(anyhow::Error::msg)?;
+        output.push_str(&tail);
+        Ok(ChatResponse { text: Some(output), tool_calls: Vec::new(), usage, reasoning_content })
     }
 }
 
@@ -192,12 +200,12 @@ impl Provider for SessionLlmProvider {
         {
             let messages = Self::build_messages(system_prompt, message);
             let model = model.to_string();
-            let (text, _) = tokio::task::spawn_blocking(move || {
+            let response = tokio::task::spawn_blocking(move || {
                 Self::stream_gateway_chat_blocking(messages, &model)
             })
             .await
             .map_err(|error| anyhow::anyhow!("gateway chat task failed: {error}"))??;
-            return Ok(text);
+            return Ok(response.text.unwrap_or_default());
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -244,17 +252,12 @@ impl Provider for SessionLlmProvider {
         {
             let history_messages = Self::build_history_messages(&messages);
             let model = model.to_string();
-            let (text, usage) = tokio::task::spawn_blocking(move || {
+            let response = tokio::task::spawn_blocking(move || {
                 Self::stream_gateway_chat_blocking(history_messages, &model)
             })
             .await
             .map_err(|error| anyhow::anyhow!("gateway chat task failed: {error}"))??;
-            return Ok(ChatResponse {
-                text: Some(text),
-                tool_calls: Vec::new(),
-                usage,
-                reasoning_content: None,
-            });
+            return Ok(response);
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -281,9 +284,9 @@ impl Provider for SessionLlmProvider {
     ) -> anyhow::Result<String> {
         #[cfg(not(target_arch = "wasm32"))]
         {
-            let (text, _) =
+            let response =
                 Self::stream_gateway_chat_blocking(Self::build_history_messages(messages), model)?;
-            return Ok(text);
+            return Ok(response.text.unwrap_or_default());
         }
 
         #[cfg(target_arch = "wasm32")]
@@ -309,8 +312,9 @@ impl Provider for SessionLlmProvider {
             let messages = Self::build_messages(system_prompt, message);
 
             let enable_count = options.count_tokens;
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<StreamChunk>();
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             std::thread::spawn(move || {
+                let mut projection = output::GatewayOutput::default();
                 // gateway client 是阻塞接口，放入独立线程并用 channel 桥接回异步 stream。
                 let result = vw_gateway_client::GatewayClient::stream_chat_blocking(
                     &endpoint,
@@ -319,20 +323,40 @@ impl Provider for SessionLlmProvider {
                     |event| {
                         match event {
                             vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                                let delta = projection.push(&delta);
+                                if delta.is_empty() {
+                                    return true;
+                                }
                                 let chunk = if enable_count {
                                     // 未提供真实 token 增量时，用估算值维持调用方的流式计数体验。
                                     StreamChunk::delta(delta).with_token_estimate()
                                 } else {
                                     StreamChunk::delta(delta)
                                 };
-                                let _ = tx.send(chunk);
+                                let _ = tx.send(Ok(chunk));
                             }
                             vw_gateway_client::GatewayChatStreamEvent::Done { .. } => {
-                                let _ = tx.send(StreamChunk::final_chunk());
+                                match projection.finish() {
+                                    Ok((tail, _)) => {
+                                        if !tail.is_empty() {
+                                            let chunk = if enable_count {
+                                                StreamChunk::delta(tail).with_token_estimate()
+                                            } else {
+                                                StreamChunk::delta(tail)
+                                            };
+                                            let _ = tx.send(Ok(chunk));
+                                        }
+                                        let _ = tx.send(Ok(StreamChunk::final_chunk()));
+                                    }
+                                    Err(error) => {
+                                        let _ = tx
+                                            .send(Err(super::traits::StreamError::Provider(error)));
+                                    }
+                                }
                                 return false;
                             }
                             vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
-                                let _ = tx.send(StreamChunk::error(error));
+                                let _ = tx.send(Err(super::traits::StreamError::Provider(error)));
                                 return false;
                             }
                             vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}
@@ -342,17 +366,17 @@ impl Provider for SessionLlmProvider {
                 );
 
                 if let Err(err) = result {
-                    let _ = tx.send(StreamChunk::error(err));
+                    let _ = tx.send(Err(super::traits::StreamError::Provider(err)));
                 }
             });
 
-            let s = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).map(Ok);
+            let s = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
             return s.boxed();
         }
 
         #[cfg(target_arch = "wasm32")]
         {
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<StreamChunk>();
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
             let _ = tx.send(StreamChunk::error(
                 "SessionLlmProvider requires gateway streaming on non-wasm targets",
             ));
@@ -375,9 +399,10 @@ impl Provider for SessionLlmProvider {
             let model = model.to_string();
             let messages = Self::build_history_messages(messages);
             let enable_count = options.count_tokens;
-            let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<StreamChunk>();
+            let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
             std::thread::spawn(move || {
+                let mut projection = output::GatewayOutput::default();
                 // 与 system/message 入口保持相同桥接方式，确保历史消息流式路径行为一致。
                 let result = vw_gateway_client::GatewayClient::stream_chat_blocking(
                     &endpoint,
@@ -386,19 +411,39 @@ impl Provider for SessionLlmProvider {
                     |event| {
                         match event {
                             vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                                let delta = projection.push(&delta);
+                                if delta.is_empty() {
+                                    return true;
+                                }
                                 let chunk = if enable_count {
                                     StreamChunk::delta(delta).with_token_estimate()
                                 } else {
                                     StreamChunk::delta(delta)
                                 };
-                                let _ = tx.send(chunk);
+                                let _ = tx.send(Ok(chunk));
                             }
                             vw_gateway_client::GatewayChatStreamEvent::Done { .. } => {
-                                let _ = tx.send(StreamChunk::final_chunk());
+                                match projection.finish() {
+                                    Ok((tail, _)) => {
+                                        if !tail.is_empty() {
+                                            let chunk = if enable_count {
+                                                StreamChunk::delta(tail).with_token_estimate()
+                                            } else {
+                                                StreamChunk::delta(tail)
+                                            };
+                                            let _ = tx.send(Ok(chunk));
+                                        }
+                                        let _ = tx.send(Ok(StreamChunk::final_chunk()));
+                                    }
+                                    Err(error) => {
+                                        let _ = tx
+                                            .send(Err(super::traits::StreamError::Provider(error)));
+                                    }
+                                }
                                 return false;
                             }
                             vw_gateway_client::GatewayChatStreamEvent::Error(error) => {
-                                let _ = tx.send(StreamChunk::error(error));
+                                let _ = tx.send(Err(super::traits::StreamError::Provider(error)));
                                 return false;
                             }
                             vw_gateway_client::GatewayChatStreamEvent::Other(_) => {}
@@ -408,11 +453,11 @@ impl Provider for SessionLlmProvider {
                 );
 
                 if let Err(err) = result {
-                    let _ = tx.send(StreamChunk::error(err));
+                    let _ = tx.send(Err(super::traits::StreamError::Provider(err)));
                 }
             });
 
-            let s = tokio_stream::wrappers::UnboundedReceiverStream::new(rx).map(Ok);
+            let s = tokio_stream::wrappers::UnboundedReceiverStream::new(rx);
             return s.boxed();
         }
 

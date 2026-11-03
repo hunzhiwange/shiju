@@ -300,27 +300,31 @@ pub(super) fn acp_selector_button<'a>(
         );
     }
 
-    list = list.push(
+    let settings_button =
         button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("ACP 配置")).size(13))
-            .padding(8)
+            .padding([8, 10])
+            .width(Length::Fill)
             .style(iced::widget::button::text)
-            .on_press(Message::View(message::ViewMessage::OpenAcpSettings)),
-    );
+            .on_press(Message::View(message::ViewMessage::OpenAcpSettings));
 
     let popover: Element<'_, Message> = container(
-        scrollable(container(list).padding(iced::Padding {
-            top: 0.0,
-            right: ACP_SELECTOR_LIST_RIGHT_PADDING,
-            bottom: 0.0,
-            left: 7.0,
-        }))
-        .id(iced::widget::Id::new("input_panel_acp_selector_scroll"))
-        .direction(Direction::Vertical(
-            Scrollbar::new()
-                .width(ACP_SELECTOR_SCROLLBAR_WIDTH)
-                .scroller_width(ACP_SELECTOR_SCROLLBAR_WIDTH),
-        ))
-        .height(Length::Fixed(ACP_SELECTOR_MAX_HEIGHT)),
+        column![
+            settings_button,
+            scrollable(container(list).padding(iced::Padding {
+                top: 0.0,
+                right: ACP_SELECTOR_LIST_RIGHT_PADDING,
+                bottom: 0.0,
+                left: 7.0,
+            }))
+            .id(iced::widget::Id::new("input_panel_acp_selector_scroll"))
+            .direction(Direction::Vertical(
+                Scrollbar::new()
+                    .width(ACP_SELECTOR_SCROLLBAR_WIDTH)
+                    .scroller_width(ACP_SELECTOR_SCROLLBAR_WIDTH),
+            ))
+            .height(Length::Fixed(ACP_SELECTOR_MAX_HEIGHT))
+        ]
+        .spacing(3),
     )
     .style(styles::popover_style)
     .padding(8)

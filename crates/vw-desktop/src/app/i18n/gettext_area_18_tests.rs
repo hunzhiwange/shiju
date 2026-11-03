@@ -61,3 +61,18 @@ fn desktop_gettext_area_18_builtin_tabs_translate_without_changing_user_titles()
         assert_eq!(super::other::tool_name(i18n, "自定义/%s/%n"), "自定义/%s/%n");
     }
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_18_account_validation_retains_semantic_feedback() {
+    let (mut app, _) = crate::app::App::new();
+    let _ = crate::app::message::account::update(
+        &mut app,
+        crate::app::message::AccountMessage::SubmitManual,
+    );
+    let message = app.active_toast.as_ref().unwrap().localized_message.as_ref().unwrap();
+    assert_eq!(message.render(I18n::new(DesktopLocale::English)).unwrap(), "skey is required");
+    assert_eq!(
+        message.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
+        "skey 不能為空"
+    );
+}

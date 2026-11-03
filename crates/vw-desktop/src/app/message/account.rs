@@ -357,7 +357,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             }
             let request = match draft.update_request() {
                 Ok(request) => request,
-                Err(error) => return app.show_warning_toast(error.to_string()),
+                Err(error) => return model_validation_feedback(app, error.feedback()),
             };
             let Some(skey) =
                 app.account.active_account().map(|account| account.skill_hub_credential())
@@ -472,7 +472,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             };
             let request = match draft.update_request() {
                 Ok(request) => request,
-                Err(error) => return app.show_warning_toast(error.to_string()),
+                Err(error) => return model_validation_feedback(app, error.feedback()),
             };
             let Some(skey) =
                 app.account.active_account().map(|account| account.skill_hub_credential())
@@ -518,7 +518,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
             }
             let skey = match app.account.manual_input.clone().into_secret() {
                 Ok(skey) => skey,
-                Err(error) => return app.show_warning_toast(error.to_string()),
+                Err(error) => return model_validation_feedback(app, error.feedback()),
             };
             let generation = app.account.begin(AccountOperation::Validating);
             validate_task(skey, generation, AccountOrigin::ManualSkey)
@@ -768,3 +768,13 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
 #[cfg(test)]
 #[path = "account_tests.rs"]
 mod account_tests;
+
+fn model_validation_feedback(
+    app: &mut App,
+    feedback: crate::app::i18n::workflow::Feedback,
+) -> Task<Message> {
+    let task = app.show_warning_toast(feedback.as_str());
+    app.active_toast.as_mut().expect("inserted validation toast").localized_message =
+        Some(feedback.message());
+    task
+}

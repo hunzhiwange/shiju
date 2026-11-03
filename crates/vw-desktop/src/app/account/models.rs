@@ -457,12 +457,16 @@ impl From<ShijuLoginPollDto> for LoginPoll {
 #[derive(Debug, Clone, PartialEq, Eq)]
 /// 账号模型校验失败；消息可直接映射为用户可理解的提示。
 pub(crate) struct AccountModelError {
-    message: String,
+    message: crate::app::i18n::workflow::Feedback,
 }
 
 impl AccountModelError {
-    fn new(message: impl Into<String>) -> Self {
+    fn new(message: impl Into<crate::app::i18n::workflow::Feedback>) -> Self {
         Self { message: message.into() }
+    }
+
+    pub(crate) fn feedback(&self) -> crate::app::i18n::workflow::Feedback {
+        self.message.clone()
     }
 }
 
@@ -477,7 +481,10 @@ impl std::error::Error for AccountModelError {}
 fn required(value: String, field: &str) -> Result<String, AccountModelError> {
     let value = value.trim();
     if value.is_empty() {
-        Err(AccountModelError::new(format!("账户响应缺少 {field}")))
+        Err(AccountModelError::new(crate::app::i18n::workflow::Feedback::new(
+            "账户响应缺少 %s",
+            vec![field.to_owned()],
+        )))
     } else {
         Ok(value.to_string())
     }

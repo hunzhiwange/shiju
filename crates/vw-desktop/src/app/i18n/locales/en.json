@@ -4904,7 +4904,7 @@
   "用于后台页面展示和操作记录识别。": "Used in administration pages and activity records.",
   "仅已有登录账号的用户可在这里更新账号名。": "Only users with an existing login account can update its name here.",
   "使用当前密码设置新的登录密码。": "Use your current password to set a new login password.",
-  "请输入当前密码": "Enter current password",
+  "请输入当前密码": "Enter your current password",
   "请输入新密码": "Enter new password",
   "请再次输入新密码": "Enter new password again",
   "密码需为 8–64 个字符，并同时包含字母和数字。": "Password must contain 8–64 characters, including letters and numbers.",
@@ -5225,5 +5225,12 @@
   "%s 入库失败：%s": "%s import failed: %s",
   "已批量启用 %s 篇文档": "Enabled %s documents",
   "已批量停用 %s 篇文档": "Disabled %s documents",
-  "已批量归档 %s 篇文档": "Archived %s documents"
+  "已批量归档 %s 篇文档": "Archived %s documents",
+  "skey 不能为空": "skey is required",
+  "登录账号不能为空": "Login account is required",
+  "新密码需为 8–64 个字符，并同时包含字母和数字": "New password must contain 8–64 characters, including letters and digits",
+  "两次输入的新密码不一致": "New passwords do not match",
+  "账户响应缺少 %s": "Account response is missing %s",
+  "授权地址无效": "Invalid authorization URL",
+  "授权地址不受信任": "Untrusted authorization URL"
 }

@@ -67,7 +67,11 @@ pub(super) fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     app.desktop_update.skipped = Some(skipped);
                     Task::none()
                 }
-                Err(error) => app.show_error_toast(format!("跳过版本未保存：{error}")),
+                Err(error) => app.show_localized_toast(
+                    crate::app::state::ToastKind::Error,
+                    "跳过版本未保存：%s",
+                    vec![error.into()],
+                ),
             }
         }
         _ => Task::none(),

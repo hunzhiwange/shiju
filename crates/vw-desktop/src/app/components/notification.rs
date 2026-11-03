@@ -310,15 +310,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center)
                 .style(move |theme: &Theme| accent_badge_style(theme, accent)),
-                text("暂无通知").size(14).style(|theme: &Theme| iced::widget::text::Style {
-                    // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                    color: Some(if is_dark_theme(theme) {
-                        theme.extended_palette().background.base.text.scale_alpha(0.92)
-                    } else {
-                        theme.palette().text.scale_alpha(0.84)
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("暂无通知"))
+                    .size(14)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                        color: Some(if is_dark_theme(theme) {
+                            theme.extended_palette().background.base.text.scale_alpha(0.92)
+                        } else {
+                            theme.palette().text.scale_alpha(0.84)
+                        }),
                     }),
-                }),
-                text("新的系统消息会在这里汇总展示。").size(12).style(|theme: &Theme| {
+                text(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("新的系统消息会在这里汇总展示。")
+                )
+                .size(12)
+                .style(|theme: &Theme| {
                     let p = theme.extended_palette();
                     iced::widget::text::Style {
                         color: Some(p.background.weak.text.scale_alpha(0.72)),
@@ -353,38 +360,39 @@ pub fn view(app: &App) -> Element<'_, Message> {
             };
 
             let notification_id = n.id;
-            let msg_element: Element<'_, Message> =
-                if let Some(editor_content) = app.notification_editors.get(&n.id) {
-                    container(
-                        text_editor(editor_content)
-                            .on_action(move |a| {
-                                // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                                Message::Notification(NotificationMessage::EditorAction(
-                                    notification_id,
-                                    a,
-                                ))
-                            })
-                            .size(13)
-                            .padding(0)
-                            .height(Length::Shrink)
-                            .style(|theme: &Theme, _status| notification_text_editor_style(theme)),
-                    )
-                    .width(Length::Fill)
-                    .into()
-                } else {
-                    text(n.render(crate::app::i18n::I18n::new(app.desktop_locale)))
-                        .size(13)
-                        .width(Length::Fill)
-                        .style(|theme: &Theme| iced::widget::text::Style {
-                            // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
-                            color: Some(if is_dark_theme(theme) {
-                                theme.extended_palette().background.base.text.scale_alpha(0.92)
-                            } else {
-                                theme.palette().text.scale_alpha(0.86)
-                            }),
+            let msg_element: Element<'_, Message> = if let Some(editor_content) =
+                app.notification_editors.get(&n.id).filter(|_| n.localized_message.is_none())
+            {
+                container(
+                    text_editor(editor_content)
+                        .on_action(move |a| {
+                            // Message 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                            Message::Notification(NotificationMessage::EditorAction(
+                                notification_id,
+                                a,
+                            ))
                         })
-                        .into()
-                };
+                        .size(13)
+                        .padding(0)
+                        .height(Length::Shrink)
+                        .style(|theme: &Theme, _status| notification_text_editor_style(theme)),
+                )
+                .width(Length::Fill)
+                .into()
+            } else {
+                text(n.render(crate::app::i18n::I18n::new(app.desktop_locale)))
+                    .size(13)
+                    .width(Length::Fill)
+                    .style(|theme: &Theme| iced::widget::text::Style {
+                        // color 保存该结构在渲染、解析或测试断言中需要直接访问的数据。
+                        color: Some(if is_dark_theme(theme) {
+                            theme.extended_palette().background.base.text.scale_alpha(0.92)
+                        } else {
+                            theme.palette().text.scale_alpha(0.86)
+                        }),
+                    })
+                    .into()
+            };
 
             let copied = app.copied_notification_id == Some(n.id);
             let copy_label = notification_copy_label(copied);
@@ -401,16 +409,22 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 ),
                             }
                         }),
-                        button(text(copy_label).size(10))
-                            .on_press(Message::Notification(NotificationMessage::Copy(n.id)))
-                            .padding([3, 8])
-                            .style(move |theme: &Theme, status| {
-                                copy_action_btn_style(theme, status, copied)
-                            }),
-                        button(text("删除").size(10))
-                            .on_press(Message::Notification(NotificationMessage::Remove(n.id)))
-                            .padding([3, 8])
-                            .style(delete_action_btn_style)
+                        button(
+                            text(crate::app::i18n::I18n::new(app.desktop_locale).__(copy_label))
+                                .size(10)
+                        )
+                        .on_press(Message::Notification(NotificationMessage::Copy(n.id)))
+                        .padding([3, 8])
+                        .style(move |theme: &Theme, status| {
+                            copy_action_btn_style(theme, status, copied)
+                        }),
+                        button(
+                            text(crate::app::i18n::I18n::new(app.desktop_locale).__("删除"))
+                                .size(10)
+                        )
+                        .on_press(Message::Notification(NotificationMessage::Remove(n.id)))
+                        .padding([3, 8])
+                        .style(delete_action_btn_style)
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center),
@@ -443,16 +457,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
     let content = column![
         row![
             row![
-                text("通知").size(14).style(|theme: &Theme| {
-                    let p = theme.extended_palette();
-                    iced::widget::text::Style { color: Some(p.background.strong.text) }
-                }),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("通知")).size(14).style(
+                    |theme: &Theme| {
+                        let p = theme.extended_palette();
+                        iced::widget::text::Style { color: Some(p.background.strong.text) }
+                    }
+                ),
                 count_badge
             ]
             .spacing(8)
             .align_y(Alignment::Center)
             .width(Length::Fill),
-            button(text("清空").size(12))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("清空")).size(12))
                 .on_press_maybe(
                     (total_notifications > 0)
                         .then_some(Message::Notification(NotificationMessage::ClearAll)),

@@ -120,7 +120,7 @@ fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Me
 
     // 顶部标题栏：标题 + 关闭按钮
     let top_bar = row![
-        text("编辑网址").size(16),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("编辑网址")).size(16),
         Space::new().width(Length::Fill),
         button(ui::icon_svg(Icon::X, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
             color: Some(theme.palette().text),
@@ -135,29 +135,64 @@ fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Me
     let cookie_tooltip = {
         // 构建提示气泡内容：标题 + 示例文本
         ui::tooltip_bubble_el(
-            column![text("配置示例").size(12), text(WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE).size(11),]
-                .spacing(6)
-                .into(),
+            column![
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("配置示例")).size(12),
+                text(WEB_BOOKMARK_COOKIE_CONFIG_EXAMPLE).size(11),
+            ]
+            .spacing(6)
+            .into(),
         )
     };
 
     // 构建模态框主体内容
     let content = column![
         top_bar,
-        settings_section_card("书签信息", "设置标题、网址以及独立窗口的默认尺寸。"),
-        column![text("标题").size(12).style(settings_muted_text_style), title_input].spacing(6),
-        column![text("网址").size(12).style(settings_muted_text_style), url_input].spacing(6),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("书签信息"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("设置标题、网址以及独立窗口的默认尺寸。")
+        ),
+        column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("标题"))
+                .size(12)
+                .style(settings_muted_text_style),
+            title_input
+        ]
+        .spacing(6),
+        column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("网址"))
+                .size(12)
+                .style(settings_muted_text_style),
+            url_input
+        ]
+        .spacing(6),
         row![
-            column![text("宽度（可选）").size(12).style(settings_muted_text_style), width_input]
-                .spacing(6),
-            column![text("高度（可选）").size(12).style(settings_muted_text_style), height_input]
-                .spacing(6),
+            column![
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("宽度（可选）"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                width_input
+            ]
+            .spacing(6),
+            column![
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("高度（可选）"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                height_input
+            ]
+            .spacing(6),
         ]
         .spacing(10),
-        settings_section_card("Cookie 配置", "支持按 JSON 为指定站点注入 Cookie。"),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("Cookie 配置"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("支持按 JSON 为指定站点注入 Cookie。")
+        ),
         column![
             row![
-                text("Cookie配置(JSON)").size(12).style(settings_muted_text_style),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("Cookie配置(JSON)"))
+                    .size(12)
+                    .style(settings_muted_text_style),
                 Tooltip::new(
                     button(text("?").size(12)).style(ui::cool_icon_button_style).padding([4, 8]),
                     cookie_tooltip,
@@ -165,13 +200,19 @@ fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Me
                 )
                 .gap(8.0),
                 Tooltip::new(
-                    button(text("插入例子").size(12))
-                        .on_press(Message::View(
-                            ViewMessage::WebBookmarkEditCookieConfigsInsertExample,
-                        ))
-                        .style(ui::primary_button_style)
-                        .padding([4, 10]),
-                    ui::tooltip_bubble("插入预设 Cookie 配置示例"),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("插入例子"))
+                            .size(12)
+                    )
+                    .on_press(
+                        Message::View(ViewMessage::WebBookmarkEditCookieConfigsInsertExample,)
+                    )
+                    .style(ui::primary_button_style)
+                    .padding([4, 10]),
+                    ui::tooltip_bubble(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("插入预设 Cookie 配置示例")
+                    ),
                     TooltipPosition::Top,
                 )
                 .gap(8.0),
@@ -191,7 +232,7 @@ fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Me
                 .on_press(close.clone())
                 .style(ui::cool_icon_button_style)
                 .padding([8, 12]),
-                ui::tooltip_bubble("取消"),
+                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")),
                 TooltipPosition::Top,
             )
             .gap(8.0),
@@ -204,7 +245,7 @@ fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Me
                 .on_press(Message::View(ViewMessage::WebBookmarkRemove(idx)))
                 .style(ui::cool_icon_button_style)
                 .padding([8, 12]),
-                ui::tooltip_bubble("删除"),
+                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("删除")),
                 TooltipPosition::Top,
             )
             .gap(8.0),
@@ -216,7 +257,7 @@ fn edit_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Me
                 .on_press(Message::View(ViewMessage::WebBookmarkEditSave))
                 .style(ui::primary_button_style)
                 .padding([8, 14]),
-                ui::tooltip_bubble("保存"),
+                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("保存")),
                 TooltipPosition::Top,
             )
             .gap(8.0),
@@ -281,7 +322,7 @@ fn add_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Mes
 
     // 顶部标题栏：标题 + 关闭按钮
     let top_bar = row![
-        text("添加网址").size(16),
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__("添加网址")).size(16),
         Space::new().width(Length::Fill),
         button(ui::icon_svg(Icon::X, 14.0).style(|theme: &Theme, _| iced::widget::svg::Style {
             color: Some(theme.palette().text),
@@ -294,14 +335,40 @@ fn add_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Mes
 
     let content = column![
         top_bar,
-        settings_section_card("新增网址书签", "保存一个可在应用中心快速打开的网页入口。"),
-        column![text("标题").size(12).style(settings_muted_text_style), title_input].spacing(6),
-        column![text("网址").size(12).style(settings_muted_text_style), url_input].spacing(6),
+        settings_section_card(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("新增网址书签"),
+            crate::app::i18n::I18n::new(app.desktop_locale)
+                .__("保存一个可在应用中心快速打开的网页入口。")
+        ),
+        column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("标题"))
+                .size(12)
+                .style(settings_muted_text_style),
+            title_input
+        ]
+        .spacing(6),
+        column![
+            text(crate::app::i18n::I18n::new(app.desktop_locale).__("网址"))
+                .size(12)
+                .style(settings_muted_text_style),
+            url_input
+        ]
+        .spacing(6),
         row![
-            column![text("宽度（可选）").size(12).style(settings_muted_text_style), width_input]
-                .spacing(6),
-            column![text("高度（可选）").size(12).style(settings_muted_text_style), height_input]
-                .spacing(6),
+            column![
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("宽度（可选）"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                width_input
+            ]
+            .spacing(6),
+            column![
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("高度（可选）"))
+                    .size(12)
+                    .style(settings_muted_text_style),
+                height_input
+            ]
+            .spacing(6),
         ]
         .spacing(10),
         // 底部操作按钮栏：取消、添加
@@ -314,7 +381,7 @@ fn add_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Mes
                 .on_press(close.clone())
                 .style(ui::cool_icon_button_style)
                 .padding([8, 12]),
-                ui::tooltip_bubble("取消"),
+                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")),
                 TooltipPosition::Top,
             )
             .gap(8.0),
@@ -344,7 +411,7 @@ fn add_web_bookmark_modal<'a>(app: &'a App) -> Option<(Element<'a, Message>, Mes
                     }
                     btn
                 },
-                ui::tooltip_bubble("添加"),
+                ui::tooltip_bubble(crate::app::i18n::I18n::new(app.desktop_locale).__("添加")),
                 TooltipPosition::Top,
             )
             .gap(8.0),

@@ -35,6 +35,7 @@ const ABOUT_SUBTITLE: &str =
 const ABOUT_DESCRIPTION: &str = "项目包含桌面应用、命令行入口、HTTP/WebSocket 网关、任务与记忆管理、通信通道、模型/提供商解析、ACP 桥接和跨平台 WebView helper。";
 const AUTHOR_INFO: &str = "开发者：刘祥敏。";
 
+#[cfg(test)]
 fn about_copy_text() -> String {
     format!("{APP_NAME}\n{ABOUT_SUBTITLE}\n\n{ABOUT_DESCRIPTION}\n{AUTHOR_INFO}")
 }
@@ -73,24 +74,31 @@ fn hash_copy_text(content: &str) -> u64 {
 /// ```
 pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
     let close_message = Message::View(message::ViewMessage::ToggleAboutModal);
-    let copy_text = about_copy_text();
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let copy_text = format!(
+        "{APP_NAME}\n{}\n\n{}\n{}",
+        i18n.__(ABOUT_SUBTITLE),
+        i18n.__(ABOUT_DESCRIPTION),
+        i18n.__(AUTHOR_INFO)
+    );
     let copy_label = if app.last_copied_code_hash == Some(hash_copy_text(&copy_text)) {
         "✓"
     } else {
         "复制应用信息"
     };
-    let copy_button = button(text(copy_label).size(13))
-        .on_press(Message::CopyCode(copy_text))
-        .padding([10, 18])
-        .width(Length::Fixed(132.0))
-        .style(rounded_action_btn_style);
+    let copy_button =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(copy_label)).size(13))
+            .on_press(Message::CopyCode(copy_text))
+            .padding([10, 18])
+            .width(Length::Fixed(132.0))
+            .style(rounded_action_btn_style);
 
     let card = settings_modal_card(
         column![
             row![
                 column![
-                    text(ABOUT_TITLE).size(24),
-                    text(ABOUT_SUBTITLE)
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(ABOUT_TITLE)).size(24),
+                    text(crate::app::i18n::I18n::new(app.desktop_locale).__(ABOUT_SUBTITLE))
                         .size(12)
                         .width(Length::Fill)
                         .wrapping(Wrapping::Word)
@@ -102,8 +110,11 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             ]
             .align_y(Alignment::Start),
             column![
-                text(ABOUT_DESCRIPTION).size(13).width(Length::Fill).wrapping(Wrapping::Word),
-                text(AUTHOR_INFO)
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(ABOUT_DESCRIPTION))
+                    .size(13)
+                    .width(Length::Fill)
+                    .wrapping(Wrapping::Word),
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__(AUTHOR_INFO))
                     .size(12)
                     .width(Length::Fill)
                     .wrapping(Wrapping::Word)
@@ -113,10 +124,12 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
             container(
                 row![
                     copy_button,
-                    button(text("关闭").size(13))
-                        .on_press(close_message.clone())
-                        .padding([10, 18])
-                        .style(primary_action_btn_style),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭")).size(13)
+                    )
+                    .on_press(close_message.clone())
+                    .padding([10, 18])
+                    .style(primary_action_btn_style),
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),

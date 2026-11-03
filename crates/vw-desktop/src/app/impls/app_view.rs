@@ -247,7 +247,8 @@ impl App {
             {
                 components::install_cli_modal::view_app_update(self)
             } else {
-                components::install_cli_modal::view(
+                components::install_cli_modal::view_localized(
+                    crate::app::i18n::I18n::new(self.desktop_locale),
                     &self.cli_install_modal_title,
                     &self.cli_install_modal_message,
                 )

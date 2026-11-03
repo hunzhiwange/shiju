@@ -110,11 +110,10 @@ pub(crate) fn with_question_modal<'a>(
         use iced::widget::{Space, button, column, container, row, text, text_input};
         use iced::{Length, Theme};
 
-        let header = req
-            .questions
-            .first()
-            .map(|question| question.header.clone())
-            .unwrap_or_else(|| "需要确认".to_string());
+        let header =
+            req.questions.first().map(|question| question.header.clone()).unwrap_or_else(|| {
+                crate::app::i18n::I18n::new(app.desktop_locale).__("需要确认").to_string()
+            });
 
         let mut content = column![].spacing(12);
         for (question_index, question) in req.questions.iter().enumerate() {
@@ -169,9 +168,11 @@ pub(crate) fn with_question_modal<'a>(
             {
                 question_column = question_column.push(
                     column![
-                        text("预览").size(11).style(|theme: &Theme| iced::widget::text::Style {
-                            color: Some(theme.extended_palette().secondary.base.text),
-                        }),
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("预览"))
+                            .size(11)
+                            .style(|theme: &Theme| iced::widget::text::Style {
+                                color: Some(theme.extended_palette().secondary.base.text),
+                            }),
                         text(preview.to_string()).size(11),
                     ]
                     .spacing(4),
@@ -190,7 +191,11 @@ pub(crate) fn with_question_modal<'a>(
                     text(format!(
                         "{}{} · {}",
                         field["title"].as_str().unwrap_or(name),
-                        if required { "（必填）" } else { "（可选）" },
+                        crate::app::i18n::I18n::new(app.desktop_locale).__(if required {
+                            "（必填）"
+                        } else {
+                            "（可选）"
+                        }),
                         field["type"].as_str().unwrap_or("")
                     ))
                     .size(12),
@@ -201,30 +206,35 @@ pub(crate) fn with_question_modal<'a>(
             {
                 let value =
                     app.question_modal_custom.get(question_index).cloned().unwrap_or_default();
-                let input = text_input("输入你的答案", &value)
-                    .on_input(move |value| {
-                        Message::Chat(message::ChatMessage::QuestionCustomChanged(
-                            question_index,
-                            value,
-                        ))
-                    })
-                    .padding(SETTINGS_CONTROL_PADDING)
-                    .size(SETTINGS_CONTROL_TEXT_SIZE)
-                    .style(settings_text_input_style);
+                let input = text_input(
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("输入你的答案"),
+                    &value,
+                )
+                .on_input(move |value| {
+                    Message::Chat(message::ChatMessage::QuestionCustomChanged(
+                        question_index,
+                        value,
+                    ))
+                })
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
+                .style(settings_text_input_style);
                 question_column = question_column.push(input);
             }
 
             content = content.push(question_column);
         }
 
-        let cancel = button(text("取消").size(13))
-            .on_press(Message::Chat(message::ChatMessage::QuestionReject))
-            .padding([6, 12])
-            .style(rounded_action_btn_style);
-        let submit = button(text("确定").size(13))
-            .on_press(Message::Chat(message::ChatMessage::QuestionSubmit))
-            .padding([6, 12])
-            .style(primary_action_btn_style);
+        let cancel =
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("取消")).size(13))
+                .on_press(Message::Chat(message::ChatMessage::QuestionReject))
+                .padding([6, 12])
+                .style(rounded_action_btn_style);
+        let submit =
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("确定")).size(13))
+                .on_press(Message::Chat(message::ChatMessage::QuestionSubmit))
+                .padding([6, 12])
+                .style(primary_action_btn_style);
 
         let content = column![
             text(header).size(16),

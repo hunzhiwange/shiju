@@ -72,6 +72,29 @@ const UPDATE_LOGO_BADGE_RADIUS: f32 = 26.0;
 ///    - 关闭按钮
 pub fn view<'a>(title: &'a str, content: &'a str) -> Element<'a, Message> {
     view_inner(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        title,
+        content,
+        None,
+        None,
+        false,
+        false,
+        false,
+        title == "CLI 安装完成",
+        None,
+        None,
+        None,
+        None,
+    )
+}
+
+pub fn view_localized<'a>(
+    i18n: crate::app::i18n::I18n,
+    title: &'a str,
+    content: &'a str,
+) -> Element<'a, Message> {
+    view_inner(
+        i18n,
         title,
         content,
         None,
@@ -121,6 +144,7 @@ pub fn view_update_check_with_progress<'a>(
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
     view_inner(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
         title,
         content,
         Some(current_version),
@@ -138,6 +162,7 @@ pub fn view_update_check_with_progress<'a>(
 
 pub fn view_app_update(app: &crate::app::App) -> Element<'_, Message> {
     view_inner(
+        crate::app::i18n::I18n::new(app.desktop_locale),
         &app.cli_install_modal_title,
         &app.cli_install_modal_message,
         Some(&app.cli_install_modal_current_version),
@@ -156,6 +181,7 @@ pub fn view_app_update(app: &crate::app::App) -> Element<'_, Message> {
 }
 
 fn view_inner<'a>(
+    i18n: crate::app::i18n::I18n,
     title: &'a str,
     content: &'a str,
     current_version: Option<&'a str>,
@@ -207,8 +233,16 @@ fn view_inner<'a>(
         if let (Some(current_version), Some(server_version)) = (current_version, server_version) {
             container(
                 row![
-                    settings_value_badge(format!("当前版本 {current_version}")),
-                    settings_value_badge(format!("服务器版本 {server_version}")),
+                    settings_value_badge(crate::app::i18n::modals::render(
+                        i18n,
+                        "当前版本 %s",
+                        &[current_version.into()]
+                    )),
+                    settings_value_badge(crate::app::i18n::modals::render(
+                        i18n,
+                        "服务器版本 %s",
+                        &[server_version.into()]
+                    )),
                 ]
                 .spacing(8),
             )
@@ -227,7 +261,7 @@ fn view_inner<'a>(
             message::ViewMessage::CheckCliToolUpdate
         };
         let action_row = row![
-            button(detect_label)
+            button(i18n.__(detect_label))
                 .on_press_maybe((!is_checking).then_some(Message::View(detect_message)))
                 .padding([8, 16])
                 .style(rounded_action_btn_style)
@@ -238,7 +272,7 @@ fn view_inner<'a>(
             if use_app_update_action && desktop_update.is_some_and(|state| state.ready.is_some()) {
                 let label = "自动更新并退出 / 重试";
                 action_row.push(
-                    button(label)
+                    button(i18n.__(label))
                         .on_press_maybe(
                             (!is_checking)
                                 .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),
@@ -258,7 +292,7 @@ fn view_inner<'a>(
                 message::ViewMessage::RunInstallCliTool
             };
             action_row.push(
-                button(install_label)
+                button(i18n.__(install_label))
                     .on_press_maybe((!is_checking).then_some(Message::View(install_message)))
                     .padding([8, 16])
                     .style(primary_action_btn_style),
@@ -272,7 +306,7 @@ fn view_inner<'a>(
             && state.notification_release().is_some()
         {
             action_row.push(
-                button("跳过此版本")
+                button(i18n.__("跳过此版本"))
                     .on_press_maybe(
                         (!is_checking && !state.saving_skip)
                             .then_some(Message::View(message::ViewMessage::SkipAppUpdate)),
@@ -285,7 +319,7 @@ fn view_inner<'a>(
         };
         container(
             action_row.push(
-                button("关闭")
+                button(i18n.__("关闭"))
                     .on_press(close_message.clone())
                     .padding([8, 16])
                     .style(rounded_action_btn_style),
@@ -296,7 +330,7 @@ fn view_inner<'a>(
         .into()
     } else {
         container(
-            button("关闭")
+            button(i18n.__("关闭"))
                 .on_press(close_message.clone())
                 .padding([8, 16])
                 .style(primary_action_btn_style),
@@ -308,21 +342,21 @@ fn view_inner<'a>(
 
     let progress_block: Element<'a, Message> =
         if use_app_update_action && let Some(progress) = update_progress {
-            update_progress_block(progress, last_copied_code_hash)
+            update_progress_block_localized(i18n, progress, last_copied_code_hash)
         } else {
             Space::new().height(0.0).into()
         };
 
     let source_control: Element<'a, Message> = if let Some(state) = desktop_update {
         let label = match state.source {
-            Some(vw_shared::update::UpdateSource::Shiju) => Some("shiju（默认）"),
+            Some(vw_shared::update::UpdateSource::Shiju) => Some(i18n.__("shiju（默认）")),
             Some(vw_shared::update::UpdateSource::Github) => Some("github.com"),
             None => None,
         };
         let control: Element<'a, Message> = if state.busy || state.saving {
-            text(label.unwrap_or("请选择来源")).size(SETTINGS_CONTROL_TEXT_SIZE).into()
+            text(label.unwrap_or(i18n.__("请选择来源"))).size(SETTINGS_CONTROL_TEXT_SIZE).into()
         } else {
-            pick_list(["shiju（默认）", "github.com"], label, |label| {
+            pick_list([i18n.__("shiju（默认）"), "github.com"], label, |label| {
                 Message::View(message::ViewMessage::AppUpdateSourceSelected(
                     if label == "github.com" {
                         vw_shared::update::UpdateSource::Github
@@ -331,24 +365,24 @@ fn view_inner<'a>(
                     },
                 ))
             })
-            .placeholder("请选择来源")
+            .placeholder(i18n.__("请选择来源"))
             .padding(SETTINGS_CONTROL_PADDING)
             .text_size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_pick_list_style)
             .menu_style(settings_pick_list_menu_style)
             .into()
         };
-        row![text("升级来源"), control].spacing(12).align_y(Alignment::Center).into()
+        row![text(i18n.__("升级来源")), control].spacing(12).align_y(Alignment::Center).into()
     } else {
         Space::new().height(0.0).into()
     };
 
     let card_content: Element<'a, Message> = if let Some(commands) = cli_commands {
         let body = column![
-            text(content).size(12).style(settings_muted_text_style),
+            text(i18n.__(content)).size(12).style(settings_muted_text_style),
             source_control,
             version_block,
-            text(helper_text).size(12).style(settings_muted_text_style),
+            text(i18n.__(helper_text)).size(12).style(settings_muted_text_style),
             commands,
         ]
         .spacing(16);
@@ -359,7 +393,7 @@ fn view_inner<'a>(
             .height(Length::Fixed(380.0));
         column![
             row![
-                text(title).size(24).width(Length::Fill),
+                text(i18n.__(title)).size(24).width(Length::Fill),
                 settings_close_button(close_message.clone()),
             ]
             .align_y(Alignment::Center),
@@ -372,8 +406,8 @@ fn view_inner<'a>(
         column![
             container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
             column![
-                text(title).size(24),
-                text(content)
+                text(i18n.__(title)).size(24),
+                text(i18n.__(content))
                     .size(12)
                     .align_x(Horizontal::Center)
                     .style(settings_muted_text_style)
@@ -386,7 +420,7 @@ fn view_inner<'a>(
             version_block,
             progress_block,
             container(
-                text(helper_text)
+                text(i18n.__(helper_text))
                     .size(12)
                     .align_x(Horizontal::Center)
                     .style(settings_muted_text_style),
@@ -405,8 +439,8 @@ fn view_inner<'a>(
                 .align_y(Alignment::Start),
             container(logo_badge(true)).width(Length::Fill).center_x(Length::Fill),
             column![
-                text(title).size(24).align_x(Horizontal::Center),
-                text(content)
+                text(i18n.__(title)).size(24).align_x(Horizontal::Center),
+                text(i18n.__(content))
                     .size(12)
                     .align_x(Horizontal::Center)
                     .style(settings_muted_text_style)
@@ -425,8 +459,8 @@ fn view_inner<'a>(
                 row![
                     logo_badge(false),
                     column![
-                        text(title).size(24),
-                        text(content)
+                        text(i18n.__(title)).size(24),
+                        text(i18n.__(content))
                             .size(12)
                             .style(settings_muted_text_style)
                             .line_height(iced::widget::text::LineHeight::Relative(1.5)),
@@ -442,7 +476,7 @@ fn view_inner<'a>(
             .align_y(Alignment::Start),
             version_block,
             container(
-                text(helper_text)
+                text(i18n.__(helper_text))
                     .size(12)
                     .align_x(Horizontal::Left)
                     .style(settings_muted_text_style),
@@ -459,7 +493,8 @@ fn view_inner<'a>(
     settings_modal_overlay(None, close_message, card)
 }
 
-pub(super) fn update_progress_block<'a>(
+fn update_progress_block_localized<'a>(
+    i18n: crate::app::i18n::I18n,
     progress: &'a vw_shared::update::UpdateProgress,
     last_copied_code_hash: Option<u64>,
 ) -> Element<'a, Message> {
@@ -472,8 +507,9 @@ pub(super) fn update_progress_block<'a>(
         .total_bytes
         .filter(|total| *total > 0)
         .map(|_| format!("{:.0}%", progress_value * 100.0))
-        .unwrap_or_else(|| "下载中".to_string());
-    let total_label = progress.total_bytes.map(format_bytes).unwrap_or_else(|| "未知".to_string());
+        .unwrap_or_else(|| i18n.__("下载中").to_string());
+    let total_label =
+        progress.total_bytes.map(format_bytes).unwrap_or_else(|| i18n.__("未知").to_string());
     let copy_hash = hash_copy_text(&progress.download_url);
     let copied = last_copied_code_hash == Some(copy_hash);
     let copy_label = if copied { "✓" } else { "复制" };
@@ -481,28 +517,41 @@ pub(super) fn update_progress_block<'a>(
     container(
         column![
             row![
-                text("下载进度").size(12).style(settings_muted_text_style),
+                text(i18n.__("下载进度")).size(12).style(settings_muted_text_style),
                 Space::new().width(Length::Fill),
                 text(percent_label).size(12),
             ]
             .align_y(Alignment::Center),
             container(progress_bar(0.0..=1.0, progress_value)).height(Length::Fixed(8.0)),
             row![
-                settings_value_badge(format!("已下载 {}", format_bytes(progress.downloaded_bytes))),
-                settings_value_badge(format!("总大小 {total_label}")),
+                settings_value_badge(crate::app::i18n::modals::render(
+                    i18n,
+                    "已下载 %s",
+                    &[format_bytes(progress.downloaded_bytes).into()]
+                )),
+                settings_value_badge(crate::app::i18n::modals::render(
+                    i18n,
+                    "总大小 %s",
+                    &[total_label.into()]
+                )),
             ]
             .spacing(8),
             row![
-                settings_value_badge(format!("速度 {}", format_rate(progress.bytes_per_second))),
-                settings_value_badge(format!(
-                    "平均 {}",
-                    format_rate(progress.average_bytes_per_second)
+                settings_value_badge(crate::app::i18n::modals::render(
+                    i18n,
+                    "速度 %s",
+                    &[format_rate(progress.bytes_per_second).into()]
+                )),
+                settings_value_badge(crate::app::i18n::modals::render(
+                    i18n,
+                    "平均 %s",
+                    &[format_rate(progress.average_bytes_per_second).into()]
                 )),
             ]
             .spacing(8),
             row![
                 column![
-                    text("下载 URL").size(11).style(settings_muted_text_style),
+                    text(i18n.__("下载 URL")).size(11).style(settings_muted_text_style),
                     text(compact_url(&progress.download_url)).size(11),
                 ]
                 .spacing(3)
@@ -510,7 +559,7 @@ pub(super) fn update_progress_block<'a>(
                 button(
                     row![
                         icon_svg(if copied { Icon::Check } else { Icon::Copy }, 13.0),
-                        text(copy_label).size(12)
+                        text(i18n.__(copy_label)).size(12)
                     ]
                     .spacing(6)
                     .align_y(Alignment::Center)
@@ -606,4 +655,16 @@ pub(super) fn hash_copy_text(content: &str) -> u64 {
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     content.hash(&mut hasher);
     hasher.finish()
+}
+
+#[cfg(test)]
+pub(super) fn update_progress_block<'a>(
+    progress: &'a vw_shared::update::UpdateProgress,
+    last_copied_code_hash: Option<u64>,
+) -> Element<'a, Message> {
+    update_progress_block_localized(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        progress,
+        last_copied_code_hash,
+    )
 }

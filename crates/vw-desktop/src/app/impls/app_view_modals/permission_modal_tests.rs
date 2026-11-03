@@ -26,7 +26,13 @@ fn permission_modal_title_prefers_trimmed_metadata_title() {
     let mut req = request("perm-1");
     req.metadata.insert("title".to_string(), json!("  Approve shell  "));
 
-    assert_eq!(permission_modal_title(&req), "Approve shell");
+    assert_eq!(
+        permission_modal_title_localized(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &req
+        ),
+        "Approve shell"
+    );
 }
 
 #[test]
@@ -34,10 +40,22 @@ fn permission_modal_title_falls_back_to_argument_summary_or_permission() {
     let mut req = request("perm-1");
     req.metadata.insert("arguments".to_string(), json!("echo hello"));
 
-    assert!(permission_modal_title(&req).contains("echo hello"));
+    assert!(
+        permission_modal_title_localized(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &req
+        )
+        .contains("echo hello")
+    );
 
     req.metadata.clear();
-    assert_eq!(permission_modal_title(&req), "需要批准 shell 操作");
+    assert_eq!(
+        permission_modal_title_localized(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &req
+        ),
+        "需要批准 shell 操作"
+    );
 }
 
 #[test]
@@ -46,10 +64,22 @@ fn permission_modal_title_ignores_blank_and_non_string_titles() {
     req.metadata.insert("arguments".to_string(), json!({"cmd": "pwd"}));
     req.metadata.insert("title".to_string(), json!("   "));
 
-    assert_eq!(permission_modal_title(&req), "批准运行：pwd");
+    assert_eq!(
+        permission_modal_title_localized(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &req
+        ),
+        "批准运行：pwd"
+    );
 
     req.metadata.insert("title".to_string(), json!(42));
-    assert_eq!(permission_modal_title(&req), "批准运行：pwd");
+    assert_eq!(
+        permission_modal_title_localized(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &req
+        ),
+        "批准运行：pwd"
+    );
 }
 
 #[test]
@@ -129,7 +159,10 @@ fn permission_request_selector_label_uses_permission_and_summary() {
     let mut req = request("perm-1");
     req.metadata.insert("arguments".to_string(), json!("echo hello"));
 
-    let label = permission_request_selector_label(&req);
+    let label = permission_request_selector_label_localized(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &req,
+    );
 
     assert!(label.contains("echo hello"));
     assert!(label.contains("·"));
@@ -138,10 +171,19 @@ fn permission_request_selector_label_uses_permission_and_summary() {
 #[test]
 fn permission_request_selector_label_falls_back_and_truncates_by_character() {
     let mut req = request("perm-1");
-    assert_eq!(permission_request_selector_label(&req), "运行 · shell");
+    assert_eq!(
+        permission_request_selector_label_localized(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &req
+        ),
+        "运行 · shell"
+    );
 
     req.metadata.insert("arguments".to_string(), json!("命令".repeat(50)));
-    let label = permission_request_selector_label(&req);
+    let label = permission_request_selector_label_localized(
+        crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+        &req,
+    );
 
     assert_eq!(label.chars().count(), 81);
     assert!(label.starts_with("运行 · 命令"));

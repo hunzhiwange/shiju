@@ -174,7 +174,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .align_y(Alignment::Center);
     if let Some(message) = cache_sync_retry_message(app) {
         content = content.push(
-            button(text("重试").size(12))
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("重试")).size(12))
                 .padding([6, 10])
                 .style(rounded_action_btn_style)
                 .on_press(message),

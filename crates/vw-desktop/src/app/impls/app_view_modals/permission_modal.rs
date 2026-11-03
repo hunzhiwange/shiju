@@ -59,18 +59,31 @@ pub(crate) fn with_permission_modal<'a>(
         next_request_id,
     } = permission_modal_queue(&req, &app.permission_modal_requests);
 
-    let mut content = column![text(permission_modal_title(&req)).size(16)].spacing(12);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let mut content = column![
+        text(permission_modal_title_localized(
+            crate::app::i18n::I18n::new(app.desktop_locale),
+            &req
+        ))
+        .size(16)
+    ]
+    .spacing(12);
 
     if pending_requests.len() > 1 {
         let mut nav_row = row![
-            text(format!("待审批 {}/{}", current_index + 1, pending_requests.len())).size(13),
+            text(crate::app::i18n::modals::render(
+                i18n,
+                "待审批 %u/%u",
+                &[(current_index + 1).into(), pending_requests.len().into()]
+            ))
+            .size(13),
             Space::new().width(Length::Fill)
         ]
         .spacing(8);
 
         if let Some(previous_request_id) = previous_request_id {
             nav_row = nav_row.push(
-                button(text("上一项").size(12))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("上一项")).size(12))
                     .padding([5, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Message::Chat(message::ChatMessage::PermissionSelectRequest(
@@ -80,7 +93,7 @@ pub(crate) fn with_permission_modal<'a>(
         }
         if let Some(next_request_id) = next_request_id {
             nav_row = nav_row.push(
-                button(text("下一项").size(12))
+                button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("下一项")).size(12))
                     .padding([5, 10])
                     .style(rounded_action_btn_style)
                     .on_press(Message::Chat(message::ChatMessage::PermissionSelectRequest(
@@ -93,7 +106,7 @@ pub(crate) fn with_permission_modal<'a>(
 
         let mut pending_list = column![].spacing(6);
         for item in pending_requests.iter().take(6) {
-            let label = permission_request_selector_label(item);
+            let label = permission_request_selector_label_localized(i18n, item);
             let item_button = if item.id == req.id {
                 button(text(label).size(12))
                     .width(Length::Fill)
@@ -111,8 +124,14 @@ pub(crate) fn with_permission_modal<'a>(
             pending_list = pending_list.push(item_button);
         }
         if pending_requests.len() > 6 {
-            pending_list = pending_list
-                .push(text(format!("还有 {} 项待审批…", pending_requests.len() - 6)).size(12));
+            pending_list = pending_list.push(
+                text(crate::app::i18n::modals::render(
+                    i18n,
+                    "还有 %u 项待审批…",
+                    &[(pending_requests.len() - 6).into()],
+                ))
+                .size(12),
+            );
         }
         content = content.push(pending_list);
     }
@@ -128,32 +147,55 @@ pub(crate) fn with_permission_modal<'a>(
         content = content.push(text(reason).size(14));
     }
 
-    content = content.push(permission_meta_line("权限", &req.permission));
+    content = content.push(permission_meta_line(
+        crate::app::i18n::I18n::new(app.desktop_locale).__("权限"),
+        &req.permission,
+    ));
 
     if let Some(target) = permission_argument_summary(&req) {
-        content = content.push(permission_meta_line("目标", &target));
+        content = content.push(permission_meta_line(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("目标"),
+            &target,
+        ));
     }
 
     if let Some(requested_by) = permission_metadata_text(&req, "requested_by") {
-        content = content.push(permission_meta_line("发起者", &requested_by));
+        content = content.push(permission_meta_line(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("发起者"),
+            &requested_by,
+        ));
     }
 
     if let Some(requested_channel) = permission_metadata_text(&req, "requested_channel") {
-        content = content.push(permission_meta_line("通道", &requested_channel));
+        content = content.push(permission_meta_line(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("通道"),
+            &requested_channel,
+        ));
     }
 
     if let Some(expires_at) = permission_metadata_text(&req, "expires_at") {
-        content = content.push(permission_meta_line("过期", &expires_at));
+        content = content.push(permission_meta_line(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("过期"),
+            &expires_at,
+        ));
     }
 
     if let Some(tool) = req.tool.as_ref() {
         content = content
-            .push(permission_meta_line("消息", &tool.message_id))
-            .push(permission_meta_line("调用", &tool.call_id));
+            .push(permission_meta_line(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("消息"),
+                &tool.message_id,
+            ))
+            .push(permission_meta_line(
+                crate::app::i18n::I18n::new(app.desktop_locale).__("调用"),
+                &tool.call_id,
+            ));
     }
 
     if !req.patterns.is_empty() {
-        let mut patterns = column![text("目标").size(13)].spacing(6);
+        let mut patterns =
+            column![text(crate::app::i18n::I18n::new(app.desktop_locale).__("目标")).size(13)]
+                .spacing(6);
         for pattern in req.patterns.iter().map(String::as_str).take(8) {
             let pattern_label = pattern.to_string();
             let pattern_text: Element<'_, Message> = container(text(pattern_label).size(13))
@@ -175,45 +217,63 @@ pub(crate) fn with_permission_modal<'a>(
             patterns = patterns.push(pattern_text);
         }
         if req.patterns.len() > 8 {
-            patterns = patterns.push(text(format!("还有 {} 项…", req.patterns.len() - 8)).size(12));
+            patterns = patterns.push(
+                text(crate::app::i18n::modals::render(
+                    i18n,
+                    "还有 %u 项…",
+                    &[(req.patterns.len() - 8).into()],
+                ))
+                .size(12),
+            );
         }
         content = content.push(patterns);
     }
 
     if !req.always.is_empty() {
         content = content.push(
-            text(format!("始终允许将记住 {} 个模式", req.always.len())).size(12).style(
-                |theme: &Theme| iced::widget::text::Style {
-                    color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.82)),
-                },
-            ),
+            text(crate::app::i18n::modals::render(
+                i18n,
+                "始终允许将记住 %u 个模式",
+                &[req.always.len().into()],
+            ))
+            .size(12)
+            .style(|theme: &Theme| iced::widget::text::Style {
+                color: Some(theme.extended_palette().secondary.base.text.scale_alpha(0.82)),
+            }),
         );
     }
 
     if let Some(arguments_preview) = permission_arguments_preview(&req) {
-        content = content.push(permission_detail_block("参数", arguments_preview));
+        content = content.push(permission_detail_block(
+            crate::app::i18n::I18n::new(app.desktop_locale).__("参数"),
+            arguments_preview,
+        ));
     }
 
-    let reject = button(text("拒绝").size(13))
+    let reject = button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("拒绝")).size(13))
         .on_press(Message::Chat(message::ChatMessage::PermissionReject))
         .padding([6, 12])
         .style(rounded_action_btn_style);
-    let always = button(text("始终允许").size(13))
-        .on_press(Message::Chat(message::ChatMessage::PermissionApproveAlways))
-        .padding([6, 12])
-        .style(rounded_action_btn_style);
-    let approve_once = button(text("仅此一次").size(13))
-        .on_press(Message::Chat(message::ChatMessage::PermissionApproveOnce))
-        .padding([6, 12])
-        .style(primary_action_btn_style);
+    let always =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("始终允许")).size(13))
+            .on_press(Message::Chat(message::ChatMessage::PermissionApproveAlways))
+            .padding([6, 12])
+            .style(rounded_action_btn_style);
+    let approve_once =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("仅此一次")).size(13))
+            .on_press(Message::Chat(message::ChatMessage::PermissionApproveOnce))
+            .padding([6, 12])
+            .style(primary_action_btn_style);
 
     let mut action_row = row![Space::new().width(Length::Fill), reject].spacing(8);
     if pending_requests.len() > 1 {
         action_row = action_row.push(
-            button(text("全部始终允许").size(13))
-                .on_press(Message::Chat(message::ChatMessage::PermissionApproveAllAlways))
-                .padding([6, 12])
-                .style(rounded_action_btn_style),
+            button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("全部始终允许")).size(13),
+            )
+            .on_press(Message::Chat(message::ChatMessage::PermissionApproveAllAlways))
+            .padding([6, 12])
+            .style(rounded_action_btn_style),
         );
     }
     action_row = action_row.push(always).push(approve_once);
@@ -231,7 +291,10 @@ pub(crate) fn with_permission_modal<'a>(
     root_content
 }
 
-fn permission_modal_title(req: &vw_gateway_client::PendingPermissionRequestDto) -> String {
+fn permission_modal_title_localized(
+    i18n: crate::app::i18n::I18n,
+    req: &vw_gateway_client::PendingPermissionRequestDto,
+) -> String {
     req.metadata
         .get("title")
         .and_then(serde_json::Value::as_str)
@@ -240,15 +303,28 @@ fn permission_modal_title(req: &vw_gateway_client::PendingPermissionRequestDto) 
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| {
             permission_argument_summary(req)
-                .map(|summary| format!("批准{}：{}", tool_verb(&req.permission), summary))
-                .unwrap_or_else(|| format!("需要批准 {} 操作", req.permission))
+                .map(|summary| {
+                    crate::app::i18n::modals::render(
+                        i18n,
+                        "批准%s：%s",
+                        &[i18n.__(tool_verb(&req.permission)).into(), summary.into()],
+                    )
+                })
+                .unwrap_or_else(|| {
+                    crate::app::i18n::modals::render(
+                        i18n,
+                        "需要批准 %s 操作",
+                        &[req.permission.clone().into()],
+                    )
+                })
         })
 }
 
-fn permission_request_selector_label(
+fn permission_request_selector_label_localized(
+    i18n: crate::app::i18n::I18n,
     req: &vw_gateway_client::PendingPermissionRequestDto,
 ) -> String {
-    let prefix = tool_verb(&req.permission);
+    let prefix = i18n.__(tool_verb(&req.permission));
     let summary = permission_argument_summary(req).unwrap_or_else(|| req.permission.clone());
     truncate_chars(&format!("{} · {}", prefix, summary), 80).to_string()
 }

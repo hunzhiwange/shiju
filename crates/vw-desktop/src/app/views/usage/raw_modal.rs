@@ -34,11 +34,12 @@ pub fn view<'a>(app: &'a App) -> Option<Element<'a, Message>> {
     } else {
         "复制全部"
     };
-    let copy_button = button(text(copy_label).size(13))
-        .on_press(Message::CopyCode(modal.content.clone()))
-        .padding([10, 18])
-        .width(Length::Fixed(112.0))
-        .style(rounded_action_btn_style);
+    let copy_button =
+        button(text(crate::app::i18n::I18n::new(app.desktop_locale).__(copy_label)).size(13))
+            .on_press(Message::CopyCode(modal.content.clone()))
+            .padding([10, 18])
+            .width(Length::Fixed(112.0))
+            .style(rounded_action_btn_style);
 
     let body = container(
         scrollable(text(&modal.content).size(12).width(Length::Fill).wrapping(Wrapping::None))
@@ -70,7 +71,12 @@ pub fn view<'a>(app: &'a App) -> Option<Element<'a, Message>> {
                             .expect("valid raw step")
                     )
                     .size(18),
-                    text("完整 LLM 原始载荷，可复制。").size(12).style(settings_muted_text_style),
+                    text(
+                        crate::app::i18n::I18n::new(app.desktop_locale)
+                            .__("完整 LLM 原始载荷，可复制。")
+                    )
+                    .size(12)
+                    .style(settings_muted_text_style),
                 ]
                 .spacing(4)
                 .width(Length::Fill),
@@ -81,10 +87,12 @@ pub fn view<'a>(app: &'a App) -> Option<Element<'a, Message>> {
             container(
                 row![
                     copy_button,
-                    button(text("关闭").size(13))
-                        .on_press(close_message.clone())
-                        .padding([10, 18])
-                        .style(primary_action_btn_style),
+                    button(
+                        text(crate::app::i18n::I18n::new(app.desktop_locale).__("关闭")).size(13)
+                    )
+                    .on_press(close_message.clone())
+                    .padding([10, 18])
+                    .style(primary_action_btn_style),
                 ]
                 .spacing(10)
                 .align_y(Alignment::Center),

@@ -120,9 +120,13 @@ fn values_label(values: &[String]) -> String {
     if values.is_empty() { "—".to_string() } else { values.join("、") }
 }
 
-fn detail_row(label: &'static str, value: String) -> Element<'static, Message> {
+fn detail_row(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    value: String,
+) -> Element<'static, Message> {
     row![
-        text(label).size(13).width(Length::Fixed(92.0)).style(settings_muted_text_style),
+        text(i18n.__(label)).size(13).width(Length::Fixed(92.0)).style(settings_muted_text_style),
         text(value).size(13).width(Length::Fill).wrapping(Wrapping::Word),
     ]
     .spacing(12)
@@ -131,10 +135,16 @@ fn detail_row(label: &'static str, value: String) -> Element<'static, Message> {
     .into()
 }
 
-fn status_row(label: &'static str, status: String) -> Element<'static, Message> {
+fn status_row(
+    i18n: crate::app::i18n::I18n,
+    label: &'static str,
+    status: String,
+) -> Element<'static, Message> {
     row![
-        text(label).size(13).width(Length::Fixed(92.0)).style(settings_muted_text_style),
-        container(text(status_label(&status)).size(12)).padding([4, 10]).style(status_badge_style),
+        text(i18n.__(label)).size(13).width(Length::Fixed(92.0)).style(settings_muted_text_style),
+        container(text(i18n.__(&status_label(&status)).to_owned()).size(12))
+            .padding([4, 10])
+            .style(status_badge_style),
     ]
     .spacing(12)
     .align_y(Alignment::Center)
@@ -143,10 +153,11 @@ fn status_row(label: &'static str, status: String) -> Element<'static, Message> 
 }
 
 fn section_card(
+    i18n: crate::app::i18n::I18n,
     title: &'static str,
     rows: Vec<Element<'static, Message>>,
 ) -> Element<'static, Message> {
-    let mut content = column![text(title).size(16), settings_divider()].spacing(12);
+    let mut content = column![text(i18n.__(title)).size(16), settings_divider()].spacing(12);
     for row in rows {
         content = content.push(row).push(settings_divider());
     }
@@ -157,14 +168,14 @@ fn section_card(
         .into()
 }
 
-fn edit_profile_action() -> Element<'static, Message> {
+fn edit_profile_action(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
     row![
         Space::new().width(Length::Fill),
-        button(text("更新资料").size(13))
+        button(text(i18n.__("更新资料")).size(13))
             .on_press(account_message(AccountMessage::OpenProfileEditor))
             .padding([8, 14])
             .style(primary_action_btn_style),
-        button(text("修改密码").size(13))
+        button(text(i18n.__("修改密码")).size(13))
             .on_press(account_message(AccountMessage::OpenPasswordEditor))
             .padding([8, 14])
             .style(rounded_action_btn_style),
@@ -175,15 +186,17 @@ fn edit_profile_action() -> Element<'static, Message> {
 }
 
 fn profile_editor_body(app: &App) -> Element<'_, Message> {
-    let mut header_back =
-        button(text("← 返回我的").size(13)).padding([8, 12]).style(rounded_action_btn_style);
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let mut header_back = button(text(i18n.__("← 返回我的")).size(13))
+        .padding([8, 12])
+        .style(rounded_action_btn_style);
     if !app.account.profile_editor.is_busy() {
         header_back = header_back.on_press(account_message(AccountMessage::CloseProfileEditor));
     }
     let header = row![
         column![
-            text(PROFILE_EDITOR_LABELS[0]).size(22),
-            text("更新当前登录用户的显示名称和已有登录账号。")
+            text(i18n.__(PROFILE_EDITOR_LABELS[0])).size(22),
+            text(i18n.__("更新当前登录用户的显示名称和已有登录账号。"))
                 .size(12)
                 .style(settings_muted_text_style),
         ]
@@ -196,7 +209,7 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
     let content: Element<'_, Message> = match &app.account.profile_editor {
         AccountProfileEditorState::Closed => Space::new().into(),
         AccountProfileEditorState::Loading => {
-            container(text("正在获取账户资料…").size(14).style(settings_muted_text_style))
+            container(text(i18n.__("正在获取账户资料…")).size(14).style(settings_muted_text_style))
                 .width(Length::Fill)
                 .height(Length::Fixed(220.0))
                 .center_x(Length::Fill)
@@ -204,12 +217,12 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
                 .into()
         }
         AccountProfileEditorState::Failed(error) => {
-            let retry = button(text("重新获取").size(13))
+            let retry = button(text(i18n.__("重新获取")).size(13))
                 .on_press(account_message(AccountMessage::OpenProfileEditor))
                 .padding([8, 14])
                 .style(primary_action_btn_style);
             column![
-                text("账户资料获取失败").size(16),
+                text(i18n.__("账户资料获取失败")).size(16),
                 text(error).size(13).style(settings_muted_text_style),
                 retry,
             ]
@@ -220,11 +233,11 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
         AccountProfileEditorState::Editing(draft) | AccountProfileEditorState::Saving(draft) => {
             let saving =
                 matches!(&app.account.profile_editor, AccountProfileEditorState::Saving(_));
-            let mut name = text_input("请输入显示名称", draft.name())
+            let mut name = text_input(i18n.__("请输入显示名称"), draft.name())
                 .padding([10, 12])
                 .size(14)
                 .style(profile_input_style);
-            let mut username = text_input("请输入登录账号", draft.username())
+            let mut username = text_input(i18n.__("请输入登录账号"), draft.username())
                 .padding([10, 12])
                 .size(14)
                 .style(profile_input_style);
@@ -237,7 +250,7 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
             }
 
             let save_label = if saving { "保存中…" } else { PROFILE_EDITOR_LABELS[4] };
-            let mut save = button(text(save_label).size(14))
+            let mut save = button(text(i18n.__(save_label)).size(14))
                 .padding([10, 18])
                 .style(profile_save_button_style);
             if profile_editor_can_submit(&app.account.profile_editor) {
@@ -246,13 +259,13 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
 
             column![
                 row![
-                    text(PROFILE_EDITOR_LABELS[2])
+                    text(i18n.__(PROFILE_EDITOR_LABELS[2]))
                         .size(13)
                         .width(Length::Fixed(130.0))
                         .style(settings_muted_text_style),
                     column![
                         name,
-                        text("用于后台页面展示和操作记录识别。")
+                        text(i18n.__("用于后台页面展示和操作记录识别。"))
                             .size(12)
                             .style(settings_muted_text_style),
                     ]
@@ -262,13 +275,13 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
                 .spacing(18)
                 .align_y(Alignment::Start),
                 row![
-                    text(PROFILE_EDITOR_LABELS[3])
+                    text(i18n.__(PROFILE_EDITOR_LABELS[3]))
                         .size(13)
                         .width(Length::Fixed(130.0))
                         .style(settings_muted_text_style),
                     column![
                         username,
-                        text("仅已有登录账号的用户可在这里更新账号名。")
+                        text(i18n.__("仅已有登录账号的用户可在这里更新账号名。"))
                             .size(12)
                             .style(settings_muted_text_style),
                     ]
@@ -299,16 +312,20 @@ fn profile_editor_body(app: &App) -> Element<'_, Message> {
 }
 
 fn password_editor_body(app: &App) -> Element<'_, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let saving = app.account.password_editor.is_busy();
-    let mut header_back =
-        button(text("← 返回我的").size(13)).padding([8, 12]).style(rounded_action_btn_style);
+    let mut header_back = button(text(i18n.__("← 返回我的")).size(13))
+        .padding([8, 12])
+        .style(rounded_action_btn_style);
     if !saving {
         header_back = header_back.on_press(account_message(AccountMessage::ClosePasswordEditor));
     }
     let header = row![
         column![
-            text(PASSWORD_EDITOR_LABELS[0]).size(22),
-            text("使用当前密码设置新的登录密码。").size(12).style(settings_muted_text_style),
+            text(i18n.__(PASSWORD_EDITOR_LABELS[0])).size(22),
+            text(i18n.__("使用当前密码设置新的登录密码。"))
+                .size(12)
+                .style(settings_muted_text_style),
         ]
         .spacing(4)
         .width(Length::Fill),
@@ -320,12 +337,12 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
         container(
             row![
                 column![
-                    text("操作失败").size(14),
+                    text(i18n.__("操作失败")).size(14),
                     text(message).size(12).wrapping(Wrapping::Word),
                 ]
                 .spacing(4)
                 .width(Length::Fill),
-                button(text("关闭").size(12))
+                button(text(i18n.__("关闭")).size(12))
                     .on_press(account_message(AccountMessage::DismissPasswordError))
                     .padding([6, 10])
                     .style(rounded_action_btn_style),
@@ -342,17 +359,17 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
     };
 
     let draft = app.account.password_editor.draft().cloned().unwrap_or_default();
-    let mut current = text_input("请输入当前密码", draft.current_password())
+    let mut current = text_input(i18n.__("请输入当前密码"), draft.current_password())
         .secure(PASSWORD_INPUTS_SECURE)
         .padding([10, 12])
         .size(14)
         .style(password_input_style);
-    let mut new_password = text_input("请输入新密码", draft.new_password())
+    let mut new_password = text_input(i18n.__("请输入新密码"), draft.new_password())
         .secure(PASSWORD_INPUTS_SECURE)
         .padding([10, 12])
         .size(14)
         .style(password_input_style);
-    let mut confirmation = text_input("请再次输入新密码", draft.confirmation())
+    let mut confirmation = text_input(i18n.__("请再次输入新密码"), draft.confirmation())
         .secure(PASSWORD_INPUTS_SECURE)
         .padding([10, 12])
         .size(14)
@@ -379,8 +396,9 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
     }
 
     let submit_label = if saving { "修改中…" } else { PASSWORD_EDITOR_LABELS[5] };
-    let mut submit =
-        button(text(submit_label).size(14)).padding([10, 18]).style(password_submit_button_style);
+    let mut submit = button(text(i18n.__(submit_label)).size(14))
+        .padding([10, 18])
+        .style(password_submit_button_style);
     if password_editor_can_submit(&app.account.password_editor) {
         submit = submit.on_press(account_message(AccountMessage::SubmitPasswordEditor));
     }
@@ -388,7 +406,7 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
     let form_content = column![
         error,
         row![
-            text(PASSWORD_EDITOR_LABELS[2])
+            text(i18n.__(PASSWORD_EDITOR_LABELS[2]))
                 .size(13)
                 .width(Length::Fixed(130.0))
                 .style(settings_muted_text_style),
@@ -397,13 +415,13 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
         .spacing(18)
         .align_y(Alignment::Center),
         row![
-            text(PASSWORD_EDITOR_LABELS[3])
+            text(i18n.__(PASSWORD_EDITOR_LABELS[3]))
                 .size(13)
                 .width(Length::Fixed(130.0))
                 .style(settings_muted_text_style),
             column![
                 new_password,
-                text("密码需为 8–64 个字符，并同时包含字母和数字。")
+                text(i18n.__("密码需为 8–64 个字符，并同时包含字母和数字。"))
                     .size(12)
                     .style(settings_muted_text_style),
             ]
@@ -413,7 +431,7 @@ fn password_editor_body(app: &App) -> Element<'_, Message> {
         .spacing(18)
         .align_y(Alignment::Start),
         row![
-            text(PASSWORD_EDITOR_LABELS[4])
+            text(i18n.__(PASSWORD_EDITOR_LABELS[4]))
                 .size(13)
                 .width(Length::Fixed(130.0))
                 .style(settings_muted_text_style),
@@ -458,6 +476,7 @@ pub(crate) fn with_account_details<'a>(
         return iced::widget::stack![root_content, editor].into();
     }
 
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
     let identity = account.identity();
     let company_status = account
         .profile()
@@ -465,29 +484,36 @@ pub(crate) fn with_account_details<'a>(
         .unwrap_or_else(|| identity.status())
         .to_string();
     let company_card = section_card(
+        i18n,
         "公司信息",
         vec![
-            detail_row("公司名称", identity.company_name().to_string()),
-            status_row("状态", company_status),
+            detail_row(i18n, "公司名称", identity.company_name().to_string()),
+            status_row(i18n, "状态", company_status),
         ],
     );
 
     let user_card = if let Some(profile) = account.profile() {
         section_card(
+            i18n,
             "我的信息",
             vec![
-                detail_row("显示名称", profile.name().to_string()),
-                detail_row("登录账号", profile.account_name().to_string()),
-                status_row("状态", profile.user_status().to_string()),
-                detail_row("直属部门", values_label(profile.departments())),
-                detail_row("直属角色", values_label(profile.roles())),
-                edit_profile_action(),
+                detail_row(i18n, "显示名称", profile.name().to_string()),
+                detail_row(i18n, "登录账号", profile.account_name().to_string()),
+                status_row(i18n, "状态", profile.user_status().to_string()),
+                detail_row(i18n, "直属部门", values_label(profile.departments())),
+                detail_row(i18n, "直属角色", values_label(profile.roles())),
+                edit_profile_action(i18n),
             ],
         )
     } else {
         section_card(
+            i18n,
             "我的信息",
-            vec![detail_row("资料状态", "旧账户尚未获取个人资料，请重新登录刷新。".to_string())],
+            vec![detail_row(
+                i18n,
+                "资料状态",
+                i18n.__("旧账户尚未获取个人资料，请重新登录刷新。").to_string(),
+            )],
         )
     };
 
@@ -503,8 +529,8 @@ pub(crate) fn with_account_details<'a>(
         column![
             row![
                 column![
-                    text("账户信息").size(22),
-                    text("当前登录账户的公司与个人基础资料")
+                    text(i18n.__("账户信息")).size(22),
+                    text(i18n.__("当前登录账户的公司与个人基础资料"))
                         .size(12)
                         .style(settings_muted_text_style),
                 ]

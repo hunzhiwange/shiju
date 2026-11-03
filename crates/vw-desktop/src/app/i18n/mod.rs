@@ -88,3 +88,11 @@ pub mod apps;
 
 #[cfg(test)]
 mod apps_tests;
+
+#[cfg(test)]
+mod gettext_area_15_tests;
+
+pub mod modals;
+
+#[cfg(test)]
+mod modals_tests;

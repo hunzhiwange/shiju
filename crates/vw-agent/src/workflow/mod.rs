@@ -6,6 +6,8 @@ mod code_runner;
 mod code_runner_http;
 mod conditions;
 mod model;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod native;
 mod runner;
 mod template;
 mod variables;

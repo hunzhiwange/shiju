@@ -666,6 +666,10 @@ fn run_in_project(
         agent_key.as_deref().unwrap_or("main"),
         usize::try_from(selected_model.limit.context).unwrap_or(usize::MAX),
     );
+    #[cfg(not(target_arch = "wasm32"))]
+    if crate::workflow::native::run_bound_command(&req, &ctx, &mut on_event) {
+        return;
+    }
     if should_handle_docs_request_locally(&req.query) {
         handle_docs_request(&mut session, &ctx, &mut on_event);
         return;

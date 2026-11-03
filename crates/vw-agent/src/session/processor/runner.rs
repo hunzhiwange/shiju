@@ -818,20 +818,21 @@ fn run_in_project(
     if let Some(source) = llm_messages::input_source_from_options(&req.options) {
         llm_messages::annotate_current_user_source(&mut llm_messages, source);
     }
-    let mut image_turn = match build_image_turn_context_for_request(&req, &session, &config) {
-        Ok(ctx) => ctx,
-        Err(message) => {
-            tracing::warn!(
-                target: "vw_agent",
-                session_id = %req.session,
-                error = %message,
-                "failed to build image turn context"
-            );
-            session.push(Role::System, message.clone());
-            on_event(StreamEvent::Error(message));
-            return;
-        }
-    };
+    let mut image_turn =
+        match build_image_turn_context_for_request(&req, &session, &config, &mut on_event) {
+            Ok(ctx) => ctx,
+            Err(message) => {
+                tracing::warn!(
+                    target: "vw_agent",
+                    session_id = %req.session,
+                    error = %message,
+                    "failed to build image turn context"
+                );
+                session.push(Role::System, message.clone());
+                on_event(StreamEvent::Error(message));
+                return;
+            }
+        };
     if let Some(ctx_images) = image_turn.as_mut() {
         ctx.tool_use_context().set_image_asset_scope(&ctx_images.scope);
         ctx_images.rewrite_json_messages(&mut llm_messages);
@@ -1820,6 +1821,7 @@ fn build_image_turn_context_for_request(
     req: &Request,
     session: &Session,
     config: &crate::config::Config,
+    on_event: &mut impl FnMut(StreamEvent) -> bool,
 ) -> Result<Option<crate::app::agent::multimodal::context::ImageTurnContext>, String> {
     use crate::app::agent::multimodal::DISABLE_OCR_OPTION;
     use crate::app::agent::multimodal::assets::{ImageAssetScope, ImageAssetStore};
@@ -1859,6 +1861,27 @@ fn build_image_turn_context_for_request(
         return Ok(None);
     }
 
+    // ACP 在协商后的 prompt 能力边界校验图片，不查询普通供应商模型目录。
+    if is_acp_request(&req.options) {
+        return Ok(None);
+    }
+    let extractor = SessionImageTextExtractor::new();
+    let model_ref = req.model.as_deref().ok_or("图片请求缺少已选择的模型")?;
+    let Some(multimodal_config) =
+        prompt::block_on(crate::app::agent::multimodal::ocr::image_preprocessing_config(
+            &config.multimodal,
+            model_ref,
+            &extractor,
+        ))
+        .map_err(|error| format!("图片处理配置无效：{error}"))?
+    else {
+        return Ok(None);
+    };
+    if !on_event(StreamEvent::Delta("<think>正在识别图片，请稍候…</think>\n\n".to_string()))
+    {
+        return Err("图片识别已取消".to_string());
+    }
+
     // 当前轮用户内容：非 resume 时取最后一条 user；resume 时全部按历史处理。
     let (history_messages, current_user_content) = if resume_history_only {
         (history, None)
@@ -1875,33 +1898,19 @@ fn build_image_turn_context_for_request(
         ImageAssetScope::from_request_context(req.app_session_scope.as_deref(), &req.session)
             .map_err(|error| format!("invalid image asset scope: {error}"))?;
     let store = ImageAssetStore::from_global_paths();
-    let extractor = SessionImageTextExtractor::new();
     match prompt::block_on(ImageTurnContext::build(
         &store,
         scope,
         &history_messages,
         current_user_content.as_deref(),
         resume_history_only,
-        &config.multimodal,
+        &multimodal_config,
         req.model.as_deref(),
         &extractor,
     )) {
         Ok(ctx) if !ctx.images.is_empty() => Ok(Some(ctx)),
         Ok(_) => Ok(None),
-        Err(error) => {
-            if config.multimodal.ocr.enabled && !config.multimodal.ocr.model_supports_images {
-                // OCR 开启时必须把失败暴露给用户，不能静默回退成直传图片。
-                Err(format!("image OCR preprocessing failed: {error}"))
-            } else {
-                tracing::warn!(
-                    target: "vw_agent",
-                    session_id = %req.session,
-                    error = %error,
-                    "failed to build image turn context; continuing without asset reuse"
-                );
-                Ok(None)
-            }
-        }
+        Err(error) => Err(format!("image OCR preprocessing failed: {error}")),
     }
 }
 

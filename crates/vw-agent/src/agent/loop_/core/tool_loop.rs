@@ -509,13 +509,22 @@ async fn prepare_legacy_image_turn(
     let scope = ImageAssetScope::from_request_context(None, "legacy-tool-loop")?;
     let store = ImageAssetStore::from_global_paths();
     let extractor = SessionImageTextExtractor::new();
+    let Some(multimodal_config) = crate::app::agent::multimodal::ocr::image_preprocessing_config(
+        multimodal_config,
+        model,
+        &extractor,
+    )
+    .await?
+    else {
+        return Ok(None);
+    };
     let ctx = ImageTurnContext::build(
         &store,
         scope,
         &prior,
         current.as_deref(),
         false,
-        multimodal_config,
+        &multimodal_config,
         Some(model),
         &extractor,
     )

@@ -2960,3 +2960,40 @@ fn agcollab_processor_gate_reports_budget_and_delivers_failure_once() {
     );
     assert_eq!(messages.len(), 1);
 }
+
+#[test]
+fn image_routing_acp_skips_catalog_and_separate_analysis() {
+    let mut req = request_with_session("native-acp-image");
+    req.options = serde_json::json!({"acp_test": true, "acp_agent": "codex"});
+    req.query = "describe [IMAGE:/missing/image.png]".to_string();
+    req.model = Some("acp/codex".to_string());
+    let session = super::Session::new(req.session.clone());
+    let mut events = Vec::new();
+    let context = super::build_image_turn_context_for_request(
+        &req,
+        &session,
+        &crate::config::Config::default(),
+        &mut |event| {
+            events.push(event);
+            true
+        },
+    )
+    .expect("ACP must not resolve a catalog model or read the image during preprocessing");
+    assert!(context.is_none());
+    assert!(events.is_empty());
+}
+
+#[test]
+fn image_routing_text_only_request_does_not_require_model_capabilities() {
+    let mut req = request_with_session("text-only-image-routing");
+    req.query = "hello".to_string();
+    let session = super::Session::new(req.session.clone());
+    let context = super::build_image_turn_context_for_request(
+        &req,
+        &session,
+        &crate::config::Config::default(),
+        &mut |_| panic!("text-only requests must not emit image progress"),
+    )
+    .unwrap();
+    assert!(context.is_none());
+}

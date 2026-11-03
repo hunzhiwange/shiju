@@ -245,3 +245,60 @@ async fn ocr_preprocessing_truncates_unicode_at_character_boundaries_and_neutral
     assert!(text.ends_with('🧠'));
     assert!(!prepared.messages[0].content.contains("[IMAGE:"));
 }
+
+#[tokio::test]
+async fn native_image_model_skips_even_invalid_ocr_configuration() {
+    let extractor = StubImageTextExtractor::returning("must not be called");
+    let config = ocr_config(Some("invalid"));
+    assert!(
+        super::ocr::image_preprocessing_config(&config, "vision/native", &extractor)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(extractor.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn text_model_routes_to_configured_vision_model_despite_stale_manual_capability() {
+    let mut extractor = StubImageTextExtractor::returning("unused");
+    extractor.supports_images = false;
+    let mut config = ocr_config(Some("vision/reader"));
+    config.ocr.model_supports_images = true;
+    let routed = super::ocr::image_preprocessing_config(&config, "text/small", &extractor)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!routed.ocr.model_supports_images);
+    assert_eq!(routed.ocr.model.as_deref(), Some("vision/reader"));
+}
+
+#[tokio::test]
+async fn text_model_rejects_disabled_or_missing_vision_configuration() {
+    let mut extractor = StubImageTextExtractor::returning("unused");
+    extractor.supports_images = false;
+    for config in [MultimodalConfig::default(), ocr_config(None)] {
+        assert!(
+            super::ocr::image_preprocessing_config(&config, "text/small", &extractor)
+                .await
+                .is_err()
+        );
+    }
+    assert!(extractor.requests.lock().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn unknown_image_capability_fails_without_guessing_a_route() {
+    let mut extractor = StubImageTextExtractor::returning("unused");
+    extractor.capability_error = Some("catalog unavailable");
+    assert!(
+        super::ocr::image_preprocessing_config(
+            &ocr_config(Some("vision/reader")),
+            "missing/model",
+            &extractor,
+        )
+        .await
+        .is_err()
+    );
+    assert!(extractor.requests.lock().unwrap().is_empty());
+}

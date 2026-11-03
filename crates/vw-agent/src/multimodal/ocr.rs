@@ -70,6 +70,24 @@ impl Default for SessionImageTextExtractor {
     }
 }
 
+/// 原生视觉模型直接接收图文；文字模型只允许使用显式启用的 OCR 配置。
+pub(crate) async fn image_preprocessing_config(
+    config: &MultimodalConfig,
+    model_ref: &str,
+    extractor: &dyn ImageTextExtractor,
+) -> anyhow::Result<Option<MultimodalConfig>> {
+    if extractor.supports_image_input(model_ref).await? {
+        return Ok(None);
+    }
+    if !config.ocr.enabled {
+        anyhow::bail!("模型 {model_ref} 不支持图片，请先启用并配置图片识别模型");
+    }
+    validated_model_ref(config.ocr.model.as_deref())?;
+    let mut config = config.clone();
+    config.ocr.model_supports_images = false;
+    Ok(Some(config))
+}
+
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl ImageTextExtractor for SessionImageTextExtractor {

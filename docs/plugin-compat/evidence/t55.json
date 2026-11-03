@@ -75,5 +75,59 @@
   },
   "fixture": "crates/vw-agent/testdata/plugin_compat/t55/README.md",
   "implementation": "Source/version metadata, read-only dependency facts, real hook trust status, pending MCP/auth hints, scoped gateway catalog and theme-correct plugin page",
-  "limits": "No complete compatibility claimed from counts or presence; installation cancellation belongs to task56."
+  "limits": "No complete compatibility claimed from counts or presence; installation cancellation belongs to task56.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "dependency": "6872187f / t54.json revalidation",
+    "platform": "macOS arm64",
+    "checks": [
+      {
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t55_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 3,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-desktop --lib --all-features plugins_tests -- --nocapture",
+        "exit_code": 0,
+        "passed": 6,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features --no-run --message-format=json",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo test -p vw-desktop --test plugin-compat-window --all-features --no-run --message-format=json",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "cargo": {
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "native_window": {
+      "command": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/debug/deps/plugin_compat_window-2b507d5961021054 /Users/xiangmin/worker/code/shiju/target/rust-slot-10/debug/deps/vw_agent-e557a8fe939ec711 /var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t55-revalidate-4_1lmoho 55",
+      "exit_code": 0,
+      "backend_fixture_passed": 1,
+      "screenshots": [
+        "t55-light.png",
+        "t55-dark.png"
+      ],
+      "result": "t55-window.json",
+      "visual_review": "Both captures inspected: Chinese, long path wrapping, missing node and pending hook trust legible in both themes; process exited without glyph panic; original package unchanged and sentinel not executed."
+    },
+    "note": "Reused committed implementation 0a309352 and original red evidence. No Rust changes; cargo fmt not repeated to preserve concurrent work. Closed read-only status window without mutation; installation cancellation remains task56."
+  }
 }

@@ -54,5 +54,41 @@
   },
   "fixture": "crates/vw-agent/testdata/plugin_compat/t53/README.md",
   "reference": "baseline CLI actions; frozen cli/plugin_cmd.rs and cli/marketplace_cmd.rs",
-  "limits": "Catalog registration accepts existing local catalogs only; remote Git catalog snapshot add/refresh is not claimed. Normalized Git/npm plugin entries use their existing audited backends."
+  "limits": "Catalog registration accepts existing local catalogs only; remote Git catalog snapshot add/refresh is not claimed. Normalized Git/npm plugin entries use their existing audited backends.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "implementation_commit": "4d8164a1b3e6ed6ecda8f98b5d58188650904d30",
+    "dependency": "6fa36c60 / t52.json revalidation; implementation 12a24b69",
+    "platform": "macOS arm64",
+    "cargo": {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t53_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 3,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features plugin_cli_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 9,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "note": "Reused committed production implementation, registered acceptance tests and original red evidence. No Rust changes or artificial regression; no formatting mutation of concurrent work. Real local catalogs cover registration/list/read/install/update/enable/disable/remove, unchanged manifest bytes, invalid input rejection and exact-market isolation. Local catalog registration only; no claim of remote catalog snapshot support."
+  }
 }

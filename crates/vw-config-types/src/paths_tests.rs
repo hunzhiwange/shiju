@@ -4,9 +4,9 @@
 use std::path::{Path, PathBuf};
 
 #[test]
-fn home_config_directory_names_match_agent_layout() {
-    assert_eq!(super::PROD_HOME_CONFIG_DIR_NAME, ".shiju-agent");
-    assert_eq!(super::DEV_HOME_CONFIG_DIR_NAME, ".shiju-agent-dev");
+fn home_config_directory_names_match_harness_layout() {
+    assert_eq!(super::PROD_HOME_CONFIG_DIR_NAME, ".shiju-harness");
+    assert_eq!(super::DEV_HOME_CONFIG_DIR_NAME, ".shiju-harness-dev");
 }
 
 #[test]

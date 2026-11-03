@@ -8,9 +8,9 @@ use std::path::{Path, PathBuf};
 pub const CONFIG_JSON_FILENAME: &str = "shiju.json";
 
 /// 正式构建在用户主目录下使用的配置目录名。
-pub const PROD_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent";
+pub const PROD_HOME_CONFIG_DIR_NAME: &str = ".shiju-harness";
 /// 调试构建在用户主目录下使用的隔离配置目录名。
-pub const DEV_HOME_CONFIG_DIR_NAME: &str = ".shiju-agent-dev";
+pub const DEV_HOME_CONFIG_DIR_NAME: &str = ".shiju-harness-dev";
 /// 正式构建在平台数据目录下使用的应用目录名。
 pub const PROD_APP_DIR_NAME: &str = "shiju";
 /// 调试构建在平台数据目录下使用的隔离应用目录名。
@@ -27,10 +27,10 @@ pub const HOME_CONFIG_DIR_NAME: &str = PROD_HOME_CONFIG_DIR_NAME;
 
 /// 调试构建使用的紧急停止状态文件路径。
 #[cfg(debug_assertions)]
-pub const ESTOP_STATE_FILE_PATH: &str = "~/.shiju-agent-dev/estop-state.json";
+pub const ESTOP_STATE_FILE_PATH: &str = "~/.shiju-harness-dev/estop-state.json";
 /// 正式构建使用的紧急停止状态文件路径。
 #[cfg(not(debug_assertions))]
-pub const ESTOP_STATE_FILE_PATH: &str = "~/.shiju-agent/estop-state.json";
+pub const ESTOP_STATE_FILE_PATH: &str = "~/.shiju-harness/estop-state.json";
 
 /// 当前构建配置对应的平台应用目录名。
 #[cfg(debug_assertions)]

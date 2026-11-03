@@ -148,7 +148,7 @@ def prepare(output, port):
     cwd.mkdir()
     env = {key: value for key, value in os.environ.items()
            if key in ("PATH", "TMPDIR", "LANG", "LC_ALL", "SHELL", "USER", "LOGNAME", "SYSTEMROOT")}
-    env.update(HOME=str(home), VIBEWINDOW_CONFIG_DIR=str(home / ".shiju-agent-dev"),
+    env.update(HOME=str(home), VIBEWINDOW_CONFIG_DIR=str(home / ".shiju-harness-dev"),
                ACP_FIXTURE_KEY="fixture-key", RUST_LOG="warn")
     config = {"workspace_dir": str(cwd), "reliability": {"provider_retries": 0}, "providers": {
         "fixture": {"name": "Fixture", "api": f"http://127.0.0.1:{port}/v1", "adapter": "openai",
@@ -156,7 +156,7 @@ def prepare(output, port):
                         model: {"status": "active", "tool_call": True,
                                 "limit": {"context": 100000, "output": 1024}}
                         for model in ("alpha", "beta")}}}}
-    database = home / ".shiju-agent-dev/database/vibe-window.sqlite3"
+    database = home / ".shiju-harness-dev/database/vibe-window.sqlite3"
     database.parent.mkdir(parents=True)
     with sqlite3.connect(database) as connection:
         connection.execute("CREATE TABLE system_configs (platform_id TEXT, company_id TEXT, "
@@ -267,7 +267,7 @@ def cli_scenarios(acp, shiju, output, env, cwd):
 
 def cleanup_owners(output, acp):
     # Leases under this newly created HOME identify only this run's queue owners.
-    for path in (output / "home/.shiju-agent-dev/acp/queues").glob("*.lock"):
+    for path in (output / "home/.shiju-harness-dev/acp/queues").glob("*.lock"):
         try:
             lease = json.loads(path.read_text())
             pid = lease.get("pid")

@@ -36,8 +36,8 @@ async fn native_shiju_skill_installs_and_syncs_only_native_directory() {
         ".copilot",
         ".cursor",
         ".codeium/windsurf",
-        "project/.shiju-agent",
-        "project/.shiju-agent-dev",
+        "project/.shiju-harness",
+        "project/.shiju-harness-dev",
     ];
     for root in other_roots {
         let directory = home.path().join(root).join("skills/shiju");

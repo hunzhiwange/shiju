@@ -57,7 +57,7 @@ target-dir/
 **/MEMORY_SNAPSHOT.md
 
 /local-temp/
-.shiju-agent-dev/
+.shiju-harness-dev/
 examples/
 
 __pycache__/

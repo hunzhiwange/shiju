@@ -144,7 +144,7 @@ impl OtpValidator {
     /// ```ignore
     /// let (validator, maybe_uri) = OtpValidator::from_config(
     ///     &config,
-    ///     Path::new("/home/user/.shiju-agent"),
+    ///     Path::new("/home/user/.shiju-harness"),
     ///     &secret_store,
     /// )?;
     ///

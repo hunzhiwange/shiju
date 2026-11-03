@@ -143,11 +143,11 @@ pub(super) fn scope_description(scope: SkillsDirectoryScope) -> &'static str {
         SkillsDirectoryScope::Global => {
             #[cfg(debug_assertions)]
             {
-                "当前用户 ~/.shiju-agent-dev/skills。"
+                "当前用户 ~/.shiju-harness-dev/skills。"
             }
             #[cfg(not(debug_assertions))]
             {
-                "当前用户 ~/.shiju-agent/skills。"
+                "当前用户 ~/.shiju-harness/skills。"
             }
         }
         SkillsDirectoryScope::Bundled => "当前页面仅显示已安装到技能目录的技能。",

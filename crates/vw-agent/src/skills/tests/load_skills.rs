@@ -266,9 +266,9 @@ fn toml_prefers_over_md() {
 
 #[test]
 fn skills_dir_path() {
-    let base = std::path::Path::new("/home/user/.shiju-agent");
+    let base = std::path::Path::new("/home/user/.shiju-harness");
     let dir = skills_dir(base);
-    assert_eq!(dir, PathBuf::from("/home/user/.shiju-agent/skills"));
+    assert_eq!(dir, PathBuf::from("/home/user/.shiju-harness/skills"));
 }
 
 #[test]

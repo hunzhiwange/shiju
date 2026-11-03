@@ -3,6 +3,7 @@
 //! 本库存放所有配置相关的纯数据类型定义，
 //! 供 `vw-agent`、`vw-desktop` 及其他模块共同使用。
 
+pub mod acp_install;
 pub mod agent;
 pub mod automation;
 pub mod channels;

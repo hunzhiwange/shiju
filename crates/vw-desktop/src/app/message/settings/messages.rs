@@ -363,6 +363,12 @@ pub enum GatewayClientMessage {
 #[derive(Debug, Clone)]
 pub enum AcpMessage {
     StartDiagnostic,
+    TestAgent(String),
+    InstallAgent(String),
+    InstallCompleted {
+        agent: String,
+        result: Result<String, String>,
+    },
     CancelDiagnostic,
     DiagnosticCancelled,
     DiagnosticCompleted {

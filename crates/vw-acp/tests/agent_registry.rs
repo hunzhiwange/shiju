@@ -22,8 +22,28 @@ fn built_in_agent_registry_covers_dhb_and_ts_agents() {
     let registry = built_in_agent_registry();
 
     for name in [
-        "auggie", "claude", "codex", "copilot", "cursor", "droid", "gemini", "iflow", "kilocode",
-        "kimi", "kiro", "opencode", "openclaw", "pi", "qoder", "qwen", "trae",
+        "auggie",
+        "claude",
+        "codex",
+        "copilot",
+        "cursor",
+        "droid",
+        "gemini",
+        "iflow",
+        "kilocode",
+        "kimi",
+        "kiro",
+        "opencode",
+        "openclaw",
+        "pi",
+        "qoder",
+        "qwen",
+        "trae",
+        "codebuddy",
+        "goose",
+        "vibe",
+        "hermes",
+        "snow",
     ] {
         assert!(registry.contains_key(name), "missing {name}");
     }
@@ -44,7 +64,7 @@ fn resolve_agent_command_supports_aliases_and_overrides() {
     );
 
     assert_eq!(normalize_agent_name("  Codex CLI "), "codex cli");
-    assert_eq!(resolve_agent_command("factory-droid", None), "droid exec --output-format acp");
+    assert_eq!(resolve_agent_command("factory-droid", None), built_in_agent_registry()["droid"]);
     assert_eq!(resolve_agent_command("GitHubCopilot", None), built_in_agent_registry()["copilot"]);
     assert_eq!(resolve_agent_command("Custom", Some(&overrides)), "custom-agent --acp");
 }
@@ -186,4 +206,47 @@ fn built_in_agent_specs_prefer_local_adapter_binaries_when_available() {
     assert!(spec.args.is_empty());
 
     let _ = fs::remove_dir_all(temp_dir);
+}
+
+#[test]
+fn aionui_catalog_has_startup_and_gateway_install_specs() {
+    use vw_config_types::acp_install::{AcpInstallPlatform, acp_install_command_for_platform};
+    let specs = built_in_agent_specs();
+    // 对照 AionUi 的 agent-skill-discovery.md 内置 ACP 清单。
+    for name in [
+        "claude",
+        "codex",
+        "gemini",
+        "qwen",
+        "codebuddy",
+        "droid",
+        "goose",
+        "kimi",
+        "opencode",
+        "vibe",
+        "cursor",
+        "auggie",
+        "copilot",
+        "qoder",
+        "kiro",
+        "hermes",
+        "snow",
+        "openclaw",
+    ] {
+        assert!(specs.contains_key(name), "missing {name}");
+    }
+    for name in specs.keys() {
+        for platform in [AcpInstallPlatform::Unix, AcpInstallPlatform::Windows] {
+            assert!(
+                acp_install_command_for_platform(name, platform).is_some(),
+                "{name} {platform:?}"
+            );
+        }
+    }
+    assert_eq!(specs["codebuddy"].args, ["--acp"]);
+    assert_eq!(specs["goose"].args, ["acp"]);
+    assert_eq!(specs["snow"].args, ["--acp"]);
+    assert_eq!(specs["hermes"].args, ["acp"]);
+    assert_eq!(specs["kiro"].args, ["acp"]);
+    assert!(specs["vibe"].args.is_empty());
 }

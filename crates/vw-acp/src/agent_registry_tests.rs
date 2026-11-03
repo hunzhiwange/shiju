@@ -435,3 +435,19 @@ fn list_built_in_agents_includes_normalized_overrides_in_sorted_order() {
     assert!(agents.windows(2).all(|pair| pair[0] <= pair[1]));
     assert!(agents.contains(&"zed-custom".to_string()));
 }
+
+#[test]
+fn local_agent_resolution_finds_fresh_user_installations_without_path_refresh() {
+    let _lock = agent_registry_env_test_lock();
+    let home = tempfile::tempdir().unwrap();
+    let bin = home.path().join("fresh-bin");
+    std::fs::create_dir_all(&bin).unwrap();
+    let name = if cfg!(windows) { "fresh-acp-cli.exe" } else { "fresh-acp-cli" };
+    std::fs::write(bin.join(name), "fixture").unwrap();
+    let _home = EnvGuard::set_os("HOME", home.path().as_os_str());
+    let _bin = EnvGuard::set_os("XDG_BIN_HOME", bin.as_os_str());
+    assert_eq!(
+        resolve_local_agent_command(&["fresh-acp-cli"]),
+        Some(bin.join(name).to_string_lossy().into_owned())
+    );
+}

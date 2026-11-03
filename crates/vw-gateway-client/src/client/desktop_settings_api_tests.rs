@@ -617,3 +617,18 @@ async fn acp_diagnostic_ignores_stale_results_transport_preserves_draft() {
     assert_eq!(requests[0].body, draft);
     assert_eq!(requests[1].method, "DELETE");
 }
+
+#[tokio::test]
+async fn acp_install_posts_only_agent_name_with_tenant_headers() {
+    let scope = TenantScope::new("desktop-platform", "desktop-company").unwrap();
+    let server =
+        test_support::server_with_tenant_scope(vec![(200, json!("installed"))], scope.clone());
+    assert!(server.client().acp_install("codex/../../other").await.is_err());
+    assert_eq!(server.client().acp_install("codex").await.unwrap(), "installed");
+    let request = server.take_request();
+    assert_eq!(request.method, "POST");
+    assert_eq!(request.path, "/v1/desktop/acp-install/codex");
+    assert_eq!(request.body, json!({}));
+    assert_tenant_headers(&request, &scope);
+    server.join();
+}

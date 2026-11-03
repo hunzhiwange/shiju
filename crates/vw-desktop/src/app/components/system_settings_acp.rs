@@ -14,8 +14,28 @@ use iced::{Alignment, Element, Length};
 use vw_config_types::config::AcpAgentConfig;
 
 const ACP_ORDER: &[&str] = &[
-    "claude", "gemini", "opencode", "codex", "openclaw", "copilot", "pi", "auggie", "cursor",
-    "droid", "iflow", "kilocode", "qwen", "kimi", "kiro", "qoder", "trae",
+    "claude",
+    "gemini",
+    "opencode",
+    "codex",
+    "openclaw",
+    "copilot",
+    "pi",
+    "auggie",
+    "cursor",
+    "droid",
+    "iflow",
+    "kilocode",
+    "qwen",
+    "kimi",
+    "kiro",
+    "qoder",
+    "trae",
+    "codebuddy",
+    "goose",
+    "vibe",
+    "hermes",
+    "snow",
 ];
 
 pub(super) fn acp_title(agent: &str) -> &'static str {
@@ -37,6 +57,11 @@ pub(super) fn acp_title(agent: &str) -> &'static str {
         "kiro" => "Kiro",
         "qoder" => "Qoder CLI",
         "trae" => "TRAE CLI",
+        "codebuddy" => "CodeBuddy",
+        "goose" => "Goose",
+        "vibe" => "Mistral Vibe",
+        "hermes" => "Hermes Agent",
+        "snow" => "Snow CLI",
         _ => "自定义 ACP",
     }
 }
@@ -56,6 +81,15 @@ pub(super) fn acp_description(agent: &str) -> &'static str {
         "kilocode" => "Kilocode ACP 后端。",
         "opencode" => "OpenCode ACP 后端。",
         "qwen" => "Qwen Code ACP 后端。",
+        "kimi" => "Kimi Code CLI 的 ACP 后端。",
+        "kiro" => "Kiro 官方 CLI 的 ACP 后端。",
+        "qoder" => "Qoder CLI 的 ACP 后端。",
+        "trae" => "TRAE CLI 的 ACP 服务。",
+        "codebuddy" => "腾讯 CodeBuddy 原生 ACP 后端。",
+        "goose" => "Goose 原生 ACP 后端。",
+        "vibe" => "Mistral Vibe 的 vibe-acp 后端。",
+        "hermes" => "Nous Research Hermes Agent 的 ACP 后端。",
+        "snow" => "Snow CLI 的 ACP 模式。",
         _ => "自定义 ACP 后端，会按全局配置中的 command / args 启动。",
     }
 }
@@ -146,11 +180,55 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
             Message::Settings(SettingsMessage::Acp(AcpMessage::EditAgent(agent.clone()))),
         ),
     );
+    header = header.push(
+        button(text("测试连接").size(13))
+            .padding([7, 14])
+            .style(rounded_action_btn_style)
+            .on_press_maybe(
+                app.acp_settings
+                    .diagnostic_id
+                    .is_none()
+                    .then(|| acp_message(AcpMessage::TestAgent(agent.clone()))),
+            ),
+    );
     header = header.push(toggle);
+
+    let installation: Element<'_, Message> =
+        if vw_config_types::acp_install::acp_install_command(&agent).is_some() {
+            let installing = app.acp_settings.installing_agent.as_deref() == Some(agent.as_str());
+            row![
+                column![
+                    text("官方安装包 / 安装器").size(12),
+                    text("网关自动选择系统并执行安装，无需复制命令；安装后仍需完成认证")
+                        .size(12)
+                        .style(settings_muted_text_style),
+                ]
+                .spacing(4)
+                .width(Length::Fill),
+                button(text(if installing { "安装中…" } else { "一键安装" }).size(13))
+                    .padding([7, 14])
+                    .style(rounded_action_btn_style)
+                    .on_press_maybe(
+                        app.acp_settings
+                            .installing_agent
+                            .is_none()
+                            .then(|| { acp_message(AcpMessage::InstallAgent(agent.clone())) })
+                    ),
+            ]
+            .spacing(8)
+            .align_y(Alignment::Center)
+            .into()
+        } else {
+            text("自定义 ACP 请自行配置安装方式；内置 ACP 均可由网关一键安装")
+                .size(12)
+                .style(settings_muted_text_style)
+                .into()
+        };
 
     settings_panel(
         column![
             header,
+            installation,
             text(crate::app::i18n::I18n::new(app.desktop_locale).__(setup_hint(&agent)))
                 .size(12)
                 .style(settings_muted_text_style),
@@ -412,6 +490,18 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 })
                 .unwrap_or_else(|| error.clone()),
         ));
+    }
+
+    if let Some(status) = &app.acp_settings.diagnostic_status {
+        content = content.push(text(status).size(12).style(settings_muted_text_style));
+    }
+    if app.acp_settings.diagnostic_id.is_some() {
+        content = content.push(
+            button(text("取消测试"))
+                .padding([7, 14])
+                .style(rounded_action_btn_style)
+                .on_press(acp_message(AcpMessage::CancelDiagnostic)),
+        );
     }
 
     let agents = ordered_agents(app);

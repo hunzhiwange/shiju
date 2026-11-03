@@ -281,3 +281,6 @@ pub use types::*;
 pub use version::{
     ResolveAcpxVersionParams, UNKNOWN_VERSION, get_vwacp_version, resolve_vwacp_version,
 };
+
+mod install;
+pub use install::install_builtin_agent;

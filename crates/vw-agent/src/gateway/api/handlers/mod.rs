@@ -58,6 +58,7 @@ pub mod desktop;
 /// Gateway skills 目录处理器模块
 pub(crate) mod desktop_skills;
 
+mod desktop_acp_install;
 /// Gateway 插件目录与本地管理处理器模块
 pub(crate) mod plugins;
 

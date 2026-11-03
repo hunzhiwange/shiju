@@ -78,7 +78,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     };
 
-    if app.acp_settings.adding_agent && !matches!(message, AcpMessage::AddAgentCompleted { .. }) {
+    if app.acp_settings.adding_agent
+        && !matches!(
+            message,
+            AcpMessage::AddAgentCompleted { .. } | AcpMessage::InstallCompleted { .. }
+        )
+    {
         return Task::none();
     }
     let invalidates = matches!(
@@ -104,11 +109,52 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         Task::none()
     };
     let task = match message {
+        AcpMessage::InstallAgent(agent) => {
+            if app.acp_settings.installing_agent.is_some() {
+                return Task::none();
+            }
+            if vw_config_types::acp_install::acp_install_command(&agent).is_none() {
+                return app.show_error_toast("该 ACP 暂无一键安装命令，请使用官方安装器");
+            }
+            app.acp_settings.installing_agent = Some(agent.clone());
+            Task::perform(
+                async move {
+                    let result =
+                        async { crate::app::config::gateway_client()?.acp_install(&agent).await }
+                            .await;
+                    (agent, result)
+                },
+                |(agent, result)| {
+                    Message::Settings(SettingsMessage::Acp(AcpMessage::InstallCompleted {
+                        agent,
+                        result,
+                    }))
+                },
+            )
+        }
+        AcpMessage::InstallCompleted { agent, result } => {
+            if app.acp_settings.installing_agent.as_deref() != Some(&agent) {
+                return Task::none();
+            }
+            app.acp_settings.installing_agent = None;
+            match result {
+                Ok(status) => Task::batch([refresh_task(), app.show_info_toast(status)]),
+                Err(error) => app.show_error_toast(error),
+            }
+        }
         AcpMessage::DiagnosticCancelled => Task::none(),
-        AcpMessage::StartDiagnostic => {
-            let (_, config) = match new_agent_request(app) {
-                Ok(request) => request,
-                Err(error) => return app.show_error_toast(error),
+        AcpMessage::StartDiagnostic | AcpMessage::TestAgent(_) => {
+            let (agent, config) = match message {
+                AcpMessage::TestAgent(agent) => {
+                    let Some(config) = app.acp_settings.catalog.get(&agent).cloned() else {
+                        return app.show_error_toast("ACP 不存在，请刷新列表");
+                    };
+                    (agent, config)
+                }
+                _ => match new_agent_request(app) {
+                    Ok(request) => request,
+                    Err(error) => return app.show_error_toast(error),
+                },
             };
             let previous = cancel_diagnostic(app);
             static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
@@ -122,7 +168,8 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             );
             app.acp_settings.diagnostic_id = Some(id.clone());
-            app.acp_settings.diagnostic_status = Some("正在网关启动进程并验证 ACP 握手…".into());
+            app.acp_settings.diagnostic_status =
+                Some(format!("{agent}：正在网关启动进程并验证 ACP 握手…"));
             Task::batch([
                 previous,
                 Task::perform(

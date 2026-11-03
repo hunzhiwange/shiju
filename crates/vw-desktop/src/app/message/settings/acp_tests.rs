@@ -446,3 +446,42 @@ fn acp_diagnostic_ignores_stale_results_retry_accepts_only_current_request() {
     assert_eq!(app.acp_settings.diagnostic_status.as_deref(), Some("启动成功 · 握手成功"));
     assert!(app.acp_settings.diagnostic_id.is_none());
 }
+
+#[test]
+fn list_diagnostic_starts_without_opening_or_changing_editor() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.catalog.insert("codex".into(), acp_config("catalog-command"));
+    app.acp_settings.new_agent_name_input = "unsaved draft".into();
+    app.acp_settings.new_agent_command_input = "draft-command".into();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::TestAgent("codex".into())));
+    assert!(app.acp_settings.diagnostic_id.is_some());
+    assert!(app.acp_settings.diagnostic_status.as_deref().unwrap().starts_with("codex："));
+    assert!(!app.acp_settings.new_agent_expanded);
+    assert_eq!(app.acp_settings.new_agent_name_input, "unsaved draft");
+    assert_eq!(app.acp_settings.new_agent_command_input, "draft-command");
+}
+
+#[test]
+fn list_diagnostic_rejects_missing_agent() {
+    let (mut app, _) = crate::app::App::new();
+    app.acp_settings.catalog.clear();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::TestAgent("missing".into())));
+    assert!(app.acp_settings.diagnostic_id.is_none());
+}
+
+#[test]
+fn acp_install_tracks_busy_state_and_releases_after_failure() {
+    let (mut app, _) = crate::app::App::new();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::InstallAgent("codex".into())));
+    assert_eq!(app.acp_settings.installing_agent.as_deref(), Some("codex"));
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::InstallAgent("gemini".into())));
+    assert_eq!(app.acp_settings.installing_agent.as_deref(), Some("codex"));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::InstallCompleted {
+            agent: "codex".into(),
+            result: Err("installation failed".into()),
+        }),
+    );
+    assert!(app.acp_settings.installing_agent.is_none());
+}

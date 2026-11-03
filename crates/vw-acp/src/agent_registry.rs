@@ -109,8 +109,58 @@ fn resolve_opencode_command() -> Option<String> {
 
 fn resolve_local_agent_command(candidates: &[&str]) -> Option<String> {
     candidates.iter().find_map(|candidate| {
-        resolve_executable(candidate).map(|path| path.to_string_lossy().to_string())
+        resolve_executable(candidate)
+            .or_else(|| {
+                #[cfg(windows)]
+                if *candidate == "kiro-cli"
+                    && let Some(path) = resolve_installed_kiro_windows()
+                {
+                    return Some(PathBuf::from(path));
+                }
+                // 官方安装器通常写入用户目录；网关启动时缓存的 PATH 不会随安装刷新。
+                let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE"))?;
+                let mut dirs = vec![
+                    std::env::var_os("XDG_BIN_HOME")
+                        .map(PathBuf::from)
+                        .unwrap_or_else(|| PathBuf::from(home).join(".local/bin")),
+                ];
+                if let Some(local) = std::env::var_os("LOCALAPPDATA") {
+                    let local = PathBuf::from(local);
+                    dirs.push(local.join("cursor-agent"));
+                    dirs.push(local.join("trae-cli/bin"));
+                }
+                dirs.into_iter().find_map(|dir| {
+                    let path = dir.join(candidate);
+                    if path.is_file() {
+                        return Some(path);
+                    }
+                    if cfg!(windows) {
+                        for extension in ["exe", "cmd", "bat"] {
+                            let path = path.with_extension(extension);
+                            if path.is_file() {
+                                return Some(path);
+                            }
+                        }
+                    }
+                    None
+                })
+            })
+            .map(|path| path.to_string_lossy().to_string())
     })
+}
+
+// MSI 更新的是注册表 PATH；当前网关进程仍持有安装前的环境快照。
+#[cfg(windows)]
+fn resolve_installed_kiro_windows() -> Option<String> {
+    let output = std::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new(); $env:Path=[Environment]::GetEnvironmentVariable('Path','Machine')+';'+[Environment]::GetEnvironmentVariable('Path','User'); (Get-Command kiro-cli -CommandType Application -ErrorAction Stop).Source"])
+        .stdin(std::process::Stdio::null()).stderr(std::process::Stdio::null())
+        .output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let path = String::from_utf8(output.stdout).ok()?.trim().to_string();
+    PathBuf::from(&path).is_file().then_some(path)
 }
 
 fn built_in_agent_command(definition: &BuiltInAgentDefinition) -> (String, Vec<String>) {
@@ -211,6 +261,51 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         local_args: &[],
     },
     BuiltInAgentDefinition {
+        name: "codebuddy",
+        display_name: "CodeBuddy",
+        command: "codebuddy",
+        args: &["--acp"],
+        env: &[],
+        local_command_candidates: &["codebuddy"],
+        local_args: &["--acp"],
+    },
+    BuiltInAgentDefinition {
+        name: "goose",
+        display_name: "Goose",
+        command: "goose",
+        args: &["acp"],
+        env: &[],
+        local_command_candidates: &["goose"],
+        local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
+        name: "vibe",
+        display_name: "Mistral Vibe",
+        command: "vibe-acp",
+        args: &[],
+        env: &[],
+        local_command_candidates: &["vibe-acp"],
+        local_args: &[],
+    },
+    BuiltInAgentDefinition {
+        name: "hermes",
+        display_name: "Hermes Agent",
+        command: "hermes",
+        args: &["acp"],
+        env: &[],
+        local_command_candidates: &["hermes"],
+        local_args: &["acp"],
+    },
+    BuiltInAgentDefinition {
+        name: "snow",
+        display_name: "Snow CLI",
+        command: "snow",
+        args: &["--acp"],
+        env: &[],
+        local_command_candidates: &["snow"],
+        local_args: &["--acp"],
+    },
+    BuiltInAgentDefinition {
         name: "copilot",
         display_name: "GitHub Copilot",
         command: "copilot",
@@ -225,8 +320,8 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         command: "cursor-agent",
         args: &["acp"],
         env: &[],
-        local_command_candidates: &[],
-        local_args: &[],
+        local_command_candidates: &["cursor-agent"],
+        local_args: &["acp"],
     },
     BuiltInAgentDefinition {
         name: "droid",
@@ -234,8 +329,8 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         command: "droid",
         args: &["exec", "--output-format", "acp"],
         env: &[],
-        local_command_candidates: &[],
-        local_args: &[],
+        local_command_candidates: &["droid"],
+        local_args: &["exec", "--output-format", "acp"],
     },
     BuiltInAgentDefinition {
         name: "gemini",
@@ -276,11 +371,11 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
     BuiltInAgentDefinition {
         name: "kiro",
         display_name: "Kiro",
-        command: "npx",
-        args: &["@kiro/kiro-agent@latest", "--acp"],
+        command: "kiro-cli",
+        args: &["acp"],
         env: &[],
-        local_command_candidates: &["kiro-agent"],
-        local_args: &["--acp"],
+        local_command_candidates: &["kiro-cli"],
+        local_args: &["acp"],
     },
     BuiltInAgentDefinition {
         name: "opencode",
@@ -333,8 +428,8 @@ const BUILT_IN_AGENT_DEFINITIONS: &[BuiltInAgentDefinition] = &[
         command: "traecli",
         args: &["acp", "serve"],
         env: &[],
-        local_command_candidates: &[],
-        local_args: &[],
+        local_command_candidates: &["traecli"],
+        local_args: &["acp", "serve"],
     },
 ];
 

@@ -21,7 +21,9 @@ fn system_settings_acp_page_keeps_core_actions() {
         "AcpMessage::AddAgent",
         "NewAgentNameChanged",
         "NewAgentCommandChanged",
-        "NewAgentArgsChanged",
+        "ArgumentChanged",
+        "AcpMessage::TestAgent",
+        "AcpMessage::InstallAgent",
         "\"✓\"",
         "settings_error_banner",
         "settings_success_banner",
@@ -168,6 +170,11 @@ fn acp_catalog_displays_registered_agents() {
         ("trae", "TRAE CLI"),
         ("cursor", "Cursor"),
         ("pi", "PI"),
+        ("codebuddy", "CodeBuddy"),
+        ("goose", "Goose"),
+        ("vibe", "Mistral Vibe"),
+        ("hermes", "Hermes Agent"),
+        ("snow", "Snow CLI"),
     ] {
         assert_eq!(acp_title(key), title, "{key}");
     }

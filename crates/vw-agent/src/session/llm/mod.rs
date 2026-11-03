@@ -43,6 +43,10 @@ mod types;
 #[cfg(not(target_arch = "wasm32"))]
 mod acp;
 #[cfg(not(target_arch = "wasm32"))]
+pub(crate) use acp::controls::{
+    read as read_acp_session_options, select as select_acp_session_option,
+};
+#[cfg(not(target_arch = "wasm32"))]
 mod aisdk;
 
 pub use messages::has_tool_calls;

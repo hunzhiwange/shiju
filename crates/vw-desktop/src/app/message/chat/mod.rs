@@ -23,6 +23,7 @@ use iced::widget::{scrollable, text_editor};
 use std::time::Duration;
 use vw_shared::message::types as agent_message;
 
+mod acp_options;
 pub mod context;
 pub mod input;
 mod processing_timing;
@@ -267,6 +268,13 @@ pub enum ChatMessage {
     ///
     /// 启用/禁用自动选择最佳模型的功能
     AutoModelToggled(bool),
+    AcpOptionsOpen,
+    AcpOptionsClose,
+    AcpOptionSelected(vw_gateway_client::vw_api_types::acp_session::AcpSessionSelection),
+    AcpOptionsLoaded {
+        session_id: String,
+        result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
+    },
     ReasoningEffortSelected(Option<vw_gateway_client::vw_api_types::ReasoningEffortDto>),
     AcpAgentSelected(Option<String>),
     SessionAgentSelected(Option<String>),
@@ -1151,6 +1159,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
     // 根据消息类型路由到对应的子模块处理函数
     let mut task = match message {
+        ChatMessage::AcpOptionsOpen
+        | ChatMessage::AcpOptionsClose
+        | ChatMessage::AcpOptionSelected(_)
+        | ChatMessage::AcpOptionsLoaded { .. } => acp_options::update(app, message),
         // 输入相关消息：文本编辑、悬停状态、滚动、文件搜索、任务模式输入等
         ChatMessage::InputChanged(_)
         | ChatMessage::QuickMessageSelected(_)

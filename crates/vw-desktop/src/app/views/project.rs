@@ -118,11 +118,12 @@ pub fn view(app: &App) -> Element<'_, Message> {
 
     // 使用容器和堆栈将所有层组合在一起
     // 堆栈顺序：base_layout（底层） -> drag_badge_layer -> session_picker_layer（顶层）
-    container(stack![base_layout, drag_badge_layer, session_picker_layer])
+    let base = container(stack![base_layout, drag_badge_layer, session_picker_layer])
         .width(Length::Fill) // 容器宽度填满可用空间
         .height(Length::Fill) // 容器高度填满可用空间
         .style(workspace_background_style)
-        .into() // 将容器转换为 Element
+        .into();
+    crate::app::components::input_panel::acp_options::with_modal(app, base)
 }
 
 fn uses_work_layout(app: &App) -> bool {

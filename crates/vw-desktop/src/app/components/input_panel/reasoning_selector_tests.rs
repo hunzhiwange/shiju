@@ -7,11 +7,10 @@ use super::reasoning_selector::{
 };
 use crate::app::message::chat;
 use crate::app::{Message, message};
-use iced::Length;
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 #[test]
-fn chat_reasoning_effort_selector_uses_agent_options_and_current_session() {
+fn acp_session_options_follow_capabilities_ignore_legacy_reasoning_selection() {
     let codex =
         reasoning_effort_items(reasoning_effort_options("codex"), Some(ReasoningEffortDto::High));
     assert_eq!(
@@ -59,7 +58,7 @@ fn chat_reasoning_effort_selector_uses_agent_options_and_current_session() {
         &mut app,
         message::ChatMessage::ReasoningEffortSelected(Some(ReasoningEffortDto::Xhigh)),
     );
-    assert!(!app.show_reasoning_effort_popover);
+    assert_eq!(app.get_session_runtime("session-a").reasoning_effort, None);
 
     app.active_session_id = Some("session-b".to_string());
     app.get_session_runtime_mut("session-b").acp_agent = Some("claude".to_string());
@@ -68,22 +67,10 @@ fn chat_reasoning_effort_selector_uses_agent_options_and_current_session() {
         message::ChatMessage::ReasoningEffortSelected(Some(ReasoningEffortDto::Max)),
     );
 
-    assert_eq!(
-        app.get_session_runtime("session-a").reasoning_effort,
-        Some(ReasoningEffortDto::Xhigh)
-    );
-    assert_eq!(
-        app.get_session_runtime("session-b").reasoning_effort,
-        Some(ReasoningEffortDto::Max)
-    );
+    assert_eq!(app.get_session_runtime("session-a").reasoning_effort, None);
+    assert_eq!(app.get_session_runtime("session-b").reasoning_effort, None);
 
-    let selector = reasoning_effort_selector(
-        &app,
-        Some("claude"),
-        app.get_session_runtime("session-b").reasoning_effort,
-    )
-    .expect("ACP sessions show the reasoning selector");
-    assert_eq!(selector.as_widget().size().width, Length::Shrink);
+    assert!(reasoning_effort_selector(&app, Some("claude"), None).is_none());
     assert!(reasoning_effort_selector(&app, None, None).is_none());
 }
 
@@ -130,18 +117,12 @@ fn reasoning_effort_label_displays_every_supported_value() {
 }
 
 #[test]
-fn reasoning_effort_selector_builds_expanded_codex_and_default_agent_lists() {
+fn acp_session_options_follow_capabilities_hide_unconnected_reasoning() {
     let (mut app, _task) = crate::app::App::new();
     app.show_reasoning_effort_popover = true;
 
-    let codex_selector = reasoning_effort_selector(&app, Some("codex cli"), None)
-        .expect("codex ACP sessions show the reasoning selector");
-    assert_eq!(codex_selector.as_widget().size().width, Length::Shrink);
-
-    let default_selector =
-        reasoning_effort_selector(&app, Some("unknown"), Some(ReasoningEffortDto::Medium))
-            .expect("unknown ACP sessions still show the default selector");
-    assert_eq!(default_selector.as_widget().size().width, Length::Shrink);
+    assert!(reasoning_effort_selector(&app, Some("codex cli"), None).is_none());
+    assert!(reasoning_effort_selector(&app, Some("unknown"), None).is_none());
 }
 
 #[test]
@@ -285,4 +266,84 @@ fn bundled_shiju_definition_controls_visible_effort_choices() {
             std::iter::once(None).chain(levels.into_iter().map(Some)).collect::<Vec<_>>();
         assert_eq!(options, expected, "{id}");
     }
+}
+
+#[test]
+fn acp_session_options_follow_capabilities_before_connection() {
+    let (app, _) = crate::app::App::new();
+    assert!(
+        reasoning_effort_selector(&app, Some("codex"), None).is_none(),
+        "unconnected ACP sessions must not invent capabilities"
+    );
+}
+
+#[test]
+fn acp_session_options_follow_capabilities_commit_only_acknowledged_values() {
+    use vw_gateway_client::vw_api_types::acp_session::*;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("options-a".into());
+    let options = AcpSessionOptions {
+        connected: true,
+        options: vec![AcpSessionOption {
+            kind: AcpOptionKind::Mode,
+            name: "模式".into(),
+            current: "ask".into(),
+            choices: vec![
+                AcpChoice { id: "ask".into(), name: "询问".into() },
+                AcpChoice { id: "code".into(), name: "编码".into() },
+            ],
+        }],
+    };
+    let runtime = app.get_session_runtime_mut("options-a");
+    runtime.acp_agent = Some("fixture".into());
+    runtime.acp_options = options.clone();
+    runtime.full_access_enabled = false;
+    let _ = chat::update(
+        &mut app,
+        message::ChatMessage::AcpOptionSelected(AcpSessionSelection {
+            kind: AcpOptionKind::Mode,
+            value: "code".into(),
+        }),
+    );
+    assert_eq!(app.get_session_runtime("options-a").acp_options, options);
+    assert!(app.get_session_runtime("options-a").acp_options_pending);
+    let _ = chat::update(
+        &mut app,
+        message::ChatMessage::AcpOptionsLoaded {
+            session_id: "options-a".into(),
+            result: Err("backend rejected selection".into()),
+        },
+    );
+    assert_eq!(app.get_session_runtime("options-a").acp_options, options);
+    assert!(!app.get_session_runtime("options-a").acp_options_pending);
+    let mut confirmed = options.clone();
+    confirmed.options[0].current = "code".into();
+    app.active_session_id = Some("options-b".into());
+    let _ = chat::update(
+        &mut app,
+        message::ChatMessage::AcpOptionsLoaded {
+            session_id: "options-a".into(),
+            result: Ok(confirmed.clone()),
+        },
+    );
+    assert_eq!(app.get_session_runtime("options-a").acp_options, confirmed);
+    assert!(!app.get_session_runtime("options-a").full_access_enabled);
+    assert_eq!(app.get_session_runtime("options-b").acp_options, AcpSessionOptions::default());
+}
+
+#[test]
+fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
+    use vw_gateway_client::vw_api_types::acp_session::*;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("options-unknown".into());
+    app.current_session_runtime_mut().acp_agent = Some("codex".into());
+    let _ = chat::update(
+        &mut app,
+        message::ChatMessage::AcpOptionSelected(AcpSessionSelection {
+            kind: AcpOptionKind::Model,
+            value: "invented".into(),
+        }),
+    );
+    assert!(!app.current_session_runtime().acp_options_pending);
+    assert!(app.current_session_runtime().acp_options.options.is_empty());
 }

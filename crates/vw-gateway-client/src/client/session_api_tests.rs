@@ -811,3 +811,26 @@ fn session_todo_get_blocking_uses_same_route_and_directory_query() {
     assert_eq!(request.header(vw_api_types::id::COMPANY_ID_HEADER), Some("company-session"));
     server.join();
 }
+
+#[tokio::test]
+async fn acp_session_options_follow_capabilities_http_contract() {
+    use vw_api_types::acp_session::{AcpOptionKind, AcpSessionSelection};
+    let server = test_support::server(vec![
+        (200, json!({"connected":false,"options":[]})),
+        (200, json!({"connected":true,"options":[]})),
+        (400, json!({"error":"rejected"})),
+    ]);
+    let client = server.client();
+    assert!(!client.acp_session_options("session-a", Some("/repo")).await.unwrap().connected);
+    let selection = AcpSessionSelection { kind: AcpOptionKind::Mode, value: "code".into() };
+    assert!(
+        client.acp_session_select("session-a", Some("/repo"), &selection).await.unwrap().connected
+    );
+    assert!(client.acp_session_select("session-a", Some("/repo"), &selection).await.is_err());
+    let requests = [server.take_request(), server.take_request(), server.take_request()];
+    server.join();
+    assert_eq!(requests[0].method, "GET");
+    assert!(requests[0].path.contains("/v1/session/session-a/acp-options"));
+    assert_eq!(requests[1].method, "PUT");
+    assert_eq!(requests[1].body, json!({"kind":{"kind":"mode"},"value":"code"}));
+}

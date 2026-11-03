@@ -151,6 +151,12 @@ impl AcpClient {
         } else {
             conn.new_session(request).await.map_err(|err| AcpError::NewSession(err.to_string()))?
         };
+        self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
+            session_id: session.session_id.to_string(),
+            modes: session.modes.clone(),
+            models: session.models.clone(),
+            config_options: session.config_options.clone(),
+        });
         Ok(SessionInfo {
             session_id: session.session_id.0.to_string(),
             models: session.models,
@@ -180,6 +186,12 @@ impl AcpClient {
             )
             .await
             .map_err(|err| AcpError::LoadSession(err.to_string()))?;
+        self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
+            session_id: session_id.clone(),
+            modes: response.modes.clone(),
+            models: response.models.clone(),
+            config_options: response.config_options.clone(),
+        });
         Ok(SessionInfo {
             session_id,
             models: response.models,
@@ -209,6 +221,12 @@ impl AcpClient {
             )
             .await
             .map_err(|err| AcpError::ResumeSession(err.to_string()))?;
+        self.actor_state.lock().session_capabilities = Some(crate::SessionCapabilities {
+            session_id: session_id.clone(),
+            modes: response.modes.clone(),
+            models: response.models.clone(),
+            config_options: response.config_options.clone(),
+        });
         Ok(SessionInfo {
             session_id,
             models: response.models,

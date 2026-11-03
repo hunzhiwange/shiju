@@ -23,6 +23,16 @@ impl AcpClient {
             .is_some_and(|active_session_id| active_session_id == session_id)
     }
 
+    /// Return advertised capabilities only while this actor owns the live session.
+    pub fn session_capabilities(&self, session_id: &str) -> Option<crate::SessionCapabilities> {
+        let state = self.actor_state.lock();
+        if state.lifecycle.pid.is_none() || state.reusable_session_id.as_deref() != Some(session_id)
+        {
+            return None;
+        }
+        state.session_capabilities.as_ref().filter(|info| info.session_id == session_id).cloned()
+    }
+
     /// 获取当前代理进程生命周期快照。
     pub fn get_agent_lifecycle_snapshot(&self) -> AgentLifecycleSnapshot {
         self.actor_state.lock().lifecycle.clone()

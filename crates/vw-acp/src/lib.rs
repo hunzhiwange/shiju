@@ -236,8 +236,9 @@ pub use session_events::{
     SessionEventAppendOptions, SessionEventWriter, SessionEventWriterOptions, list_session_events,
 };
 pub use session_mode_preference::{
-    get_desired_mode_id, get_desired_model_id, normalize_mode_id, set_current_model_id,
-    set_desired_mode_id, set_desired_model_id, sync_advertised_model_state,
+    get_desired_config_options, get_desired_mode_id, get_desired_model_id, normalize_mode_id,
+    set_current_model_id, set_desired_config_option, set_desired_mode_id, set_desired_model_id,
+    sync_advertised_model_state, sync_config_options,
 };
 pub use session_persistence::{
     DEFAULT_HISTORY_LIMIT, FindSessionByDirectoryWalkOptions, FindSessionOptions,

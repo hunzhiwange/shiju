@@ -32,6 +32,7 @@
 //! - `usage_button`: 使用量显示按钮
 
 // 子模块声明
+pub(crate) mod acp_options;
 pub(crate) mod agent_sessions;
 pub(crate) mod attachment;
 pub(crate) mod drop_area;
@@ -607,13 +608,19 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .on_close(Message::View(message::ViewMessage::CloseModelPopover))
         .into();
 
+    let model_btn: Element<'_, Message> =
+        if selected_acp_agent.is_some() { Space::new().into() } else { model_btn };
+
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);
     let acp_btn =
         acp_selector_button(app, selected_acp_agent.clone(), app.current_session_has_started());
-    let reasoning_btn =
-        reasoning_effort_selector(app, selected_acp_agent.as_deref(), reasoning_effort);
+    let reasoning_btn = if selected_acp_agent.is_some() {
+        Some(acp_options::button(app))
+    } else {
+        reasoning_effort_selector(app, None, reasoning_effort)
+    };
     let permission_btn = Some(full_access_button(
         crate::app::i18n::I18n::new(app.desktop_locale),
         has_permission_context,

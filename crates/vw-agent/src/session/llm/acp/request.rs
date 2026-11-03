@@ -182,7 +182,12 @@ pub(crate) async fn do_stream_request_acp(
         };
 
         let acp_session_id = record.acp_session_id.clone();
-        if let Some(mode_id) = parsed_options.session_mode.clone() {
+        if !super::controls::has_saved_config_category(
+            &record,
+            agent_client_protocol::SessionConfigOptionCategory::Mode,
+        ) && let Some(mode_id) = vw_acp::get_desired_mode_id(record.vwacp.as_ref())
+            .or_else(|| parsed_options.session_mode.clone())
+        {
             if let Err(err) = cached_client
                 .client
                 .set_session_mode(acp_session_id.clone(), &cwd, mode_id)
@@ -198,8 +203,13 @@ pub(crate) async fn do_stream_request_acp(
                 return Err(err);
             }
         }
-        if let Some(model_id) =
-            parsed_options.session_options.as_ref().and_then(|options| options.model.clone())
+        if !super::controls::has_saved_config_category(
+            &record,
+            agent_client_protocol::SessionConfigOptionCategory::Model,
+        ) && let Some(model_id) =
+            vw_acp::get_desired_model_id(record.vwacp.as_ref()).or_else(|| {
+                parsed_options.session_options.as_ref().and_then(|options| options.model.clone())
+            })
         {
             if let Err(err) = cached_client
                 .client
@@ -216,7 +226,18 @@ pub(crate) async fn do_stream_request_acp(
                 return Err(err);
             }
         }
-        for (config_id, value) in parsed_options.session_config_options.clone() {
+        let mut config_options: std::collections::BTreeMap<_, _> =
+            parsed_options.session_config_options.iter().cloned().collect();
+        if super::controls::has_saved_config_category(
+            &record,
+            agent_client_protocol::SessionConfigOptionCategory::ThoughtLevel,
+        ) {
+            config_options.retain(|id, _| {
+                !matches!(id.as_str(), "reasoning_effort" | "thought_level" | "effort")
+            });
+        }
+        config_options.extend(vw_acp::get_desired_config_options(record.vwacp.as_ref()));
+        for (config_id, value) in config_options {
             if let Err(err) = cached_client
                 .client
                 .set_session_config_option(acp_session_id.clone(), &cwd, config_id, value)

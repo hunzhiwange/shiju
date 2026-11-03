@@ -1272,6 +1272,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             persist_chat_preferences(app, &model, auto_model, app.acp_agent.as_deref())
         }
         ChatMessage::ReasoningEffortSelected(reasoning_effort) => {
+            if app.current_session_runtime().acp_agent.is_some() {
+                return Task::none();
+            }
             app.current_session_runtime_mut().reasoning_effort = reasoning_effort;
             app.reasoning_effort = reasoning_effort;
             app.show_reasoning_effort_popover = false;

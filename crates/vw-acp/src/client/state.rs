@@ -49,6 +49,7 @@ pub(super) struct AcpClientActorState {
     pub(super) handle: Option<AcpClientActorHandle>,
     pub(super) reusable_session_id: Option<String>,
     pub(super) lifecycle: AgentLifecycleSnapshot,
+    pub(super) session_capabilities: Option<crate::SessionCapabilities>,
 }
 
 pub(super) struct AcpClientActorHandle {

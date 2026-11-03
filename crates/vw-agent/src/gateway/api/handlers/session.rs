@@ -7,6 +7,7 @@
 //! - `ui_ops`: UI 快照、归档、scope 等 UI store 相关处理器
 //! - `shared`: 多个处理器共享的查询体与辅助函数
 
+mod acp_options;
 mod message_ops;
 mod raw_commit;
 mod session_ops;
@@ -55,6 +56,7 @@ pub(crate) fn router() -> Router<AppState> {
         .route("/chat/stream/{request_id}/stop", post(chat_stream_stop))
         .route("/session", get(ui_session_list).post(ui_session_create))
         .route("/session/status", get(ui_session_status))
+        .route("/session/{session_id}/acp-options", get(acp_options::get).put(acp_options::set))
         .route(
             "/session/{session_id}",
             get(ui_session_get).patch(ui_session_patch).delete(ui_session_delete),

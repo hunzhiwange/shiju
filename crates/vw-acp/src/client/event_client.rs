@@ -13,6 +13,31 @@ impl AcpClient {
         event_tx: mpsc::UnboundedSender<InternalEvent>,
     ) -> AcpEventClient {
         let on_operation = self.on_client_operation.clone();
+        let actor_state = Arc::downgrade(&self.actor_state);
+        let on_update = self.on_session_update.clone();
+        let on_session_update: SessionUpdateCallback = Arc::new(move |notification| {
+            if let Some(state) = actor_state.upgrade() {
+                let mut state = state.lock();
+                if let Some(info) = state.session_capabilities.as_mut()
+                    && info.session_id == notification.session_id.to_string()
+                {
+                    match &notification.update {
+                        acp::SessionUpdate::ConfigOptionUpdate(update) => {
+                            info.config_options = Some(update.config_options.clone())
+                        }
+                        acp::SessionUpdate::CurrentModeUpdate(update) => {
+                            if let Some(modes) = info.modes.as_mut() {
+                                modes.current_mode_id = update.current_mode_id.clone();
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            if let Some(callback) = &on_update {
+                callback(notification);
+            }
+        });
         AcpEventClient {
             expected_session_id,
             event_tx,
@@ -34,7 +59,7 @@ impl AcpClient {
             }),
             permission_mode: self.permission_mode,
             non_interactive_permissions: self.non_interactive_permissions,
-            on_session_update: self.on_session_update.clone(),
+            on_session_update: Some(on_session_update),
             permission_stats: self.permission_stats.clone(),
             cancelling_session_ids: self.cancelling_session_ids.clone(),
         }

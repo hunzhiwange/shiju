@@ -133,3 +133,9 @@ name = "plugin-compat-window"
 path = "src/plugin_compat_window_main.rs"
 harness = false
 test = false
+
+[[test]]
+name = "acp-options-window"
+path = "src/acp_options_window_main.rs"
+harness = false
+test = false

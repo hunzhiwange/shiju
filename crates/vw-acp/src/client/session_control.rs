@@ -92,10 +92,15 @@ impl AcpClient {
             .conn
             .set_session_mode(acp::SetSessionModeRequest::new(
                 acp::SessionId::new(session_id.clone()),
-                mode_id,
+                mode_id.clone(),
             ))
             .await
             .map_err(|err| AcpError::Prompt(err.to_string()))?;
+        if let Some(info) = self.actor_state.lock().session_capabilities.as_mut()
+            && let Some(modes) = info.modes.as_mut()
+        {
+            modes.current_mode_id = mode_id.into();
+        }
         self.store_reusable_session(Some(session_id));
         Ok(())
     }
@@ -136,6 +141,9 @@ impl AcpClient {
                     AcpError::SetSessionConfigOption,
                 )
             })?;
+        if let Some(info) = self.actor_state.lock().session_capabilities.as_mut() {
+            info.config_options = Some(response.config_options.clone());
+        }
         self.store_reusable_session(Some(session_id));
         Ok(response)
     }
@@ -163,7 +171,7 @@ impl AcpClient {
             .conn
             .set_session_model(acp::SetSessionModelRequest::new(
                 acp::SessionId::new(session_id.clone()),
-                model,
+                model.clone(),
             ))
             .await
             .map_err(|err| {
@@ -174,6 +182,11 @@ impl AcpClient {
                     AcpError::SetSessionModel,
                 )
             })?;
+        if let Some(info) = self.actor_state.lock().session_capabilities.as_mut()
+            && let Some(models) = info.models.as_mut()
+        {
+            models.current_model_id = model.into();
+        }
         self.store_reusable_session(Some(session_id));
         Ok(())
     }

@@ -143,6 +143,9 @@ pub(super) fn reasoning_effort_selector<'a>(
     agent: Option<&str>,
     current: Option<ReasoningEffortDto>,
 ) -> Option<Element<'a, Message>> {
+    if agent.is_some() {
+        return None;
+    }
     let runtime = app.current_session_runtime_ref();
     let model = runtime.map(|runtime| runtime.model.as_str()).unwrap_or(&app.model);
     let options = match agent {

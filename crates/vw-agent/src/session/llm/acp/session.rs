@@ -67,6 +67,7 @@ fn acp_client_cache_key(
     env.sort_by(|left, right| left.0.cmp(right.0));
 
     json!({
+        "tenant": crate::session::ui_store::current_tenant_scope(),
         "agentName": acp_agent_name,
         "command": acp_cfg.command,
         "args": acp_cfg.args,
@@ -121,6 +122,7 @@ fn build_cached_acp_client(
     .with_verbose(false);
 
     Arc::new(CachedAcpClient {
+        tenant: crate::session::ui_store::current_tenant_scope(),
         client: Arc::new(client),
         prompt_lock: Arc::new(tokio::sync::Mutex::new(())),
         output_tx,

@@ -115,6 +115,31 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
 }
 
 impl GatewayClient {
+    pub async fn acp_session_options(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+        self.get_json(
+            &format!("{}/acp-options", session_path(session_id)?),
+            &directory_query(directory),
+        )
+        .await
+    }
+    pub async fn acp_session_select(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+        selection: &vw_api_types::acp_session::AcpSessionSelection,
+    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+        self.put_json(
+            &format!("{}/acp-options", session_path(session_id)?),
+            &directory_query(directory),
+            selection,
+        )
+        .await
+    }
+
     /// 按可恢复流请求标识幂等停止聊天运行。
     pub async fn chat_stream_stop(&self, request_id: &str) -> Result<bool, String> {
         let path = format!(

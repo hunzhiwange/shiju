@@ -35,6 +35,7 @@ use super::types::{Error, StreamEvent, ToolCall};
 
 mod config;
 mod content;
+pub(crate) mod controls;
 mod replay;
 pub(super) mod request;
 mod session;
@@ -48,6 +49,7 @@ static ACP_CLIENT_CACHE: LazyLock<Mutex<HashMap<String, Arc<CachedAcpClient>>>> 
 /// 同一个 ACP 代理进程会复用客户端连接；`prompt_lock` 用来串行化同一客户端上的 prompt，
 /// `output_tx` 则在请求运行期间临时接收 ACP JSON-RPC 输出回调。
 struct CachedAcpClient {
+    tenant: vw_api_types::id::TenantScope,
     client: Arc<AcpClient>,
     prompt_lock: Arc<tokio::sync::Mutex<()>>,
     output_tx: Arc<Mutex<Option<mpsc::UnboundedSender<AcpJsonRpcMessage>>>>,

@@ -665,3 +665,12 @@ pub enum SessionSendOutcome {
     SessionSendResult(Box<SessionSendResult>),
     SessionEnqueueResult(SessionEnqueueResult),
 }
+
+/// Capabilities advertised for the currently connected session.
+#[derive(Debug, Clone)]
+pub struct SessionCapabilities {
+    pub session_id: String,
+    pub modes: Option<agent_client_protocol::SessionModeState>,
+    pub models: Option<SessionModelState>,
+    pub config_options: Option<Vec<SessionConfigOption>>,
+}

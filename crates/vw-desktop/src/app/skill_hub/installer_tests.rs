@@ -1,5 +1,5 @@
 //! 技能安装器测试，覆盖归档校验、目标目录解析、版本检测和卸载边界。
-//! 路径穿越、符号链接及无效清单必须在替换现有安装前失败，确保操作可控。
+//! 路径穿越、不安全符号链接及无效清单必须在替换现有安装前失败。
 
 use super::installer::{
     ShijuKeySyncOutcome, SkillInstallScope, SkillInstallSelection, SkillInstallTarget,
@@ -564,4 +564,71 @@ fn desktop_gettext_area_14_installer_error_retains_context_for_language_switch()
         feedback.render(I18n::new(DesktopLocale::TraditionalChinese)).unwrap(),
         "識矩技能安裝失敗：無法讀取識矩技能安裝包"
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn project_skills_link_supports_install_detection_key_sync_and_uninstall() {
+    let temp = tempfile::tempdir().unwrap();
+    let home = temp.path().join("home");
+    let project = temp.path().join("project");
+    fs::create_dir(&home).unwrap();
+    fs::create_dir_all(project.join(".claude")).unwrap();
+    fs::create_dir(project.join("skills")).unwrap();
+    std::os::unix::fs::symlink("../skills", project.join(".claude/skills")).unwrap();
+    let selections = [SkillInstallSelection {
+        target: SkillInstallTarget::ClaudeCode,
+        scope: SkillInstallScope::Project,
+    }];
+    fs::create_dir(project.join(".codex")).unwrap();
+    std::os::unix::fs::symlink("../skills", project.join(".codex/skills")).unwrap();
+    let selections = [
+        selections[0],
+        SkillInstallSelection {
+            target: SkillInstallTarget::Codex,
+            scope: SkillInstallScope::Project,
+        },
+    ];
+    let report = shiju_installations_for_targets(&home, Some(&project), &selections).unwrap();
+    assert_eq!(report.targets.len(), 2);
+    assert!(report.targets.iter().all(|target| target.installation.is_none()));
+    let archive = temp.path().join("shiju.zip");
+    write_archive(&archive, &[("shiju/SKILL.md", 0o100644, "---\nversion: 1.2.3\n---\n")]);
+    install_shiju_archive_for_targets(&archive, &home, Some(&project), &selections).unwrap();
+    let report = shiju_installations_for_targets(&home, Some(&project), &selections).unwrap();
+    assert_eq!(report.targets[0].installation.as_ref().unwrap().version.as_deref(), Some("1.2.3"));
+    sync_shiju_key_for_targets(
+        &home,
+        Some(&project),
+        &selections,
+        &SecretSkey::new("fixture-key").unwrap(),
+    )
+    .unwrap();
+    assert_eq!(
+        fs::read_to_string(project.join("skills/shiju/.env")).unwrap(),
+        "SHIJU_KEY=fixture-key\n"
+    );
+    uninstall_shiju_for_targets(&home, Some(&project), &selections).unwrap();
+    assert!(!project.join("skills/shiju").exists());
+    assert!(fs::symlink_metadata(project.join(".claude/skills")).unwrap().file_type().is_symlink());
+}
+
+#[cfg(unix)]
+#[test]
+fn project_skills_link_rejects_escape_dangling_and_cycles() {
+    let temp = tempfile::tempdir().unwrap();
+    let project = temp.path().join("project");
+    fs::create_dir_all(project.join(".claude")).unwrap();
+    let link = project.join(".claude/skills");
+    let selections = [SkillInstallSelection {
+        target: SkillInstallTarget::ClaudeCode,
+        scope: SkillInstallScope::Project,
+    }];
+    for target in [temp.path().to_path_buf(), project.join("missing"), link.clone()] {
+        std::os::unix::fs::symlink(target, &link).unwrap();
+        let error =
+            shiju_installations_for_targets(temp.path(), Some(&project), &selections).unwrap_err();
+        assert!(error.to_string().contains("符号链接"));
+        fs::remove_file(&link).unwrap();
+    }
 }

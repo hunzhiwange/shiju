@@ -369,9 +369,13 @@ pub(crate) fn install_shiju_archive_for_targets(
     let version = read_manifest_version(&package_root.join(SKILL_MANIFEST))?;
 
     let mut installs = Vec::with_capacity(destinations.len());
+    let mut seen_roots = HashSet::new();
     for destination in &destinations {
         let skills_root = ensure_destination_root(destination)?;
         ensure_replaceable_target(&destination.installed_dir)?;
+        if !seen_roots.insert(fs::canonicalize(&skills_root)?) {
+            continue;
+        }
         let staging = Builder::new()
             .prefix(".shiju-installing-")
             .tempdir_in(&skills_root)
@@ -484,8 +488,12 @@ pub(crate) fn uninstall_shiju_for_targets(
 ) -> Result<ShijuUninstallReport> {
     let installations = shiju_installations_for_targets(home, project_root, selections)?;
     let mut removals = Vec::new();
+    let mut seen_installs = HashSet::new();
     for target in &installations.targets {
         if target.installation.is_none() {
+            continue;
+        }
+        if !seen_installs.insert(fs::canonicalize(&target.destination.installed_dir)?) {
             continue;
         }
         let backup = Builder::new()
@@ -543,6 +551,7 @@ pub(crate) fn sync_shiju_key_for_targets(
     let destinations = resolve_skill_destinations(home, project_root, selections)?;
     let mut outcomes = Vec::with_capacity(destinations.len());
     let mut prepared = Vec::new();
+    let mut seen_installs = HashSet::new();
     for destination in destinations {
         let Some(existing) = read_existing_shiju_env(&destination)? else {
             outcomes.push(ShijuTargetKeySync {
@@ -551,6 +560,11 @@ pub(crate) fn sync_shiju_key_for_targets(
             });
             continue;
         };
+        if !seen_installs.insert(fs::canonicalize(&destination.installed_dir)?) {
+            outcomes
+                .push(ShijuTargetKeySync { destination, outcome: ShijuKeySyncOutcome::Updated });
+            continue;
+        }
         let updated = update_shiju_env(&existing.contents, exposed);
         let mut temporary = Builder::new()
             .prefix(".shiju-env-")
@@ -683,6 +697,26 @@ fn update_shiju_env(existing: &str, skey: &str) -> String {
     updated
 }
 
+// 仅允许 skills 目录链接到当前安装范围内，工具配置目录仍不得为链接。
+fn resolve_skills_root_link(
+    destination: &ResolvedSkillDestination,
+    path: &Path,
+) -> Result<PathBuf> {
+    let resolved = fs::canonicalize(path).ok();
+    let base = fs::canonicalize(&destination.base_dir)?;
+    if path == destination.skills_root
+        && let Some(resolved) = resolved
+        && resolved.starts_with(&base)
+        && resolved.is_dir()
+    {
+        return Ok(resolved);
+    }
+    bail!(super::SkillHubError::localized(
+        "技能安装目录不能包含符号链接: %s",
+        vec![path.display().to_string()]
+    ));
+}
+
 fn existing_destination_root(destination: &ResolvedSkillDestination) -> Result<Option<PathBuf>> {
     let mut current = destination.base_dir.clone();
     for component in destination.relative_skills_root.components() {
@@ -693,10 +727,8 @@ fn existing_destination_root(destination: &ResolvedSkillDestination) -> Result<O
         match fs::symlink_metadata(&current) {
             Ok(metadata) => {
                 if metadata.file_type().is_symlink() {
-                    bail!(super::SkillHubError::localized(
-                        "技能安装目录不能包含符号链接: %s",
-                        vec![(current.display()).to_string()]
-                    ));
+                    current = resolve_skills_root_link(destination, &current)?;
+                    continue;
                 }
                 if !metadata.is_dir() {
                     bail!(super::SkillHubError::localized(
@@ -817,10 +849,8 @@ fn ensure_destination_root(destination: &ResolvedSkillDestination) -> Result<Pat
         match fs::symlink_metadata(&current) {
             Ok(metadata) => {
                 if metadata.file_type().is_symlink() {
-                    bail!(super::SkillHubError::localized(
-                        "技能安装目录不能包含符号链接: %s",
-                        vec![(current.display()).to_string()]
-                    ));
+                    current = resolve_skills_root_link(destination, &current)?;
+                    continue;
                 }
                 if !metadata.is_dir() {
                     bail!(super::SkillHubError::localized(

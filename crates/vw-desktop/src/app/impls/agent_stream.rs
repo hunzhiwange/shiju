@@ -2079,6 +2079,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
         100,
         move |mut output: iced::futures::channel::mpsc::Sender<Message>| async move {
             let endpoint = crate::app::config::gateway_client_endpoint();
+            info!(target: "vw_desktop", request_id = req.id, session_id = %req.session, endpoint = %endpoint.describe(), "desktop preparing gateway stream");
             let rpc_id = desktop_stream_request_id(&req);
             let client_time_zone = crate::app::config::load_system_settings_config_async()
                 .await
@@ -2172,6 +2173,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 "starting gateway agent stream"
             );
 
+            let mut received_delta = false;
             let mut reconnect = GatewayReconnectState::new(rpc_id);
             stream_done = false;
 
@@ -2436,6 +2438,10 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
 
                             let next_message = match event {
                                 vw_gateway_client::GatewayChatStreamEvent::Delta(delta) => {
+                                    if !received_delta && !delta.is_empty() {
+                                        received_delta = true;
+                                        info!(target: "vw_desktop", request_id = req.id, session_id = %req.session, event_id, "desktop received first gateway delta");
+                                    }
                                     tracing::debug!(
                                         target: "vw_desktop",
                                         request_id = req.id,

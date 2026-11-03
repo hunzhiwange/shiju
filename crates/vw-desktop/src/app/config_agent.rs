@@ -136,6 +136,46 @@ fn build_acp_agent_create_patch(
     build_acp_agent_enabled_patch(agent_name, true, Some(spec), catalog, configured)
 }
 
+fn build_acp_agent_edit_patch(
+    agent_name: &str,
+    spec: AcpAgentConfig,
+    catalog: &HashMap<String, AcpAgentConfig>,
+    configured: HashMap<String, AcpAgentConfig>,
+) -> Result<serde_json::Value, String> {
+    let name = agent_name.trim();
+    let old = catalog.get(name).ok_or_else(|| format!("unknown acp agent: {name}"))?;
+    if spec.command.trim().is_empty() {
+        return Err("acp agent command must not be empty".into());
+    }
+    let mut value = serde_json::to_value(&spec).map_err(|err| err.to_string())?;
+    for key in old.env.keys().chain(configured.get(name).into_iter().flat_map(|v| v.env.keys())) {
+        if !spec.env.contains_key(key) {
+            value["env"][key] = serde_json::Value::Null;
+        }
+    }
+    let mut patch = serde_json::json!({"acp_saved": {name: value.clone()}});
+    if resolve_enabled_acp_config(catalog, configured.clone()).contains_key(name) {
+        let enabled_patch =
+            build_acp_agent_enabled_patch(name, true, Some(spec), catalog, configured)?;
+        patch["acp"] = enabled_patch["acp"].clone();
+        patch["acp"][name] = value;
+    }
+    Ok(patch)
+}
+
+/// Save launch settings without changing the driver's enabled state.
+pub async fn save_global_acp_agent_async(
+    agent_name: String,
+    spec: AcpAgentConfig,
+) -> Result<AcpSettingsSnapshot, String> {
+    let snapshot = load_acp_settings_snapshot_async().await?;
+    let catalog = snapshot.catalog.into_iter().collect();
+    let configured = fetch_global_agent_config_via_gateway().await?.acp;
+    let patch = build_acp_agent_edit_patch(&agent_name, spec, &catalog, configured)?;
+    patch_agent_config_via_gateway(&patch).await?;
+    load_acp_settings_snapshot_async().await
+}
+
 fn build_main_agent_overrides_patch(config: &Config) -> Result<Option<serde_json::Value>, String> {
     let Some(main) = config.agents.get("main") else {
         return Ok(None);
@@ -363,9 +403,10 @@ pub async fn load_enabled_acp_config_async() -> Result<HashMap<String, AcpAgentC
 }
 
 pub async fn load_acp_settings_snapshot_async() -> Result<AcpSettingsSnapshot, String> {
-    let catalog = fetch_global_acp_config_via_gateway().await?;
-    let enabled = fetch_global_agent_config_via_gateway().await?.acp;
-    let enabled = resolve_enabled_acp_config(&catalog, enabled);
+    let mut catalog = fetch_global_acp_config_via_gateway().await?;
+    let config = fetch_global_agent_config_via_gateway().await?;
+    catalog.extend(config.acp_saved);
+    let enabled = resolve_enabled_acp_config(&catalog, config.acp);
 
     Ok(AcpSettingsSnapshot {
         catalog: catalog.into_iter().collect(),
@@ -1629,3 +1670,7 @@ pub async fn update_gateway_config_result_async(
     let value = serde_json::to_value(cfg).map_err(|err| err.to_string())?;
     patch_full_agent_config_async(serde_json::json!({ "gateway": value })).await
 }
+
+#[cfg(test)]
+#[path = "config_agent_tests.rs"]
+mod tests;

@@ -33,8 +33,9 @@ use crate::app::agent::project;
 async fn merged_global_acp_config() -> HashMap<String, config::schema::AcpAgentConfig> {
     let global_cfg = config::get_global().await;
     let overrides = global_cfg
-        .acp
+        .acp_saved
         .iter()
+        .chain(global_cfg.acp.iter())
         .map(|(name, spec)| {
             (
                 name.clone(),

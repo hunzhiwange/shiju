@@ -233,6 +233,10 @@ pub struct Config {
     #[serde(default)]
     pub acp: HashMap<String, AcpAgentConfig>,
 
+    /// Saved ACP launch settings, independent of enabled membership.
+    #[serde(default)]
+    pub acp_saved: HashMap<String, AcpAgentConfig>,
+
     #[serde(default, rename = "mcpServers", skip_serializing_if = "Vec::is_empty")]
     pub mcp_servers: Vec<serde_json::Value>,
 
@@ -371,6 +375,7 @@ impl Default for Config {
             model_support_vision: None,
             app_ui: AppUiConfig::default(),
             acp: HashMap::new(),
+            acp_saved: HashMap::new(),
             mcp_servers: Vec::new(),
             mcp_server_overrides: Vec::new(),
         }

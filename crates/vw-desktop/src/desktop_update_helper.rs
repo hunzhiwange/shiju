@@ -28,12 +28,16 @@ struct UpdateRequest {
     ready: PreparedDesktopUpdate,
     executable: PathBuf,
     parent_pid: u32,
+    locale: vw_config_types::ui::DesktopLocale,
     macos_stage: Option<PathBuf>,
 }
 
 /// Start a copy outside the installation tree so Windows can release the old executable.
 /// The original app exits only after the helper acknowledges a validated request.
-pub(crate) fn start(ready: &PreparedDesktopUpdate) -> Result<()> {
+pub(crate) fn start(
+    ready: &PreparedDesktopUpdate,
+    locale: vw_config_types::ui::DesktopLocale,
+) -> Result<()> {
     verify_ready(ready)?;
     let executable = std::env::current_exe()?.canonicalize()?;
     preflight(&executable, ready)?;
@@ -46,6 +50,7 @@ pub(crate) fn start(ready: &PreparedDesktopUpdate) -> Result<()> {
         ready: ready.clone(),
         executable: executable.clone(),
         parent_pid: std::process::id(),
+        locale,
         #[cfg(target_os = "macos")]
         macos_stage: Some(stage.path().to_owned()),
         #[cfg(not(target_os = "macos"))]
@@ -110,6 +115,7 @@ pub fn run_if_requested() -> Option<Result<()>> {
         let request: UpdateRequest = serde_json::from_str(&input)?;
         verify_ready(&request.ready)?;
         preflight(&request.executable, &request.ready)?;
+        let i18n = crate::app::i18n::I18n::new(request.locale);
         let parent = ParentProcess::open(request.parent_pid)?;
         println!("ready");
         std::io::stdout().flush()?;
@@ -117,8 +123,8 @@ pub fn run_if_requested() -> Option<Result<()>> {
         match result {
             Ok(()) => {
                 let answer = rfd::MessageDialog::new()
-                    .set_title("ShiJu 更新完成")
-                    .set_description("升级已完成，是否立即启动新版？")
+                    .set_title(i18n.__("ShiJu 更新完成"))
+                    .set_description(i18n.__("升级已完成，是否立即启动新版？"))
                     .set_buttons(rfd::MessageButtons::YesNo)
                     .show();
                 if answer == rfd::MessageDialogResult::Yes {
@@ -126,8 +132,12 @@ pub fn run_if_requested() -> Option<Result<()>> {
                         #[cfg(target_os = "macos")]
                         macos::rollback(&request)?;
                         rfd::MessageDialog::new()
-                            .set_title("ShiJu 启动失败")
-                            .set_description(format!("{error:#}\n请从应用安装目录重新启动。"))
+                            .set_title(i18n.__("ShiJu 启动失败"))
+                            .set_description(crate::app::i18n::native::update_diagnostic(
+                                i18n,
+                                &format!("{error:#}"),
+                                true,
+                            ))
                             .set_level(rfd::MessageLevel::Error)
                             .show();
                         return Err(error.context("启动新版失败"));
@@ -139,8 +149,12 @@ pub fn run_if_requested() -> Option<Result<()>> {
             Err(error) => {
                 eprintln!("更新失败：{error:#}");
                 rfd::MessageDialog::new()
-                    .set_title("ShiJu 更新失败")
-                    .set_description(format!("{error:#}\n安装包已保留，可重新启动应用后重试。"))
+                    .set_title(i18n.__("ShiJu 更新失败"))
+                    .set_description(crate::app::i18n::native::update_diagnostic(
+                        i18n,
+                        &format!("{error:#}"),
+                        false,
+                    ))
                     .set_level(rfd::MessageLevel::Error)
                     .show();
                 return Err(error);

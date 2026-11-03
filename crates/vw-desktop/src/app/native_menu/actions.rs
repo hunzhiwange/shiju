@@ -20,6 +20,7 @@ pub(crate) struct WindowTabEntry {
 /// 驱动原生菜单重建的状态快照。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct NativeMenuSnapshot {
+    pub(crate) locale: vw_config_types::ui::DesktopLocale,
     pub(crate) is_project: bool,
     pub(crate) workspace_mode: WorkspaceMode,
     pub(crate) show_file_manager: bool,
@@ -32,6 +33,7 @@ pub(crate) const WINDOW_TAB_MENU_ID_PREFIX: &str = "native.window.tab.";
 impl NativeMenuSnapshot {
     pub(crate) fn from_app(app: &App) -> Self {
         Self {
+            locale: app.desktop_locale,
             is_project: matches!(app.screen, Screen::Project),
             workspace_mode: app.workspace_mode,
             show_file_manager: app.show_file_manager,
@@ -58,7 +60,12 @@ fn window_tab_entries(app: &App) -> Vec<WindowTabEntry> {
         .filter(|tab| !tab.id.starts_with("find:"))
         .map(|tab| WindowTabEntry {
             id: tab.id.clone(),
-            title: window_tab_title(tab.title.as_str(), tab.project_path.as_deref()),
+            title: crate::app::i18n::native::tab_title(
+                crate::app::i18n::I18n::new(app.desktop_locale),
+                window_tab_title(tab.title.as_str(), tab.project_path.as_deref()),
+                tab.title.trim().is_empty()
+                    && tab.project_path.as_deref().is_none_or(|path| path.trim().is_empty()),
+            ),
             active: app.active_tab_id.as_deref() == Some(tab.id.as_str()),
         })
         .collect()

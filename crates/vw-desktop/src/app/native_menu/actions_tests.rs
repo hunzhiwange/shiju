@@ -19,6 +19,7 @@ fn test_app(screen: Screen) -> App {
 
 fn snapshot_with(tabs: Vec<WindowTabEntry>) -> NativeMenuSnapshot {
     NativeMenuSnapshot {
+        locale: vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         is_project: true,
         workspace_mode: WorkspaceMode::Work,
         show_file_manager: true,
@@ -87,13 +88,18 @@ fn resolve_non_project_edit_actions_are_unavailable() {
 #[test]
 fn menu_sections_exclude_browser_and_follow_workspace_mode() {
     let code = NativeMenuSnapshot {
+        locale: vw_config_types::ui::DesktopLocale::SimplifiedChinese,
         workspace_mode: WorkspaceMode::Code,
         show_file_manager: false,
         file_manager_show_changes: false,
         open_window_tabs: Vec::new(),
         ..snapshot_with(Vec::new())
     };
-    let work = NativeMenuSnapshot { file_manager_show_changes: true, ..snapshot_with(Vec::new()) };
+    let work = NativeMenuSnapshot {
+        locale: vw_config_types::ui::DesktopLocale::SimplifiedChinese,
+        file_manager_show_changes: true,
+        ..snapshot_with(Vec::new())
+    };
 
     let sections = menu_sections(&code);
     assert_eq!(sections.len(), 3);
@@ -185,4 +191,15 @@ fn native_menu_action_ids_are_unique() {
     sorted.sort_unstable();
     sorted.dedup();
     assert_eq!(sorted.len(), ids.len());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn desktop_gettext_area_17_native_snapshot_tracks_language_changes() {
+    let mut app = test_app(Screen::Project);
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::English;
+    let english = NativeMenuSnapshot::from_app(&app);
+    app.desktop_locale = vw_config_types::ui::DesktopLocale::TraditionalChinese;
+    let traditional = NativeMenuSnapshot::from_app(&app);
+    assert_ne!(english, traditional);
+    assert_eq!(traditional.locale, app.desktop_locale);
 }

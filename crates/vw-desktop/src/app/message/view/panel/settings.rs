@@ -461,12 +461,13 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ready) = app.desktop_update.ready.clone() {
+                let locale = app.desktop_locale;
                 app.desktop_update.busy = true;
                 app.cli_install_modal_is_checking_update = true;
                 return Task::perform(
                     async move {
                         tokio::task::spawn_blocking(move || {
-                            crate::app::installer_update::open_desktop_installer(&ready)
+                            crate::app::installer_update::open_desktop_installer(&ready, locale)
                         })
                         .await
                         .map_err(|error| error.to_string())?

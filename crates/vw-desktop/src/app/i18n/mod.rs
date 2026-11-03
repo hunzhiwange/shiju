@@ -101,3 +101,8 @@ mod modals_tests;
 mod gettext_area_16_tests;
 
 pub mod editor;
+
+#[cfg(test)]
+mod gettext_area_17_tests;
+
+pub(crate) mod native;

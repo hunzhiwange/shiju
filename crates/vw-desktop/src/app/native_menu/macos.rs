@@ -78,12 +78,13 @@ fn native_menu_events() -> impl iced::futures::Stream<Item = Message> {
 }
 
 fn build_menu(snapshot: &NativeMenuSnapshot) -> Option<(Menu, Submenu, Submenu)> {
+    let i18n = crate::app::i18n::I18n::new(snapshot.locale);
     let menu = Menu::new();
 
     let app_menu = Submenu::new("ShiJu", true);
     app_menu
         .append(&PredefinedMenuItem::about(
-            Some("关于识矩"),
+            Some(i18n.__("关于识矩")),
             Some(AboutMetadata {
                 name: Some("识矩".to_string()),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
@@ -92,15 +93,15 @@ fn build_menu(snapshot: &NativeMenuSnapshot) -> Option<(Menu, Submenu, Submenu)>
         ))
         .ok()?;
     app_menu.append(&PredefinedMenuItem::separator()).ok()?;
-    app_menu.append(&PredefinedMenuItem::hide(Some("隐藏识矩"))).ok()?;
-    app_menu.append(&PredefinedMenuItem::hide_others(Some("隐藏其他"))).ok()?;
-    app_menu.append(&PredefinedMenuItem::show_all(Some("显示全部"))).ok()?;
+    app_menu.append(&PredefinedMenuItem::hide(Some(i18n.__("隐藏识矩")))).ok()?;
+    app_menu.append(&PredefinedMenuItem::hide_others(Some(i18n.__("隐藏其他")))).ok()?;
+    app_menu.append(&PredefinedMenuItem::show_all(Some(i18n.__("显示全部")))).ok()?;
     app_menu.append(&PredefinedMenuItem::separator()).ok()?;
-    app_menu.append(&PredefinedMenuItem::quit(Some("退出识矩"))).ok()?;
+    app_menu.append(&PredefinedMenuItem::quit(Some(i18n.__("退出识矩")))).ok()?;
     menu.append(&app_menu).ok()?;
 
     for (title, entries) in menu_sections(snapshot) {
-        let submenu = Submenu::new(title, true);
+        let submenu = Submenu::new(i18n.__(title), true);
         append_entries(&submenu, &entries, snapshot)?;
         menu.append(&submenu).ok()?;
     }
@@ -109,7 +110,7 @@ fn build_menu(snapshot: &NativeMenuSnapshot) -> Option<(Menu, Submenu, Submenu)>
     menu.append(&window_menu).ok()?;
 
     let (help_title, help_entries) = help_section();
-    let help_menu = Submenu::new(help_title, true);
+    let help_menu = Submenu::new(i18n.__(help_title), true);
     append_entries(&help_menu, &help_entries, snapshot)?;
     menu.append(&help_menu).ok()?;
 
@@ -119,12 +120,15 @@ fn build_menu(snapshot: &NativeMenuSnapshot) -> Option<(Menu, Submenu, Submenu)>
 fn build_window_menu(snapshot: &NativeMenuSnapshot) -> Option<Submenu> {
     // 仅放置基础项；填充 / 居中 / 移动与调整大小 / 全屏幕平铺等由
     // `set_as_windows_menu_for_nsapp` 触发系统注入。
-    let window_menu = Submenu::new("窗口", true);
-    window_menu.append(&PredefinedMenuItem::minimize(Some("最小化"))).ok()?;
-    window_menu.append(&PredefinedMenuItem::maximize(Some("缩放"))).ok()?;
-    window_menu.append(&PredefinedMenuItem::fullscreen(Some("进入全屏幕"))).ok()?;
+    let i18n = crate::app::i18n::I18n::new(snapshot.locale);
+    let window_menu = Submenu::new(i18n.__("窗口"), true);
+    window_menu.append(&PredefinedMenuItem::minimize(Some(i18n.__("最小化")))).ok()?;
+    window_menu.append(&PredefinedMenuItem::maximize(Some(i18n.__("缩放")))).ok()?;
+    window_menu.append(&PredefinedMenuItem::fullscreen(Some(i18n.__("进入全屏幕")))).ok()?;
     window_menu.append(&PredefinedMenuItem::separator()).ok()?;
-    window_menu.append(&PredefinedMenuItem::bring_all_to_front(Some("前置全部窗口"))).ok()?;
+    window_menu
+        .append(&PredefinedMenuItem::bring_all_to_front(Some(i18n.__("前置全部窗口"))))
+        .ok()?;
 
     if !snapshot.open_window_tabs.is_empty() {
         window_menu.append(&PredefinedMenuItem::separator()).ok()?;
@@ -166,7 +170,12 @@ fn append_entries(
                     _ => (*shortcut).and_then(parse_shortcut),
                 };
                 let enabled = menu_item_enabled(action, snapshot);
-                let item = MenuItem::with_id(action.id(), *label, enabled, accelerator);
+                let item = MenuItem::with_id(
+                    action.id(),
+                    crate::app::i18n::I18n::new(snapshot.locale).__(label),
+                    enabled,
+                    accelerator,
+                );
                 submenu.append(&item).ok()?;
             }
         }

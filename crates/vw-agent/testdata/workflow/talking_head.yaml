@@ -23,14 +23,14 @@ workflow:
           model: {name: deepseek/deepseek-flash}
           prompt_template:
             - role: user
-              text: 'Return only a JSON array of keyword visual segments. Each needs anchor (exact original words), start, end (seconds), visual_type, assets (nonempty array). visual_type must be keyword. Brief: {{#plan.text#}} Transcript: {{#start.transcript#}} Word timestamps: {{#start.timestamps#}}'
+              text: 'Return only a JSON array of keyword visual segments. Each needs anchor (exact original words), start, end (seconds), visual_type, assets (nonempty array). visual_type must be keyword. Emit raw valid JSON only, starting with [ and ending with ]; no Markdown fences, commentary, or reasoning. Use numeric seconds within the supplied timestamps and copy anchor words exactly from the transcript. Brief: {{#plan.text#}} Transcript: {{#start.transcript#}} Word timestamps: {{#start.timestamps#}}'
       - id: visuals
         data:
           type: llm
           model: {name: deepseek/deepseek-flash}
           prompt_template:
             - role: user
-              text: 'Return only a JSON array of dynamic visual segments. Each needs anchor (exact original words), start, end (seconds), visual_type, assets (nonempty array). Include both b_roll and motion_graphic visual types. Brief: {{#plan.text#}} Transcript: {{#start.transcript#}} Word timestamps: {{#start.timestamps#}}'
+              text: 'Return only a JSON array of dynamic visual segments. Each needs anchor (exact original words), start, end (seconds), visual_type, assets (nonempty array). Include both b_roll and motion_graphic visual types. Emit raw valid JSON only, starting with [ and ending with ]; no Markdown fences, commentary, or reasoning. Use numeric seconds within the supplied timestamps and copy anchor words exactly from the transcript. Brief: {{#plan.text#}} Transcript: {{#start.transcript#}} Word timestamps: {{#start.timestamps#}}'
       - id: validate
         data:
           type: code

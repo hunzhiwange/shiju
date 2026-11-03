@@ -490,6 +490,30 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::none()
         }
+        ViewMessage::OpenAppInstallerDirectory => {
+            if app.desktop_update.busy {
+                return Task::none();
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(ready) = app.desktop_update.ready.clone() {
+                return Task::perform(
+                    async move {
+                        tokio::task::spawn_blocking(move || {
+                            crate::app::installer_update::reveal_desktop_installer(&ready)
+                        })
+                        .await
+                        .map_err(|error| error.to_string())?
+                        .map_err(|error| format!("{error:#}"))
+                    },
+                    |result| Message::View(ViewMessage::AppInstallerDirectoryOpened(result)),
+                );
+            }
+            Task::none()
+        }
+        ViewMessage::AppInstallerDirectoryOpened(result) => match result {
+            Ok(()) => Task::none(),
+            Err(error) => app.show_error_toast(error),
+        },
         ViewMessage::AppUpdateProgressTick => {
             if let Some(receiver) = app.app_update_progress_rx.take() {
                 let mut active_receiver = Some(receiver);

@@ -32,7 +32,7 @@ struct UpdateRequest {
     macos_stage: Option<PathBuf>,
 }
 
-/// Start a copy outside the installation tree so Windows can release the old executable.
+/// Windows uses a copy outside the installation tree to release the old executable.
 /// The original app exits only after the helper acknowledges a validated request.
 pub(crate) fn start(
     ready: &PreparedDesktopUpdate,
@@ -57,8 +57,17 @@ pub(crate) fn start(
         macos_stage: None,
     };
     // Keep the helper unprivileged; system installers request authorization.
-    let helper = job.path().join(if cfg!(windows) { "shi-ju-helper.exe" } else { "updater" });
-    std::fs::copy(executable, &helper).context("复制独立更新进程失败")?;
+    // The macOS executable's signature seals its bundle's Info.plist. A detached
+    // copy is invalid; run inside the original bundle. Atomic bundle exchange
+    // keeps the running helper's executable intact until installation completes.
+    #[cfg(target_os = "macos")]
+    let helper = executable;
+    #[cfg(not(target_os = "macos"))]
+    let helper = {
+        let helper = job.path().join(if cfg!(windows) { "shi-ju-helper.exe" } else { "updater" });
+        std::fs::copy(executable, &helper).context("复制独立更新进程失败")?;
+        helper
+    };
     let log = std::fs::File::create(job.path().join("update.log"))?;
     let mut child = Command::new(&helper)
         .arg(HELPER_ARG)
@@ -148,15 +157,23 @@ pub fn run_if_requested() -> Option<Result<()>> {
             }
             Err(error) => {
                 eprintln!("更新失败：{error:#}");
-                rfd::MessageDialog::new()
+                let answer = rfd::MessageDialog::new()
                     .set_title(i18n.__("ShiJu 更新失败"))
-                    .set_description(crate::app::i18n::native::update_diagnostic(
-                        i18n,
-                        &format!("{error:#}"),
-                        false,
+                    .set_description(format!(
+                        "{}\n\n{}",
+                        crate::app::i18n::native::update_diagnostic(
+                            i18n,
+                            &format!("{error:#}"),
+                            false,
+                        ),
+                        i18n.__("是否打开安装包目录以手工安装？"),
                     ))
+                    .set_buttons(rfd::MessageButtons::YesNo)
                     .set_level(rfd::MessageLevel::Error)
                     .show();
+                if answer == rfd::MessageDialogResult::Yes {
+                    crate::app::installer_update::reveal_desktop_installer(&request.ready)?;
+                }
                 return Err(error);
             }
         }

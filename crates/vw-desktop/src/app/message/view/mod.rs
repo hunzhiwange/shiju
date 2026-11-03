@@ -192,6 +192,8 @@ pub enum ViewMessage {
     #[cfg(not(target_arch = "wasm32"))]
     AppUpdatePrepared(Result<crate::app::installer_update::PreparedDesktopUpdate, String>),
     OpenAppInstaller,
+    OpenAppInstallerDirectory,
+    AppInstallerDirectoryOpened(Result<(), String>),
     RunAppUpdate,
     AppUpdateProgressTick,
     AppUpdateFinished(Result<String, String>),
@@ -817,6 +819,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::AppUpdateSourceSelected(_)
         | ViewMessage::AppUpdateSourceSaved(_)
         | ViewMessage::OpenAppInstaller
+        | ViewMessage::OpenAppInstallerDirectory
+        | ViewMessage::AppInstallerDirectoryOpened(_)
         | ViewMessage::RunAppUpdate
         | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)

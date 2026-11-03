@@ -155,6 +155,42 @@ fn installer_update_symlink_escape_is_rejected() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn installer_directory_failure_preserves_package_and_does_not_exit() {
+    use crate::app::{App, Message, message::ViewMessage};
+    use iced_runtime::futures::futures::StreamExt;
+
+    let mut app = App::new().0;
+    assert_eq!(app.update(Message::View(ViewMessage::OpenAppInstallerDirectory)).units(), 0);
+    let (_root, ready) = fixture(InstallerKind::Dmg);
+    app.desktop_update.ready = Some(ready.clone());
+    app.desktop_update.busy = true;
+    assert_eq!(app.update(Message::View(ViewMessage::OpenAppInstallerDirectory)).units(), 0);
+    app.desktop_update.busy = false;
+    std::fs::write(ready.path(), b"tampered").unwrap();
+    let task = app.update(Message::View(ViewMessage::OpenAppInstallerDirectory));
+    let mut stream = iced_runtime::task::into_stream(task).unwrap();
+    let result = tokio::time::timeout(std::time::Duration::from_secs(5), stream.next())
+        .await
+        .unwrap()
+        .unwrap();
+    match result {
+        iced_runtime::Action::Output(
+            message @ Message::View(ViewMessage::AppInstallerDirectoryOpened(Err(_))),
+        ) => {
+            let _ = app.update(message);
+        }
+        _ => panic!("tampered package must not reach the file manager"),
+    }
+    assert!(app.active_toast.is_some());
+    assert!(!app.shutdown_requested);
+    assert!(!app.desktop_update.busy);
+    assert_eq!(app.desktop_update.ready.as_ref().unwrap().path(), ready.path());
+    let _ = app.update(Message::View(ViewMessage::AppInstallerDirectoryOpened(Ok(()))));
+    assert!(!app.shutdown_requested);
+    assert!(ready.path().exists());
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     use crate::app::{App, Message, message::ViewMessage};
     use iced::advanced::{renderer::Headless, widget::Tree};

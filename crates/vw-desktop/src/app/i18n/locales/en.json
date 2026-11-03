@@ -4933,6 +4933,8 @@
   "检测中...": "Checking...",
   "检测更新": "Check for updates",
   "自动更新并退出 / 重试": "Update and exit / Retry",
+  "打开安装包目录": "Open installer folder",
+  "是否打开安装包目录以手工安装？": "Open the installer folder to install manually?",
   "安装 CLI": "Install CLI",
   "跳过此版本": "Skip this version",
   "升级来源": "Update source",

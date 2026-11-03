@@ -211,6 +211,31 @@ pub(crate) fn verify_ready(ready: &PreparedDesktopUpdate) -> Result<()> {
     Ok(())
 }
 
+/// Reveal the local verified download without starting installation or exiting the app.
+pub(crate) fn reveal_desktop_installer(ready: &PreparedDesktopUpdate) -> Result<()> {
+    verify_ready(ready)?;
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = std::process::Command::new("/usr/bin/open");
+        command.arg("-R").arg(ready.path());
+        command
+    };
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = std::process::Command::new("explorer.exe");
+        command.arg("/select,").arg(ready.path());
+        command
+    };
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    let mut command = {
+        let mut command = std::process::Command::new("xdg-open");
+        command.arg(&ready.directory);
+        command
+    };
+    command.spawn().context("无法打开安装包目录")?;
+    Ok(())
+}
+
 fn open_with(
     ready: &PreparedDesktopUpdate,
     os: &str,

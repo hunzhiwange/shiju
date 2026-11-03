@@ -92,6 +92,8 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::AppUpdateSourceSelected(_)
         | ViewMessage::AppUpdateSourceSaved(_)
         | ViewMessage::OpenAppInstaller
+        | ViewMessage::OpenAppInstallerDirectory
+        | ViewMessage::AppInstallerDirectoryOpened(_)
         | ViewMessage::RunAppUpdate
         | ViewMessage::AppUpdateProgressTick
         | ViewMessage::AppUpdateFinished(_)

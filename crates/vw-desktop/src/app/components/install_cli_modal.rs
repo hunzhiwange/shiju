@@ -272,10 +272,12 @@ fn view_inner<'a>(
         ]
         .spacing(12);
         #[cfg(not(target_arch = "wasm32"))]
-        let action_row =
-            if use_app_update_action && desktop_update.is_some_and(|state| state.ready.is_some()) {
-                let label = "自动更新并退出 / 重试";
-                action_row.push(
+        let action_row = if use_app_update_action
+            && desktop_update.is_some_and(|state| state.ready.is_some())
+        {
+            let label = "自动更新并退出 / 重试";
+            action_row
+                .push(
                     button(i18n.__(label))
                         .on_press_maybe(
                             (!is_checking)
@@ -284,9 +286,17 @@ fn view_inner<'a>(
                         .padding([8, 16])
                         .style(primary_action_btn_style),
                 )
-            } else {
-                action_row
-            };
+                .push(
+                    button(i18n.__("打开安装包目录"))
+                        .on_press_maybe((!is_checking).then_some(Message::View(
+                            message::ViewMessage::OpenAppInstallerDirectory,
+                        )))
+                        .padding([8, 16])
+                        .style(rounded_action_btn_style),
+                )
+        } else {
+            action_row
+        };
         let action_row = if show_install_action {
             let install_label =
                 if use_app_update_action { "下载安装包" } else { "安装 CLI" };
@@ -322,12 +332,14 @@ fn view_inner<'a>(
             action_row
         };
         container(
-            action_row.push(
-                button(i18n.__("关闭"))
-                    .on_press(close_message.clone())
-                    .padding([8, 16])
-                    .style(rounded_action_btn_style),
-            ),
+            action_row
+                .push(
+                    button(i18n.__("关闭"))
+                        .on_press(close_message.clone())
+                        .padding([8, 16])
+                        .style(rounded_action_btn_style),
+                )
+                .wrap(),
         )
         .width(Length::Fill)
         .center_x(Length::Fill)

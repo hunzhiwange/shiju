@@ -65,5 +65,70 @@
     "https://learn.microsoft.com/en-us/windows/win32/fileio/obtaining-a-handle-to-a-directory",
     "https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers"
   ],
-  "limits": "Deterministic persisted interruption checkpoint and concurrent threads tested; no physical power-cut test or actual Windows/Linux platform acceptance claimed. Platform acceptance remains task 64. Unsupported filesystem flushes fail explicitly."
+  "limits": "Deterministic persisted interruption checkpoint and concurrent threads tested; no physical power-cut test or actual Windows/Linux platform acceptance claimed. Platform acceptance remains task 64. Unsupported filesystem flushes fail explicitly.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "implementation_commit": "12a24b6901bfae803373cc42017b41d886fcf164",
+    "dependency": "2e8bd751 / t51.json revalidation; implementation 98c86e58",
+    "platform": "macOS arm64",
+    "cargo_stages": [
+      {
+        "slot": 10,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+        "locks_released": true,
+        "cache_retained": true
+      },
+      {
+        "slot": 3,
+        "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+        "locks_released": true,
+        "cache_retained": true
+      }
+    ],
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+        "slot": 3,
+        "exit_code": 0,
+        "passed": 6,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture",
+        "slot": 3,
+        "exit_code": 0,
+        "passed": 12,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t51_ -- --nocapture",
+        "slot": 10,
+        "exit_code": 0,
+        "passed": 3,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "slot": 10,
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "initial_attempts": {
+      "commands": [
+        "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t52_ -- --nocapture",
+        "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t08_ -- --nocapture"
+      ],
+      "slot": 10,
+      "exit_code": 101,
+      "effective_tests": 0,
+      "cause": "Unrelated concurrent uncommitted session_llm.rs StreamChunk/Result type mismatch E0308; owner corrected implementation before successful retry. No provider changes made by this task."
+    },
+    "note": "Reused existing committed implementation, registered acceptance tests and original red-stage evidence. No Rust changes or artificial regression; no formatting mutation of concurrent work. Preview conflict, partial activation rollback, persisted interruption recovery, concurrent version consistency, trust invalidation and market/data/disabled isolation verified. Physical power loss and Windows/Linux acceptance remain separate task 64."
+  }
 }

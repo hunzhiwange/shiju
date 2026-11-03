@@ -269,7 +269,7 @@ fn new_agent_request_validates_inputs_and_rejects_existing_names() {
 
     app.acp_settings.new_agent_name_input = " local ".to_string();
     app.acp_settings.new_agent_command_input = " npx ".to_string();
-    app.acp_settings.new_agent_args_input = "-y,\nlocal-acp".to_string();
+    app.acp_settings.editor_args = vec!["-y".into(), "local-acp".into()];
     let (name, spec) = new_agent_request(&app).expect("valid input should build a request");
     assert_eq!(name, "local");
     assert_eq!(spec.command, "npx");
@@ -302,7 +302,7 @@ fn add_agent_tracks_progress_and_success_resets_form() {
     assert!(app.acp_settings.new_agent_command_input.is_empty());
     assert!(app.acp_settings.new_agent_args_input.is_empty());
     assert!(app.acp_settings.catalog.contains_key("local"));
-    assert_eq!(app.acp_settings.status_message.as_deref(), Some("local 已新增并启用"));
+    assert_eq!(app.acp_settings.status_message.as_deref(), Some("local 已保存"));
 }
 
 #[test]
@@ -331,4 +331,54 @@ fn update_ignores_non_acp_settings_messages() {
     assert!(app.acp_settings.loading);
     assert_eq!(app.acp_settings.saving_agent.as_deref(), Some("codex"));
     assert_eq!(app.acp_settings.save_error.as_deref(), Some("unchanged"));
+}
+
+#[test]
+fn acp_editor_validates_and_saves_fields() {
+    let (mut app, _) = crate::app::App::new();
+    let spec = AcpAgentConfig {
+        command: "命令".into(),
+        args: vec!["a,b".into(), " spaced ".into(), "".into()],
+        env: [("TOKEN".into(), " x=y,中文 ".into())].into(),
+    };
+    app.acp_settings.catalog.insert("fixture".into(), spec.clone());
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::EditAgent("fixture".into())));
+    assert_eq!(
+        serde_json::to_value(new_agent_request(&app).unwrap().1).unwrap(),
+        serde_json::to_value(&spec).unwrap()
+    );
+    let _ =
+        update(&mut app, SettingsMessage::Acp(AcpMessage::NewAgentNameChanged("renamed".into())));
+    assert_eq!(new_agent_request(&app).unwrap().0, "fixture");
+    app.acp_settings.editor_env.push(("TOKEN".into(), "duplicate".into()));
+    assert!(new_agent_request(&app).is_err());
+    app.acp_settings.editor_env.pop();
+    app.acp_settings.editor_env.push(("".into(), "value".into()));
+    assert!(new_agent_request(&app).is_err());
+    app.acp_settings.editor_env.pop();
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::AddAgentCompleted {
+            agent: "fixture".into(),
+            result: Err("failed".into()),
+        }),
+    );
+    assert!(app.acp_settings.new_agent_expanded);
+    assert_eq!(
+        serde_json::to_value(new_agent_request(&app).unwrap().1).unwrap(),
+        serde_json::to_value(&spec).unwrap()
+    );
+    let (_, saved) = new_agent_request(&app).unwrap();
+    let file = tempfile::NamedTempFile::new().unwrap();
+    serde_json::to_writer(file.as_file(), &saved).unwrap();
+    let loaded: AcpAgentConfig =
+        serde_json::from_reader(std::fs::File::open(file.path()).unwrap()).unwrap();
+    assert_eq!(loaded.args, spec.args);
+    assert_eq!(loaded.env, spec.env);
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::CancelEditor));
+    assert!(!app.acp_settings.new_agent_expanded);
+    assert_eq!(
+        serde_json::to_value(&app.acp_settings.catalog["fixture"]).unwrap(),
+        serde_json::to_value(&spec).unwrap()
+    );
 }

@@ -54,6 +54,9 @@ impl Default for HttpRequestSettingsState {
 pub(crate) struct AcpSettingsState {
     pub(crate) catalog: std::collections::BTreeMap<String, vw_config_types::config::AcpAgentConfig>,
     pub(crate) enabled: std::collections::BTreeSet<String>,
+    pub(crate) editing_agent: Option<String>,
+    pub(crate) editor_args: Vec<String>,
+    pub(crate) editor_env: Vec<(String, String)>,
     pub(crate) new_agent_expanded: bool,
     pub(crate) new_agent_name_input: String,
     pub(crate) new_agent_command_input: String,
@@ -73,6 +76,9 @@ impl Default for AcpSettingsState {
         Self {
             catalog: std::collections::BTreeMap::new(),
             enabled: std::collections::BTreeSet::new(),
+            editing_agent: None,
+            editor_args: Vec::new(),
+            editor_env: Vec::new(),
             new_agent_expanded: false,
             new_agent_name_input: String::new(),
             new_agent_command_input: String::new(),

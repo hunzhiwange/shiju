@@ -362,6 +362,14 @@ pub enum GatewayClientMessage {
 /// ACP 设置页消息。
 #[derive(Debug, Clone)]
 pub enum AcpMessage {
+    EditAgent(String),
+    CancelEditor,
+    ArgumentChanged(usize, String),
+    AddArgument,
+    RemoveArgument(usize),
+    EnvironmentChanged(usize, bool, String),
+    AddEnvironment,
+    RemoveEnvironment(usize),
     Refresh,
     Loaded(Result<crate::app::config::AcpSettingsSnapshot, String>),
     NewAgentPanelToggled,

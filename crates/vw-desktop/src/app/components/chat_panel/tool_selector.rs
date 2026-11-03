@@ -465,7 +465,8 @@ pub(crate) fn session_tool_selector_popover(app: &App) -> Element<'_, Message> {
                         .filter(|tool_id| tool_group(tool_id) == group)
                         .cloned()
                         .collect::<Vec<_>>();
-                    let group_title = format!("{} {}", group.label(), group.description());
+                    let group_title =
+                        format!("{} {}", i18n.__(group.label()), i18n.__(group.description()));
                     let header = row![
                         button(
                             row![

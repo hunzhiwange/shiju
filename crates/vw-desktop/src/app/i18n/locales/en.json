@@ -5242,5 +5242,10 @@
   "执行受阻": "Execution blocked",
   "计划执行完成": "Plan completed",
   "计划执行失败": "Plan failed",
-  "计划执行已取消": "Plan cancelled"
+  "计划执行已取消": "Plan cancelled",
+  "委托代理、提问、计划和任务协作。": "Delegate agents, ask questions, plan and collaborate on tasks.",
+  "当前未归类的工具。": "Tools without a category.",
+  "浏览页面、联网请求和搜索。": "Browse pages, make network requests and search.",
+  "系统配置、状态和集成能力。": "System configuration, status and integrations.",
+  "读写长期记忆与上下文记录。": "Read and write long-term memory and context records."
 }

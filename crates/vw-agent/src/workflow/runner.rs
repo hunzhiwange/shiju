@@ -1035,8 +1035,15 @@ where
         run_llm_chat_streaming(runtime, node, node_index, &messages, &requested_model, on_event)
             .await?
     } else {
-        let response =
-            run_llm_chat_with_model_fallback(runtime, &messages, &requested_model).await?;
+        let response = runtime
+            .provider
+            .chat(
+                ChatRequest { messages: &messages, tools: None },
+                &requested_model,
+                runtime.temperature,
+            )
+            .await
+            .map_err(|error| format!("LLM 节点模型 {requested_model} 调用失败: {error}"))?;
         (response.text.unwrap_or_default(), workflow_token_usage(response.usage.as_ref()))
     };
     let mut outputs = llm_outputs(text);

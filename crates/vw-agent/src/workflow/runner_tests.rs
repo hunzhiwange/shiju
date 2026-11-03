@@ -723,3 +723,15 @@ fn output_delta_token_and_redaction_helpers_cover_edge_cases() {
     assert!(workflow_value_truthy(&json!({"ok": true})));
     assert!(!workflow_value_truthy(&json!({})));
 }
+
+#[test]
+fn workflow_explicit_model_preserves_requested_reference() {
+    let llm = node("llm", "llm", json!({"model": {"name": "vendor/missing"}}));
+    assert_eq!(workflow_node_model(&llm, "default"), "vendor/missing");
+}
+
+#[test]
+fn workflow_explicit_model_unspecified_uses_runtime_default() {
+    let llm = node("llm", "llm", json!({}));
+    assert_eq!(workflow_node_model(&llm, "default"), "default");
+}

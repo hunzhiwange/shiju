@@ -562,7 +562,7 @@ async fn start_large_workflow_http_server() -> String {
 }
 
 #[tokio::test]
-async fn run_workflow_falls_back_to_runtime_model_when_dify_model_is_unavailable() {
+async fn workflow_explicit_model_unavailable_does_not_fall_back() {
     let workflow_yaml = r#"
 workflow:
   graph:
@@ -614,11 +614,11 @@ workflow:
 
     let response = run_workflow(runtime, request).await.expect("workflow response");
 
-    assert_eq!(response.status, WorkflowRunStatus::Succeeded);
-    assert_eq!(response.answer.as_deref(), Some("fallback model response"));
+    assert_eq!(response.status, WorkflowRunStatus::Failed);
+    assert_eq!(response.answer, None);
     assert_eq!(
         provider.calls.lock().expect("calls lock").as_slice(),
-        ["dify-only-model".to_string(), "runtime-model".to_string()].as_slice()
+        ["dify-only-model".to_string()].as_slice()
     );
 }
 

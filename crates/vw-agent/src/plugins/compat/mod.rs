@@ -260,3 +260,9 @@ mod t61_tests;
 
 #[cfg(test)]
 mod t62_tests;
+
+#[cfg(test)]
+mod t64_tests;
+
+#[cfg(test)]
+mod platform_tests;

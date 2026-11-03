@@ -1,0 +1,19 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running unittests src/lib.rs (target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711)
+
+running 7 tests
+test plugins::compat::t32_tests::codex_plugin_compat_t32_preserves_handler_defaults_and_alias ... ok
+test plugins::compat::t32_tests::codex_plugin_compat_t32_rejects_invalid_input ... ok
+
+thread 'plugins::compat::t32_tests::codex_plugin_compat_t32_runtime_reports_execution_as_unavailable' (12335819) panicked at crates/vw-agent/src/plugins/compat/t32_tests.rs:259:5:
+failed to resolve hook host directory
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test plugins::compat::t32_tests::codex_plugin_compat_t32_loads_defaults_and_preserves_explicit_empty_hooks ... ok
+test plugins::compat::t32_tests::codex_plugin_compat_t32_preserves_isolation ... ok
+test plugins::compat::t32_tests::codex_plugin_compat_t32_loads_all_baseline_hook_events ... ok
+test plugins::compat::t32_tests::codex_plugin_compat_t32_loads_source_arrays_with_explicit_precedence ... ok
+fatal runtime error: failed to initiate panic, error 5, aborting
+error: test failed, to rerun pass `-p vw-agent --lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711 codex_plugin_compat_t32_ --nocapture` (signal: 6, SIGABRT: process abort signal)

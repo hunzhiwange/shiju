@@ -1,0 +1,27 @@
+{
+  "license": "MIT; repository-authored synthetic fixture reused unchanged from t61/package",
+  "source": "../t61/package",
+  "files": {
+    "plugin.json": "2262443998119da1ed278005798388f47815cf3c094d9d6e070fc06de0410c20",
+    "mcp.json": "d823465f1ec89af61d02df3ec4c25ad7fca52379f67769fd23c2e34dba47313b",
+    "server.py": "3de6cd3da85a8518e743a1b6d59ff99e9dce7fdce80bee820a1e55233d3e1f48"
+  },
+  "expected": {
+    "name": "original",
+    "server": "writer",
+    "tool": "write",
+    "result": "written",
+    "output": "original package executed\n",
+    "paths": [
+      "插件 original package",
+      "配置 config",
+      "输出 output.txt"
+    ]
+  },
+  "references": [
+    "baseline.json: hooks.command.commandWindows",
+    "codex-rs/codex-mcp/src/agent_plugin_config.rs: host_path_string, expand_agent_plugin_placeholders",
+    "codex-rs/hooks/src/engine/discovery.rs: command_windows selection"
+  ],
+  "scope": "These fixtures exercise actual host installation and Python stdio. They do not replace public-service, OAuth or UI acceptance."
+}

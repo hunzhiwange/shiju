@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "task": 64,
+  "status": "partial_acceptance",
+  "full_compatibility_claimed": false,
+  "platform": "macOS arm64",
+  "checks": [
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t64_ -- --nocapture",
+      "exit_code": 0,
+      "effective_tests": 4,
+      "failed": 0,
+      "ignored": 0,
+      "record": "t64/tests.txt"
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "record": "t64/clippy.txt"
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t32_ -- --nocapture",
+      "exit_code": 101,
+      "completed_test_summary": false,
+      "record": "t64/adjacent.txt"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "cargo": {
+    "slot": 3,
+    "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+    "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+    "lease_released": true
+  },
+  "source_lock": "crates/vw-agent/testdata/plugin_compat/t64/sources.json",
+  "production_changes": false,
+  "production_red": null,
+  "assertions": [
+    "Actual installer and discovery preserve unchanged t61 repository-authored MIT fixture under Chinese and spaced source/config/output paths",
+    "Actual Python stdio discovery and tool call writes exact expected external output; connection shutdown invoked",
+    "Invalid manifest rejected; source bytes unchanged and no installed plugin discovered",
+    "Removing alpha installation leaves beta installation and source bytes unchanged",
+    "Trusted real hook chooses host command and writes unix outside package on macOS; commandWindows is present but not executed on this host"
+  ],
+  "verification": {
+    "macos": {
+      "manifest_unicode_paths_stdio": true,
+      "host_hook_command": true,
+      "oauth_callback": false,
+      "apps_ui_this_run": false
+    },
+    "linux": {
+      "host_runtime_tested": false
+    },
+    "windows": {
+      "host_runtime_tested": false
+    }
+  },
+  "historical_evidence": [
+    "t31.json (macOS Apps UI; not rerun)",
+    "t55.json (macOS Unicode plugin UI; not rerun)",
+    "t63.json (authorization acceptance waiver; not passing evidence)"
+  ],
+  "source_hashes_match_baseline": true,
+  "log_sha256": {
+    "tests.txt": "1efc7078ed2f490dd145f16ad7bf5f92a83e73ab5de412005c9cb34c0efdf769",
+    "clippy.txt": "6f1cb31889f9afbce22b4da0d11caf0ae141fb872f58d54ae23a23a0a738581e",
+    "adjacent.txt": "f4d097c651a6bee972b0c94b583a6d7dc5e679e6ea4c2dee5fc4d391acaffbdc"
+  }
+}

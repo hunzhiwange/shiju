@@ -355,7 +355,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 }
                 #[cfg(target_arch = "wasm32")]
                 {
-                    "Just now".to_string()
+                    crate::app::i18n::I18n::new(app.desktop_locale).__("刚刚").to_owned()
                 }
             };
 

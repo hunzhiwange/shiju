@@ -540,7 +540,7 @@ pub fn view(app: &App) -> Element<'_, Message> {
         // WASM 平台：显示不支持提示
         #[cfg(target_arch = "wasm32")]
         {
-            container(text("Terminal not supported on Web"))
+            container(text(crate::app::i18n::I18n::new(app.desktop_locale).__("Web 不支持终端")))
                 .padding([10, 12])
                 .width(Length::Fill)
                 .height(Length::Fill)

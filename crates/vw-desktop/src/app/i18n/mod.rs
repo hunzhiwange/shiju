@@ -110,3 +110,6 @@ pub(crate) mod native;
 #[cfg(test)]
 mod gettext_area_18_tests;
 pub mod other;
+
+#[cfg(test)]
+mod gettext_area_19_tests;

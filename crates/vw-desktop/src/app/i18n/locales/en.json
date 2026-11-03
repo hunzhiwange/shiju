@@ -5251,5 +5251,9 @@
   "规划 · %s": "Planning · %s",
   "子任务 · %s": "Subtask · %s",
   "目标续轮 · 第 %u 轮": "Goal continuation · Turn %u",
-  "目标验收 · 第 %u 轮": "Goal evaluation · Turn %u"
+  "目标验收 · 第 %u 轮": "Goal evaluation · Turn %u",
+  "Web 不支持终端": "Terminal not supported on Web",
+  "前进": "Forward",
+  "后退": "Back",
+  "知道了": "Got it"
 }

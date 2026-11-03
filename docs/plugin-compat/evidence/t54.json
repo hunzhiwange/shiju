@@ -65,5 +65,40 @@
   ],
   "reference": "baseline.json gateway plugin operations; Codex app-server/request_processors/plugins/local.rs",
   "fixture": "crates/vw-agent/testdata/plugin_compat/t54/README.md",
-  "limits": "Capability counts are declarations and audit status is package/path audit only. Dependency status remains unchecked; no runtime dependency availability, public-service or UI acceptance is claimed."
+  "limits": "Capability counts are declarations; dependency inspection reports static availability and does not prove runtime execution. No public-service or UI acceptance is claimed by this backend task.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "dependency": "fdf2ca5e / t53.json revalidation",
+    "platform": "macOS arm64",
+    "cargo": {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t54_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 4,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features plugins_tests -- --nocapture",
+        "exit_code": 0,
+        "passed": 5,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "note": "Reused committed implementation and original red evidence. No Rust changes; formatting left untouched to preserve concurrent work. Real GatewayClient HTTP installation, authenticated approval, update, invalid input, replay/cancellation and configuration isolation passed. Static dependency inspection now returns explicit check states; public-service and desktop rendering acceptance remain separate tasks."
+  }
 }

@@ -2,5 +2,8 @@
 - Supports glob patterns such as `**/*.js` and `src/**/*.ts`.
 - Returns matching file paths sorted by modification time.
 - Use this tool when you need to find files by name pattern.
-- Use the Task tool instead for open-ended searches that may require multiple rounds of glob and grep.
-- You can call multiple tools in a single response. Prefer speculatively running a batch of potentially useful searches together.
+- For open-ended local searches, start with glob to locate candidate files, then use grep to narrow by content.
+- Batch only independent searches when batch is available.
+- Omit path to search the workspace; do not pass null or "undefined".
+
+Example: {"pattern":"src/**/*.rs"}

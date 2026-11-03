@@ -6,4 +6,7 @@
 - Supports `-n` to include line numbers in `content` mode.
 - Does not currently support `-A`, `-B`, `-C`, `type`, or `multiline`.
 - Use this tool when you need to find files containing a specific pattern.
-- Use the Task tool instead for open-ended searches that may require multiple rounds of glob and grep.
+- Use glob for file names and grep for local file contents; narrow broad searches by path and include.
+- head_limit defaults to 100 entries and is at least 1; offset defaults to 0. Entries are files in files_with_matches/count mode and matching lines in content mode. Increase offset to continue a truncated result.
+
+Example: {"pattern":"fn main","include":"*.rs","output_mode":"content","-n":true,"head_limit":20,"offset":0}

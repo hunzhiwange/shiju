@@ -5232,5 +5232,15 @@
   "两次输入的新密码不一致": "New passwords do not match",
   "账户响应缺少 %s": "Account response is missing %s",
   "授权地址无效": "Invalid authorization URL",
-  "授权地址不受信任": "Untrusted authorization URL"
+  "授权地址不受信任": "Untrusted authorization URL",
+  "规划会话": "Planning session",
+  "等待后代智能体": "Waiting for descendant agents",
+  "批次开始执行": "Batch started",
+  "批次执行结束": "Batch finished",
+  "目标续轮": "Goal continuation",
+  "目标验收": "Goal evaluation",
+  "执行受阻": "Execution blocked",
+  "计划执行完成": "Plan completed",
+  "计划执行失败": "Plan failed",
+  "计划执行已取消": "Plan cancelled"
 }

@@ -800,3 +800,32 @@ fn desktop_gettext_area_8_workflow_plan_retains_raw_path() {
     assert_eq!(display.primary_text, "Plan created with 3 tasks.");
     assert_eq!(display.tooltip_text.unwrap(), "Task path: 中文/%s/%n");
 }
+
+#[test]
+fn desktop_gettext_area_18_plan_events_render_from_stable_event_types() {
+    for event in [
+        "session_delta",
+        "session_waiting",
+        "batch_started",
+        "batch_finished",
+        "goal_turn_started",
+        "goal_evaluated",
+        "blocked",
+        "finished",
+        "error",
+        "cancelled",
+    ] {
+        let value = serde_json::json!({"metadata": {"plan_run": true, "event_type": event}});
+        let en = plan_run_card_display(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::English),
+            &value,
+        )
+        .unwrap();
+        let zh = plan_run_card_display(
+            crate::app::i18n::I18n::new(vw_config_types::ui::DesktopLocale::SimplifiedChinese),
+            &value,
+        )
+        .unwrap();
+        assert_ne!(en.primary_text, zh.primary_text, "{event}");
+    }
+}

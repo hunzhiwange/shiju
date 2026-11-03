@@ -147,6 +147,16 @@ fn plan_run_card_display(
             });
             (primary_text, tooltip_text)
         }
+        "session_delta" => (i18n.__("规划会话").to_owned(), None),
+        "session_waiting" => (i18n.__("等待后代智能体").to_owned(), None),
+        "batch_started" => (i18n.__("批次开始执行").to_owned(), None),
+        "batch_finished" => (i18n.__("批次执行结束").to_owned(), None),
+        "goal_turn_started" => (i18n.__("目标续轮").to_owned(), None),
+        "goal_evaluated" => (i18n.__("目标验收").to_owned(), None),
+        "blocked" => (i18n.__("执行受阻").to_owned(), None),
+        "finished" => (i18n.__("计划执行完成").to_owned(), None),
+        "error" => (i18n.__("计划执行失败").to_owned(), None),
+        "cancelled" => (i18n.__("计划执行已取消").to_owned(), None),
         _ => return None,
     };
 

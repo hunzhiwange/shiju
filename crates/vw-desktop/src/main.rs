@@ -269,3 +269,7 @@ mod plugin_compat_t55_tests;
 #[cfg(test)]
 #[path = "app/plugin_compat_t56_tests.rs"]
 mod plugin_compat_t56_tests;
+
+#[cfg(all(test, target_os = "macos"))]
+#[path = "app/plugin_compat_t64_tests.rs"]
+mod plugin_compat_t64_tests;

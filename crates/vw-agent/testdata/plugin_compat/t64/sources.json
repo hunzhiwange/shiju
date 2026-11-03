@@ -23,5 +23,22 @@
     "codex-rs/codex-mcp/src/agent_plugin_config.rs: host_path_string, expand_agent_plugin_placeholders",
     "codex-rs/hooks/src/engine/discovery.rs: command_windows selection"
   ],
-  "scope": "These fixtures exercise actual host installation and Python stdio. They do not replace public-service, OAuth or UI acceptance."
+  "scope": "These fixtures exercise actual host installation and Python stdio. They do not replace public-service, OAuth or UI acceptance.",
+  "macos_ui": {
+    "license": "repository MIT fixture reused unchanged",
+    "source": "../t31",
+    "files": {
+      "server.py": "ab0392cdfa839ffa07a098720bd18298443aff8bcf07e1d3ac18dc86d75c82be",
+      "app.html": "2b00f6149496a4651d62af5bd68c0db22bc3e33e3f3e132696ca32274685a953"
+    },
+    "expected": [
+      "panel-qa initialize",
+      "show tool returns 本地服务结果",
+      "ui://panel/view has text/html;profile=mcp-app",
+      "native macOS rendering, local theme toggle, count, scroll and cancel via CUA",
+      "source bytes unchanged; panel disposed and stdio server reaped"
+    ],
+    "test": "crates/vw-desktop/src/app/plugin_compat_t64_tests.rs",
+    "network": "local fixture only; no external service or OAuth used"
+  }
 }

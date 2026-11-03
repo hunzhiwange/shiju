@@ -1,0 +1,11 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.36s
+     Running unittests src/main.rs (target/rust-slot-3/build/debug/deps/shi_ju-71be189e4cf349ce)
+
+running 1 test
+T64_MACOS_UI_READY /var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr
+sandbox_extension_issue_file_to_process failed for /var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr/中文 UI helper.app: 1 (Operation not permitted)
+2026-11-04 07:34:36.114 ShiJuT64UI[74315:12700495] error messaging the mach port for IMKCFRunLoopWakeUpReliable
+test plugin_compat_t64_tests::codex_plugin_compat_t64_real_macos_mcp_page has been running for over 60 seconds
+test plugin_compat_t64_tests::codex_plugin_compat_t64_real_macos_mcp_page ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 30 filtered out; finished in 64.81s

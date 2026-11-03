@@ -1,0 +1,20 @@
+{
+  "date": "2026-11-04",
+  "method": "CUA native macOS accessibility and window screenshots",
+  "initial": "工具结果已加载; interaction enabled",
+  "click_results": [
+    "交互成功 1",
+    "交互成功 3"
+  ],
+  "theme": "light and dark screenshots visually checked for readable Chinese and button contrast",
+  "scroll": "Native scroll action moves content from lines 1–2 to line 22; screenshots verify movement; AX scrollbar value remained 0 and is not used as scrolling proof",
+  "cancel": "已取消; 交互计数 disabled",
+  "source": "unmodified t31 HTML and Python server under Chinese/spaced source path",
+  "screenshots": [
+    "app-light.png",
+    "app-dark-count.png",
+    "app-dark-scroll.png",
+    "app-cancel.png"
+  ],
+  "external_services": false
+}

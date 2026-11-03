@@ -1,0 +1,5 @@
+The following is a diff from the previous accessibility tree for Window: "ShiJu MCP App" with ~ and + representing changed and added elements, respectively. Removed elements are summarized by ID range.
+Removed element IDs: 7
++					79 text 已取消
+~					9 button (disabled) 交互计数
+The focused UI element is 4 HTML content about:srcdoc

@@ -1,0 +1,12 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.67s
+     Running unittests src/main.rs (target/rust-slot-3/build/debug/deps/shi_ju-71be189e4cf349ce)
+
+running 6 tests
+test plugin_compat_t31_tests::codex_plugin_compat_t31_real_local_mcp_page ... ignored, requires graphical desktop and VW_T31_HELPER; manual UI evidence
+test plugin_compat_t31_tests::codex_plugin_compat_t31_rejects_invalid_input ... ok
+test plugin_compat_t31_tests::codex_plugin_compat_t31_preserves_isolation ... ok
+test plugin_compat_t31_tests::codex_plugin_compat_t31_limits_network_to_exact_https_origins ... ok
+test plugin_compat_t31_tests::codex_plugin_compat_t31_reports_missing_helper ... ok
+test plugin_compat_t31_tests::codex_plugin_compat_t31_destroys_app_after_session_close ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 25 filtered out; finished in 0.26s

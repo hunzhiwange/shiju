@@ -1,0 +1,22 @@
+[
+  {
+    "mode": 55,
+    "command": [
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/plugin_compat_window-2b507d5961021054",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711",
+      "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr/iced-55",
+      "55"
+    ],
+    "exit_code": 0
+  },
+  {
+    "mode": 56,
+    "command": [
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/plugin_compat_window-2b507d5961021054",
+      "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711",
+      "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr/iced-56",
+      "56"
+    ],
+    "exit_code": 0
+  }
+]

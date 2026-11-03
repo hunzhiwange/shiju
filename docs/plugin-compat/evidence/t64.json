@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "task": 64,
-  "status": "partial_acceptance",
+  "status": "completed_authorized_macos_scope",
   "full_compatibility_claimed": false,
   "platform": "macOS arm64",
   "checks": [
@@ -54,13 +54,17 @@
       "manifest_unicode_paths_stdio": true,
       "host_hook_command": true,
       "oauth_callback": false,
-      "apps_ui_this_run": false
+      "apps_ui_this_run": true,
+      "iced_plugin_ui_this_run": true,
+      "oauth_callback_status": "skipped_by_user"
     },
     "linux": {
-      "host_runtime_tested": false
+      "host_runtime_tested": false,
+      "status": "skipped_by_user"
     },
     "windows": {
-      "host_runtime_tested": false
+      "host_runtime_tested": false,
+      "status": "skipped_by_user"
     }
   },
   "historical_evidence": [
@@ -74,5 +78,211 @@
     "clippy.txt": "6f1cb31889f9afbce22b4da0d11caf0ae141fb872f58d54ae23a23a0a738581e",
     "adjacent.txt": "f4d097c651a6bee972b0c94b583a6d7dc5e679e6ea4c2dee5fc4d391acaffbdc"
   },
-  "log_normalization": "Test log trailing blank line removed for diff whitespace check; command output content unchanged."
+  "log_normalization": "Test log trailing blank line removed for diff whitespace check; command output content unchanged.",
+  "scope_adjustment": {
+    "date": "2026-11-04",
+    "user_instruction": "Windows 和 OAuth 这次先跳过，Linux 跳过，继续把 macOS 的 UI 验收做完就行",
+    "excluded_this_acceptance": [
+      "Windows",
+      "Linux",
+      "OAuth"
+    ],
+    "exclusions_are_passing_evidence": false
+  },
+  "macos_acceptance": {
+    "date": "2026-11-04",
+    "mode": "existing implementation acceptance; no production behavior change or manufactured red",
+    "checks": [
+      {
+        "command": "cargo fmt --all",
+        "exit_code": 0,
+        "record": "macos/fmt.txt"
+      },
+      {
+        "command": "cargo build -p vw-webview --all-features --message-format=json",
+        "exit_code": 0,
+        "record": "macos/helper-build.txt",
+        "effective_tests": null
+      },
+      {
+        "command": "T64_UI_ROOT=/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr T64_UI_HELPER=\"/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr/中文 UI helper.app/Contents/MacOS/ShiJuT64UI\" cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t64_real_macos_mcp_page -- --ignored --nocapture",
+        "exit_code": 0,
+        "effective_tests": 1,
+        "failed": 0,
+        "ignored": 0,
+        "record": "macos/ui-test.txt"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t64_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 4,
+        "failed": 0,
+        "ignored": 0,
+        "record": "macos/agent-tests.txt"
+      },
+      {
+        "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_t31_ -- --nocapture",
+        "exit_code": 0,
+        "effective_tests": 5,
+        "failed": 0,
+        "ignored": 1,
+        "record": "macos/adjacent-tests.txt",
+        "note": "t31 interactive manual test not run; task64 interactive test above explicitly included and passed"
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t64_ --no-run --message-format=json",
+        "exit_code": 0,
+        "effective_tests": null,
+        "purpose": "locate real backend executable"
+      },
+      {
+        "command": "cargo test -p vw-desktop --test plugin-compat-window --all-features --no-run --message-format=json",
+        "exit_code": 0,
+        "effective_tests": null,
+        "purpose": "build actual Iced acceptance runner"
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "effective_tests": null,
+        "record": "macos/clippy.txt"
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0,
+        "effective_tests": null
+      },
+      {
+        "command": [
+          "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/plugin_compat_window-2b507d5961021054",
+          "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711",
+          "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr/iced-55",
+          "55"
+        ],
+        "exit_code": 0,
+        "effective_backend_tests": 1,
+        "failed": 0,
+        "record": "macos/iced-55.txt",
+        "actual_window": true
+      },
+      {
+        "command": [
+          "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/plugin_compat_window-2b507d5961021054",
+          "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711",
+          "/var/folders/rg/zr19lb_s5w32q6d2qkd6p0n80000gp/T/shiju-t64-fresh-ui-19lt16vr/iced-56",
+          "56"
+        ],
+        "exit_code": 0,
+        "effective_backend_tests": 1,
+        "failed": 0,
+        "record": "macos/iced-56.txt",
+        "actual_window": true
+      }
+    ],
+    "cargo": {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+      "lease_released": true
+    },
+    "native_ui": {
+      "date": "2026-11-04",
+      "method": "CUA native macOS accessibility and window screenshots",
+      "initial": "工具结果已加载; interaction enabled",
+      "click_results": [
+        "交互成功 1",
+        "交互成功 3"
+      ],
+      "theme": "light and dark screenshots visually checked for readable Chinese and button contrast",
+      "scroll": "Native scroll action moves content from lines 1–2 to line 22; screenshots verify movement; AX scrollbar value remained 0 and is not used as scrolling proof",
+      "cancel": "已取消; 交互计数 disabled",
+      "source": "unmodified t31 HTML and Python server under Chinese/spaced source path",
+      "screenshots": [
+        "app-light.png",
+        "app-dark-count.png",
+        "app-dark-scroll.png",
+        "app-cancel.png"
+      ],
+      "external_services": false
+    },
+    "lifecycle": {
+      "native_panel_finished": true,
+      "server_reaped": true,
+      "source_unchanged": true,
+      "unicode_spaced_source": true
+    },
+    "helper": {
+      "source": "crates/vw-webview/src/mcp_app.rs; current repository build",
+      "sha256": "7196d8661584fea757407887109e0e2afc2a773a2fcee30738b399a9f6249934",
+      "bundle_identifier": "dev.vibewindow.t64-19lt16vr",
+      "bundle_scope": "isolated QA packaging; executable bytes copied unchanged from Cargo output"
+    },
+    "iced": {
+      "catalog": {
+        "themes": 2,
+        "real_gateway": true,
+        "missing_node": true,
+        "hook_pending": true,
+        "unicode_long_path": true,
+        "glyph_panic": false,
+        "closed_without_mutation": true
+      },
+      "install_update": {
+        "themes": 2,
+        "real_gateway": true,
+        "retry": true,
+        "cancel_without_publish": true,
+        "explicit_install": true,
+        "explicit_update": true,
+        "capability_diff": true,
+        "unicode_long_path": true,
+        "glyph_panic": false,
+        "no_auto_execution": true
+      },
+      "interaction_driver": "real Iced messages and authenticated local Gateway; captures after actual frames; screenshots visually inspected"
+    },
+    "initial_probe": "Earlier legacy-bundle probe observed already-cancelled state and was not used as full UI acceptance. Final run used a newly built helper and a unique bundle identifier; initial enabled state and all interactions were observed.",
+    "limits": [
+      "Local repository-authored resource UI; no new public-network MCP claim",
+      "Linux, Windows and OAuth are user-skipped",
+      "Historical t32 regression remains recorded in t64/adjacent.txt; unrelated behavior not changed"
+    ]
+  },
+  "macos_artifacts_sha256": {
+    "adjacent-tests.txt": "4110aa3d395700ecbf1f48436bbe09fbb2c5b8615f65dd8cdd10b7837a5c67ed",
+    "agent-tests.txt": "07e9ad64bad8159958488c4da078dd1f7b3888bc64593d3d02a7a8c5e855258e",
+    "app-cancel-ax.txt": "415ec054a0566153dc0f2dd27116cdb58eea0259100de59e1a30e8eeee457780",
+    "app-cancel.png": "3b531df5875c068ed0914694e9102b444fb7ad599e292533911baca58dacc989",
+    "app-count-1-ax.txt": "a1bcacd6c062f24e49686e80d81966ec049dee4ebb8863e276be13ef358d546f",
+    "app-count-3-ax.txt": "528ce58e225fe3d7384a411a0551a67b653ed9798b7bd3e0c8cc8e296475bfc4",
+    "app-dark-count.png": "a394890afe512b56cbc055c2f21e506b26c72fe66d7719fbde97d7e37787aa81",
+    "app-dark-scroll.png": "126d9615035439e202dc4485f4c6cd964ee4b87e4c83f95c94000869dfc52887",
+    "app-initial-ax.txt": "7bb1fcae850b2a9e65b891a1f377e1f4aef71517ac39b29cc08c1a501d67ce7d",
+    "app-light.png": "f3f378391ae7214cf1ccbc7ed4ea880a191264a4cc25de944a29529c38ae2841",
+    "app-scroll-ax.txt": "ddd0ca137353fad6ac1fb50547b7c02228b374335c63641eaaeb2912d556721c",
+    "cargo.json": "248fd664c9a43633ffeaacad22f0eed5124638cf5fe7d40f997d328c3b0c3d73",
+    "clippy.txt": "f522737ec3d203402da734b5e0dcab8351b55522637d5fcd16b04a2daab5854f",
+    "fmt.txt": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "helper-build.txt": "92d173f22437aa8bbd5fe5e958d4e95d8f26b9cb611a89b7cb0ff28201ba7979",
+    "iced-55-backend-result.json": "7b8f3845a9d9a6dcbe618adbd6db911b4a984268c80a0e4b3fef492e4bc02143",
+    "iced-55-t55-dark.png": "bdd2d98e029fda9a3b3c7ae96b4917e7aff01032eba22a3b0107a81e1215eb88",
+    "iced-55-t55-light.png": "0ab440e5f81097549bbf0ba7c18a249fb3c80a4a0a5ee8f3db267b2acedfd041",
+    "iced-55-window-result.json": "563d4d1182573c544a5121e2c4ceef8ece448556910d3de5a5595887bbaeea9a",
+    "iced-55.txt": "45c599d844d272806195315d87e50e9874cfe7db95acf1b6be1c792bc1c3b800",
+    "iced-56-backend-result.json": "7b8f3845a9d9a6dcbe618adbd6db911b4a984268c80a0e4b3fef492e4bc02143",
+    "iced-56-t56-error-light.png": "63185a7f5946492234fa4d6c6177409126e026b23214b0adfb763192b34e415e",
+    "iced-56-t56-review-dark.png": "c267a41b69b67597450068a842fe460c2fbaea2bbf7c2566e88e920081d764fd",
+    "iced-56-t56-review-light.png": "a70e037f049dfd83889606457db9be583db868762489e292bc206159c59db9e4",
+    "iced-56-t56-success-dark.png": "5b1406d4b4c5a3bcca6f237250201eaaa93bffcbbe379f97da6a7c563e1f9bc8",
+    "iced-56-t56-update-dark.png": "12fa9ebe37d0605956444b6625f94f2869c4063198d70824c8f60fdb19916e30",
+    "iced-56-window-result56.json": "50721f9878a6d1d62646062283b1ffb224de09f788d12f9bd8880ab70645e30a",
+    "iced-56.txt": "67b751daa6f6e82fc86462b208ca2080e0280ad8ee86a752c59bda0dac03287c",
+    "iced-checks.json": "2f1ef1b324c35f1694b187cc13d8f42ee72c53fbf2f074071c621c61c8ff0dbf",
+    "process-cleanup.json": "48b0750fcbbebf465f8cb042bbaf7a27ee7f40485b0e538d79b0598570de955e",
+    "ui-observation.json": "709041b7f2461e36fe50b04a1f718bb7002d94229ba29daff0527fc68aec87fa",
+    "ui-result.json": "4219497e94d3237d593fa9d91b071da6059d7e73faafc25cc0a5e7c0dadec428",
+    "ui-test.txt": "8f0b08ad08240ceb207520cf31c7b953ca52e7d626393b6c8d70db29da6e258e"
+  },
+  "checks_recorded_date": "2026-11-03",
+  "checks_are_historical": true
 }

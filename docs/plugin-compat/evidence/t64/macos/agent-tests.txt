@@ -1,0 +1,11 @@
+   Compiling vw-agent v0.5.10 (/Users/xiangmin/worker/code/shiju/crates/vw-agent)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 41s
+     Running unittests src/lib.rs (target/rust-slot-3/build/debug/deps/vw_agent-e557a8fe939ec711)
+
+running 4 tests
+test plugins::compat::t64_tests::codex_plugin_compat_t64_rejects_invalid_input ... ok
+test plugins::compat::platform_tests::codex_plugin_compat_t64_executes_host_hook_command ... ok
+test plugins::compat::t64_tests::codex_plugin_compat_t64_preserves_isolation ... ok
+test plugins::compat::t64_tests::codex_plugin_compat_t64_uses_platform_command_and_unicode_paths ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 10987 filtered out; finished in 0.06s

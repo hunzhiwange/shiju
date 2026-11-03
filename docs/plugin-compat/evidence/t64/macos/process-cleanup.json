@@ -1,0 +1,12 @@
+{
+  "matched_owned_processes": [],
+  "checked": [
+    "unique native helper",
+    "Python server in isolated root"
+  ],
+  "iced_runners_exited": [
+    0,
+    0
+  ],
+  "slot_3_lock_released": true
+}

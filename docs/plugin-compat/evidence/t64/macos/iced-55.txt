@@ -1,0 +1,8 @@
+
+running 1 test
+2026-11-04 07:35:42.440 plugin_compat_window-2b507d5961021054[74524:12704107] error messaging the mach port for IMKCFRunLoopWakeUpReliable
+PLUGIN WINDOW CAPTURE t55-light.png; actual Unicode shaping completed
+PLUGIN WINDOW CAPTURE t55-dark.png; actual Unicode shaping completed
+test plugins::compat::plugin_window_fixture::plugin_window_gateway_fixture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10990 filtered out; finished in 2.45s

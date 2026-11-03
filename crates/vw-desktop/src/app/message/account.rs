@@ -112,6 +112,7 @@ pub(crate) enum AccountMessage {
         notice: AccountNotice,
         result: Result<AccountRepository, String>,
     },
+    PrepareNativeShijuSkill,
     NativeShijuSkillPrepared {
         generation: u64,
         revision: u64,
@@ -759,6 +760,7 @@ pub(crate) fn update(app: &mut App, message: AccountMessage) -> Task<Message> {
                 ),
             }
         }
+        AccountMessage::PrepareNativeShijuSkill => shiju_skill::start(app),
         AccountMessage::NativeShijuSkillPrepared { generation, revision, result } => {
             shiju_skill::finished(app, generation, revision, result)
         }

@@ -43,6 +43,7 @@ enum ShijuMenuStatus<'a> {
 struct ShijuMenuRow<'a> {
     skill_id: u64,
     name: &'a str,
+    version: String,
     tooltip: String,
     selected: bool,
 }
@@ -126,6 +127,15 @@ fn menu_height(item_count: usize) -> Length {
 
 fn menu_view<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
+    if app.expert_hub.package_status.local_version.is_none() {
+        items = items.push(
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩原生技能")).size(12))
+                .on_press(Message::Account(message::AccountMessage::PrepareNativeShijuSkill))
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false)),
+        );
+    }
     if indices.is_empty() {
         items = items.push(
             container(
@@ -339,6 +349,11 @@ fn shiju_menu_rows(app: &App) -> Vec<ShijuMenuRow<'_>> {
         .map(|skill| ShijuMenuRow {
             skill_id: skill.skill_id,
             name: &skill.name,
+            version: if skill.upgrade_available {
+                format!("{} → {}", skill.installed_version, skill.current_version)
+            } else {
+                skill.installed_version.clone()
+            },
             tooltip: crate::__!(
                 crate::app::i18n::I18n::new(app.desktop_locale),
                 "%s\n标识：%s\n版本：%s\n\n%s",
@@ -388,7 +403,7 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let upgrade_button = button(
         text(crate::app::i18n::I18n::new(app.desktop_locale).__("前往识矩技能升级")).size(12),
     )
-    .on_press_maybe(upgrade_enabled.then(shiju_upgrade_message))
+    .on_press(shiju_upgrade_message())
     .padding([8, 10])
     .width(Length::Fill)
     .style(move |theme: &Theme, status| {
@@ -398,6 +413,15 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let rows = shiju_menu_rows(app);
     let item_count = rows.len();
     let mut items = column![].spacing(3).width(Length::Fill);
+    if app.expert_hub.package_status.local_version.is_none() {
+        items = items.push(
+            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩原生技能")).size(12))
+                .on_press(Message::Account(message::AccountMessage::PrepareNativeShijuSkill))
+                .padding([8, 10])
+                .width(Length::Fill)
+                .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false)),
+        );
+    }
 
     if status != ShijuMenuStatus::Loaded {
         items = items.push(
@@ -423,7 +447,10 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     }
 
     for row in rows {
-        let mut content = row![text(row.name).size(12).width(Length::Fill)]
+        let mut content = row![
+            text(row.name).size(12).width(Length::Fill),
+            text(row.version.clone()).size(12),
+        ]
             .spacing(8)
             .align_y(iced::Alignment::Center);
         if row.selected {

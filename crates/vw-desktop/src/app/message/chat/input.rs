@@ -230,7 +230,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 return Task::none();
             }
             app.quick_message_open_group = None;
-            Task::done(Message::SkillHub(message::SkillHubMessage::EnsureInstalledSkillsLoaded))
+            Task::batch([
+                Task::done(Message::SkillHub(message::SkillHubMessage::EnsureInstalledSkillsLoaded)),
+                Task::done(Message::Account(message::AccountMessage::PrepareNativeShijuSkill)),
+            ])
         }
         ChatMessage::SelectShijuSkill(skill_id) => {
             let selection = match &app.expert_hub.installed {

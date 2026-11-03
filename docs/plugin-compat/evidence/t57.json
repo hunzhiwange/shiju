@@ -141,5 +141,45 @@
     "codex-rs/core/src/session/plugin_selection.rs::Session::activate_plugin_selection",
     "codex-rs/app-server/src/plugin_config_reload.rs::for_cwd"
   ],
-  "limits": "Leases coordinate managed plugin lifecycle operations; manual external filesystem edits still rely on existing path/content/trust audits. External MCP authentication and global security policies are not widened by a plugin snapshot."
+  "limits": "Leases coordinate managed plugin lifecycle operations; manual external filesystem edits still rely on existing path/content/trust audits. External MCP authentication and global security policies are not widened by a plugin snapshot.",
+  "revalidation": {
+    "date": "2026-11-03",
+    "implementation_commit": "931a7afa",
+    "dependency": "27567240 / t56.json revalidation",
+    "platform": "macOS arm64",
+    "baseline_rows": [
+      "session.selection",
+      "acceptance.t57"
+    ],
+    "checks": [
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t57_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 8,
+        "failed": 0
+      },
+      {
+        "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t42_ -- --nocapture",
+        "exit_code": 0,
+        "passed": 6,
+        "failed": 0
+      },
+      {
+        "command": "cargo clippy --all-targets --all-features -- -D warnings",
+        "exit_code": 0
+      },
+      {
+        "command": "git diff --check",
+        "exit_code": 0
+      }
+    ],
+    "cargo": {
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "locks_released": true,
+      "cache_retained": true
+    },
+    "note": "Reused committed implementation and original behavioral red evidence. All eight current target tests pass, including real stdio MCP process retirement, boundary version selection, hook policy refresh, expired/scope/tenant rejection, cancelled hook cleanup and toolset bridge isolation. Six compaction neighbors pass. No Rust changes; cargo fmt not repeated. Historical unrelated hook_runtime failures were not rerun and are not claimed resolved."
+  }
 }

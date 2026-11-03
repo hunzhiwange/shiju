@@ -871,7 +871,13 @@ fn main() {
         let toolbar_proxy = proxy.clone();
         let toolbar_ready_proxy = proxy.clone();
         let toolbar = match WebViewBuilder::new()
-            .with_html(toolbar_html())
+            .with_html(if options.shiju_app_set_cookie_stdin {
+                toolbar_html()
+                    .replace("type=\"text\"", "type=\"text\" readonly")
+                    .replace("post('navigate', address.value);", "")
+            } else {
+                toolbar_html()
+            })
             .with_clipboard(true)
             .with_bounds(region.to_wry_rect())
             .with_on_page_load_handler(move |event, _url| {

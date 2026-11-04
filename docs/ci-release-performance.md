@@ -314,3 +314,23 @@ experiment=dist、cache=off/restore/restore；不推混合业务提交、不擅�
 macos-15-intel / x86_64-apple-darwin。原已启动的双目标运行保持 Mac 构建，
 Mac 完成后取消剩余 Windows；不因 Windows/Linux 证据缺失阻塞 Mac 验收。
 现有运行固定旧 SHA，不受后续矩阵修改影响；实际 true/false、归档和行为证据仍待收集。
+
+### 已启动的 Mac-only 基线
+
+[运行 41785108897](https://github.com/hunzhiwange/shiju/actions/runs/41785108897)
+于 2026-11-04 14:22（上海）手动启动；分支 codex/release-macos-acceptance，
+SHA a5df08b909d8db89145cfd0ecc9d8f9d262bb910，experiment=dist、cache=off。
+Intel Mac job 126425359122 已通过 Cargo 目录核验并开始安装固定打包工具；
+Apple Silicon job 126425358908 排队，矩阵串行。lto/precise 跳过，无 Windows/Linux job，
+不签名公证或发布。尚未完成构建打包，不是验收成功或净收益证据。
+
+独立分支以远端默认分支 07f349fec 为父提交，仅新增本计划两项修复：
+179363520 删除 LTO 的 Windows 矩阵项，a5df08b90 将 workflow choice 的 'off' 加引号。
+GitHub 原表单将未加引号的 off 显示为 false，会使缓存模式判断偏离基线；修复后分支表单
+正确显示 off，已据此启动。不推送当前工作区混合业务提交，不创建发布 tag。
+
+只读检查仓库设置确认：经典分支保护无规则，Rulesets 显示未创建任何规则集。
+现有可信缓存保存限制要求 github.ref_protected，因此当前默认分支也不会写入编译缓存。
+新增默认分支保护是单独仓库治理决定，尚未执行；保持原有缓存权限限制。
+Release 的 push 仅匹配版本 tag，但所有 PR 会启动多平台验证，故未创建会触发
+Windows/Linux 的 PR。基线仍可独立完成；缓存冷热验收待治理决定后再安全安排。

@@ -758,20 +758,41 @@ async fn resolve_file_root(
     project_id: &str,
     worktree_id: Option<&str>,
 ) -> Result<String, ApiError> {
-    if let Some(worktree_id) = worktree_id {
-        return decode_worktree_directory(worktree_id);
-    }
-
     let info = crate::app::agent::gateway::instance::load_local_project(project_id).await?;
-
-    if !info.worktree.trim().is_empty() {
-        return Ok(info.worktree);
+    let primary = if !info.worktree.trim().is_empty() {
+        info.worktree.clone()
+    } else {
+        info.sandboxes
+            .iter()
+            .find(|path| !path.trim().is_empty())
+            .cloned()
+            .ok_or_else(|| ApiError::bad_request("project directory missing"))?
+    };
+    let Some(worktree_id) = worktree_id else {
+        return Ok(primary);
+    };
+    let requested = decode_worktree_directory(worktree_id)?;
+    let requested_path =
+        std::fs::canonicalize(&requested).map_err(|_| ApiError::not_found("worktree not found"))?;
+    if std::fs::canonicalize(&primary).is_ok_and(|path| path == requested_path) {
+        return Ok(primary);
     }
-
-    info.sandboxes
-        .into_iter()
-        .find(|path| !path.trim().is_empty())
-        .ok_or_else(|| ApiError::bad_request("project directory missing"))
+    if matches!(info.vcs, Some(crate::app::agent::project::Vcs::Git)) {
+        let directories = with_instance(primary, move || {
+            Box::pin(async move {
+                crate::worktree::list_directories()
+                    .await
+                    .map_err(|error| ApiError::bad_request(error.to_string()))
+            })
+        })
+        .await?;
+        if directories.iter().any(|directory| {
+            std::fs::canonicalize(directory).is_ok_and(|path| path == requested_path)
+        }) {
+            return Ok(requested);
+        }
+    }
+    Err(ApiError::not_found("worktree not found"))
 }
 
 fn decode_worktree_directory(worktree_id: &str) -> Result<String, ApiError> {

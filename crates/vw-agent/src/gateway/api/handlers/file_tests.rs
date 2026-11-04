@@ -573,7 +573,8 @@ async fn file_move_copy_and_delete_v1_use_worktree_id_root() {
     std::fs::write(root.join("source.txt"), "source").expect("source");
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
-    let project_id = vw_api_types::id::ProjectId("project".to_string());
+    let registered = RegisteredFileProject::new(&root);
+    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
     let _ = file_copy_v1(Json(CopyFileRequest {
@@ -619,7 +620,8 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     std::fs::create_dir(root.join("dir")).expect("dir");
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
-    let project_id = vw_api_types::id::ProjectId("project".to_string());
+    let registered = RegisteredFileProject::new(&root);
+    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
     let missing = file_copy_v1(Json(CopyFileRequest {
@@ -720,7 +722,8 @@ async fn file_copy_and_delete_v1_handle_directories_recursively() {
     std::fs::write(root.join("source/nested/file.txt"), "content").expect("source file");
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
-    let project_id = vw_api_types::id::ProjectId("project".to_string());
+    let registered = RegisteredFileProject::new(&root);
+    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
     let _ = file_copy_v1(Json(CopyFileRequest {
@@ -755,7 +758,8 @@ async fn file_move_copy_and_delete_v1_reject_workspace_escapes() {
     std::fs::write(root.join("source.txt"), "source").expect("source file");
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_string_lossy().as_ref());
-    let project_id = vw_api_types::id::ProjectId("project".to_string());
+    let registered = RegisteredFileProject::new(&root);
+    let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
     let copy_error = file_copy_v1(Json(CopyFileRequest {
@@ -889,4 +893,151 @@ fn store_file_test_project(info: &crate::app::agent::project::Info) {
 fn remove_file_test_project(project_id: &str) {
     crate::app::agent::project::remove_local_test_project(project_id)
         .expect("project should clean up");
+}
+
+struct RegisteredFileProject(String);
+
+impl RegisteredFileProject {
+    fn new(root: &std::path::Path) -> Self {
+        let id = format!("file-boundary-{}", uuid::Uuid::new_v4());
+        store_file_test_project(&project_info_for_file_tests(
+            &id,
+            root.to_string_lossy().into_owned(),
+            vec![],
+        ));
+        Self(id)
+    }
+}
+
+impl Drop for RegisteredFileProject {
+    fn drop(&mut self) {
+        remove_file_test_project(&self.0);
+    }
+}
+
+async fn assert_file_mutations_rejected(project_id: &str, root: &std::path::Path, encoded: &str) {
+    use tower::ServiceExt;
+    std::fs::write(root.join("source.txt"), "source").expect("source");
+    std::fs::write(root.join("target.txt"), "target").expect("target");
+    for operation in ["move", "copy", "delete"] {
+        let response = router::<()>()
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri(format!("/files/{operation}"))
+                    .header("content-type", "application/json")
+                    .body(axum::body::Body::from(
+                        serde_json::json!({
+                            "project_id": project_id, "worktree_id": encoded,
+                            "from_path": "source.txt", "to_path": "target.txt",
+                            "path": "source.txt", "overwrite": true, "recursive": true,
+                        })
+                        .to_string(),
+                    ))
+                    .expect("request"),
+            )
+            .await
+            .expect("route");
+        assert_eq!(response.status(), axum::http::StatusCode::NOT_FOUND, "{operation}");
+        assert_eq!(
+            std::fs::read_to_string(root.join("source.txt")).expect("source unchanged"),
+            "source"
+        );
+        assert_eq!(
+            std::fs::read_to_string(root.join("target.txt")).expect("target unchanged"),
+            "target"
+        );
+    }
+}
+
+#[tokio::test]
+async fn file_root_rejects_foreign_worktree_before_mutation() {
+    let primary = tempfile::tempdir().expect("primary");
+    let foreign = tempfile::tempdir().expect("foreign");
+    let project = RegisteredFileProject::new(primary.path());
+    let _other_project = RegisteredFileProject::new(foreign.path());
+    let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(foreign.path().to_str().expect("path"));
+    assert_file_mutations_rejected(&project.0, foreign.path(), &encoded).await;
+    assert_file_mutations_rejected(&project.0, foreign.path(), "%%%").await;
+    let nested = primary.path().join("nested");
+    std::fs::create_dir(&nested).expect("nested");
+    let encoded =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(nested.to_str().expect("path"));
+    assert_file_mutations_rejected(&project.0, &nested, &encoded).await;
+}
+
+#[tokio::test]
+async fn file_root_rejects_missing_project_with_encoded_path() {
+    let temp = tempfile::tempdir().expect("root");
+    let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(temp.path().to_str().expect("path"));
+    assert_file_mutations_rejected(
+        &format!("missing-{}", uuid::Uuid::new_v4()),
+        temp.path(),
+        &encoded,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn file_root_accepts_registered_primary_and_git_worktree() {
+    let temp = tempfile::tempdir().expect("root");
+    let root = temp.path().join("primary");
+    std::fs::create_dir(&root).expect("primary");
+    let project = RegisteredFileProject::new(&root);
+    let encoded =
+        base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_str().expect("path"));
+    assert_eq!(
+        resolve_file_root(&project.0, Some(&encoded)).await.expect("non git primary"),
+        root.to_string_lossy()
+    );
+    for args in [
+        vec!["init"],
+        vec![
+            "-c",
+            "user.name=Fixture",
+            "-c",
+            "user.email=fixture@example.com",
+            "commit",
+            "--allow-empty",
+            "-m",
+            "initial",
+        ],
+    ] {
+        assert!(
+            std::process::Command::new("git")
+                .args(args)
+                .current_dir(&root)
+                .output()
+                .expect("git")
+                .status
+                .success()
+        );
+    }
+    let linked = temp.path().join("linked");
+    assert!(
+        std::process::Command::new("git")
+            .args(["worktree", "add", "-b", "fixture"])
+            .arg(&linked)
+            .current_dir(&root)
+            .output()
+            .expect("worktree")
+            .status
+            .success()
+    );
+    let mut info =
+        project_info_for_file_tests(&project.0, root.to_string_lossy().into_owned(), vec![]);
+    info.vcs = Some(project::Vcs::Git);
+    store_file_test_project(&info);
+    for directory in [&root, &linked] {
+        let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
+            .encode(directory.to_str().expect("path"));
+        let resolved =
+            resolve_file_root(&project.0, Some(&encoded)).await.expect("registered directory");
+        assert_eq!(
+            std::path::Path::new(&resolved).canonicalize().expect("resolved"),
+            directory.canonicalize().expect("directory")
+        );
+    }
 }

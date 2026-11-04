@@ -48,6 +48,9 @@ pub(super) async fn prepare(
         generation: 0,
     };
     let mut profile = AcpLaunchProfile::new(config, identity)?;
+    profile.model_output_limit = resolved.limit.output;
+    profile.model_supports_temperature = resolved.capabilities.temperature;
+    profile.model_api = Some(resolved.api.clone());
     let server = RelayServer::start(
         profile.binding.clone(),
         std::sync::Arc::new(ProviderRelayBackend::new()?),

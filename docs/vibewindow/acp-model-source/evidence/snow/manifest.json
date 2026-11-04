@@ -1,0 +1,45 @@
+{
+  "entries": [
+    {
+      "key": "snow",
+      "distribution": {
+        "kind": "native",
+        "package": "snow-ai",
+        "release": "0.9.14",
+        "git_commit": "a9eba5f9062afbf639829b4992e90a986924f519",
+        "integrity": "sha512-hVawSqfpwqSJgTAPVNp7Lw7gUoBpP89eKIC/lN5f6dvU8HWQtIo0M3BUhqByPmSUM8jZr1bbKF3CbQ9ur0pRaw=="
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.9.14"
+      },
+      "installed": {
+        "command": [
+          "snow",
+          "--version"
+        ]
+      },
+      "acp_launch": [
+        "snow",
+        "--acp"
+      ],
+      "local_command_candidates": [
+        "snow"
+      ],
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "SNOW_CONFIG_DIR",
+          "files": {
+            "config.json": "{\"snowcfg\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"requestMethod\": \"chat\", \"advancedModel\": \"{{model}}\", \"basicModel\": \"{{model}}\", \"supportsVision\": true, \"enablePromptOptimization\": false, \"maxRetries\": 0}}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "SNOW_CONFIG_DIR",
+          "files": {
+            "config.json": "{\"snowcfg\": {\"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\", \"requestMethod\": \"chat\", \"advancedModel\": \"{{model}}\", \"basicModel\": \"{{model}}\", \"supportsVision\": true, \"enablePromptOptimization\": false, \"maxRetries\": 0}}"
+          }
+        }
+      }
+    }
+  ]
+}

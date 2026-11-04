@@ -40,6 +40,35 @@ class HarnessContract(unittest.TestCase):
             self.assertNotIn(fixture.key, json.dumps(evidence))
 
 
+    def test_catalog_requires_model_auth_and_is_not_generation(self):
+        with ModelFixture() as fixture:
+            for path in ("/v1/models", "/v1/chat/completions/models"):
+                request = urllib.request.Request(fixture.url + path, headers={
+                    "Authorization": "Bearer " + fixture.key})
+                with urllib.request.urlopen(request) as response:
+                    self.assertEqual({item["id"] for item in json.load(response)["data"]}, set(fixture.models))
+                request = urllib.request.Request(fixture.url + path, headers={
+                    "Authorization": "Bearer " + fixture.control})
+                with self.assertRaises(urllib.error.HTTPError):
+                    urllib.request.urlopen(request)
+            self.assertEqual(fixture.snapshot()["requests"], [])
+            self.assertEqual(fixture.snapshot()["errors"], 2)
+
+    def test_snow_native_read_uses_owned_absolute_challenge(self):
+        with ModelFixture() as fixture:
+            fixture.read_path = "/owned-fixture/challenge.txt"
+            body = {"model": fixture.models[0], "messages": [{"role": "user", "content": "read"}],
+                    "tools": [{"type": "function", "function": {"name": "filesystem-read", "parameters": {
+                        "properties": {"filePath": {"type": "string"}}}}}]}
+            request = urllib.request.Request(fixture.url + "/v1/chat/completions", json.dumps(body).encode(),
+                {"Authorization": "Bearer " + fixture.key, "Content-Type": "application/json"})
+            with urllib.request.urlopen(request) as response:
+                call = json.load(response)["choices"][0]["message"]["tool_calls"][0]
+            self.assertEqual(call["function"]["name"], "filesystem-read")
+            self.assertEqual(json.loads(call["function"]["arguments"]), {"filePath": fixture.read_path})
+            self.assertEqual(fixture.snapshot()["requests"][0]["tool_results"], 0)
+
+
 class RunnerContract(unittest.TestCase):
     def test_slot_must_be_absolute_and_reserved(self):
         from verify_acp_model_source import Unavailable, cargo_slot

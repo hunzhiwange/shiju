@@ -18,6 +18,7 @@ class ModelFixture:
         self.records = []
         self.errors = 0
         self.challenge = secrets.token_hex(16)
+        self.read_path = "challenge.txt"
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
 
@@ -34,6 +35,10 @@ class ModelFixture:
                 self.wfile.write(data)
 
             def do_GET(self):
+                if self.path in ("/v1/models", "/v1/chat/completions/models") and self.headers.get("Authorization") == "Bearer " + fixture.key:
+                    return self.reply(200, {"object": "list", "data": [
+                        {"id": model, "object": "model"} for model in fixture.models
+                    ]})
                 if self.path != "/_evidence" or self.headers.get("Authorization") != "Bearer " + fixture.control:
                     with fixture.lock:
                         fixture.errors += 1
@@ -64,14 +69,14 @@ class ModelFixture:
                     # Use the real agent's declared read tool; an actual file must be read.
                     read_tool = next((t.get("function", {}) for t in tools
                                       if t.get("function", {}).get("name", "").lower() in
-                                      ("read", "read_file", "readfile")), None)
+                                      ("read", "read_file", "readfile", "filesystem-read")), None)
                     if len(tool_results) < 2 and read_tool:
                         props = read_tool.get("parameters", {}).get("properties", {})
                         name = next((k for k in ("file_path", "path", "filePath") if k in props), None)
                         if name is None:
                             raise ValueError("unsupported read tool schema")
                         call = {"id": "fixture-read-" + str(len(tool_results)), "type": "function",
-                                "function": {"name": read_tool["name"], "arguments": json.dumps({name: "challenge.txt"})}}
+                                "function": {"name": read_tool["name"], "arguments": json.dumps({name: fixture.read_path})}}
                         message = {"role": "assistant", "content": None, "tool_calls": [call]}
                         finish = "tool_calls"
                     else:

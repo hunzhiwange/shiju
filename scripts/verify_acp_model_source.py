@@ -174,6 +174,7 @@ def run(args):
             native.mkdir(mode=0o700)
             # Drop account, proxy, model and config variables before even probing CLI versions.
             env = {k: os.environ[k] for k in ("PATH", "HOME", "USERPROFILE", "HOMEDRIVE", "HOMEPATH", "SystemRoot", "TMPDIR", "RUST_MIN_STACK") if k in os.environ}
+            env.setdefault("RUST_MIN_STACK", "33554432")
             env.update(CARGO_TARGET_DIR=slot, CARGO_BUILD_BUILD_DIR=slot,
                        VIBEWINDOW_CONFIG_DIR=str(root / "config"))
             native_env = isolated_environment(entry, native, fixture, args.mode)
@@ -181,6 +182,7 @@ def run(args):
             config = locate(entry, env)
             config["env"] = native_env if args.mode == "cli-local" else {}
             (root / "challenge.txt").write_text(fixture.challenge)
+            fixture.read_path = str(root / "challenge.txt")
             runtime = root / "entry.json"
             runtime.write_text(json.dumps({"agent": args.agent, "mode": args.mode,
                                           "config": config, "isolation_env": native_env, "root": str(root),
@@ -206,6 +208,9 @@ def run(args):
             passed = result.returncode == 0 and exactly_one and successful(evidence, flow)
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,
+                          failure_locations=sorted(set(re.findall(
+                              r"(?:crates|src)/[a-zA-Z0-9_./-]+\.rs:\d+(?::\d+)?",
+                              (result.stdout + result.stderr).decode(errors="replace")))) if not passed else [],
                           requests=evidence, flow=flow, command=command, cargo_target_dir=slot)
     except VersionMismatch as error:
         report.update(status="version-mismatch", reason=str(error))

@@ -1,0 +1,46 @@
+[
+  {
+    "requestMethod": "chat",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1/chat/completions",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ]
+  },
+  {
+    "requestMethod": "responses",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1/responses",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ]
+  },
+  {
+    "requestMethod": "anthropic",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1/messages",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ]
+  },
+  {
+    "requestMethod": "gemini",
+    "passed": true,
+    "requests": [
+      {
+        "path": "/v1beta/models/probe-model:streamGenerateContent?alt=sse",
+        "model": "probe-model",
+        "authenticated": true
+      }
+    ]
+  }
+]

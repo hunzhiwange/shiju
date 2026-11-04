@@ -24,6 +24,9 @@ pub(crate) struct AcpLaunchProfile {
     server: Option<RelayServer>,
     #[allow(dead_code)] // Read by individual CLI drivers as they are verified.
     pub(crate) model_alias: String,
+    pub(crate) model_output_limit: u64,
+    pub(crate) model_supports_temperature: bool,
+    pub(crate) model_api: Option<crate::provider::provider::ApiInfo>,
 }
 impl AcpLaunchProfile {
     pub(crate) fn new(config: &AcpAgentConfig, identity: RelayIdentity) -> anyhow::Result<Self> {
@@ -59,7 +62,16 @@ impl AcpLaunchProfile {
             let binding = RelayBinding::new(identity, Duration::from_secs(900))?;
             let mut config = config.clone();
             config.env.insert(REFERENCE_ENV.into(), reference);
-            Ok(Self { config, directory, binding, server: None, model_alias })
+            Ok(Self {
+                config,
+                directory,
+                binding,
+                server: None,
+                model_alias,
+                model_output_limit: vw_shared::provider::state::DEFAULT_MODEL_OUTPUT_LIMIT,
+                model_supports_temperature: false,
+                model_api: None,
+            })
         }
     }
     pub(crate) fn config(&self) -> &AcpAgentConfig {

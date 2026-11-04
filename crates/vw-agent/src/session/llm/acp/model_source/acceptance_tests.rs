@@ -174,8 +174,8 @@ async fn run(mode: &str) {
             "api": format!("{}/v1/chat/completions", input["fixture"].as_str().unwrap()),
             "adapter":"openai-compatible", "env":["VW_ACP_OFFLINE_FIXTURE_KEY"],
             "models": {
-                "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true},
-                "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true}
+                "acp-fixture-primary":{"id":"acp-fixture-primary","status":"active","tool_call":true,"temperature":true},
+                "acp-fixture-switched":{"id":"acp-fixture-switched","status":"active","tool_call":true,"temperature":true}
             }
         }}
     })).await.unwrap();

@@ -99,7 +99,7 @@ fn run_profile_acceptance() {
     let workspace = tempfile::tempdir().unwrap();
     let session = format!("ses_acceptance_{}", uuid::Uuid::new_v4());
     for rule in ["ACCEPTANCE_ORIGINAL_RULE", "ACCEPTANCE_EDITED_RULE"] {
-        runtime.block_on(crate::config::update_project(workspace.path(), json!({"agents":{"main":{
+        runtime.block_on(crate::config::update(json!({"agents":{"main":{
             "label":"中文验收助手", "description":"持久化验收", "recommended_prompts":["检查项目"],
             "system_prompt":rule,
             "defaults":{
@@ -151,8 +151,7 @@ async fn agent_profile_acceptance_rejects_revoked_capabilities() {
         .unwrap(),
     )
     .unwrap();
-    crate::config::update_project(
-        workspace.path(),
+    crate::config::update(
         json!({"agents":{"main":{"defaults":{"mcp":{"mode":"fixed","value":["revoked"]}}}}}),
     )
     .await
@@ -237,20 +236,17 @@ for line in sys.stdin:
     )
     .unwrap();
     runtime
-        .block_on(crate::config::update_project(
-            workspace,
-            json!({
-                "acp":{"codex":{"command":"python3","args":[peer,capture],"env":{}}},
-                "agents":{"acp-codex":{
-                    "label":"已启用 ACP 验收", "enabled":true,"system_prompt":"ACP_ACCEPTANCE_RULE",
-                    "defaults":{
-                        "permission":{"mode":"fixed","value":{"*":"deny"}},
-                        "skills":{"mode":"fixed","value":[]},
-                        "mcp":{"mode":"fixed","value":["selected"]}
-                    }
-                }}
-            }),
-        ))
+        .block_on(crate::config::update(json!({
+            "acp":{"codex":{"command":"python3","args":[peer,capture],"env":{}}},
+            "agents":{"acp-codex":{
+                "label":"已启用 ACP 验收", "enabled":true,"system_prompt":"ACP_ACCEPTANCE_RULE",
+                "defaults":{
+                    "permission":{"mode":"fixed","value":{"*":"deny"}},
+                    "skills":{"mode":"fixed","value":[]},
+                    "mcp":{"mode":"fixed","value":["selected"]}
+                }
+            }}
+        })))
         .unwrap();
     let directory = workspace.to_string_lossy().into_owned();
     runtime
@@ -288,4 +284,59 @@ for line in sys.stdin:
     assert_eq!(new["params"]["mcpServers"][0]["name"], "selected");
     let prompt = requests.iter().find(|r| r["method"] == "session/prompt").unwrap();
     assert!(prompt["params"]["prompt"].to_string().contains("ACP_ACCEPTANCE_RULE"));
+}
+
+#[tokio::test]
+async fn agent_profile_acceptance_catalog_uses_request_tenant() {
+    use axum::{body::Body, extract::Extension, http::Request};
+    use tower::ServiceExt;
+    use vw_api_types::id::TenantScope;
+
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    crate::config::update_global_for_tenant(
+        &TenantScope::default(),
+        json!({
+            "agents":{"main":{"label":"DEFAULT_CATALOG_SENTINEL"}}
+        }),
+    )
+    .await
+    .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    for platform in ["acceptance-one", "acceptance-two"] {
+        let tenant = TenantScope::new(platform, "validation").unwrap();
+        crate::config::update_global_for_tenant(
+            &tenant,
+            json!({
+                "agents":{"main":{"label":platform}}
+            }),
+        )
+        .await
+        .unwrap();
+        let response = super::super::misc::router::<()>()
+            .layer(Extension(tenant))
+            .oneshot(
+                Request::builder()
+                    .uri(format!(
+                        "/agent?include_disabled=true&directory={}",
+                        directory.path().display()
+                    ))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body = to_bytes(response.into_body(), 2_000_000).await.unwrap();
+        let agents: Vec<Value> = serde_json::from_slice(&body).unwrap();
+        let main = agents.iter().find(|entry| entry["key"] == "main").unwrap();
+        assert_eq!(
+            main["label"], platform,
+            "catalog must use the request tenant, not the ambient default"
+        );
+    }
 }

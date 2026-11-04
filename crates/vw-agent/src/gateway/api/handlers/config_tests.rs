@@ -1215,6 +1215,28 @@ async fn agent_profile_api_persists_changes_after_reload() {
     let tenant = TenantScope::new("profile", "company").unwrap();
     for directory in [None, Some(home.path().to_string_lossy().to_string())] {
         let query = InstanceQuery { directory };
+        if query.directory.is_some() {
+            let before =
+                serde_json::to_value(config::get_global_for_tenant(&tenant).await.unwrap().agents)
+                    .unwrap();
+            assert!(
+                apply_config_patch(
+                    &tenant,
+                    &query,
+                    &HeaderMap::new(),
+                    serde_json::json!({"agents":{"acp-snow":{"label":"must-not-persist"}}}),
+                )
+                .await
+                .is_err(),
+                "project patches cannot change tenant-global agent definitions"
+            );
+            let after =
+                serde_json::to_value(config::get_global_for_tenant(&tenant).await.unwrap().agents)
+                    .unwrap();
+            assert_eq!(after, before);
+            continue;
+        }
+
         let (partial, _) = apply_config_patch(
             &tenant,
             &query,

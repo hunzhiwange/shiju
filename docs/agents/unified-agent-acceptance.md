@@ -1,6 +1,6 @@
 # 统一智能体运行链路验收
 
-验收日期：2026-11-04。状态：已完成，待窗口回归。范围为统一智能体计划任务 1–12，不涉及安装或分发全部第三方 CLI。
+验收日期：2026-11-04。状态：已阻塞（实际窗口等待解锁）。范围为统一智能体计划任务 1–12，不涉及安装或分发全部第三方 CLI。
 
 ## 行为与证据
 
@@ -72,3 +72,25 @@ ACP 夹具也曾因未携带真实桌面请求的 `cwd` 而被插件作用域校
 后续 CUA 操作多次返回 `The user changed ... Re-query the latest state`，按要求重新读取状态后仍再次中断。未绕过此保护。部分重新定位还可能在原窗口退出后触发 Launch Services 重启，因此仅把明确由 Cargo runner 启动且记录退出的窗口作为本次运行证据；已停止专用 bundle 的重启进程，并为仓库外 bundle 增加固定隔离目录的启动包装，避免后续重启丢失覆盖目录。所有本任务产物进程结束后释放自己的锁，未触碰其他活跃锁。
 
 **待回归**：在可稳定独占操作的窗口环境中，重新启动有效期内的辅助网关，使用修正后的 `app_theme` 与项目 fixture，补齐暗色中文表单、未安装项发送前提示与草稿保留、切换引擎和发送失败/取消的实际截图；确认固定资料编辑在真正重启后恢复。核心双路径、重启和能力撤销自动验收已通过，缺少上述窗口证据时不删除编号任务文件、不声明完整窗口验收完成。
+
+## 2026-11-05 继续验收
+
+修复 `/agent` 忽略请求租户、读取默认租户目录的问题：处理器显式进入请求 `TenantScope`，保留原有敏感字段清理。新增真实 Axum 路由测试，在两个非默认租户及默认租户哨兵之间验证隔离。修复前真实 HTTP 目录返回“主代理”而非请求租户哨兵（`catalog-http-red.log`）；修复后独立网关的 `/agent?include_disabled=true` 返回“识矩验收助手”（`regression-window/catalog-before-ui.json`），配置脚本断言通过。
+
+与已合入的租户全局智能体定义契约对齐，验收夹具改写全局定义，项目配置 API 测试明确拒绝项目级定义且原配置不变。手动窗口 fixture 生命周期由 180 秒调整为 900 秒，仍须停止文件正常退出。
+
+本轮动态领取槽位 4，`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为 `/Users/xiangmin/worker/code/shiju/target/rust-slot-4`。以下命令全部退出 0：
+
+| 命令 | 数量 / 日志（`/tmp/shiju-task12`） |
+| --- | --- |
+| `cargo fmt --all` | `global-fmt.log` |
+| `cargo test -p vw-agent --lib agent_profile_ -- --nocapture` | 10 / `global-agent_profile_.log` |
+| `cargo test -p vw-agent --lib agent_native_defaults_ -- --nocapture` | 9 / `global-agent_native_defaults_.log` |
+| `cargo test -p vw-agent --lib agent_session_identity_ -- --nocapture` | 7 / `global-agent_session_identity_.log` |
+| `cargo test -p vw-desktop --lib agent_unified_selection_ -- --nocapture` | 11 / `regression-selector-latest.log` |
+| `cargo clippy --all-targets --all-features -- -D warnings` | `global-clippy.log` |
+| `cargo build -p vw-desktop --bin shi-ju` | `global-desktop-build.log` |
+
+实际窗口启动使用全新 `/tmp/shiju-task12/regression-window` 隔离配置、项目及数据库，先前截图保留在 `regression-window-initial`。HTTP 配置和目录断言通过后，CUA 返回“Mac is locked and automatic unlock could not unlock it”。因此本轮没有新的实际窗口截图，不能声明暗色表单、发送前提示、引擎切换、取消及真正窗口重启持久化通过。已终止本次专用桌面进程（退出 143，主动清理，不计为通过）；辅助网关经停止文件正常结束，槽位在所有所属进程退出后释放。
+
+**恢复条件**：用户手动解锁 Mac 并保持桌面可用；重新动态领取空闲槽位，启动隔离网关与专用 bundle，完成上述窗口证据后再关闭任务。不得调整用户锁屏设置或使用旧截图冒充本轮结果。

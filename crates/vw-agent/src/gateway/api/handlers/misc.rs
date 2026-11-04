@@ -50,35 +50,39 @@ struct AgentListQuery {
 
 #[axum::debug_handler]
 async fn agent_list(
+    Extension(tenant): Extension<vw_api_types::id::TenantScope>,
     Query(query): Query<AgentListQuery>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<agent::Info>>, ApiError> {
     let dir = resolve_directory(&InstanceQuery { directory: query.directory }, &headers);
-    let result = with_instance(dir, move || {
-        Box::pin(async move {
-            let mut agents = if query.include_disabled {
-                let config = crate::config::get_current()
-                    .await
-                    .map_err(|error| ApiError::bad_request(error.to_string()))?;
-                agent::catalog::merged_agent_catalog(&config.agents)
-                    .into_iter()
-                    .map(|(key, definition)| agent::Info { key, definition })
-                    .collect::<Vec<_>>()
-            } else {
-                agent::list().await
-            };
-            for agent in &mut agents {
-                agent.definition.api_key = None;
-                agent.definition.options.clear();
-            }
-            if query.include_disabled {
-                agents.sort_by(|a, b| {
-                    (b.key == "main").cmp(&(a.key == "main")).then_with(|| a.key.cmp(&b.key))
-                });
-            }
-            Ok(agents)
-        })
-    })
+    let result = crate::session::ui_store::with_tenant_scope(
+        tenant,
+        with_instance(dir, move || {
+            Box::pin(async move {
+                let mut agents = if query.include_disabled {
+                    let config = crate::config::get_current()
+                        .await
+                        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+                    agent::catalog::merged_agent_catalog(&config.agents)
+                        .into_iter()
+                        .map(|(key, definition)| agent::Info { key, definition })
+                        .collect::<Vec<_>>()
+                } else {
+                    agent::list().await
+                };
+                for agent in &mut agents {
+                    agent.definition.api_key = None;
+                    agent.definition.options.clear();
+                }
+                if query.include_disabled {
+                    agents.sort_by(|a, b| {
+                        (b.key == "main").cmp(&(a.key == "main")).then_with(|| a.key.cmp(&b.key))
+                    });
+                }
+                Ok(agents)
+            })
+        }),
+    )
     .await?;
     Ok(Json(result))
 }

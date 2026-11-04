@@ -153,7 +153,8 @@ async fn recovery_window_gateway_fixture() {
         json!({"gateway_port":address.port(), "model_port":model_port}).to_string(),
     )
     .unwrap();
-    tokio::time::timeout(std::time::Duration::from_secs(180), async {
+    // Manual profile editing, restart and theme checks share this explicitly launched fixture.
+    tokio::time::timeout(std::time::Duration::from_secs(900), async {
         while !root.join("stop").exists() {
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }

@@ -2198,14 +2198,14 @@ fn agent_native_defaults_reach_registered_tools_and_prompt() {
         "---\nname: review\ndescription: Review fixture\n---\nDEFAULT_REVIEW_BODY\n",
     )
     .unwrap();
-    runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+    runtime.block_on(crate::config::update(serde_json::json!({
         "agents": {
             "main": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["file_read"],"defaults":{"mcp":{"mode":"fixed","value":["selected"]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict"},
             "reviewer": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["skill","file_read"],"defaults":{"mcp":{"mode":"fixed","value":[]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict"}
         }
     }))).unwrap();
     for name in ["researcher", "coder", "explore"] {
-        runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+        runtime.block_on(crate::config::update(serde_json::json!({
             "agents": {name: {"defaults": {
                 "mcp":{"mode":"fixed","value":[]},
                 "model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},
@@ -2306,12 +2306,9 @@ async fn agent_native_defaults_do_not_grant_disabled_mcp() {
     std::fs::write(workspace.path().join(".vwacprc.json"), serde_json::to_vec(&serde_json::json!({
         "mcpServers":[{"name":"disabled-server", "command":"missing-disabled-command", "enabled":false}]
     })).unwrap()).unwrap();
-    crate::config::update_project(
-        workspace.path(),
-        serde_json::json!({
-            "agents": {"main": {"defaults": {"mcp": {"mode":"fixed", "value":["disabled-server"]}}}}
-        }),
-    )
+    crate::config::update(serde_json::json!({
+        "agents": {"main": {"defaults": {"mcp": {"mode":"fixed", "value":["disabled-server"]}}}}
+    }))
     .await
     .unwrap();
     let tenant = crate::session::ui_store::current_tenant_scope();
@@ -2365,7 +2362,7 @@ fn agent_session_identity_survives_profile_edits() {
     let workspace = tempfile::tempdir().unwrap();
     let session_id = format!("ses_binding_{}", uuid::Uuid::new_v4());
     for rule in ["ORIGINAL_BINDING_RULE", "EDITED_PROFILE_RULE"] {
-        runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+        runtime.block_on(crate::config::update(serde_json::json!({
             "agents":{"main":{
                 "system_prompt":rule,
                 "defaults":{
@@ -2433,12 +2430,9 @@ fn agent_session_identity_survives_profile_edits() {
                     serde_json::json!({"*":"deny"}),
                 )
                 .unwrap();
-                crate::config::update_project(
-                    workspace.path(),
-                    serde_json::json!({
-                        "agents":{"main":{"enabled":false}}
-                    }),
-                )
+                crate::config::update(serde_json::json!({
+                    "agents":{"main":{"enabled":false}}
+                }))
                 .await
                 .unwrap();
                 let mut resumed = GatewayChatStreamRequest {

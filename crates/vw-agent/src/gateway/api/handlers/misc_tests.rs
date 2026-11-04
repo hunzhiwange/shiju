@@ -20,6 +20,7 @@ fn query_for(path: &std::path::Path) -> Query<InstanceQuery> {
 
 async fn route_status(method: Method, uri: &str) -> StatusCode {
     router::<()>()
+        .layer(Extension(vw_api_types::id::TenantScope::default()))
         .oneshot(
             Request::builder()
                 .method(method)
@@ -82,6 +83,7 @@ async fn command_list_returns_named_command_metadata() {
 async fn agent_list_returns_keyed_agent_metadata() {
     let temp = tempfile::tempdir().expect("tempdir");
     let Json(agents) = agent_list(
+        Extension(crate::session::ui_store::current_tenant_scope()),
         Query(AgentListQuery {
             directory: Some(temp.path().to_string_lossy().into()),
             include_disabled: false,
@@ -147,6 +149,7 @@ async fn list_handlers_ignore_legacy_invalid_project_json() {
         .await
         .expect("command list should ignore legacy project storage");
     let Json(_agents) = agent_list(
+        Extension(crate::session::ui_store::current_tenant_scope()),
         Query(AgentListQuery {
             directory: Some(temp.path().to_string_lossy().into()),
             include_disabled: false,
@@ -177,6 +180,7 @@ async fn agent_profile_api_catalog_includes_disabled_only_when_requested() {
     assert!(runtime.is_none(), "disabled official entries must not be runnable");
     for include_disabled in [false, true] {
         let Json(agents) = agent_list(
+            Extension(crate::session::ui_store::current_tenant_scope()),
             Query(AgentListQuery {
                 directory: Some(home.path().to_string_lossy().into()),
                 include_disabled,

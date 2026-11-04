@@ -17,7 +17,9 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ('vw-acp', 'vw-cli', 'vw-desktop', 'vw-webview')
 BINS = ('acp', 'shiju', 'vibe-agent', 'shi-ju', 'vw-webview')
-TARGETS = ('x86_64-apple-darwin', 'aarch64-pc-windows-msvc')
+TARGETS = ('x86_64-apple-darwin', 'aarch64-pc-windows-msvc',
+           'aarch64-apple-darwin', 'x86_64-pc-windows-msvc',
+           'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu')
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 START = re.compile(r'^building (\S+) target.*using cargo profile (\S+) --package=([^\s)]+)\)')
 

@@ -79,6 +79,17 @@ class ReleaseBuildSummaryTests(unittest.TestCase):
 
 
 class BenchmarkExecutionTests(unittest.TestCase):
+    def test_cli_dispatches_all_release_targets(self):
+        targets = ('x86_64-apple-darwin', 'aarch64-pc-windows-msvc',
+                   'aarch64-apple-darwin', 'x86_64-pc-windows-msvc',
+                   'x86_64-unknown-linux-gnu', 'aarch64-unknown-linux-gnu')
+        for target in targets:
+            with self.subTest(target=target), patch.object(
+                    sys, 'argv', [str(SCRIPT), '--run', target, '--output', 'fixture-report']), \
+                    patch.object(summary, 'benchmark', return_value=7) as run:
+                self.assertEqual(summary.main(), 7)
+                run.assert_called_once_with(target, Path('fixture-report').resolve())
+
     @unittest.skipIf(os.name == 'nt', 'executable fixture uses a POSIX shebang')
     def test_capture_preserves_failure_code_and_manifest(self):
         with tempfile.TemporaryDirectory() as directory:

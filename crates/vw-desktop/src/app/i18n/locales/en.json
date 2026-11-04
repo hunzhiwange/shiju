@@ -5261,5 +5261,18 @@
   "后退": "Back",
   "知道了": "Got it",
   "%s 项待升级": "%s updates available",
-  "前往功能升级": "Upgrade functions"
+  "前往功能升级": "Upgrade functions",
+  "任务完成通知": "Task completion notifications",
+  "本轮对话成功完成后发送系统通知，需在系统中允许通知。": "Send a system notification after a successful conversation turn. Allow notifications in system settings.",
+  "启用通知": "Enable notifications",
+  "发送测试通知": "Send test notification",
+  "本轮对话已完成，请返回识矩查看。": "This conversation turn has finished. Return to ShiJu to view it.",
+  "保存通知设置失败，请重试。": "Could not save notification settings. Please try again.",
+  "系统通知发送失败，请检查系统通知权限。": "Could not send the system notification. Check notification permissions.",
+  "当前仅支持 macOS 和 Windows 桌面端。": "Currently available on macOS and Windows desktops only.",
+  "macOS 通知需要从已签名的 ShiJu.app 启动，开发命令直接运行不支持。": "macOS notifications require a signed ShiJu.app. Launch the app bundle instead of the development binary.",
+  "无法读取 macOS 通知权限，请检查系统设置。": "Could not read macOS notification permissions. Check system settings.",
+  "无法请求 macOS 通知权限，请检查应用签名。": "Could not request macOS notification permissions. Check the app signature.",
+  "通知权限未获允许，请在系统设置 → 通知中允许识矩通知。": "Notification permission was denied. Allow ShiJu in System Settings → Notifications.",
+  "通知横幅未开启，请在系统设置 → 通知中为识矩选择横幅或提醒。": "Notification banners are disabled. Select Banners or Alerts for ShiJu in System Settings → Notifications."
 }

@@ -79,6 +79,67 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 )));
             }
         }
+        GeneralSettingsMessage::TaskCompletionNotificationToggled(enabled) => {
+            if !crate::app::desktop_notification::SUPPORTED {
+                return Task::none();
+            }
+            app.task_completion_notification = enabled;
+            let save = if !app.task_completion_notification_saving {
+                app.task_completion_notification_saving = true;
+                save_task_completion_notification(enabled)
+            } else {
+                Task::none()
+            };
+            let permission = if enabled {
+                crate::app::desktop_notification::permission_task(app.desktop_locale)
+            } else {
+                Task::none()
+            };
+            return Task::batch([save, permission]);
+        }
+        GeneralSettingsMessage::TaskCompletionNotificationPermissionChecked(result) => {
+            if let Err(error) = result {
+                let feedback = app.show_error_toast(error);
+                let disable = update(
+                    app,
+                    SettingsMessage::General(
+                        GeneralSettingsMessage::TaskCompletionNotificationToggled(false),
+                    ),
+                );
+                return Task::batch([feedback, disable]);
+            }
+        }
+        GeneralSettingsMessage::TaskCompletionNotificationSaved(enabled, result) => {
+            app.task_completion_notification_saving = false;
+            let feedback = match result {
+                Ok(()) => Task::none(),
+                Err(_) => app.show_error_toast(
+                    crate::app::i18n::I18n::new(app.desktop_locale)
+                        .__("保存通知设置失败，请重试。")
+                        .to_owned(),
+                ),
+            };
+            if enabled != app.task_completion_notification {
+                app.task_completion_notification_saving = true;
+                return Task::batch([
+                    feedback,
+                    save_task_completion_notification(app.task_completion_notification),
+                ]);
+            }
+            return feedback;
+        }
+        GeneralSettingsMessage::TestTaskCompletionNotification => {
+            return crate::app::desktop_notification::completion_task(app.desktop_locale);
+        }
+        GeneralSettingsMessage::TaskCompletionNotificationSent(result) => {
+            if let Err(error) = result {
+                let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+                return app.show_error_toast(format!(
+                    "{} {error}",
+                    i18n.__("系统通知发送失败，请检查系统通知权限。"),
+                ));
+            }
+        }
         GeneralSettingsMessage::TimezoneSelected(timezone) => {
             if !vw_config_types::ui::timezone_options().contains(&timezone.as_str()) {
                 return Task::none();
@@ -114,6 +175,19 @@ fn save_locale(locale: vw_config_types::ui::DesktopLocale) -> Task<Message> {
             Message::Settings(SettingsMessage::General(GeneralSettingsMessage::LocaleSaved(
                 locale, result,
             )))
+        },
+    )
+}
+
+fn save_task_completion_notification(enabled: bool) -> Task<Message> {
+    Task::perform(
+        crate::app::config::update_system_settings_config_result_async(move |system| {
+            system.task_completion_notification = enabled;
+        }),
+        move |result| {
+            Message::Settings(SettingsMessage::General(
+                GeneralSettingsMessage::TaskCompletionNotificationSaved(enabled, result),
+            ))
         },
     )
 }

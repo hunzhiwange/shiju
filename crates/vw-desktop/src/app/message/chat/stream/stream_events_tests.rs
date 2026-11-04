@@ -2332,3 +2332,26 @@ fn compaction_failure_preserves_prior_statuses_and_persists_completion() {
         );
     }
 }
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[test]
+fn completion_notification_is_opt_in_skips_history_and_ignores_replayed_done() {
+    fn finish(enabled: bool, history_only: bool) -> usize {
+        let (mut app, _) = crate::app::App::new();
+        let session_id = "notification-session";
+        app.task_completion_notification = enabled;
+        app.active_session_id = Some(session_id.to_owned());
+        let mut request = agent_request(42, session_id);
+        std::sync::Arc::get_mut(&mut request).unwrap().resume_history_only = history_only;
+        let runtime = app.get_session_runtime_mut(session_id);
+        runtime.is_requesting = true;
+        runtime.active_agent_request = Some(request);
+        let task = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
+        let units = task.units();
+        let replay = super::handle_agent_stream_done(&mut app, 42, Default::default(), None, None);
+        assert_eq!(replay.units(), 0);
+        units
+    }
+    assert_eq!(finish(true, false), finish(false, false) + 1);
+    assert_eq!(finish(true, true), finish(false, true));
+}

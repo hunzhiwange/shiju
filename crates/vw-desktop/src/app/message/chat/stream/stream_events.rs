@@ -1485,6 +1485,15 @@ pub(super) fn handle_agent_stream_done(
         app.sync_active_session_from_chat();
     }
 
+    let notification = if app.task_completion_notification
+        && crate::app::desktop_notification::SUPPORTED
+        && !resume_history_only
+        && handoff_task.is_none()
+    {
+        crate::app::desktop_notification::completion_task(app.desktop_locale)
+    } else {
+        Task::none()
+    };
     let next = if handoff_task.is_some() { Task::none() } else { start_next(app, &session_id) };
     let refresh_message_ids = if is_active_session && !has_pending_queue && !resume_history_only {
         app.sessions
@@ -1551,7 +1560,7 @@ pub(super) fn handle_agent_stream_done(
         Task::none()
     };
 
-    if is_active_session && app.chat_auto_scroll {
+    let completion = if is_active_session && app.chat_auto_scroll {
         scroll_chat_to_bottom_task(app)
     } else {
         Task::none()
@@ -1561,7 +1570,8 @@ pub(super) fn handle_agent_stream_done(
     .chain(save_task)
     .chain(trajectory_raw_task)
     .chain(next)
-    .chain(handoff_task.unwrap_or_else(Task::none))
+    .chain(handoff_task.unwrap_or_else(Task::none));
+    Task::batch([completion, notification])
 }
 
 /// 模块内可见函数，执行 handle_agent_post_tool_round 对应的应用流程。

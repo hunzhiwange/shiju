@@ -192,6 +192,9 @@ pub struct AppSystemSettingsConfig {
     /// IANA timezone used for chat date and time context.
     #[serde(default = "default_timezone", deserialize_with = "deserialize_timezone")]
     pub timezone: String,
+    /// Send a native desktop notification after a successful conversation turn.
+    #[serde(default)]
+    pub task_completion_notification: bool,
     /// Terminal shell key (`bash` | `zsh`).
     #[serde(default = "default_terminal_shell")]
     pub terminal_shell: String,
@@ -556,6 +559,7 @@ impl Default for AppSystemSettingsConfig {
             desktop_locale: DesktopLocale::default(),
             app_theme: default_app_theme_name(),
             timezone: default_timezone(),
+            task_completion_notification: false,
             terminal_shell: default_terminal_shell(),
             terminal_theme: default_terminal_theme(),
             terminal_font_family: default_terminal_font_family(),

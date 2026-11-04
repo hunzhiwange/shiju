@@ -725,6 +725,8 @@ impl App {
             desktop_locale_selected: false,
             desktop_locale_saving: false,
             chat_timezone: system_settings_cfg.timezone.clone(),
+            task_completion_notification: system_settings_cfg.task_completion_notification,
+            task_completion_notification_saving: false,
             active_custom_theme_id: cfg_active_custom_theme_id,
             active_theme_skin: None,
             editor_follow_system_theme: cfg_editor_follow_system_theme,

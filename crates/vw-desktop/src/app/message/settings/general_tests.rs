@@ -110,3 +110,75 @@ fn desktop_language_restores_and_reports_save_failure() {
     assert!(!app.desktop_locale_saving);
     assert!(app.active_toast.is_some());
 }
+
+#[test]
+fn notification_settings_restore_and_report_delivery_failure() {
+    let mut app = App::new().0;
+    app.apply_bootstrap_system_settings(vw_config_types::ui::AppSystemSettingsConfig {
+        task_completion_notification: true,
+        ..Default::default()
+    });
+    assert!(app.task_completion_notification);
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationSent(Err(
+            "denied".into(),
+        ))),
+    );
+    assert!(app.active_toast.is_some());
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[test]
+fn notification_setting_serializes_rapid_toggle_saves() {
+    let mut app = App::new().0;
+    let first = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationToggled(true)),
+    );
+    assert!(first.units() > 0);
+    assert!(app.task_completion_notification_saving);
+    let second = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationToggled(false)),
+    );
+    assert_eq!(second.units(), 0);
+    assert!(!app.task_completion_notification);
+    let pending = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationSaved(
+            true,
+            Ok(()),
+        )),
+    );
+    assert!(pending.units() > 0);
+    assert!(app.task_completion_notification_saving);
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::TaskCompletionNotificationSaved(
+            false,
+            Ok(()),
+        )),
+    );
+    assert!(!app.task_completion_notification_saving);
+    assert!(!app.task_completion_notification);
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows"))]
+#[test]
+fn notification_permission_failure_disables_and_persists_notification_setting() {
+    let mut app = App::new().0;
+    app.task_completion_notification = true;
+    let task = update(
+        &mut app,
+        SettingsMessage::General(
+            GeneralSettingsMessage::TaskCompletionNotificationPermissionChecked(Err(
+                "permission denied".into(),
+            )),
+        ),
+    );
+    assert!(!app.task_completion_notification);
+    assert!(app.task_completion_notification_saving);
+    assert!(app.active_toast.is_some());
+    assert!(task.units() > 0);
+}

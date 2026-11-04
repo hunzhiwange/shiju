@@ -355,6 +355,9 @@ impl App {
         self.terminal.font_family = system.terminal_font_family.clone();
         self.terminal.font_size = system.terminal_font_size;
         self.chat_timezone = system.timezone.clone();
+        if !self.task_completion_notification_saving {
+            self.task_completion_notification = system.task_completion_notification;
+        }
         self.project_worktree_enabled = system.project_worktree_enabled.clone();
         self.dialogue_flow_show_reasoning_summary = system.dialogue_flow_show_reasoning_summary;
         self.dialogue_flow_expand_shell_tool_section =

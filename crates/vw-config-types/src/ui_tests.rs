@@ -683,3 +683,15 @@ fn desktop_locale_defaults_and_rejects_invalid_values() {
         );
     }
 }
+
+#[test]
+fn task_completion_notification_defaults_off_and_roundtrips() {
+    let legacy: AppSystemSettingsConfig = serde_json::from_value(serde_json::json!({})).unwrap();
+    assert!(!legacy.task_completion_notification);
+    assert!(!AppSystemSettingsConfig::default().task_completion_notification);
+    let enabled =
+        AppSystemSettingsConfig { task_completion_notification: true, ..Default::default() };
+    let restored: AppSystemSettingsConfig =
+        serde_json::from_value(serde_json::to_value(&enabled).unwrap()).unwrap();
+    assert!(restored.task_completion_notification);
+}

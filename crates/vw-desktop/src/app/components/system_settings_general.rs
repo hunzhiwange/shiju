@@ -9,22 +9,31 @@
 //! - 终端字体及字号配置
 
 use crate::app::components::system_settings_common::{
-    SETTINGS_LABEL_WIDTH, settings_divider, settings_muted_text_style, settings_page_intro,
-    settings_pick_list_menu_style, settings_pick_list_style, settings_section_card,
-    settings_section_content, settings_segment_button_style, settings_value_badge,
+    SETTINGS_LABEL_WIDTH, rounded_action_btn_style, settings_checkbox_style, settings_divider,
+    settings_muted_text_style, settings_page_intro, settings_pick_list_menu_style,
+    settings_pick_list_style, settings_section_card, settings_section_content,
+    settings_segment_button_style, settings_value_badge,
 };
 use crate::app::components::system_settings_search::SettingsTabDescriptor;
 use crate::app::state::GeneralSettingsTab;
 use crate::app::theme_catalog::{theme_store_from_home, to_iced_theme};
 use crate::app::{App, Message, PreviewAutoSaveMode, Shell, TerminalTheme, message};
-use iced::widget::{button, column, container, pick_list, row, slider, text};
+use iced::widget::{button, checkbox, column, container, pick_list, row, slider, text};
 use iced::{Alignment, Element, Length, Theme};
 
 pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
     SettingsTabDescriptor::new(
         GeneralSettingsTab::Interface,
         "界面",
-        &["语言", "应用主题", "自动保存", "preview auto save"],
+        &[
+            "语言",
+            "应用主题",
+            "自动保存",
+            "preview auto save",
+            "通知",
+            "任务完成",
+            "notification",
+        ],
     ),
     SettingsTabDescriptor::new(
         GeneralSettingsTab::Terminal,
@@ -292,6 +301,35 @@ pub fn view(app: &App) -> Element<'_, Message> {
                                 .style(settings_muted_text_style),
                         ]
                         .spacing(8),
+                    ),
+                    settings_divider(),
+                    setting_row(
+                        i18n.__("任务完成通知"),
+                        i18n.__(if crate::app::desktop_notification::SUPPORTED {
+                            "本轮对话成功完成后发送系统通知，需在系统中允许通知。"
+                        } else {
+                            "当前仅支持 macOS 和 Windows 桌面端。"
+                        }),
+                        row![
+                            checkbox(app.task_completion_notification)
+                                .label(i18n.__("启用通知"))
+                                .on_toggle_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
+                                    |enabled| Message::Settings(message::SettingsMessage::General(
+                                        message::GeneralSettingsMessage::TaskCompletionNotificationToggled(enabled),
+                                    )),
+                                ))
+                                .style(settings_checkbox_style),
+                            button(text(i18n.__("发送测试通知")).size(13))
+                                .on_press_maybe(crate::app::desktop_notification::SUPPORTED.then_some(
+                                    Message::Settings(message::SettingsMessage::General(
+                                        message::GeneralSettingsMessage::TestTaskCompletionNotification,
+                                    )),
+                                ))
+                                .padding([8, 14])
+                                .style(rounded_action_btn_style),
+                        ]
+                        .spacing(12)
+                        .align_y(Alignment::Center),
                     ),
                     settings_divider(),
                     setting_row(

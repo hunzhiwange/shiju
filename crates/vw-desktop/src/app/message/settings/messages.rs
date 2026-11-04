@@ -683,6 +683,11 @@ pub enum GeneralSettingsMessage {
     LocaleSaved(vw_config_types::ui::DesktopLocale, Result<(), String>),
     TabSelected(crate::app::state::GeneralSettingsTab),
     TimezoneSelected(String),
+    TaskCompletionNotificationToggled(bool),
+    TaskCompletionNotificationSaved(bool, Result<(), String>),
+    TestTaskCompletionNotification,
+    TaskCompletionNotificationSent(Result<(), String>),
+    TaskCompletionNotificationPermissionChecked(Result<(), String>),
 }
 
 /// 系统设置页顶层消息。

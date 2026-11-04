@@ -311,7 +311,7 @@ fn map_global_event_ignores_captured_non_shortcut_keys() {
 }
 
 #[test]
-fn map_global_event_ignores_unhandled_mouse_and_window_events() {
+fn map_global_event_ignores_unhandled_mouse_and_forwards_window_focus() {
     let id = window_id();
 
     let pressed = map_global_event(
@@ -321,12 +321,14 @@ fn map_global_event_ignores_unhandled_mouse_and_window_events() {
     );
     assert!(pressed.is_none());
 
-    let focused = map_global_event(
-        iced::Event::Window(iced::window::Event::Focused),
-        iced::event::Status::Ignored,
-        id,
-    );
-    assert!(focused.is_none());
+    for status in [iced::event::Status::Ignored, iced::event::Status::Captured] {
+        let focused =
+            map_global_event(iced::Event::Window(iced::window::Event::Focused), status, id);
+        assert!(matches!(
+            focused,
+            Some(Message::View(message::ViewMessage::WindowFocused(window))) if window == id
+        ));
+    }
 }
 
 #[test]

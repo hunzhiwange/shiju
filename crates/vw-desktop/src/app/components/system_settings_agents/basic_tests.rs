@@ -16,13 +16,13 @@ fn view_tree(
 
 fn assert_common_field_structure(tree: &Tree, has_registration: bool) {
     let offset = usize::from(has_registration);
-    assert_eq!(tree.children.len(), 12 + offset);
-    for row_index in (4 + offset)..=(8 + offset) {
+    assert_eq!(tree.children.len(), 10 + offset);
+    // Profile fields and the single defaults/model group precede runtime controls.
+    assert!(tree.children[0].children.len() >= 7);
+    assert!(tree.children[1].children.len() >= 8);
+    for row_index in (3 + offset)..=(6 + offset) {
         assert_eq!(tree.children[row_index].children.len(), 2);
     }
-    assert_eq!(tree.children[2 + offset].children.len(), 3);
-    assert_eq!(tree.children[3 + offset].children.len(), 3);
-    assert_eq!(tree.children[1 + offset].children.len(), 1);
 }
 
 #[test]
@@ -89,9 +89,9 @@ fn basic_view_worker_shows_availability_and_common_runtime_controls() {
     let tree = view_tree(&app, worker, vec!["openai".to_string(), worker.provider.clone()]);
 
     assert_common_field_structure(&tree, true);
-    assert_eq!(tree.children[1].children.len(), 2);
-    assert_eq!(tree.children[1].children[1].children.len(), 1);
-    assert_eq!(tree.children[1].children[1].children[0].children.len(), 2);
+    assert_eq!(tree.children[2].children.len(), 2);
+    assert_eq!(tree.children[2].children[1].children.len(), 1);
+    assert_eq!(tree.children[2].children[1].children[0].children.len(), 2);
 }
 
 #[test]

@@ -3,17 +3,17 @@
 //! 本模块主要负责把应用状态转换为桌面端可渲染的 Iced 控件，并把用户操作映射回上层消息。
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
-use super::shared::{label_col, models_for_provider, section_card, with_selected_option};
+use super::shared::{label_col, section_card};
 use crate::app::components::number_input::NumberInput;
 use crate::app::components::system_settings_common::{
-    settings_checkbox_style, settings_pick_list_menu_style, settings_pick_list_style,
-    settings_segment_button_style, settings_text_input_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_checkbox_style,
+    settings_text_input_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
 use crate::app::state::DelegateAgentSettingsEntry;
 use crate::app::{App, Message};
-use iced::widget::{button, checkbox, column, pick_list, row, slider, text, text_input};
+use iced::widget::{checkbox, column, row, slider, text, text_input};
 use iced::{Alignment, Element, Length, Theme};
 
 pub(super) fn shows_registration_controls(entry: &DelegateAgentSettingsEntry) -> bool {
@@ -40,77 +40,8 @@ pub(super) fn shows_delegation_controls(entry: &DelegateAgentSettingsEntry) -> b
 pub(super) fn view<'a>(
     app: &'a App,
     entry: &'a DelegateAgentSettingsEntry,
-    provider_options: Vec<String>,
+    _provider_options: Vec<String>,
 ) -> Element<'a, Message> {
-    let provider_choices = with_selected_option(provider_options, &entry.provider);
-    let model_choices =
-        with_selected_option(models_for_provider(app, &entry.provider), &entry.model);
-    let agent_key = entry.key.clone();
-    let clear_provider = button(text(tr(app.desktop_locale, "清除")).size(12))
-        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ProviderCleared(
-            agent_key.clone(),
-        ))))
-        .padding([8, 10])
-        .style(|theme, status| settings_segment_button_style(theme, status, false));
-    let clear_model = button(text(tr(app.desktop_locale, "清除")).size(12))
-        .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ModelCleared(
-            agent_key.clone(),
-        ))))
-        .padding([8, 10])
-        .style(|theme, status| settings_segment_button_style(theme, status, false));
-
-    let provider_row = row![
-        label_col(
-            tr(app.desktop_locale, "提供商"),
-            tr(app.desktop_locale, "选择该代理调用的模型提供商。")
-        ),
-        pick_list(
-            provider_choices,
-            (!entry.provider.trim().is_empty()).then_some(entry.provider.clone()),
-            {
-                let key = entry.key.clone();
-                move |value| {
-                    Message::Settings(SettingsMessage::Agents(AgentsMessage::ProviderChanged(
-                        key.clone(),
-                        value,
-                    )))
-                }
-            }
-        )
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fill),
-        clear_provider,
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
-
-    let model_row = row![
-        label_col(
-            tr(app.desktop_locale, "模型"),
-            tr(app.desktop_locale, "从当前提供商的可用模型中选择。")
-        ),
-        pick_list(
-            model_choices,
-            (!entry.model.trim().is_empty()).then_some(entry.model.clone()),
-            {
-                let key = entry.key.clone();
-                move |value| {
-                    Message::Settings(SettingsMessage::Agents(AgentsMessage::ModelChanged(
-                        key.clone(),
-                        value,
-                    )))
-                }
-            }
-        )
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style)
-        .width(Length::Fill),
-        clear_model,
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
-
     let api_key_row = row![
         label_col(
             tr(app.desktop_locale, "API 密钥"),
@@ -127,8 +58,8 @@ pub(super) fn view<'a>(
                     )))
                 }
             })
-            .padding([10, 12])
-            .size(13)
+            .padding(SETTINGS_CONTROL_PADDING)
+            .size(SETTINGS_CONTROL_TEXT_SIZE)
             .style(settings_text_input_style)
             .width(Length::Fill),
     ]
@@ -158,32 +89,6 @@ pub(super) fn view<'a>(
         ]
         .spacing(8)
         .width(Length::Fill),
-    ]
-    .spacing(16)
-    .align_y(Alignment::Center);
-
-    let has_complete_model_binding =
-        !entry.provider.trim().is_empty() && !entry.model.trim().is_empty();
-    let force_model_selection_row = row![
-        label_col(
-            tr(app.desktop_locale, "模型选择策略"),
-            if has_complete_model_binding {
-                tr(app.desktop_locale, "完整选择 provider 和 model 后，可固定使用该模型。")
-            } else {
-                tr(app.desktop_locale, "需要同时选择 provider 和 model，强制设置才会生效。")
-            },
-        ),
-        checkbox(entry.force_model_selection)
-            .label(tr(app.desktop_locale, "强制使用所选模型"))
-            .on_toggle_maybe(has_complete_model_binding.then(|| {
-                let key = entry.key.clone();
-                move |value| {
-                    Message::Settings(SettingsMessage::Agents(
-                        AgentsMessage::ForceModelSelectionToggled(key.clone(), value),
-                    ))
-                }
-            }))
-            .style(settings_checkbox_style),
     ]
     .spacing(16)
     .align_y(Alignment::Center);
@@ -411,20 +316,10 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     column![
-        column![
-            iced::widget::text(&entry.label).size(16).width(iced::Length::Fill),
-            iced::widget::text(&entry.description)
-                .size(12)
-                .width(iced::Length::Fill)
-                .style(crate::app::components::system_settings_common::settings_muted_text_style),
-        ]
-        .spacing(8)
-        .width(iced::Length::Fill),
+        super::basic_profile::view(app, entry),
+        super::defaults::view(app, entry),
         registration_section,
         delegation_section,
-        provider_row,
-        model_row,
-        force_model_selection_row,
         api_key_row,
         temperature_row,
         shows_delegation_controls(entry).then_some(max_depth_row),

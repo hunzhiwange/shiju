@@ -580,9 +580,11 @@ pub enum AgentsMessage {
     ProfileCancel,
     ProfileNameChanged(String),
     ProfileDefaultsChanged(vw_config_types::agent::AgentDefaults),
-    ProfileDescriptionChanged(String),
+    ProfileModelChanged(
+        vw_config_types::agent::AgentDefault<vw_config_types::agent::AgentModelReference>,
+    ),
+    ProfileDescriptionAction(text_editor::Action),
     ProfileRuntimeChanged(String),
-    ProfileRulesAction(text_editor::Action),
     ProfilePromptChanged(usize, String),
     ProfilePromptAdd,
     ProfilePromptRemove(usize),

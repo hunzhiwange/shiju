@@ -200,51 +200,6 @@ pub(super) fn entry_kind_label(entry: &DelegateAgentSettingsEntry) -> &'static s
     }
 }
 
-/// 构建或处理 `models_for_provider` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回本函数生成的状态、样式或辅助值，供同一流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub(super) fn models_for_provider(app: &App, provider_id: &str) -> Vec<String> {
-    app.agents_settings
-        .provider_models
-        .iter()
-        .find(|provider| provider.id == provider_id)
-        .map(|provider| provider.models.iter().map(|model| model.id.clone()).collect())
-        .unwrap_or_default()
-}
-
-/// 构建或处理 `with_selected_option` 对应的界面片段与交互数据。
-///
-/// # 参数
-///
-/// 参数来自调用方持有的应用状态、配置快照或控件输入，用于保持渲染结果与当前状态同步。
-///
-/// # 返回值
-///
-/// 返回本函数生成的状态、样式或辅助值，供同一流程继续组合使用。
-///
-/// # 错误处理
-///
-/// 本函数不直接返回错误；无法交互或缺省状态会在控件状态中显式表达。
-pub(super) fn with_selected_option(mut options: Vec<String>, selected: &str) -> Vec<String> {
-    let selected = selected.trim();
-    if !selected.is_empty() && !options.iter().any(|option| option == selected) {
-        options.push(selected.to_string());
-    }
-    options.sort();
-    options.dedup();
-    options
-}
-
 /// 构建或处理 `detail_tab_button` 对应的界面片段与交互数据。
 ///
 /// # 参数

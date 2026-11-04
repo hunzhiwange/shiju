@@ -5,8 +5,8 @@
 
 use super::shared::{editor_style, section_card};
 use crate::app::components::system_settings_common::{
-    rounded_action_btn_style, settings_checkbox_style, settings_muted_text_style,
-    settings_segment_button_style,
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, rounded_action_btn_style,
+    settings_checkbox_style, settings_muted_text_style, settings_segment_button_style,
 };
 use crate::app::i18n::settings_extensions::text as tr;
 use crate::app::message::settings::{AgentsMessage, SettingsMessage};
@@ -108,8 +108,10 @@ pub(super) fn view<'a>(
                 )))
             }
         })
+        .font(iced::Font::DEFAULT)
+        .size(SETTINGS_CONTROL_TEXT_SIZE)
         .height(Length::Fixed(260.0))
-        .padding(10)
+        .padding(SETTINGS_CONTROL_PADDING)
         .style(editor_style);
 
     let prompt_tabs = row(std::iter::once(prompt_tab_button(

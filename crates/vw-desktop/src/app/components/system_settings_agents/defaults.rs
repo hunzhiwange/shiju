@@ -116,12 +116,11 @@ fn catalogs(
 }
 
 pub(crate) fn validation_error(app: &App, draft: &DelegateAgentSettingsEntry) -> Option<String> {
-    if draft.force_model_selection {
-        if let AgentDefault::Fixed(model) = &draft.defaults.model {
-            if model.provider != draft.provider || model.model != draft.model {
-                return Some("默认模型与高级设置中的强制模型绑定冲突，请修正默认模型。".into());
-            }
-        }
+    if draft.force_model_selection
+        && !matches!(&draft.defaults.model,
+        AgentDefault::Fixed(model) if model.provider == draft.provider && model.model == draft.model)
+    {
+        return Some("默认模型与强制模型绑定冲突，请在模型控件中重新选择。".into());
     }
     let (models, skills, mcp) = catalogs(app, &draft.runtime);
     validate(&draft.runtime, &draft.defaults, &models, &skills, &mcp).err()
@@ -149,22 +148,33 @@ pub(super) fn view<'a>(
         AgentDefault::Inherit => "继承".into(),
         AgentDefault::Fixed(model) => format!("{}/{}", model.provider, model.model),
     };
-    let original = defaults.clone();
-    body = body.push(text("默认模型")).push(
+    body = body.push(text("模型")).push(
         pick_list(model_options, Some(selected), move |value| {
-            let mut next = original.clone();
-            next.model = models
+            let model = models
                 .iter()
                 .find(|model| format!("{}/{}", model.provider, model.model) == value)
                 .cloned()
                 .map(AgentDefault::Fixed)
                 .unwrap_or_default();
-            changed(next)
+            Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileModelChanged(model)))
         })
         .padding(SETTINGS_CONTROL_PADDING)
         .text_size(SETTINGS_CONTROL_TEXT_SIZE)
         .style(settings_pick_list_style)
         .menu_style(settings_pick_list_menu_style),
+    );
+    body = body.push(
+        checkbox(draft.force_model_selection)
+            .label("强制使用所选模型")
+            .on_toggle_maybe(matches!(defaults.model, AgentDefault::Fixed(_)).then(|| {
+                let key = draft.key.clone();
+                move |value| {
+                    Message::Settings(SettingsMessage::Agents(
+                        AgentsMessage::ForceModelSelectionToggled(key.clone(), value),
+                    ))
+                }
+            }))
+            .style(settings_checkbox_style),
     );
     if matches!(draft.runtime, AgentRuntime::Acp { .. }) {
         body = body.push(

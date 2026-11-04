@@ -20,6 +20,7 @@ pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) defaults: vw_config_types::agent::AgentDefaults,
     pub(crate) recommended_prompts: Vec<String>,
     pub(crate) description: String,
+    pub(crate) description_editor: text_editor::Content,
     pub(crate) kind: AgentSettingsEntryKind,
     /// 内置角色的委托资格、递归深度和并发上限由角色目录固定。
     pub(crate) role_controls_locked: bool,
@@ -76,6 +77,9 @@ impl DelegateAgentSettingsEntry {
             defaults: config.defaults.clone(),
             recommended_prompts: config.recommended_prompts.clone(),
             description: default_agent_description(key, &config),
+            description_editor: text_editor::Content::with_text(&default_agent_description(
+                key, &config,
+            )),
             kind,
             role_controls_locked: builtin_agent_spec(key).is_some(),
             can_disable: builtin_agent_spec(key).map(|spec| spec.allow_as_subagent).unwrap_or(true),

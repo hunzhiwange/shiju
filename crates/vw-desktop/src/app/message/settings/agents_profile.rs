@@ -11,7 +11,11 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 app.agents_settings.profile_modal =
                     app.agents_settings.entries.iter().find(|entry| entry.key == key).cloned();
             }
-            if app.agents_settings.profile_modal.is_some() {
+            if let Some(draft) = app.agents_settings.profile_modal.as_mut() {
+                draft.description_editor = text_editor::Content::with_text(&draft.description);
+                app.agents_settings.selected_agent = key;
+                app.agents_settings.active_detail_tab =
+                    crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
                 return Task::batch([
                     refresh_skill_catalog(app),
                     super::super::mcp::update(
@@ -109,18 +113,33 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
             {
                 value["runtime"]["backend"] = serde_json::Value::Null;
             }
-            let patch = serde_json::json!({"agents": {draft.key.clone(): value}});
+            let mut patch = if deleting {
+                serde_json::json!({"agents": {draft.key.clone(): value}})
+            } else {
+                match build_agents_settings_patch(std::slice::from_ref(draft)) {
+                    Ok(patch) => patch,
+                    Err(error) => return catalog_error(app, error),
+                }
+            };
+            if !deleting {
+                patch["agents"][&draft.key]
+                    .as_object_mut()
+                    .unwrap()
+                    .extend(value.as_object_mut().unwrap().clone());
+                // A single-agent edit must not remove unrelated legacy entries.
+                patch["agents"].as_object_mut().unwrap().remove("general");
+            }
             app.agents_settings.profile_saving = true;
             app.agents_settings.profile_deleting = deleting;
             Task::perform(persist_agents_patch(patch), |result| {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileSaved(result)))
             })
         }
-        AgentsMessage::ProfileDefaultsChanged(_)
+        AgentsMessage::ProfileModelChanged(_)
+        | AgentsMessage::ProfileDefaultsChanged(_)
         | AgentsMessage::ProfileNameChanged(_)
-        | AgentsMessage::ProfileDescriptionChanged(_)
+        | AgentsMessage::ProfileDescriptionAction(_)
         | AgentsMessage::ProfileRuntimeChanged(_)
-        | AgentsMessage::ProfileRulesAction(_)
         | AgentsMessage::ProfilePromptChanged(_, _)
         | AgentsMessage::ProfilePromptAdd
         | AgentsMessage::ProfilePromptRemove(_)
@@ -133,10 +152,24 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
             };
             match message {
                 AgentsMessage::ProfileDefaultsChanged(value) => draft.defaults = value,
+                AgentsMessage::ProfileModelChanged(value) => {
+                    match &value {
+                        vw_config_types::agent::AgentDefault::Fixed(model) => {
+                            draft.provider = model.provider.clone();
+                            draft.model = model.model.clone();
+                        }
+                        vw_config_types::agent::AgentDefault::Inherit => {
+                            draft.provider.clear();
+                            draft.model.clear();
+                            draft.force_model_selection = false;
+                        }
+                    }
+                    draft.defaults.model = value;
+                }
                 AgentsMessage::ProfileNameChanged(value) => draft.label = value,
-                AgentsMessage::ProfileDescriptionChanged(value) => draft.description = value,
-                AgentsMessage::ProfileRulesAction(action) => {
-                    draft.system_prompt_editor.perform(action)
+                AgentsMessage::ProfileDescriptionAction(action) => {
+                    draft.description_editor.perform(action);
+                    draft.description = draft.description_editor.text();
                 }
                 AgentsMessage::ProfileRuntimeChanged(value) => {
                     if builtin_agent_spec(&draft.key).is_none() && !draft.key.starts_with("acp-") {

@@ -255,20 +255,33 @@ fn agent_model_clear_keeps_provider() {
 #[test]
 fn force_model_selection_toggle_persists() {
     let mut app = test_app();
-    assert!(!entry(&app, "main").force_model_selection);
-
+    let _ = update(&mut app, SettingsMessage::Agents(AgentsMessage::ProfileOpen("main".into())));
     let _ = update(
         &mut app,
-        SettingsMessage::Agents(AgentsMessage::ForceModelSelectionToggled(
-            "main".to_string(),
-            true,
+        SettingsMessage::Agents(AgentsMessage::ForceModelSelectionToggled("main".into(), true)),
+    );
+    assert!(!app.agents_settings.profile_modal.as_ref().unwrap().force_model_selection);
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ProfileModelChanged(
+            vw_config_types::agent::AgentDefault::Fixed(
+                vw_config_types::agent::AgentModelReference {
+                    provider: "provider".into(),
+                    model: "model".into(),
+                },
+            ),
         )),
     );
-
-    assert!(entry(&app, "main").force_model_selection);
-    let patch = build_agents_settings_patch(&app.agents_settings.entries)
-        .expect("force selection should serialize");
+    let _ = update(
+        &mut app,
+        SettingsMessage::Agents(AgentsMessage::ForceModelSelectionToggled("main".into(), true)),
+    );
+    let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+    assert!(draft.force_model_selection);
+    let patch = build_agents_settings_patch(std::slice::from_ref(draft)).unwrap();
     assert_eq!(patch["agents"]["main"]["force_model_selection"], true);
+    assert_eq!(patch["agents"]["main"]["provider"], "provider");
+    assert_eq!(patch["agents"]["main"]["model"], "model");
 }
 
 #[test]
@@ -1973,4 +1986,50 @@ async fn agent_config_cleanup_stale_skill_catalog_is_ignored() {
     );
     assert!(app.agents_settings.skill_catalog_error.is_none());
     assert!(app.agents_settings.skill_catalog_loading);
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_config_cleanup_profile_http_roundtrips_multiline_and_runtime() {
+    let _lock = AGENT_CONFIG_CLEANUP_HTTP_LOCK.lock().await;
+    let mut app = test_app();
+    let fixture = AgentConfigCleanupGateway::start().await;
+    app.agents_settings.entries.push(DelegateAgentSettingsEntry::from_config("textarea", None));
+    for message in [
+        AgentsMessage::ProfileOpen("textarea".into()),
+        AgentsMessage::ProfileNameChanged("多行智能体".into()),
+        AgentsMessage::TemperatureChanged("textarea".into(), 1.2),
+        AgentsMessage::ProfileDescriptionAction(iced::widget::text_editor::Action::SelectAll),
+        AgentsMessage::ProfileDescriptionAction(iced::widget::text_editor::Action::Edit(
+            iced::widget::text_editor::Edit::Paste(Arc::new("中文描述\n第二行\n".into())),
+        )),
+    ] {
+        let _ = update(&mut app, SettingsMessage::Agents(message));
+    }
+    let task = update(&mut app, SettingsMessage::Agents(AgentsMessage::ProfileSave));
+    assert!(app.agents_settings.profile_saving);
+    for result in agent_config_cleanup_messages(task).await {
+        if let crate::app::Message::Settings(message) = result {
+            let _ = update(&mut app, message);
+        }
+    }
+    assert!(app.agents_settings.profile_modal.is_none());
+    let mut payload = {
+        let requests = fixture.requests.lock().unwrap();
+        let (_, path, body) = requests.iter().find(|(method, _, _)| method == "PATCH").unwrap();
+        assert_eq!(path, "/v1/global/config");
+        body["agents"]["textarea"].clone()
+    };
+    assert!(payload.get("description_editor").is_none());
+    // The HTTP fixture captures a Merge Patch: null deletes the ACP backend field.
+    assert!(payload["runtime"]["backend"].is_null());
+    payload["runtime"].as_object_mut().unwrap().remove("backend");
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("saved.json");
+    std::fs::write(&path, serde_json::to_vec(&payload).unwrap()).unwrap();
+    let config = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    let restored = DelegateAgentSettingsEntry::from_config("textarea", Some(config));
+    assert_eq!(restored.label, "多行智能体");
+    assert_eq!(restored.description, "中文描述\n第二行\n");
+    assert_eq!(restored.description_editor.text(), restored.description);
+    assert_eq!(restored.temperature, 1.2);
 }

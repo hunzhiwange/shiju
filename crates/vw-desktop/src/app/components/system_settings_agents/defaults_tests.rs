@@ -100,3 +100,31 @@ fn agent_defaults_form_forced_binding_rejects_conflicting_default() {
     });
     assert!(super::defaults::validation_error(&app, &draft).unwrap().contains("强制模型绑定冲突"));
 }
+
+#[test]
+fn agent_config_cleanup_single_model_group_prevents_conflict() {
+    use crate::app::{
+        App,
+        message::settings::{AgentsMessage, SettingsMessage},
+    };
+    use vw_config_types::agent::AgentModelReference;
+    let mut app = App::new().0;
+    app.agents_settings.config_ready = true;
+    let dispatch = |app: &mut App, message| {
+        let _ = crate::app::message::settings::update(app, SettingsMessage::Agents(message));
+    };
+    dispatch(&mut app, AgentsMessage::ProfileOpen("main".into()));
+    let model = AgentModelReference { provider: "provider".into(), model: "model".into() };
+    let defaults =
+        AgentDefaults { model: AgentDefault::Fixed(model.clone()), ..Default::default() };
+    dispatch(&mut app, AgentsMessage::ProfileModelChanged(defaults.model));
+    dispatch(&mut app, AgentsMessage::ForceModelSelectionToggled("main".into(), true));
+    let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+    assert_eq!(draft.provider, model.provider);
+    assert_eq!(draft.model, model.model);
+    assert!(draft.force_model_selection);
+    dispatch(&mut app, AgentsMessage::ProfileModelChanged(AgentDefault::Inherit));
+    let draft = app.agents_settings.profile_modal.as_ref().unwrap();
+    assert!(!draft.force_model_selection);
+    assert!(draft.provider.is_empty() && draft.model.is_empty());
+}

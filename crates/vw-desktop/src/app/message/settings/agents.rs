@@ -177,6 +177,9 @@ fn find_entry_mut<'a>(
     app: &'a mut App,
     agent_key: &str,
 ) -> Option<&'a mut DelegateAgentSettingsEntry> {
+    if app.agents_settings.profile_modal.as_ref().is_some_and(|draft| draft.key == agent_key) {
+        return app.agents_settings.profile_modal.as_mut();
+    }
     app.agents_settings.entries.iter_mut().find(|entry| entry.key == agent_key)
 }
 
@@ -674,7 +677,9 @@ fn mark_agents_settings_dirty(app: &mut App) -> Task<Message> {
             Some("Gateway 配置尚未加载完成，已拒绝保存默认快照。请刷新后重试。".to_string());
         return Task::none();
     }
-    app.agents_settings.dirty = true;
+    if app.agents_settings.profile_modal.is_none() {
+        app.agents_settings.dirty = true;
+    }
     Task::none()
 }
 
@@ -982,6 +987,9 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             Task::none()
         }
         AgentsMessage::AddAgentRequested => {
+            if !catalog_can_write(app) {
+                return Task::none();
+            }
             let key = normalize_agent_key(&app.agents_settings.new_agent_key_input);
             if key.is_empty() {
                 app.agents_settings.save_error =
@@ -1001,18 +1009,15 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 std::slice::from_mut(&mut entry),
                 &app.agents_settings.available_tools,
             );
-            app.agents_settings.entries.push(entry);
+            app.agents_settings.active_prompt_tab = AGENT_PROMPT_SYSTEM_TAB.to_string();
+            app.agents_settings.workspace_identity_root_path = None;
+            app.agents_settings.profile_modal = Some(entry);
             app.agents_settings.new_agent_key_input.clear();
             app.agents_settings.selected_agent = key;
+            app.agents_settings.active_detail_tab =
+                crate::app::state::AGENT_DETAIL_BASIC_TAB.to_string();
             app.agents_settings.save_error = None;
-            let selected_agent = app.agents_settings.selected_agent.clone();
-            let active_prompt_tab = app.agents_settings.active_prompt_tab.clone();
-
-            let mut tasks = vec![mark_agents_settings_dirty(app), refresh_skill_catalog(app)];
-            if active_prompt_tab != AGENT_PROMPT_SYSTEM_TAB {
-                tasks.push(load_workspace_identity_file_task(selected_agent, active_prompt_tab));
-            }
-            Task::batch(tasks)
+            refresh_skill_catalog(app)
         }
         AgentsMessage::DetailTabSelected(tab_key) => {
             app.agents_settings.active_detail_tab = tab_key;
@@ -1172,7 +1177,12 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AgentsMessage::ForceModelSelectionToggled(agent_key, force_model_selection) => {
             if let Some(entry) = find_entry_mut(app, &agent_key) {
-                entry.force_model_selection = force_model_selection;
+                entry.force_model_selection = false;
+                if let vw_config_types::agent::AgentDefault::Fixed(model) = &entry.defaults.model {
+                    entry.provider = model.provider.clone();
+                    entry.model = model.model.clone();
+                    entry.force_model_selection = force_model_selection;
+                }
             }
             app.agents_settings.save_error = None;
             mark_agents_settings_dirty(app)

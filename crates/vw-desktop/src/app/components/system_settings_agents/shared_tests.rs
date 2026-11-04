@@ -3,7 +3,7 @@
 
 use super::shared::{
     agent_sidebar_button_style, detail_tab_button, editor_style, entry_kind_label, is_dark_theme,
-    label_col, models_for_provider, section_card, selected_entry, with_selected_option,
+    label_col, section_card, selected_entry,
 };
 use crate::app::state::{AgentSettingsEntryKind, DelegateAgentSettingsEntry};
 use iced::widget::{button, text_editor};
@@ -18,6 +18,7 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
         runtime: Default::default(),
         recommended_prompts: Vec::new(),
         description: String::new(),
+        description_editor: text_editor::Content::new(),
         kind,
         role_controls_locked: false,
         can_disable: true,
@@ -58,37 +59,6 @@ fn solid_background(background: Background) -> Color {
 }
 
 #[test]
-fn with_selected_option_keeps_existing_selection_once() {
-    let options = with_selected_option(vec!["alpha".to_string(), "beta".to_string()], "beta");
-
-    assert_eq!(options, vec!["alpha".to_string(), "beta".to_string()]);
-}
-
-#[test]
-fn with_selected_option_appends_missing_selection() {
-    let options = with_selected_option(vec!["alpha".to_string()], "beta");
-
-    assert_eq!(options, vec!["alpha".to_string(), "beta".to_string()]);
-}
-
-#[test]
-fn with_selected_option_trims_empty_selection_sorts_and_dedups() {
-    let options = with_selected_option(
-        vec!["beta".to_string(), "alpha".to_string(), "alpha".to_string()],
-        "   ",
-    );
-
-    assert_eq!(options, vec!["alpha".to_string(), "beta".to_string()]);
-}
-
-#[test]
-fn with_selected_option_trims_missing_nonempty_selection() {
-    let options = with_selected_option(vec!["alpha".to_string()], "  beta  ");
-
-    assert_eq!(options, vec!["alpha".to_string(), "beta".to_string()]);
-}
-
-#[test]
 fn entry_kind_label_maps_all_entry_kinds() {
     let mut entry = entry("main", AgentSettingsEntryKind::Main);
 
@@ -97,66 +67,6 @@ fn entry_kind_label_maps_all_entry_kinds() {
     assert_eq!(entry_kind_label(&entry), "内建 Worker");
     entry.kind = AgentSettingsEntryKind::Custom;
     assert_eq!(entry_kind_label(&entry), "自定义");
-}
-
-#[test]
-fn models_for_provider_returns_models_or_empty() {
-    let (mut app, _) = crate::app::App::new();
-    app.agents_settings.provider_models = vec![crate::app::state::ProviderModelsSummary {
-        id: "openai".to_string(),
-        name: "OpenAI".to_string(),
-        models: vec![
-            crate::app::state::ModelSummary {
-                id: "gpt-a".to_string(),
-                name: "A".to_string(),
-                enabled: true,
-                toolcall: true,
-                attachment: false,
-                context_limit: 128_000,
-                detail: serde_json::json!({}),
-            },
-            crate::app::state::ModelSummary {
-                id: "gpt-b".to_string(),
-                name: "B".to_string(),
-                enabled: true,
-                toolcall: false,
-                attachment: true,
-                context_limit: 64_000,
-                detail: serde_json::json!({}),
-            },
-        ],
-    }];
-
-    assert_eq!(models_for_provider(&app, "openai"), vec!["gpt-a".to_string(), "gpt-b".to_string()]);
-    assert!(models_for_provider(&app, "missing").is_empty());
-}
-
-#[test]
-fn models_for_provider_uses_first_exact_provider_match() {
-    let (mut app, _) = crate::app::App::new();
-    let model = crate::app::state::ModelSummary {
-        id: "second-model".to_string(),
-        name: "Second".to_string(),
-        enabled: true,
-        toolcall: false,
-        attachment: false,
-        context_limit: 32_000,
-        detail: serde_json::json!({}),
-    };
-    app.agents_settings.provider_models = vec![
-        crate::app::state::ProviderModelsSummary {
-            id: "duplicate".to_string(),
-            name: "First".to_string(),
-            models: Vec::new(),
-        },
-        crate::app::state::ProviderModelsSummary {
-            id: "duplicate".to_string(),
-            name: "Second".to_string(),
-            models: vec![model],
-        },
-    ];
-
-    assert!(models_for_provider(&app, "duplicate").is_empty());
 }
 
 #[test]

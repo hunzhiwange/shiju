@@ -38,6 +38,7 @@ with (root/'capture.jsonl').open('a') as f: f.write(json.dumps(args)+'\n')
 if args[0]=='hub:version':
  d={'package_root':str(root),'current_version':'8.5.1','package_skill_version':'8.5.1'}
  if mode=='wrong-client':d['package_root']=str(root/'other')
+elif args[0]=='company:info':d={'company_id':'10011'}
 elif args[0]=='hub:check':d={'force_upgrade_required':mode=='upgrade'}
 elif args[:2]==['index','rebuild']:d={}
 elif args[0]=='skill:me':

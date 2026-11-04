@@ -87,11 +87,21 @@ impl VideoPrepareCloud for ShijuCloudVideoToolProvider {
         select_scope(scopes, None, &self.context).await
     }
     async fn authorized_scopes(&self) -> Result<Vec<CloudVideoScope>> {
+        // Native tenant IDs partition local storage; cloud identity belongs to the
+        // current visible client's login, which may use a different company ID.
+        let company = self
+            .cli(&self.hub_root.join("scripts/shiju"), &["company:info".into()])
+            .await
+            .map_err(anyhow::Error::msg)?;
+        let company_id = id(&company, "company_id")?;
+        ensure!(
+            company_id.bytes().all(|byte| byte.is_ascii_digit()),
+            "invalid authenticated cloud company"
+        );
         let response = self.prepare_call("get_my_permissions", json!({})).await?;
         let member = &response["member"];
-        let tenant = self.context.tool_use_context().tenant_scope();
         ensure!(
-            member["companyId"].as_str() == Some(tenant.company_id().as_ref())
+            member["companyId"].as_str() == Some(company_id.as_str())
                 && member["status"] == "active",
             "cloud tenant or membership mismatch"
         );

@@ -14,11 +14,7 @@ async fn video_edit_prepare_native_receipts_keep_signed_tickets_in_memory() {
     .unwrap();
     let hub = skill.location.unwrap().parent().unwrap().to_path_buf();
     let root = hub.join("cutvideo");
-    std::fs::write(
-        root.join("company"),
-        ctx.tool_use_context().tenant_scope().company_id().as_ref(),
-    )
-    .unwrap();
+    std::fs::write(root.join("company"), "10011").unwrap();
     std::fs::write(root.join("scripts/occ.py"),r#"import json,sys,pathlib
 root=pathlib.Path(__file__).parent.parent
 a=sys.argv[1:]
@@ -90,5 +86,31 @@ print('truncated stdout must never become the receipt')
             .file_name()
             .to_string_lossy()
             .starts_with(".video-memory-"))
+    );
+}
+
+#[tokio::test]
+async fn video_edit_prepare_cloud_identity_is_independent_of_local_tenant_and_rejects_mismatch() {
+    let (_dir, ctx, skill) = super::cloud_tests::fixture("ok");
+    assert_ne!(ctx.tool_use_context().tenant_scope().company_id().as_ref(), "10011");
+    let provider = ShijuCloudVideoToolProvider::discover(ctx, std::slice::from_ref(&skill), None)
+        .await
+        .unwrap();
+    let root = skill.location.unwrap().parent().unwrap().join("cutvideo");
+    std::fs::write(root.join("company"), "10011").unwrap();
+    std::fs::write(root.join("scripts/occ.py"), r#"import json,sys,pathlib
+root=pathlib.Path(__file__).parent.parent
+a=sys.argv[1:]
+if a[0]=='schema':
+ print(json.dumps({'name':a[1],'inputSchema':{'type':'object','properties':{}}}));sys.exit(0)
+assert a[0]=='call' and a[1]=='get_my_permissions'
+json.load(sys.stdin)
+r={'member':{'companyId':(root/'company').read_text(),'status':'active','effectivePermissions':['project.read','project.create','material.read','material.create'],'brandIds':['brand'],'storeIds':[]}}
+with open(a[a.index('--out')+1],'w') as f:json.dump(r,f)
+"#).unwrap();
+    assert_eq!(provider.authorized_scopes().await.unwrap().len(), 1);
+    std::fs::write(root.join("company"), "10012").unwrap();
+    assert!(
+        provider.authorized_scopes().await.unwrap_err().to_string().contains("membership mismatch")
     );
 }

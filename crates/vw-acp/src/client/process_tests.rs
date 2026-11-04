@@ -269,3 +269,23 @@ async fn finalize_child_discards_slow_stderr_task() {
     assert_eq!(finalized.summary.exit_code, Some(0));
     assert_eq!(finalized.stderr_output, "");
 }
+
+#[tokio::test]
+async fn acp_model_source_launch_profile_child_stderr_never_becomes_diagnostics() {
+    let client = client_with_config(AcpAgentConfig {
+        command: "sh".into(),
+        args: vec!["-c".into(), "printf '%s' \"$TASK9_SECRET\" >&2".into()],
+        env: HashMap::from([
+            ("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:reference".into()),
+            ("TASK9_SECRET".into(), "stderr-secret-9".into()),
+        ]),
+    });
+    let handles = client.spawn_child().unwrap();
+    assert!(handles.stderr_task.is_none());
+    let result = client.finalize_child(handles.child, handles.stderr_task).await;
+    assert!(result.stderr_output.is_empty());
+    let restored = AcpClient::new("vw-session-model:reference", client.config.clone());
+    let error = restored.spawn_child().err().unwrap().to_string();
+    assert!(error.contains("reissued by its session owner"));
+    assert!(!error.contains("stderr-secret-9"));
+}

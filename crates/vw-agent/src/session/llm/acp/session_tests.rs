@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
-use serde_json::{Value, json};
 use tokio::sync::{Mutex, watch};
 use vw_acp::{
     AcpSessionOptions, AuthPolicy, DEFAULT_EVENT_MAX_SEGMENTS, NonInteractivePermissionPolicy,
@@ -91,18 +90,23 @@ fn cache_key_is_stable_and_includes_behavioral_inputs() {
     cfg.env.insert("A".to_string(), "1".to_string());
 
     let key = acp_client_cache_key("custom", &cfg, Path::new("/tmp/project"), &parsed_options());
-    let value: Value = serde_json::from_str(&key).expect("cache key should be JSON");
-
-    assert_eq!(value["agentName"].as_str(), Some("custom"));
-    assert_eq!(value["command"].as_str(), Some("agent"));
-    assert_eq!(value["args"], json!(["--stdio", "--fast"]));
-    assert_eq!(value["env"], json!([["A", "1"], ["B", "2"]]));
-    assert_eq!(value["cwd"].as_str(), Some("/tmp/project"));
-    assert_eq!(value["permissionMode"].as_str(), Some("deny-all"));
-    assert_eq!(value["fullAccess"].as_bool(), Some(false));
-    assert_eq!(value["nonInteractivePermissions"].as_str(), Some("fail"));
-    assert_eq!(value["authPolicy"].as_str(), Some("fail"));
-    assert_eq!(value["sessionOptions"]["model"].as_str(), Some("gpt-5"));
+    assert_eq!(key.len(), 64);
+    assert!(key.bytes().all(|byte| byte.is_ascii_hexdigit()));
+    assert_eq!(
+        key,
+        acp_client_cache_key("custom", &cfg, Path::new("/tmp/project"), &parsed_options())
+    );
+    let mut changed = cfg.clone();
+    changed.args.push("--different".into());
+    assert_ne!(
+        key,
+        acp_client_cache_key("custom", &changed, Path::new("/tmp/project"), &parsed_options())
+    );
+    assert_ne!(
+        key,
+        acp_client_cache_key("other", &cfg, Path::new("/tmp/project"), &parsed_options())
+    );
+    assert_ne!(key, acp_client_cache_key("custom", &cfg, Path::new("/other"), &parsed_options()));
 }
 
 #[test]
@@ -322,4 +326,31 @@ fn missing_session_error_treats_blank_name_as_unnamed() {
 
     assert!(message.contains("vwacp claude-code sessions new"));
     assert!(!message.contains("--name"));
+}
+
+#[test]
+fn acp_model_source_launch_profile_cache_never_contains_environment_secrets() {
+    let cfg = config::schema::AcpAgentConfig {
+        command: "agent".into(),
+        env: std::collections::HashMap::from([("API_KEY".into(), "launch-secret-9".into())]),
+        ..Default::default()
+    };
+    let first = super::acp_client_cache_key(
+        "agent",
+        &cfg,
+        std::path::Path::new("/tmp"),
+        &Default::default(),
+    );
+    assert!(!first.contains("launch-secret-9"));
+    let mut rotated = cfg;
+    rotated.env.insert("API_KEY".into(), "rotated-secret-9".into());
+    assert_ne!(
+        first,
+        super::acp_client_cache_key(
+            "agent",
+            &rotated,
+            std::path::Path::new("/tmp"),
+            &Default::default()
+        )
+    );
 }

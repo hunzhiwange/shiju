@@ -313,16 +313,19 @@ pub fn parse_session_record(raw: &Value) -> Option<SessionRecord> {
         normalize_optional_agent_capabilities(record.get("agent_capabilities"))?;
     let vwacp = parse_vwacp_state(record.get("vwacp"))?;
 
+    let agent_config: Option<crate::AcpAgentConfig> =
+        record.get("agent_config").cloned().and_then(|value| serde_json::from_value(value).ok());
+    let runtime_reference =
+        agent_config.as_ref().and_then(|config| config.env.get("VW_ACP_LAUNCH_REFERENCE")).cloned();
+    let runtime_only =
+        runtime_reference.is_some() || agent_command.starts_with("vw-session-model:");
     Some(SessionRecord {
         schema: SESSION_RECORD_SCHEMA.to_string(),
         vwacp_record_id,
         acp_session_id,
         agent_session_id: record.get("agent_session_id").and_then(normalize_runtime_session_id),
-        agent_command,
-        agent_config: record
-            .get("agent_config")
-            .cloned()
-            .and_then(|value| serde_json::from_value(value).ok()),
+        agent_command: runtime_reference.unwrap_or(agent_command),
+        agent_config: if runtime_only { None } else { agent_config },
         cwd,
         name,
         created_at,

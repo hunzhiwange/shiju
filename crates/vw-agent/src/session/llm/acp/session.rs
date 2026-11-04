@@ -66,7 +66,7 @@ fn acp_client_cache_key(
     let mut env = acp_cfg.env.iter().collect::<Vec<_>>();
     env.sort_by(|left, right| left.0.cmp(right.0));
 
-    json!({
+    let material = json!({
         "tenant": crate::session::ui_store::current_tenant_scope(),
         "agentName": acp_agent_name,
         "command": acp_cfg.command,
@@ -79,7 +79,16 @@ fn acp_client_cache_key(
         "authPolicy": parsed_options.auth_policy,
         "sessionOptions": parsed_options.session_options,
     })
-    .to_string()
+    .to_string();
+    super::model_source::fingerprint(material.as_bytes())
+}
+
+fn launch_reference(cfg: &config::schema::AcpAgentConfig) -> Option<&str> {
+    cfg.env.get(super::model_source::profile::REFERENCE_ENV).map(String::as_str)
+}
+
+fn record_command(cfg: &config::schema::AcpAgentConfig) -> String {
+    launch_reference(cfg).map(str::to_owned).unwrap_or_else(|| build_acp_command_line(cfg))
 }
 
 /// 标准化会话名。
@@ -228,12 +237,16 @@ async fn create_cached_session_record(
         vwacp_record_id: session_id.clone(),
         acp_session_id: session_id.clone(),
         agent_session_id: None,
-        agent_command: build_acp_command_line(acp_cfg),
-        agent_config: Some(vw_acp::AcpAgentConfig {
-            command: acp_cfg.command.clone(),
-            args: acp_cfg.args.clone(),
-            env: acp_cfg.env.clone(),
-        }),
+        agent_command: record_command(acp_cfg),
+        agent_config: if launch_reference(acp_cfg).is_some() {
+            None
+        } else {
+            Some(vw_acp::AcpAgentConfig {
+                command: acp_cfg.command.clone(),
+                args: acp_cfg.args.clone(),
+                env: acp_cfg.env.clone(),
+            })
+        },
         cwd: cwd_text,
         name: normalize_session_name(session_name.as_deref()),
         created_at: now.clone(),
@@ -307,7 +320,7 @@ pub(crate) async fn find_or_create_cached_session_record(
     parsed_options: &ParsedAcpOptions,
     force_new_session: bool,
 ) -> Result<SessionRecord, Error> {
-    let agent_command = build_acp_command_line(acp_cfg);
+    let agent_command = record_command(acp_cfg);
     let cwd_text = cwd.to_string_lossy().into_owned();
 
     if force_new_session

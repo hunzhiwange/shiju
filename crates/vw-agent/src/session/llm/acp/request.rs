@@ -80,18 +80,20 @@ pub(crate) async fn do_stream_request_acp(
             })
         })?;
     let normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
-    let normalized_acp_cfg = match source {
-        vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
-            with_copilot_auth_environment(
-                model,
-                provider_info,
-                auth_info,
-                &acp_agent_name,
-                normalized_acp_cfg,
-            )
-        }
-        vw_api_types::acp_model_source::AcpModelSource::CliLocal => normalized_acp_cfg,
+    // The profile owns the relay, token and private files for this request only.
+    // CLI-local execution preserves the user's original configuration.
+    let launch_profile = match source {
+        vw_api_types::acp_model_source::AcpModelSource::SessionModel => Some(
+            super::model_source::prepare(&acp_agent_name, &normalized_acp_cfg, model, session_id)
+                .await
+                .map_err(to_api_error)?,
+        ),
+        vw_api_types::acp_model_source::AcpModelSource::CliLocal => None,
     };
+    let normalized_acp_cfg = launch_profile
+        .as_ref()
+        .map(|profile| profile.config().clone())
+        .unwrap_or(normalized_acp_cfg);
     let command = normalized_acp_cfg.command.trim();
     if command.is_empty() {
         tracing::warn!(
@@ -134,7 +136,8 @@ pub(crate) async fn do_stream_request_acp(
         .or_else(|| std::env::current_dir().ok())
         .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
     let parsed_options = parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
-    let close_client_after_request = parse_close_client_after_request(merged_options)?;
+    let close_client_after_request =
+        parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
     let walk_boundary = vw_acp::find_git_repository_root(&cwd_text)
         .map(|path| path.to_string_lossy().into_owned())
@@ -531,71 +534,6 @@ fn parse_close_client_after_request(merged_options: &Value) -> Result<bool, Erro
     value
         .as_bool()
         .ok_or_else(|| super::acp_option_error("acp_close_client_after_request must be a boolean"))
-}
-
-fn with_copilot_auth_environment(
-    model: &provider::Model,
-    provider_info: &provider::Info,
-    auth_info: Option<&auth::Info>,
-    acp_agent_name: &str,
-    mut acp_cfg: config::schema::AcpAgentConfig,
-) -> config::schema::AcpAgentConfig {
-    if !is_github_copilot_provider(&model.provider_id)
-        || !is_copilot_acp_agent(acp_agent_name, &acp_cfg)
-    {
-        return acp_cfg;
-    }
-
-    let Some(token) = copilot_auth_token(provider_info, auth_info) else {
-        return acp_cfg;
-    };
-
-    for key in ["GH_COPILOT_TOKEN", "GITHUB_COPILOT_TOKEN"] {
-        acp_cfg.env.entry(key.to_string()).or_insert_with(|| token.clone());
-    }
-    acp_cfg
-}
-
-fn is_github_copilot_provider(provider_id: &str) -> bool {
-    provider_id.trim().to_ascii_lowercase().starts_with("github-copilot")
-}
-
-fn is_copilot_acp_agent(acp_agent_name: &str, acp_cfg: &config::schema::AcpAgentConfig) -> bool {
-    let agent_name = acp_agent_name.trim().to_ascii_lowercase();
-    let command = acp_cfg.command.trim().to_ascii_lowercase();
-    let has_copilot_arg =
-        acp_cfg.args.iter().any(|arg| arg.trim().to_ascii_lowercase().contains("copilot"));
-
-    agent_name.contains("copilot") || command.contains("copilot") || has_copilot_arg
-}
-
-fn copilot_auth_token(
-    provider_info: &provider::Info,
-    auth_info: Option<&auth::Info>,
-) -> Option<String> {
-    provider_info
-        .key
-        .as_deref()
-        .map(str::trim)
-        .filter(|value| is_usable_copilot_token(value))
-        .map(ToString::to_string)
-        .or_else(|| {
-            for key in &provider_info.env {
-                if let Ok(value) = std::env::var(key) {
-                    let value = value.trim();
-                    if is_usable_copilot_token(value) {
-                        return Some(value.to_string());
-                    }
-                }
-            }
-            None
-        })
-        .or_else(|| match auth_info {
-            Some(auth::Info::Api(api)) if !api.key.trim().is_empty() => {
-                Some(api.key.trim().to_string())
-            }
-            _ => None,
-        })
 }
 
 fn is_usable_copilot_token(value: &str) -> bool {

@@ -30,8 +30,15 @@ pub fn serialize_session_record_for_disk(record: &SessionRecord) -> Value {
     {
         serialized.insert("agent_session_id".to_string(), Value::String(agent_session_id));
     }
-    serialized.insert("agent_command".to_string(), Value::String(record.agent_command.clone()));
-    insert_optional(&mut serialized, "agent_config", record.agent_config.as_ref());
+    // Runtime launch environments must never become executable recovery material.
+    if let Some(reference) =
+        record.agent_config.as_ref().and_then(|config| config.env.get("VW_ACP_LAUNCH_REFERENCE"))
+    {
+        serialized.insert("agent_command".into(), Value::String(reference.clone()));
+    } else {
+        serialized.insert("agent_command".to_string(), Value::String(record.agent_command.clone()));
+        insert_optional(&mut serialized, "agent_config", record.agent_config.as_ref());
+    }
     serialized.insert("cwd".to_string(), Value::String(record.cwd.clone()));
     insert_optional(&mut serialized, "name", record.name.as_ref());
     serialized.insert("created_at".to_string(), Value::String(record.created_at.clone()));

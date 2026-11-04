@@ -1,45 +1,15 @@
 //! 验证 ACP 请求选项、模型和消息载荷的构造规则。
 
 use std::collections::HashMap;
-use std::sync::{Mutex, MutexGuard};
 
 use serde_json::json;
 use tokio::sync::watch;
 
+use crate::app::agent::auth;
 use crate::app::agent::provider::provider;
 use crate::app::agent::session::{llm::StreamEvent, message};
-use crate::app::agent::{auth, config};
 
-use super::{
-    copilot_auth_token, do_stream_request_acp, is_copilot_acp_agent, is_github_copilot_provider,
-    is_usable_copilot_token, parse_close_client_after_request, with_copilot_auth_environment,
-};
-
-static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-struct EnvGuard {
-    _lock: MutexGuard<'static, ()>,
-    key: &'static str,
-    saved: Option<String>,
-}
-
-impl EnvGuard {
-    fn set(key: &'static str, value: &str) -> Self {
-        let lock = ENV_LOCK.lock().unwrap_or_else(|error| error.into_inner());
-        let saved = std::env::var(key).ok();
-        unsafe { std::env::set_var(key, value) };
-        Self { _lock: lock, key, saved }
-    }
-}
-
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        match &self.saved {
-            Some(value) => unsafe { std::env::set_var(self.key, value) },
-            None => unsafe { std::env::remove_var(self.key) },
-        }
-    }
-}
+use super::{do_stream_request_acp, parse_close_client_after_request};
 
 fn test_model(provider_id: &str) -> provider::Model {
     serde_json::from_value(json!({
@@ -106,248 +76,6 @@ fn test_provider(key: Option<&str>) -> provider::Info {
         options: HashMap::new(),
         models: HashMap::new(),
     }
-}
-
-fn copilot_config() -> config::schema::AcpAgentConfig {
-    config::schema::AcpAgentConfig {
-        command: "copilot".to_string(),
-        args: vec!["--acp".to_string(), "--stdio".to_string()],
-        env: HashMap::new(),
-    }
-}
-
-#[test]
-fn copilot_provider_detection_is_case_and_space_tolerant() {
-    assert!(is_github_copilot_provider(" GitHub-Copilot "));
-    assert!(is_github_copilot_provider("github-copilot-chat"));
-    assert!(!is_github_copilot_provider("openai"));
-}
-
-#[test]
-fn copilot_agent_detection_checks_name_command_and_args() {
-    let plain = config::schema::AcpAgentConfig {
-        command: "node".to_string(),
-        args: vec!["agent.js".to_string()],
-        env: HashMap::new(),
-    };
-    assert!(!is_copilot_acp_agent("custom", &plain));
-    assert!(is_copilot_acp_agent(" GitHub Copilot ", &plain));
-
-    let mut by_command = plain.clone();
-    by_command.command = "copilot-agent".to_string();
-    assert!(is_copilot_acp_agent("custom", &by_command));
-
-    let mut by_arg = plain;
-    by_arg.args.push("--use-copilot".to_string());
-    assert!(is_copilot_acp_agent("custom", &by_arg));
-}
-
-#[test]
-fn usable_copilot_token_rejects_empty_and_oauth_dummy_values() {
-    assert!(is_usable_copilot_token("token"));
-    assert!(!is_usable_copilot_token(""));
-    assert!(!is_usable_copilot_token(auth::OAUTH_DUMMY_KEY));
-}
-
-#[test]
-fn copilot_auth_environment_uses_provider_key() {
-    let cfg = with_copilot_auth_environment(
-        &test_model("github-copilot"),
-        &test_provider(Some(" provider-token ")),
-        None,
-        "copilot",
-        copilot_config(),
-    );
-
-    assert_eq!(cfg.env.get("GH_COPILOT_TOKEN").map(String::as_str), Some("provider-token"));
-    assert_eq!(cfg.env.get("GITHUB_COPILOT_TOKEN").map(String::as_str), Some("provider-token"));
-}
-
-#[test]
-fn copilot_auth_environment_preserves_explicit_agent_env() {
-    let mut cfg = copilot_config();
-    cfg.env.insert("GH_COPILOT_TOKEN".to_string(), "explicit-token".to_string());
-
-    let cfg = with_copilot_auth_environment(
-        &test_model("github-copilot"),
-        &test_provider(Some("provider-token")),
-        None,
-        "copilot",
-        cfg,
-    );
-
-    assert_eq!(cfg.env.get("GH_COPILOT_TOKEN").map(String::as_str), Some("explicit-token"));
-    assert_eq!(cfg.env.get("GITHUB_COPILOT_TOKEN").map(String::as_str), Some("provider-token"));
-}
-
-#[test]
-fn copilot_auth_environment_preserves_both_explicit_token_variables() {
-    let mut cfg = copilot_config();
-    cfg.env.insert("GH_COPILOT_TOKEN".to_string(), "explicit-gh-token".to_string());
-    cfg.env.insert("GITHUB_COPILOT_TOKEN".to_string(), "explicit-github-token".to_string());
-
-    let cfg = with_copilot_auth_environment(
-        &test_model("github-copilot"),
-        &test_provider(Some("provider-token")),
-        None,
-        "copilot",
-        cfg,
-    );
-
-    assert_eq!(cfg.env.get("GH_COPILOT_TOKEN").map(String::as_str), Some("explicit-gh-token"));
-    assert_eq!(
-        cfg.env.get("GITHUB_COPILOT_TOKEN").map(String::as_str),
-        Some("explicit-github-token")
-    );
-}
-
-#[test]
-fn copilot_auth_token_uses_provider_env_before_auth_fallback() {
-    let _guard = EnvGuard::set("VW_AGENT_COPILOT_TEST_TOKEN", " env-token ");
-    let mut provider = test_provider(None);
-    provider.env = vec!["VW_AGENT_COPILOT_TEST_TOKEN".to_string()];
-
-    let token = copilot_auth_token(
-        &provider,
-        Some(&auth::Info::Api(auth::ApiInfo { key: "auth-token".to_string() })),
-    );
-
-    assert_eq!(token.as_deref(), Some("env-token"));
-}
-
-#[test]
-// 认证来源按供应商密钥、环境变量、认证存储排序，显式配置优先。
-fn copilot_auth_token_prefers_provider_key_over_env_and_auth() {
-    let _guard = EnvGuard::set("VW_AGENT_COPILOT_PROVIDER_KEY_TEST_TOKEN", "env-token");
-    let mut provider = test_provider(Some(" provider-token "));
-    provider.env = vec!["VW_AGENT_COPILOT_PROVIDER_KEY_TEST_TOKEN".to_string()];
-
-    let token = copilot_auth_token(
-        &provider,
-        Some(&auth::Info::Api(auth::ApiInfo { key: "auth-token".to_string() })),
-    );
-
-    assert_eq!(token.as_deref(), Some("provider-token"));
-}
-
-#[test]
-// OAuth 占位密钥不具备实际认证能力，应继续寻找可用令牌。
-fn copilot_auth_token_falls_back_from_dummy_provider_key_to_env() {
-    let _guard = EnvGuard::set("VW_AGENT_COPILOT_DUMMY_KEY_TEST_TOKEN", " env-token ");
-    let mut provider = test_provider(Some(auth::OAUTH_DUMMY_KEY));
-    provider.env = vec!["VW_AGENT_COPILOT_DUMMY_KEY_TEST_TOKEN".to_string()];
-
-    let token = copilot_auth_token(
-        &provider,
-        Some(&auth::Info::Api(auth::ApiInfo { key: "auth-token".to_string() })),
-    );
-
-    assert_eq!(token.as_deref(), Some("env-token"));
-}
-
-#[test]
-fn copilot_auth_token_falls_back_from_blank_env_to_api_auth() {
-    let _guard = EnvGuard::set("VW_AGENT_COPILOT_BLANK_ENV_TEST_TOKEN", "   ");
-    let mut provider = test_provider(None);
-    provider.env = vec!["VW_AGENT_COPILOT_BLANK_ENV_TEST_TOKEN".to_string()];
-
-    let token = copilot_auth_token(
-        &provider,
-        Some(&auth::Info::Api(auth::ApiInfo { key: " auth-token ".to_string() })),
-    );
-
-    assert_eq!(token.as_deref(), Some("auth-token"));
-}
-
-#[test]
-fn copilot_auth_token_skips_dummy_env_before_api_auth() {
-    let _guard = EnvGuard::set("VW_AGENT_COPILOT_DUMMY_ENV_TEST_TOKEN", auth::OAUTH_DUMMY_KEY);
-    let mut provider = test_provider(None);
-    provider.env = vec!["VW_AGENT_COPILOT_DUMMY_ENV_TEST_TOKEN".to_string()];
-
-    let token = copilot_auth_token(
-        &provider,
-        Some(&auth::Info::Api(auth::ApiInfo { key: " auth-token ".to_string() })),
-    );
-
-    assert_eq!(token.as_deref(), Some("auth-token"));
-}
-
-#[test]
-fn copilot_auth_token_rejects_blank_and_non_api_auth_fallbacks() {
-    let provider = test_provider(None);
-    let blank_api = auth::Info::Api(auth::ApiInfo { key: "   ".to_string() });
-    let oauth = auth::Info::Oauth(auth::OauthInfo {
-        refresh: "refresh-token".to_string(),
-        access: "access-token".to_string(),
-        expires: 0,
-        account_id: None,
-        enterprise_url: None,
-    });
-    let well_known = auth::Info::Wellknown(auth::WellKnownInfo {
-        key: "well-known-key".to_string(),
-        token: "well-known-token".to_string(),
-    });
-
-    assert_eq!(copilot_auth_token(&provider, Some(&blank_api)), None);
-    assert_eq!(copilot_auth_token(&provider, Some(&oauth)), None);
-    assert_eq!(copilot_auth_token(&provider, Some(&well_known)), None);
-}
-
-#[test]
-fn copilot_auth_environment_uses_api_auth_fallback() {
-    let cfg = with_copilot_auth_environment(
-        &test_model("github-copilot"),
-        &test_provider(None),
-        Some(&auth::Info::Api(auth::ApiInfo { key: " auth-token ".to_string() })),
-        "github-copilot",
-        copilot_config(),
-    );
-
-    assert_eq!(cfg.env.get("GH_COPILOT_TOKEN").map(String::as_str), Some("auth-token"));
-}
-
-#[test]
-fn copilot_auth_environment_ignores_oauth_dummy_key() {
-    let cfg = with_copilot_auth_environment(
-        &test_model("github-copilot"),
-        &test_provider(Some(auth::OAUTH_DUMMY_KEY)),
-        None,
-        "copilot",
-        copilot_config(),
-    );
-
-    assert!(cfg.env.is_empty());
-}
-
-#[test]
-fn copilot_auth_environment_ignores_non_copilot_agent() {
-    let cfg = with_copilot_auth_environment(
-        &test_model("github-copilot"),
-        &test_provider(Some("provider-token")),
-        None,
-        "custom",
-        config::schema::AcpAgentConfig {
-            command: "agent".to_string(),
-            args: vec!["--stdio".to_string()],
-            env: HashMap::new(),
-        },
-    );
-
-    assert!(cfg.env.is_empty());
-}
-
-#[test]
-fn copilot_auth_environment_ignores_non_copilot_provider() {
-    let cfg = with_copilot_auth_environment(
-        &test_model("openai"),
-        &test_provider(Some("provider-token")),
-        None,
-        "copilot",
-        copilot_config(),
-    );
-
-    assert!(cfg.env.is_empty());
 }
 
 #[test]
@@ -509,5 +237,43 @@ async fn acp_model_source_routing_local_reaches_command_lookup_without_client_cr
             assert!(message.contains("acp command not configured"))
         }
         other => panic!("expected command lookup without client auth, got {other:?}"),
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn acp_model_source_launch_profile_production_request_rejects_unverified_driver() {
+    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let directory = tempfile::tempdir().unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let (project, _) = crate::project::from_directory(&tenant, directory.path()).await.unwrap();
+    crate::config::update_project_for_tenant(&tenant, directory.path(), json!({
+        "providers": {"github-copilot": {"api": "http://127.0.0.1:1/v1", "models": {"gpt-5-mini": {"status": "active"}}}}
+    })).await.unwrap();
+    let context = crate::project::instance::Context {
+        directory: directory.path().to_string_lossy().into(),
+        worktree: project.worktree.clone(),
+        project,
+    };
+    let result = crate::project::instance::provide_context(
+        context,
+        do_stream_request_acp(
+            &test_model("github-copilot"),
+            &test_provider(Some("provider-secret-never-distributed")),
+            None,
+            &json!({"acp_agent": "codex"}),
+            &json!([{"role": "user", "content": "hello"}]),
+            "task9-production",
+            None,
+            &mut |_| {},
+        ),
+    )
+    .await;
+    match result {
+        Err(super::Error::Api(message::AssistantError::Unknown { message })) => {
+            assert!(message.contains("ACP codex session_model launch has not been verified"));
+            assert!(!message.contains("provider-secret-never-distributed"));
+        }
+        other => panic!("unexpected production result: {other:?}"),
     }
 }

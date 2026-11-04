@@ -88,3 +88,43 @@ fn serialize_session_record_for_disk_writes_snake_case_disk_shape() {
     assert!(!record.contains_key("closed_at"));
     assert_eq!(record["vwacp"]["desired_mode_id"].as_str(), Some("plan"));
 }
+
+#[test]
+fn acp_model_source_launch_profile_disk_cannot_restore_runtime_capability() {
+    let mut record = test_record();
+    record.agent_command = "agent --token runtime-secret-9".into();
+    record.agent_config = Some(crate::AcpAgentConfig {
+        command: "agent".into(),
+        args: vec!["runtime-secret-9".into()],
+        env: std::collections::HashMap::from([
+            ("VW_ACP_LAUNCH_REFERENCE".into(), "vw-session-model:opaque-reference".into()),
+            ("API_KEY".into(), "runtime-secret-9".into()),
+        ]),
+    });
+    let disk = super::serialize_session_record_for_disk(&record);
+    assert!(!disk.to_string().contains("runtime-secret-9"));
+    assert_eq!(disk["agent_command"], "vw-session-model:opaque-reference");
+    assert!(disk.get("agent_config").is_none());
+}
+
+#[test]
+fn acp_model_source_launch_profile_local_config_remains_restorable() {
+    let mut record = test_record();
+    record.agent_config = Some(crate::AcpAgentConfig {
+        command: "local-agent".into(),
+        args: vec!["--local".into()],
+        env: std::collections::HashMap::from([("LOCAL_SETTING".into(), "user-value".into())]),
+    });
+    let restored =
+        crate::parse_session_record(&super::serialize_session_record_for_disk(&record)).unwrap();
+    let config = restored.agent_config.unwrap();
+    assert_eq!(config.command, "local-agent");
+    assert_eq!(config.env["LOCAL_SETTING"], "user-value");
+    let mut legacy = super::serialize_session_record_for_disk(&record);
+    legacy["schema"] = crate::SESSION_RECORD_SCHEMA.into();
+    legacy["agent_command"] = "agent --token revoked-token".into();
+    legacy["agent_config"]["env"]["VW_ACP_LAUNCH_REFERENCE"] = "vw-session-model:legacy".into();
+    let restored = crate::parse_session_record(&legacy).unwrap();
+    assert!(restored.agent_config.is_none());
+    assert_eq!(restored.agent_command, "vw-session-model:legacy");
+}

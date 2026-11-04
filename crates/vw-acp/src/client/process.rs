@@ -19,6 +19,15 @@ impl AcpClient {
         &self,
         discard_stderr: bool,
     ) -> Result<ProcessHandles, AcpError> {
+        if self.agent_name.starts_with("vw-session-model:")
+            || self.config.command.starts_with("vw-session-model:")
+        {
+            return Err(AcpError::Initialize(
+                "managed model launch must be reissued by its session owner".into(),
+            ));
+        }
+        let discard_stderr =
+            discard_stderr || self.config.env.contains_key("VW_ACP_LAUNCH_REFERENCE");
         if self.config.command.trim().is_empty() {
             return Err(AcpError::EmptyCommand);
         }

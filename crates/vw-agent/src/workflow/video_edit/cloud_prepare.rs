@@ -223,6 +223,23 @@ impl VideoPrepareCloud for ShijuCloudVideoToolProvider {
         if value["status"] == "running" {
             return Ok(VideoImportResult::Pending(id(&value, "jobId")?));
         }
+        if let Some(asset_ids) = value["assetIds"].as_array() {
+            ensure!(
+                value["ok"] == true && asset_ids.len() == 1 && value.get("items").is_none(),
+                "invalid/ambiguous finalized asset receipt"
+            );
+            let results = value["results"].as_array().context("missing import results")?;
+            ensure!(
+                results.len() == 1 && results[0]["ok"] == true && results[0].get("error").is_none(),
+                "cloud import partially failed"
+            );
+            let assets = results[0]["assets"].as_array().context("missing imported assets")?;
+            ensure!(
+                assets.len() == 1 && assets[0]["assetId"] == asset_ids[0],
+                "inconsistent imported asset identity"
+            );
+            return Ok(VideoImportResult::Ready(id(&assets[0], "assetId")?));
+        }
         let items = value["items"]
             .as_array()
             .context("invalid finalized media receipt; reconcile original upload")?;
@@ -235,8 +252,9 @@ impl VideoPrepareCloud for ShijuCloudVideoToolProvider {
         Ok(VideoImportResult::Ready(id(item, "assetId")?))
     }
     async fn probe(&self, project: &str, asset: &str) -> Result<VideoMediaInfo> {
-        let value =
-            self.prepare_call("media_probe", json!({"projectId":project,"assetId":asset})).await?;
+        let value = super::probe::normalize_media_probe(
+            self.prepare_call("media_probe", json!({"projectId":project,"assetId":asset})).await?,
+        )?;
         let streams = value["streams"].as_array().context("cloud probe must include streams")?;
         let video = streams.iter().find(|s| s["codec_type"] == "video");
         let Some(video) = video else {

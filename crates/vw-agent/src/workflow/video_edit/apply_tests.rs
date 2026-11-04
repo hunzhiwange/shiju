@@ -133,6 +133,7 @@ async fn video_edit_delivery_external_endpoint_captures_order_and_actual_mapping
         [
             VideoProjectWrite::Import { .. },
             VideoProjectWrite::Original { .. },
+            VideoProjectWrite::Transcript { .. },
             VideoProjectWrite::Cleanup,
             VideoProjectWrite::Captions,
             VideoProjectWrite::Effect { start: 6.0, end: 8.0, .. }
@@ -148,7 +149,7 @@ async fn video_edit_delivery_timeout_reconciles_without_duplicate_remote_writes(
     assert!(run(&e, &j, &CancellationToken::new()).await.is_err());
     let restarted = journal(&root);
     run(&e, &restarted, &CancellationToken::new()).await.unwrap();
-    assert_eq!(e.state.lock().unwrap().writes.len(), 5);
+    assert_eq!(e.state.lock().unwrap().writes.len(), 6);
 }
 #[tokio::test]
 async fn video_edit_delivery_partial_failure_pending_preview_and_empty_page_never_deliver() {
@@ -176,9 +177,9 @@ async fn video_edit_delivery_cancellation_persists_and_blocks_later_writes() {
     let cancel = CancellationToken::new();
     e.state.lock().unwrap().canceller = Some(cancel.clone());
     assert!(run(&e, &j, &cancel).await.is_err());
-    assert_eq!(e.state.lock().unwrap().writes.len(), 3);
+    assert_eq!(e.state.lock().unwrap().writes.len(), 4);
     assert!(run(&e, &journal(&root), &CancellationToken::new()).await.is_err());
-    assert_eq!(e.state.lock().unwrap().writes.len(), 3);
+    assert_eq!(e.state.lock().unwrap().writes.len(), 4);
 }
 #[tokio::test]
 async fn video_edit_delivery_two_writers_share_durable_project_fence() {
@@ -302,7 +303,7 @@ async fn video_edit_delivery_competing_writer_cannot_reach_external_endpoint() {
     assert_eq!(e.state.lock().unwrap().writes.len(), 1, "second writer reached remote endpoint");
     gate.release.notify_one();
     first.await.unwrap();
-    assert_eq!(e.state.lock().unwrap().writes.len(), 5);
+    assert_eq!(e.state.lock().unwrap().writes.len(), 6);
 }
 #[tokio::test]
 async fn video_edit_delivery_no_change_is_not_promoted_to_applied_by_retry() {

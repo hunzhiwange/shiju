@@ -9,7 +9,9 @@ impl VideoTranscriptCloud for ShijuCloudVideoToolProvider {
         &self.context
     }
     async fn probe_transcript_media(&self, project: &str, asset: &str) -> Result<Value> {
-        self.prepare_call("media_probe", json!({"projectId":project,"assetId":asset})).await
+        super::probe::normalize_media_probe(
+            self.prepare_call("media_probe", json!({"projectId":project,"assetId":asset})).await?,
+        )
     }
     async fn transcribe(
         &self,

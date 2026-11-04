@@ -129,8 +129,9 @@ impl VideoAssetCloud for ShijuCloudVideoToolProvider {
         Ok(VideoAssetRemoteState::Unknown)
     }
     async fn verify(&self, project: &str, reference: &str) -> Result<()> {
-        let value =
-            self.asset_call("media_probe", json!({"projectId":project,"url":reference})).await?;
+        let value = super::probe::normalize_media_probe(
+            self.asset_call("media_probe", json!({"projectId":project,"url":reference})).await?,
+        )?;
         ensure!(
             value["streams"]
                 .as_array()

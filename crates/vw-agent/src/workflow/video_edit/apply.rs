@@ -50,7 +50,7 @@ pub fn video_timeline_range(
     Ok((w.timeline_start + start - w.source_start, w.timeline_start + end - w.source_start))
 }
 /// A template selection must be resolved before writes. Free-text asset descriptions are not IDs.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum VideoEffectMaterial {
     GeneratedVideo { digest: String },
     MotionGraphic { template_name: String },
@@ -63,6 +63,10 @@ pub enum VideoProjectWrite {
     },
     Original {
         asset_id: String,
+    },
+    Transcript {
+        asset_id: String,
+        words: Vec<super::transcript::VideoTranscriptWord>,
     },
     /// Verified service safe cleanup; no retakes or final export.
     Cleanup,
@@ -78,6 +82,8 @@ pub enum VideoProjectWrite {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum VideoWriteStatus {
     Applied,
+    /// Deterministic cleanup found no eligible changes; not a successful write.
+    VerifiedNoOp,
     /// Unknown acceptance is fenced; never retransmit it without reconciliation.
     Unknown,
     NoChange,
@@ -215,13 +221,23 @@ fn validate_input(input: &VideoApplyInput<'_>) -> Result<()> {
                 );
             }
             (VisualType::MotionGraphic, VideoEffectMaterial::MotionGraphic { template_name }) => {
-                ensure!(!template_name.trim().is_empty(), "missing motion graphic template");
+                ensure!(
+                    !template_name.trim().is_empty()
+                        && e.assets.len() == 1
+                        && e.assets[0] == *template_name,
+                    "missing/mismatched exact motion graphic template"
+                );
             }
             _ => bail!("unsupported effect/material combination"),
         }
     }
     ensure!(input.materials.len() == ids.len(), "unexpected material outside plan");
     Ok(())
+}
+fn entry_complete(entry: &VideoWriteEntry) -> bool {
+    matches!(entry.status, VideoWriteStatus::Applied)
+        || (matches!(entry.status, VideoWriteStatus::VerifiedNoOp)
+            && matches!(entry.write, VideoProjectWrite::Cleanup))
 }
 async fn step(
     cloud: &dyn VideoProjectCloud,
@@ -237,7 +253,7 @@ async fn step(
         &write,
     ))?));
     if let Some(index) = ledger.entries.iter().position(|e| e.key == key) {
-        if matches!(ledger.entries[index].status, VideoWriteStatus::Applied) {
+        if entry_complete(&ledger.entries[index]) {
             return Ok(());
         }
         ensure!(
@@ -251,16 +267,13 @@ async fn step(
         ledger.entries[index].status = status;
         journal.save(input.project_id, ledger).await?;
         ensure!(
-            matches!(ledger.entries[index].status, VideoWriteStatus::Applied),
+            entry_complete(&ledger.entries[index]),
             "write unresolved/no change/failed; refusing retransmission"
         );
         return Ok(());
     }
     // An earlier unresolved write may not be bypassed by another operation.
-    ensure!(
-        ledger.entries.iter().all(|e| matches!(e.status, VideoWriteStatus::Applied)),
-        "previous write unresolved"
-    );
+    ensure!(ledger.entries.iter().all(entry_complete), "previous write unresolved");
     ledger.entries.push(VideoWriteEntry {
         key: key.clone(),
         write: write.clone(),
@@ -272,7 +285,7 @@ async fn step(
     ledger.entries.last_mut().context("missing write intent")?.status = status;
     journal.save(input.project_id, ledger).await?;
     ensure!(
-        matches!(ledger.entries.last().map(|e| &e.status), Some(VideoWriteStatus::Applied)),
+        ledger.entries.last().is_some_and(entry_complete),
         "write unresolved/no change/failed; reconcile before continuing"
     );
     Ok(())
@@ -342,6 +355,17 @@ async fn apply_claimed(
         input,
         ledger,
         VideoProjectWrite::Original { asset_id: input.plan.asset_id.clone() },
+    )
+    .await?;
+    step(
+        cloud,
+        journal,
+        input,
+        ledger,
+        VideoProjectWrite::Transcript {
+            asset_id: input.plan.asset_id.clone(),
+            words: input.transcript.words.clone(),
+        },
     )
     .await?;
     step(cloud, journal, input, ledger, VideoProjectWrite::Cleanup).await?;

@@ -50,3 +50,6 @@ pub use apply_journal::VideoProjectJournal;
 
 #[cfg(test)]
 mod apply_test_cloud;
+pub use cloud::ShijuVideoProjectCloud;
+#[cfg(test)]
+mod cloud_delivery_tests;

@@ -480,9 +480,14 @@ impl WorkflowToolProvider for ShijuCloudVideoToolProvider {
 
 #[path = "cloud_assets.rs"]
 mod asset_transport;
+#[path = "cloud_delivery.rs"]
+mod delivery_transport;
 #[path = "cloud_memory.rs"]
 mod memory;
 #[path = "cloud_prepare.rs"]
 mod prepare_transport;
 #[path = "cloud_transcript.rs"]
 mod transcript_transport;
+pub use delivery_transport::ShijuVideoProjectCloud;
+#[path = "cloud_probe.rs"]
+pub(super) mod probe;

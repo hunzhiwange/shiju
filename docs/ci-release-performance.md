@@ -308,3 +308,9 @@ manifest/checksum、冷/热时间及缓存成本。已有 precise Intel Mac 仍�
 experiment=dist、cache=off/restore/restore；不推混合业务提交、不擅自合并默认分支。
 可信缓存保存仍受保护默认分支限制，需要维护者决定合入已审查入口并运行；专用分支
 可以完成 Mac 构建/打包回归，但不能自行扩大缓存写权限来伪造冷热净收益。
+
+
+任务 5 的验收也按用户最新指示缩小为 macOS：后续 `experiment=precise` 仅选择
+macos-15-intel / x86_64-apple-darwin。原已启动的双目标运行保持 Mac 构建，
+Mac 完成后取消剩余 Windows；不因 Windows/Linux 证据缺失阻塞 Mac 验收。
+现有运行固定旧 SHA，不受后续矩阵修改影响；实际 true/false、归档和行为证据仍待收集。

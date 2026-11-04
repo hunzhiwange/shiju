@@ -450,7 +450,8 @@ fn selector_tab_labels_and_tool_groups_cover_every_variant() {
         ("http_request", SessionToolGroup::Web),
         ("question", SessionToolGroup::Collaboration),
         ("memory_forget", SessionToolGroup::Memory),
-        ("state_get", SessionToolGroup::Integration),
+        ("batch", SessionToolGroup::Integration),
+        ("state_get", SessionToolGroup::Other),
         ("unregistered_tool", SessionToolGroup::Other),
     ];
 

@@ -1,0 +1,53 @@
+{
+  "version": "0.26.7",
+  "files": [
+    {
+      "path": "cli-entry.js",
+      "sha256": "113efe4104a9fc66f507d34bfd6abbd896ceb77de47f4b468a0825a327fdc6a5",
+      "replacements": [
+        [
+          "const relaunchArgs =",
+          "delete process.env.SHIJU_QWEN_MANAGED;\nconst shijuManaged = process.argv.includes('--shiju-model-source');\nif (shijuManaged) {\n  process.argv = process.argv.filter(arg => arg !== '--shiju-model-source');\n  if (!process.env.SHIJU_QWEN_MODEL_LOCK || !process.env.SHIJU_QWEN_GENERATION_CONFIG || !process.env.OPENAI_API_KEY || !process.env.OPENAI_BASE_URL || !process.env.QWEN_HOME || !process.env.QWEN_RUNTIME_DIR) throw new Error('Incomplete managed Qwen launch');\n  process.env.SHIJU_QWEN_MANAGED = '1';\n}\nconst relaunchArgs ="
+        ]
+      ]
+    },
+    {
+      "path": "chunks/chunk-VGW3ZY4O.js",
+      "sha256": "161a720bb4bd604e1deee79dca65eed3ea7660a4311c85ec9b015284ea05fa9b",
+      "replacements": [
+        [
+          "function findEnvFiles(settings,startDir,userLevelPaths=getUserLevelEnvPaths(),workspaceTrusted){",
+          "function findEnvFiles(settings,startDir,userLevelPaths=getUserLevelEnvPaths(),workspaceTrusted){if(process.env.SHIJU_QWEN_MANAGED===\"1\")return [];"
+        ],
+        [
+          "function loadEnvironment(settings,startDir=process.cwd()){",
+          "function loadEnvironment(settings,startDir=process.cwd()){if(process.env.SHIJU_QWEN_MANAGED===\"1\")return;"
+        ]
+      ]
+    },
+    {
+      "path": "chunks/chunk-CW2OXNKS.js",
+      "sha256": "6cce1256ba80ef600125c9a5372681e7233b3519005b9868d9d606aeb9ba90e1",
+      "replacements": [
+        [
+          "function createContentGenerator(generatorConfig,config,isInitialAuth){",
+          "function createContentGenerator(generatorConfig,config,isInitialAuth){if(process.env.SHIJU_QWEN_MANAGED===\"1\"){const selected=JSON.parse(process.env.SHIJU_QWEN_GENERATION_CONFIG);generatorConfig={...selected,authType:\"openai\",apiKey:process.env.OPENAI_API_KEY,baseUrl:process.env.OPENAI_BASE_URL};}"
+        ],
+        [
+          "function resolveContentGeneratorConfigWithSources(config,authType,generationConfig,seedSources,options){",
+          "function resolveContentGeneratorConfigWithSources(config,authType,generationConfig,seedSources,options){if(process.env.SHIJU_QWEN_MANAGED===\"1\"){return {config:{...JSON.parse(process.env.SHIJU_QWEN_GENERATION_CONFIG),authType:\"openai\",apiKey:process.env.OPENAI_API_KEY,baseUrl:process.env.OPENAI_BASE_URL},sources:{}};}"
+        ]
+      ]
+    },
+    {
+      "path": "chunks/acpAgent-C3CM2WHA.js",
+      "sha256": "881bb091a48d583a2130929f8d2a4d43cb814ca50620fa0b06f9eddccc40a257",
+      "replacements": [
+        [
+          "async authenticate({methodId}){",
+          "async authenticate({methodId}){if(process.env.SHIJU_QWEN_MANAGED===\"1\"&&methodId!==\"openai\")throw new Error(\"Managed Qwen authentication is locked\");"
+        ]
+      ]
+    }
+  ]
+}

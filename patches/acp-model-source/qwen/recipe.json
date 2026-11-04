@@ -1,0 +1,14 @@
+{
+  "session-model": {
+    "config_root_env": "QWEN_HOME",
+    "files": {
+      "settings.json": "{\"security\":{\"auth\":{\"selectedType\":\"openai\",\"apiKey\":\"{{key}}\",\"baseUrl\":\"{{endpoint}}\"}},\"model\":{\"name\":\"{{model}}\"},\"general\":{\"enableAutoUpdate\":false},\"telemetry\":{\"enabled\":false},\"advanced\":{\"runtimeOutputDir\":\"{{root}}/runtime\"}}"
+    }
+  },
+  "cli-local": {
+    "config_root_env": "QWEN_HOME",
+    "files": {
+      "settings.json": "{\"security\":{\"auth\":{\"selectedType\":\"openai\",\"apiKey\":\"{{key}}\",\"baseUrl\":\"{{endpoint}}\"}},\"model\":{\"name\":\"{{model}}\"},\"general\":{\"enableAutoUpdate\":false},\"telemetry\":{\"enabled\":false},\"advanced\":{\"runtimeOutputDir\":\"{{root}}/runtime\"}}"
+    }
+  }
+}

@@ -9,8 +9,8 @@ use vw_config_types::config::AcpAgentConfig;
 
 #[tokio::test(flavor = "multi_thread")]
 async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_themes() {
-    use iced::advanced::renderer::Headless;
     use iced::advanced::Renderer as _;
+    use iced::advanced::renderer::Headless;
     use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
     use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
 

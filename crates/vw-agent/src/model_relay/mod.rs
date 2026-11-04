@@ -7,3 +7,11 @@ pub use server::{RelayBackend, RelayRequest, RelayServer, upstream_http_client};
 mod binding_tests;
 #[cfg(test)]
 mod server_tests;
+
+mod chat;
+mod transport;
+pub use transport::ProviderRelayBackend;
+#[cfg(test)]
+mod chat_tests;
+#[cfg(test)]
+mod transport_tests;

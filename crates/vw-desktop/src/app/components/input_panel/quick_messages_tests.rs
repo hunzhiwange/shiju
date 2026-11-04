@@ -42,6 +42,104 @@ fn package_status(
 }
 
 #[test]
+fn shiju_upgrade_count_includes_main_skill_and_each_outdated_function() {
+    let mut app = App::new().0;
+    app.expert_hub.package_status =
+        package_status(Some("1.2.3"), Some("1.3.0"), ShijuPackageRefreshState::Fresh);
+    let mut first = installed_skill(17, "document-review", "文档审查");
+    first.upgrade_available = true;
+    let mut second = installed_skill(29, "data-brief", "数据简报");
+    second.upgrade_available = true;
+    app.expert_hub.installed =
+        LoadState::Loaded(vec![first, second, installed_skill(31, "data-export", "数据导出")]);
+    assert_eq!(shiju_upgrade_count(&app), 3);
+    assert_eq!(Tree::new(shiju_menu_view(&app).as_widget()).children.len(), 4);
+
+    app.expert_hub.package_status.local_version = Some("1.3.0".to_string());
+    assert_eq!(shiju_upgrade_count(&app), 2, "function updates must remain visible on their own");
+    let LoadState::Loaded(skills) = &mut app.expert_hub.installed else {
+        panic!("expected installed functions");
+    };
+    skills[0].upgrade_available = false;
+    assert_eq!(shiju_upgrade_count(&app), 1);
+    app.expert_hub.installed = LoadState::Loaded(vec![]);
+    assert_eq!(shiju_upgrade_count(&app), 0);
+    assert_eq!(Tree::new(shiju_menu_view(&app).as_widget()).children.len(), 3);
+}
+
+#[test]
+fn shiju_upgrade_count_excludes_missing_unknown_equal_and_older_main_versions() {
+    let mut app = App::new().0;
+    for (local, server) in [
+        (None, Some("2.0.0")),
+        (Some("1.0.0"), None),
+        (Some("1.0.0"), Some("unknown")),
+        (Some("1.0.0"), Some("1.0.0")),
+        (Some("2.0.0"), Some("1.0.0")),
+    ] {
+        app.expert_hub.package_status =
+            package_status(local, server, ShijuPackageRefreshState::Fresh);
+        assert_eq!(shiju_upgrade_count(&app), 0, "local={local:?}, server={server:?}");
+    }
+}
+
+#[test]
+fn shiju_upgrade_function_action_opens_installed_functions() {
+    let Message::Batch(messages) = shiju_function_upgrade_message() else {
+        panic!("expected function upgrade navigation");
+    };
+    assert!(matches!(
+        messages.as_slice(),
+        [
+            Message::Chat(message::ChatMessage::ToggleShijuSkillMenu),
+            Message::SkillHub(message::SkillHubMessage::OpenShijuSkills),
+            Message::SkillHub(message::SkillHubMessage::SelectSkillTab(SkillTab::Installed)),
+        ]
+    ));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_upgrade_badge_and_menu_render_chinese_counts_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer};
+    use iced::{Color, Font, Pixels, Rectangle, Size};
+
+    let mut app = App::new().0;
+    app.expert_hub.package_status =
+        package_status(Some("1.0.0"), Some("2.0.0"), ShijuPackageRefreshState::Fresh);
+    let mut skill = installed_skill(17, "document-review", "文档审查");
+    skill.upgrade_available = true;
+    app.expert_hub.installed = LoadState::Loaded(vec![skill]);
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        for mut element in [shiju_menu(&app), shiju_menu_view(&app)] {
+            let bounds = Size::new(320.0, 280.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            assert!(node.bounds().width <= bounds.width);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(320, 280), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        }
+    }
+}
+
+#[test]
 fn quick_message_strip_groups_items_preserves_order_and_maps_indices() {
     let items = vec![
         config("通用一", QuickMessageGroup::General, QuickMessageKind::Message),

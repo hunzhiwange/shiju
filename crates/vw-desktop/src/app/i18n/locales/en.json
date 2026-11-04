@@ -5259,5 +5259,7 @@
   "Web 不支持终端": "Terminal not supported on Web",
   "前进": "Forward",
   "后退": "Back",
-  "知道了": "Got it"
+  "知道了": "Got it",
+  "%s 项待升级": "%s updates available",
+  "前往功能升级": "Upgrade functions"
 }

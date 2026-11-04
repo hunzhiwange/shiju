@@ -560,7 +560,10 @@ pub(crate) fn update(app: &mut App, message: SkillHubMessage) -> Task<Message> {
             }
         }
         SkillHubMessage::EnsureInstalledSkillsLoaded => load_installed_skills(app, false),
-        SkillHubMessage::RefreshInstalledSkills => load_installed_skills(app, true),
+        SkillHubMessage::RefreshInstalledSkills => {
+            reload_local_shiju_package_version(app);
+            Task::batch([load_installed_skills(app, true), refresh_shiju_package_version(app)])
+        }
         SkillHubMessage::OpenSkillDetail(skill_id) => open_skill_detail(app, skill_id),
         SkillHubMessage::CloseSkillDetail => {
             app.expert_hub.detail = None;
@@ -2270,7 +2273,8 @@ pub(crate) fn account_changed(app: &mut App) -> Task<Message> {
         } else {
             Task::none()
         };
-        Task::batch([refresh, reload])
+        let installed = load_installed_skills(app, false);
+        Task::batch([refresh, reload, installed])
     }
 }
 

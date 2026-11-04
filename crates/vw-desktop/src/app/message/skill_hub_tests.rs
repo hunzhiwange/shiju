@@ -132,6 +132,20 @@ fn private_shiju_tabs_dispatch_gateway_requests() {
 }
 
 #[test]
+fn account_restore_loads_function_updates_before_opening_shiju_menu() {
+    let (mut app, _) = App::new();
+    app.account.replace_repository(repository_with_account("account-secret", "company-1"));
+    assert!(!app.show_shiju_skill_menu);
+    let task = super::skill_hub::account_changed(&mut app);
+    assert!(task.units() >= 2, "main version and function updates should both load");
+    assert!(matches!(app.expert_hub.installed, LoadState::Loading { .. }));
+    assert!(matches!(
+        app.expert_hub.package_status.refresh,
+        crate::app::skill_hub::ShijuPackageRefreshState::Refreshing { .. }
+    ));
+}
+
+#[test]
 fn private_shiju_detail_and_actions_use_gateway() {
     let _ = crate::app::session_gateway::gateway_shiju_skill_detail_async;
     let _ = crate::app::session_gateway::gateway_shiju_skill_readme_async;
@@ -723,7 +737,11 @@ fn refresh_installed_skills_forces_latest_request_without_switching_tab() {
     let refresh_task = app.update(Message::SkillHub(SkillHubMessage::RefreshInstalledSkills));
     let refresh_generation = app.expert_hub.installed_request_generation;
 
-    assert_eq!(refresh_task.units(), 1);
+    assert_eq!(refresh_task.units(), 2);
+    assert!(matches!(
+        app.expert_hub.package_status.refresh,
+        crate::app::skill_hub::ShijuPackageRefreshState::Refreshing { .. }
+    ));
     assert!(refresh_generation > cached_generation);
     assert!(matches!(
         app.expert_hub.installed,

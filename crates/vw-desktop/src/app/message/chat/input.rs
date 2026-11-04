@@ -231,7 +231,9 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             app.quick_message_open_group = None;
             Task::batch([
-                Task::done(Message::SkillHub(message::SkillHubMessage::EnsureInstalledSkillsLoaded)),
+                Task::done(Message::SkillHub(
+                    message::SkillHubMessage::EnsureInstalledSkillsLoaded,
+                )),
                 Task::done(Message::Account(message::AccountMessage::PrepareNativeShijuSkill)),
             ])
         }

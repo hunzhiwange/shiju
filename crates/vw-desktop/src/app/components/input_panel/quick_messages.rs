@@ -129,11 +129,14 @@ fn menu_view<'a>(app: &'a App, indices: &[usize]) -> Element<'a, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
     if app.expert_hub.package_status.local_version.is_none() {
         items = items.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩原生技能")).size(12))
-                .on_press(Message::Account(message::AccountMessage::PrepareNativeShijuSkill))
-                .padding([8, 10])
-                .width(Length::Fill)
-                .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false)),
+            button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩原生技能"))
+                    .size(12),
+            )
+            .on_press(Message::Account(message::AccountMessage::PrepareNativeShijuSkill))
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false)),
         );
     }
     if indices.is_empty() {
@@ -415,11 +418,14 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     let mut items = column![].spacing(3).width(Length::Fill);
     if app.expert_hub.package_status.local_version.is_none() {
         items = items.push(
-            button(text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩原生技能")).size(12))
-                .on_press(Message::Account(message::AccountMessage::PrepareNativeShijuSkill))
-                .padding([8, 10])
-                .width(Length::Fill)
-                .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false)),
+            button(
+                text(crate::app::i18n::I18n::new(app.desktop_locale).__("安装识矩原生技能"))
+                    .size(12),
+            )
+            .on_press(Message::Account(message::AccountMessage::PrepareNativeShijuSkill))
+            .padding([8, 10])
+            .width(Length::Fill)
+            .style(|theme: &Theme, status| styles::shiju_skill_button_style(theme, status, false)),
         );
     }
 
@@ -447,12 +453,10 @@ fn shiju_menu_view(app: &App) -> Element<'_, Message> {
     }
 
     for row in rows {
-        let mut content = row![
-            text(row.name).size(12).width(Length::Fill),
-            text(row.version.clone()).size(12),
-        ]
-            .spacing(8)
-            .align_y(iced::Alignment::Center);
+        let mut content =
+            row![text(row.name).size(12).width(Length::Fill), text(row.version.clone()).size(12),]
+                .spacing(8)
+                .align_y(iced::Alignment::Center);
         if row.selected {
             content = content.push(super::icons::icon_svg(Icon::Check, 13.0));
         }

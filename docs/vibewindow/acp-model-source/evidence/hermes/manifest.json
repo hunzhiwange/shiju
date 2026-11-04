@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "key": "hermes",
+      "distribution": {
+        "kind": "native",
+        "package": "hermes-agent",
+        "release": "0.19.0",
+        "release_status": "fixed_version_installed_in_isolated_environment",
+        "source_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json",
+        "git_commit": null,
+        "integrity": "sha256:bd0bac012aee38a60894781f4597dc29ee7bedb3448540249921f10d3bef327f",
+        "bin": null,
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json"
+        },
+        "artifact_url": "https://files.pythonhosted.org/packages/e5/30/c85be8290e9565dc3c7a9720e93f3e59e09b1b163487be4946c3aa848f80/hermes_agent-0.19.0-py3-none-any.whl"
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.19.0"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "hermes",
+        "acp"
+      ],
+      "registry_default_args": "&[\"acp\"]",
+      "local_command_candidates": [
+        "hermes"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "HERMES_HOME",
+      "config_priority": "专属 model.provider/base_url；运行时环境、配置优先级待验证",
+      "auxiliary_model_routes": "auxiliary、delegation、fallback 均显式禁回退/绑定",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "hermes",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://hermes-agent.nousresearch.com/docs/reference/environment-variables",
+        "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime/",
+        "https://hermes-agent.nousresearch.com/docs/user-guide/configuration/"
+      ],
+      "follow_up": "task 17: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://hermes-agent.nousresearch.com/docs/reference/environment-variables": {
+          "http_status": 200,
+          "final_url": "https://hermes-agent.nousresearch.com/docs/reference/environment-variables"
+        },
+        "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime/": {
+          "http_status": 308,
+          "reason": "HTTP error; link not verified",
+          "retry": {
+            "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime",
+            "http_status": null,
+            "reason": "TLS handshake timeout"
+          }
+        },
+        "https://hermes-agent.nousresearch.com/docs/user-guide/configuration/": {
+          "http_status": 308,
+          "reason": "HTTP error; link not verified",
+          "retry": {
+            "url": "https://hermes-agent.nousresearch.com/docs/user-guide/configuration",
+            "http_status": 200,
+            "final_url": "https://hermes-agent.nousresearch.com/docs/user-guide/configuration"
+          }
+        }
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "HERMES_HOME",
+          "files": {
+            "config.yaml": "{\"model\": {\"provider\": \"custom\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"default\": \"{{model}}\", \"max_tokens\": 1024, \"context_length\": 131072}, \"auxiliary\": {\"vision\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"web_extract\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"compression\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"skills_hub\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"approval\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"mcp\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"title_generation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"memory_query_rewrite\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"tts_audio_tags\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"triage_specifier\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"kanban_decomposer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"profile_describer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"goal_judge\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"curator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"monitor\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"background_review\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_reference\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_aggregator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}}, \"delegation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\"}, \"fallback_providers\": [], \"fallback_model\": null}",
+            ".env": ""
+          }
+        },
+        "cli-local": {
+          "config_root_env": "HERMES_HOME",
+          "files": {
+            "config.yaml": "{\"model\": {\"provider\": \"custom\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"default\": \"{{model}}\", \"max_tokens\": 1024, \"context_length\": 131072}, \"auxiliary\": {\"vision\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"web_extract\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"compression\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"skills_hub\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"approval\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"mcp\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"title_generation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"memory_query_rewrite\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"tts_audio_tags\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"triage_specifier\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"kanban_decomposer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"profile_describer\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"goal_judge\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"curator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"monitor\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"background_review\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_reference\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}, \"moa_aggregator\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\", \"fallback_chain\": [], \"context_length\": 131072}}, \"delegation\": {\"provider\": \"custom\", \"model\": \"{{model}}\", \"base_url\": \"{{endpoint}}\", \"api_key\": \"{{key}}\", \"api_mode\": \"chat_completions\"}, \"fallback_providers\": [], \"fallback_model\": null}",
+            ".env": ""
+          }
+        }
+      },
+      "model_source_patch": {
+        "metadata": "patch.json",
+        "compatibility_flag": "--session-model-binding",
+        "sha256": "f6bb617ddd4404ba51f35e9b4f14d045c3217b24050c017e4dfa071d79620dc9",
+        "scope": "ACP history isolation and fail-closed current runtime model binding"
+      }
+    }
+  ]
+}

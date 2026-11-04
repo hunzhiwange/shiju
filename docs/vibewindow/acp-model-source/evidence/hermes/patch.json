@@ -1,0 +1,28 @@
+{
+  "package": "hermes-agent",
+  "version": "0.19.0",
+  "patch": "hermes-agent-0.19.0-session-state.patch",
+  "files": {
+    "acp_adapter/session_model_state.py": {
+      "original_sha256": null,
+      "patched_sha256": "c3addec1baac1ae16bf70078edfb42efd479d7834afb0305e9dbc4575fba57ee"
+    },
+    "acp_adapter/session.py": {
+      "original_sha256": "39f2b146e044c193e464056f58b6a8ce2e988e18ab8a5983a107247294ad2a1d",
+      "patched_sha256": "3e8d2e86ca33be43c1daf96b6a39001de97287bd1b96fbb4adaf0f3aa8a4d410"
+    },
+    "acp_adapter/entry.py": {
+      "original_sha256": "f8c0a430671643e7d8327418ab117112b8f1041dce2b1310c725bf4c7eccdab1",
+      "patched_sha256": "611eab6b93ed0f97a9e079b5cbde771a0dc9223122cf2c9fb963af408106658b"
+    },
+    "hermes_cli/main.py": {
+      "original_sha256": "d6bf89a33fb708376a7ab354cff8081a3c3726dbfb91d84bbb679cd667db596c",
+      "patched_sha256": "7e1c678f2584928b863565f99d3bca1d9a530a716838d23766e1449ffa9bca67"
+    },
+    "hermes_cli/subcommands/acp.py": {
+      "original_sha256": "fd93ac27465c5aa50613509cd1cd80da54e6075de6044a10753a3ef26e6125a0",
+      "patched_sha256": "83980efbd56f31d64f35df8615ba3a86beb96760a3f3cb3b2cc5996ed99626d4"
+    }
+  },
+  "patch_sha256": "f6bb617ddd4404ba51f35e9b4f14d045c3217b24050c017e4dfa071d79620dc9"
+}

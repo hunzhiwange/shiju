@@ -1,0 +1,107 @@
+--- /dev/null
++++ b/acp_adapter/session_model_state.py
+@@ -0,0 +1,48 @@
++"""Credential-free ACP history owned by the managed session reference."""
++from __future__ import annotations
++
++import os
++from pathlib import Path
++import re
++import stat
++import tempfile
++
++REFERENCE = "VW_ACP_LAUNCH_REFERENCE"
++
++
++def database_path(*, required: bool = False) -> Path | None:
++    reference = os.environ.get(REFERENCE)
++    if reference is None:
++        if required:
++            raise ValueError("Hermes managed session reference is required")
++        return None
++    match = re.fullmatch(r"vw-session-model:([0-9a-f]{64})", reference)
++    if match is None or os.name != "posix":
++        raise ValueError("Hermes managed session state is unavailable")
++    root = Path(tempfile.gettempdir()) / f"shiju-hermes-state-{os.getuid()}"
++    directory = root / match.group(1)
++    for path in (root, directory):
++        try:
++            path.mkdir(mode=0o700)
++        except FileExistsError:
++            pass
++        info = path.lstat()
++        if (not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid()
++                or stat.S_IMODE(info.st_mode) != 0o700):
++            raise ValueError("insecure Hermes managed history directory")
++    path = directory / "state.db"
++    try:
++        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
++    except FileExistsError:
++        pass
++    else:
++        os.close(fd)
++    for candidate in (path, directory / "state.db-wal", directory / "state.db-shm"):
++        try:
++            info = candidate.lstat()
++        except FileNotFoundError:
++            continue
++        if (not stat.S_ISREG(info.st_mode) or info.st_uid != os.getuid()
++                or stat.S_IMODE(info.st_mode) & 0o077):
++            raise ValueError("insecure Hermes managed history file")
++    return path
+--- a/acp_adapter/session.py
++++ b/acp_adapter/session.py
+@@ -406 +406,3 @@
+-            self._db_instance = SessionDB(db_path=hermes_home / "state.db")
++            from .session_model_state import database_path
++            managed_path = database_path()
++            self._db_instance = SessionDB(db_path=managed_path or hermes_home / "state.db")
+@@ -408,0 +411,2 @@
++            if os.environ.get("VW_ACP_LAUNCH_REFERENCE") is not None:
++                raise RuntimeError("Hermes managed history is unavailable") from None
+@@ -535,0 +540,7 @@
++        if os.environ.get("VW_ACP_LAUNCH_REFERENCE") is not None:
++            # Historical transport belongs to a revoked request. Restore only
++            # conversation data and resolve this request's private model route.
++            model = None
++            requested_provider = None
++            restored_base_url = None
++            restored_api_mode = None
+@@ -647 +658,13 @@
+-        except Exception:
++            if os.environ.get("VW_ACP_LAUNCH_REFERENCE") is not None:
++                bound = model_cfg if isinstance(model_cfg, dict) else {}
++                if (
++                    kwargs.get("model") != default_model
++                    or kwargs.get("provider") != "custom"
++                    or kwargs.get("api_mode") != "chat_completions"
++                    or kwargs.get("base_url") != str(bound.get("base_url") or "").rstrip("/")
++                    or kwargs.get("api_key") != bound.get("api_key")
++                ):
++                    raise ValueError("Hermes runtime conflicts with its private model binding")
++        except Exception:
++            if os.environ.get("VW_ACP_LAUNCH_REFERENCE") is not None:
++                raise RuntimeError("Hermes managed model resolution failed") from None
+--- a/acp_adapter/entry.py
++++ b/acp_adapter/entry.py
+@@ -122,0 +123,4 @@
++        "--session-model-binding", action="store_true",
++        help="Require managed ACP model-source history support",
++    )
++    parser.add_argument(
+@@ -236,0 +241,3 @@
++    if args.session_model_binding:
++        from .session_model_state import database_path
++        database_path(required=True)
+--- a/hermes_cli/main.py
++++ b/hermes_cli/main.py
+@@ -13258,0 +13259,2 @@
++        if getattr(args, "session_model_binding", False):
++            acp_argv.append("--session-model-binding")
+--- a/hermes_cli/subcommands/acp.py
++++ b/hermes_cli/subcommands/acp.py
+@@ -21,0 +22,4 @@
++    acp_parser.add_argument(
++        "--session-model-binding", action="store_true",
++        help="Require managed ACP model-source history support",
++    )

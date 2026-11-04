@@ -1,0 +1,173 @@
+{
+  "agent": "hermes",
+  "mode": "session-model",
+  "evidence_kind": "cached-production-binary",
+  "status": "passed",
+  "passed": true,
+  "platform": "Darwin-arm64",
+  "effective_tests": 1,
+  "failure_locations": [],
+  "requests": {
+    "requests": [
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      }
+    ],
+    "errors": 0
+  },
+  "flow": {
+    "new": true,
+    "second_turn": true,
+    "cancel": true,
+    "restart": true,
+    "switch": true,
+    "isolated": true,
+    "handshake": true,
+    "mode": "session-model",
+    "requires_auxiliary": false
+  },
+  "command": [
+    "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/debug/deps/vw_agent-hermes-proof-b2b5a34a9ef24d91",
+    "acp_model_source_real_cli_session_model",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+  "binary_exit_code": 0,
+  "fixture_adaptation": {
+    "two_independent_files": true,
+    "unsupported_discovery_gets": 0,
+    "generation_probes": [
+      {
+        "seconds": 5.838,
+        "cancel": false,
+        "tool_messages": 0
+      },
+      {
+        "seconds": 6.385,
+        "cancel": false,
+        "tool_messages": 1
+      },
+      {
+        "seconds": 6.83,
+        "cancel": false,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 6.859,
+        "cancel": false,
+        "tool_messages": 0
+      },
+      {
+        "seconds": 12.191,
+        "cancel": false,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 14.943,
+        "cancel": true,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 17.59,
+        "cancel": true,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 24.254,
+        "cancel": false,
+        "tool_messages": 0
+      },
+      {
+        "seconds": 24.426,
+        "cancel": false,
+        "tool_messages": 1
+      },
+      {
+        "seconds": 24.543,
+        "cancel": false,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 24.938,
+        "cancel": false,
+        "tool_messages": 0
+      }
+    ]
+  }
+}

@@ -10,7 +10,7 @@ use iced::advanced::{
     renderer::Headless,
     widget::{Operation, Tree},
 };
-use iced::{Color, Element, Event, Font, Pixels, Rectangle, Size, Theme};
+use iced::{Element, Event, Font, Pixels, Rectangle, Size, Theme};
 use vw_gateway_client::{ShijuKnowledgeBaseDto, ShijuKnowledgeDocumentDto};
 
 fn app() -> App {
@@ -76,13 +76,25 @@ pub(super) async fn inspect(
         &tree,
         &mut renderer,
         &theme,
-        &renderer::Style::default(),
+        &renderer::Style { text_color: theme.palette().text },
         Layout::new(&node),
         mouse::Cursor::Unavailable,
         &viewport,
     );
-    let pixels = renderer.screenshot(Size::new(width as u32, 800), 1.0, Color::TRANSPARENT);
+    let pixels = renderer.screenshot(Size::new(width as u32, 800), 1.0, theme.palette().background);
     assert!(pixels.chunks_exact(4).any(|p| p[3] > 0));
+    if let Ok(directory) = std::env::var("VW_KNOWLEDGE_SCREENSHOT_DIR") {
+        static INDEX: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let index = INDEX.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        image::save_buffer(
+            std::path::Path::new(&directory).join(format!("knowledge-{index:02}.png")),
+            &pixels,
+            width as u32,
+            800,
+            image::ColorType::Rgba8,
+        )
+        .expect("knowledge screenshot");
+    }
     let mut messages = vec![];
     if let Some((label, occurrence)) = click {
         let rect = texts
@@ -116,6 +128,31 @@ fn knowledge(messages: &[Message]) -> &KnowledgeMessage {
         _ => panic!("knowledge message"),
     }
 }
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_knowledge_catalog_places_directory_beside_documents() {
+    let mut app = app();
+    for theme in [Theme::Light, Theme::Dark] {
+        app.app_theme = theme;
+        let mut element = super::view(&app);
+        let renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .unwrap();
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, Size::new(1100.0, 800.0)),
+        );
+        let mut texts = Texts::default();
+        element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut texts);
+        let directory = texts.0.iter().find(|(value, _)| value == "知识库").unwrap().1;
+        let documents = texts.0.iter().find(|(value, _)| value == "文档").unwrap().1;
+        assert!(documents.x > directory.x + directory.width);
+        assert!((documents.y - directory.y).abs() < 1.0);
+    }
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn shiju_knowledge_view_exposes_independent_paging() {
     let mut app = app();

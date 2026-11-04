@@ -1,6 +1,12 @@
 //! 只读识矩知识库入口；目录与文档分别保留服务端搜索和分页状态。
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_pick_list_menu_style,
+    settings_pick_list_style,
+};
+use crate::app::message::skill_hub::knowledge::{KnowledgeMessage, message};
+use crate::app::skill_hub::knowledge::KnowledgeSearchMode;
 use crate::app::{App, Message, i18n::I18n, skill_hub::LoadState};
-use iced::widget::{column, container, row, text};
+use iced::widget::{column, container, pick_list, row, text};
 use iced::{Element, Length};
 mod catalog;
 mod reader;
@@ -14,15 +20,40 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             .center(Length::Fill)
             .into();
     }
+    let catalog_label = i18n.__("检索知识库");
+    let content_label = i18n.__("召回正文");
+    let mode = pick_list(
+        [catalog_label, content_label],
+        Some(match state.search_mode {
+            KnowledgeSearchMode::Catalog => catalog_label,
+            KnowledgeSearchMode::Content => content_label,
+        }),
+        move |selected| {
+            message(KnowledgeMessage::SelectSearchMode(if selected == catalog_label {
+                KnowledgeSearchMode::Catalog
+            } else {
+                KnowledgeSearchMode::Content
+            }))
+        },
+    )
+    .padding(SETTINGS_CONTROL_PADDING)
+    .text_size(SETTINGS_CONTROL_TEXT_SIZE)
+    .style(settings_pick_list_style)
+    .menu_style(settings_pick_list_menu_style);
+    let results = match state.search_mode {
+        KnowledgeSearchMode::Catalog => catalog::documents(app),
+        KnowledgeSearchMode::Content => search::view(app),
+    };
     let base = column![
-        text(i18n.__("识矩知识库")).size(22),
+        row![container(text(i18n.__("识矩知识库")).size(22)).width(Length::Fill), mode,]
+            .spacing(8)
+            .align_y(iced::Alignment::Center),
         row![
             container(catalog::bases(app)).width(Length::FillPortion(1)),
-            container(catalog::documents(app)).width(Length::FillPortion(1)),
+            container(results).width(Length::FillPortion(3)),
         ]
         .spacing(12)
-        .height(Length::FillPortion(1)),
-        container(search::view(app)).height(Length::FillPortion(1)),
+        .height(Length::Fill),
     ]
     .spacing(12)
     .height(Length::Fill)

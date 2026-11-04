@@ -15,6 +15,7 @@ fn app() -> App {
     let state = &mut app.expert_hub.knowledge;
     state.sync_account("fixture".into(), SecretSkey::new("fixture-only").unwrap());
     state.selected_base = Some("kb-a".into());
+    state.search_mode = crate::app::skill_hub::knowledge::KnowledgeSearchMode::Content;
     state.bases.status = LoadState::Loaded(());
     state.documents.status = LoadState::Loaded(());
     state.search = LoadState::Loaded(ShijuKnowledgeSearchDto {
@@ -46,6 +47,34 @@ fn action(messages: &[Message]) -> &KnowledgeMessage {
     match &messages[0] {
         Message::SkillHub(SkillHubMessage::Knowledge(action)) => action,
         _ => panic!("knowledge action"),
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn shiju_knowledge_search_modes_preserve_results_and_reader() {
+    use crate::app::skill_hub::knowledge::KnowledgeSearchMode;
+    let mut app = app();
+    for theme in [Theme::Light, Theme::Dark] {
+        app.app_theme = theme.clone();
+        app.expert_hub.knowledge.search_mode = KnowledgeSearchMode::Catalog;
+        let (texts, _) = inspect(super::view(&app), theme.clone(), 1100.0, None).await;
+        assert!(texts.contains(&"文档".into()));
+        assert!(!texts.contains(&"正文".into()));
+        app.expert_hub.knowledge.search_mode = KnowledgeSearchMode::Content;
+        let (texts, _) = inspect(super::view(&app), theme.clone(), 1100.0, None).await;
+        assert!(texts.contains(&"检索摘要".into()));
+        assert!(app.expert_hub.knowledge.open_reader("kb-a".into(), "doc-b".into()));
+        let request = app.expert_hub.knowledge.begin_read().unwrap();
+        app.expert_hub
+            .knowledge
+            .finish_read(&request, Ok(chunk("# 中文正文\n\n```text\n中文代码\n```", None)));
+        let (texts, messages) = inspect(super::view(&app), theme, 1100.0, Some(("关闭", 0))).await;
+        assert!(texts.contains(&"已读完".into()));
+        assert!(!texts.contains(&"正文".into()));
+        assert!(matches!(action(&messages), KnowledgeMessage::CloseReader));
+        app.expert_hub.knowledge.close_reader();
+        assert_eq!(app.expert_hub.knowledge.search_mode, KnowledgeSearchMode::Content);
+        assert!(matches!(app.expert_hub.knowledge.search, LoadState::Loaded(_)));
     }
 }
 #[tokio::test(flavor = "multi_thread")]
@@ -368,6 +397,7 @@ fn shiju_knowledge_reader_notifies_accepted_errors_only() {
     app.expert_hub.knowledge.sync_account(account.id().to_string(), account.skill_hub_credential());
     let state = &mut app.expert_hub.knowledge;
     state.selected_base = Some("kb-a".into());
+    state.search_mode = crate::app::skill_hub::knowledge::KnowledgeSearchMode::Content;
     state.search = results;
     assert!(state.open_reader("kb-a".into(), "doc-b".into()));
     let read = state.begin_read().unwrap();

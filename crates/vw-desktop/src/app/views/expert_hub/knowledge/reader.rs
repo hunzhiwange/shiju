@@ -10,8 +10,32 @@ use iced::widget::{button, column, container, markdown, row, scrollable, text};
 use iced::{Element, Font, Length};
 
 pub(super) fn with_reader<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'a, Message> {
-    let Some(reader) = &app.expert_hub.knowledge.reader else {
+    if app.expert_hub.knowledge.reader.is_none() {
         return base;
+    }
+    let close = message(KnowledgeMessage::CloseReader);
+    let header = row![
+        container(text(I18n::new(app.desktop_locale).__("原文")).size(18)).width(Length::Fill),
+        settings_close_button(close.clone()),
+    ]
+    .spacing(12)
+    .align_y(iced::Alignment::Center);
+    let panel = settings_modal_card(column![header, body(app)].spacing(14).height(Length::Fill))
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .max_width(720);
+    settings_modal_overlay(
+        Some(base),
+        close,
+        container(panel).padding(12).align_right(Length::Fill).height(Length::Fill),
+    )
+}
+
+fn body(app: &App) -> Element<'_, Message> {
+    let Some(reader) = &app.expert_hub.knowledge.reader else {
+        return container(text(I18n::new(app.desktop_locale).__("请选择文档查看正文")))
+            .center(Length::Fill)
+            .into();
     };
     let i18n = I18n::new(app.desktop_locale);
     let close = message(KnowledgeMessage::CloseReader);
@@ -49,27 +73,14 @@ pub(super) fn with_reader<'a>(app: &'a App, base: Element<'a, Message>) -> Eleme
         footer = footer.push(text(i18n.__("加载失败，请重试")));
     }
     let title = if reader.title.is_empty() { i18n.__("原文") } else { &reader.title };
-    let card = settings_modal_card(
-        column![
-            row![
-                container(text(title).size(18)).width(Length::Fill),
-                settings_close_button(close.clone())
-            ]
-            .spacing(12)
-            .align_y(iced::Alignment::Center),
-            scrollable(container(body).padding([0, 7]).width(Length::Fill))
-                .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
-                .height(Length::Fill),
-            footer.wrap(),
-        ]
-        .spacing(14),
-    )
-    .width(Length::Fill)
-    .max_width(900)
-    .height(Length::Fill);
-    settings_modal_overlay(
-        Some(base),
-        close,
-        container(card).padding(20).center_x(Length::Fill).center_y(Length::Fill),
-    )
+    column![
+        text(title).size(18),
+        scrollable(container(body).padding([0, 7]).width(Length::Fill))
+            .direction(Direction::Vertical(Scrollbar::new().width(4).scroller_width(4)))
+            .height(Length::Fill),
+        footer.wrap(),
+    ]
+    .spacing(14)
+    .height(Length::Fill)
+    .into()
 }

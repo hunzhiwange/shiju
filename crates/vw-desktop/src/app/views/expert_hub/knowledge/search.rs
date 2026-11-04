@@ -1,4 +1,4 @@
-//! 在当前知识库内检索正文；结果始终使用服务端身份打开原文。
+//! 在当前知识库内召回正文；结果始终使用服务端身份打开原文。
 use crate::app::components::system_settings_common::{
     SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, primary_action_btn_style,
     rounded_action_btn_style, settings_muted_text_style, settings_text_input_style,
@@ -18,7 +18,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
     let busy = matches!(state.search, LoadState::Loading { .. });
     let submit = (!busy && !state.search_query.trim().is_empty())
         .then(|| message(KnowledgeMessage::Search(state.search_query.clone())));
-    let input = text_input(i18n.__("检索正文"), &state.search_query)
+    let input = text_input(i18n.__("召回正文"), &state.search_query)
         .on_input(|query| message(KnowledgeMessage::SearchQueryChanged(query)))
         .on_submit_maybe(submit.clone())
         .style(settings_text_input_style)

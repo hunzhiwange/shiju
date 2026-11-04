@@ -4,7 +4,7 @@ use crate::app::{
     App, Message, config,
     skill_hub::{
         LoadState,
-        knowledge::{KnowledgeRequest, KnowledgeWork},
+        knowledge::{KnowledgeRequest, KnowledgeSearchMode, KnowledgeWork},
     },
 };
 use iced::Task;
@@ -30,6 +30,7 @@ pub(crate) enum KnowledgeMessage {
     },
     ContinueRead,
     CloseReader,
+    SelectSearchMode(KnowledgeSearchMode),
     BasesLoaded(KnowledgeRequest, Result<ShijuKnowledgePageDto<ShijuKnowledgeBaseDto>, String>),
     DocumentsLoaded(
         KnowledgeRequest,
@@ -283,6 +284,9 @@ pub(crate) fn update(app: &mut App, msg: KnowledgeMessage) -> Task<Message> {
                 }
                 KnowledgeMessage::ContinueRead => return read(app),
                 KnowledgeMessage::CloseReader => app.expert_hub.knowledge.close_reader(),
+                KnowledgeMessage::SelectSearchMode(mode) => {
+                    app.expert_hub.knowledge.search_mode = mode;
+                }
                 _ => unreachable!("responses handled above"),
             }
         }

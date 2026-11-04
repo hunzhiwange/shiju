@@ -128,6 +128,13 @@ impl std::fmt::Debug for KnowledgeReader {
         f.write_str("KnowledgeReader(<redacted>)")
     }
 }
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum KnowledgeSearchMode {
+    #[default]
+    Catalog,
+    Content,
+}
+
 #[derive(Debug, Clone, Default)]
 pub(crate) struct KnowledgeState {
     pub(crate) account_id: Option<String>,
@@ -137,6 +144,7 @@ pub(crate) struct KnowledgeState {
     pub(crate) documents: KnowledgePage<ShijuKnowledgeDocumentDto>,
     pub(crate) selected_base: Option<String>,
     pub(crate) reader: Option<KnowledgeReader>,
+    pub(crate) search_mode: KnowledgeSearchMode,
     pub(crate) search_query: String,
     pub(crate) search: LoadState<ShijuKnowledgeSearchDto>,
     search_pending: Option<KnowledgeRequest>,

@@ -116,6 +116,10 @@ impl VideoEditManifestStore {
         }
         Ok(Self { database })
     }
+    /// Application writes are fenced by project, rather than by preparation run key.
+    pub fn project_journal(&self, tenant: TenantScope) -> Result<super::VideoProjectJournal> {
+        super::VideoProjectJournal::new(self.database.clone(), tenant)
+    }
     /// An expired lease may be taken, but pending side effects are NEVER reset to New.
     pub fn claim(
         &self,

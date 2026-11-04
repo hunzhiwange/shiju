@@ -38,3 +38,15 @@ mod merge_tests;
 pub mod planning;
 #[cfg(test)]
 mod planning_tests;
+
+pub mod apply;
+mod apply_journal;
+#[cfg(test)]
+mod apply_tests;
+pub mod preview;
+#[cfg(test)]
+mod preview_tests;
+pub use apply_journal::VideoProjectJournal;
+
+#[cfg(test)]
+mod apply_test_cloud;

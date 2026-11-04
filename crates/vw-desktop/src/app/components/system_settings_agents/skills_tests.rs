@@ -109,7 +109,7 @@ fn discovery_order_text_distinguishes_open_project_and_global_context() {
     app.agents_settings.skill_directory = Some("/workspace/demo".to_string());
     let project_order = discovery_order_text(&app);
 
-    assert!(project_order.starts_with("/workspace/demo/skills"));
+    assert!(project_order.starts_with("发现顺序：/workspace/demo/skills"));
     assert!(
         project_order.contains("/workspace/demo/.agents/skills -> 父级 skills、.agents/skills")
     );

@@ -1,6 +1,6 @@
 # 智能体配置精简验收记录（2026-11-05）
 
-状态：已完成，待回归。三个指定行为用例已通过，既有失败和锁屏导致的原生交互缺口仍需回归；不宣称统一验收全绿。plan.md 保持只读。
+状态：已阻塞。延后回归的全部代码检查已通过，仅原生交互受 Mac 锁屏阻碍；详细结果见末尾回归记录。plan.md 保持只读。
 
 ## 范围与依赖
 
@@ -55,7 +55,7 @@ CUA 原生应用枚举明确返回：`The Mac is locked and automatic unlock cou
 - `/tmp/shiju-task7-{light,dark}-{basic,identity,tools,skills,mcp}-{1100x900,760x520}.png`（20 张真实绘制截图）。已查看基本参数、身份、工具、技能、MCP 的代表截图，中文正常，窄短窗口固定头尾可见。
 - `/tmp/shiju-agent-catalog-light.png`、`/tmp/shiju-agent-catalog-dark.png`：本轮目录回归重新生成，三列、滚动轨道及内容留白可见。页面测试使用透明根背景，背景色不作为原生窗口主题验收结论。
 
-## 最终命令结果
+## 首次执行命令结果（历史）
 
 所有 Cargo 阶段均从仓库根目录通过原子 mkdir 动态领取槽位，设置相同绝对路径的 `CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR`（仓库另有 build-dir 配置），所有子进程继承；阶段退出清理自有 owner 和锁，保留编译缓存。
 
@@ -82,4 +82,29 @@ CUA 原生应用枚举明确返回：`The Mac is locked and automatic unlock cou
 
 格式化后核对差异，恢复本任务以外的纯格式变化；提交只选择本任务拥有的函数修改及新增文件，保留其他会话原有差异。正常测试链接器提示 `__eh_frame section too large` 属既有 macOS 链接信息；完整 Clippy 无 Rust 诊断失败。
 
-下一步：解锁 Mac 后执行隔离原生窗口交互，单独处理上述既有断言，再运行此表中的聚焦命令；任务 7 文件暂保留，验证齐全后才能删除。
+以上为首次执行的历史记录。旧断言现已按下列回归记录修复，当前剩余事项仅为解锁后的隔离原生交互。
+
+
+## 延后回归（2026-11-05）
+
+- 按新的调度授权修复过时断言：默认配置组移除权限/技能/MCP 重复控件后，基础页最小子节点数改为 6；目录页移除项目选择器后，原有加载状态夹具为 5 个根子节点；工具页移除重复入口后列表位于第 2 个子节点；技能发现提示包含“发现顺序：”前缀。保留所有分组、预设、重复工具、内建锁定徽标及运行参数检查，没有 skip 或修改生产行为。
+- ACP 旧拒绝用例由任务 5 独立修复并提交为 `0c27574bc`：Codex 已支持会话模型，使用仍拒绝该启动路径的 Droid 验证同一拒绝边界，并保留密钥不泄漏断言。本任务未提交 request_tests.rs。
+- 所有命令基于最新共享工作区运行。动态领取槽位 3，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`，`CARGO_BUILD_BUILD_DIR` 为相同绝对路径；阶段结束已释放自有锁，缓存保留。
+
+| 确切命令 | 退出码 | 有效测试数量 | 日志 |
+| --- | --- | --- | --- |
+| `cargo fmt --all` | 0 | 不适用 | `/tmp/shiju-task7-resume-final-fmt.log` |
+| `cargo test -p vw-config-types --lib agent_profile_tests -- --test-threads=2` | 0 | 7 通过 | `/tmp/shiju-task7-resume-final-vw-config-types-agent_profile_tests.log` |
+| `cargo test -p vw-desktop --lib agent_config_cleanup_ -- --test-threads=2` | 0 | 25 通过 | `/tmp/shiju-task7-resume-final-vw-desktop-agent_config_cleanup_.log` |
+| `cargo test -p vw-desktop --lib system_settings_agents -- --test-threads=2` | 0 | 102 通过 | `/tmp/shiju-task7-resume-final-vw-desktop-system_settings_agents.log` |
+| `cargo test -p vw-desktop --lib app::message::settings::agents::tests -- --test-threads=2` | 0 | 63 通过 | `/tmp/shiju-task7-resume-final-vw-desktop-app::message::settings::agents::tests.log` |
+| `cargo test -p vw-agent --lib agent_config_cleanup_ -- --test-threads=2` | 0 | 17 通过 | `/tmp/shiju-task7-resume-final-vw-agent-agent_config_cleanup_.log` |
+| `cargo test -p vw-agent --lib agent_profile_acceptance_tests -- --test-threads=2` | 0 | 4 通过 | `/tmp/shiju-task7-resume-final-vw-agent-agent_profile_acceptance_tests.log` |
+| `cargo test -p vw-agent --lib request_tests -- --test-threads=2` | 0 | 28 通过 | `/tmp/shiju-task7-resume-final-vw-agent-request_tests.log` |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 0 | 不适用 | `/tmp/shiju-task7-resume-final-clippy.log` |
+
+三个指定新验收用例全部非零命中。20 张双主题五标签、两种尺寸的截图已由本轮重新绘制，路径仍为上文 `/tmp/shiju-task7-*.png`；抽查暗色技能窄窗口与亮色基础参数大窗口，中文绘制正常、标题和保存/取消区可见。
+
+唯一阻塞：本轮 CUA `getState` 再次明确返回 `The Mac is locked and automatic unlock could not unlock it. Ask the user to unlock the Mac manually before continuing.`。原生应用清单为空，无法进行原生五页点击及取得交互截图。未绕过锁屏，也未把 Headless 绘制当作原生操作。首次原生窗口命令成功启动的历史记录保留，本轮因相同外部状态不重复空跑窗口。
+
+下一步：用户解锁 Mac 后，在共享槽位内运行 `cargo test -p vw-desktop --test agent-profile-window`，实际操作五个标签并检查取消/失败重试及布局；取得原生证据后将任务 7 标记已完成并删除编号任务文件。当前按最新调度要求明确标记已阻塞并保留任务文件。

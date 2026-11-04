@@ -108,7 +108,7 @@ python3 docs/vibewindow/acp-model-source/evidence/hermes/apply_patch.py --packag
   退出 0，4 项；真实补丁函数验证凭据 home 删除后状态保留、非法 reference、符号链接
   和其他用户可读文件的拒绝，全部只使用自有临时目录。
 
-## 真实生产链与待统一正式回归
+## 历史缓存生产链证据
 
 两种来源调用任务 10 原有生产测试入口及原有全部判定，使用上面刚通过测试的同一
 生产二进制与真实 patched Hermes 子进程。只将 Cargo 的启动替换为该二进制执行，
@@ -136,9 +136,30 @@ CARGO_BUILD_BUILD_DIR 为同一路径。使用 CARGO_BUILD_JOBS=1、RUST_MIN_STA
 1、5（将槽位 8 的同一生产二进制按 SHA-256 校验后复制到当前槽位执行）。
 自己的阶段进程均已结束、自有锁已释放，未清理后续领取同一槽位的其他任务锁，缓存保留。
 
-状态为实现完成，待统一正式 Cargo 生命周期回归。按恢复队列要求不重复构建已通过
-且未改动的代码；保留编号任务用于统一回归。领取共享槽位并固定两个绝对构建目录、
-应用上述补丁后，执行下列原验收器封装；**不传 --test-binary 时内部执行原 Cargo 命令**：
+## 正式 Cargo 生命周期回归（2026-11-04）
+
+最新共享工作区上动态领取槽位 **3**，两种来源均由原验收器实际执行 Cargo，
+没有传 `--test-binary`，没有复制或直接启动缓存二进制。
+`CARGO_TARGET_DIR` 与 `CARGO_BUILD_BUILD_DIR` 均为
+`/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；
+CARGO_BUILD_JOBS=1、RUST_MIN_STACK=33554432。阶段退出 0，自有锁已释放，缓存保留。
+
+先运行下列聚焦命令：退出 0，**5 passed / 0 failed / 1 ignored**。
+随后两条正式入口各退出 0、有效测试各 1，报告均为 `evidence_kind=real-cli`、
+`cargo_exit_code=0`，实际 Cargo 命令完整保存在 JSON 中。
+
+| 来源 | 正式证据 | 有效测试 | 模型请求 | 结果 |
+| --- | --- | --- | --- | --- |
+| session-model | [JSON](hermes/session-model-formal.json) | 1 passed | 11 | primary → switched |
+| cli-local | [JSON](hermes/cli-local-formal.json) | 1 passed | 8 | 始终 primary |
+
+两份正式结果均认证全部正确、errors=0、工具结果达到 2；
+new/second_turn/cancel/restart/switch/isolated/handshake 全真。
+此次仅补充正式回归与文档，没有修改 Rust；不重复已通过且未受影响的 Clippy、
+原生辅助探测与 Python 检查。聚焦构建出现 Apple 链接器 unwind 表大小提示，测试通过。
+任务 17 的待回归条件已解除；任务 33 仍须按上述固定版本补丁集成能力发布。
+
+确切复现入口（须先按共享规则领取槽位并设置两个绝对构建目录）：
 
 ```sh
 export PATH="$PWD/target/hermes-0.19.0-venv/bin:$PATH"
@@ -147,4 +168,4 @@ python3 docs/vibewindow/acp-model-source/evidence/hermes/verify.py --agent herme
 python3 docs/vibewindow/acp-model-source/evidence/hermes/verify.py --agent hermes --mode cli-local --manifest docs/vibewindow/acp-model-source/evidence/hermes/manifest.json --output target/acp-model-source-evidence/hermes/cli-local-formal --offline-fixture
 ```
 
-两种来源各取得正式 Cargo 的 1 passed 后，再解除待回归并删除编号任务文件。
+两种来源均已取得正式 Cargo 的 1 passed；编号任务在证据提交并交接后删除。

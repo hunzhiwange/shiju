@@ -1,0 +1,179 @@
+{
+  "agent": "hermes",
+  "mode": "session-model",
+  "evidence_kind": "real-cli",
+  "status": "passed",
+  "passed": true,
+  "platform": "Darwin-arm64",
+  "cargo_exit_code": 0,
+  "effective_tests": 1,
+  "failure_locations": [],
+  "requests": {
+    "requests": [
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-switched",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0,
+        "auxiliary": false
+      }
+    ],
+    "errors": 0
+  },
+  "flow": {
+    "new": true,
+    "second_turn": true,
+    "cancel": true,
+    "restart": true,
+    "switch": true,
+    "isolated": true,
+    "handshake": true,
+    "mode": "session-model",
+    "requires_auxiliary": false
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "vw-agent",
+    "--lib",
+    "--all-features",
+    "acp_model_source_real_cli_session_model",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+  "fixture_adaptation": {
+    "two_independent_files": true,
+    "unsupported_discovery_gets": 0,
+    "generation_probes": [
+      {
+        "seconds": 5.502,
+        "cancel": false,
+        "tool_messages": 0
+      },
+      {
+        "seconds": 5.681,
+        "cancel": false,
+        "tool_messages": 1
+      },
+      {
+        "seconds": 6.126,
+        "cancel": false,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 6.493,
+        "cancel": false,
+        "tool_messages": 0
+      },
+      {
+        "seconds": 9.499,
+        "cancel": false,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 14.017,
+        "cancel": true,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 17.995,
+        "cancel": true,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 26.029,
+        "cancel": false,
+        "tool_messages": 0
+      },
+      {
+        "seconds": 26.651,
+        "cancel": false,
+        "tool_messages": 1
+      },
+      {
+        "seconds": 27.592,
+        "cancel": false,
+        "tool_messages": 2
+      },
+      {
+        "seconds": 27.976,
+        "cancel": false,
+        "tool_messages": 0
+      }
+    ]
+  }
+}

@@ -172,15 +172,15 @@ fn directory_drop_area<'a>(
             })
         });
     }
+    // Register targets before a gesture starts: a native batch can contain the
+    // press, movement and release before the next view rebuild.
     if !app.file_tree_operation_in_progress
-        && let Some((project_path, source_path)) = &app.file_tree_drag_source
-        && app.project_path.as_ref() == Some(project_path)
+        && let Some(project_path) = &app.project_path
     {
         Element::new(area.file_tree_drop(
             Message::Project(ProjectMessage::FileTreeDropTargetChanged(Some(target.clone()))),
-            Message::Project(ProjectMessage::FileTreeDropRequested {
+            Message::Project(ProjectMessage::FileTreeDropTargetReleased {
                 project_path: project_path.clone(),
-                source_path: source_path.clone(),
                 target_directory: target,
             }),
         ))

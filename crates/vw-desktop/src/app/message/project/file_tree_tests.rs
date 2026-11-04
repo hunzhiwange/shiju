@@ -712,3 +712,30 @@ fn file_tree_move_drop_unicode_conflict_preserves_unsaved_editor_and_active_path
     assert_eq!(app.active_preview_path.as_deref(), Some("/project/中文/草稿.txt"));
     assert!(!app.file_tree_operation_in_progress);
 }
+
+#[test]
+fn file_tree_move_drop_target_release_uses_current_source_and_is_consumed_once() {
+    use crate::app::message::ProjectMessage as P;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    // The target message is constructed before the source gesture begins.
+    let release = P::FileTreeDropTargetReleased {
+        project_path: "/project".into(),
+        target_directory: "/project/dst".into(),
+    };
+    let _ = super::handle(&mut app, release.clone());
+    assert!(!app.file_tree_operation_in_progress);
+    let _ = super::handle(
+        &mut app,
+        P::FileTreeInternalDragStart {
+            project_path: "/project".into(),
+            source_path: "/project/a.txt".into(),
+        },
+    );
+    let _ = super::handle(&mut app, release.clone());
+    assert!(app.file_tree_operation_in_progress);
+    assert!(app.file_tree_drag_source.is_none());
+    let _ = super::handle(&mut app, release);
+    let _ = super::handle(&mut app, P::FileTreeDragEnd);
+    assert!(app.pending_drop_file_paths.is_empty());
+}

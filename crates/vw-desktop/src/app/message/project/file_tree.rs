@@ -193,6 +193,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
             Some(iced::Task::none())
         }
+        ProjectMessage::FileTreeDropTargetReleased { project_path, target_directory } => {
+            let Some((root, source)) = app.file_tree_drag_source.clone() else {
+                return Some(iced::Task::none());
+            };
+            if root != project_path {
+                return Some(iced::Task::none());
+            }
+            Some(move_drop::submit(app, root, source, target_directory))
+        }
         ProjectMessage::FileTreeDropRequested { project_path, source_path, target_directory } => {
             Some(move_drop::submit(app, project_path, source_path, target_directory))
         }

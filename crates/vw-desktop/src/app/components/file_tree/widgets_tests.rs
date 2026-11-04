@@ -399,6 +399,12 @@ fn non_left_or_outside_or_cursorless_press_cannot_start_drag() {
     update_area(
         &mut area,
         &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(500.0, 22.0) }),
+        mouse::Cursor::Available(Point::new(500.0, 22.0)),
+    );
+    update_area(
+        &mut area,
+        &mut tree,
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
         mouse::Cursor::Available(Point::new(500.0, 22.0)),
     );
@@ -407,6 +413,12 @@ fn non_left_or_outside_or_cursorless_press_cannot_start_drag() {
         &mut tree,
         Event::Mouse(mouse::Event::CursorMoved { position: Point::new(520.0, 22.0) }),
         mouse::Cursor::Available(Point::new(520.0, 22.0)),
+    );
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorLeft),
+        mouse::Cursor::Unavailable,
     );
     update_area(
         &mut area,
@@ -682,6 +694,12 @@ fn file_tree_drop_three_pixel_threshold_preserves_ordinary_click() {
     update_area(
         &mut area,
         &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: Point::new(12.0, 22.0) }),
+        cursor,
+    );
+    update_area(
+        &mut area,
+        &mut tree,
         Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
         cursor,
     );
@@ -802,4 +820,39 @@ fn file_tree_external_drop_nested_target_consumes_once() {
         mouse::Cursor::Available(Point::new(20.0, 30.0)),
     );
     assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::Requested(2)]);
+}
+
+#[test]
+fn file_tree_drop_batched_events_use_press_position_before_final_cursor() {
+    let mut area = area();
+    let mut tree = tree_for_area(&area);
+    let start = Point::new(20.0, 30.0);
+    let end = Point::new(200.0, 90.0);
+    let cursor = mouse::Cursor::Available(end);
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: start }),
+        cursor,
+    );
+    update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonPressed(mouse::Button::Left)),
+        cursor,
+    );
+    let moved = update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::CursorMoved { position: end }),
+        cursor,
+    );
+    assert!(moved.contains(&TestMessage::DragStarted));
+    let released = update_area(
+        &mut area,
+        &mut tree,
+        Event::Mouse(mouse::Event::ButtonReleased(mouse::Button::Left)),
+        cursor,
+    );
+    assert!(released.contains(&TestMessage::DragEnded));
 }

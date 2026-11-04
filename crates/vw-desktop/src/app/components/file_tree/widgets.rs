@@ -55,6 +55,8 @@ struct RightClickAreaState {
     left_downinside: bool,
     /// 左键按下时的鼠标位置（用于计算拖拽距离）
     press_pos: Option<Point>,
+    /// Iced may pass the final cursor for a whole batch; retain event-order positions.
+    event_position: Option<Point>,
     /// 是否已经开始拖拽（移动距离超过阈值）
     dragging_started: bool,
     drop_consumed: bool,
@@ -275,6 +277,22 @@ where
         {
             state.drop_consumed = false;
         }
+        // Button events do not carry coordinates. The cursor argument may already
+        // point at a later event in this batch, so use the preceding move event.
+        let cursor = match event {
+            Event::Mouse(mouse::Event::CursorMoved { position }) => {
+                state.event_position = Some(*position);
+                mouse::Cursor::Available(*position)
+            }
+            Event::Mouse(mouse::Event::CursorLeft) => {
+                state.event_position = None;
+                mouse::Cursor::Unavailable
+            }
+            Event::Mouse(mouse::Event::ButtonPressed(_) | mouse::Event::ButtonReleased(_)) => {
+                state.event_position.map(mouse::Cursor::Available).unwrap_or(cursor)
+            }
+            _ => cursor,
+        };
         let visible = layout.bounds().intersection(viewport);
         let hit = cursor
             .position()

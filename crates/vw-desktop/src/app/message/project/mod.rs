@@ -201,6 +201,10 @@ pub enum ProjectMessage {
         source_path: String,
     },
     FileTreeDropTargetChanged(Option<String>),
+    FileTreeDropTargetReleased {
+        project_path: String,
+        target_directory: String,
+    },
     FileTreeDropRequested {
         project_path: String,
         source_path: String,

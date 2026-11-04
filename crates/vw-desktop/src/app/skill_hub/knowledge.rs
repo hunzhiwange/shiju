@@ -117,6 +117,7 @@ pub(crate) struct KnowledgeReader {
     pub(crate) doc_zid: String,
     pub(crate) title: String,
     pub(crate) content: String,
+    pub(crate) markdown_items: Vec<iced::widget::markdown::Item>,
     pub(crate) total_chars: u64,
     pub(crate) next_offset: Option<u64>,
     pub(crate) status: LoadState<()>,
@@ -231,6 +232,11 @@ impl KnowledgeState {
         });
         self.documents.finish(request, result)
     }
+    pub(crate) fn edit_search_query(&mut self, query: String) {
+        self.search_query = query;
+        self.search_pending = None;
+        self.search = LoadState::Idle;
+    }
     pub(crate) fn begin_search(&mut self, query: String) -> Option<KnowledgeRequest> {
         if query.trim().is_empty() {
             return None;
@@ -279,6 +285,7 @@ impl KnowledgeState {
             doc_zid: doc,
             title: String::new(),
             content: String::new(),
+            markdown_items: vec![],
             total_chars: 0,
             next_offset: Some(0),
             status: LoadState::Idle,
@@ -333,6 +340,7 @@ impl KnowledgeState {
                     return;
                 }
                 reader.content.push_str(&page.content);
+                reader.markdown_items = super::parse_public_markdown(&reader.content);
                 reader.title = page.title;
                 reader.total_chars = page.total_chars;
                 reader.next_offset = page.next_offset;

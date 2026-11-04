@@ -52,7 +52,7 @@ impl Operation for Texts {
         self.0.push((value.into(), bounds));
     }
 }
-async fn inspect(
+pub(super) async fn inspect(
     mut element: Element<'_, Message>,
     theme: Theme,
     width: f32,

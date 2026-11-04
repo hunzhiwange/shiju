@@ -123,3 +123,6 @@ mod public_skills_tests;
 mod shiju_apps_tests;
 #[cfg(test)]
 mod shiju_knowledge_view_tests;
+
+#[cfg(test)]
+mod shiju_knowledge_reader_tests;

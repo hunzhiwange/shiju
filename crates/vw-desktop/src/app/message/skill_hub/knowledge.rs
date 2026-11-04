@@ -14,7 +14,6 @@ use vw_gateway_client::{
 };
 
 #[derive(Clone)]
-#[allow(dead_code)] // 后续资料界面直接使用这些显式动作。
 pub(crate) enum KnowledgeMessage {
     RefreshBases,
     BasesPage(u32),
@@ -23,6 +22,7 @@ pub(crate) enum KnowledgeMessage {
     RefreshDocuments,
     DocumentsPage(u32),
     SearchDocuments(String),
+    SearchQueryChanged(String),
     Search(String),
     OpenReader {
         kb: String,
@@ -205,12 +205,35 @@ pub(crate) fn update(app: &mut App, msg: KnowledgeMessage) -> Task<Message> {
         }
         KnowledgeMessage::SearchLoaded(request, result) => {
             if current(app, &request) {
+                let pending = matches!(app.expert_hub.knowledge.search, LoadState::Loading { generation } if generation == request.generation);
                 app.expert_hub.knowledge.finish_search(&request, result);
+                if pending && matches!(app.expert_hub.knowledge.search, LoadState::Error(_)) {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "检索失败，请重试",
+                        vec![],
+                    );
+                }
             }
         }
         KnowledgeMessage::ReadLoaded(request, result) => {
             if current(app, &request) {
+                let pending = app.expert_hub.knowledge.reader.as_ref().is_some_and(|reader| matches!(reader.status, LoadState::Loading { generation } if generation == request.generation));
                 app.expert_hub.knowledge.finish_read(&request, result);
+                if pending
+                    && app
+                        .expert_hub
+                        .knowledge
+                        .reader
+                        .as_ref()
+                        .is_some_and(|reader| matches!(reader.status, LoadState::Error(_)))
+                {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "原文加载失败，请重试",
+                        vec![],
+                    );
+                }
             }
         }
         action => {
@@ -245,6 +268,9 @@ pub(crate) fn update(app: &mut App, msg: KnowledgeMessage) -> Task<Message> {
                 KnowledgeMessage::SearchDocuments(q) => {
                     app.expert_hub.knowledge.search_documents(q);
                     return load_documents(app);
+                }
+                KnowledgeMessage::SearchQueryChanged(query) => {
+                    app.expert_hub.knowledge.edit_search_query(query);
                 }
                 KnowledgeMessage::Search(query) => {
                     let request = app.expert_hub.knowledge.begin_search(query);

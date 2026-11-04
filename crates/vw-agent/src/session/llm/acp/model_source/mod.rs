@@ -26,7 +26,6 @@ pub(super) async fn prepare(
     model: &provider::Model,
     session: &str,
 ) -> anyhow::Result<AcpLaunchProfile> {
-    vw_acp::verify_reviewed_agent_executable(agent, &config.command).map_err(anyhow::Error::msg)?;
     let project = instance::project()
         .ok_or_else(|| anyhow::anyhow!("ACP launch requires project context"))?;
     let context = instance::Context {
@@ -41,6 +40,8 @@ pub(super) async fn prepare(
         resolved.status == "active" && !super::super::prompt::is_acp_model(&resolved),
         "ACP launch requires an active non-ACP model"
     );
+    // Catalog rejection must remain authoritative even when the runtime is absent.
+    vw_acp::verify_reviewed_agent_executable(agent, &config.command).map_err(anyhow::Error::msg)?;
     let identity = RelayIdentity {
         tenant: crate::session::ui_store::current_tenant_scope(),
         project: context.project.id.clone(),

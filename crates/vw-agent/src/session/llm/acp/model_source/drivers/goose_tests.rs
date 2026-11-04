@@ -137,10 +137,24 @@ async fn acp_model_source_goose_missing_credentials_and_disabled_model_never_use
         worktree: project.worktree.clone(),
         project,
     };
+    let relay_context = context.clone();
     crate::project::instance::provide_context(context, async {
         let config = AcpAgentConfig { command:"goose".into(), args:vec!["acp".into()], ..Default::default() };
         let active = crate::provider::provider::get_model("goose-offline-no-account", "active-model").await.unwrap();
-        let profile = crate::session::llm::acp::model_source::prepare("goose", &config, &active, "missing-key").await.unwrap();
+        // Exercise the real relay/configuration boundary without requiring an installed CLI.
+        // Supplier executable identity is covered separately by real-CLI acceptance.
+        let mut profile = AcpLaunchProfile::new(&config, RelayIdentity {
+            tenant: tenant.clone(), project: relay_context.project.id.clone(),
+            session: "missing-key".into(), provider: active.provider_id.clone(),
+            model: active.id.clone(), generation: 0,
+        }).unwrap();
+        profile.model_api = Some(active.api.clone());
+        let server = crate::model_relay::RelayServer::start(
+            profile.binding.clone(), std::sync::Arc::new(crate::model_relay::ProviderRelayBackend::new().unwrap()), relay_context,
+        ).await.unwrap();
+        let relay_endpoint = format!("http://{}", server.address());
+        profile.attach_server(server);
+        configure(&mut profile, &relay_endpoint).unwrap();
         let endpoint = &profile.config().env["OPENAI_HOST"];
         let response = crate::model_relay::upstream_http_client().unwrap()
             .post(format!("{endpoint}/v1/chat/completions"))

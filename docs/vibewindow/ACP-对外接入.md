@@ -196,3 +196,7 @@ cargo --config 'build.build-dir="/tmp/vw-acp-unwind-build"' \
 ```
 
 上述临时参数用于 Apple Silicon；其他架构应省略或调整 `target-cpu`。
+
+## 外部 CLI 的模型来源
+
+客户端接入外部 ACP CLI 时，新会话默认使用客户端模型；显式选择 `cli_local` 才使用 CLI 执行主机上的配置。远程网关使用网关主机的配置。当前仅部分固定发行版取得 Darwin arm64 双来源证据，整体尚未达到 22/22。精确版本、补丁安装要求、认证门槛和回归状态见[模型来源与 CLI 兼容性](ACP-模型来源与CLI兼容性.md)。模型来源不改变工具权限；不支持的入口和能力明确报错，不回退账号。

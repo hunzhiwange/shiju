@@ -20,7 +20,7 @@
 
 use iced::widget::svg::{self};
 use iced::widget::{
-    Space, button, canvas, column, container, mouse_area, row, text,
+    Space, button, canvas, column, container, mouse_area, responsive, row, text,
     tooltip::{Position as TooltipPosition, Tooltip},
 };
 use iced::{Alignment, Background, Border, Color, Element, Length, Theme};
@@ -36,6 +36,47 @@ use crate::app::components::status_animation::spinner_frame;
 use crate::app::state::{ChatPanelMode, WorkspaceMode};
 use crate::app::theme_catalog::with_panel_background;
 use crate::app::{App, Message, message};
+
+/// 使用与标题相同的字体实际整形，按可用像素宽度保留单行前缀。
+fn fitted_session_title(title: &str, width: f32) -> String {
+    use iced::advanced::text::{Paragraph as _, Shaping, Wrapping};
+
+    let title = title.split_whitespace().collect::<Vec<_>>().join(" ");
+    let measure = |content: &str| {
+        iced::advanced::graphics::text::Paragraph::with_text(iced::advanced::text::Text {
+            content,
+            bounds: iced::Size::INFINITE,
+            size: 14.0.into(),
+            line_height: Default::default(),
+            font: iced::Font::DEFAULT,
+            align_x: Default::default(),
+            align_y: iced::alignment::Vertical::Top,
+            shaping: Shaping::Advanced,
+            wrapping: Wrapping::None,
+        })
+        .min_width()
+    };
+    if measure(&title) <= width {
+        return title;
+    }
+    if measure("...") > width {
+        return String::new();
+    }
+    let boundaries: Vec<_> = title.char_indices().map(|(index, _)| index).collect();
+    let mut start = 0;
+    let mut end = boundaries.len();
+    while start < end {
+        let middle = (start + end).div_ceil(2);
+        let candidate = format!("{}...", &title[..boundaries[middle - 1]]);
+        if measure(&candidate) <= width {
+            start = middle;
+        } else {
+            end = middle - 1;
+        }
+    }
+    let prefix_end = if start == 0 { 0 } else { boundaries[start - 1] };
+    format!("{}...", &title[..prefix_end])
+}
 
 fn header_surface_style(
     _theme: &Theme,
@@ -519,16 +560,35 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
         status_badges = badges_row.into();
     }
 
-    let title_element: Element<'_, Message> =
-        mouse_area(text(session_title.clone()).size(14).style(|theme: &Theme| {
-            iced::widget::text::Style { color: Some(theme.palette().text.scale_alpha(0.96)) }
-        }))
+    let title_element = responsive(move |size| {
+        let title = mouse_area(
+            text(fitted_session_title(&session_title, size.width))
+                .size(14)
+                .font(iced::Font::DEFAULT)
+                .shaping(iced::widget::text::Shaping::Advanced)
+                .wrapping(iced::widget::text::Wrapping::None)
+                .width(Length::Fill)
+                .style(|theme: &Theme| iced::widget::text::Style {
+                    color: Some(theme.palette().text.scale_alpha(0.96)),
+                }),
+        )
         .on_press(if let Some(session_id) = app.active_session_id.clone() {
             Message::Project(message::ProjectMessage::SessionTitleClicked(session_id))
         } else {
             Message::None
-        })
-        .into();
+        });
+        Tooltip::new(
+            title,
+            container(text(session_title.clone()).size(12))
+                .max_width(480)
+                .padding([6, 8])
+                .style(tooltip_dark_style),
+            TooltipPosition::Bottom,
+        )
+        .gap(6)
+        .into()
+    })
+    .height(Length::Fixed(21.0));
 
     let fullscreen_icon =
         if app.is_chat_fullscreen() { Icon::FullscreenExit } else { Icon::Fullscreen };
@@ -665,22 +725,16 @@ pub fn chat_header_view(app: &App) -> Element<'_, Message> {
     if let Some(return_msg) = return_to_parent_session_pressed(app) {
         left = left.push(return_to_parent_button(app, return_msg));
     }
-    left = left.push(status_badges);
+    left = left.push(status_badges).width(Length::Fill);
 
     let chrome = crate::app::theme_catalog::resolve_chrome_style_from_skin(
         app.active_theme_skin.as_ref(),
         &app.app_theme,
     );
     let header = container(
-        row![
-            left,
-            Space::new().width(Length::Fill),
-            usage_rate_btn,
-            session_menu_btn,
-            fullscreen_controls
-        ]
-        .spacing(10)
-        .align_y(Alignment::Center),
+        row![left, usage_rate_btn, session_menu_btn, fullscreen_controls]
+            .spacing(10)
+            .align_y(Alignment::Center),
     )
     .width(Length::Fill)
     .padding(iced::Padding { top: 6.0, right: 10.0, bottom: 6.0, left: 10.0 })

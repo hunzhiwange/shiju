@@ -4,9 +4,12 @@ mod cache_sync;
 mod client;
 pub(crate) mod connectors;
 mod installer;
+pub(crate) mod knowledge;
 mod models;
 mod native;
 mod package_version_cache;
+#[cfg(test)]
+mod shiju_knowledge_state_tests;
 mod state;
 
 // 缓存同步和客户端只导出消息层实际需要的最小能力。

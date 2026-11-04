@@ -5,6 +5,7 @@
 pub(crate) enum ExpertHubSection {
     Experts,
     Connectors,
+    Knowledge,
     #[default]
     Skills,
 }
@@ -1037,6 +1038,7 @@ pub(crate) struct ExpertHubState {
     pub(crate) install_guide: ShijuInstallGuideState,
     pub(crate) public_market: PublicSkillMarketState,
     pub(crate) connectors: super::connectors::ConnectorsState,
+    pub(crate) knowledge: super::knowledge::KnowledgeState,
     pub(crate) shiju_apps: crate::app::shiju_apps::ShijuAppsState,
 }
 
@@ -1154,6 +1156,7 @@ impl ExpertHubState {
         self.install_guide.reset_requests();
         self.shiju_apps.clear_for_account(self.account_id.clone());
         self.connectors.clear(self.account_id.clone());
+        self.knowledge.clear(self.account_id.clone());
     }
 
     pub(crate) fn next_request_generation(&mut self) -> u64 {
@@ -1297,6 +1300,7 @@ impl Default for ExpertHubState {
             install_guide: ShijuInstallGuideState::default(),
             public_market: PublicSkillMarketState::default(),
             connectors: super::connectors::ConnectorsState::default(),
+            knowledge: super::knowledge::KnowledgeState::default(),
             shiju_apps: crate::app::shiju_apps::ShijuAppsState::default(),
         }
     }

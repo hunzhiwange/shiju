@@ -65,6 +65,7 @@ pub(crate) fn view(app: &App) -> Element<'_, Message> {
     let body: Element<'_, Message> = match app.expert_hub.section {
         ExpertHubSection::Experts => experts::view(app),
         ExpertHubSection::Connectors => connectors::view(app),
+        ExpertHubSection::Knowledge => iced::widget::Space::new().into(),
         ExpertHubSection::Skills if app.expert_hub.public_market.installed_open => {
             installed_skills::view(app)
         }

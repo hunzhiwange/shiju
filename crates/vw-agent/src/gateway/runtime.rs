@@ -68,7 +68,7 @@ where
     let addr = listener.local_addr().map_err(|e| ApiError::internal(e.to_string()))?;
     let handle = tokio::spawn(async move {
         // Ctrl-C 时优雅停机，让已接收的请求有机会完成响应。
-        axum::serve(listener, router)
+        axum::serve(listener, router.into_make_service_with_connect_info::<SocketAddr>())
             .with_graceful_shutdown(shutdown)
             .await
             .map_err(|e| ApiError::internal(e.to_string()))

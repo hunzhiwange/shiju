@@ -15,6 +15,9 @@
 //! - `GET /file` - 列出目录内容
 //! - `GET /file/content` - 读取文件内容
 //! - `GET /file/status` - 获取 Git 状态
+#[path = "file_import.rs"]
+mod file_import;
+
 use std::path::{Path, PathBuf};
 
 use axum::Json;
@@ -54,6 +57,7 @@ where
     S: Clone + Send + Sync + 'static,
 {
     Router::new()
+        .merge(file_import::router())
         .route("/find", get(file_find_text))
         .route("/find/file", get(file_find_file))
         .route("/find/symbol", get(not_implemented))
@@ -917,3 +921,7 @@ fn copy_path_recursive(from: &Path, to: &Path) -> Result<(), ApiError> {
 #[cfg(test)]
 #[path = "file_tests.rs"]
 mod file_tests;
+
+#[cfg(test)]
+#[path = "file_import_tests.rs"]
+mod file_import_tests;

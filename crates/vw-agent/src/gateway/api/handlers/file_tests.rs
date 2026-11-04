@@ -895,10 +895,10 @@ fn remove_file_test_project(project_id: &str) {
         .expect("project should clean up");
 }
 
-struct RegisteredFileProject(String);
+pub(super) struct RegisteredFileProject(pub(super) String);
 
 impl RegisteredFileProject {
-    fn new(root: &std::path::Path) -> Self {
+    pub(super) fn new(root: &std::path::Path) -> Self {
         let id = format!("file-boundary-{}", uuid::Uuid::new_v4());
         store_file_test_project(&project_info_for_file_tests(
             &id,

@@ -439,6 +439,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("POST", "/v1/file/write", "write file"),
         client_route("GET", "/v1/file/status", "file status"),
         client_route("POST", "/v1/files/move", "move file"),
+        client_route("POST", "/v1/files/import-local", "import local paths"),
         client_route("POST", "/v1/files/copy", "copy file"),
         client_route("POST", "/v1/files/delete", "delete files"),
         client_route("POST", "/v1/git/commit", "git commit"),

@@ -255,13 +255,14 @@ async fn acp_model_source_launch_profile_production_request_rejects_unverified_d
         worktree: project.worktree.clone(),
         project,
     };
+    // Codex now supports session models; Droid still rejects unverified launches.
     let result = crate::project::instance::provide_context(
         context,
         do_stream_request_acp(
             &test_model("github-copilot"),
             &test_provider(Some("provider-secret-never-distributed")),
             None,
-            &json!({"acp_agent": "codex"}),
+            &json!({"acp_agent": "droid"}),
             &json!([{"role": "user", "content": "hello"}]),
             "task9-production",
             None,
@@ -271,7 +272,7 @@ async fn acp_model_source_launch_profile_production_request_rejects_unverified_d
     .await;
     match result {
         Err(super::Error::Api(message::AssistantError::Unknown { message })) => {
-            assert!(message.contains("ACP codex session_model launch has not been verified"));
+            assert!(message.contains("ACP droid session_model launch has not been verified"));
             assert!(!message.contains("provider-secret-never-distributed"));
         }
         other => panic!("unexpected production result: {other:?}"),

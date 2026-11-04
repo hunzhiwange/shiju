@@ -52,6 +52,8 @@ pub struct VideoEditRunManifest {
     pub upload_id: Option<String>,
     pub asset_id: Option<String>,
     pub jobs: Vec<VideoRemoteJob>,
+    #[serde(default)]
+    pub transcript: Option<super::transcript::VideoTranscriptState>,
     pub state: VideoPrepareState,
     pub revision: i64,
     pub lease_owner: String,

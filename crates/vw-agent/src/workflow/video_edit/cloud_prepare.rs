@@ -4,7 +4,7 @@ use crate::workflow::video_edit::{manifest::*, prepare::*};
 use anyhow::{Context, Result, bail, ensure};
 
 impl ShijuCloudVideoToolProvider {
-    async fn prepare_call(&self, operation: &str, args: Value) -> Result<Value> {
+    pub(super) async fn prepare_call(&self, operation: &str, args: Value) -> Result<Value> {
         // Reload the official schema before each operation, fail closed on drift.
         ensure!(
             [
@@ -12,7 +12,9 @@ impl ShijuCloudVideoToolProvider {
                 "create_project",
                 "list_projects",
                 "import_media",
-                "media_probe"
+                "media_probe",
+                "media_audio_extract",
+                "asr_transcribe"
             ]
             .contains(&operation),
             "unsupported preparation operation"

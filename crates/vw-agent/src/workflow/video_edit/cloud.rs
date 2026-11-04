@@ -482,3 +482,5 @@ impl WorkflowToolProvider for ShijuCloudVideoToolProvider {
 mod memory;
 #[path = "cloud_prepare.rs"]
 mod prepare_transport;
+#[path = "cloud_transcript.rs"]
+mod transcript_transport;

@@ -21,6 +21,7 @@ pub(super) fn candidate() -> VideoEditRunManifest {
         upload_id: None,
         asset_id: None,
         jobs: vec![],
+        transcript: None,
         state: VideoPrepareState::New,
         revision: 0,
         lease_owner: String::new(),

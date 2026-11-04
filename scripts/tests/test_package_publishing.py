@@ -51,7 +51,7 @@ class PackagePublishingTests(unittest.TestCase):
 
             def registry(url, timeout):
                 if 'shiju-acp/' in url:
-                    raise urllib.error.HTTPError(url, 404, 'missing', {}, None)
+                    raise urllib.error.HTTPError(url, 404, 'missing', {}, io.BytesIO(b''))
                 name = url.split('%2F')[1].split('/')[0]
                 digest = hashlib.sha1((root / (name + '-npm-package.tar.gz')).read_bytes()).hexdigest()
                 return io.BytesIO(json.dumps({'dist': {'shasum': digest}}).encode())

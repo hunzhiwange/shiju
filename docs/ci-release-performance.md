@@ -262,10 +262,10 @@ Windows 固定 WiX 5.0.2；macOS 沿用固定 cargo-bundle 工具。每项工具
 诊断 artifact 不上传可执行安装包。后缀存在和散列记录只证明文件存在，不能替代人工或
 平台工具核对归档成员、版本、目标架构、MSI 表、App 签名与 manifest 的最终验收。
 
-本地聚焦回归为 44 项：42 通过、1 跳过、1 错误。Linux 真实 DEB 测试因缺原生 Debian
-工具跳过；发布测试在 Python 3.9 关闭模拟 fp=None 的 HTTPError 时出现 tempfile
-KeyError: 'file'，与本批工作流及前序构建优化没有调用关系，未改发布逻辑。
-Clippy 与四个 shell 脚本语法检查通过。上述证据不代表任何真实发行目标完成链接。
+本地聚焦回归为 44 项：43 通过、1 跳过。Linux 真实 DEB 测试因缺原生 Debian
+工具跳过。发布测试的模拟 HTTPError 使用可关闭的 BytesIO 响应体，修复 Python 3.9
+关闭 fp=None 夹具的兼容错误，不修改发布业务语义。四个 shell 脚本语法检查通过。
+上述证据不代表任何真实发行目标完成链接。
 
 当前没有六平台 run 链接、实际安装包验证或同提交冷热对照，最终净收益为“未测得”。
 实际保留 thin LTO、precise-builds=true；off LTO 与合并构建均未采纳。
@@ -277,7 +277,14 @@ Clippy 与四个 shell 脚本语法检查通过。上述证据不代表任何真
 对应缓存 restore/save 与 staging 步骤；固定工具回退至前序版本须同时调整版本和缓存键。
 回退 LTO/precise 实验只需删除对应候选 job，生产配置目前没有采纳它们。
 
-恢复验收需要将提交推送到支持 workflow_dispatch 的分支并由授权者启动安全基准，
-提供六 runner 资源与日志；当前连接工具没有新增 dispatch 能力，本机未安装 gh。
+真实运行入口已可通过登录浏览器使用；缺 gh 或连接 dispatch 工具不再视为阻塞。
+已读取 [precise 基准运行 41774264864](https://github.com/hunzhiwange/shiju/actions/runs/41774264864)，
+提交 57677e327f1c77379582cd4159d7de2b8c80e6bb，分支 codex/release-precise-benchmark。
+2026-11-04 13:20（上海）观察到 Intel Mac 对照步骤仍在执行，Windows ARM64 为
+Starting job；未有可下载完成报告。该运行跳过 measure/lto，不是六目标打包验收。
+六目标实现提交 caac0219e 尚需单独带入审阅后的基准分支，不能推送混合业务提交。
+运行参数为 experiment=dist，依次 cache=off、restore、restore，固定同一 SHA；
+可信缓存保存还要求受保护默认分支，专用分支运行只能验证未命中或恢复已有可信缓存。
+该默认分支变更需要维护者决策；不得为获得命中而降低保护、扩大缓存写入权限。
 真实 Developer ID 签名、公证和 stapling 留待下一次授权发布，绝不以 ad-hoc 或模拟
 故障测试宣称已通过真实外部服务。仍须补齐 ARM64 Windows 原生行为及全部包内容核验。

@@ -8,7 +8,7 @@
 ## 重现
 
 将本工作流提交到可手动触发的分支后，在 Actions 的 Release benchmark 页面选择该分支。
-保存 run 链接、完整 SHA、两个平台 artifact；相同 SHA、runner image、工具版本及缓存状态
+保存 run 链接、完整 SHA、六个平台 artifact；相同 SHA、runner image、工具版本及缓存状态
 才可比较。若缺任一平台、四包完成记录、五个 bin 或返回码，不得宣称完成验收。
 
 沿用 cargo-dist 0.30.1 的发布安装器及 `dist plan` 的实际连线：
@@ -150,9 +150,9 @@ Actions cache 步骤另记录传输大小和耗时，尚无真实缓存体积数
 Release（含 PR）仅恢复，不写编译缓存。仅在受保护默认分支手动运行的 benchmark 成功后保存；
 其余分支、tag、PR 均不写。依据 [Actions cache scope](https://github.com/actions/cache/tree/v4#cache-scopes)，
 默认分支缓存对其他分支可见；不能将某个 tag 的缓存视为下一个 tag 可见的来源。
-这里复用原有两个目标的基准构建写缓存，不新增六平台预热；额外成本是 staging 复制和上传，
+这里复用基准构建写缓存（批次 6 已扩为六目标），不新增单独预热；额外成本是 staging 复制和上传，
 需计入净收益。默认分支未保护或尚未运行基准时，没有可信可恢复缓存，正常走未命中构建。
-其余四平台暂不预热，仍保持原有完整构建与打包。
+六目标均保持原有完整构建与打包，缓存收益须逐平台验收。
 
 工作流在恢复前动态领取槽位，GITHUB_ENV 导出绝对 CARGO_TARGET_DIR，dist、工具安装、
 打包与测量脚本共用该槽位，直到最终 always 清理步骤才释放。测量脚本校验 run ID、锁和路径，
@@ -244,3 +244,40 @@ ARM64 Windows 原生验证明确待补，不能把 x64 Windows 交叉构建算�
 没有可信冷缓存证据时标为首次测量，不编造冷/热加速比例。
 目前无远端 run 链接、冷热净收益或两平台完整原生兼容性证据，因此拒绝采纳生产合并，
 保留 true。该决定保护既有功能，不能据此声称已完成性能验收或已取得提速。
+
+## 六平台回归入口与最终验收报告（2026-11-04，待真实运行）
+
+`experiment=dist` 现串行覆盖全部六目标：Intel macOS 使用 macos-15-intel，
+ARM macOS 使用 macos-14，Windows x64/ARM64 使用 windows-2022，Linux x64/ARM64
+分别使用 ubuntu-22.04/ubuntu-22.04-arm。LTO、precise 候选仍只测原两个关注目标。
+使用原测量器的 benchmark 函数，使六目标复用同一日志、槽位和退出码检查；CLI 的
+`--run` 仍只接受最初两个目标。Linux 安装与发行配置相同的系统开发库和 rpm；
+Windows 固定 WiX 5.0.2；macOS 沿用固定 cargo-bundle 工具。每项工具安装步骤的耗时
+由 Actions 单独记录，不能计入编译节省或从总成本中忽略。
+
+测量后复用同一持有槽位内五个二进制：Linux 生成 DEB/RPM；Windows 以 SKIP_BUILD=1
+生成 ZIP/MSI；macOS 以 SKIP_BUILD=1、adhoc、关闭公证生成 App/ZIP/DMG。
+打包脚本缺失预构建输入会失败，不补跑隐藏编译。打包、校验完成后才保存缓存并释放锁。
+`benchmark/packages.json` 记录产物字节数和 SHA256，Linux 另保存包元数据及安装路径清单；
+诊断 artifact 不上传可执行安装包。后缀存在和散列记录只证明文件存在，不能替代人工或
+平台工具核对归档成员、版本、目标架构、MSI 表、App 签名与 manifest 的最终验收。
+
+本地聚焦回归为 44 项：42 通过、1 跳过、1 错误。Linux 真实 DEB 测试因缺原生 Debian
+工具跳过；发布测试在 Python 3.9 关闭模拟 fp=None 的 HTTPError 时出现 tempfile
+KeyError: 'file'，与本批工作流及前序构建优化没有调用关系，未改发布逻辑。
+Clippy 与四个 shell 脚本语法检查通过。上述证据不代表任何真实发行目标完成链接。
+
+当前没有六平台 run 链接、实际安装包验证或同提交冷热对照，最终净收益为“未测得”。
+实际保留 thin LTO、precise-builds=true；off LTO 与合并构建均未采纳。
+编译缓存与固定工具缓存已连线但收益仍待测，不能以 cache-hit=true 判定保留收益成立。
+同 SHA 先以 cache=off 测基线，再以 cache=restore 建立缓存并重复运行；每个关注目标
+须补齐至少一次可信冷运行和一次热运行。槽位或共享 build-dir 已有内容时标为首次运行，
+不得称冷运行。逐项记录编译、工具安装、打包、缓存恢复/复制/保存及 job 总墙钟时间；
+净收益比较 job 总墙钟而非叠加可能重叠的 step 时间。若缓存传输使总耗时净增，应回退
+对应缓存 restore/save 与 staging 步骤；固定工具回退至前序版本须同时调整版本和缓存键。
+回退 LTO/precise 实验只需删除对应候选 job，生产配置目前没有采纳它们。
+
+恢复验收需要将提交推送到支持 workflow_dispatch 的分支并由授权者启动安全基准，
+提供六 runner 资源与日志；当前连接工具没有新增 dispatch 能力，本机未安装 gh。
+真实 Developer ID 签名、公证和 stapling 留待下一次授权发布，绝不以 ad-hoc 或模拟
+故障测试宣称已通过真实外部服务。仍须补齐 ARM64 Windows 原生行为及全部包内容核验。

@@ -1,6 +1,9 @@
 name: Release benchmark
 
 on:
+  # Branch-only equivalent of experiment=precise; no publishing jobs.
+  push:
+    branches: [codex/release-precise-benchmark]
   workflow_dispatch:
     inputs:
       experiment:
@@ -439,7 +442,7 @@ jobs:
           if-no-files-found: error
 
   precise:
-    if: inputs.experiment == 'precise'
+    if: inputs.experiment == 'precise' || (github.event_name == 'push' && github.ref == 'refs/heads/codex/release-precise-benchmark')
     strategy:
       fail-fast: false
       max-parallel: 1

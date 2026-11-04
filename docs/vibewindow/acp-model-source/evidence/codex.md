@@ -1,6 +1,6 @@
 # Codex model-source evidence
 
-Implementation complete; retain task 13 for the coordinated formal regression.
+Formal coordinated regression passed on 2026-11-04; task 13 is complete.
 Host: macOS / Darwin arm64, 2026-11-04. Linux and Windows are unverified.
 Only the model upstream is a fixture: the adapter, engine, subprocesses, file
 reads and production Rust ACP request path are real. No paid model was contacted.
@@ -135,3 +135,26 @@ cargo clippy --all-targets --all-features -- -D warnings
 Task 33 still owns installer/shared capability publication. Only after the formal
 checks pass should task 13 be deleted and support published for this verified
 platform/version; this evidence does not assert 22/22 or other-platform success.
+
+## Formal coordinated regression result — 2026-11-04
+
+After all implementation tasks completed, dynamically acquired slot 1 using
+atomic mkdir and recorded the plan/task/session/PID. Both CARGO_TARGET_DIR and
+CARGO_BUILD_BUILD_DIR were `/Users/xiangmin/worker/code/shiju/target/rust-slot-1`.
+`cargo fmt --all` exited 0 before the Rust checks. Both focused commands above
+passed again (Codex: 6 passed / 2 explicitly ignored; Responses: 6 passed).
+
+The two formal verifier commands above ran Cargo directly, with no
+`--cached-test-binary`. [Session-model](codex/session-model-formal.json) and
+[cli-local](codex/cli-local-formal.json) each report one effective test,
+`cargo_exit_code: 0`, and `passed: true`. They observed respectively 9 and 7
+actual authenticated Responses generation requests, zero fixture errors,
+two real file-tool results, and every lifecycle/handshake flag true.
+Session-model used primary and switched models; cli-local retained native primary.
+These formal reports supersede the earlier cached reports for acceptance.
+
+`cargo clippy --all-targets --all-features -- -D warnings` exited 0 against the
+latest shared workspace. No repair was required. The focused test linker still
+reported the large macOS `__eh_frame` warning; Clippy itself passed with warnings
+denied. All subprocesses ended before this task released its own lock; caches
+were retained. No cross-platform or additional supplier capability is claimed.

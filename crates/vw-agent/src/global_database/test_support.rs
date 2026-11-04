@@ -130,7 +130,7 @@ impl PostgresTestDatabase {
     }
 
     /// 使用相同配置重新打开全局数据库。
-    pub(super) fn reopen(&self) -> Result<GlobalDatabase> {
+    pub(crate) fn reopen(&self) -> Result<GlobalDatabase> {
         GlobalDatabase::for_home_with_postgres_settings(
             self.home.path(),
             |_| Some(self.database_url.clone()),

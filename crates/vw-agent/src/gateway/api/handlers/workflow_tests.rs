@@ -34,7 +34,7 @@ use crate::workflow::{
 use axum::{
     Json,
     extract::{Extension, Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
 };
 use parking_lot::Mutex;
 use rusqlite::params;
@@ -140,7 +140,7 @@ async fn workflow_handlers_cover_list_and_uuid_hydration_short_circuits() {
     .expect("create workflow");
 
     let Json(records) =
-        workflow_applications_list(Extension(tenant.clone())).await.expect("list workflows");
+        workflow_applications_list(Extension(tenant.clone()), None).await.expect("list workflows");
     assert!(records.iter().any(|record| record.uuid == created.uuid));
 
     let mut no_uuid = WorkflowRunRequest::default();
@@ -272,10 +272,11 @@ async fn workflow_handlers_keep_shared_uuid_isolated_by_request_tenant() {
         assert_eq!(created.name, name);
     }
 
-    let Json(record_a) = workflow_application_get(Extension(tenant_a.clone()), Path(uuid.clone()))
-        .await
-        .expect("get tenant A workflow");
-    let Json(record_b) = workflow_application_get(Extension(tenant_b.clone()), Path(uuid))
+    let Json(record_a) =
+        workflow_application_get(Extension(tenant_a.clone()), Path(uuid.clone()), None)
+            .await
+            .expect("get tenant A workflow");
+    let Json(record_b) = workflow_application_get(Extension(tenant_b.clone()), Path(uuid), None)
         .await
         .expect("get tenant B workflow");
     assert_eq!(record_a.workflow_yaml, "tenant: a");
@@ -284,6 +285,7 @@ async fn workflow_handlers_keep_shared_uuid_isolated_by_request_tenant() {
     let Json(updated_a) = workflow_application_update(
         Extension(tenant_a.clone()),
         Path(record_a.uuid.clone()),
+        HeaderMap::new(),
         Json(WorkflowRecordUpsertBody {
             uuid: None,
             name: "Tenant A Updated".to_string(),
@@ -300,11 +302,12 @@ async fn workflow_handlers_keep_shared_uuid_isolated_by_request_tenant() {
             .await
             .expect("delete tenant A workflow");
     assert!(deleted_a.deleted);
-    let missing_a = workflow_application_get(Extension(tenant_a), Path(record_b.uuid.clone()))
-        .await
-        .expect_err("tenant A workflow should be deleted");
+    let missing_a =
+        workflow_application_get(Extension(tenant_a), Path(record_b.uuid.clone()), None)
+            .await
+            .expect_err("tenant A workflow should be deleted");
     assert_eq!(missing_a.status, StatusCode::NOT_FOUND);
-    let Json(record_b) = workflow_application_get(Extension(tenant_b), Path(record_b.uuid))
+    let Json(record_b) = workflow_application_get(Extension(tenant_b), Path(record_b.uuid), None)
         .await
         .expect("tenant B workflow survives tenant A delete");
     assert_eq!(record_b.workflow_yaml, "tenant: b");
@@ -341,7 +344,7 @@ async fn assert_workflow_uuid_hydration_is_isolated_by_tenant_and_ignores_legacy
             .expect_err("legacy table must be invisible");
     assert_eq!(missing.status, StatusCode::NOT_FOUND);
 
-    super::super::workflow_store::create_record(
+    crate::workflow::store::create_record(
         database.clone(),
         tenant_a.clone(),
         WorkflowRecordUpsertBody {
@@ -353,7 +356,7 @@ async fn assert_workflow_uuid_hydration_is_isolated_by_tenant_and_ignores_legacy
     )
     .await
     .expect("tenant A workflow");
-    super::super::workflow_store::create_record(
+    crate::workflow::store::create_record(
         database.clone(),
         tenant_b.clone(),
         WorkflowRecordUpsertBody {
@@ -1558,4 +1561,25 @@ async fn talking_head_api_live_configured_gateway_returns_validated_plans() {
     }
     server.abort();
     let _ = server.await;
+}
+
+#[tokio::test]
+async fn video_edit_template_uuid_hydration_reads_tenant_record_and_rejects_override() {
+    use crate::workflow::templates::{VIDEO_EDIT_TEMPLATE_UUID, VideoEditTemplateSeed};
+    let home = tempfile::tempdir().unwrap();
+    let database = GlobalDatabase::for_home(home.path()).unwrap();
+    let tenant = test_tenant("template-hydration");
+    let seed = VideoEditTemplateSeed::new(
+        "workflow:\n  graph:\n    nodes:\n      - id: start\n        data: {type: start}\n".into(),
+    )
+    .unwrap();
+    let snapshot = seed.load(database.clone(), tenant.clone()).await.unwrap();
+    let mut request = WorkflowRunRequest {
+        workflow_uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
+        ..Default::default()
+    };
+    hydrate_workflow_yaml_from_uuid(database.clone(), tenant.clone(), &mut request).await.unwrap();
+    assert_eq!(request.workflow_yaml.as_deref(), Some(snapshot.record.workflow_yaml.as_str()));
+    let error = hydrate_workflow_yaml_from_uuid(database, tenant, &mut request).await.unwrap_err();
+    assert_eq!(error.status, StatusCode::BAD_REQUEST);
 }

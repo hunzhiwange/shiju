@@ -2,7 +2,6 @@
 
 // 同一套行为会在 SQLite 与 PostgreSQL 提供方上执行，避免后端语义漂移。
 use super::*;
-use axum::http::StatusCode;
 use tempfile::TempDir;
 
 use crate::global_database::config::DatabaseProvider;
@@ -142,7 +141,7 @@ async fn assert_workflow_workflows_are_isolated_by_tenant(database: GlobalDataba
     let missing = get_record(database.clone(), tenant_a, shared_uuid.clone())
         .await
         .expect_err("tenant A record is missing");
-    assert_eq!(missing.status, StatusCode::NOT_FOUND);
+    assert!(matches!(&missing, WorkflowStoreError::NotFound(_)));
 
     assert_legacy_workflow_row(&database, &shared_uuid);
 }
@@ -267,18 +266,18 @@ async fn workflow_store_create_generates_uuid_and_validates_inputs() {
     let invalid_uuid = get_record(database.clone(), tenant.clone(), "not-a-uuid".to_string())
         .await
         .expect_err("invalid uuid");
-    assert_eq!(invalid_uuid.status, StatusCode::BAD_REQUEST);
+    assert!(matches!(&invalid_uuid, WorkflowStoreError::Invalid(_)));
     assert_eq!(invalid_uuid.to_string(), "workflow uuid is invalid");
 
     let blank_name = create_record(database.clone(), tenant.clone(), body("   ", "workflow"))
         .await
         .expect_err("blank name");
-    assert_eq!(blank_name.status, StatusCode::BAD_REQUEST);
+    assert!(matches!(&blank_name, WorkflowStoreError::Invalid(_)));
     assert_eq!(blank_name.to_string(), "workflow name is required");
 
     let blank_yaml =
         create_record(database, tenant, body("Name", "  ")).await.expect_err("blank yaml");
-    assert_eq!(blank_yaml.status, StatusCode::BAD_REQUEST);
+    assert!(matches!(&blank_yaml, WorkflowStoreError::Invalid(_)));
     assert_eq!(blank_yaml.to_string(), "workflow_yaml is required");
 }
 
@@ -309,11 +308,11 @@ fn workflow_store_blocking_helpers_cover_sql_and_integer_edges() {
     let missing_uuid = Uuid::new_v4().to_string();
     let missing = get_record_blocking(database.clone(), &tenant, &missing_uuid)
         .expect_err("missing valid uuid should fail");
-    assert_eq!(missing.status, StatusCode::NOT_FOUND);
+    assert!(matches!(&missing, WorkflowStoreError::NotFound(_)));
 
     let invalid_update =
         update_record_blocking_for_test(database, &tenant, "bad", body("Name", "yaml"));
-    assert_eq!(invalid_update.expect_err("invalid uuid").status, StatusCode::BAD_REQUEST);
+    assert!(matches!(invalid_update.expect_err("invalid uuid"), WorkflowStoreError::Invalid(_)));
 
     let invalid_home = tempfile::tempdir().expect("invalid temp home");
     let invalid_path = invalid_home.path().join("database").join("_index.sqlite3");
@@ -322,20 +321,20 @@ fn workflow_store_blocking_helpers_cover_sql_and_integer_edges() {
     std::fs::create_dir(&invalid_path).expect("replace database with directory");
     let sql = list_records_blocking(invalid_database, &tenant)
         .expect_err("opening directory as database should fail");
-    assert_eq!(sql.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(matches!(&sql, WorkflowStoreError::Internal(_)));
     assert!(sql.to_string().contains("workflow database error"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn workflow_store_maps_blocking_task_panics_to_internal_error() {
     let (_home, database) = database();
-    let error = spawn_store_task(database, |_database| -> Result<(), ApiError> {
+    let error = spawn_store_task(database, |_database| -> Result<(), WorkflowStoreError> {
         panic!("store task panic");
     })
     .await
     .expect_err("panic should become internal error");
 
-    assert_eq!(error.status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert!(matches!(&error, WorkflowStoreError::Internal(_)));
     assert!(error.to_string().contains("workflow store task failed"));
 }
 
@@ -344,7 +343,7 @@ fn update_record_blocking_for_test(
     tenant: &TenantScope,
     uuid: &str,
     body: WorkflowRecordUpsertBody,
-) -> Result<WorkflowRecord, ApiError> {
+) -> Result<WorkflowRecord, WorkflowStoreError> {
     upsert_record_blocking(database, tenant, uuid, &body)
 }
 

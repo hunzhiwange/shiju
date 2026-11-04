@@ -122,6 +122,61 @@ impl PostgresWorkflowStore {
         query_record(&mut *connection, tenant, uuid)
     }
 
+    /// 初始化只插入缺失记录；编辑通过数据库版本条件拒绝过期写入。
+    pub(super) fn write_template_record(
+        &self,
+        tenant: &TenantScope,
+        uuid: &str,
+        body: &WorkflowRecordUpsertBody,
+        now_ms: u64,
+        expected_updated_at_ms: Option<u64>,
+    ) -> Result<Option<WorkflowRecord>> {
+        let mut connection = self.database.connect_postgres()?;
+        let mut transaction = connection.transaction()?;
+        let now = i64::try_from(now_ms).unwrap_or(i64::MAX);
+        if let Some(version) = expected_updated_at_ms {
+            let version = i64::try_from(version)?;
+            let changed = transaction.execute(
+                "UPDATE workflow_workflows SET name = $4, description = $5,
+                 workflow_yaml = $6, updated_at_ms = GREATEST($7, updated_at_ms + 1)
+                 WHERE platform_id = $1 AND company_id = $2 AND uuid = $3
+                   AND updated_at_ms = $8",
+                &[
+                    &tenant.platform_id().as_ref(),
+                    &tenant.company_id().as_ref(),
+                    &uuid,
+                    &body.name.trim(),
+                    &body.description.trim(),
+                    &body.workflow_yaml,
+                    &now,
+                    &version,
+                ],
+            )?;
+            if changed != 1 {
+                return Ok(None);
+            }
+        } else {
+            transaction.execute(
+                "INSERT INTO workflow_workflows
+                 (platform_id, company_id, uuid, name, description, workflow_yaml,
+                  created_at_ms, updated_at_ms) VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
+                 ON CONFLICT(platform_id, company_id, uuid) DO NOTHING",
+                &[
+                    &tenant.platform_id().as_ref(),
+                    &tenant.company_id().as_ref(),
+                    &uuid,
+                    &body.name.trim(),
+                    &body.description.trim(),
+                    &body.workflow_yaml,
+                    &now,
+                ],
+            )?;
+        }
+        let record = query_record(&mut transaction, tenant, uuid)?;
+        transaction.commit()?;
+        Ok(record)
+    }
+
     /// 删除租户内单条工作流并返回是否删除。
     pub(super) fn delete_record(&self, tenant: &TenantScope, uuid: &str) -> Result<bool> {
         let mut connection = self.database.connect_postgres()?;

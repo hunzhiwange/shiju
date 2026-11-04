@@ -28,3 +28,10 @@ mod tests;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub mod video_edit;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod store;
+#[cfg(not(target_arch = "wasm32"))]
+pub mod templates;
+#[cfg(all(test, not(target_arch = "wasm32")))]
+mod templates_tests;

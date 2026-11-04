@@ -9,11 +9,14 @@ use vw_api_types::workflow::{
     WorkflowRecord, WorkflowRecordDeleteResponse, WorkflowRecordSummary, WorkflowRecordUpsertBody,
 };
 
-use crate::app::agent::gateway::ApiError;
+mod error;
 use crate::global_database::GlobalDatabase;
 use crate::global_database::config::DatabaseProvider;
+pub use error::WorkflowStoreError;
 
 mod postgres;
+mod template_records;
+pub(super) use template_records::write_template_record;
 
 use postgres::PostgresWorkflowStore;
 
@@ -32,28 +35,28 @@ CREATE TABLE IF NOT EXISTS workflow_workflows (
 "#;
 
 /// 按更新时间倒序列出租户工作流摘要。
-pub(super) async fn list_records(
+pub(crate) async fn list_records(
     database: GlobalDatabase,
     tenant: TenantScope,
-) -> Result<Vec<WorkflowRecordSummary>, ApiError> {
+) -> Result<Vec<WorkflowRecordSummary>, WorkflowStoreError> {
     spawn_store_task(database, move |database| list_records_blocking(database, &tenant)).await
 }
 
 /// 读取租户内指定 UUID 的完整工作流。
-pub(super) async fn get_record(
+pub(crate) async fn get_record(
     database: GlobalDatabase,
     tenant: TenantScope,
     uuid: String,
-) -> Result<WorkflowRecord, ApiError> {
+) -> Result<WorkflowRecord, WorkflowStoreError> {
     spawn_store_task(database, move |database| get_record_blocking(database, &tenant, &uuid)).await
 }
 
 /// 创建工作流；请求未提供 UUID 时生成新标识。
-pub(super) async fn create_record(
+pub(crate) async fn create_record(
     database: GlobalDatabase,
     tenant: TenantScope,
     body: WorkflowRecordUpsertBody,
-) -> Result<WorkflowRecord, ApiError> {
+) -> Result<WorkflowRecord, WorkflowStoreError> {
     spawn_store_task(database, move |database| {
         let uuid = body.uuid.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
         upsert_record_blocking(database, &tenant, &uuid, &body)
@@ -62,12 +65,12 @@ pub(super) async fn create_record(
 }
 
 /// 更新租户内指定 UUID 的工作流。
-pub(super) async fn update_record(
+pub(crate) async fn update_record(
     database: GlobalDatabase,
     tenant: TenantScope,
     uuid: String,
     body: WorkflowRecordUpsertBody,
-) -> Result<WorkflowRecord, ApiError> {
+) -> Result<WorkflowRecord, WorkflowStoreError> {
     spawn_store_task(database, move |database| {
         upsert_record_blocking(database, &tenant, &uuid, &body)
     })
@@ -75,28 +78,28 @@ pub(super) async fn update_record(
 }
 
 /// 删除租户内指定 UUID 的工作流并报告是否命中记录。
-pub(super) async fn delete_record(
+pub(crate) async fn delete_record(
     database: GlobalDatabase,
     tenant: TenantScope,
     uuid: String,
-) -> Result<WorkflowRecordDeleteResponse, ApiError> {
+) -> Result<WorkflowRecordDeleteResponse, WorkflowStoreError> {
     spawn_store_task(database, move |database| delete_record_blocking(database, &tenant, &uuid))
         .await
 }
 
 async fn spawn_store_task<T: Send + 'static>(
     database: GlobalDatabase,
-    task: impl FnOnce(GlobalDatabase) -> Result<T, ApiError> + Send + 'static,
-) -> Result<T, ApiError> {
-    tokio::task::spawn_blocking(move || task(database))
-        .await
-        .map_err(|error| ApiError::internal(format!("workflow store task failed: {error}")))?
+    task: impl FnOnce(GlobalDatabase) -> Result<T, WorkflowStoreError> + Send + 'static,
+) -> Result<T, WorkflowStoreError> {
+    tokio::task::spawn_blocking(move || task(database)).await.map_err(|error| {
+        WorkflowStoreError::internal(format!("workflow store task failed: {error}"))
+    })?
 }
 
 fn list_records_blocking(
     database: GlobalDatabase,
     tenant: &TenantScope,
-) -> Result<Vec<WorkflowRecordSummary>, ApiError> {
+) -> Result<Vec<WorkflowRecordSummary>, WorkflowStoreError> {
     match database.provider() {
         DatabaseProvider::Sqlite => {
             let conn = open_db(&database)?;
@@ -136,7 +139,7 @@ fn get_record_blocking(
     database: GlobalDatabase,
     tenant: &TenantScope,
     uuid: &str,
-) -> Result<WorkflowRecord, ApiError> {
+) -> Result<WorkflowRecord, WorkflowStoreError> {
     validate_uuid(uuid)?;
     let record = match database.provider() {
         DatabaseProvider::Sqlite => {
@@ -147,7 +150,8 @@ fn get_record_blocking(
             .and_then(|store| store.query_record(tenant, uuid))
             .map_err(database_error)?,
     };
-    record.ok_or_else(|| ApiError::not_found(format!("workflow record not found: {uuid}")))
+    record
+        .ok_or_else(|| WorkflowStoreError::not_found(format!("workflow record not found: {uuid}")))
 }
 
 fn upsert_record_blocking(
@@ -155,9 +159,10 @@ fn upsert_record_blocking(
     tenant: &TenantScope,
     uuid: &str,
     body: &WorkflowRecordUpsertBody,
-) -> Result<WorkflowRecord, ApiError> {
+) -> Result<WorkflowRecord, WorkflowStoreError> {
     validate_uuid(uuid)?;
     validate_body(body)?;
+    reject_system_template_write(uuid)?;
     let now = now_ms();
     let record = match database.provider() {
         DatabaseProvider::Sqlite => {
@@ -194,15 +199,20 @@ fn upsert_record_blocking(
             .and_then(|store| store.upsert_record(tenant, uuid, body, now))
             .map_err(database_error)?,
     };
-    record.ok_or_else(|| ApiError::internal("workflow record was not saved"))
+    record.ok_or_else(|| WorkflowStoreError::internal("workflow record was not saved"))
 }
 
 fn delete_record_blocking(
     database: GlobalDatabase,
     tenant: &TenantScope,
     uuid: &str,
-) -> Result<WorkflowRecordDeleteResponse, ApiError> {
+) -> Result<WorkflowRecordDeleteResponse, WorkflowStoreError> {
     validate_uuid(uuid)?;
+    if uuid == super::templates::VIDEO_EDIT_TEMPLATE_UUID {
+        return Err(WorkflowStoreError::bad_request(
+            "系统入口模板不可删除；请编辑或明确确认后恢复默认",
+        ));
+    }
     let changed = match database.provider() {
         DatabaseProvider::Sqlite => {
             open_db(&database)?
@@ -226,7 +236,7 @@ fn query_record(
     conn: &Connection,
     tenant: &TenantScope,
     uuid: &str,
-) -> Result<Option<WorkflowRecord>, ApiError> {
+) -> Result<Option<WorkflowRecord>, WorkflowStoreError> {
     conn.query_row(
         "SELECT uuid, name, description, workflow_yaml, created_at_ms, updated_at_ms \
          FROM workflow_workflows \
@@ -247,7 +257,7 @@ fn query_record(
     .map_err(sql_error)
 }
 
-fn open_db(database: &GlobalDatabase) -> Result<Connection, ApiError> {
+fn open_db(database: &GlobalDatabase) -> Result<Connection, WorkflowStoreError> {
     database
         .initialize_schema(|connection| {
             reject_unscoped_workflow_schema(connection)?;
@@ -292,16 +302,18 @@ fn read_u64(row: &rusqlite::Row<'_>, index: usize) -> rusqlite::Result<u64> {
     Ok(u64::try_from(value).unwrap_or_default())
 }
 
-fn validate_uuid(uuid: &str) -> Result<(), ApiError> {
-    Uuid::parse_str(uuid).map(|_| ()).map_err(|_| ApiError::bad_request("workflow uuid is invalid"))
+fn validate_uuid(uuid: &str) -> Result<(), WorkflowStoreError> {
+    Uuid::parse_str(uuid)
+        .map(|_| ())
+        .map_err(|_| WorkflowStoreError::bad_request("workflow uuid is invalid"))
 }
 
-fn validate_body(body: &WorkflowRecordUpsertBody) -> Result<(), ApiError> {
+fn validate_body(body: &WorkflowRecordUpsertBody) -> Result<(), WorkflowStoreError> {
     if body.name.trim().is_empty() {
-        return Err(ApiError::bad_request("workflow name is required"));
+        return Err(WorkflowStoreError::bad_request("workflow name is required"));
     }
     if body.workflow_yaml.trim().is_empty() {
-        return Err(ApiError::bad_request("workflow_yaml is required"));
+        return Err(WorkflowStoreError::bad_request("workflow_yaml is required"));
     }
     Ok(())
 }
@@ -315,14 +327,21 @@ fn now_ms() -> u64 {
         .unwrap_or(u64::MAX)
 }
 
-fn sql_error(error: rusqlite::Error) -> ApiError {
-    ApiError::internal(format!("workflow database error: {error}"))
+fn sql_error(error: rusqlite::Error) -> WorkflowStoreError {
+    WorkflowStoreError::internal(format!("workflow database error: {error}"))
 }
 
-fn database_error(error: anyhow::Error) -> ApiError {
-    ApiError::internal(format!("workflow database error: {error:#}"))
+fn database_error(error: anyhow::Error) -> WorkflowStoreError {
+    WorkflowStoreError::internal(format!("workflow database error: {error:#}"))
 }
 
 #[cfg(test)]
-#[path = "workflow_store_tests.rs"]
-mod workflow_store_tests;
+#[path = "store_tests.rs"]
+mod store_tests;
+
+fn reject_system_template_write(uuid: &str) -> Result<(), WorkflowStoreError> {
+    if uuid == super::templates::VIDEO_EDIT_TEMPLATE_UUID {
+        return Err(WorkflowStoreError::bad_request("系统入口模板必须使用带版本校验的更新操作"));
+    }
+    Ok(())
+}

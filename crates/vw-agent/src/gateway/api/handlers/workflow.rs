@@ -3,7 +3,7 @@
 use axum::{
     Json, Router,
     extract::{Extension, Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::{
         IntoResponse, Response, Sse,
         sse::{Event, KeepAlive},
@@ -34,6 +34,7 @@ use crate::app::agent::tools::{
     ToolCallError, ToolRuntimeContext, ToolUseContext, execute_tool_call,
 };
 use crate::global_database::GlobalDatabase;
+use crate::workflow::templates::{self, VIDEO_EDIT_TEMPLATE_UUID, VideoEditTemplateSeed};
 use crate::workflow::{
     WorkflowNodeDeltaEvent, WorkflowNodeStartedEvent, WorkflowRunEvent, WorkflowRuntime,
     WorkflowToolProvider, WorkflowToolRequest, WorkflowToolResult, resume_workflow, run_workflow,
@@ -64,6 +65,7 @@ where
             "/workflow/applications",
             get(workflow_applications_list).post(workflow_application_create),
         )
+        .route("/workflow/applications/{uuid}/restore-default", post(workflow_template_restore))
         .route(
             "/workflow/applications/{uuid}",
             get(workflow_application_get)
@@ -306,16 +308,28 @@ async fn workflow_resume(
 
 async fn workflow_applications_list(
     Extension(tenant): Extension<TenantScope>,
+    seed: Option<Extension<VideoEditTemplateSeed>>,
 ) -> Result<Json<Vec<WorkflowRecordSummary>>, ApiError> {
-    let records = super::workflow_store::list_records(workflow_database()?, tenant).await?;
+    let database = workflow_database()?;
+    if let Some(Extension(seed)) = seed {
+        seed.load(database.clone(), tenant.clone()).await?;
+    }
+    let records = crate::workflow::store::list_records(database, tenant).await?;
     Ok(Json(records))
 }
 
 async fn workflow_application_get(
     Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
+    seed: Option<Extension<VideoEditTemplateSeed>>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record = super::workflow_store::get_record(workflow_database()?, tenant, uuid).await?;
+    let database = workflow_database()?;
+    if uuid == VIDEO_EDIT_TEMPLATE_UUID {
+        if let Some(Extension(seed)) = seed {
+            seed.load(database.clone(), tenant.clone()).await?;
+        }
+    }
+    let record = crate::workflow::store::get_record(database, tenant, uuid).await?;
     Ok(Json(record))
 }
 
@@ -323,25 +337,74 @@ async fn workflow_application_create(
     Extension(tenant): Extension<TenantScope>,
     Json(body): Json<WorkflowRecordUpsertBody>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record = super::workflow_store::create_record(workflow_database()?, tenant, body).await?;
+    let record = crate::workflow::store::create_record(workflow_database()?, tenant, body).await?;
     Ok(Json(record))
 }
 
 async fn workflow_application_update(
     Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
+    headers: HeaderMap,
     Json(body): Json<WorkflowRecordUpsertBody>,
 ) -> Result<Json<WorkflowRecord>, ApiError> {
-    let record =
-        super::workflow_store::update_record(workflow_database()?, tenant, uuid, body).await?;
+    let record = if uuid == VIDEO_EDIT_TEMPLATE_UUID {
+        templates::save_template(
+            workflow_database()?,
+            tenant,
+            body,
+            template_expected_version(&headers)?,
+        )
+        .await?
+    } else {
+        crate::workflow::store::update_record(workflow_database()?, tenant, uuid, body).await?
+    };
     Ok(Json(record))
+}
+
+/// 系统模板更新使用读取结果中的 updated_at_ms，缺少版本时拒绝写入。
+fn template_expected_version(headers: &HeaderMap) -> Result<u64, ApiError> {
+    headers
+        .get("x-workflow-expected-updated-at-ms")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.parse().ok())
+        .ok_or_else(|| {
+            ApiError::bad_request("系统模板保存需要 x-workflow-expected-updated-at-ms 版本")
+        })
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RestoreTemplateRequest {
+    confirmed: bool,
+}
+
+async fn workflow_template_restore(
+    Extension(tenant): Extension<TenantScope>,
+    Extension(seed): Extension<VideoEditTemplateSeed>,
+    Path(uuid): Path<String>,
+    headers: HeaderMap,
+    Json(body): Json<RestoreTemplateRequest>,
+) -> Result<Json<WorkflowRecord>, ApiError> {
+    if uuid != VIDEO_EDIT_TEMPLATE_UUID {
+        return Err(ApiError::bad_request("该工作流不是内置入口模板"));
+    }
+    Ok(Json(
+        seed.restore(
+            workflow_database()?,
+            tenant,
+            template_expected_version(&headers)?,
+            body.confirmed,
+        )
+        .await?,
+    ))
 }
 
 async fn workflow_application_delete(
     Extension(tenant): Extension<TenantScope>,
     Path(uuid): Path<String>,
 ) -> Result<Json<WorkflowRecordDeleteResponse>, ApiError> {
-    let response = super::workflow_store::delete_record(workflow_database()?, tenant, uuid).await?;
+    let response =
+        crate::workflow::store::delete_record(workflow_database()?, tenant, uuid).await?;
     Ok(Json(response))
 }
 
@@ -403,10 +466,13 @@ async fn hydrate_workflow_yaml_from_uuid(
         return Ok(());
     };
     if body.workflow_yaml.is_some() {
+        if uuid == VIDEO_EDIT_TEMPLATE_UUID {
+            return Err(ApiError::bad_request("系统入口模板不允许内联 YAML 覆盖租户记录"));
+        }
         return Ok(());
     }
 
-    let record = super::workflow_store::get_record(database, tenant, uuid).await?;
+    let record = crate::workflow::store::get_record(database, tenant, uuid).await?;
     body.workflow_yaml = Some(record.workflow_yaml);
     Ok(())
 }
@@ -1053,3 +1119,16 @@ fn now_unix_i64() -> i64 {
 #[cfg(test)]
 #[path = "workflow_tests.rs"]
 mod workflow_tests;
+
+impl From<crate::workflow::store::WorkflowStoreError> for ApiError {
+    fn from(error: crate::workflow::store::WorkflowStoreError) -> Self {
+        use crate::workflow::store::WorkflowStoreError;
+        let status = match &error {
+            WorkflowStoreError::Invalid(_) => StatusCode::BAD_REQUEST,
+            WorkflowStoreError::NotFound(_) => StatusCode::NOT_FOUND,
+            WorkflowStoreError::Conflict(_) => StatusCode::CONFLICT,
+            WorkflowStoreError::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
+        };
+        Self { status, message: error.to_string() }
+    }
+}

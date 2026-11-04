@@ -94,6 +94,15 @@ impl ToolRuntimeContext {
         self
     }
 
+    /// Reuse native configuration, full-access inheritance and delegated restrictions
+    /// for file-only entry points without constructing the executable tool registry.
+    pub(crate) fn path_security_policy(&self) -> Arc<SecurityPolicy> {
+        let config = runtime_config_for_context(self);
+        let base = self.tool_use_context();
+        let workspace = base.workspace_root().unwrap_or_else(|| config.workspace_dir.clone());
+        security_for_tool_context(&config, &workspace, &base)
+    }
+
     /// 返回当前会话的工具集合。
     pub fn session_tools(&self) -> &SessionToolset {
         &self.session_tools

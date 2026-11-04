@@ -25,3 +25,6 @@ pub use runner::{
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub mod video_edit;

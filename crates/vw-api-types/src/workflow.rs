@@ -164,3 +164,44 @@ pub struct WorkflowRecordDeleteResponse {
     pub uuid: String,
     pub deleted: bool,
 }
+
+/// User-editable options stored at `workflow.video_edit` in the template.
+/// Missing max_parallel still means a shared budget of five operations.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct VideoEditTemplateOptions {
+    #[serde(deserialize_with = "deserialize_video_edit_max_parallel")]
+    max_parallel: u8,
+}
+
+impl Default for VideoEditTemplateOptions {
+    fn default() -> Self {
+        Self { max_parallel: 5 }
+    }
+}
+
+impl VideoEditTemplateOptions {
+    pub fn new(max_parallel: u8) -> Result<Self, String> {
+        if !(1..=5).contains(&max_parallel) {
+            return Err("video_edit.max_parallel must be between 1 and 5".into());
+        }
+        Ok(Self { max_parallel })
+    }
+
+    pub fn max_parallel(&self) -> u8 {
+        self.max_parallel
+    }
+}
+
+fn deserialize_video_edit_max_parallel<'de, D>(deserializer: D) -> Result<u8, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let value = u8::deserialize(deserializer)?;
+    VideoEditTemplateOptions::new(value).map_err(serde::de::Error::custom)?;
+    Ok(value)
+}
+
+#[cfg(test)]
+#[path = "workflow_video_tests.rs"]
+mod workflow_video_tests;

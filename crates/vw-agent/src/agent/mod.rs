@@ -30,6 +30,9 @@ pub mod catalog;
 #[cfg(test)]
 mod catalog_tests;
 pub mod classifier;
+pub mod defaults;
+#[cfg(test)]
+mod defaults_tests;
 pub mod dispatcher;
 pub mod loop_;
 pub mod memory_loader;

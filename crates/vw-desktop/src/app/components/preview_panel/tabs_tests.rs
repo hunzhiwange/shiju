@@ -35,7 +35,6 @@ fn all_languages_keep_stable_order_and_labels() {
         vec![
             "English",
             "简体中文",
-            "繁體中文",
             "Français",
             "Español",
             "Deutsch",
@@ -51,7 +50,6 @@ fn display_language_labels_match_editor_languages() {
     let cases = [
         (Language::English, "English"),
         (Language::ChineseSimplified, "简体中文"),
-        (Language::ChineseTraditional, "繁體中文"),
         (Language::French, "Français"),
         (Language::Spanish, "Español"),
         (Language::German, "Deutsch"),

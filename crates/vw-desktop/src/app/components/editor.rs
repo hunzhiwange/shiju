@@ -190,18 +190,25 @@ impl Editor {
     pub fn set_ui_language(&mut self, language: i18n::Language) {
         self.inner.set_language(language);
         if self.preview_context_menu_configured {
-            self.inner.set_custom_context_menu_entries(preview_context_menu_entries(language));
+            self.inner.set_custom_context_menu_entries(preview_context_menu_entries(
+                match language {
+                    i18n::Language::ChineseSimplified => {
+                        vw_config_types::ui::DesktopLocale::SimplifiedChinese
+                    }
+                    _ => vw_config_types::ui::DesktopLocale::English,
+                },
+            ));
         }
     }
 
     /// 配置预览编辑器使用的应用菜单项和底层默认编辑菜单。
     pub fn configure_preview_context_menu(
         &mut self,
-        language: i18n::Language,
+        locale: vw_config_types::ui::DesktopLocale,
         reveal_in_file_manager_enabled: bool,
     ) {
         self.preview_context_menu_configured = true;
-        self.inner.set_custom_context_menu_entries(preview_context_menu_entries(language));
+        self.inner.set_custom_context_menu_entries(preview_context_menu_entries(locale));
         self.inner.set_default_context_menu_enabled(true);
         self.inner.set_reveal_in_file_manager_enabled(reveal_in_file_manager_enabled);
     }
@@ -547,14 +554,9 @@ impl Editor {
     }
 }
 
-fn preview_context_menu_entries(language: i18n::Language) -> Vec<ContextMenuEntry> {
-    let locale = match language {
-        i18n::Language::ChineseSimplified => vw_config_types::ui::DesktopLocale::SimplifiedChinese,
-        i18n::Language::ChineseTraditional => {
-            vw_config_types::ui::DesktopLocale::TraditionalChinese
-        }
-        _ => vw_config_types::ui::DesktopLocale::English,
-    };
+fn preview_context_menu_entries(
+    locale: vw_config_types::ui::DesktopLocale,
+) -> Vec<ContextMenuEntry> {
     let i18n = crate::app::i18n::I18n::new(locale);
     let insert_selection = i18n.__("插入选择到聊天");
     let insert_positions = i18n.__("插入选区位置信息");

@@ -13,13 +13,15 @@ fn desktop_gettext_area_16_uses_chinese_keys() {
 }
 
 #[test]
-fn desktop_gettext_area_16_editor_traditional_is_isolated() {
-    use iced_code_editor::{Language, Translations};
-    let traditional = Translations::new(Language::ChineseTraditional);
-    let english = Translations::new(Language::English);
-    assert_eq!(traditional.search_placeholder(), "搜尋...");
-    assert_eq!(english.search_placeholder(), "Search...");
-    assert_eq!(traditional.context_menu_copy(), "複製");
+fn desktop_gettext_area_16_editor_locales_use_supported_upstream_languages() {
+    use iced_code_editor::Language;
+    for (locale, expected) in [
+        (DesktopLocale::SimplifiedChinese, Language::ChineseSimplified),
+        (DesktopLocale::TraditionalChinese, Language::ChineseSimplified),
+        (DesktopLocale::English, Language::English),
+    ] {
+        assert_eq!(super::editor::language(locale), expected);
+    }
 }
 
 #[test]

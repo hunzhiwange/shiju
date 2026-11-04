@@ -262,7 +262,7 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_ui_language(crate::app::i18n::editor::language(app.desktop_locale));
                 editor.set_search_replace_enabled(true);
                 editor.configure_preview_context_menu(
-                    crate::app::i18n::editor::language(app.desktop_locale),
+                    app.desktop_locale,
                     cfg!(not(target_arch = "wasm32")),
                 );
 
@@ -391,7 +391,10 @@ pub fn update(app: &mut App, message: PreviewMessage) -> Task<Message> {
                 editor.set_line_height(line_height.clamp(10.0, 60.0));
                 editor.set_ui_language(language);
                 editor.set_search_replace_enabled(true);
-                editor.configure_preview_context_menu(language, cfg!(not(target_arch = "wasm32")));
+                editor.configure_preview_context_menu(
+                    app.desktop_locale,
+                    cfg!(not(target_arch = "wasm32")),
+                );
                 tab.editor = editor;
                 #[cfg(not(target_arch = "wasm32"))]
                 {

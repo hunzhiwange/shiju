@@ -68,7 +68,7 @@ fn editor_content_view_is_constructible() {
 fn preview_context_menu_uses_stable_actions_default_entries_and_localized_labels() {
     let mut editor = Editor::new("", "rust");
 
-    editor.configure_preview_context_menu(Language::English, true);
+    editor.configure_preview_context_menu(vw_config_types::ui::DesktopLocale::English, true);
 
     assert!(editor.inner.default_context_menu_enabled());
     assert!(editor.inner.reveal_in_file_manager_enabled());
@@ -90,6 +90,21 @@ fn preview_context_menu_uses_stable_actions_default_entries_and_localized_labels
         &[
             ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION, "插入选择到聊天"),
             ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS, "插入选区位置信息"),
+        ]
+    );
+
+    editor.configure_preview_context_menu(
+        vw_config_types::ui::DesktopLocale::TraditionalChinese,
+        true,
+    );
+    assert_eq!(
+        editor.inner.custom_context_menu_entries(),
+        &[
+            ContextMenuEntry::item(APP_CONTEXT_MENU_INSERT_SELECTION, "將選取內容插入聊天"),
+            ContextMenuEntry::item(
+                APP_CONTEXT_MENU_INSERT_SELECTION_POSITIONS,
+                "插入選取範圍位置資訊"
+            ),
         ]
     );
 }

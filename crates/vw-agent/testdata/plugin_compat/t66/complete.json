@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "acceptance.t02",
+      "tasks": [
+        2
+      ],
+      "tests": [
+        "codex_plugin_compat_t02_preserves_isolation"
+      ],
+      "red": {
+        "command": "fixture-test",
+        "exit_code": 1,
+        "effective_tests": 1,
+        "record": "Synthetic checker input: target assertion failed"
+      },
+      "green": {
+        "command": "fixture-test",
+        "exit_code": 0,
+        "effective_tests": 1,
+        "record": "Synthetic checker input: target assertion passed"
+      },
+      "platforms": {
+        "verified": [
+          "macos",
+          "linux",
+          "windows"
+        ]
+      },
+      "external_prerequisites": [],
+      "conclusion": "verified"
+    }
+  ]
+}

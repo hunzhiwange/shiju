@@ -1,0 +1,17 @@
+{
+  "task": 66,
+  "license": "Repository-authored synthetic checker fixtures; same license as repository",
+  "derived_from": "t02/baseline.json and complete.json",
+  "reference": "scripts/plugin_compat/check_evidence.py::validate",
+  "expectations": [
+    "Missing in-scope evidence stays missing",
+    "Duplicate JSON keys fail without report mutation",
+    "Evidence inputs cannot be overwritten and unrelated IDs never satisfy another source"
+  ],
+  "synthetic_platforms": "Fixture platform declarations exercise the checker only; not real platform evidence",
+  "fixture_sha256": {
+    "baseline.json": "0821d65bae4b90f6bdebc09455659f178417c20fc3f6f770c6b702091d0a2db7",
+    "complete.json": "7176e3570cb081d0b15d84a5bb70eda66bb446b1c657dae377e416adb5a4ffb7"
+  },
+  "reference_sha256": "5861af50f574ee43886addd537078996f66e0a3dcc69a2824f289c5441e383f5"
+}

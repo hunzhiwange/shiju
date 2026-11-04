@@ -266,3 +266,8 @@ mod t64_tests;
 
 #[cfg(test)]
 mod platform_tests;
+
+#[cfg(test)]
+mod closure_tests;
+#[cfg(test)]
+mod t66_tests;

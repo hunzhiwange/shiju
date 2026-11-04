@@ -1,6 +1,6 @@
 # 插件兼容报告与指南来源
 
-任务 65，2026-11-04。产物为 [用户指南](user-guide.md) 与本报告；本任务不改变运行行为，不运行 Cargo、不领取槽位。基线登记 **299 项**，不是 299 项通过。任务 64 的 macOS 授权范围已完成（提交 `c22fe02a`），其 Linux/Windows/OAuth 跳过与任务 63 的真实账号豁免均不计通过。任务 66 的最终覆盖关闭未在本任务执行。
+任务 65，2026-11-04。产物为 [用户指南](user-guide.md) 与本报告；本任务不改变运行行为，不运行 Cargo、不领取槽位。基线登记 **299 项**，不是 299 项通过。任务 64 的 macOS 授权范围已完成（提交 `c22fe02a`），其 Linux/Windows/OAuth 跳过与任务 63 的真实账号豁免均不计通过。任务 66 已按后续授权汇总证据，后端回归未通过；详见末节，不构成最终覆盖关闭。
 
 ## 来源更新授权与边界
 
@@ -52,7 +52,7 @@
 
 ## 逐项来源与任务索引
 
-每行对应 baseline.json 的一个稳定 ID；字段及精确预期以该 JSON 为准。以下来源索引可在 JSON 的 sources 找到完整路径及 SHA-256；登记后的源码证据不自动升级为执行通过。t65 的证据在本报告，t66 尚待执行；其余链接只用于追溯记录，不表示其中没有限制、豁免或待验收。
+每行对应 baseline.json 的一个稳定 ID；字段及精确预期以该 JSON 为准。以下来源索引可在 JSON 的 sources 找到完整路径及 SHA-256；登记后的源码证据不自动升级为执行通过。t65/t66 的当前记录分别见对应 evidence 文件；任务66保留待回归；其余链接只用于追溯记录，不表示其中没有限制、豁免或待验收。
 
 | ID | 基线来源（symbol） | 负责任务与记录 |
 | --- | --- | --- |
@@ -289,8 +289,8 @@
 | `acceptance.t62` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/62-联调匿名公开-MCP.md` / `目的：` | [t62](evidence/t62.json) |
 | `acceptance.t63` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/63-联调公开-MCP-授权.md` / `目的：` | [t63](evidence/t63.json) |
 | `acceptance.t64` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/64-验证平台行为矩阵.md` / `目的：` | [t64](evidence/t64.json) |
-| `acceptance.t65` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/65-编写插件兼容指南.md` / `目的：` | t65（本文文档证据） |
-| `acceptance.t66` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/66-关闭兼容覆盖缺口.md` / `目的：` | t66（无独立 evidence 文件，未据此声称通过） |
+| `acceptance.t65` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/65-编写插件兼容指南.md` / `目的：` | [t65](evidence/t65.json) |
+| `acceptance.t66` | `vibewindow:.plans/2026-10-30-Codex-插件兼容/66-关闭兼容覆盖缺口.md` / `目的：` | [t66](evidence/t66.json) |
 | `official.portable` | `official:packaging` / `plugin-structure` | [t4](evidence/t04.json), [t15](evidence/t15.json) |
 | `official.oauth` | `official:packaging` / `oauth-configuration-reference` | [t17](evidence/t17.json), [t26](evidence/t26.json), [t27](evidence/t27.json) |
 | `official.api-key` | `official:packaging` / `fixed-bearer-tokens-and-api-keys` | [t17](evidence/t17.json) |
@@ -355,3 +355,35 @@
 | `mcp.legacy.extra.oauth.ema_registration` | `codex:codex-rs/config/src/mcp_types.rs` / `RawMcpServerConfig` | [t14](evidence/t14.json), [t17](evidence/t17.json) |
 | `mcp.legacy.extra.tools.<name>.approval_mode` | `codex:codex-rs/config/src/mcp_types.rs` / `RawMcpServerConfig` | [t14](evidence/t14.json), [t17](evidence/t17.json) |
 | `mcp.legacy.extra.tools.<name>.output_token_limit` | `codex:codex-rs/config/src/mcp_types.rs` / `RawMcpServerConfig` | [t14](evidence/t14.json), [t17](evidence/t17.json) |
+
+## 任务66：本次授权范围与当前结果
+
+2026-11-04 用户明确继续豁免 Windows、Linux 和真实 OAuth，要求先完成汇总、拒绝/隔离测试、macOS 回归及 clippy，并保留未验收项。此次不改变 baseline.json、plan.md、prompt.md，也不改严格检查器的任何要求。**不宣称完全兼容；任务66保留“已完成，待回归”。**
+
+[汇总 evidence.json](evidence.json) 包含 299 个稳定 ID、66 份来源记录的路径/散列与逐项任务引用。它按完整基线标准显示 298 项 unverified、1 项 excluded；0 项严格完整 verified。这里的 unverified 不表示 298 项实现均失败：原始任务级通过记录仍保留，逐项完整证据、任务联合映射和三平台/真实外部验收没有被批量补成通过。`scope.hosted-apps` 是基线唯一 excluded 项，用户平台/账号豁免没有改写为 excluded 或 verified。任务65的文档核验另见 [t65](evidence/t65.json)。
+
+复现汇总与完整检查：
+
+```sh
+python3 scripts/plugin_compat/summarize_evidence.py --baseline docs/plugin-compat/baseline.json --evidence-dir docs/plugin-compat/evidence --output docs/plugin-compat/evidence.json
+python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence.json
+```
+
+第一条退出 0 仅代表汇总成功；第二条当前退出 1，拒绝 `discovery.legacy-order: conclusion is pending or unverified`，不是获准完成全面兼容验收。汇总器不覆盖原输入或包内证据，不让未知 ID 满足其他能力，不以任务状态、豁免或 mock 填造 green/平台证据；输出先完成全部解析，再原子替换。
+
+| 当前命令/阶段 | 结果 |
+| --- | --- |
+| `cargo fmt --all` | 退出0，检查并隔离其他工作区变更；无需恢复无关格式差异 |
+| `cargo test -p vw-agent --lib --all-features codex_plugin_compat_t66_ -- --nocapture` | skeleton 三项目标断言失败，退出101；实现后3 passed、0 failed；最终再次3 passed、0 failed |
+| `cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture` | 退出101；计划448项，观察250个 ok 后在 t27 取消测试监听端口断言处中止，无完整通过汇总 |
+| 同上追加 `--test-threads=1` | 退出101；计划448项，观察271个 ok 后在 t32 旧的“执行不受支持”断言处中止，无完整通过汇总 |
+| `cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture` | 退出0，18 passed、0 failed、3 ignored；ignored 不计通过，无本次手工 UI 重验声明 |
+| `cargo clippy --all-targets --all-features -- -D warnings` | 退出0 |
+| `python3 -m unittest discover -s scripts/plugin_compat -p test_check_evidence.py` | 退出0，11 tests |
+| JSON、来源散列、链接及差异检查 | 通过，确切命令和源文件见 [t66](evidence/t66.json) |
+
+初始阶段槽位10，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-10`；串行与最终目标阶段槽位3，对应绝对目录 `target/rust-slot-3`。各自 `CARGO_BUILD_BUILD_DIR` 为该绝对目录下的 build；自有锁已释放、缓存保留。确切路径、退出码、日志散列和部分结果计数见 t66.json。红灯后与两次回归失败后均出现 panic 初始化失败/SIGABRT，故不把 scheduled 数量当作已执行通过数量；红灯依据是已经观察到的三项目标断言。
+
+待回归事实：t27 取消测试在串行阶段通过，但并行失败原因未证实；不声称已修复。t32 测试仍期待解析阶段的“不支持执行”错误，实际为 `failed to resolve hook host directory`；已只读核对该断言与后续 Hook 执行入口，未修改安全断言或生产行为来获取绿灯。**TODO：独立复核 t32 测试的宿主目录前提与当前信任/执行契约，以及 t27 并行端口断言，再运行完整后端过滤集。** 当前 Mac 后端回归不能计通过，不能以 clippy 或目标三项通过替代。
+
+其他未验收项继续保留：Windows/Linux；真实公开 OAuth 完整宿主授权/调用/退出与服务端撤销；原始记录中未通过严格逐项覆盖的联合任务及安全差异审查。没有擅自新建补充任务或改写用户豁免。

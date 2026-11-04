@@ -1,0 +1,200 @@
+{
+  "schema_version": 1,
+  "task": 66,
+  "status": "completed_pending_regression",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "full_compatibility_claimed": false,
+  "scope_adjustment": {
+    "date": "2026-11-04",
+    "authorization": "Continue Windows/Linux/real OAuth waivers; finish evidence aggregation, rejection/isolation tests, macOS regression and clippy; preserve unverified capabilities; no full compatibility claim.",
+    "waived_not_verified": [
+      "Windows",
+      "Linux",
+      "real public OAuth"
+    ],
+    "waivers_are_passing_evidence": false
+  },
+  "checks": [
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t66_ -- --nocapture",
+      "exit_code": 101,
+      "record": "docs/plugin-compat/evidence/t66/red.log",
+      "sha256": "91091f1f73d7535e6518dff3908716c6bdb0cce7962ceb0617b203e3e2fd94f9",
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+      "scheduled_tests": 3,
+      "observed_ok_lines": 0,
+      "summary_complete": false,
+      "target_assertions_observed": [
+        [
+          "plugins::compat::t66_tests::codex_plugin_compat_t66_rejects_invalid_input",
+          "crates/vw-agent/src/plugins/compat/t66_tests.rs:27:5:"
+        ],
+        [
+          "plugins::compat::t66_tests::codex_plugin_compat_t66_rejects_missing_in_scope_evidence",
+          "crates/vw-agent/src/plugins/compat/t66_tests.rs:14:5:"
+        ],
+        [
+          "plugins::compat::t66_tests::codex_plugin_compat_t66_preserves_isolation",
+          "crates/vw-agent/src/plugins/compat/t66_tests.rs:42:5:"
+        ]
+      ]
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t66_ -- --nocapture",
+      "exit_code": 0,
+      "record": "docs/plugin-compat/evidence/t66/green.log",
+      "sha256": "784d368f286df23df97a199624c74e7cc0b13c6cb26c08703630a4155d03b41a",
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_t66_ -- --nocapture",
+      "exit_code": 0,
+      "record": "docs/plugin-compat/evidence/t66/final-target.log",
+      "sha256": "7422fb023b2471c05d2e507fd9b953c27e0b310dfcb61193e350ab4b07a45c2a",
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture",
+      "exit_code": 101,
+      "record": "docs/plugin-compat/evidence/t66/agent.log",
+      "sha256": "c8d84fbc1e09efd81686171135064729be1f3bec85759545ca14a11266cef73b",
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+      "scheduled_tests": 448,
+      "observed_ok_lines": 250,
+      "summary_complete": false,
+      "target_assertions_observed": [
+        [
+          "plugins::compat::t27_flow_tests::codex_plugin_compat_t27_cancellation_cleans_question",
+          "crates/vw-agent/src/plugins/compat/t27_flow_tests.rs:265:5:"
+        ]
+      ]
+    },
+    {
+      "command": "cargo test -p vw-agent --lib --all-features codex_plugin_compat_ -- --nocapture --test-threads=1",
+      "exit_code": 101,
+      "record": "docs/plugin-compat/evidence/t66/agent-serial.log",
+      "sha256": "59d274e3d30a00f4bcb2f730f25b36b1a7770ea78429be00d8ef3b8e2d1b2765",
+      "slot": 3,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3/build",
+      "scheduled_tests": 448,
+      "observed_ok_lines": 271,
+      "summary_complete": false,
+      "target_assertions_observed": [
+        [
+          "plugins::compat::t32_tests::codex_plugin_compat_t32_runtime_reports_execution_as_unavailable",
+          "crates/vw-agent/src/plugins/compat/t32_tests.rs:259:5:"
+        ]
+      ]
+    },
+    {
+      "command": "cargo test -p vw-desktop --bin shi-ju --all-features codex_plugin_compat_ -- --nocapture",
+      "exit_code": 0,
+      "record": "docs/plugin-compat/evidence/t66/desktop.log",
+      "sha256": "c0227c97adbfb9b10babb5e8f2bd126bd58d8415a76bb4448f580671e20ff3c8",
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 3
+    },
+    {
+      "command": "cargo clippy --all-targets --all-features -- -D warnings",
+      "exit_code": 0,
+      "record": "docs/plugin-compat/evidence/t66/clippy.log",
+      "sha256": "87f2e3be747d679d06d25938144b93b5adc97eb530163b86c80215b5780bba20",
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build"
+    },
+    {
+      "command": "cargo fmt --all",
+      "exit_code": 0,
+      "record": "docs/plugin-compat/evidence/t66/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "slot": 10,
+      "CARGO_TARGET_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10",
+      "CARGO_BUILD_BUILD_DIR": "/Users/xiangmin/worker/code/shiju/target/rust-slot-10/build"
+    }
+  ],
+  "tdd": {
+    "red_effective_tests": 3,
+    "red_note": "Callable summarizer skeleton produced three target assertion failures; subsequent panic initialization failure aborted harness, so no complete red summary is claimed.",
+    "green_passed": 3,
+    "final_target_passed": 3
+  },
+  "regressions": [
+    {
+      "command_variant": "default parallel",
+      "failure": "t27_cancellation_cleans_question: terminal flows must close their loopback listener",
+      "observation": "250 ok lines before process abort; not a complete suite result. Cancellation test subsequently passed in serial run; cause not proven."
+    },
+    {
+      "command_variant": "serial",
+      "failure": "t32_runtime_reports_execution_as_unavailable: expected unsupported Codex hook error, received failed to resolve hook host directory",
+      "observation": "271 ok lines before process abort. Existing test asserts parsing-era unsupported runtime contract; production hook execution was implemented by later tasks. No assertion relaxed, production fix or skipped-test pass claimed."
+    }
+  ],
+  "verification": [
+    {
+      "command": "python3 -m unittest discover -s scripts/plugin_compat -p test_check_evidence.py",
+      "exit_code": 0,
+      "passed": 11
+    },
+    {
+      "command": "python3 scripts/plugin_compat/summarize_evidence.py --baseline docs/plugin-compat/baseline.json --evidence-dir docs/plugin-compat/evidence --output docs/plugin-compat/evidence.json",
+      "exit_code": 0,
+      "meaning": "Collection succeeded; not compatibility acceptance"
+    },
+    {
+      "command": "python3 scripts/plugin_compat/check_evidence.py --baseline docs/plugin-compat/baseline.json --evidence docs/plugin-compat/evidence.json",
+      "exit_code": 1,
+      "meaning": "Strict checker intentionally still rejects unverified in-scope coverage; not changed or bypassed"
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/evidence.json",
+      "exit_code": 0
+    },
+    {
+      "command": "Python artifact hashes, 299 unique capability IDs, unchanged readonly files, document links and deterministic summary validation",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check; git diff --cached --check",
+      "exit_code": 0
+    }
+  ],
+  "assertions": [
+    "Missing in-scope evidence never becomes verified",
+    "Waived platforms do not satisfy strict platform coverage",
+    "Duplicate JSON keys fail without replacing existing report",
+    "Source artifacts cannot be overwritten by output",
+    "Unknown capability IDs cannot satisfy another capability; source bytes preserved"
+  ],
+  "source_hashes": {
+    "scripts/plugin_compat/summarize_evidence.py": "19389a8d01177c9a1eb0fd9652f27f22653797ec2b7a138d45292865205dcb9a",
+    "scripts/plugin_compat/check_evidence.py": "5861af50f574ee43886addd537078996f66e0a3dcc69a2824f289c5441e383f5",
+    "crates/vw-agent/src/plugins/compat/closure_tests.rs": "e33a04358885c53e860c60cf1d43279aa9f1df574e7a43b68c8519ba12a43976",
+    "crates/vw-agent/src/plugins/compat/t66_tests.rs": "4c96c3c614b17e15bebf83cc7938b94c08c879b919cbd5d2cb836ff87c8a19be",
+    "crates/vw-agent/testdata/plugin_compat/t66/baseline.json": "0821d65bae4b90f6bdebc09455659f178417c20fc3f6f770c6b702091d0a2db7",
+    "crates/vw-agent/testdata/plugin_compat/t66/complete.json": "7176e3570cb081d0b15d84a5bb70eda66bb446b1c657dae377e416adb5a4ffb7"
+  },
+  "cargo_locks_released": true,
+  "cargo_caches_retained": true,
+  "artifact_note": "Raw logs stay local/ignored; their digests and actual commands are preserved here. No Windows/Linux/real OAuth acceptance or fresh interactive UI claim."
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "task": 65,
+  "status": "documentation_verified",
+  "implementation_commit": "9bbf7da3",
+  "revalidated_by_task": 66,
+  "checks": [
+    {
+      "command": "Compare task65 documents against git show 9bbf7da3",
+      "exit_code": 0,
+      "files": 3
+    },
+    {
+      "command": "Python hashlib/source symbol/unique ID/document link validation",
+      "exit_code": 0,
+      "codex_hashes": 55,
+      "source_references": 212,
+      "unique_ids": 299,
+      "links": 502
+    },
+    {
+      "command": "python3 -m json.tool docs/plugin-compat/baseline.json",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "limits": "Documentation evidence only. No artificial red/green runtime tests, no platform or public-service acceptance. Strict coverage remains unverified where its runtime evidence contract is unmet.",
+  "revalidation_stage": "Before task66 appends its report; task65 snapshot identified by implementation_commit"
+}

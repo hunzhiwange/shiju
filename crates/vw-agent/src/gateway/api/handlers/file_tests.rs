@@ -577,35 +577,44 @@ async fn file_move_copy_and_delete_v1_use_worktree_id_root() {
     let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
-    let _ = file_copy_v1(Json(CopyFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "copies/source.txt".to_string(),
-        overwrite: false,
-    }))
+    let _ = file_copy_v1(
+        Extension(TenantScope::default()),
+        Json(CopyFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "copies/source.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect("copy file");
     assert_eq!(std::fs::read_to_string(root.join("copies/source.txt")).expect("copy"), "source");
 
-    let _ = file_move_v1(Json(MoveFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "copies/source.txt".to_string(),
-        to_path: "moved.txt".to_string(),
-        overwrite: false,
-    }))
+    let _ = file_move_v1(
+        Extension(TenantScope::default()),
+        Json(MoveFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "copies/source.txt".to_string(),
+            to_path: "moved.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect("move file");
     assert!(root.join("moved.txt").is_file());
     assert!(!root.join("copies/source.txt").exists());
 
-    let _ = file_delete_v1(Json(DeleteFileRequest {
-        project_id,
-        worktree_id,
-        path: "moved.txt".to_string(),
-        recursive: false,
-    }))
+    let _ = file_delete_v1(
+        Extension(TenantScope::default()),
+        Json(DeleteFileRequest {
+            project_id,
+            worktree_id,
+            path: "moved.txt".to_string(),
+            recursive: false,
+        }),
+    )
     .await
     .expect("delete file");
     assert!(!root.join("moved.txt").exists());
@@ -624,91 +633,115 @@ async fn file_move_copy_and_delete_v1_cover_overwrite_and_error_paths() {
     let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
-    let missing = file_copy_v1(Json(CopyFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "missing.txt".to_string(),
-        to_path: "copy.txt".to_string(),
-        overwrite: false,
-    }))
+    let missing = file_copy_v1(
+        Extension(TenantScope::default()),
+        Json(CopyFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "missing.txt".to_string(),
+            to_path: "copy.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("missing source should fail");
     assert_eq!(missing.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let missing_move = file_move_v1(Json(MoveFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "missing.txt".to_string(),
-        to_path: "moved-missing.txt".to_string(),
-        overwrite: false,
-    }))
+    let missing_move = file_move_v1(
+        Extension(TenantScope::default()),
+        Json(MoveFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "missing.txt".to_string(),
+            to_path: "moved-missing.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("missing move source should fail");
     assert_eq!(missing_move.message, "file not found: missing.txt");
 
-    let conflict = file_copy_v1(Json(CopyFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "existing.txt".to_string(),
-        overwrite: false,
-    }))
+    let conflict = file_copy_v1(
+        Extension(TenantScope::default()),
+        Json(CopyFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "existing.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("copy conflict should fail");
     assert_eq!(conflict.message, "path already exists: existing.txt");
 
-    let _ = file_copy_v1(Json(CopyFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "existing.txt".to_string(),
-        overwrite: true,
-    }))
+    let _ = file_copy_v1(
+        Extension(TenantScope::default()),
+        Json(CopyFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "existing.txt".to_string(),
+            overwrite: true,
+        }),
+    )
     .await
     .expect("copy overwrite");
     assert_eq!(std::fs::read_to_string(root.join("existing.txt")).expect("existing"), "source");
 
     std::fs::write(root.join("other.txt"), "other").expect("other");
-    let move_conflict = file_move_v1(Json(MoveFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "other.txt".to_string(),
-        overwrite: false,
-    }))
+    let move_conflict = file_move_v1(
+        Extension(TenantScope::default()),
+        Json(MoveFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "other.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("move conflict should fail");
     assert_eq!(move_conflict.message, "path already exists: other.txt");
 
     std::fs::write(root.join("blocked-parent"), "blocked").expect("blocked parent");
-    let parent_error = file_move_v1(Json(MoveFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "blocked-parent/child.txt".to_string(),
-        overwrite: false,
-    }))
+    let parent_error = file_move_v1(
+        Extension(TenantScope::default()),
+        Json(MoveFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "blocked-parent/child.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("blocked parent should fail");
     assert_eq!(parent_error.status, axum::http::StatusCode::BAD_REQUEST);
 
-    let _ = file_move_v1(Json(MoveFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "other.txt".to_string(),
-        overwrite: true,
-    }))
+    let _ = file_move_v1(
+        Extension(TenantScope::default()),
+        Json(MoveFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "other.txt".to_string(),
+            overwrite: true,
+        }),
+    )
     .await
     .expect("move overwrite");
     assert_eq!(std::fs::read_to_string(root.join("other.txt")).expect("other"), "source");
 
-    let dir_delete = file_delete_v1(Json(DeleteFileRequest {
-        project_id,
-        worktree_id,
-        path: "dir".to_string(),
-        recursive: false,
-    }))
+    let dir_delete = file_delete_v1(
+        Extension(TenantScope::default()),
+        Json(DeleteFileRequest {
+            project_id,
+            worktree_id,
+            path: "dir".to_string(),
+            recursive: false,
+        }),
+    )
     .await
     .expect_err("directory delete should require recursive");
     assert!(dir_delete.message.contains("directory requires recursive delete"));
@@ -726,13 +759,16 @@ async fn file_copy_and_delete_v1_handle_directories_recursively() {
     let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
-    let _ = file_copy_v1(Json(CopyFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source".to_string(),
-        to_path: "copy".to_string(),
-        overwrite: false,
-    }))
+    let _ = file_copy_v1(
+        Extension(TenantScope::default()),
+        Json(CopyFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source".to_string(),
+            to_path: "copy".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect("copy directory");
     assert_eq!(
@@ -740,12 +776,15 @@ async fn file_copy_and_delete_v1_handle_directories_recursively() {
         "content"
     );
 
-    let _ = file_delete_v1(Json(DeleteFileRequest {
-        project_id,
-        worktree_id,
-        path: "copy".to_string(),
-        recursive: true,
-    }))
+    let _ = file_delete_v1(
+        Extension(TenantScope::default()),
+        Json(DeleteFileRequest {
+            project_id,
+            worktree_id,
+            path: "copy".to_string(),
+            recursive: true,
+        }),
+    )
     .await
     .expect("delete directory recursively");
     assert!(!root.join("copy").exists());
@@ -762,34 +801,43 @@ async fn file_move_copy_and_delete_v1_reject_workspace_escapes() {
     let project_id = vw_api_types::id::ProjectId(registered.0.clone());
     let worktree_id = Some(vw_api_types::id::WorktreeId(encoded));
 
-    let copy_error = file_copy_v1(Json(CopyFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "../copy.txt".to_string(),
-        overwrite: false,
-    }))
+    let copy_error = file_copy_v1(
+        Extension(TenantScope::default()),
+        Json(CopyFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "../copy.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("copy escape should fail");
     assert_eq!(copy_error.message, "path escapes workspace root");
 
-    let move_error = file_move_v1(Json(MoveFileRequest {
-        project_id: project_id.clone(),
-        worktree_id: worktree_id.clone(),
-        from_path: "source.txt".to_string(),
-        to_path: "../moved.txt".to_string(),
-        overwrite: false,
-    }))
+    let move_error = file_move_v1(
+        Extension(TenantScope::default()),
+        Json(MoveFileRequest {
+            project_id: project_id.clone(),
+            worktree_id: worktree_id.clone(),
+            from_path: "source.txt".to_string(),
+            to_path: "../moved.txt".to_string(),
+            overwrite: false,
+        }),
+    )
     .await
     .expect_err("move escape should fail");
     assert_eq!(move_error.message, "path escapes workspace root");
 
-    let delete_error = file_delete_v1(Json(DeleteFileRequest {
-        project_id,
-        worktree_id,
-        path: "../source.txt".to_string(),
-        recursive: false,
-    }))
+    let delete_error = file_delete_v1(
+        Extension(TenantScope::default()),
+        Json(DeleteFileRequest {
+            project_id,
+            worktree_id,
+            path: "../source.txt".to_string(),
+            recursive: false,
+        }),
+    )
     .await
     .expect_err("delete escape should fail");
     assert_eq!(delete_error.message, "path escapes workspace root");
@@ -811,12 +859,15 @@ async fn resolve_file_root_uses_project_worktree_and_reports_missing_project() {
         vec![],
     ));
     assert_eq!(
-        resolve_file_root(&worktree_id, None).await.expect("worktree root"),
+        resolve_file_root(&TenantScope::default(), &worktree_id, None)
+            .await
+            .expect("worktree root"),
         worktree.to_string_lossy()
     );
 
-    let missing =
-        resolve_file_root("missing-project", None).await.expect_err("missing project should fail");
+    let missing = resolve_file_root(&TenantScope::default(), "missing-project", None)
+        .await
+        .expect_err("missing project should fail");
     assert_eq!(missing.status, axum::http::StatusCode::NOT_FOUND);
 
     remove_file_test_project(&worktree_id);
@@ -921,6 +972,7 @@ async fn assert_file_mutations_rejected(project_id: &str, root: &std::path::Path
     std::fs::write(root.join("target.txt"), "target").expect("target");
     for operation in ["move", "copy", "delete"] {
         let response = router::<()>()
+            .layer(Extension(TenantScope::default()))
             .oneshot(
                 axum::http::Request::builder()
                     .method("POST")
@@ -989,7 +1041,9 @@ async fn file_root_accepts_registered_primary_and_git_worktree() {
     let encoded =
         base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(root.to_str().expect("path"));
     assert_eq!(
-        resolve_file_root(&project.0, Some(&encoded)).await.expect("non git primary"),
+        resolve_file_root(&TenantScope::default(), &project.0, Some(&encoded))
+            .await
+            .expect("non git primary"),
         root.to_string_lossy()
     );
     for args in [
@@ -1033,8 +1087,9 @@ async fn file_root_accepts_registered_primary_and_git_worktree() {
     for directory in [&root, &linked] {
         let encoded = base64::engine::general_purpose::URL_SAFE_NO_PAD
             .encode(directory.to_str().expect("path"));
-        let resolved =
-            resolve_file_root(&project.0, Some(&encoded)).await.expect("registered directory");
+        let resolved = resolve_file_root(&TenantScope::default(), &project.0, Some(&encoded))
+            .await
+            .expect("registered directory");
         assert_eq!(
             std::path::Path::new(&resolved).canonicalize().expect("resolved"),
             directory.canonicalize().expect("directory")
@@ -1049,7 +1104,7 @@ async fn drag_move_request(
     overwrite: bool,
 ) -> axum::http::StatusCode {
     use tower::ServiceExt;
-    router::<()>().oneshot(axum::http::Request::builder().method("POST").uri("/files/move")
+    router::<()>().layer(Extension(TenantScope::default())).oneshot(axum::http::Request::builder().method("POST").uri("/files/move")
         .header("content-type", "application/json")
         .body(axum::body::Body::from(serde_json::json!({"project_id": project.0, "from_path": from, "to_path": to, "overwrite": overwrite}).to_string())).unwrap()).await.unwrap().status()
 }

@@ -20,16 +20,17 @@ mod file_import;
 
 use std::path::{Path, PathBuf};
 
-use axum::Json;
 use axum::Router;
 use axum::extract::Query;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
+use axum::{Extension, Json};
 use base64::Engine;
 use serde::Deserialize;
 use serde::Serialize;
 use vw_api_types::common::OperationAck;
 use vw_api_types::file::{CopyFileRequest, DeleteFileRequest, MoveFileRequest, WriteFileResponse};
+use vw_api_types::id::{ProjectScope, TenantScope};
 
 use crate::app::agent::file;
 use crate::app::agent::gateway::ApiError;
@@ -623,10 +624,16 @@ async fn file_status(
     Ok(Json(result))
 }
 
-async fn file_move_v1(Json(body): Json<MoveFileRequest>) -> Result<Json<OperationAck>, ApiError> {
-    let root_directory =
-        resolve_file_root(&body.project_id.0, body.worktree_id.as_ref().map(|id| id.0.as_str()))
-            .await?;
+async fn file_move_v1(
+    Extension(tenant): Extension<TenantScope>,
+    Json(body): Json<MoveFileRequest>,
+) -> Result<Json<OperationAck>, ApiError> {
+    let root_directory = resolve_file_root(
+        &tenant,
+        &body.project_id.0,
+        body.worktree_id.as_ref().map(|id| id.0.as_str()),
+    )
+    .await?;
     tokio::task::spawn_blocking(move || {
         let root = PathBuf::from(root_directory)
             .canonicalize()
@@ -718,10 +725,16 @@ fn resolve_move_path(root: &Path, path: &Path) -> Result<PathBuf, ApiError> {
     Ok(resolved)
 }
 
-async fn file_copy_v1(Json(body): Json<CopyFileRequest>) -> Result<Json<OperationAck>, ApiError> {
-    let root_directory =
-        resolve_file_root(&body.project_id.0, body.worktree_id.as_ref().map(|id| id.0.as_str()))
-            .await?;
+async fn file_copy_v1(
+    Extension(tenant): Extension<TenantScope>,
+    Json(body): Json<CopyFileRequest>,
+) -> Result<Json<OperationAck>, ApiError> {
+    let root_directory = resolve_file_root(
+        &tenant,
+        &body.project_id.0,
+        body.worktree_id.as_ref().map(|id| id.0.as_str()),
+    )
+    .await?;
     let from_path = body.from_path.clone();
     let to_path = body.to_path.clone();
     let overwrite = body.overwrite;
@@ -751,11 +764,15 @@ async fn file_copy_v1(Json(body): Json<CopyFileRequest>) -> Result<Json<Operatio
 }
 
 async fn file_delete_v1(
+    Extension(tenant): Extension<TenantScope>,
     Json(body): Json<DeleteFileRequest>,
 ) -> Result<Json<OperationAck>, ApiError> {
-    let root_directory =
-        resolve_file_root(&body.project_id.0, body.worktree_id.as_ref().map(|id| id.0.as_str()))
-            .await?;
+    let root_directory = resolve_file_root(
+        &tenant,
+        &body.project_id.0,
+        body.worktree_id.as_ref().map(|id| id.0.as_str()),
+    )
+    .await?;
     let path = body.path.clone();
     let recursive = body.recursive;
 
@@ -817,10 +834,16 @@ fn contains_path(root: &Path, candidate: &Path) -> bool {
 }
 
 async fn resolve_file_root(
+    tenant: &TenantScope,
     project_id: &str,
     worktree_id: Option<&str>,
 ) -> Result<String, ApiError> {
-    let info = crate::app::agent::gateway::instance::load_local_project(project_id).await?;
+    let scope = ProjectScope::new(tenant.clone(), project_id.into())
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let info = crate::app::agent::project::get(&scope)
+        .await
+        .map_err(|error| ApiError::internal(error.to_string()))?
+        .ok_or_else(|| ApiError::not_found("project not found"))?;
     let primary = if !info.worktree.trim().is_empty() {
         info.worktree.clone()
     } else {
@@ -925,3 +948,7 @@ mod file_tests;
 #[cfg(test)]
 #[path = "file_import_tests.rs"]
 mod file_import_tests;
+
+#[cfg(test)]
+#[path = "file_drag_integration_tests.rs"]
+mod file_drag_integration_tests;

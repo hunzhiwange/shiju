@@ -682,3 +682,33 @@ fn file_tree_move_drop_rejects_invalid_targets_and_consumes_release() {
 
 #[path = "file_tree_move_drop_http_tests.rs"]
 mod http_tests;
+
+#[test]
+fn file_tree_move_drop_unicode_conflict_preserves_unsaved_editor_and_active_path() {
+    use crate::app::message::ProjectMessage as P;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    app.lsp_disabled = true;
+    let mut tab = preview_tab("/project/中文/草稿.txt");
+    tab.content = "未保存的内容".into();
+    tab.editor = crate::app::components::editor::Editor::new("未保存的内容", "txt");
+    tab.is_dirty = true;
+    app.preview_tabs.push(tab);
+    app.active_preview_path = Some("/project/中文/草稿.txt".into());
+    app.file_tree_operation_in_progress = true;
+    let _ = super::handle(
+        &mut app,
+        P::FileTreeMoveCompleted {
+            project_path: "/project".into(),
+            source_path: "/project/中文".into(),
+            target_path: "/project/目标/中文".into(),
+            result: Err("destination exists".into()),
+        },
+    );
+    assert_eq!(app.preview_tabs[0].path, "/project/中文/草稿.txt");
+    assert_eq!(app.preview_tabs[0].content, "未保存的内容");
+    assert_eq!(app.preview_tabs[0].editor.content(), "未保存的内容");
+    assert!(app.preview_tabs[0].is_dirty);
+    assert_eq!(app.active_preview_path.as_deref(), Some("/project/中文/草稿.txt"));
+    assert!(!app.file_tree_operation_in_progress);
+}

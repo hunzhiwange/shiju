@@ -14,6 +14,7 @@ async fn request(
     sources: Vec<String>,
 ) -> (StatusCode, serde_json::Value) {
     let mut builder = Request::builder()
+        .extension(vw_api_types::id::TenantScope::default())
         .method("POST")
         .uri("/files/import-local")
         .header("content-type", "application/json");
@@ -203,6 +204,7 @@ async fn local_import_limits_json_metadata_body() {
     let response = router::<()>()
         .oneshot(
             Request::builder()
+                .extension(vw_api_types::id::TenantScope::default())
                 .method("POST")
                 .uri("/files/import-local")
                 .header("content-type", "application/json")

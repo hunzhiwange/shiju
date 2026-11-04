@@ -20,6 +20,7 @@ pub(super) fn router<S: Clone + Send + Sync + 'static>() -> Router<S> {
 }
 
 async fn import_local(
+    axum::Extension(tenant): axum::Extension<vw_api_types::id::TenantScope>,
     peer: Option<axum::Extension<ConnectInfo<SocketAddr>>>,
     headers: HeaderMap,
     Json(body): Json<LocalImportRequest>,
@@ -34,9 +35,12 @@ async fn import_local(
         return Err(ApiError::bad_request("expected 1–128 source paths"));
     }
     // Resolve the authorized project before inspecting any external source.
-    let root =
-        resolve_file_root(&body.project_id.0, body.worktree_id.as_ref().map(|id| id.0.as_str()))
-            .await?;
+    let root = resolve_file_root(
+        &tenant,
+        &body.project_id.0,
+        body.worktree_id.as_ref().map(|id| id.0.as_str()),
+    )
+    .await?;
     tokio::task::spawn_blocking(move || {
         let root = PathBuf::from(root).canonicalize().map_err(io_error)?;
         let target = target_directory(&root, &body.target_directory)?;

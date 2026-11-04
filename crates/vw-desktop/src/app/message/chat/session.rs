@@ -1277,7 +1277,6 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             }
             app.current_session_runtime_mut().reasoning_effort = reasoning_effort;
             app.reasoning_effort = reasoning_effort;
-            app.show_reasoning_effort_popover = false;
             persist_session_reasoning_effort(app)
         }
         ChatMessage::AcpAgentSelected(agent) => {

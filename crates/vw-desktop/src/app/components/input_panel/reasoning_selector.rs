@@ -1,27 +1,28 @@
 //! 聊天输入栏的会话级推理强度选择器。
 
-use iced::widget::scrollable::{Direction, Scrollbar};
 use iced::widget::svg;
 use iced::widget::tooltip::{Position as TooltipPosition, Tooltip};
-use iced::widget::{Space, button, column, container, row, scrollable, text};
-use iced::{Alignment, Element, Length, Theme};
+use iced::widget::{button, column, container, row, text};
+use iced::{Alignment, Border, Element, Length, Theme};
 use vw_gateway_client::vw_api_types::ReasoningEffortDto;
 
 use super::dark_tooltip_content;
 use super::icons::icon_svg;
 use super::styles::{
     BOTTOM_BAR_CHEVRON_ICON_SIZE, BOTTOM_BAR_ICON_SIZE, BOTTOM_BAR_LABEL_SIZE, popover_style,
-    selectable_list_button_style, selector_chevron_color, selector_label_font,
-    selector_pill_button_style, selector_text_color,
+    selector_chevron_color, selector_label_font, selector_pill_button_style, selector_text_color,
 };
 use crate::app::assets::Icon;
 use crate::app::components::overlays::AboveOverlay;
 use crate::app::{App, Message, message};
 
-const SELECTOR_WIDTH: f32 = 180.0;
-const ITEM_HEIGHT: f32 = 34.0;
-const MAX_LIST_HEIGHT: f32 = 220.0;
-const SCROLLBAR_WIDTH: f32 = 4.0;
+#[path = "reasoning_slider.rs"]
+mod reasoning_slider;
+
+const SELECTOR_WIDTH: f32 = 320.0;
+const SLIDER_WIDTH: f32 = SELECTOR_WIDTH - 32.0;
+const SLIDER_HEIGHT: f32 = 36.0;
+const HANDLE_RADIUS: f32 = 17.0;
 
 const CODEX_OPTIONS: [Option<ReasoningEffortDto>; 6] = [
     None,
@@ -195,56 +196,7 @@ pub(super) fn reasoning_effort_selector<'a>(
     .gap(6.0)
     .into();
 
-    let items = reasoning_effort_items(&options, current);
-    let list_height = (items.len() as f32 * ITEM_HEIGHT).min(MAX_LIST_HEIGHT);
-    let mut list = column![].spacing(4);
-    for item in items {
-        let check: Element<'_, Message> = if item.selected {
-            icon_svg(Icon::Check, 14.0).into()
-        } else {
-            Space::new().width(Length::Fixed(14.0)).into()
-        };
-        let value = item.value;
-        list = list.push(
-            button(
-                row![
-                    text(localized_reasoning_effort_label(
-                        crate::app::i18n::I18n::new(app.desktop_locale),
-                        item.value
-                    ))
-                    .size(13),
-                    Space::new().width(Length::Fill),
-                    check
-                ]
-                .spacing(8)
-                .align_y(Alignment::Center),
-            )
-            .padding([6, 10])
-            .width(Length::Fill)
-            .style(move |theme: &Theme, status| {
-                selectable_list_button_style(theme, status, item.selected)
-            })
-            .on_press(reasoning_effort_message(value)),
-        );
-    }
-
-    let popover: Element<'_, Message> = container(
-        scrollable(container(list).padding(iced::Padding {
-            top: 0.0,
-            right: 7.0,
-            bottom: 0.0,
-            left: 7.0,
-        }))
-        .id(iced::widget::Id::new("input_panel_reasoning_effort_scroll"))
-        .direction(Direction::Vertical(
-            Scrollbar::new().width(SCROLLBAR_WIDTH).scroller_width(SCROLLBAR_WIDTH),
-        ))
-        .height(Length::Fixed(list_height)),
-    )
-    .style(popover_style)
-    .padding(8)
-    .width(Length::Fixed(SELECTOR_WIDTH))
-    .into();
+    let popover = reasoning_effort_popover(app, model, &options, current);
 
     Some(
         AboveOverlay::new(toggle, popover)
@@ -254,4 +206,56 @@ pub(super) fn reasoning_effort_selector<'a>(
             .on_close(Message::View(message::ViewMessage::CloseReasoningEffortPopover))
             .into(),
     )
+}
+
+/// 保留弹层以便连续拖动；点击外部或入口按钮时关闭。
+pub(super) fn reasoning_effort_popover<'a>(
+    app: &'a App,
+    model: &str,
+    options: &[Option<ReasoningEffortDto>],
+    current: Option<ReasoningEffortDto>,
+) -> Element<'a, Message> {
+    let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
+    let items = reasoning_effort_items(options, current);
+    let selected = items.iter().position(|item| item.selected).unwrap_or(0);
+    let control = reasoning_slider::ReasoningSlider {
+        selected,
+        options: options.to_vec(),
+        identity: format!("{:?}:{model}:{options:?}", app.active_session_id),
+    };
+    let reset = Tooltip::new(
+        button(icon_svg(Icon::ArrowCounterClockwise, 18.0))
+            .padding(6)
+            .style(crate::app::components::system_settings_common::rounded_action_btn_style)
+            .on_press(reasoning_effort_message(None)),
+        dark_tooltip_content(i18n.__("默认")),
+        TooltipPosition::Top,
+    );
+    let model_name =
+        super::model_popover::model_toggle_label(&app.model_settings.providers, false, model);
+    let heading = row![
+        icon_svg(Icon::Speedometer2, 18.0),
+        column![
+            text(localized_reasoning_effort_label(i18n, current))
+                .size(18)
+                .style(|theme: &Theme| text::Style { color: Some(theme.palette().primary) }),
+            text(model_name).size(13).wrapping(text::Wrapping::None).style(|theme: &Theme| {
+                text::Style { color: Some(theme.palette().text.scale_alpha(0.7)) }
+            }),
+        ]
+        .spacing(3)
+        .align_x(Alignment::Center)
+        .width(Length::Fill),
+        reset,
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    container(column![heading, control].spacing(16))
+        .padding(16)
+        .width(Length::Fixed(SELECTOR_WIDTH))
+        .style(|theme: &Theme| container::Style {
+            border: Border { radius: 20.0.into(), ..popover_style(theme).border },
+            ..popover_style(theme)
+        })
+        .into()
 }

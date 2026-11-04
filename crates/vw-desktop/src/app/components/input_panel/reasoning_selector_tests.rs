@@ -350,3 +350,65 @@ fn acp_session_options_follow_capabilities_reject_unadvertised_selection() {
     assert!(!app.current_session_runtime().acp_options_pending);
     assert!(app.current_session_runtime().acp_options.options.is_empty());
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn reasoning_slider_renders_non_ascii_labels_and_all_positions_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+
+    let app = crate::app::App::new().0;
+    let options = reasoning_effort_options("codex");
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        for current in options {
+            let mut element = super::reasoning_selector::reasoning_effort_popover(
+                &app,
+                "provider/中文模型 GPT-6",
+                options,
+                *current,
+            );
+            let bounds = Size::new(320.0, 180.0);
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &layout::Limits::new(Size::ZERO, bounds),
+            );
+            assert_eq!(node.bounds().width, 320.0);
+            assert!(node.bounds().height <= bounds.height);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &renderer::Style { text_color: theme.palette().text },
+                Layout::new(&node),
+                mouse::Cursor::Unavailable,
+                &Rectangle::with_size(bounds),
+            );
+            let pixels = renderer.screenshot(Size::new(320, 180), 1.0, Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        }
+    }
+}
+
+#[test]
+fn reasoning_slider_keeps_popover_open_and_resets_to_default() {
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("reasoning-slider".into());
+    app.show_reasoning_effort_popover = true;
+    for value in [Some(ReasoningEffortDto::Low), Some(ReasoningEffortDto::High), None] {
+        let _ = chat::update(&mut app, message::ChatMessage::ReasoningEffortSelected(value));
+        assert!(app.show_reasoning_effort_popover);
+        assert_eq!(app.current_session_runtime().reasoning_effort, value);
+        assert_eq!(app.reasoning_effort, value);
+    }
+    let _ = crate::app::message::view::update(
+        &mut app,
+        message::ViewMessage::CloseReasoningEffortPopover,
+    );
+    assert!(!app.show_reasoning_effort_popover);
+}

@@ -1,6 +1,6 @@
 # Kilocode 模型来源验收（2026-11-05）
 
-状态：已完成，待回归。Kilocode 全部专属验收已通过；当前全仓 Clippy 被无关桌面死代码阻断。
+状态：已完成。Kilocode 专属验收与当前共享工作区的延后聚焦/全仓 Clippy 回归均通过。
 
 固定版本：真实 `@kilocode/cli@7.8.18`，macOS 27.0 / arm64，Node v26.13.0。
 未验证 Linux/Windows，不从 npm 平台包推断通过。
@@ -87,18 +87,24 @@ cargo clippy -p vw-agent --all-targets --all-features -- -D warnings
 
 两项分别验证缺失/撤销凭据不使用缓存旧密钥，以及真实 HTTP 的模型禁用、隔离、
 认证、限流和取消；包级 Clippy 退出 0。
-最后一次全仓 `cargo clippy --all-targets --all-features -- -D warnings` 退出 **101**：
-`crates/vw-desktop/src/app/components/system_settings_agents/shared.rs:218` 的
-`models_for_provider` 和 `:240` 的 `with_selected_option` 未使用，被 `-D warnings` 拒绝。
-这些是其他任务的工作区改动，本任务未修改。较早全仓检查曾退出 0，不能替代最终检查；
-因此保留编号任务文件为“已完成，待回归”，不宣称全仓通过。
-桌面改动稳定后重跑全仓 Clippy；通过后删除任务 24 文件并交由任务 33 集成。
+实现阶段全仓 Clippy 曾因无关桌面模块的 `models_for_provider`、
+`with_selected_option` 未使用退出 101，因此当时保留任务待回归。
+
+2026-11-05 实现阶段全部结束后，基于最新共享工作区执行延后回归：
+
+- `cargo test -p vw-agent --lib --all-features acp_model_source_kilocode -- --nocapture`：
+  退出 **0**，**5 passed / 0 failed**，11353 filtered out。
+- `cargo clippy --all-targets --all-features -- -D warnings`：退出 **0**。
+- 动态领取槽位 **2**，
+  `CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-2`；
+  `CARGO_BUILD_BUILD_DIR` 为同一绝对路径。阶段结束已释放自有锁，保留缓存。
+- 无需修改 Rust 实现；未重复无变化的真实 CLI 请求证据。任务 24 验证完成并删除编号任务文件。
 
 聚焦测试验证私有配置及撤销、冲突输入拒绝、切模凭据轮换及历史目录、
 真实 HTTP/子进程的四种模型角色，以及管理员策略拒绝。
 真实 CLI 证据与上述配置消费者测试分开计数。
 
-实际槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；
+实现阶段实际槽位 **3**，`CARGO_TARGET_DIR=/Users/xiangmin/worker/code/shiju/target/rust-slot-3`；
 后续所有验证同时设置相同的绝对 `CARGO_BUILD_BUILD_DIR`。
 阶段结束仅释放自己的锁，保留缓存。
 

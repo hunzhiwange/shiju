@@ -1,0 +1,14 @@
+{
+  "session-model": {
+    "config_root_env": "IFLOW_HOME",
+    "files": {
+      "settings.json": "{\"apiKey\": \"{{key}}\", \"baseUrl\": \"{{endpoint}}\", \"modelName\": \"{{model}}\", \"selectedAuthType\": \"openai-compatible\", \"disableAutoUpdate\": true, \"usageStatisticsEnabled\": false}"
+    }
+  },
+  "cli-local": {
+    "config_root_env": "IFLOW_HOME",
+    "files": {
+      "settings.json": "{\"apiKey\": \"{{key}}\", \"baseUrl\": \"{{endpoint}}\", \"modelName\": \"{{model}}\", \"selectedAuthType\": \"openai-compatible\", \"disableAutoUpdate\": true, \"usageStatisticsEnabled\": false}"
+    }
+  }
+}

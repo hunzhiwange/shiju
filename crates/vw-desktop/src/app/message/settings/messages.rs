@@ -560,6 +560,22 @@ pub enum ThemesMessage {
 #[derive(Debug, Clone)]
 #[allow(private_interfaces)]
 pub enum AgentsMessage {
+    CatalogTabSelected(bool),
+    CatalogQueryChanged(String),
+    CatalogToggle(String, bool),
+    CatalogToggled {
+        key: String,
+        enabled: bool,
+        result: Result<(), String>,
+    },
+    CatalogCopy(String),
+    CatalogCopied(Result<serde_json::Value, String>),
+    CatalogLaunch(String),
+    CatalogRuntimeSettings(String),
+    CatalogSessionCreated {
+        key: String,
+        result: Result<vw_shared::session::info::Info, String>,
+    },
     ProfileOpen(String),
     ProfileCancel,
     ProfileNameChanged(String),

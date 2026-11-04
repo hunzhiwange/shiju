@@ -195,6 +195,7 @@ pub(super) fn entry_kind_label(entry: &DelegateAgentSettingsEntry) -> &'static s
     match entry.kind {
         AgentSettingsEntryKind::Main => "内建 Agent",
         AgentSettingsEntryKind::BuiltinWorker => "内建 Worker",
+        AgentSettingsEntryKind::Custom if entry.builtin => "官方 Agent",
         AgentSettingsEntryKind::Custom => "自定义",
     }
 }

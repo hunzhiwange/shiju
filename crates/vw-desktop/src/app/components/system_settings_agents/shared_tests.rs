@@ -13,6 +13,7 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
     DelegateAgentSettingsEntry {
         defaults: Default::default(),
         key: key.to_string(),
+        builtin: false,
         label: key.to_string(),
         runtime: Default::default(),
         recommended_prompts: Vec::new(),

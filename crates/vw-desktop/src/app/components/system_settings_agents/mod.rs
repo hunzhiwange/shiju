@@ -35,9 +35,7 @@ mod tests;
 #[path = "tools_tests.rs"]
 mod tools_tests;
 
-use self::shared::{
-    agent_sidebar_button_style, detail_tab_button, entry_kind_label, section_card, selected_entry,
-};
+use self::shared::{detail_tab_button, section_card, selected_entry};
 use crate::app::components::system_settings_common::{
     primary_action_btn_style, rounded_action_btn_style, settings_error_banner,
     settings_muted_text_style, settings_page_intro, settings_panel_style,
@@ -316,111 +314,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
 
     let provider_options =
         settings.providers.iter().map(|provider| provider.id.clone()).collect::<Vec<_>>();
-    let sidebar_items = settings
-        .entries
-        .iter()
-        .map(|entry| {
-            let is_selected = entry.key == settings.selected_agent;
-            let spec = vw_config_types::agent::builtin_agent_spec(&entry.key);
-            let i18n = crate::app::i18n::I18n::new(app.desktop_locale);
-            let label = if spec.is_some_and(|spec| spec.label == entry.label) {
-                i18n.__(&entry.label)
-            } else {
-                &entry.label
-            };
-            let description = if spec.is_some_and(|spec| spec.description == entry.description) {
-                i18n.__(&entry.description)
-            } else {
-                &entry.description
-            };
-
-            let meta = if entry.key == "main" {
-                tr(app.desktop_locale, entry_kind_label(entry)).to_string()
-            } else if entry.enabled {
-                crate::__!(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "%s：已启用",
-                    tr(app.desktop_locale, entry_kind_label(entry))
-                )
-                .expect("valid agent status template")
-            } else {
-                crate::__!(
-                    crate::app::i18n::I18n::new(app.desktop_locale),
-                    "%s：已停用",
-                    tr(app.desktop_locale, entry_kind_label(entry))
-                )
-                .expect("valid agent status template")
-            };
-            let model_text = if entry.model.trim().is_empty() {
-                tr(app.desktop_locale, "未选择 model").to_string()
-            } else {
-                entry.model.clone()
-            };
-            let button = iced::widget::button(
-                container(
-                    column![
-                        text(label).size(14).style(move |theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(theme.palette().text.scale_alpha(if is_selected {
-                                    0.98
-                                } else {
-                                    0.92
-                                })),
-                            }
-                        }),
-                        text(&entry.key).size(12).style(move |theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(if is_selected {
-                                    theme.palette().text.scale_alpha(0.72)
-                                } else {
-                                    theme.palette().text.scale_alpha(0.62)
-                                }),
-                            }
-                        }),
-                        text(description).size(12).style(move |theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(if is_selected {
-                                    theme.palette().text.scale_alpha(0.72)
-                                } else {
-                                    theme.palette().text.scale_alpha(0.62)
-                                }),
-                            }
-                        }),
-                        text(meta).size(12).style(move |theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(if is_selected {
-                                    theme.palette().text.scale_alpha(0.72)
-                                } else {
-                                    theme.palette().text.scale_alpha(0.62)
-                                }),
-                            }
-                        }),
-                        text(model_text).size(12).style(move |theme: &Theme| {
-                            iced::widget::text::Style {
-                                color: Some(if is_selected {
-                                    theme.palette().text.scale_alpha(0.68)
-                                } else {
-                                    theme.palette().text.scale_alpha(0.56)
-                                }),
-                            }
-                        }),
-                    ]
-                    .spacing(4)
-                    .width(Length::Fill),
-                )
-                .padding([10, 12])
-                .width(Length::Fill),
-            )
-            .width(Length::Fill)
-            .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::SelectAgent(
-                entry.key.clone(),
-            ))))
-            .style(move |theme: &Theme, status| {
-                agent_sidebar_button_style(theme, status, is_selected)
-            });
-            container(button).width(Length::Fill).into()
-        })
-        .collect::<Vec<Element<'_, Message>>>();
+    let sidebar_items = catalog::cards(app);
 
     let title = settings_page_intro(
         tr(app.desktop_locale, "智能体配置"),
@@ -579,6 +473,7 @@ fn agents_view(app: &App) -> Element<'_, Message> {
             .style(settings_panel_style),
             container(
                 column![
+                    catalog::controls(app),
                     add_agent_bar,
                     row![
                         settings_value_badge(

@@ -14,6 +14,7 @@ use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id
 /// 表示 DelegateAgentSettingsEntry 相关的应用状态或派生数据。
 pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) key: String,
+    pub(crate) builtin: bool,
     pub(crate) label: String,
     pub(crate) runtime: vw_config_types::agent::AgentRuntime,
     pub(crate) defaults: vw_config_types::agent::AgentDefaults,
@@ -65,6 +66,7 @@ impl DelegateAgentSettingsEntry {
 
         Self {
             key: key.to_string(),
+            builtin: config.builtin || builtin_agent_spec(key).is_some(),
             label: default_agent_label(key, &config),
             runtime: config.runtime.clone(),
             defaults: config.defaults.clone(),
@@ -330,6 +332,9 @@ pub enum AgentConfigTab {
 #[derive(Debug, Clone)]
 /// 表示 AgentsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct AgentsSettingsState {
+    pub(crate) catalog_official: bool,
+    pub(crate) catalog_query: String,
+    pub(crate) catalog_busy: bool,
     pub(crate) profile_modal: Option<DelegateAgentSettingsEntry>,
     pub(crate) profile_saving: bool,
     pub(crate) profile_deleting: bool,
@@ -360,6 +365,9 @@ pub(crate) struct AgentsSettingsState {
 impl Default for AgentsSettingsState {
     fn default() -> Self {
         Self {
+            catalog_official: false,
+            catalog_query: String::new(),
+            catalog_busy: false,
             profile_modal: None,
             profile_saving: false,
             profile_deleting: false,

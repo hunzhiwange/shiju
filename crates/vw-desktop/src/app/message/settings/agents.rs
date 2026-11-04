@@ -98,9 +98,7 @@ fn refresh_task() -> Task<Message> {
 fn project_config_task(project_path: String) -> Task<Message> {
     let response_project_path = project_path.clone();
     Task::perform(
-        async move {
-            crate::app::config::load_project_agent_config_async(&project_path).await.map(Box::new)
-        },
+        async move { load_catalog_config(Some(project_path)).await.map(Box::new) },
         move |result| {
             Message::Settings(SettingsMessage::Agents(AgentsMessage::ProjectConfigLoaded {
                 project_path: response_project_path.clone(),
@@ -113,15 +111,7 @@ fn project_config_task(project_path: String) -> Task<Message> {
 pub(super) fn config_task(project_path: Option<String>) -> Task<Message> {
     let response_project_path = project_path.clone();
     Task::perform(
-        async move {
-            match project_path {
-                Some(project_path) => {
-                    crate::app::config::load_project_agent_config_async(&project_path).await
-                }
-                None => crate::app::config::load_full_agent_config_async().await,
-            }
-            .map(Box::new)
-        },
+        async move { load_catalog_config(project_path).await.map(Box::new) },
         move |result| {
             Message::Settings(SettingsMessage::Agents(AgentsMessage::ConfigLoaded {
                 project_path: response_project_path.clone(),
@@ -129,6 +119,35 @@ pub(super) fn config_task(project_path: Option<String>) -> Task<Message> {
             }))
         },
     )
+}
+
+#[derive(serde::Deserialize)]
+struct CatalogAgent {
+    key: String,
+    #[serde(flatten)]
+    definition: vw_config_types::agent::DelegateAgentConfig,
+}
+
+async fn load_catalog_config(
+    project_path: Option<String>,
+) -> Result<vw_config_types::config::Config, String> {
+    let mut config = match project_path.as_deref() {
+        Some(path) => crate::app::config::load_project_agent_config_async(path).await?,
+        None => crate::app::config::load_full_agent_config_async().await?,
+    };
+    let value =
+        crate::app::config::gateway_client()?.agent_profiles(project_path.as_deref(), true).await?;
+    let catalog: Vec<CatalogAgent> =
+        serde_json::from_value(value).map_err(|error| format!("智能体目录响应无效：{error}"))?;
+    for mut agent in catalog {
+        // The server owns official identities and backend bindings, including disabled presets.
+        if let Some(original) = config.agents.get(&agent.key) {
+            agent.definition.api_key = original.api_key.clone();
+            agent.definition.options = original.options.clone();
+        }
+        config.agents.insert(agent.key, agent.definition);
+    }
+    Ok(config)
 }
 
 fn apply_config(app: &mut App, config: &vw_config_types::config::Config) {
@@ -665,6 +684,23 @@ fn mark_agents_settings_dirty(app: &mut App) -> Task<Message> {
     Task::none()
 }
 
+fn catalog_can_write(app: &App) -> bool {
+    let settings = &app.agents_settings;
+    settings.config_ready
+        && !settings.save_in_flight
+        && !settings.profile_saving
+        && !settings.dirty
+        && settings.profile_modal.is_none()
+}
+
+fn catalog_error(app: &mut App, error: String) -> Task<Message> {
+    app.show_localized_toast(
+        crate::app::state::ToastKind::Error,
+        "保存智能体配置失败：%s",
+        vec![error.into()],
+    )
+}
+
 /// 处理 `update` 对应的用户输入、异步结果或状态转换。
 ///
 /// 参数来自已匹配的消息载荷或当前设置状态，函数只在当前消息边界内产生状态变更。
@@ -674,7 +710,159 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         return Task::none();
     };
 
+    if app.agents_settings.catalog_busy
+        && !matches!(
+            message,
+            AgentsMessage::CatalogToggled { .. }
+                | AgentsMessage::CatalogCopied(_)
+                | AgentsMessage::CatalogSessionCreated { .. }
+        )
+    {
+        return Task::none();
+    }
     match message {
+        AgentsMessage::CatalogTabSelected(official) => {
+            app.agents_settings.catalog_official = official;
+            Task::none()
+        }
+        AgentsMessage::CatalogQueryChanged(query) => {
+            app.agents_settings.catalog_query = query;
+            Task::none()
+        }
+        AgentsMessage::CatalogRuntimeSettings(backend) => {
+            app.agents_settings.active_config_tab = crate::app::state::AgentConfigTab::Acp;
+            super::acp::update(app, SettingsMessage::Acp(super::AcpMessage::EditAgent(backend)))
+        }
+        AgentsMessage::CatalogToggle(key, enabled) => {
+            if !catalog_can_write(app)
+                || key == MAIN_AGENT_KEY
+                || !app.agents_settings.entries.iter().any(|entry| entry.key == key)
+            {
+                return Task::none();
+            }
+            app.agents_settings.catalog_busy = true;
+            let project = app.agents_settings.project_path.clone();
+            let patch = serde_json::json!({"agents": {&key: {"enabled": enabled}}});
+            Task::perform(persist_agents_patch(project, patch), move |result| {
+                Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogToggled {
+                    key: key.clone(),
+                    enabled,
+                    result,
+                }))
+            })
+        }
+        AgentsMessage::CatalogToggled { key, enabled, result } => {
+            if !app.agents_settings.catalog_busy {
+                return Task::none();
+            }
+            app.agents_settings.catalog_busy = false;
+            match result {
+                Ok(()) => {
+                    if let Some(entry) = find_entry_mut(app, &key) {
+                        entry.enabled = enabled;
+                    }
+                    Task::none()
+                }
+                Err(error) => catalog_error(app, error),
+            }
+        }
+        AgentsMessage::CatalogCopy(key) => {
+            if !catalog_can_write(app)
+                || !app.agents_settings.entries.iter().any(|entry| entry.key == key)
+            {
+                return Task::none();
+            }
+            let project = app.agents_settings.project_path.clone();
+            app.agents_settings.catalog_busy = true;
+            Task::perform(
+                async move {
+                    crate::app::config::gateway_client()?
+                        .agent_profile_copy(project.as_deref(), &key)
+                        .await
+                },
+                |result| {
+                    Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogCopied(result)))
+                },
+            )
+        }
+        AgentsMessage::CatalogCopied(result) => {
+            if !app.agents_settings.catalog_busy {
+                return Task::none();
+            }
+            app.agents_settings.catalog_busy = false;
+            match result.and_then(|value| {
+                serde_json::from_value::<CatalogAgent>(value).map_err(|error| error.to_string())
+            }) {
+                Ok(agent)
+                    if !agent.definition.builtin
+                        && !app
+                            .agents_settings
+                            .entries
+                            .iter()
+                            .any(|entry| entry.key == agent.key) =>
+                {
+                    app.agents_settings.selected_agent = agent.key.clone();
+                    app.agents_settings.entries.push(DelegateAgentSettingsEntry::from_config(
+                        &agent.key,
+                        Some(agent.definition),
+                    ));
+                    app.agents_settings.catalog_official = false;
+                    app.agents_settings.catalog_query.clear();
+                    Task::none()
+                }
+                Ok(_) => catalog_error(app, "复制目录返回重复或内置身份".into()),
+                Err(error) => catalog_error(app, error),
+            }
+        }
+        AgentsMessage::CatalogLaunch(key) => {
+            if !catalog_can_write(app)
+                || app.new_session_creating
+                || !app.agents_settings.entries.iter().any(|entry| {
+                    entry.key == key
+                        && entry.enabled
+                        && !matches!(
+                            entry.kind,
+                            crate::app::state::AgentSettingsEntryKind::BuiltinWorker
+                        )
+                })
+            {
+                return Task::none();
+            }
+            let Some(project) = app.project_path.clone().filter(|path| !path.trim().is_empty())
+            else {
+                return catalog_error(app, "请先打开项目，再创建新会话".into());
+            };
+            if app.agents_settings.project_path.as_deref() != Some(project.as_str()) {
+                return catalog_error(app, "请切换到当前项目的智能体配置再启动".into());
+            }
+            app.agents_settings.catalog_busy = true;
+            Task::perform(
+                crate::app::message::project::helpers::create_gateway_session_in_directory(project),
+                move |result| {
+                    Message::Settings(SettingsMessage::Agents(
+                        AgentsMessage::CatalogSessionCreated { key: key.clone(), result },
+                    ))
+                },
+            )
+        }
+        AgentsMessage::CatalogSessionCreated { key, result } => {
+            if !app.agents_settings.catalog_busy {
+                return Task::none();
+            }
+            app.agents_settings.catalog_busy = false;
+            match result {
+                Ok(info) => {
+                    let task = crate::app::message::project::update(
+                        app,
+                        crate::app::message::project::ProjectMessage::SessionCreated(info),
+                    );
+                    app.current_session_runtime_mut().agent = Some(key);
+                    app.show_settings = false;
+                    task
+                }
+                Err(error) => catalog_error(app, error),
+            }
+        }
         AgentsMessage::Save => persist_agents_settings(app),
         AgentsMessage::DiscardChanges => {
             if app.agents_settings.save_in_flight {

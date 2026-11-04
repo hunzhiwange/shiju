@@ -198,7 +198,7 @@ pub(super) fn view<'a>(
             .on_toggle({
                 let key = entry.key.clone();
                 move |value| {
-                    Message::Settings(SettingsMessage::Agents(AgentsMessage::EnabledToggled(
+                    Message::Settings(SettingsMessage::Agents(AgentsMessage::CatalogToggle(
                         key.clone(),
                         value,
                     )))
@@ -411,7 +411,15 @@ pub(super) fn view<'a>(
     .align_y(Alignment::Center);
 
     column![
-        section_card(&entry.label, &entry.description),
+        column![
+            iced::widget::text(&entry.label).size(16).width(iced::Length::Fill),
+            iced::widget::text(&entry.description)
+                .size(12)
+                .width(iced::Length::Fill)
+                .style(crate::app::components::system_settings_common::settings_muted_text_style),
+        ]
+        .spacing(8)
+        .width(iced::Length::Fill),
         registration_section,
         delegation_section,
         provider_row,

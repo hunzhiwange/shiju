@@ -71,3 +71,5 @@ pub(crate) use types::{catalog_error_string, prevent_error_replay};
 
 #[cfg(test)]
 pub(crate) mod recovery_test_support;
+
+pub(crate) use acp::source_selection::select as select_acp_model_source;

@@ -27,11 +27,17 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                 app.show_usage_popover = false;
                 app.show_session_tool_selector_popover = false;
                 app.show_executor_popover = false;
+                let source =
+                    Task::done(Message::Chat(crate::app::message::ChatMessage::AcpSourceRefresh));
                 if !app.model_settings.loading && app.model_settings.providers.is_empty() {
-                    return Task::done(Message::Settings(
-                        crate::app::message::SettingsMessage::ModelsRefresh,
-                    ));
+                    return Task::batch([
+                        source,
+                        Task::done(Message::Settings(
+                            crate::app::message::SettingsMessage::ModelsRefresh,
+                        )),
+                    ]);
                 }
+                return source;
             }
             Task::none()
         }

@@ -968,9 +968,39 @@ async fn start_gateway_chat_stream(
     Ok(rx)
 }
 
+/// Carry the public model source into the processor's ACP runtime options.
+/// Older clients supplied the source only in options; keep that explicit choice.
+fn merge_acp_model_source(body: &mut GatewayChatStreamRequest) -> Result<(), ApiError> {
+    use vw_api_types::acp_model_source::AcpModelSource;
+
+    let mut options = match body.options.take() {
+        None => Map::new(),
+        Some(Value::Object(options)) => options,
+        Some(_) => return Err(ApiError::bad_request("chat options must be an object")),
+    };
+    let source = match options.get("acp_model_source") {
+        Some(value) => {
+            let source: AcpModelSource = serde_json::from_value(value.clone())
+                .map_err(|_| ApiError::bad_request("invalid acp_model_source"))?;
+            if body.acp_model_source != AcpModelSource::SessionModel
+                && body.acp_model_source != source
+            {
+                return Err(ApiError::bad_request("conflicting ACP model sources"));
+            }
+            source
+        }
+        None => body.acp_model_source,
+    };
+    body.acp_model_source = source;
+    options.insert("acp_model_source".into(), serde_json::json!(source));
+    body.options = Some(Value::Object(options));
+    Ok(())
+}
+
 async fn prepare_gateway_agent_request(
     body: &mut GatewayChatStreamRequest,
 ) -> Result<DelegateRequestOverrides, ApiError> {
+    merge_acp_model_source(body)?;
     let options = body.options.as_ref();
     if options.is_some_and(|options| options.get("agent_binding").is_some()) {
         return Err(ApiError::bad_request("agent_binding is server-owned"));

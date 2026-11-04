@@ -26,7 +26,7 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
         return base;
     };
     let close = Message::Chat(ChatMessage::AcpOptionsClose);
-    let mut fields = column![].spacing(16);
+    let mut fields = column![source_controls(app)].spacing(16);
     if !runtime.acp_options.connected {
         fields = fields.push(text("连接会话后可读取后端支持的选项").size(13));
     } else if runtime.acp_options.options.is_empty() {
@@ -87,4 +87,73 @@ pub(crate) fn with_modal<'a>(app: &'a App, base: Element<'a, Message>) -> Elemen
     )
     .width(Length::Fixed(480.0));
     settings_modal_overlay(Some(base), close, card)
+}
+
+pub(super) fn source_controls(app: &App) -> Element<'_, Message> {
+    use vw_gateway_client::vw_api_types::acp_model_source::{
+        AcpModelSource, AcpModelSourceCapability, AcpModelSourceRejectionReason,
+    };
+    let runtime = app.current_session_runtime();
+    let mut controls = column![text("模型来源").size(14)].spacing(6);
+    for (source, label, description) in [
+        (AcpModelSource::SessionModel, "客户端模型", "使用当前供应商与模型，无需重复填写密钥"),
+        (AcpModelSource::CliLocal, "CLI 本地配置", "使用执行主机上的配置与登录状态"),
+    ] {
+        let capability =
+            runtime.acp_options.model_source_capabilities.iter().find(
+                |capability| match capability {
+                    AcpModelSourceCapability::Supported { source: value }
+                    | AcpModelSourceCapability::Unsupported { source: value, .. } => {
+                        *value == source
+                    }
+                },
+            );
+        let reason = match capability {
+            Some(AcpModelSourceCapability::Unsupported { reason, .. }) => Some(match reason {
+                AcpModelSourceRejectionReason::UnsupportedCli => {
+                    "此 CLI 尚无经过验证的客户端模型入口"
+                }
+                AcpModelSourceRejectionReason::UnsupportedProtocol => "所选模型协议不受支持",
+                AcpModelSourceRejectionReason::UnsupportedModelCapability => "所选模型能力不受支持",
+                AcpModelSourceRejectionReason::ModelUnavailable => "所选模型不可用或已禁用",
+                AcpModelSourceRejectionReason::MissingCredentials => "请先配置供应商凭据",
+            }),
+            _ => None,
+        };
+        let selected = runtime.acp_model_source == source;
+        controls = controls.push(
+            action(
+                column![
+                    text(format!("{}{}", if selected { "✓ " } else { "" }, label)).size(13),
+                    text(description).size(11),
+                ]
+                .spacing(4),
+            )
+            .width(Length::Fill)
+            .padding([8, 10])
+            .style(if selected { primary_action_btn_style } else { rounded_action_btn_style })
+            .on_press_maybe(
+                (reason.is_none()
+                    && !selected
+                    && !runtime.is_requesting
+                    && !runtime.acp_options_pending
+                    && runtime.acp_source_pending.is_none())
+                .then_some(Message::Chat(ChatMessage::AcpModelSourceSelected(source))),
+            ),
+        );
+        if let Some(reason) = reason {
+            controls = controls.push(text(reason).size(12));
+        }
+    }
+    let model = if runtime.auto_model { "自动选择".to_string() } else { runtime.model };
+    controls = controls.push(text(format!("当前客户端 Provider/model：{model}")).size(12));
+    controls = controls.push(
+        text(if runtime.acp_source_pending.is_some() {
+            "正在等待执行主机确认并保存…"
+        } else {
+            "切换来源将创建新的 ACP 会话；原生上下文不继承"
+        })
+        .size(11),
+    );
+    controls.into()
 }

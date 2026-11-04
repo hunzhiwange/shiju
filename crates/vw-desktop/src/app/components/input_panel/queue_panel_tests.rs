@@ -26,6 +26,7 @@ fn queue_item(query: &str, created_ms: u64) -> QueueItem {
         model: None,
         reasoning_effort: None,
         acp_test: false,
+        acp_model_source: Default::default(),
         acp_agent: None,
         acp_allowed_tools: None,
         agent: None,

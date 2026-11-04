@@ -52,11 +52,16 @@ use vw_api_types::id::TenantScope;
 /// ```
 pub(crate) fn router() -> Router<AppState> {
     Router::new()
+        .route("/acp-model-source/{agent}", get(acp_options::source_capabilities))
         .route("/chat/stream", post(chat_stream))
         .route("/chat/stream/{request_id}/stop", post(chat_stream_stop))
         .route("/session", get(ui_session_list).post(ui_session_create))
         .route("/session/status", get(ui_session_status))
         .route("/session/{session_id}/acp-options", get(acp_options::get).put(acp_options::set))
+        .route(
+            "/session/{session_id}/acp-model-source",
+            axum::routing::put(acp_options::set_source),
+        )
         .route(
             "/session/{session_id}",
             get(ui_session_get).patch(ui_session_patch).delete(ui_session_delete),
@@ -109,3 +114,7 @@ mod tests;
 #[cfg(test)]
 #[path = "session/agent_profile_acceptance_tests.rs"]
 mod agent_profile_acceptance_tests;
+
+#[cfg(test)]
+#[path = "session/acp_source_tests.rs"]
+mod acp_source_tests;

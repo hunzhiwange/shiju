@@ -268,6 +268,22 @@ pub enum ChatMessage {
     ///
     /// 启用/禁用自动选择最佳模型的功能
     AutoModelToggled(bool),
+    AcpModelSourceSelected(vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource),
+    AcpModelSourceSaved {
+        session_id: String,
+        request_id: u64,
+        project_path: Option<String>,
+        update: vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate,
+        created: Option<vw_shared::session::info::Info>,
+        result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
+    },
+    AcpModelInputDraftChanged(String),
+    AcpSourceRefresh,
+    AcpSourceLoaded {
+        session_id: String,
+        agent: String,
+        result: Result<vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions, String>,
+    },
     AcpOptionsOpen,
     AcpOptionsClose,
     AcpOptionSelected(vw_gateway_client::vw_api_types::acp_session::AcpSessionSelection),
@@ -1167,7 +1183,11 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
 
     // 根据消息类型路由到对应的子模块处理函数
     let mut task = match message {
-        ChatMessage::AcpOptionsOpen
+        ChatMessage::AcpModelInputDraftChanged(_)
+        | ChatMessage::AcpSourceRefresh
+        | ChatMessage::AcpSourceLoaded { .. }
+        | ChatMessage::AcpModelSourceSaved { .. }
+        | ChatMessage::AcpOptionsOpen
         | ChatMessage::AcpOptionsClose
         | ChatMessage::AcpOptionSelected(_)
         | ChatMessage::AcpOptionsLoaded { .. } => acp_options::update(app, message),
@@ -1365,6 +1385,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
         | ChatMessage::CompactSessionFinished { .. }
         | ChatMessage::GenerateGitCommitMessage { .. }
         | ChatMessage::CancelPressed
+        | ChatMessage::AcpModelSourceSelected(_)
         | ChatMessage::AutoModelToggled(_)
         | ChatMessage::ReasoningEffortSelected(_)
         | ChatMessage::AgentInstallationStatusesLoaded(_)

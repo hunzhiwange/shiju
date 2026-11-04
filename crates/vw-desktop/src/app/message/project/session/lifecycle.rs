@@ -1238,11 +1238,15 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             let commit_started_at = Instant::now();
             let message_count = prepared.messages.len();
             apply_prepared_session_open(app, prepared, open_generation);
-            let trajectory_refresh_task =
+            let trajectory_refresh_task = iced::Task::batch([
                 crate::app::message::chat::refresh_active_trajectory_raw_task(
                     app,
                     &target_session_id,
-                );
+                ),
+                iced::Task::done(crate::app::Message::Chat(
+                    crate::app::message::ChatMessage::AcpSourceRefresh,
+                )),
+            ]);
             let finalize = source == PreparedSessionOpenSource::RemoteHistory;
             if let Some(summary) = app.session_view_cache.record_open_commit(
                 &target_session_id,

@@ -850,3 +850,47 @@ async fn agent_session_identity_preserves_read_only_ui_projection() {
     let upload = serde_json::to_value(result.session).unwrap();
     assert!(upload.get("agent_binding").is_none(), "UI saves must omit the trusted projection");
 }
+
+#[tokio::test]
+async fn acp_model_source_ui_round_trips_confirmed_selection_over_http() {
+    use vw_api_types::acp_model_source::{
+        AcpModelSource, AcpModelSourceUpdate, AcpSessionModelSelection,
+    };
+    let update = AcpModelSourceUpdate {
+        agent: "claude".into(),
+        selection: AcpSessionModelSelection {
+            source: AcpModelSource::SessionModel,
+            provider_id: Some("custom".into()),
+            model: Some("custom/nested/model".into()),
+        },
+    };
+    let server = test_support::server(vec![(
+        200,
+        json!({
+            "acp_model_source":"session_model", "connected":false,"options":[],
+            "selected_model":update.selection,
+            "model_source_capabilities":[{"status":"unsupported","source":"cli_local","reason":"unsupported_cli"}]
+        }),
+    )]);
+    let options =
+        server.client().acp_session_model_source("s1", Some("/repo path"), &update).await.unwrap();
+    assert_eq!(options.selected_model, Some(update.selection.clone()));
+    let request = server.take_request();
+    assert_eq!(request.method, "PUT");
+    assert_eq!(request.path, "/v1/session/s1/acp-model-source?directory=%2Frepo+path");
+    assert_eq!(request.body, json!(update));
+    assert!(!request.body.to_string().contains("api_key"));
+    server.join();
+}
+
+#[tokio::test]
+async fn acp_model_source_ui_surfaces_http_rejection_without_fallback() {
+    use vw_api_types::acp_model_source::AcpModelSourceUpdate;
+    let server =
+        test_support::server(vec![(400, json!({"message":"unsupported CLI model source"}))]);
+    let update = AcpModelSourceUpdate { agent: "qoder".into(), selection: Default::default() };
+    let error = server.client().acp_session_model_source("s1", None, &update).await.unwrap_err();
+    assert!(error.contains("unsupported CLI model source"), "{error}");
+    assert_eq!(server.take_request().method, "PUT");
+    server.join();
+}

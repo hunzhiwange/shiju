@@ -63,6 +63,7 @@ fn agent_request(id: u64, session: &str) -> Arc<crate::app::AgentRequest> {
         model: None,
         reasoning_effort: None,
         acp_test: false,
+        acp_model_source: Default::default(),
         acp_agent: None,
         acp_allowed_tools: None,
         agent: None,

@@ -473,9 +473,6 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         .on_close(Message::View(message::ViewMessage::CloseModelPopover))
         .into();
 
-    let model_btn: Element<'_, Message> =
-        if selected_acp_agent.is_some() { Space::new().into() } else { model_btn };
-
     // 构建附件按钮
     let attach_btn = attachment::attachment_button(app);
     let (agent_tab_btn, tools_tab_btn, skills_tab_btn) = session_tool_tab_buttons(app);

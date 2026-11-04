@@ -1628,6 +1628,7 @@ pub(super) fn handle_agent_post_tool_round(
         model: active_request.model.clone(),
         reasoning_effort: active_request.reasoning_effort,
         acp_test: active_request.acp_test,
+        acp_model_source: active_request.acp_model_source,
         acp_agent: active_request.acp_agent.clone(),
         acp_allowed_tools: active_request.acp_allowed_tools.clone(),
         agent: active_request.agent.clone(),

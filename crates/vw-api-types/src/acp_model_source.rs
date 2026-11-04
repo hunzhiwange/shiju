@@ -43,3 +43,11 @@ pub enum AcpModelSourceCapability {
     Supported { source: AcpModelSource },
     Unsupported { source: AcpModelSource, reason: AcpModelSourceRejectionReason },
 }
+
+/// Non-secret desktop selection; tool permissions and agent binding remain unchanged.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AcpModelSourceUpdate {
+    pub agent: String,
+    pub selection: AcpSessionModelSelection,
+}

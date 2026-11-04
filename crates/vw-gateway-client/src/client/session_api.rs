@@ -118,6 +118,28 @@ impl From<ChatSessionWithRaw> for SessionUiLoadResult {
 }
 
 impl GatewayClient {
+    pub async fn acp_model_source_capabilities(
+        &self,
+        agent: &str,
+    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+        let path = format!("/v1/acp-model-source/{}", encode_session_path_segment(agent));
+        self.get_json(&path, &[]).await
+    }
+
+    pub async fn acp_session_model_source(
+        &self,
+        session_id: &str,
+        directory: Option<&str>,
+        update: &vw_api_types::acp_model_source::AcpModelSourceUpdate,
+    ) -> Result<vw_api_types::acp_session::AcpSessionOptions, String> {
+        self.put_json(
+            &format!("{}/acp-model-source", session_path(session_id)?),
+            &directory_query(directory),
+            update,
+        )
+        .await
+    }
+
     pub async fn acp_session_options(
         &self,
         session_id: &str,

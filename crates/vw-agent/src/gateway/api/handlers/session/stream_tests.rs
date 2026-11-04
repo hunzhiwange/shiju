@@ -2503,6 +2503,46 @@ async fn agent_session_identity_derives_backend_and_rejects_conflicts() {
     .unwrap();
 }
 
+#[test]
+fn acp_model_source_reaches_processor_options_and_preserves_legacy_selection() {
+    use vw_api_types::acp_model_source::AcpModelSource;
+    for (source, options, expected) in [
+        (AcpModelSource::CliLocal, None, "cli_local"),
+        (AcpModelSource::SessionModel, None, "session_model"),
+        (
+            AcpModelSource::SessionModel,
+            Some(serde_json::json!({"acp_model_source":"cli_local", "cwd":"/workspace"})),
+            "cli_local",
+        ),
+    ] {
+        let mut body =
+            GatewayChatStreamRequest { acp_model_source: source, options, ..Default::default() };
+        merge_acp_model_source(&mut body).unwrap();
+        assert_eq!(body.options.as_ref().unwrap()["acp_model_source"], expected);
+        assert_eq!(serde_json::to_value(body.acp_model_source).unwrap(), expected);
+        if expected == "cli_local" && source == AcpModelSource::SessionModel {
+            assert_eq!(body.options.as_ref().unwrap()["cwd"], "/workspace");
+        }
+    }
+}
+
+#[test]
+fn acp_model_source_rejects_invalid_and_conflicting_runtime_options() {
+    use vw_api_types::acp_model_source::AcpModelSource;
+    for options in [
+        serde_json::json!({"acp_model_source":"unknown"}),
+        serde_json::json!({"acp_model_source":"session_model"}),
+        serde_json::json!("invalid options"),
+    ] {
+        let mut body = GatewayChatStreamRequest {
+            acp_model_source: AcpModelSource::CliLocal,
+            options: Some(options),
+            ..Default::default()
+        };
+        assert!(merge_acp_model_source(&mut body).is_err());
+    }
+}
+
 #[tokio::test]
 async fn agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_choice() {
     let _env = crate::test_support::global_async_env_lock().lock().await;

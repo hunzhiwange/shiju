@@ -38,6 +38,7 @@ fn agent_request(
         model: None,
         reasoning_effort: None,
         acp_test: false,
+        acp_model_source: Default::default(),
         acp_agent: None,
         acp_allowed_tools: None,
         agent: None,

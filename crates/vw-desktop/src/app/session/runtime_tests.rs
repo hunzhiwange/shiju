@@ -19,6 +19,7 @@ fn agent_request(id: u64, session: &str) -> std::sync::Arc<AgentRequest> {
         model: None,
         reasoning_effort: None,
         acp_test: false,
+        acp_model_source: Default::default(),
         acp_agent: None,
         acp_allowed_tools: None,
         agent: None,
@@ -413,6 +414,7 @@ fn current_session_started_covers_chat_active_request_and_queue() {
         model: None,
         reasoning_effort: None,
         acp_test: false,
+        acp_model_source: Default::default(),
         acp_agent: None,
         acp_allowed_tools: None,
         agent: None,
@@ -694,4 +696,179 @@ fn historical_session_restores_persisted_reasoning_effort_without_affecting_mode
         app.get_session_runtime_mut("history").reasoning_effort,
         Some(ReasoningEffortDto::High)
     );
+}
+
+#[test]
+fn acp_model_source_ui_selection_waits_for_backend_confirmation() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source-confirm".into());
+    app.current_session_runtime_mut().acp_agent = Some("claude".into());
+    let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
+}
+
+#[test]
+fn acp_model_source_ui_late_options_do_not_recreate_deleted_session() {
+    use crate::app::message::{ChatMessage, chat};
+    let (mut app, _) = crate::app::App::new();
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpOptionsLoaded {
+            session_id: "deleted-source-session".into(),
+            result: Ok(Default::default()),
+        },
+    );
+    assert!(!app.session_runtime_states.contains_key("deleted-source-session"));
+}
+
+fn source_ui_update() -> vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceUpdate {
+    use vw_gateway_client::vw_api_types::acp_model_source::*;
+    AcpModelSourceUpdate {
+        agent: "claude".into(),
+        selection: AcpSessionModelSelection {
+            source: AcpModelSource::CliLocal,
+            provider_id: None,
+            model: None,
+        },
+    }
+}
+
+#[test]
+fn acp_model_source_ui_failure_preserves_confirmed_model_and_other_session() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source-a".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("claude".into());
+    runtime.model = "provider/nested/model".into();
+    runtime.acp_source_pending = Some(source_ui_update());
+    runtime.acp_source_request_id = Some(12);
+    app.active_session_id = Some("source-b".into());
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpModelSourceSaved {
+            session_id: "source-a".into(),
+            request_id: 12,
+            project_path: None,
+            update: source_ui_update(),
+            created: None,
+            result: Err("credential revoked".into()),
+        },
+    );
+    let runtime = app.get_session_runtime("source-a");
+    assert_eq!(runtime.acp_model_source, AcpModelSource::SessionModel);
+    assert_eq!(runtime.model, "provider/nested/model");
+    assert!(runtime.acp_source_pending.is_none());
+    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert_eq!(app.active_session_id.as_deref(), Some("source-b"));
+}
+
+#[test]
+fn acp_model_source_ui_confirmation_updates_only_originating_session() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source-a".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("claude".into());
+    runtime.acp_source_pending = Some(source_ui_update());
+    runtime.acp_source_request_id = Some(12);
+    app.active_session_id = Some("source-b".into());
+    let options = vw_gateway_client::vw_api_types::acp_session::AcpSessionOptions {
+        acp_model_source: AcpModelSource::CliLocal,
+        selected_model: Some(source_ui_update().selection),
+        ..Default::default()
+    };
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpModelSourceSaved {
+            session_id: "source-a".into(),
+            request_id: 11,
+            project_path: None,
+            update: source_ui_update(),
+            created: None,
+            result: Ok(options.clone()),
+        },
+    );
+    assert_eq!(app.get_session_runtime("source-a").acp_model_source, AcpModelSource::SessionModel);
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpModelSourceSaved {
+            session_id: "source-a".into(),
+            request_id: 12,
+            project_path: None,
+            update: source_ui_update(),
+            created: None,
+            result: Ok(options),
+        },
+    );
+    assert_eq!(app.get_session_runtime("source-a").acp_model_source, AcpModelSource::CliLocal);
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
+    assert!(app.get_session_runtime("source-a").acp_rebuild_required);
+}
+
+#[test]
+fn acp_model_source_ui_busy_session_rejects_model_and_source_changes() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("busy-source".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("claude".into());
+    runtime.model = "provider/original".into();
+    runtime.is_requesting = true;
+    let _ = chat::update(&mut app, ChatMessage::ModelSelected("provider/other".into()));
+    let _ = chat::update(&mut app, ChatMessage::AcpModelSourceSelected(AcpModelSource::CliLocal));
+    assert_eq!(app.current_session_runtime().model, "provider/original");
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
+    assert!(app.current_session_runtime().acp_source_pending.is_none());
+}
+
+#[test]
+fn acp_model_source_ui_manual_model_draft_does_not_change_confirmed_model() {
+    use crate::app::message::{ChatMessage, chat};
+    let (mut app, _) = crate::app::App::new();
+    app.active_session_id = Some("source-draft".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("claude".into());
+    runtime.model = "provider/original".into();
+    let _ = chat::update(&mut app, ChatMessage::AcpModelInputDraftChanged("provider/oth".into()));
+    let runtime = app.current_session_runtime();
+    assert_eq!(runtime.model, "provider/original");
+    assert_eq!(runtime.acp_model_input_draft.as_deref(), Some("provider/oth"));
+    assert!(runtime.acp_source_pending.is_none());
+}
+
+#[test]
+fn acp_model_source_ui_new_project_ignores_previous_project_confirmation() {
+    use crate::app::message::{ChatMessage, chat};
+    use vw_gateway_client::vw_api_types::{
+        acp_model_source::AcpModelSource, acp_session::AcpSessionOptions,
+    };
+    let (mut app, _) = crate::app::App::new();
+    app.project_path = Some("/new-project".into());
+    let runtime = app.current_session_runtime_mut();
+    runtime.acp_agent = Some("claude".into());
+    runtime.acp_source_pending = Some(source_ui_update());
+    runtime.acp_source_request_id = Some(12);
+    let _ = chat::update(
+        &mut app,
+        ChatMessage::AcpModelSourceSaved {
+            session_id: "__empty__".into(),
+            request_id: 12,
+            project_path: Some("/old-project".into()),
+            update: source_ui_update(),
+            created: None,
+            result: Ok(AcpSessionOptions {
+                acp_model_source: AcpModelSource::CliLocal,
+                ..Default::default()
+            }),
+        },
+    );
+    assert_eq!(app.current_session_runtime().acp_model_source, AcpModelSource::SessionModel);
+    assert!(app.current_session_runtime().acp_source_pending.is_none());
+    assert!(app.active_session_id.is_none());
 }

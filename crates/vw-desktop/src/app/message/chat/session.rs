@@ -19,6 +19,7 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, info};
+use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
 use vw_gateway_client::vw_api_types::project::ResolveProjectRequest;
 use vw_gateway_client::vw_api_types::worktree::CreateWorktreeRequest;
 use vw_shared::id;
@@ -1110,7 +1111,14 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         .as_ref()
         .and_then(|id| app.sessions.iter().find(|s| &s.id == id).map(|s| s.directory.clone()))
         .or_else(|| app.project_path.clone());
-    let model = if runtime.auto_model { None } else { Some(runtime.model.clone()) };
+    let acp_model_source = runtime.acp_model_source;
+    let model = if runtime.auto_model
+        || (runtime.acp_agent.is_some() && acp_model_source == AcpModelSource::CliLocal)
+    {
+        None
+    } else {
+        Some(runtime.model.clone())
+    };
     let reasoning_effort = runtime.reasoning_effort;
     let acp_agent = runtime.acp_agent.clone();
     let allowed_tools = app.session_allowed_tools_for_request(&runtime);
@@ -1147,6 +1155,7 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
         model,
         reasoning_effort,
         acp_test,
+        acp_model_source,
         acp_agent,
         acp_allowed_tools,
         agent,
@@ -1170,7 +1179,14 @@ fn send_current_session_input_checked(app: &mut App) -> Task<Message> {
 /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
 pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
     match message {
-        ChatMessage::SendPressed => send_current_session_input(app),
+        ChatMessage::SendPressed => {
+            if app.current_session_runtime().acp_source_pending.is_some()
+                || app.current_session_runtime().acp_options_pending
+            {
+                return app.show_error_toast("模型来源正在保存，请稍后发送");
+            }
+            send_current_session_input(app)
+        }
         ChatMessage::NewSessionProjectResolved { project_path, stream_id, pending, result } => {
             if app.project_path.as_deref() != Some(project_path.as_str())
                 || app.agent_stream_id != stream_id
@@ -1273,7 +1289,19 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                 save_task.chain(start(app, item, true))
             }
         }
+        ChatMessage::AcpModelSourceSelected(source) => {
+            super::acp_options::select_source(app, source, None)
+        }
         ChatMessage::AutoModelToggled(b) => {
+            if app.current_session_runtime().acp_agent.is_some() {
+                let model =
+                    if b { "auto".to_string() } else { app.current_session_runtime().model };
+                return super::acp_options::select_source(
+                    app,
+                    AcpModelSource::SessionModel,
+                    Some(model),
+                );
+            }
             if let Some(session_id) = app.active_session_id.clone() {
                 app.cancel_session_model_history_restore(&session_id);
             }
@@ -1430,6 +1458,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             persist_acp_history_preferences(app, mode, parsed)
         }
         ChatMessage::ModelSelected(m) => {
+            if app.current_session_runtime().acp_agent.is_some() {
+                return super::acp_options::select_source(
+                    app,
+                    AcpModelSource::SessionModel,
+                    Some(m),
+                );
+            }
             if let Some(session_id) = app.active_session_id.clone() {
                 app.cancel_session_model_history_restore(&session_id);
             }
@@ -1464,6 +1499,13 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             ])
         }
         ChatMessage::ModelInputChanged(m) => {
+            if app.current_session_runtime().acp_agent.is_some() {
+                return super::acp_options::select_source(
+                    app,
+                    AcpModelSource::SessionModel,
+                    Some(m),
+                );
+            }
             if let Some(session_id) = app.active_session_id.clone() {
                 app.cancel_session_model_history_restore(&session_id);
             }
@@ -2238,6 +2280,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         }
         app.active_session_id = Some(id.clone());
         let runtime = app.get_session_runtime_mut(&id);
+        runtime.acp_model_source = item.acp_model_source;
         runtime.full_access_enabled = pending_runtime.full_access_enabled;
         runtime.full_access_overridden = pending_runtime.full_access_overridden;
         runtime.full_access_initialized = true;
@@ -2346,6 +2389,7 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
             model: item.model,
             reasoning_effort: item.reasoning_effort,
             acp_test: item.acp_test,
+            acp_model_source: item.acp_model_source,
             acp_agent: item.acp_agent,
             acp_allowed_tools: item.acp_allowed_tools,
             agent: item.agent,

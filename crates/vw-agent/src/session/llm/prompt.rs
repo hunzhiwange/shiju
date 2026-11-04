@@ -81,7 +81,7 @@ use super::types::{AgentInfo, PromptStreamEvent, StreamEvent, StreamInput};
 /// // 明确指定 provider
 /// let model = resolve_model(Some("openai/gpt-4".to_string())).await?;
 /// ```
-async fn resolve_model(model: Option<String>) -> Result<provider::Model, String> {
+pub(super) async fn resolve_model(model: Option<String>) -> Result<provider::Model, String> {
     if is_auto_model_request(model.as_deref()) {
         return resolve_auto_model("", &Value::Null, false).await;
     }

@@ -2121,8 +2121,7 @@ fn gateway_agent_stream(req: AgentRequest) -> AgentBoxStream<Message> {
                 }
             };
             let chat_body = vw_gateway_client::GatewayChatStreamRequest {
-                acp_model_source:
-                    vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource::SessionModel,
+                acp_model_source: req.acp_model_source,
                 session_id: Some(req.session.clone().into()),
                 messages: body
                     .get("messages")

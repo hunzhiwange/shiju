@@ -590,7 +590,7 @@ pub(crate) async fn do_stream_request_acp(
 
 /// Validate the captured client model before touching a CLI process. Credentials stay
 /// in the Provider/auth snapshot; CLI-local execution does not consult this boundary.
-fn validate_session_model(
+pub(super) fn validate_session_model(
     model: &provider::Model,
     provider_info: &provider::Info,
     auth_info: Option<&auth::Info>,

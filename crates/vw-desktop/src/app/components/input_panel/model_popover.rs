@@ -28,9 +28,12 @@ use crate::app::components::input_panel::styles::{
     selectable_list_button_style, selector_chevron_color, selector_label_font,
     selector_pill_button_style, selector_text_color, square_icon_button_style,
 };
-use crate::app::components::system_settings_common::settings_text_input_style;
+use crate::app::components::system_settings_common::{
+    SETTINGS_CONTROL_PADDING, SETTINGS_CONTROL_TEXT_SIZE, settings_text_input_style,
+};
 use crate::app::state::ProviderModelsSummary;
 use crate::app::{App, Message, message};
+use vw_gateway_client::vw_api_types::acp_model_source::AcpModelSource;
 
 pub(super) fn normalize_model_input(model: &str) -> String {
     let trimmed = model.trim();
@@ -134,7 +137,10 @@ pub fn model_toggle_button(
     model: &str,
     expanded: bool,
 ) -> Element<'static, Message> {
-    let highlight_toggle = expanded || auto_model;
+    let cli_local = app.current_session_runtime_ref().is_some_and(|runtime| {
+        runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal
+    });
+    let highlight_toggle = expanded || (auto_model && !cli_local);
     // 下拉箭头图标的样式：使用半透明的文字颜色
     let chevron_style = move |theme: &Theme, _| svg::Style {
         color: Some(selector_chevron_color(theme, highlight_toggle)),
@@ -146,14 +152,18 @@ pub fn model_toggle_button(
     .style(chevron_style);
 
     // 根据是否启用自动模型确定显示的标签文本
-    let toggle_label = if auto_model {
+    let toggle_label = if cli_local {
+        "智能体原生模型".to_string()
+    } else if auto_model {
         crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型").to_owned()
     } else {
         model_toggle_label(&app.model_settings.providers, auto_model, model)
     };
 
     // 根据当前状态确定按钮图标
-    let model_icon_svg = if auto_model {
+    let model_icon_svg = if cli_local {
+        icon_svg(Icon::Hexagon, BOTTOM_BAR_ICON_SIZE)
+    } else if auto_model {
         // 自动模型模式使用自动图标
         themed_svg_handle(auto_icon(), BOTTOM_BAR_ICON_SIZE)
     } else {
@@ -229,6 +239,17 @@ pub fn model_popover_content<'a>(
     let popup_width = 320.0;
     // 获取搜索关键词（转为小写用于不区分大小写的匹配）
     let query = app.model_settings.query.trim().to_ascii_lowercase();
+    let runtime = app.current_session_runtime();
+    let cli_local =
+        runtime.acp_agent.is_some() && runtime.acp_model_source == AcpModelSource::CliLocal;
+    let can_select = !runtime.is_requesting
+        && !runtime.acp_options_pending
+        && runtime.acp_source_pending.is_none()
+        && (runtime.acp_agent.is_none() || runtime.acp_options.model_source_capabilities.iter().any(|capability| {
+            matches!(capability, vw_gateway_client::vw_api_types::acp_model_source::AcpModelSourceCapability::Supported { source: AcpModelSource::SessionModel })
+        }));
+    let is_acp = runtime.acp_agent.is_some();
+    let input_model = runtime.acp_model_input_draft.as_deref().unwrap_or(model).to_string();
 
     // 搜索输入框
     let search = text_input(
@@ -236,13 +257,17 @@ pub fn model_popover_content<'a>(
         &app.model_settings.query,
     )
     .on_input(|v| Message::Settings(message::SettingsMessage::ModelQueryChanged(v)))
-    .padding([8, 10])
-    .size(13)
+    .padding(SETTINGS_CONTROL_PADDING)
+    .size(SETTINGS_CONTROL_TEXT_SIZE)
     .style(settings_text_input_style);
 
     // 模型列表容器
     let mut model_list = column![].spacing(8);
     let mut any_models = false;
+    if runtime.acp_agent.is_some() {
+        model_list = model_list.push(super::acp_options::source_controls(app));
+        model_list = model_list.push(text("客户端模型 · 供应商模型").size(12));
+    }
 
     // 处理加载状态和空列表情况
     if app.model_settings.loading && app.model_settings.providers.is_empty() {
@@ -292,7 +317,8 @@ pub fn model_popover_content<'a>(
                 let display_name = truncated_model_name(&m.name);
 
                 // 判断当前模型是否被选中
-                let selected = !auto_model && model_is_selected(model, &provider_id, &model_id);
+                let selected =
+                    !cli_local && !auto_model && model_is_selected(model, &provider_id, &model_id);
 
                 // 选中状态显示勾选图标，否则显示占位空间
                 let selected_badge: Element<'_, Message> = if selected {
@@ -318,7 +344,10 @@ pub fn model_popover_content<'a>(
                 .style(move |theme: &Theme, status: iced::widget::button::Status| {
                     selectable_list_button_style(theme, status, selected)
                 })
-                .on_press(Message::Chat(message::ChatMessage::ModelSelected(model_key)));
+                .on_press_maybe(
+                    can_select
+                        .then_some(Message::Chat(message::ChatMessage::ModelSelected(model_key))),
+                );
 
                 // 模型详情按钮（问号图标）
                 let detail_btn = mouse_area(
@@ -412,8 +441,11 @@ pub fn model_popover_content<'a>(
                     themed_svg_handle(auto_icon(), 18.0),
                     text(crate::app::i18n::I18n::new(app.desktop_locale).__("自动模型")),
                     container(text("")).width(Length::Fill),
-                    toggler(auto_model)
-                        .on_toggle(|b| Message::Chat(message::ChatMessage::AutoModelToggled(b)))
+                    toggler(auto_model && !cli_local).on_toggle_maybe(
+                        can_select.then_some(|b| Message::Chat(
+                            message::ChatMessage::AutoModelToggled(b)
+                        ))
+                    )
                 ]
                 .spacing(8),
                 // 任务模式开关
@@ -435,20 +467,27 @@ pub fn model_popover_content<'a>(
                 text_input(
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("auto / provider/model / 自定义模型"),
-                    model
+                    &input_model
                 )
-                .on_input(|value| {
-                    Message::Chat(message::ChatMessage::ModelInputChanged(normalize_model_input(
-                        &value,
-                    )))
-                })
-                .padding([8, 10])
-                .size(13)
+                .on_input_maybe(can_select.then_some(move |value: String| {
+                    Message::Chat(if is_acp {
+                        message::ChatMessage::AcpModelInputDraftChanged(value)
+                    } else {
+                        message::ChatMessage::ModelInputChanged(normalize_model_input(&value))
+                    })
+                }))
+                .on_submit_maybe(can_select.then_some(Message::Chat(
+                    message::ChatMessage::ModelSelected(normalize_model_input(&input_model)),
+                )))
+                .padding(SETTINGS_CONTROL_PADDING)
+                .size(SETTINGS_CONTROL_TEXT_SIZE)
                 .style(settings_text_input_style),
-                text(
+                text(if runtime.acp_agent.is_some() {
+                    "输入 Provider/model 后按回车确认"
+                } else {
                     crate::app::i18n::I18n::new(app.desktop_locale)
                         .__("兼容特殊调度器或未出现在列表中的模型 ID")
-                )
+                })
                 .size(11)
                 .style(|theme: &Theme| {
                     let palette = theme.palette();

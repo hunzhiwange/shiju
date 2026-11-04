@@ -11,7 +11,7 @@ on:
       cache:
         description: 'Rust cache: off for baseline, restore for measured reuse'
         type: choice
-        options: [restore, off]
+        options: [restore, 'off']
         default: restore
 
 permissions:

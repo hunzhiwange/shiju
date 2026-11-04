@@ -85,6 +85,7 @@ pub fn view<'a>(title: &'a str, content: &'a str) -> Element<'a, Message> {
         None,
         None,
         None,
+        0,
     )
 }
 
@@ -107,6 +108,7 @@ pub fn view_localized<'a>(
         None,
         None,
         None,
+        0,
     )
 }
 
@@ -157,6 +159,7 @@ pub fn view_update_check_with_progress<'a>(
         last_copied_code_hash,
         None,
         None,
+        0,
     )
 }
 
@@ -181,6 +184,7 @@ pub fn view_app_update(app: &crate::app::App) -> Element<'_, Message> {
                 app.last_copied_code_hash,
             )
         }),
+        app.status_animation_frame,
     )
 }
 
@@ -198,9 +202,15 @@ fn view_inner<'a>(
     last_copied_code_hash: Option<u64>,
     desktop_update: Option<&crate::app::desktop_update::DesktopUpdate>,
     cli_commands: Option<Element<'a, Message>>,
+    animation_frame: usize,
 ) -> Element<'a, Message> {
     let close_message = Message::View(message::ViewMessage::CloseInstallCliModal);
     let has_version_info = current_version.is_some() && server_version.is_some();
+    #[cfg(target_arch = "wasm32")]
+    let installing = false;
+    #[cfg(not(target_arch = "wasm32"))]
+    let installing = use_app_update_action
+        && desktop_update.is_some_and(|state| state.busy && state.ready.is_some());
     let helper_text = if use_app_update_action {
         if cfg!(target_os = "linux") {
             "自动选择 DEB/RPM，下载校验后通过系统授权安装；成功后提示启动新版。"
@@ -258,7 +268,7 @@ fn view_inner<'a>(
         };
 
     let action_buttons: Element<'a, Message> = if has_version_info {
-        let detect_label = if is_checking { "检测中..." } else { "检测更新" };
+        let detect_label = if is_checking && !installing { "检测中..." } else { "检测更新" };
         let detect_message = if use_app_update_action {
             message::ViewMessage::CheckAppUpdate
         } else {
@@ -275,10 +285,18 @@ fn view_inner<'a>(
         let action_row = if use_app_update_action
             && desktop_update.is_some_and(|state| state.ready.is_some())
         {
-            let label = "自动更新并退出 / 重试";
+            let label = if installing { "更新中…" } else { "自动更新并退出 / 重试" };
+            let mut content = row![].spacing(8).align_y(Alignment::Center);
+            if installing {
+                content = content.push(
+                    text(super::status_animation::spinner_frame(animation_frame))
+                        .width(Length::Fixed(16.0)),
+                );
+            }
+            let content = content.push(text(i18n.__(label)));
             action_row
                 .push(
-                    button(i18n.__(label))
+                    button(content)
                         .on_press_maybe(
                             (!is_checking)
                                 .then_some(Message::View(message::ViewMessage::OpenAppInstaller)),

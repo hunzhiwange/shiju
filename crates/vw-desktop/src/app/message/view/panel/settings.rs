@@ -474,6 +474,9 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             #[cfg(not(target_arch = "wasm32"))]
             if let Some(ready) = app.desktop_update.ready.clone() {
                 let locale = app.desktop_locale;
+                app.cli_install_modal_title = "更新中…".into();
+                app.cli_install_modal_message =
+                    "正在校验安装包并启动自动更新，请稍候；准备就绪后应用将自动退出。".into();
                 app.desktop_update.busy = true;
                 app.cli_install_modal_is_checking_update = true;
                 return Task::perform(

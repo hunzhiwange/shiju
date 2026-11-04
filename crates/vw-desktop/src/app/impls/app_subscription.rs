@@ -12,6 +12,9 @@ use crate::apps::workflow::state::WorkflowRunSubscriptionRequest;
 
 fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> bool {
     startup_transition_active
+        || (app.show_cli_install_modal
+            && app.cli_install_modal_use_app_update_action
+            && app.desktop_update.busy)
         || (app.screen == Screen::Project && app.any_session_requesting())
         || app.has_active_explore_summary_animation()
         || app.task_pet_window_id.is_some()

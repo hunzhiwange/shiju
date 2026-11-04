@@ -4932,6 +4932,8 @@
   "开发者：刘祥敏。": "Developer: Liu Xiangmin.",
   "检测中...": "Checking...",
   "检测更新": "Check for updates",
+  "更新中…": "Updating…",
+  "正在校验安装包并启动自动更新，请稍候；准备就绪后应用将自动退出。": "Verifying the installer and starting the automatic update. Please wait; the app will quit automatically when ready.",
   "自动更新并退出 / 重试": "Update and exit / Retry",
   "打开安装包目录": "Open installer folder",
   "是否打开安装包目录以手工安装？": "Open the installer folder to install manually?",

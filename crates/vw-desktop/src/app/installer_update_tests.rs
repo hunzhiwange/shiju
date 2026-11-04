@@ -212,6 +212,9 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     std::fs::write(ready.path(), b"tampered").unwrap();
     let task = app.update(Message::View(ViewMessage::OpenAppInstaller));
     assert!(app.desktop_update.busy);
+    assert!(app.cli_install_modal_is_checking_update);
+    assert_eq!(app.cli_install_modal_title, "更新中…");
+    assert!(app.cli_install_modal_message.contains("正在校验安装包"));
     let duplicate = app.update(Message::View(ViewMessage::OpenAppInstaller));
     assert_eq!(duplicate.units(), 0);
     let mut stream = iced_runtime::task::into_stream(task).unwrap();
@@ -228,6 +231,7 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
         _ => panic!("tampered installer must fail before opening"),
     }
     assert!(!app.desktop_update.busy);
+    assert!(!app.cli_install_modal_is_checking_update);
     assert!(!app.shutdown_requested);
     assert_eq!(app.cli_install_modal_title, "自动更新启动失败");
     assert!(app.active_toast.is_some());
@@ -249,7 +253,7 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
     assert!(!app.cli_install_modal_message.contains("更新完成"));
     assert!(ready.path().exists());
 
-    // Draw the real ready-state controls, including the open/retry action, in both themes.
+    // Draw every loading frame and the ready/retry controls in both themes.
     let mut renderer = <iced::Renderer as Headless>::new(
         iced::Font::DEFAULT,
         iced::Pixels(16.0),
@@ -268,24 +272,31 @@ async fn app_update_ready_installer_survives_close_open_failure_and_retry() {
         let (_root, ready) = fixture(kind);
         app.cli_install_modal_message = ready.instructions();
         app.desktop_update.ready = Some(ready);
-        let mut element = crate::app::components::install_cli_modal::view_app_update(&app);
-        let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 900.0));
-        let mut tree = Tree::new(element.as_widget());
-        let node = element.as_widget_mut().layout(
-            &mut tree,
-            &renderer,
-            &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
-        );
-        element.as_widget().draw(
-            &tree,
-            &mut renderer,
-            &theme,
-            &iced::advanced::renderer::Style::default(),
-            iced::advanced::Layout::new(&node),
-            iced::mouse::Cursor::Unavailable,
-            &viewport,
-        );
-        let pixels = renderer.screenshot(iced::Size::new(960, 900), 1.0, iced::Color::TRANSPARENT);
-        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        for frame in 0..=10 {
+            app.desktop_update.busy = frame < 10;
+            app.cli_install_modal_is_checking_update = app.desktop_update.busy;
+            app.status_animation_frame = frame;
+            let mut element = crate::app::components::install_cli_modal::view_app_update(&app);
+            let viewport = iced::Rectangle::with_size(iced::Size::new(960.0, 900.0));
+            let mut tree = Tree::new(element.as_widget());
+            let node = element.as_widget_mut().layout(
+                &mut tree,
+                &renderer,
+                &iced::advanced::layout::Limits::new(iced::Size::ZERO, viewport.size()),
+            );
+            iced::advanced::Renderer::reset(&mut renderer, viewport);
+            element.as_widget().draw(
+                &tree,
+                &mut renderer,
+                &theme,
+                &iced::advanced::renderer::Style::default(),
+                iced::advanced::Layout::new(&node),
+                iced::mouse::Cursor::Unavailable,
+                &viewport,
+            );
+            let pixels =
+                renderer.screenshot(iced::Size::new(960, 900), 1.0, iced::Color::TRANSPARENT);
+            assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        }
     }
 }

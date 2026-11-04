@@ -144,3 +144,99 @@ fn agent_config_cleanup_strict_skill_defaults_reject_save_outside_boundary() {
     draft.defaults.skills = AgentDefault::Inherit;
     assert_eq!(super::defaults::patch(&draft.defaults)["skills"]["value"], serde_json::Value::Null);
 }
+
+#[test]
+fn agent_config_cleanup_full_access_patch_preserves_permission() {
+    let defaults = AgentDefaults {
+        full_access: true,
+        permission: AgentDefault::Fixed(serde_json::json!({"*":"deny"})),
+        ..Default::default()
+    };
+    let patch = super::defaults::patch(&defaults);
+    assert_eq!(patch["full_access"], true);
+    assert_eq!(patch["permission"]["value"], serde_json::json!({"*":"deny"}));
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn agent_config_cleanup_full_access_renders_chinese_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+    for (theme, name) in [(Theme::Light, "light"), (Theme::Dark, "dark")] {
+        let mut app = crate::app::App::new().0;
+        app.agents_settings.config_ready = true;
+        let _ = crate::app::message::settings::update(
+            &mut app,
+            crate::app::message::settings::SettingsMessage::Agents(
+                crate::app::message::settings::AgentsMessage::ProfileOpen("main".into()),
+            ),
+        );
+
+        app.mcp_settings.inspect_loading = false;
+        app.mcp_settings.inspect_error = Some("隔离目录加载失败".into());
+        app.agents_settings.profile_modal.as_mut().unwrap().defaults.mcp =
+            AgentDefault::Fixed(vec!["中文服务".into()]);
+        let mut element: iced::Element<'_, crate::app::Message> = iced::widget::container(
+            super::defaults::view(&app, app.agents_settings.profile_modal.as_ref().unwrap()),
+        )
+        .padding(24)
+        .width(iced::Length::Fill)
+        .height(iced::Length::Fill)
+        .style(|theme: &Theme| {
+            iced::widget::container::Style::default().background(theme.palette().background)
+        })
+        .into();
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .unwrap();
+        let bounds = Size::new(1100.0, 900.0);
+        let mut tree = Tree::new(element.as_widget());
+        let node = element.as_widget_mut().layout(
+            &mut tree,
+            &renderer,
+            &layout::Limits::new(Size::ZERO, bounds),
+        );
+        assert_eq!(node.bounds().size(), bounds);
+        #[derive(Default)]
+        struct Labels(Vec<String>);
+        impl iced::advanced::widget::Operation for Labels {
+            fn traverse(
+                &mut self,
+                operate: &mut dyn FnMut(&mut dyn iced::advanced::widget::Operation),
+            ) {
+                operate(self);
+            }
+            fn text(
+                &mut self,
+                _id: Option<&iced::advanced::widget::Id>,
+                _bounds: Rectangle,
+                text: &str,
+            ) {
+                self.0.push(text.to_owned());
+            }
+        }
+        let mut labels = Labels::default();
+        element.as_widget_mut().operate(&mut tree, Layout::new(&node), &renderer, &mut labels);
+        assert!(!labels.0.iter().any(|text| text == "默认权限"));
+        element.as_widget().draw(
+            &tree,
+            &mut renderer,
+            &theme,
+            &renderer::Style { text_color: theme.palette().text },
+            Layout::new(&node),
+            mouse::Cursor::Unavailable,
+            &Rectangle::with_size(bounds),
+        );
+        let pixels = renderer.screenshot(Size::new(1100, 900), 1.0, Color::TRANSPARENT);
+        assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+        image::save_buffer(
+            format!("/tmp/shiju-task6-full-access-{name}.png"),
+            &pixels,
+            1100,
+            900,
+            image::ColorType::Rgba8,
+        )
+        .unwrap();
+    }
+}

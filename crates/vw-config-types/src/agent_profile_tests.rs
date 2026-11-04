@@ -8,6 +8,7 @@ fn agent_profile_roundtrip_distinguishes_inherit_and_empty() {
         "runtime": {"kind": "acp", "backend": "codex"},
         "recommended_prompts": ["检查代码"],
         "defaults": {
+            "full_access": false,
             "model": {"mode": "fixed", "value": {"provider": "openai", "model": "test"}},
             "permission": {"mode": "fixed", "value": {"*": "deny", "file_read": "allow"}},
             "skills": {"mode": "fixed", "value": []},
@@ -101,4 +102,17 @@ fn agent_profile_builtin_merge_preserves_defaults_and_runtime_binding() {
     assert_eq!(merged["main"].runtime, crate::agent_profile::AgentRuntime::Native);
     assert_eq!(merged["main"].defaults, config.defaults);
     assert_eq!(merged["main"].recommended_prompts, config.recommended_prompts);
+}
+
+#[test]
+fn agent_config_cleanup_full_access_default_roundtrips() {
+    use super::agent_profile::AgentDefaults;
+    let old: AgentDefaults = serde_json::from_value(serde_json::json!({})).unwrap();
+    assert!(!old.full_access);
+    for enabled in [false, true] {
+        let defaults = AgentDefaults { full_access: enabled, ..Default::default() };
+        let encoded = serde_json::to_value(&defaults).unwrap();
+        assert_eq!(encoded["full_access"], enabled);
+        assert_eq!(serde_json::from_value::<AgentDefaults>(encoded).unwrap(), defaults);
+    }
 }

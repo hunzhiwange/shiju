@@ -1017,6 +1017,25 @@ async fn prepare_gateway_agent_request(
             body.acp_agent = Some(backend.clone())
         }
     }
+    let explicit_full_access = options
+        .and_then(|options| options.get("full_access"))
+        .map(|value| {
+            value.as_bool().ok_or_else(|| ApiError::bad_request("full_access must be a boolean"))
+        })
+        .transpose()?;
+    let full_access = crate::session::agent_binding::resolve_full_access(
+        session,
+        explicit_full_access,
+        binding.defaults.full_access,
+    )
+    .await
+    .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let mut options = body.options.take().unwrap_or_else(|| serde_json::json!({}));
+    options
+        .as_object_mut()
+        .ok_or_else(|| ApiError::bad_request("options must be an object"))?
+        .insert("full_access".into(), Value::Bool(full_access));
+    body.options = Some(options);
     body.agent = Some(binding.agent.clone());
     let definition = config
         .agents

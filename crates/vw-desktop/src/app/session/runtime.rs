@@ -39,6 +39,19 @@ pub(crate) fn request_allowed_tools_from_inventory(
 }
 
 impl App {
+    fn new_session_full_access(&self, session_id: &str) -> bool {
+        // Loading an existing session must not apply newly edited profile defaults.
+        let restored = self.sessions.iter().any(|session| session.id == session_id)
+            || self.project_sessions.values().flatten().any(|session| session.id == session_id);
+        !restored
+            && self
+                .agents_settings
+                .entries
+                .iter()
+                .find(|entry| entry.key == MAIN_AGENT_KEY)
+                .is_some_and(|entry| entry.defaults.full_access)
+    }
+
     fn selected_static_allowed_tools(&self, runtime: &SessionRuntimeState) -> Option<Vec<String>> {
         let selected_key = runtime.agent.as_deref().unwrap_or(MAIN_AGENT_KEY);
         let entry = self.agents_settings.entries.iter().find(|entry| entry.key == selected_key)?;
@@ -63,17 +76,25 @@ impl App {
     ) -> crate::app::state::SessionRuntimeState {
         #[cfg(test)]
         crate::app::components::chat_panel::performance::record_runtime_clone();
-        self.session_runtime_states.get(session_id).cloned().unwrap_or_else(|| {
-            let mut runtime = crate::app::state::SessionRuntimeState::with_defaults(
-                self.default_session_model(),
-                self.default_session_auto_model(),
-            );
-            runtime.reasoning_effort =
-                self.session_reasoning_efforts.get(session_id).copied().flatten();
-            runtime.acp_history_mode = self.acp_history_mode;
-            runtime.acp_recent_count = self.acp_recent_count;
-            runtime
-        })
+        let mut runtime =
+            self.session_runtime_states.get(session_id).cloned().unwrap_or_else(|| {
+                let mut runtime = crate::app::state::SessionRuntimeState::with_defaults(
+                    self.default_session_model(),
+                    self.default_session_auto_model(),
+                );
+                runtime.reasoning_effort =
+                    self.session_reasoning_efforts.get(session_id).copied().flatten();
+                runtime.acp_history_mode = self.acp_history_mode;
+                runtime.acp_recent_count = self.acp_recent_count;
+                runtime
+            });
+        if self.agents_settings.config_ready
+            && !runtime.full_access_initialized
+            && !runtime.full_access_overridden
+        {
+            runtime.full_access_enabled = self.new_session_full_access(session_id);
+        }
+        runtime
     }
 
     /// 执行 get_session_runtime_mut 对应的领域操作。
@@ -84,6 +105,8 @@ impl App {
         &mut self,
         session_id: &str,
     ) -> &mut crate::app::state::SessionRuntimeState {
+        let full_access = self.new_session_full_access(session_id);
+        let config_ready = self.agents_settings.config_ready;
         let reasoning_effort = self.session_reasoning_efforts.get(session_id).copied().flatten();
         let model = self.default_session_model();
         let auto_model = self.default_session_auto_model();
@@ -96,6 +119,10 @@ impl App {
                 runtime.reasoning_effort = reasoning_effort;
                 runtime
             });
+        if config_ready && !runtime.full_access_initialized && !runtime.full_access_overridden {
+            runtime.full_access_enabled = full_access;
+            runtime.full_access_initialized = true;
+        }
         runtime.acp_history_mode = acp_history_mode;
         runtime.acp_recent_count = acp_recent_count;
         runtime

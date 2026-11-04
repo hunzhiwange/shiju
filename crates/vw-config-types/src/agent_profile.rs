@@ -76,6 +76,8 @@ impl<T> std::fmt::Debug for AgentDefault<T> {
 pub struct AgentDefaults {
     pub model: AgentDefault<AgentModelReference>,
     pub permission: AgentDefault<Value>,
+    /// 新会话完全访问初值；会话内的显式选择优先，权限拒绝仍然生效。
+    pub full_access: bool,
     /// 技能的稳定 ID。
     pub skills: AgentDefault<Vec<String>>,
     /// MCP 服务的稳定 ID，不包含连接配置或凭据。

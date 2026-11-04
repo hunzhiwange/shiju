@@ -2056,3 +2056,55 @@ fn agent_unified_selection_ignores_install_result_from_another_session() {
     assert!(app.chat.is_empty());
     assert!(app.acp_settings.installed.is_empty());
 }
+
+#[test]
+fn agent_config_cleanup_full_access_initializes_new_session_only() {
+    let mut app = crate::app::App::new().0;
+    app.agents_settings.config_ready = true;
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|e| e.key == "main")
+        .unwrap()
+        .defaults
+        .full_access = true;
+    assert!(app.current_session_runtime().full_access_enabled);
+    app.current_session_runtime_mut();
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|e| e.key == "main")
+        .unwrap()
+        .defaults
+        .full_access = false;
+    assert!(app.current_session_runtime().full_access_enabled);
+    app.active_session_id = Some("restored".into());
+    app.sessions.push(session_info("restored", "old", "/tmp"));
+    assert!(!app.current_session_runtime().full_access_enabled);
+    app.active_session_id = Some("new".into());
+    assert!(!app.current_session_runtime().full_access_enabled);
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("main".into())));
+    assert!(!app.current_session_runtime().full_access_enabled);
+}
+
+#[test]
+fn agent_config_cleanup_full_access_does_not_override_explicit_session_choice() {
+    let mut app = crate::app::App::new().0;
+    app.agents_settings.config_ready = true;
+    app.agents_settings
+        .entries
+        .iter_mut()
+        .find(|e| e.key == "main")
+        .unwrap()
+        .defaults
+        .full_access = true;
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("main".into())));
+    assert!(app.current_session_runtime().full_access_enabled);
+    let _ =
+        crate::app::message::chat::update(&mut app, super::ChatMessage::ToggleFullAccessPermission);
+    assert!(!app.current_session_runtime().full_access_enabled);
+    let _ = super::update(&mut app, super::ChatMessage::SessionAgentSelected(Some("main".into())));
+    assert!(!app.current_session_runtime().full_access_enabled);
+    app.active_session_id = Some("other-new-session".into());
+    assert!(app.current_session_runtime().full_access_enabled);
+}

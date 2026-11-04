@@ -78,3 +78,32 @@ fn agent_session_identity_keeps_live_credentials_and_security_rules() {
     assert_eq!(current.permission, serde_json::json!({"*":"deny"}));
     assert_eq!(current.api_key.as_deref(), Some("rotated-credential"));
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_full_access_session_state_preserves_explicit_false() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let project = format!("full-access-{}", uuid::Uuid::new_v4());
+    assert!(resolve_full_access_scoped(&project, "new", None, true).await.unwrap());
+    assert!(!resolve_full_access_scoped(&project, "new", Some(false), true).await.unwrap());
+    assert!(!resolve_full_access_scoped(&project, "new", None, true).await.unwrap());
+    assert!(resolve_full_access_scoped(&project, "other", None, true).await.unwrap());
+    assert!(!resolve_full_access_scoped(&project, "off", None, false).await.unwrap());
+    assert!(!resolve_full_access_scoped("other-project", "new", None, false).await.unwrap());
+}
+
+#[test]
+fn agent_config_cleanup_full_access_retains_permission_denials() {
+    let mut definition = AgentDefinitionConfig::default();
+    definition.defaults.full_access = true;
+    let binding = AgentBinding::from_definition("main".into(), &definition);
+    let mut current =
+        AgentDefinitionConfig { permission: serde_json::json!({"*":"deny"}), ..Default::default() };
+    binding.apply(&mut current);
+    assert!(current.defaults.full_access);
+    assert_eq!(current.permission, serde_json::json!({"*":"deny"}));
+}

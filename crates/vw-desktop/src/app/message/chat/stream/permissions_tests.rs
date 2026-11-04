@@ -362,3 +362,16 @@ fn reply_result_schedules_permission_refresh_for_success_and_error() {
     assert!(iced_runtime::task::into_stream(success.collect()).is_some());
     assert!(iced_runtime::task::into_stream(error.collect()).is_some());
 }
+
+#[test]
+fn agent_config_cleanup_full_access_disabled_keeps_normal_approval() {
+    let mut app = crate::app::App::new().0;
+    app.agents_settings.config_ready = true;
+    app.active_session_id = Some("normal-approval".into());
+    app.current_session_runtime_mut();
+    let pending = request("pending", "normal-approval");
+    let _ = super::handle_permission_list_loaded(&mut app, Ok(vec![pending.clone()]));
+    assert!(!app.current_session_runtime().full_access_enabled);
+    assert_eq!(app.permission_modal_requests, vec![pending]);
+    assert_eq!(app.permission_modal_request_id.as_deref(), Some("pending"));
+}

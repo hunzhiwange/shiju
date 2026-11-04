@@ -427,3 +427,86 @@ fn parse_acp_options_allows_non_object_root_values() {
         assert_eq!(parsed, ParsedAcpOptions::default());
     }
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_full_access_acp_preserves_false_and_deny() {
+    use vw_config_types::agent::AgentDefault;
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    let mut cfg = config::schema::Config::default();
+    let mut agent =
+        crate::agent::catalog::merged_agent_catalog(&cfg.agents).remove("acp-codex").unwrap();
+    agent.defaults.full_access = true;
+    agent.defaults.skills = AgentDefault::Fixed(vec![]);
+    agent.defaults.mcp = AgentDefault::Fixed(vec![]);
+    cfg.agents.insert("acp-codex".into(), agent);
+    for (options, expected) in [
+        (json!({"agent":"acp-codex"}), true),
+        (json!({"agent":"acp-codex", "full_access":false}), false),
+        (json!({"agent":"acp-codex", "full_access":true}), true),
+    ] {
+        let mut parsed = ParsedAcpOptions::default();
+        apply_agent_defaults(&cfg, &options, "codex", workspace.path(), &mut parsed, &json!([]))
+            .await
+            .unwrap();
+        assert_eq!(parsed.full_access, expected);
+    }
+    cfg.agents.get_mut("acp-codex").unwrap().defaults.permission =
+        AgentDefault::Fixed(json!({"*":"deny"}));
+    let mut parsed = ParsedAcpOptions::default();
+    apply_agent_defaults(
+        &cfg,
+        &json!({"agent":"acp-codex", "full_access":true}),
+        "codex",
+        workspace.path(),
+        &mut parsed,
+        &json!([]),
+    )
+    .await
+    .unwrap();
+    assert!(!parsed.full_access);
+    assert_eq!(parsed.permission_mode, Some(PermissionMode::DenyAll));
+    cfg.agents.get_mut("acp-codex").unwrap().defaults.permission = AgentDefault::Inherit;
+    cfg.agents.get_mut("acp-codex").unwrap().permission = json!({"*":"deny"});
+    crate::config::update(json!({"agents":{"acp-codex":{"permission":{"*":"deny"}}}}))
+        .await
+        .unwrap();
+    let mut parsed = ParsedAcpOptions::default();
+    apply_agent_defaults(
+        &cfg,
+        &json!({"agent":"acp-codex", "full_access":true}),
+        "codex",
+        workspace.path(),
+        &mut parsed,
+        &json!([]),
+    )
+    .await
+    .unwrap();
+    assert!(!parsed.full_access);
+    assert_eq!(parsed.permission_mode, Some(PermissionMode::DenyAll));
+    cfg.agents.get_mut("acp-codex").unwrap().permission = json!({"*":"allow", "file_read":"deny"});
+    crate::config::update(
+        json!({"agents":{"acp-codex":{"permission":{"*":"allow", "file_read":"deny"}}}}),
+    )
+    .await
+    .unwrap();
+    assert!(
+        apply_agent_defaults(
+            &cfg,
+            &json!({"agent":"acp-codex", "full_access":true}),
+            "codex",
+            workspace.path(),
+            &mut parsed,
+            &json!([])
+        )
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("selective host permission denials")
+    );
+}

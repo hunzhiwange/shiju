@@ -132,6 +132,49 @@ pub(crate) async fn save_scoped(
     .await?
 }
 
+// Persist the session choice separately from the immutable agent defaults snapshot.
+static FULL_ACCESS: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+pub(crate) async fn resolve_full_access_scoped(
+    project: &str,
+    session: &str,
+    explicit: Option<bool>,
+    initial: bool,
+) -> Result<bool> {
+    let _guard = FULL_ACCESS.lock().await;
+    let key = storage_key(project, session)?;
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    crate::global_database::run_isolated(move || {
+        let store = store()?;
+        let previous = store.get(&tenant, "session.full-access", &key)?;
+        let enabled = match explicit {
+            Some(enabled) => enabled,
+            None => previous
+                .as_deref()
+                .map(serde_json::from_str::<bool>)
+                .transpose()?
+                .unwrap_or(initial),
+        };
+        store.upsert(&tenant, "session.full-access", &key, &serde_json::to_string(&enabled)?)?;
+        Ok(enabled)
+    })
+    .await?
+}
+
+pub(crate) async fn resolve_full_access(
+    session: &str,
+    explicit: Option<bool>,
+    initial: bool,
+) -> Result<bool> {
+    if session.is_empty() {
+        return Ok(explicit.unwrap_or(initial));
+    }
+    let project = crate::project::instance::project()
+        .ok_or_else(|| anyhow::anyhow!("session permissions require a project"))?
+        .id;
+    resolve_full_access_scoped(&project, session, explicit, initial).await
+}
+
 pub(crate) async fn load(session: &str) -> Result<Option<AgentBinding>> {
     let project = crate::project::instance::project()
         .ok_or_else(|| anyhow::anyhow!("session binding requires a project"))?

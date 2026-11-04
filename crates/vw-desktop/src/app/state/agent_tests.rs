@@ -38,10 +38,10 @@ fn test_module_is_wired() {
 }
 
 #[test]
-fn session_runtime_defaults_to_full_access() {
+fn session_runtime_defaults_to_normal_approval() {
     let runtime = SessionRuntimeState::new();
 
-    assert!(runtime.full_access_enabled);
+    assert!(!runtime.full_access_enabled);
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn session_runtime_with_defaults_preserves_model_and_initializes_idle_state() {
     assert_eq!(runtime.task_mode_task_split_mode, crate::app::task::TaskSplitMode::FollowSystem);
     assert_eq!(runtime.acp_history_mode, AcpHistoryReplayMode::Discard);
     assert_eq!(runtime.acp_recent_count, 3);
-    assert!(runtime.full_access_enabled);
+    assert!(!runtime.full_access_enabled);
     assert!(!runtime.acp_rebuild_required);
 }
 

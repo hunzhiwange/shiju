@@ -515,6 +515,9 @@ pub(crate) struct SessionRuntimeState {
     pub(crate) acp_history_mode: AcpHistoryReplayMode,
     pub(crate) acp_recent_count: usize,
     pub(crate) full_access_enabled: bool,
+    pub(crate) full_access_initialized: bool,
+    /// 用户操作后不再采用智能体默认值。
+    pub(crate) full_access_overridden: bool,
     pub(crate) last_effective_acp_agent: Option<String>,
     pub(crate) acp_rebuild_required: bool,
 }
@@ -710,7 +713,9 @@ impl SessionRuntimeState {
             acp_options_pending: false,
             acp_history_mode: AcpHistoryReplayMode::Discard,
             acp_recent_count: 3,
-            full_access_enabled: true,
+            full_access_enabled: false,
+            full_access_overridden: false,
+            full_access_initialized: false,
             last_effective_acp_agent: None,
             acp_rebuild_required: false,
         }

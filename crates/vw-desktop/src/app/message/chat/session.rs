@@ -1387,6 +1387,7 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
                     vec![],
                 );
             };
+            let full_access = entry.defaults.full_access;
             let agent_label = Some(entry.label.clone());
             let acp_agent = match &entry.runtime {
                 vw_config_types::agent::AgentRuntime::Native => None,
@@ -1394,6 +1395,10 @@ pub fn update(app: &mut App, message: ChatMessage) -> Task<Message> {
             };
             {
                 let runtime = app.current_session_runtime_mut();
+                if !runtime.full_access_overridden {
+                    runtime.full_access_enabled = full_access;
+                }
+                runtime.full_access_initialized = true;
                 runtime.agent = normalized_agent;
                 runtime.agent_label = agent_label;
                 runtime.acp_agent = acp_agent.clone();
@@ -2234,6 +2239,8 @@ pub(super) fn start(app: &mut App, item: QueueItem, keep: bool) -> Task<Message>
         app.active_session_id = Some(id.clone());
         let runtime = app.get_session_runtime_mut(&id);
         runtime.full_access_enabled = pending_runtime.full_access_enabled;
+        runtime.full_access_overridden = pending_runtime.full_access_overridden;
+        runtime.full_access_initialized = true;
         runtime.reasoning_effort = pending_runtime.reasoning_effort;
         save_tasks.push(persist_session_reasoning_effort(app));
     }

@@ -2502,3 +2502,47 @@ async fn agent_session_identity_derives_backend_and_rejects_conflicts() {
     .await
     .unwrap();
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_full_access_gateway_freezes_defaults_and_session_choice() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    crate::config::update(serde_json::json!({"agents":{"main":{"defaults":{"full_access":true}}}}))
+        .await
+        .unwrap();
+    let workspace = tempfile::tempdir().unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    with_tenant_instance(tenant, workspace.path().to_string_lossy().into_owned(), || {
+        Box::pin(async {
+            let mut request = GatewayChatStreamRequest::default();
+            prepare_gateway_agent_request(&mut request).await.unwrap();
+            assert_eq!(request.options.as_ref().unwrap()["full_access"], true);
+            request.options = Some(serde_json::json!({"full_access":false}));
+            prepare_gateway_agent_request(&mut request).await.unwrap();
+            assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
+            let mut untouched = GatewayChatStreamRequest::default();
+            prepare_gateway_agent_request(&mut untouched).await.unwrap();
+            crate::config::update(
+                serde_json::json!({"agents":{"main":{"defaults":{"full_access":false}}}}),
+            )
+            .await
+            .unwrap();
+            request.options = None;
+            prepare_gateway_agent_request(&mut request).await.unwrap();
+            assert_eq!(request.options.as_ref().unwrap()["full_access"], false);
+            untouched.options = None;
+            prepare_gateway_agent_request(&mut untouched).await.unwrap();
+            assert_eq!(untouched.options.as_ref().unwrap()["full_access"], true);
+            let mut fresh = GatewayChatStreamRequest::default();
+            prepare_gateway_agent_request(&mut fresh).await.unwrap();
+            assert_eq!(fresh.options.as_ref().unwrap()["full_access"], false);
+            Ok(())
+        })
+    })
+    .await
+    .unwrap();
+}

@@ -389,6 +389,12 @@ pub(super) async fn apply_agent_defaults(
         &context,
     )
     .map_err(super::to_api_error)?;
+    parsed.full_access = match options.get("full_access") {
+        Some(value) => {
+            value.as_bool().ok_or_else(|| acp_option_error("full_access must be a boolean"))?
+        }
+        None => agent.defaults.full_access,
+    };
     // ACP has no portable per-tool/path permission policy. Only an unconditional deny
     // can be represented without weakening the host policy; reject other fixed policies.
     if let AgentDefault::Fixed(permission) = &agent.defaults.permission {
@@ -399,6 +405,31 @@ pub(super) async fn apply_agent_defaults(
         }
         parsed.permission_mode = Some(PermissionMode::DenyAll);
         parsed.full_access = false;
+    }
+    // Host tool defaults also include local-only controls (question/doom-loop).
+    // Check configured live denials separately: an external ACP process cannot
+    // represent selective per-tool/path rules without weakening those boundaries.
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let preferences = tokio::task::spawn_blocking(move || {
+        crate::session::ui_config::load_app_config_result(&tenant)
+    })
+    .await
+    .map_err(super::to_api_error)?
+    .map_err(super::to_api_error)?;
+    use crate::permission::next::{self, Action};
+    let live_rules = next::merge(&[
+        next::from_config(&agent.permission),
+        next::from_config(preferences.get("permission").unwrap_or(&Value::Null)),
+    ]);
+    if live_rules.iter().any(|rule| rule.action == Action::Deny) {
+        if live_rules.last().is_some_and(|rule| {
+            rule.permission == "*" && rule.pattern == "*" && rule.action == Action::Deny
+        }) {
+            parsed.permission_mode = Some(PermissionMode::DenyAll);
+            parsed.full_access = false;
+        } else {
+            return Err(acp_option_error("ACP cannot enforce selective host permission denials"));
+        }
     }
     parsed.mcp_servers = mcp
         .mcp_servers

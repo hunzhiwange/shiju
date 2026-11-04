@@ -11,7 +11,8 @@ use vw_config_types::agent::{AgentDefault, AgentDefaults, AgentModelReference, A
 pub(crate) fn patch(defaults: &AgentDefaults) -> serde_json::Value {
     let mut value = serde_json::to_value(defaults).expect("typed defaults serialize");
     // Merge Patch must remove a previous fixed payload when selecting inheritance.
-    for field in value.as_object_mut().expect("defaults object").values_mut() {
+    for key in ["model", "permission", "skills", "mcp"] {
+        let field = &mut value[key];
         if field["mode"] == "inherit" {
             field["value"] = serde_json::Value::Null;
         }
@@ -196,37 +197,16 @@ pub(super) fn view<'a>(
                 .style(settings_muted_text_style),
         );
     }
-    let mut policies = vec!["继承", "全部拒绝"];
-    if matches!(draft.runtime, AgentRuntime::Native) {
-        policies.extend(["逐项询问", "允许（受安全上限约束）"]);
-    }
-    let selected = match &defaults.permission {
-        AgentDefault::Inherit => "继承",
-        AgentDefault::Fixed(value) if value == &serde_json::json!({"*":"deny"}) => "全部拒绝",
-        AgentDefault::Fixed(value) if value == &serde_json::json!({"*":"ask"}) => "逐项询问",
-        AgentDefault::Fixed(value) if value == &serde_json::json!({"*":"allow"}) => {
-            "允许（受安全上限约束）"
-        }
-        _ => "已有自定义策略",
-    };
     let original = defaults.clone();
-    body = body.push(text("默认权限")).push(
-        pick_list(policies, Some(selected), move |value| {
-            let mut next = original.clone();
-            next.permission = match value {
-                "全部拒绝" => AgentDefault::Fixed(serde_json::json!({"*":"deny"})),
-                "逐项询问" => AgentDefault::Fixed(serde_json::json!({"*":"ask"})),
-                "允许（受安全上限约束）" => {
-                    AgentDefault::Fixed(serde_json::json!({"*":"allow"}))
-                }
-                _ => AgentDefault::Inherit,
-            };
-            changed(next)
-        })
-        .padding(SETTINGS_CONTROL_PADDING)
-        .text_size(SETTINGS_CONTROL_TEXT_SIZE)
-        .style(settings_pick_list_style)
-        .menu_style(settings_pick_list_menu_style),
+    body = body.push(
+        checkbox(defaults.full_access)
+            .label("完全访问权限")
+            .on_toggle(move |enabled| {
+                let mut next = original.clone();
+                next.full_access = enabled;
+                changed(next)
+            })
+            .style(settings_checkbox_style),
     );
     if let Some(error) = validation_error(app, draft) {
         body = body.push(settings_error_banner(error));

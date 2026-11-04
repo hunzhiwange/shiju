@@ -376,7 +376,7 @@ async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
 }
 
 #[tokio::test]
-async fn agent_native_defaults_permission_reaches_real_approval_without_bypassing_ceiling() {
+async fn agent_config_cleanup_full_access_retains_native_permission_denials() {
     use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
     use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
     for (selected, ceiling, allowed) in [

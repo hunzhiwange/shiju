@@ -6,7 +6,8 @@
 //! queued/running/succeeded/failed; unknown states require reconciliation.
 //! occ `--out` contains already-unwrapped JSON; stdout may be truncated at 4,000
 //! characters. Exit 1 = tool/RPC error, 2 = usage/auth, 3 = transport, 4 = wait timeout.
-//! Only the supported input schemas and sanitized read results leave this module.
+//! Model-facing calls expose only supported read schemas and sanitized results.
+//! Typed preparation operations use memory-only private receipts.
 use crate::skills::Skill;
 use crate::tools::{ToolRuntimeContext, execute_tool_call};
 use crate::workflow::{WorkflowToolProvider, WorkflowToolRequest, WorkflowToolResult};
@@ -60,8 +61,8 @@ pub(super) fn visible_shiju_root(skills: &[Skill]) -> Result<PathBuf, String> {
 }
 
 /// Bound to the visible native skill and its original tool context; never loads another agent.
-/// This transport currently exposes only permission and generation-status reads. Later
-/// preparation/apply stages add their own typed operations rather than arbitrary occ commands.
+/// Workflow tool calls expose only permission and generation-status reads.
+/// Preparation uses the typed VideoPrepareCloud boundary, never arbitrary occ commands.
 pub struct ShijuCloudVideoToolProvider {
     context: ToolRuntimeContext,
     allowed_tools: Option<Value>,
@@ -476,3 +477,8 @@ impl WorkflowToolProvider for ShijuCloudVideoToolProvider {
         })
     }
 }
+
+#[path = "cloud_memory.rs"]
+mod memory;
+#[path = "cloud_prepare.rs"]
+mod prepare_transport;

@@ -19,7 +19,7 @@ fn skill(path: &Path) -> Skill {
 
 // Only the external CLI/occ process is replaced. Discovery, argv construction, private
 // files, native registry, permission checks, and process lifecycle remain production code.
-fn fixture(mode: &str) -> (tempfile::TempDir, ToolRuntimeContext, Skill) {
+pub(super) fn fixture(mode: &str) -> (tempfile::TempDir, ToolRuntimeContext, Skill) {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().canonicalize().unwrap();
     let hub = root.join("client ' $(touch escaped) 中文");

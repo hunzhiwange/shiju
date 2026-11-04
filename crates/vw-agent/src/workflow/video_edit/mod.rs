@@ -9,3 +9,12 @@ mod command_tests;
 
 #[cfg(test)]
 mod cloud_tests;
+
+#[cfg(test)]
+mod cloud_prepare_tests;
+pub mod manifest;
+#[cfg(test)]
+mod manifest_tests;
+pub mod prepare;
+#[cfg(test)]
+mod prepare_tests;

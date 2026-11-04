@@ -72,6 +72,9 @@ pub(crate) mod skill_market;
 pub(crate) mod shiju_account;
 pub(crate) mod shiju_apps;
 mod shiju_connectors;
+mod shiju_knowledge;
+#[cfg(test)]
+mod shiju_knowledge_gateway_tests;
 pub(crate) mod shiju_skills;
 
 /// 定时任务（Cron）管理处理器模块

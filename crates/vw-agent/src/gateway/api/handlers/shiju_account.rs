@@ -39,6 +39,7 @@ where
 {
     Router::new()
         .merge(super::shiju_connectors::router())
+        .merge(super::shiju_knowledge::router())
         .route("/shiju/account/login", post(login_post))
         .route("/shiju/models/token", axum::routing::put(model_token_put))
         .route("/shiju/account/login/poll", post(login_poll_post))

@@ -43,6 +43,32 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: irm https://github.com/axodotdev/cargo-dist/releases/download/v0.30.1/cargo-dist-installer.ps1 | iex
+      - name: Cache pinned macOS packaging tools
+        if: runner.os == 'macOS'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/macos-packaging-tools
+          key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
+      - name: Install macOS packaging tools in a shared Cargo slot
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p target/rust-slot-locks
+          while :; do
+            for slot in {1..10}; do
+              lock="target/rust-slot-locks/slot-$slot.lock"
+              if mkdir "$lock" 2>/dev/null; then
+                export CARGO_TARGET_DIR="$PWD/target/rust-slot-$slot"
+                break 2
+              fi
+            done
+            sleep 5
+          done
+          trap 'rm -f "$lock/owner"; rmdir "$lock"' EXIT
+          trap 'wait; exit 130' INT
+          trap 'wait; exit 143' TERM
+          printf 'plan=release-performance task=2 session=%s pid=%s\n' "$GITHUB_RUN_ID" "$$" > "$lock/owner"
+          bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
       - name: Install target standard library
         shell: bash
         run: rustup target add '${{ matrix.target }}'

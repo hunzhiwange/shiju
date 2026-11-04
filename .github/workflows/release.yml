@@ -266,10 +266,32 @@ jobs:
             --password "$APPLE_NOTARY_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --keychain "$keychain_path"
-      - name: Install macOS packaging tools
+      - name: Cache pinned macOS packaging tools
+        if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/macos-packaging-tools
+          key: packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0
+      - name: Install macOS packaging tools in a shared Cargo slot
         if: ${{ contains(join(matrix.targets, ','), 'apple-darwin') }}
         shell: bash
-        run: cargo install cargo-bundle --locked
+        run: |
+          mkdir -p target/rust-slot-locks
+          while :; do
+            for slot in {1..10}; do
+              lock="target/rust-slot-locks/slot-$slot.lock"
+              if mkdir "$lock" 2>/dev/null; then
+                export CARGO_TARGET_DIR="$PWD/target/rust-slot-$slot"
+                break 2
+              fi
+            done
+            sleep 5
+          done
+          trap 'rm -f "$lock/owner"; rmdir "$lock"' EXIT
+          trap 'wait; exit 130' INT
+          trap 'wait; exit 143' TERM
+          printf 'plan=release-performance task=2 session=%s pid=%s\n' "$GITHUB_RUN_ID" "$$" > "$lock/owner"
+          bash scripts/install_macos_packaging_tools.sh "$RUNNER_TEMP/macos-packaging-tools"
       # Pull requests use certificate-free ad-hoc signing.
       - name: Build macOS packages with ad-hoc signing
         if: ${{ github.event_name == 'pull_request' && contains(join(matrix.targets, ','), 'apple-darwin') }}

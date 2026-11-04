@@ -39,7 +39,7 @@ dist build --print=linkage --output-format=json --artifacts=local --target x86_6
 
 此步骤测量四包编译及 dist 的本地归档，不测量额外 bundle 脚本、安装包装配、签名、
 公证或上传；不得将本次总时间与完整 Release job 总时间直接比较。
-安装器步骤的耗时可从 Actions step 获取；未在其中运行 cargo install。
+安装器与打包工具安装步骤的耗时分别从 Actions step 获取；打包工具冷次会运行 cargo install。
 
 如需单独调查 CLI 的 Cargo timings，先按上述槽位规则动态领取并记录锁，再在同一
 槽位生命周期中执行（Windows 替换目标）：
@@ -109,3 +109,17 @@ tga、tiff、webp）。锁中可见 ravif、exr、tiff 等编解码依赖，可�
 历史 Mac 工具安装为 13m42s。当前版本 0.5.19 与历史提交不同，缓存、runner image、
 工具链、内存、跨编译方式和 bin 选择也须复核；不能据此承诺加速比例。
 两真实平台的 run 链接、环境及四包时间尚待运行验证，本次本地解析测试不替代平台验收。
+
+## 固定 macOS 打包工具
+
+Release 和 benchmark 均调用 `scripts/install_macos_packaging_tools.sh`，固定
+cargo-bundle 0.12.0、`--locked`，恢复后检查专用 root/bin 下的真实版本；
+缺失或失配时强制安装，安装或版本核验失败立即失败。专用 root 为
+`${{ runner.temp }}/macos-packaging-tools`，缓存键为
+`packaging-tools-${{ runner.os }}-${{ runner.arch }}-cargo-bundle-0.12.0`。
+不缓存整个 Cargo bin、密钥链或签名材料。安装时动态领取共享 Cargo 槽位，
+工具 root/bin 写入 GITHUB_PATH，后续 cargo bundle 使用同一版本。
+
+在同一 SHA、同宿主架构 runner 上运行 benchmark 两次，保存 Actions cache
+命中记录、安装步骤耗时及版本输出；冷次应执行固定版本安装，热次应跳过安装。
+该验证仍须真实 runner 运行，模拟测试和本机耗时不能替代 Actions cache 命中证据。

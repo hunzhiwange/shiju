@@ -18,11 +18,11 @@ workflow:
           model: {name: shiju/deepseek-v4.1-flash}
           max_iterations: 100
           tools:
-            - {provider: vibewindow, tool_name: bash}
-            - {provider: vibewindow, tool_name: bash_wait}
-            - {provider: vibewindow, tool_name: bash_cancel}
-            - {provider: vibewindow, tool_name: file_read}
-            - {provider: vibewindow, tool_name: file_write}
+            - {provider: shiju, tool_name: bash}
+            - {provider: shiju, tool_name: bash_wait}
+            - {provider: shiju, tool_name: bash_cancel}
+            - {provider: shiju, tool_name: file_read}
+            - {provider: shiju, tool_name: file_write}
           prompt_template:
             - role: user
               text: |
@@ -105,11 +105,11 @@ workflow:
           model: {name: shiju/deepseek-v4.1-flash}
           max_iterations: 180
           tools:
-            - {provider: vibewindow, tool_name: bash}
-            - {provider: vibewindow, tool_name: bash_wait}
-            - {provider: vibewindow, tool_name: bash_cancel}
-            - {provider: vibewindow, tool_name: file_read}
-            - {provider: vibewindow, tool_name: file_write}
+            - {provider: shiju, tool_name: bash}
+            - {provider: shiju, tool_name: bash_wait}
+            - {provider: shiju, tool_name: bash_cancel}
+            - {provider: shiju, tool_name: file_read}
+            - {provider: shiju, tool_name: file_write}
           prompt_template:
             - role: user
               text: |

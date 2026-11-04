@@ -30,11 +30,11 @@ pub(super) fn check_allowed(name: &str, allowed: Option<&Value>) -> Result<(), S
 #[async_trait::async_trait]
 impl WorkflowToolProvider for NativeTools {
     async fn call(&self, request: WorkflowToolRequest) -> Result<WorkflowToolResult, String> {
-        if request.provider != "vibewindow"
+        if request.provider != "shiju"
             || request.action.is_some()
             || request.credential_id.is_some()
         {
-            return Err("原生工作流工具仅支持 vibewindow，不能覆盖 action 或 credential".into());
+            return Err("原生工作流工具仅支持 shiju，不能覆盖 action 或 credential".into());
         }
         check_allowed(&request.tool_name, self.allowed_tools.as_ref())?;
         let args = serde_json::to_string(&request.inputs).map_err(|e| e.to_string())?;
@@ -68,11 +68,11 @@ impl WorkflowAgentProvider for NativeAgent {
     ) -> Result<WorkflowAgentResult, String> {
         let mut allowed = Vec::new();
         for tool in &request.tools {
-            if tool.provider != "vibewindow"
+            if tool.provider != "shiju"
                 || tool.action.is_some()
                 || tool.credential_id.is_some()
             {
-                return Err("原生工作流 agent 仅支持当前会话的 vibewindow 工具".into());
+                return Err("原生工作流 agent 仅支持当前会话的 shiju 工具".into());
             }
             check_allowed(&tool.tool_name, self.parent.options.get("allowed_tools"))?;
             allowed.push(tool.tool_name.clone());

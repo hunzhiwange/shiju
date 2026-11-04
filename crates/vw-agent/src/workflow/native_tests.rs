@@ -158,6 +158,86 @@ fn native_workflow_preserves_cancellation_and_tool_restrictions() {
     assert!(agent::check_allowed("file_read", Some(&json!(["file_read"]))).is_ok());
 }
 
+#[tokio::test]
+async fn native_workflow_provider_names_preserve_tool_restrictions() {
+    use crate::workflow::{WorkflowToolProvider, WorkflowToolRequest};
+
+    let tools = agent::NativeTools {
+        context: ToolRuntimeContext::default(),
+        allowed_tools: Some(json!([])),
+    };
+    for provider in ["shiju", "vibewindow", "other"] {
+        for (action, credential_id) in [(None, None), (Some("run"), None), (None, Some("secret"))] {
+            let error = tools
+                .call(WorkflowToolRequest {
+                    provider: provider.into(),
+                    tool_name: "bash".into(),
+                    action: action.map(str::to_string),
+                    credential_id: credential_id.map(str::to_string),
+                    inputs: Default::default(),
+                })
+                .await
+                .unwrap_err();
+            if provider == "shiju" && action.is_none() && credential_id.is_none() {
+                assert!(error.contains("不在当前会话能力范围内"), "{error}");
+            } else {
+                assert!(error.contains("仅支持 shiju"), "{error}");
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn native_workflow_provider_names_preserve_agent_restrictions() {
+    use crate::workflow::{WorkflowAgentProvider, WorkflowAgentRequest, WorkflowAgentTool};
+
+    let (events, _receiver) = tokio::sync::mpsc::unbounded_channel();
+    let native = agent::NativeAgent {
+        parent: request(std::path::Path::new("."), "unused"),
+        events,
+        cancellation: tokio_util::sync::CancellationToken::new(),
+    };
+    let tools = Arc::new(agent::NativeTools {
+        context: ToolRuntimeContext::default(),
+        allowed_tools: Some(json!([])),
+    });
+    for provider in ["shiju", "vibewindow", "other"] {
+        for (name, action, credential_id) in [
+            ("bash", None, None),
+            ("forbidden", None, None),
+            ("bash", Some("run"), None),
+            ("bash", None, Some("secret")),
+        ] {
+            let error = native
+                .run(
+                    WorkflowAgentRequest {
+                        messages: vec![],
+                        tools: vec![WorkflowAgentTool {
+                            provider: provider.into(),
+                            tool_name: name.into(),
+                            action: action.map(str::to_string),
+                            credential_id: credential_id.map(str::to_string),
+                        }],
+                        max_iterations: 1,
+                        model: "unused".into(),
+                        temperature: 0.0,
+                        strategy: String::new(),
+                    },
+                    tools.clone(),
+                )
+                .await
+                .unwrap_err();
+            if provider != "shiju" || action.is_some() || credential_id.is_some() {
+                assert!(error.contains("仅支持当前会话的 shiju 工具"), "{error}");
+            } else if name == "forbidden" {
+                assert!(error.contains("不在当前会话能力范围内"), "{error}");
+            } else {
+                assert_eq!(error, "工作流 agent 缺少消息");
+            }
+        }
+    }
+}
+
 struct CloudFixtureProvider {
     invalid_assets: bool,
 }
@@ -214,6 +294,7 @@ impl crate::workflow::WorkflowAgentProvider for CloudFixtureAgent {
         request: crate::workflow::WorkflowAgentRequest,
         _: Arc<dyn crate::workflow::WorkflowToolProvider>,
     ) -> Result<crate::workflow::WorkflowAgentResult, String> {
+        assert!(request.tools.iter().all(|tool| tool.provider == "shiju"));
         let prompt = &request.messages[0].content;
         let answer = if prompt.contains("素材准备节点") {
             json!({"project_id":"project-1","source_asset_id":"asset-1","transcript":"A B C",

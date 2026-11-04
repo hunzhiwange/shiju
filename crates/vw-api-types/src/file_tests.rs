@@ -29,3 +29,22 @@ fn file_dtos_apply_defaults_and_snake_case_kinds() {
     .expect("valid write request");
     assert!(!write.create_if_missing);
 }
+
+#[test]
+fn local_import_request_roundtrip() {
+    use crate::file::{LocalImportRequest, LocalImportResponse};
+    let wire = json!({"project_id":"project", "target_directory":"",
+        "source_paths":["/external/中文.txt", "/external/folder"]});
+    let request: LocalImportRequest = serde_json::from_value(wire.clone()).unwrap();
+    assert_eq!(request.worktree_id, None);
+    assert_eq!(serde_json::to_value(request).unwrap(), wire);
+    let wire = json!({"items":[
+        {"source_path":"/external/中文.txt","destination_path":"中文.txt","ok":true},
+        {"source_path":"/external/folder","ok":false,"error":"target exists"}
+    ]});
+    let response: LocalImportResponse = serde_json::from_value(wire.clone()).unwrap();
+    assert!(response.items[0].ok);
+    assert!(!response.items[1].ok);
+    assert_eq!(response.items[1].destination_path, None);
+    assert_eq!(serde_json::to_value(response).unwrap(), wire);
+}

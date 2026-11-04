@@ -565,3 +565,56 @@ async fn file_list_propagates_nested_directory_errors() {
     assert!(server.take_request().path.contains("/v1/file?directory=%2Frepo&path=src"));
     server.join();
 }
+
+#[tokio::test]
+async fn local_import_client_sends_scoped_request() {
+    use vw_api_types::file::LocalImportRequest;
+    use vw_api_types::id::TenantScope;
+    let server = test_support::server_with_tenant_scope(
+        vec![(
+            200,
+            json!({"items":[
+                {"source_path":"/external/中文.txt","destination_path":"assets/中文.txt","ok":true},
+                {"source_path":"/external/folder","ok":false,"error":"target exists"}
+            ]}),
+        )],
+        TenantScope::new("import-platform", "import-company").unwrap(),
+    );
+    let request = LocalImportRequest {
+        project_id: "project".into(),
+        worktree_id: Some("worktree".into()),
+        target_directory: "assets".into(),
+        source_paths: vec!["/external/中文.txt".into(), "/external/folder".into()],
+    };
+    let response = server.client().file_import_local(&request).await.unwrap();
+    assert_eq!(response.items.len(), 2);
+    assert_eq!(response.items[0].source_path, request.source_paths[0]);
+    assert_eq!(response.items[0].destination_path.as_deref(), Some("assets/中文.txt"));
+    assert!(response.items[0].ok);
+    assert_eq!(response.items[1].source_path, request.source_paths[1]);
+    assert!(!response.items[1].ok);
+    assert_eq!(response.items[1].error.as_deref(), Some("target exists"));
+    let recorded = server.take_request();
+    assert_eq!(recorded.method, "POST");
+    assert_eq!(recorded.path, "/v1/files/import-local");
+    assert_eq!(recorded.body, serde_json::to_value(request).unwrap());
+    assert_eq!(recorded.header("x-platform-id"), Some("import-platform"));
+    assert_eq!(recorded.header("x-company-id"), Some("import-company"));
+    server.join();
+}
+
+#[tokio::test]
+async fn local_import_client_rejects_remote_endpoint() {
+    let client =
+        super::GatewayClient::new(crate::endpoint::GatewayEndpoint::new("192.0.2.1", 9)).unwrap();
+    let error = client
+        .file_import_local(&vw_api_types::file::LocalImportRequest {
+            project_id: "project".into(),
+            worktree_id: None,
+            target_directory: String::new(),
+            source_paths: vec!["/external/private.txt".into()],
+        })
+        .await
+        .expect_err("remote import must fail before sending");
+    assert_eq!(error, "本机导入不支持远程网关");
+}

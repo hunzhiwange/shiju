@@ -158,6 +158,45 @@ pub struct CopyFileRequest {
     pub overwrite: bool,
 }
 
+/// 从网关所在本机复制外部路径到项目；仅支持真实回环连接。
+///
+/// 网关先验证项目、工作树与连接授权，再读取源文件；授权失败整体拒绝。
+/// 空列表或超过 128 项返回 HTTP 400，合法请求返回按输入顺序排列的逐项结果。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LocalImportRequest {
+    /// 目标项目 ID。
+    pub project_id: ProjectId,
+    /// 可选工作树 ID。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub worktree_id: Option<WorktreeId>,
+    /// 项目内相对目标目录；空字符串表示根目录。
+    pub target_directory: String,
+    /// 1–128 个本机绝对源路径；复制保留源，同名拒绝覆盖。
+    pub source_paths: Vec<String>,
+}
+
+/// 单个本机路径的导入结果。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LocalImportItemResult {
+    /// 对应输入的本机源路径。
+    pub source_path: String,
+    /// 成功导入后的项目内相对目标路径。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destination_path: Option<String>,
+    /// 该项是否导入成功。
+    pub ok: bool,
+    /// 该项失败原因。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+/// 本机导入响应；逐项结果与输入顺序一致，允许部分失败。
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LocalImportResponse {
+    /// 每个源路径的处理结果。
+    pub items: Vec<LocalImportItemResult>,
+}
+
 /// 删除文件或目录请求。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DeleteFileRequest {

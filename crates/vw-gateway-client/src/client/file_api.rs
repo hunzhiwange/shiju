@@ -14,8 +14,9 @@ use serde::{Deserialize, Serialize};
 use vw_api_types::common::OperationAck;
 use vw_api_types::file::{
     CopyFileRequest, DeleteFileRequest, FileNodeDto, FileNodeKind, ListFilesRequest,
-    ListFilesResponse, MoveFileRequest, ReadFileRequest, ReadFileResponse, SearchFilesRequest,
-    SearchFilesResponse, StatFileRequest, StatFileResponse, WriteFileRequest, WriteFileResponse,
+    ListFilesResponse, LocalImportRequest, LocalImportResponse, MoveFileRequest, ReadFileRequest,
+    ReadFileResponse, SearchFilesRequest, SearchFilesResponse, StatFileRequest, StatFileResponse,
+    WriteFileRequest, WriteFileResponse,
 };
 
 use super::GatewayClient;
@@ -173,6 +174,17 @@ impl GatewayClient {
     /// 复制文件或目录。
     pub async fn file_copy(&self, request: &CopyFileRequest) -> Result<OperationAck, String> {
         self.post_json("/v1/files/copy", &[], request).await
+    }
+
+    /// 将本机外部路径复制导入项目，仅允许连接本机网关。
+    pub async fn file_import_local(
+        &self,
+        request: &LocalImportRequest,
+    ) -> Result<LocalImportResponse, String> {
+        if !self.endpoint().is_loopback() {
+            return Err("本机导入不支持远程网关".to_string());
+        }
+        self.post_json("/v1/files/import-local", &[], request).await
     }
 
     /// 删除文件或目录。

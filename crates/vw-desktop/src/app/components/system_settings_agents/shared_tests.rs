@@ -13,6 +13,8 @@ fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry 
     DelegateAgentSettingsEntry {
         key: key.to_string(),
         label: key.to_string(),
+        runtime: Default::default(),
+        recommended_prompts: Vec::new(),
         description: String::new(),
         kind,
         role_controls_locked: false,

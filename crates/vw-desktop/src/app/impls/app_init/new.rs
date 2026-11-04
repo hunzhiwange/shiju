@@ -1151,6 +1151,9 @@ impl App {
                     super::state::retain_available_allowed_tools(&mut entries, registered_tools);
                 }
                 super::state::AgentsSettingsState {
+                    profile_modal: None,
+                    profile_saving: false,
+                    profile_deleting: false,
                     loading: true,
                     config_ready: false,
                     project_path: None,

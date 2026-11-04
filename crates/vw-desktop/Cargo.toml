@@ -139,3 +139,10 @@ name = "acp-options-window"
 path = "src/acp_options_window_main.rs"
 harness = false
 test = false
+
+# 显式资料弹窗交互验收，固定隔离 bootstrap，不连接用户网关。
+[[test]]
+name = "agent-profile-window"
+path = "src/agent_profile_window_main.rs"
+harness = false
+test = false

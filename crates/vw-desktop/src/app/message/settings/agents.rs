@@ -1248,9 +1248,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             app.agents_settings.save_error = None;
             mark_agents_settings_dirty(app)
         }
+        message => profile::update(app, message),
     }
 }
 
 #[cfg(test)]
 #[path = "agents_tests.rs"]
 mod tests;
+
+#[path = "agents_profile.rs"]
+mod profile;

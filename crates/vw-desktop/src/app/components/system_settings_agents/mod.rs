@@ -5,6 +5,7 @@
 
 mod basic;
 mod identity;
+mod profile_modal;
 mod shared;
 mod skills;
 mod tools;
@@ -503,7 +504,18 @@ fn agents_view(app: &App) -> Element<'_, Message> {
             _ => basic::view(app, entry, provider_options.clone()),
         };
 
-        column![detail_tabs, detail_content].spacing(14).into()
+        column![
+            button(text("编辑智能体资料"))
+                .padding([8, 14])
+                .style(rounded_action_btn_style)
+                .on_press(Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileOpen(
+                    entry.key.clone()
+                )))),
+            detail_tabs,
+            detail_content
+        ]
+        .spacing(14)
+        .into()
     } else {
         container(text(tr(app.desktop_locale, "未找到代理配置"))).into()
     };
@@ -611,5 +623,8 @@ fn agents_view(app: &App) -> Element<'_, Message> {
         );
     }
 
-    content.into()
+    profile_modal::overlay(app, content.into())
 }
+
+#[cfg(test)]
+mod profile_modal_tests;

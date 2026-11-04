@@ -560,6 +560,19 @@ pub enum ThemesMessage {
 #[derive(Debug, Clone)]
 #[allow(private_interfaces)]
 pub enum AgentsMessage {
+    ProfileOpen(String),
+    ProfileCancel,
+    ProfileNameChanged(String),
+    ProfileDescriptionChanged(String),
+    ProfileRuntimeChanged(String),
+    ProfileRulesAction(text_editor::Action),
+    ProfilePromptChanged(usize, String),
+    ProfilePromptAdd,
+    ProfilePromptRemove(usize),
+    ProfilePromptMove(usize, usize),
+    ProfileSave,
+    ProfileDelete,
+    ProfileSaved(Result<(), String>),
     Refresh,
     Save,
     DiscardChanges,

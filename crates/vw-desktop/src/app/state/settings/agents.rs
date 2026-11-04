@@ -15,6 +15,8 @@ use vw_config_types::tools::{is_builtin_required_tool_id, is_mcp_dynamic_tool_id
 pub(crate) struct DelegateAgentSettingsEntry {
     pub(crate) key: String,
     pub(crate) label: String,
+    pub(crate) runtime: vw_config_types::agent::AgentRuntime,
+    pub(crate) recommended_prompts: Vec<String>,
     pub(crate) description: String,
     pub(crate) kind: AgentSettingsEntryKind,
     /// 内置角色的委托资格、递归深度和并发上限由角色目录固定。
@@ -63,6 +65,8 @@ impl DelegateAgentSettingsEntry {
         Self {
             key: key.to_string(),
             label: default_agent_label(key, &config),
+            runtime: config.runtime.clone(),
+            recommended_prompts: config.recommended_prompts.clone(),
             description: default_agent_description(key, &config),
             kind,
             role_controls_locked: builtin_agent_spec(key).is_some(),
@@ -324,6 +328,9 @@ pub enum AgentConfigTab {
 #[derive(Debug, Clone)]
 /// 表示 AgentsSettingsState 相关的应用状态或派生数据。
 pub(crate) struct AgentsSettingsState {
+    pub(crate) profile_modal: Option<DelegateAgentSettingsEntry>,
+    pub(crate) profile_saving: bool,
+    pub(crate) profile_deleting: bool,
     pub(crate) loading: bool,
     /// 只有从 Gateway 成功加载当前作用域后，界面状态才可作为保存来源。
     pub(crate) config_ready: bool,
@@ -351,6 +358,9 @@ pub(crate) struct AgentsSettingsState {
 impl Default for AgentsSettingsState {
     fn default() -> Self {
         Self {
+            profile_modal: None,
+            profile_saving: false,
+            profile_deleting: false,
             loading: true,
             config_ready: false,
             project_path: None,

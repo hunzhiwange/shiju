@@ -275,6 +275,8 @@ pub(crate) mod git_repository;
 pub mod project;
 
 // Provider 抽象兼容层
+#[cfg(not(target_arch = "wasm32"))]
+pub mod model_relay;
 pub mod provider;
 
 // 模型提供者

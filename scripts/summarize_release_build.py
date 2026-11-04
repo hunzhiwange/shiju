@@ -85,6 +85,20 @@ def write_json(path, value):
 
 @contextmanager
 def slot():
+    # A workflow holds this lock across cache restore, build, packaging and save.
+    external = os.environ.get('RELEASE_CARGO_SLOT')
+    if external is not None:
+        if external not in {str(n) for n in range(1, 11)}:
+            raise RuntimeError('Invalid workflow slot number')
+        target = ROOT / f'target/rust-slot-{external}'
+        owner = ROOT / f'target/rust-slot-locks/slot-{external}.lock/owner'
+        session = os.environ.get('GITHUB_RUN_ID')
+        if (not session or not owner.is_file()
+                or f'session={session}' not in owner.read_text().split()
+                or Path(os.environ.get('CARGO_TARGET_DIR', '')).resolve() != target.resolve()):
+            raise RuntimeError('Invalid workflow slot owner or target directory')
+        yield int(external), target
+        return
     locks = ROOT / 'target/rust-slot-locks'
     locks.mkdir(parents=True, exist_ok=True)
     while True:
@@ -175,7 +189,10 @@ def run_dist(target, output):
 
 def benchmark(target, output):
     output.mkdir(parents=True, exist_ok=False)
-    metadata = dict(target=target, cache_mode='existing-slot-no-restore',
+    metadata = dict(target=target, cache_mode=os.environ.get('RELEASE_CACHE_MODE', 'existing-slot-no-restore'),
+                    cache_key=os.environ.get('RELEASE_CACHE_KEY'),
+                    cache_matched_key=os.environ.get('RELEASE_CACHE_MATCHED_KEY'),
+                    cache_hit=os.environ.get('RELEASE_CACHE_HIT'),
                     os=platform.platform(), architecture=platform.machine(),
                     logical_cpus=os.cpu_count(), runner_image=os.environ.get('ImageOS'),
                     runner_image_version=os.environ.get('ImageVersion'))

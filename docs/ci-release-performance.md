@@ -25,7 +25,7 @@ python scripts/summarize_release_build.py --run x86_64-apple-darwin --output ben
 # Windows 使用相同入口，目标替换为 aarch64-pc-windows-msvc。
 ```
 
-入口自动从仓库 `target/rust-slot-locks/slot-1.lock` 至 `slot-10.lock` 原子领取首个可用
+本地入口自动从仓库 `target/rust-slot-locks/slot-1.lock` 至 `slot-10.lock` 原子领取首个可用
 槽位，记录计划、任务、会话/run ID、PID，设置绝对路径 CARGO_TARGET_DIR，所有 Cargo
 及 dist 子进程继承。结束、异常、SIGINT/SIGTERM 均先终止构建进程树，再清理自己的锁，
 保留缓存。不删除他人的遗留锁。不可用额外目录绕过槽位，也不可并行测量共享 build-dir。
@@ -76,7 +76,7 @@ CLI `post_compile_seconds` 是末条 `Compiling` 日志至 `Finished` 的墙钟�
 编译、代码生成、优化、链接与调度等，**不是纯链接时间**；没有编译日志时为 null。
 包耗时包含 Cargo 初始化和缓存判断，不能相加当作全部归档耗时，顶层另记 elapsed_seconds。
 
-缓存模式为 `existing-slot-no-restore`：不恢复 Actions cache，也不清空既有槽位。
+本地未通过工作流启动时，缓存模式为 `existing-slot-no-restore`：不恢复 Actions cache，也不清空既有槽位。
 记录槽位初始文件数；空槽位也不能证明冷缓存，因为 build-dir、注册表和系统缓存可能热。
 当前 `.cargo/config.toml` 指定 `target-dir = "target-dir"`、`build-dir = "target"`。
 本机 Cargo 1.99.1 的 metadata 实测确认 CARGO_TARGET_DIR 覆盖 target_directory，
@@ -123,3 +123,54 @@ cargo-bundle 0.12.0、`--locked`，恢复后检查专用 root/bin 下的真实�
 在同一 SHA、同宿主架构 runner 上运行 benchmark 两次，保存 Actions cache
 命中记录、安装步骤耗时及版本输出；冷次应执行固定版本安装，热次应跳过安装。
 该验证仍须真实 runner 运行，模拟测试和本机耗时不能替代 Actions cache 命中证据。
+
+
+## 编译缓存连线与待验收事项
+
+两个工作流使用 [actions/cache v4 的独立 restore/save](https://github.com/actions/cache/tree/v4)
+显式缓存分离目录。[Cargo build cache 文档](https://doc.rust-lang.org/cargo/reference/build-cache.html)
+确认 target-dir 与 build-dir 分别存放最终与中间产物；工作流先通过实际 Cargo metadata
+核对 target_directory 为本次绝对槽位、build_directory 为仓库 target。不符合即失败，
+不绕过 Cargo 新鲜度检查，不修改 .cargo/config.toml、LTO、features 或六平台矩阵。
+
+缓存包含实际 CARGO_HOME 下的 registry/{index,cache,src}、git/{db,checkouts}，
+以及本次槽位和 build-dir 的 dist、各目标/dist 下的 deps、build、.fingerprint、incremental。
+仅编译目录映射到 `${RUNNER_TEMP}/release-cargo-cache/{slot,build}` 的固定路径；
+恢复后复制到当前持有槽位与原 build-dir。此临时路径仅用于缓存传输，Cargo 不在其中构建。
+不归档整个 target，不包含其他槽位、锁、distrib、bundle、安装包、签名 App、报告或凭据。
+两个根目录即使某一方没有编译中间文件，也保持独立映射。日志输出映射文件数、字节数及复制耗时；
+Actions cache 步骤另记录传输大小和耗时，尚无真实缓存体积数据。
+
+键为 `release-rust-v1-{OS}-{host arch}-{targets}-dist-all-features-{config hash}-{lock hash}-{SHA}`。
+配置散列包括实际 rustc -Vv、Cargo 配置、工具链声明、dist 配置、workspace profile 和环境 rustflags；
+不包含动态槽位编号或工作区 package 版本。restore 前缀保留宿主/目标、工具链及构建参数，
+允许 Cargo.lock 小变更或仅工作区版本变化后恢复旧依赖，由 Cargo 自行判断重编译。
+目录绝对路径、runner image 或系统库变化仍可能影响新鲜度，不能只按命中键认定复用成功。
+
+Release（含 PR）仅恢复，不写编译缓存。仅在受保护默认分支手动运行的 benchmark 成功后保存；
+其余分支、tag、PR 均不写。依据 [Actions cache scope](https://github.com/actions/cache/tree/v4#cache-scopes)，
+默认分支缓存对其他分支可见；不能将某个 tag 的缓存视为下一个 tag 可见的来源。
+这里复用原有两个目标的基准构建写缓存，不新增六平台预热；额外成本是 staging 复制和上传，
+需计入净收益。默认分支未保护或尚未运行基准时，没有可信可恢复缓存，正常走未命中构建。
+其余四平台暂不预热，仍保持原有完整构建与打包。
+
+工作流在恢复前动态领取槽位，GITHUB_ENV 导出绝对 CARGO_TARGET_DIR，dist、工具安装、
+打包与测量脚本共用该槽位，直到最终 always 清理步骤才释放。测量脚本校验 run ID、锁和路径，
+不重复领取、不提前释放。取消时由 runner 终止步骤进程树后执行清理；强制终止 runner 可能遗留锁，
+此时须按共享槽位规则核实进程及 run 已结束后人工清理，禁止直接删除未知锁。
+
+远端验收步骤（尚未运行，不能宣称提速）：
+
+1. 将提交推送到可手动触发的可信分支；先用 cache=off 在两个目标记录未恢复缓存时
+   从基础依赖开始编译的真实日志。off 不清除 runner 预装缓存，需结合环境及 Compiling 行判断。
+2. 在受保护默认分支，用 cache=restore 同 SHA 连跑两次，冷次建立缓存，热次检查真正减少的
+   Compiling 行、四包时间、五个 bin、缓存键/来源/体积；净收益减去下载、复制、保存的全部开销。
+3. 仅改变工作区 package 版本（同步对应锁文件）的分支运行相同基准，不改发布 tag，
+   验证通过 restore 前缀命中默认分支缓存且第三方依赖确实复用。
+4. 在隔离测试仓库通过 tag 触发同样的只构建、不发布入口，验证默认分支到 tag 的缓存恢复。
+   当前基准允许手动选择已有 ref，但本任务不创建发布 tag，不运行正式 Release 验证缓存。
+5. 比较实际 runner 上不同槽位绝对路径的缓存复用；若路径变化导致重编译，记录并调整方案，
+   不篡改 Cargo fingerprint 或时间戳。补齐两平台及最终六平台的真实回归后才能完整验收。
+
+目前只有本地接口测试、目录映射烟测及 clippy 证据；没有远端 run 链接、缓存下载/保存大小、
+冷热净收益、版本变化和 branch-to-tag 运行证据。槽位映射方案的真实性能仍待上述验证。

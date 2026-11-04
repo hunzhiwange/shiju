@@ -101,6 +101,38 @@ class BenchmarkExecutionTests(unittest.TestCase):
             self.assertEqual(report['exit_code'], 7)
             self.assertIn('fixture failed', (output / 'build.log').read_text())
 
+    def test_workflow_slot_is_validated_and_not_released_by_benchmark(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lock = root / 'target/rust-slot-locks/slot-4.lock'
+            lock.mkdir(parents=True)
+            (lock / 'owner').write_text('session=fixture-run pid=123')
+            target = root / 'target/rust-slot-4'
+            with patch.object(summary, 'ROOT', root), patch.dict(os.environ, {
+                    'RELEASE_CARGO_SLOT': '4', 'GITHUB_RUN_ID': 'fixture-run',
+                    'CARGO_TARGET_DIR': str(target)}):
+                with summary.slot() as (number, actual):
+                    self.assertEqual((number, actual), (4, target))
+                self.assertTrue((lock / 'owner').exists())
+
+    def test_workflow_slot_rejects_wrong_owner_or_target(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            lock = root / 'target/rust-slot-locks/slot-4.lock'
+            lock.mkdir(parents=True)
+            (lock / 'owner').write_text('session=other-run pid=123')
+            with patch.object(summary, 'ROOT', root), patch.dict(os.environ, {
+                    'RELEASE_CARGO_SLOT': '4', 'GITHUB_RUN_ID': 'fixture-run',
+                    'CARGO_TARGET_DIR': str(root / 'target/rust-slot-4')}):
+                with self.assertRaisesRegex(RuntimeError, 'workflow slot'):
+                    with summary.slot():
+                        self.fail('invalid owner accepted')
+                (lock / 'owner').write_text('session=fixture-run pid=123')
+                os.environ['CARGO_TARGET_DIR'] = str(root / 'target/rust-slot-5')
+                with self.assertRaisesRegex(RuntimeError, 'workflow slot'):
+                    with summary.slot():
+                        self.fail('invalid target accepted')
+
     def test_slot_skips_occupied_lock_and_releases_on_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -4,6 +4,9 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 mod basic;
+mod catalog;
+#[cfg(test)]
+mod catalog_tests;
 pub(crate) mod defaults;
 mod identity;
 mod profile_modal;

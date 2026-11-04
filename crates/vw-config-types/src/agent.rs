@@ -4,6 +4,8 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+pub use crate::agent_profile::{AgentDefault, AgentDefaults, AgentModelReference, AgentRuntime};
+
 pub const DEFAULT_MAX_ITERATIONS: usize = 50_000;
 
 /// 多工作区注册表配置（`[workspaces]`）。
@@ -54,6 +56,15 @@ pub enum DelegateCapabilityPolicy {
 /// `mode` 仍保留用于兼容历史配置，但新流程不再依赖这个字段。
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentDefinitionConfig {
+    /// 新会话使用的运行引擎。
+    #[serde(default)]
+    pub runtime: AgentRuntime,
+    /// 供用户填入编辑框的推荐提示词。
+    #[serde(default)]
+    pub recommended_prompts: Vec<String>,
+    /// 新会话的默认选择。
+    #[serde(default)]
+    pub defaults: AgentDefaults,
     /// 可选的人类可读标签。
     #[serde(default)]
     pub label: Option<String>,
@@ -175,6 +186,9 @@ fn default_max_iterations() -> usize {
 impl Default for AgentDefinitionConfig {
     fn default() -> Self {
         Self {
+            runtime: AgentRuntime::default(),
+            recommended_prompts: Vec::new(),
+            defaults: AgentDefaults::default(),
             label: None,
             description: None,
             builtin: false,
@@ -211,6 +225,9 @@ impl Default for AgentDefinitionConfig {
 impl std::fmt::Debug for AgentDefinitionConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AgentDefinitionConfig")
+            .field("runtime", &self.runtime)
+            .field("recommended_prompt_count", &self.recommended_prompts.len())
+            .field("defaults", &self.defaults)
             .field("label", &self.label)
             .field("description", &self.description)
             .field("builtin", &self.builtin)
@@ -459,6 +476,8 @@ pub fn merged_agent_configs(
         if let Some(spec) = builtin_agent_spec(key) {
             let mut builtin =
                 builtin_agent_config(spec.key).expect("builtin spec has configuration");
+            builtin.recommended_prompts = value.recommended_prompts.clone();
+            builtin.defaults = value.defaults.clone();
             builtin.enabled &= value.enabled;
             builtin.allow_as_subagent &= value.allow_as_subagent;
             if spec.allow_as_subagent && !value.allowed_tools.is_empty() {

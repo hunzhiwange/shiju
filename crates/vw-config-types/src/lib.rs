@@ -5,6 +5,7 @@
 
 pub mod acp_install;
 pub mod agent;
+pub mod agent_profile;
 pub mod automation;
 pub mod channels;
 pub mod config;
@@ -23,3 +24,6 @@ pub mod security;
 pub mod skills;
 pub mod tools;
 pub mod ui;
+
+#[cfg(test)]
+mod agent_profile_tests;

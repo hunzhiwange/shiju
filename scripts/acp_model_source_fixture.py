@@ -24,6 +24,8 @@ class ModelFixture:
         self.read_path = "challenge.txt"
         self.second_read_path = None
         self.probe_auxiliary = False
+        self.auxiliary_profile = "general-purpose"
+        self.auxiliary_model = "haiku"
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
 
@@ -64,12 +66,12 @@ class ModelFixture:
                     if tool.get("name", "").lower() not in ("agent", "task"):
                         continue
                     properties = tool.get("parameters", tool.get("input_schema", {})).get("properties", {})
-                    inputs = {"description": "Read offline challenge", "subagent_type": "general-purpose",
+                    inputs = {"description": "Read offline challenge", "subagent_type": fixture.auxiliary_profile,
                               "prompt": "AUXILIARY_CHILD: Read " + fixture.read_path + " and " + (fixture.second_read_path or fixture.read_path) + " using your Read tool, then return their contents."}
-                    if "model" in properties:
-                        inputs["model"] = "haiku"
+                    if "model" in properties and fixture.auxiliary_model is not None:
+                        inputs["model"] = fixture.auxiliary_model
                     return {"name": tool["name"], "input": inputs}
-                raise ValueError("Claude auxiliary tool is unavailable")
+                raise ValueError("auxiliary tool is unavailable")
 
             def gemini_reply(self, body):
                 path = urllib.parse.urlsplit(self.path).path

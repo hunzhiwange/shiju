@@ -41,7 +41,7 @@ pub fn acp_install_command_for_platform(
         "pi" => &["install", "-g", "pi-acp@^0.0.22"],
         "qoder" => &["install", "-g", "@qoder-ai/qodercli@latest"],
         "qwen" => &["install", "-g", "@qwen-code/qwen-code@latest"],
-        "kimi" => return Some(("uv", &["tool", "install", "--python", "3.13", "kimi-cli"])),
+        "kimi" => &["install", "-g", "@moonshot-ai/kimi-code@2.5.0"],
         "vibe" => return Some(("uv", &["tool", "install", "--python", "3.13", "mistral-vibe"])),
         "hermes" => {
             return Some(("uv", &["tool", "install", "--python", "3.13", "hermes-agent[acp,cli]"]));

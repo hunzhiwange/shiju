@@ -226,7 +226,7 @@ async fn run(mode: &str) {
         let mut flow = json!({"isolated":true});
         checkpoint(&flow);
         let prompt = "Read challenge.txt twice using your file read tool, then reply.";
-        let first_prompt = if agent == "claude" {
+        let first_prompt = if matches!(agent, "claude" | "kimi") {
             "AUXILIARY_PROBE: Delegate reading challenge.txt twice to a general-purpose helper, then reply with its contents."
         } else { prompt };
         flow["new"] = json!(request(&input, &model, &info, first_prompt, false).await);
@@ -248,9 +248,9 @@ async fn run(mode: &str) {
                 .any(|r| { r.cwd == root.to_string_lossy() && !r.acp_session_id.is_empty() })
         );
         let observed = evidence(&input).await;
-        if agent == "claude" {
+        if matches!(agent, "claude" | "kimi") {
             assert!(observed["requests"].as_array().unwrap().iter().any(|request| request["auxiliary"] == true),
-                "Claude auxiliary model did not reach the fixture");
+                "auxiliary model did not reach the fixture");
         }
         let path = std::env::var("VW_ACP_ACCEPTANCE_FLOW").expect("flow output path required");
         std::fs::write(path, serde_json::to_vec(&flow).unwrap()).unwrap();

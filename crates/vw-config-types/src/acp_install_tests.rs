@@ -6,7 +6,10 @@ fn installation_commands_are_structured_and_reject_custom_input() {
         acp_install_command("codex"),
         Some(("npm", &["install", "-g", "@agentclientprotocol/codex-acp@latest"][..]))
     );
-    assert_eq!(acp_install_command("kimi").unwrap().0, "uv");
+    assert_eq!(
+        acp_install_command("kimi"),
+        Some(("npm", &["install", "-g", "@moonshot-ai/kimi-code@2.5.0"][..]))
+    );
     for name in ["custom", "codex; echo unsafe", "../codex"] {
         assert!(acp_install_command(name).is_none());
     }

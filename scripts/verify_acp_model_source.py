@@ -246,6 +246,10 @@ def run(args):
                 (root / "challenge-second.txt").write_text(fixture.challenge)
                 fixture.second_read_path = str(root / "challenge-second.txt")
                 fixture.probe_auxiliary = True
+            if args.agent == "kimi":
+                fixture.probe_auxiliary = True
+                fixture.auxiliary_profile = "coder"
+                fixture.auxiliary_model = None
             runtime = root / "entry.json"
             runtime.write_text(json.dumps({"agent": args.agent, "mode": args.mode, "upstream_protocol": upstream_protocol,
                                           "config": config, "isolation_env": native_env, "root": str(root),
@@ -288,7 +292,7 @@ def run(args):
             flow = {key: raw_flow.get(key) is True for key in
                     ("new", "second_turn", "cancel", "restart", "switch", "isolated", "handshake")}
             flow["mode"] = args.mode
-            flow["requires_auxiliary"] = args.agent == "claude"
+            flow["requires_auxiliary"] = args.agent in ("claude", "kimi")
             passed = result.returncode == 0 and exactly_one and successful(evidence, flow)
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,

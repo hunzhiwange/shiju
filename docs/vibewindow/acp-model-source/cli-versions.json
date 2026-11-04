@@ -1244,78 +1244,128 @@
       "key": "kimi",
       "distribution": {
         "kind": "native",
-        "package": "kimi-cli",
-        "release": "1.52.0",
-        "release_status": "metadata_snapshot_not_runtime_pin",
-        "source_url": "https://pypi.org/pypi/kimi-cli/1.52.0/json",
-        "git_commit": null,
-        "integrity": null,
-        "bin": null,
-        "repository": {
-          "Kimi Code CLI": "https://github.com/MoonshotAI/kimi-code",
-          "Migration Guide": "https://moonshotai.github.io/kimi-code/en/guides/migration",
-          "Source": "https://github.com/MoonshotAI/kimi-cli"
-        },
-        "link_check": {
-          "http_status": 200,
-          "final_url": "https://pypi.org/pypi/kimi-cli/1.52.0/json"
+        "package": "@moonshot-ai/kimi-code",
+        "release": "2.5.0",
+        "release_status": "pinned_official_native_binary",
+        "source_url": "https://code.kimi.com/kimi-code/binaries/2.5.0/manifest.json",
+        "integrity": "sha512-AYuT4fW7pzZAqxIIDjx+ypLJNoAL07NZCUyPDlf/JrgyKri35eVq9mDuhoe/xRX7wNHL+1fX+H0Dj/rB3H04Yg==",
+        "native_manifest": {
+          "version": "2.5.0",
+          "tag": "@moonshot-ai/kimi-code@2.5.0",
+          "platforms": {
+            "darwin-arm64": {
+              "filename": "kimi-code-darwin-arm64",
+              "checksum": "d4dd02d40f18f3a784699fc37ae0c55d676a4704c37a3b91ab96541b0db673a1",
+              "zstd": {
+                "file": "kimi-code-darwin-arm64.zst",
+                "sha256": "8a0573cbe8f92d3f32f6fc83cea73cbdc784bd6c21371e9825e5caf304a569e5"
+              }
+            },
+            "darwin-x64": {
+              "filename": "kimi-code-darwin-x64",
+              "checksum": "e4adcc5b567c7e51ccf3d97e0f4a5e9e0942d91947ac356a337135e8c358d09a",
+              "zstd": {
+                "file": "kimi-code-darwin-x64.zst",
+                "sha256": "4eae67ca9af1107a3cce0268df9b8302ef37af9725c59562284a7e8aa3dd61db"
+              }
+            },
+            "linux-arm64": {
+              "filename": "kimi-code-linux-arm64",
+              "checksum": "643ae9a7f1971c39c4d8c7ff0fbaaaf6cdd8e4c35e58f98b9c1be556694dddab",
+              "zstd": {
+                "file": "kimi-code-linux-arm64.zst",
+                "sha256": "8e1b96a12550058ab3bfe6961d373ff43bc71b7eb482ab71b0bfed0a6f5f2c37"
+              }
+            },
+            "linux-x64": {
+              "filename": "kimi-code-linux-x64",
+              "checksum": "289a8d33e5e76d7a280ebf273855b9b2d941c09fa6828cccf993c0666886fd6c",
+              "zstd": {
+                "file": "kimi-code-linux-x64.zst",
+                "sha256": "d0d0ff80e034dbb1e2081e028b257a98439bf8b7baeba1f611b21d2e0114328e"
+              }
+            },
+            "win32-arm64": {
+              "filename": "kimi-code-win32-arm64.exe",
+              "checksum": "78a74c05bf11f62e9f87b3fabed8e03dfe3eeeabc27151d856d81159ea188c05",
+              "zstd": {
+                "file": "kimi-code-win32-arm64.zst",
+                "sha256": "f58532144093a313abd6bbd311b81a069db4c010add87394bd26c999e5085219"
+              }
+            },
+            "win32-x64": {
+              "filename": "kimi-code-win32-x64.exe",
+              "checksum": "64e671880ab416e952523da4cf008572597c3f471ca927d0d1d4c0ba4b989268",
+              "zstd": {
+                "file": "kimi-code-win32-x64.zst",
+                "sha256": "f4bb3d749fd7f1efbdeaf53972322ddd69c1ff1f3afb6a335469e600c2a266b7"
+              }
+            }
+          }
         }
       },
       "underlying": {
         "kind": "same_distribution",
-        "release": "1.52.0"
+        "release": "2.5.0"
       },
       "license": {
-        "declared": "Apache-2.0",
-        "source_url": "https://raw.githubusercontent.com/MoonshotAI/kimi-cli/1.52.0/LICENSE",
-        "review": "Fixed source revision/release LICENSE inspected; built distribution correspondence and bundled notices not audited",
-        "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/@moonshot-ai/kimi-code/-/kimi-code-2.5.0.tgz",
+        "review": "Official successor distribution; published package license metadata; no vendor permission bypass"
       },
       "acp_launch": [
         "kimi",
         "acp"
       ],
       "registry_default_args": "&[\"acp\"]",
-      "local_command_candidates": [],
-      "route": "native_config_candidate",
-      "config_root_candidate": "--config / --config-file",
-      "config_priority": "两代 Provider 类型/字段不同；必须按固定版本使用显式配置与 api_key_env",
-      "auxiliary_model_routes": "内置 Kimi 服务、辅助/子 Agent 不得回退",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "local_command_candidates": [
+        "kimi"
+      ],
+      "route": "native_config_verified",
+      "config_root_candidate": "KIMI_CODE_HOME",
+      "config_priority": "2.5.0 config.toml; explicit api_key_env; blank KIMI_MODEL_NAME disables ambient temporary model override",
+      "auxiliary_model_routes": "Only session-selected alias is configured; native coder default and all primary requests use its Provider. Proven with real child model requests.",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Official 2.5.0 Darwin-arm64 binary; session-model 11 requests with both selected models, cli-local 9 requests with native model; 3 real coder auxiliary requests per source; full lifecycle passed.",
       "installed": {
         "command": [
           "kimi",
           "--version"
         ],
-        "status": "not_found",
-        "exit_code": null
+        "status": "isolated_native_binary",
+        "exit_code": 0
       },
       "platforms": {
-        "macos": "version-only discovery on current host; no ACP request",
-        "linux": "unverified; package/installer target and ACP must be checked",
-        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+        "macos": "Darwin-arm64 2.5.0 official digest verified; both sources and auxiliary ACP model requests passed",
+        "linux": "Official 2.5.0 manifest publishes x64/arm64 binaries; runtime unverified",
+        "windows": "Official 2.5.0 manifest publishes x64/arm64 binaries; runtime/private ACL unverified"
       },
       "source_urls": [
-        "https://moonshotai.github.io/kimi-cli/en/configuration/providers.html",
-        "https://moonshotai.github.io/kimi-code/en/configuration/providers",
-        "https://moonshotai.github.io/kimi-code/en/configuration/config-files"
+        "https://code.kimi.com/kimi-code/binaries/2.5.0/manifest.json",
+        "https://registry.npmjs.org/@moonshot-ai/kimi-code/2.5.0",
+        "https://moonshotai.github.io/kimi-code/en/configuration/config-files",
+        "https://moonshotai.github.io/kimi-code/en/configuration/providers"
       ],
-      "follow_up": "task 25: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
-      "source_link_checks": {
-        "https://moonshotai.github.io/kimi-cli/en/configuration/providers.html": {
-          "http_status": 200,
-          "final_url": "https://moonshotai.github.io/kimi-cli/en/configuration/providers.html"
+      "follow_up": "task33: integrate capability publication; no cross-platform runtime acceptance claimed",
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "KIMI_CODE_HOME",
+          "files": {
+            "config.toml": "default_model = \"native-selected\"\ntelemetry = false\nauto_session_title = false\n[providers.native]\ntype = \"openai\"\nbase_url = \"{{endpoint}}\"\napi_key = \"{{key}}\"\n[models.native-selected]\nprovider = \"native\"\nmodel = \"{{model}}\"\nmax_context_size = 128000\ncapabilities = [\"tool_use\"]\n"
+          }
         },
-        "https://moonshotai.github.io/kimi-code/en/configuration/providers": {
-          "http_status": 200,
-          "final_url": "https://moonshotai.github.io/kimi-code/en/configuration/providers"
-        },
-        "https://moonshotai.github.io/kimi-code/en/configuration/config-files": {
-          "http_status": 200,
-          "final_url": "https://moonshotai.github.io/kimi-code/en/configuration/config-files"
+        "cli-local": {
+          "config_root_env": "KIMI_CODE_HOME",
+          "files": {
+            "config.toml": "default_model = \"native-selected\"\ntelemetry = false\nauto_session_title = false\n[providers.native]\ntype = \"openai\"\nbase_url = \"{{endpoint}}\"\napi_key = \"{{key}}\"\n[models.native-selected]\nprovider = \"native\"\nmodel = \"{{model}}\"\nmax_context_size = 128000\ncapabilities = [\"tool_use\"]\n"
+          }
         }
+      },
+      "runtime_evidence": {
+        "session-model": "evidence/kimi/session-model.json",
+        "cli-local": "evidence/kimi/cli-local.json",
+        "negative": "evidence/kimi/native-boundaries.json"
       }
     },
     {

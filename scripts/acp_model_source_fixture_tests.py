@@ -30,6 +30,27 @@ class HarnessContract(unittest.TestCase):
             self.assertEqual(len(fixture.snapshot()["requests"]), 3)
             self.assertEqual(fixture.snapshot()["errors"], 0)
 
+    def test_auxiliary_profiles_preserve_claude_and_kimi_native_model_selection(self):
+        for profile, model in (("general-purpose", "haiku"), ("coder", None)):
+            with self.subTest(profile=profile), ModelFixture() as fixture:
+                fixture.probe_auxiliary = True
+                fixture.auxiliary_profile = profile
+                fixture.auxiliary_model = model
+                request = urllib.request.Request(fixture.url + "/v1/chat/completions",
+                    data=json.dumps({"model": fixture.models[0],
+                        "messages": [{"role": "user", "content": "AUXILIARY_PROBE"}],
+                        "tools": [{"type": "function", "function": {"name": "Agent",
+                            "parameters": {"properties": {"model": {"type": "string"}}}}}]}).encode(),
+                    headers={"Authorization": "Bearer " + fixture.key, "Content-Type": "application/json"})
+                with urllib.request.urlopen(request) as reply:
+                    call = json.load(reply)["choices"][0]["message"]["tool_calls"][0]["function"]
+                arguments = json.loads(call["arguments"])
+                self.assertEqual(call["name"], "Agent")
+                self.assertEqual(arguments["subagent_type"], profile)
+                self.assertEqual(arguments.get("model"), model)
+                self.assertIn("AUXILIARY_CHILD", arguments["prompt"])
+                self.assertEqual(fixture.snapshot()["errors"], 0)
+
     def test_zero_requests_cannot_pass(self):
         self.assertFalse(successful({"requests": [], "errors": 0}, {}))
 

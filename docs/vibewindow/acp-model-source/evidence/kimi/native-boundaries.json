@@ -1,0 +1,15 @@
+{
+  "version": "2.5.0",
+  "platform": "Darwin-arm64",
+  "sha256": "d4dd02d40f18f3a784699fc37ae0c55d676a4704c37a3b91ab96541b0db673a1",
+  "missing-credential": {
+    "rejected": true,
+    "error_code": -32000,
+    "requests": 0
+  },
+  "unknown-model": {
+    "rejected": true,
+    "error_code": -32000,
+    "requests": 0
+  }
+}

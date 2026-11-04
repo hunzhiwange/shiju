@@ -304,6 +304,27 @@ pub async fn permission_rules(name: &str) -> Option<Ruleset> {
     load_state().await.ok()?.agents.get(name).map(|agent| agent.permission.clone())
 }
 
+/// Interactive main tools use the runtime security pipeline; worker definitions
+/// retain their delegated ceiling. User rules remain authoritative in both paths.
+pub(crate) async fn native_permission_ceiling(name: &str) -> Result<Ruleset, String> {
+    if name != "main" {
+        return permission_rules(name)
+            .await
+            .ok_or_else(|| format!("agent permission policy unavailable: {name}"));
+    }
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let config = tokio::task::spawn_blocking(move || {
+        crate::session::ui_config::load_app_config_result(&tenant)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    Ok(permission_next::merge(&[
+        permission_next::from_config(&serde_json::json!({"*":"allow"})),
+        permission_next::from_config(config.get("permission").unwrap_or(&Value::Null)),
+    ]))
+}
+
 fn load_agent_configs(cfg: &Value) -> HashMap<String, DelegateAgentConfig> {
     let configured = cfg
         .get("agents")
@@ -356,8 +377,11 @@ fn build_resolved_agent(
         };
     }
 
-    let selected_skills = config
-        .allowed_skills
+    let default_skills = match &config.defaults.skills {
+        vw_config_types::agent::AgentDefault::Fixed(ids) => ids,
+        vw_config_types::agent::AgentDefault::Inherit => &config.allowed_skills,
+    };
+    let selected_skills = default_skills
         .iter()
         .map(|name| permission_next::Rule {
             permission: "skill".to_string(),

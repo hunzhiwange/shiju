@@ -143,7 +143,27 @@ async fn resolve_permission_decision(
     context: &ToolUseContext,
 ) -> PermissionDecision {
     let spec = tool.spec();
-    let initial = security_decision(&spec, input, context, false);
+    use crate::permission::next::Action;
+    // Agent preferences can restrict the existing pipeline, never bypass it.
+    let pattern = input
+        .get("file_path")
+        .or_else(|| input.get("path"))
+        .or_else(|| input.get("command"))
+        .or_else(|| input.get("skill"))
+        .or_else(|| input.get("name"))
+        .and_then(Value::as_str)
+        .unwrap_or("*");
+    let agent_action = context.native_permission_action(&spec.id, &spec.aliases, pattern);
+    if agent_action == Action::Deny {
+        return PermissionDecision::deny("Tool denied by native agent permission policy");
+    }
+    let mut initial = security_decision(&spec, input, context, false);
+    if agent_action == Action::Ask
+        && let PermissionDecision::Allow { updated_input, warning, .. } = initial
+    {
+        initial = PermissionDecision::ask("Native agent requires tool approval", updated_input)
+            .with_warning(warning);
+    }
     let needs_interactive_approval = matches!(initial, PermissionDecision::Ask { .. })
         || context
             .approval_manager()
@@ -153,7 +173,12 @@ async fn resolve_permission_decision(
         return initial;
     }
 
-    request_interactive_approval(spec.id.as_str(), initial, context).await
+    if agent_action == Action::Ask {
+        let restricted = context.clone().with_bypass_non_cli_approval_for_turn(false);
+        request_interactive_approval(spec.id.as_str(), initial, &restricted).await
+    } else {
+        request_interactive_approval(spec.id.as_str(), initial, context).await
+    }
 }
 
 async fn request_interactive_approval(

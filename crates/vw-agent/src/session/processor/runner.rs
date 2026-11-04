@@ -503,7 +503,6 @@ fn run_in_project(
     let mut session = Session::new(req.session.clone());
     let mut raw_rounds = Vec::new();
     let is_acp = is_acp_request(&req.options);
-    let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let app_session_scope = req.app_session_scope.as_deref();
 
     let agent_key = req.options.get("agent").and_then(Value::as_str).map(ToOwned::to_owned);
@@ -514,6 +513,44 @@ fn run_in_project(
             return;
         }
     };
+    let native_defaults = if !is_acp {
+        match prompt::block_on(crate::session::capability_policy::native_agent_defaults(
+            &config,
+            agent_key.as_deref().unwrap_or("main"),
+            req.model.as_deref(),
+            std::path::Path::new(req.root.as_deref().unwrap_or(".")),
+        )) {
+            Ok(defaults) => defaults,
+            Err(error) => {
+                on_event(StreamEvent::Error(error.to_string()));
+                return;
+            }
+        }
+    } else {
+        None
+    };
+    if let Some(defaults) = &native_defaults {
+        if let Some(model) = &defaults.effective.model {
+            req.model = Some(format!("{}/{}", model.provider, model.model));
+        }
+        if defaults.skills_fixed {
+            let inherited_strict =
+                req.options.get("delegate_skill_policy").and_then(Value::as_str) == Some("strict");
+            let inherited = option_string_values(&req.options, "delegate_default_allowed_skills");
+            let selected = defaults
+                .effective
+                .skills
+                .iter()
+                .filter(|id| !inherited_strict || inherited.contains(id))
+                .cloned()
+                .collect::<Vec<_>>();
+            req.options["delegate_default_allowed_skills"] = serde_json::json!(selected);
+            if !inherited_strict {
+                req.options["delegate_skill_policy"] = serde_json::json!(defaults.skill_policy);
+            }
+        }
+    }
+    let model_selected_by_auto = !is_acp && is_auto_model_request(req.model.as_deref());
     let (provider_retries, provider_backoff_ms) = request_provider_retry_policy(&req);
     let mut initial_budget =
         super::recovery::RetryBudget::new(provider_retries, provider_backoff_ms);
@@ -581,6 +618,15 @@ fn run_in_project(
     );
     if let Some(name) = agent_key.as_deref() {
         tool_use_context = tool_use_context.with_agent_name(name);
+    }
+    if let Some(defaults) = native_defaults {
+        if defaults.mcp_fixed {
+            tool_use_context = tool_use_context
+                .with_native_mcp_selection(defaults.effective.mcp.iter().cloned().collect());
+        }
+        if defaults.permission_fixed {
+            tool_use_context = tool_use_context.with_native_permission(defaults.effective);
+        }
     }
     tool_use_context = tool_use_context.with_plugin_snapshot(plugin_turn.data.clone());
     plugin_turn.own_async_hooks(tool_use_context.async_hooks.clone());
@@ -769,6 +815,8 @@ fn run_in_project(
     // 无法执行的协议要求。
     let available_tool_specs = crate::app::agent::tools::tool_specs_for_context(&ctx)
         .into_iter()
+        // Exclude worker-ineligible tools before required-tool expansion.
+        .filter(|spec| agent_key.as_deref().unwrap_or("main") == "main" || spec.id != "AgentTool")
         .filter(|spec| ctx.tool_use_context().delegated_tool_is_allowed(&spec.id))
         .collect::<Vec<_>>();
     let allowed_tools =

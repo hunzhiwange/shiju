@@ -35,11 +35,31 @@ pub struct EffectiveDefaults {
 impl EffectiveDefaults {
     /// Evaluate both policies separately: a default can never override the ceiling.
     pub fn permission_action(&self, permission: &str, pattern: &str) -> Action {
-        let selected =
-            next::evaluate(permission, pattern, std::slice::from_ref(&self.permission)).action;
-        let ceiling =
-            next::evaluate(permission, pattern, std::slice::from_ref(&self.permission_ceiling))
-                .action;
+        self.permission_action_with_aliases(permission, &[], pattern)
+    }
+
+    pub(crate) fn permission_action_with_aliases(
+        &self,
+        permission: &str,
+        aliases: &[String],
+        pattern: &str,
+    ) -> Action {
+        // Reuse the registered tool identities while retaining rule ordering.
+        let evaluate = |rules: &Ruleset| {
+            let rules = rules
+                .iter()
+                .cloned()
+                .map(|mut rule| {
+                    if aliases.contains(&rule.permission) {
+                        rule.permission = permission.to_string();
+                    }
+                    rule
+                })
+                .collect::<Ruleset>();
+            next::evaluate(permission, pattern, &[rules]).action
+        };
+        let selected = evaluate(&self.permission);
+        let ceiling = evaluate(&self.permission_ceiling);
         match (selected, ceiling) {
             (Action::Deny, _) | (_, Action::Deny) => Action::Deny,
             (Action::Ask, _) | (_, Action::Ask) => Action::Ask,

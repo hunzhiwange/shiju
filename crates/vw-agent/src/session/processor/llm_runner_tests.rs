@@ -14,6 +14,9 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 pub(crate) struct RecordedLlmRequest {
+    pub(crate) tool_specs: Vec<ToolSpec>,
+    pub(crate) system: Vec<String>,
+    pub(crate) model: Option<String>,
     pub(crate) directory: String,
     pub(crate) tenant: vw_api_types::id::TenantScope,
     pub(crate) messages: Vec<serde_json::Value>,
@@ -27,8 +30,14 @@ pub(super) fn record_test_llm_messages(
     session: String,
     messages: Vec<serde_json::Value>,
     options: serde_json::Value,
+    system: Vec<String>,
+    model: Option<String>,
+    tool_specs: Vec<ToolSpec>,
 ) {
     TEST_LLM_MESSAGES.lock().unwrap().entry(session).or_default().push(RecordedLlmRequest {
+        tool_specs,
+        system,
+        model,
         directory: crate::project::instance::directory(),
         tenant: crate::session::ui_store::current_tenant_scope(),
         messages,

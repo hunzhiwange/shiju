@@ -1,7 +1,7 @@
-//! 委托代理能力的纯策略解析。
+//! 原生智能体与委托代理能力解析。
 //!
-//! 该模块只把可信运行时输入归一化为实际可见能力和默认注入能力；不读取
-//! Gateway、工具调用参数或模型生成的文本。
+//! 委托策略归一化可信运行时输入；原生默认入口还读取当前租户、项目配置与
+//! 技能/MCP 目录，不从模型文本解析能力或权限。
 
 use std::collections::{BTreeMap, BTreeSet};
 use vw_config_types::agent::DelegateCapabilityPolicy;
@@ -109,4 +109,88 @@ where
         .filter_map(|id| normalize_capability_id(id.as_ref()))
         .filter_map(|id| aliases.get(&id).cloned())
         .collect()
+}
+
+/// Resolved from trusted project configuration, never from model-generated options.
+pub(crate) struct NativeAgentDefaults {
+    pub(crate) effective: std::sync::Arc<crate::agent::defaults::EffectiveDefaults>,
+    pub(crate) skills_fixed: bool,
+    pub(crate) skill_policy: DelegateCapabilityPolicy,
+    pub(crate) mcp_fixed: bool,
+    pub(crate) permission_fixed: bool,
+}
+
+pub(crate) async fn native_agent_defaults(
+    config: &crate::config::Config,
+    key: &str,
+    explicit_model: Option<&str>,
+    workspace: &std::path::Path,
+) -> anyhow::Result<Option<NativeAgentDefaults>> {
+    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
+    use vw_config_types::agent::{AgentDefault, AgentModelReference, AgentRuntime};
+    let agents = vw_config_types::agent::merged_agent_configs(&config.agents);
+    let agent = agents.get(key).ok_or_else(|| anyhow::anyhow!("unknown agent: {key}"))?;
+    if !matches!(agent.runtime, AgentRuntime::Native) {
+        return Ok(None);
+    }
+    let skills_fixed = matches!(agent.defaults.skills, AgentDefault::Fixed(_));
+    let mcp_fixed = matches!(agent.defaults.mcp, AgentDefault::Fixed(_));
+    let permission_fixed = matches!(agent.defaults.permission, AgentDefault::Fixed(_));
+    if !(skills_fixed
+        || mcp_fixed
+        || permission_fixed
+        || matches!(agent.defaults.model, AgentDefault::Fixed(_)))
+    {
+        return Ok(None);
+    }
+    let model = explicit_model
+        .filter(|value| !value.trim().is_empty() && !value.eq_ignore_ascii_case("auto"))
+        .map(|value| {
+            let (provider, model) =
+                value.split_once('/').ok_or_else(|| anyhow::anyhow!("invalid model reference"))?;
+            Ok::<_, anyhow::Error>(AgentModelReference {
+                provider: provider.into(),
+                model: model.into(),
+            })
+        })
+        .transpose()?;
+    let mut context = DefaultsContext {
+        permission_ceiling: crate::agent::native_permission_ceiling(key)
+            .await
+            .map_err(anyhow::Error::msg)?,
+        ..Default::default()
+    };
+    context.skills = crate::skills::load_skills_with_config(workspace, config)
+        .into_iter()
+        .map(|skill| (skill.invocation_name().to_string(), true))
+        .collect();
+    if mcp_fixed {
+        let mcp = crate::tools::mcp_common::load_resolved_acp_config_from(workspace).await?;
+        context.mcp = mcp
+            .mcp_servers
+            .iter()
+            .map(|server| {
+                (
+                    crate::tools::mcp_common::server_name(server).to_string(),
+                    crate::tools::mcp_common::management_for_server(&mcp, server).enabled,
+                )
+            })
+            .collect();
+    }
+    let inherited =
+        DefaultSelection { skills: Some(agent.allowed_skills.clone()), ..Default::default() };
+    let effective =
+        resolve(agent, &DefaultSelection { model, ..Default::default() }, &inherited, &context)?;
+    for skill in &effective.skills {
+        if effective.permission_action("skill", skill) == crate::permission::next::Action::Deny {
+            anyhow::bail!("default skill is denied by permission policy");
+        }
+    }
+    Ok(Some(NativeAgentDefaults {
+        effective: std::sync::Arc::new(effective),
+        skills_fixed,
+        skill_policy: agent.skill_policy,
+        mcp_fixed,
+        permission_fixed,
+    }))
 }

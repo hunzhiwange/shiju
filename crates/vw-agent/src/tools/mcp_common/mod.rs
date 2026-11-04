@@ -241,6 +241,11 @@ pub async fn load_resolved_acp_config_from(
     let cwd = cwd.as_ref();
     let mut config = vw_acp::load_resolved_config(cwd).await.map_err(anyhow::Error::from)?;
     merge_runtime_mcp_servers(&mut config, cwd).await?;
+    if let Some(context) = crate::tools::current_tool_use_context()
+        && let Some(selected) = context.native_mcp_selection()
+    {
+        config.mcp_servers.retain(|server| selected.contains(server_name(server)));
+    }
     Ok(config)
 }
 
@@ -259,13 +264,12 @@ async fn merge_runtime_mcp_servers(
     config: &mut vw_acp::ResolvedAcpxConfig,
     workspace: &Path,
 ) -> anyhow::Result<()> {
-    let mut agent_config = match Config::load_or_init().await {
-        Ok(config) => config,
-        Err(error) => {
-            tracing::warn!("skipping runtime MCP servers: failed to load agent config: {error}");
-            return Ok(());
-        }
-    };
+    let tenant = crate::tools::current_tool_use_context()
+        .map(|context| context.tenant_scope())
+        .unwrap_or_else(crate::session::ui_store::current_tenant_scope);
+    let mut agent_config = crate::config::get_project_for_tenant(&tenant, workspace)
+        .await
+        .map_err(|error| anyhow::anyhow!("failed to load scoped MCP configuration: {error}"))?;
     merge_global_mcp_servers_from_agent_config(config, &agent_config)?;
     agent_config.workspace_dir = workspace.to_path_buf();
     let plugin_options = plugin_mcp_discovery_options(&agent_config);

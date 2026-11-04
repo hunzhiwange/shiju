@@ -452,3 +452,27 @@ fn prompt_and_truncate_glob_are_non_empty() {
     let glob = truncate_glob();
     assert!(glob.ends_with("tool-output/*"));
 }
+
+#[test]
+fn agent_native_defaults_skill_grants_preserve_user_denial_and_fixed_empty() {
+    use vw_config_types::agent::AgentDefault;
+    for (ids, denied, expected) in [
+        (vec!["review".into()], false, Action::Allow),
+        (vec!["review".into()], true, Action::Deny),
+        (vec![], false, Action::Deny),
+    ] {
+        let mut config = DelegateAgentConfig {
+            allowed_skills: vec!["review".into()],
+            permission: json!({"*":"deny"}),
+            ..Default::default()
+        };
+        config.defaults.skills = AgentDefault::Fixed(ids);
+        let user =
+            if denied { permission_next::from_config(&json!({"skill":"deny"})) } else { vec![] };
+        let resolved = build_resolved_agent("reviewer", config, &vec![], &user);
+        assert_eq!(
+            permission_next::evaluate("skill", "review", &[resolved.permission]).action,
+            expected
+        );
+    }
+}

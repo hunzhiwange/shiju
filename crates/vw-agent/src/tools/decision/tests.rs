@@ -374,3 +374,92 @@ async fn codex_plugin_compat_t37_host_denial_precedes_hook_allow() {
     assert!(matches!(allowed, PermissionDecision::Allow { .. }));
     assert_eq!(allowed.updated_input(), Some(&json!({"value":1})));
 }
+
+#[tokio::test]
+async fn agent_native_defaults_permission_reaches_real_approval_without_bypassing_ceiling() {
+    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
+    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    for (selected, ceiling, allowed) in [
+        ("allow", "allow", true),
+        ("deny", "allow", false),
+        ("allow", "deny", false),
+        ("allow", "ask", false),
+        ("ask", "allow", false),
+    ] {
+        let mut agent = AgentDefinitionConfig::default();
+        agent.defaults.permission = AgentDefault::Fixed(json!({"read":selected}));
+        let effective = resolve(
+            &agent,
+            &DefaultSelection::default(),
+            &DefaultSelection::default(),
+            &DefaultsContext {
+                permission_ceiling: crate::permission::next::from_config(&json!({"read":ceiling})),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let context = ToolUseContext::new("native-permission", None)
+            .with_full_access_enabled(true)
+            .with_bypass_non_cli_approval_for_turn(true)
+            .with_native_permission(Arc::new(effective));
+        let result =
+            finalize_tool_input(&tool("read", true, None), json!({"path":"fixture"}), &context)
+                .await;
+        assert_eq!(result.is_ok(), allowed, "selected={selected}, ceiling={ceiling}");
+    }
+}
+
+#[tokio::test]
+async fn agent_native_defaults_permission_honors_registered_tool_aliases() {
+    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
+    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    let mut agent = AgentDefinitionConfig::default();
+    agent.defaults.permission = AgentDefault::Fixed(json!({"*":"allow"}));
+    let effective = resolve(
+        &agent,
+        &DefaultSelection::default(),
+        &DefaultSelection::default(),
+        &DefaultsContext {
+            permission_ceiling: crate::permission::next::from_config(
+                &json!({"*":"allow", "read":{"*.env":"deny"}}),
+            ),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let context =
+        ToolUseContext::new("native-alias", None).with_native_permission(Arc::new(effective));
+    let mut read = tool("file_read", true, None);
+    read.spec = read.spec.with_aliases(["read"]);
+    assert!(finalize_tool_input(&read, json!({"path":"secret.env"}), &context).await.is_err());
+}
+
+#[tokio::test]
+async fn agent_native_defaults_skill_permission_uses_registered_input() {
+    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
+    use vw_config_types::agent::{AgentDefault, AgentDefinitionConfig};
+    let mut agent = AgentDefinitionConfig::default();
+    agent.defaults.permission =
+        AgentDefault::Fixed(json!({"*":"allow", "skill":{"review":"deny"}}));
+    let effective = resolve(
+        &agent,
+        &DefaultSelection::default(),
+        &DefaultSelection::default(),
+        &DefaultsContext {
+            permission_ceiling: crate::permission::next::from_config(&json!({"*":"allow"})),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let context = ToolUseContext::new("native-skill-permission", None)
+        .with_native_permission(Arc::new(effective));
+    let decision = resolve_permission_decision(
+        &tool("skill", true, None),
+        json!({"skill":"review"}),
+        &context,
+    )
+    .await;
+    assert!(
+        matches!(decision, PermissionDecision::Deny { reason, .. } if reason.contains("native agent permission"))
+    );
+}

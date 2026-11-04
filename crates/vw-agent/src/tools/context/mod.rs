@@ -119,6 +119,8 @@ pub struct ToolUseContext {
     messages_view: Option<Arc<Vec<ChatMessage>>>,
     explicitly_requested_skills: Arc<BTreeSet<String>>,
     trusted_user_selected_skills: Arc<BTreeSet<String>>,
+    native_mcp_selection: Option<Arc<BTreeSet<String>>>,
+    native_permissions: Vec<Arc<crate::agent::defaults::EffectiveDefaults>>,
     delegate_skill_policy: Option<DelegateCapabilityPolicy>,
     delegate_default_allowed_skills: Arc<BTreeSet<String>>,
     read_state: Arc<Mutex<FileReadStateCache>>,
@@ -209,6 +211,8 @@ impl ToolUseContext {
             messages_view: None,
             explicitly_requested_skills: Arc::new(BTreeSet::new()),
             trusted_user_selected_skills: Arc::new(BTreeSet::new()),
+            native_mcp_selection: None,
+            native_permissions: Vec::new(),
             delegate_skill_policy: None,
             delegate_default_allowed_skills: Arc::new(BTreeSet::new()),
             read_state: Arc::new(Mutex::new(FileReadStateCache::default())),
@@ -275,8 +279,46 @@ impl ToolUseContext {
             self.delegated_security = parent.delegated_security.clone();
             self.delegated_tools = parent.delegated_tools.clone();
             self.delegated_skill_rules = parent.delegated_skill_rules.clone();
+            self.native_mcp_selection = parent.native_mcp_selection.clone();
+            self.native_permissions = parent.native_permissions.clone();
         }
         self
+    }
+
+    pub(crate) fn native_mcp_selection(&self) -> Option<&BTreeSet<String>> {
+        self.native_mcp_selection.as_deref()
+    }
+
+    pub(crate) fn with_native_mcp_selection(mut self, mut ids: BTreeSet<String>) -> Self {
+        if let Some(parent) = &self.native_mcp_selection {
+            ids.retain(|id| parent.contains(id));
+        }
+        self.native_mcp_selection = Some(Arc::new(ids));
+        self
+    }
+
+    pub(crate) fn with_native_permission(
+        mut self,
+        policy: Arc<crate::agent::defaults::EffectiveDefaults>,
+    ) -> Self {
+        self.native_permissions.push(policy);
+        self
+    }
+
+    pub(crate) fn native_permission_action(
+        &self,
+        permission: &str,
+        aliases: &[String],
+        pattern: &str,
+    ) -> crate::permission::next::Action {
+        use crate::permission::next::Action;
+        self.native_permissions.iter().fold(Action::Allow, |current, policy| {
+            match (current, policy.permission_action_with_aliases(permission, aliases, pattern)) {
+                (Action::Deny, _) | (_, Action::Deny) => Action::Deny,
+                (Action::Ask, _) | (_, Action::Ask) => Action::Ask,
+                _ => Action::Allow,
+            }
+        })
     }
 
     pub(crate) fn delegated_tool_is_allowed(&self, id: &str) -> bool {

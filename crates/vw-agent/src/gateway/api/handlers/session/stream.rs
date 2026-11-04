@@ -780,11 +780,32 @@ async fn resolve_delegate_request_overrides(
         });
     };
 
-    let Some(config) = agent::get(&agent_name).await else {
+    let Some(mut config) = agent::get(&agent_name).await else {
         return Err(ApiError::bad_request(format!("unknown agent: {}", agent_name)));
     };
 
-    let model = delegated_model_override(&config, explicit_model);
+    let runtime_config = crate::config::get_current()
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    let workspace = instance::directory();
+    let defaults = crate::session::capability_policy::native_agent_defaults(
+        &runtime_config,
+        &agent_name,
+        explicit_model.as_deref(),
+        Path::new(&workspace),
+    )
+    .await
+    .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    if let Some(defaults) = &defaults
+        && defaults.skills_fixed
+    {
+        config.allowed_skills = defaults.effective.skills.clone();
+    }
+    let model = defaults
+        .as_ref()
+        .and_then(|defaults| defaults.effective.model.as_ref())
+        .map(|model| format!("{}/{}", model.provider, model.model))
+        .or_else(|| delegated_model_override(&config, explicit_model));
     let chat_system_prompt = config
         .system_prompt
         .as_deref()

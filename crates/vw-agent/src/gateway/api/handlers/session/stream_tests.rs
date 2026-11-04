@@ -2159,3 +2159,168 @@ pub(crate) async fn collect_video_edit_test_stream(
     .await?;
     collect_gateway_chat_stream_payloads(rx, |e| observe(e)).await
 }
+
+#[test]
+fn agent_native_defaults_reach_registered_tools_and_prompt() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "https://example.test/v1",
+            None,
+        ));
+    let _streams = agent_session::processor::test_llm_stream_guard();
+    let workspace = tempfile::tempdir().unwrap();
+    let script = workspace.path().join("fixture.py");
+    std::fs::write(
+        &script,
+        include_str!(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/src/session/native_defaults_mcp_fixture.py"
+        )),
+    )
+    .unwrap();
+    std::fs::write(
+        workspace.path().join(".vwacprc.json"),
+        serde_json::to_vec(&serde_json::json!({
+            "mcpServers":[
+                {"name":"selected", "command":"python3", "args":[script]},
+                {"name":"unselected", "command":"python3", "args":[script]}
+            ]
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let source = workspace.path().join("skills/review/SKILL.md");
+    std::fs::create_dir_all(source.parent().unwrap()).unwrap();
+    std::fs::write(
+        &source,
+        "---\nname: review\ndescription: Review fixture\n---\nDEFAULT_REVIEW_BODY\n",
+    )
+    .unwrap();
+    runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+        "agents": {
+            "main": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["file_read"],"defaults":{"mcp":{"mode":"fixed","value":["selected"]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict"},
+            "reviewer": {"provider":"model-recovery","model":"unavailable-legacy","allowed_tools":["skill","file_read"],"defaults":{"mcp":{"mode":"fixed","value":[]},"model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},"skills":{"mode":"fixed","value":["review"]}},"system_prompt":"NATIVE_DEFAULT_RULE","skill_policy":"strict"}
+        }
+    }))).unwrap();
+    for name in ["researcher", "coder", "explore"] {
+        runtime.block_on(crate::config::update_project(workspace.path(), serde_json::json!({
+            "agents": {name: {"defaults": {
+                "mcp":{"mode":"fixed","value":[]},
+                "model":{"mode":"fixed","value":{"provider":"model-recovery","model":"original"}},
+                "skills":{"mode":"fixed","value":["review"]}
+            }, "system_prompt":"NATIVE_DEFAULT_RULE", "skill_policy":"strict"}}
+        }))).unwrap();
+    }
+    for name in ["main", "reviewer", "researcher", "coder", "explore"] {
+        let session_id = format!("ses_defaults_{}", uuid::Uuid::new_v4());
+        agent_session::processor::enqueue_test_llm_stream(vec![
+            agent_session::llm::StreamEvent::Delta("ready".into()),
+            agent_session::llm::StreamEvent::Done {
+                usage: Default::default(),
+                finish_reason: Some("stop".into()),
+            },
+        ]);
+        let request = GatewayChatStreamRequest {
+            session_id: Some(session_id.clone().into()),
+            messages: vec![
+                serde_json::json!({"role":"user","content":"inspect the requested change"}),
+            ],
+            model: None,
+            agent: Some(name.into()),
+            allowed_tools: if name == "main" {
+                None
+            } else {
+                Some(vec!["skill".into(), "file_read".into(), "AgentTool".into()])
+            },
+            options: Some(serde_json::json!({"full_access":false})),
+            ..Default::default()
+        };
+        let directory = workspace.path().to_string_lossy().to_string();
+        let tenant = crate::session::ui_store::current_tenant_scope();
+        runtime.block_on(async {
+            let mut receiver = with_tenant_instance(tenant.clone(), directory.clone(), move || {
+                Box::pin(async move { start_gateway_chat_stream(tenant, directory, request).await })
+            })
+            .await
+            .unwrap();
+            loop {
+                let payload =
+                    tokio::time::timeout(std::time::Duration::from_secs(20), receiver.recv())
+                        .await
+                        .unwrap()
+                        .expect("terminal gateway event");
+                assert_ne!(payload["type"], "chat.error", "{payload}");
+                if payload["type"] == "chat.done" {
+                    break;
+                }
+            }
+        });
+        let captured = agent_session::processor::take_test_llm_messages(&session_id);
+        assert_eq!(captured.len(), 1, "{name} request capture");
+        assert!(captured[0].system.iter().any(|body| body.contains("NATIVE_DEFAULT_RULE")));
+        assert_eq!(captured[0].model.as_deref(), Some("model-recovery/original"));
+        let discovery = captured[0].tool_specs.iter().find(|spec| spec.id == "tool_search");
+        if name == "main" {
+            let discovery = discovery.expect("selected MCP must reach the first model request");
+            assert!(discovery.description.contains("selected"));
+            assert!(!discovery.description.contains("unselected"));
+        } else {
+            assert!(discovery.is_none(), "fixed empty MCP list must isolate worker sessions");
+        }
+
+        let bodies = captured[0]
+            .messages
+            .iter()
+            .filter(|message| {
+                message["content"]
+                    .as_str()
+                    .is_some_and(|content| content.contains("DEFAULT_REVIEW_BODY"))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(bodies.len(), 1, "{name} must preload configured default once");
+        assert_eq!(bodies[0]["role"], "user");
+        let tool_ids = agent_session::processor::llm_runner::take_test_llm_stream_tool_ids();
+        assert_eq!(tool_ids.len(), 1);
+        assert!(tool_ids[0].contains(&"skill".to_string()), "{name} must keep requested tools");
+        assert!(tool_ids[0].contains(&"file_read".to_string()));
+        if name != "main" {
+            assert!(
+                !tool_ids[0].contains(&"AgentTool".to_string()),
+                "{name} must not receive primary agent tool eligibility"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn agent_native_defaults_do_not_grant_disabled_mcp() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let workspace = tempfile::tempdir().unwrap();
+    std::fs::write(workspace.path().join(".vwacprc.json"), serde_json::to_vec(&serde_json::json!({
+        "mcpServers":[{"name":"disabled-server", "command":"missing-disabled-command", "enabled":false}]
+    })).unwrap()).unwrap();
+    crate::config::update_project(
+        workspace.path(),
+        serde_json::json!({
+            "agents": {"main": {"defaults": {"mcp": {"mode":"fixed", "value":["disabled-server"]}}}}
+        }),
+    )
+    .await
+    .unwrap();
+    let tenant = crate::session::ui_store::current_tenant_scope();
+    let directory = workspace.path().to_string_lossy().to_string();
+    let result = with_tenant_instance(tenant, directory, || {
+        Box::pin(async {
+            resolve_delegate_request_overrides(Some("main".into()), None, None).await
+        })
+    })
+    .await;
+    assert!(result.is_err(), "a missing or disabled MCP default must reject admission");
+}

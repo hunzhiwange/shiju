@@ -273,13 +273,13 @@ impl Widget<Message, Theme, iced::Renderer> for ReasoningSlider {
                 color,
             );
         };
-        let track = Rectangle { y: center.y - 14.0, height: 28.0, ..bounds };
-        quad(track, 14.0, theme.extended_palette().background.strong.color);
+        let track = Rectangle { y: center.y - 10.0, height: 20.0, ..bounds };
+        quad(track, 10.0, theme.extended_palette().background.strong.color);
         // 最左档不绘制填充，避免抗锯齿边缘透出蓝色；拖动时保留完整端帽。
         if state.position > 0.0 {
             quad(
                 Rectangle { width: (center.x - bounds.x).max(track.height), ..track },
-                14.0,
+                10.0,
                 theme.palette().primary,
             );
         }
@@ -288,8 +288,8 @@ impl Widget<Message, Theme, iced::Renderer> for ReasoningSlider {
                 + HANDLE_RADIUS
                 + index as f32 / self.maximum() * (bounds.width - HANDLE_RADIUS * 2.0);
             quad(
-                Rectangle::new(Point::new(x - 2.5, center.y - 2.5), Size::new(5.0, 5.0)),
-                2.5,
+                Rectangle::new(Point::new(x - 2.0, center.y - 2.0), Size::new(4.0, 4.0)),
+                2.0,
                 theme.palette().text.scale_alpha(0.35),
             );
         }

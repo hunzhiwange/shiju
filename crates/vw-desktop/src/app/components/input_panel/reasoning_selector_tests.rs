@@ -378,8 +378,8 @@ async fn reasoning_slider_renders_non_ascii_labels_and_all_positions_in_both_the
                 &renderer,
                 &layout::Limits::new(Size::ZERO, bounds),
             );
-            assert_eq!(node.bounds().width, 320.0);
-            assert!(node.bounds().height <= bounds.height);
+            assert_eq!(node.bounds().width, 260.0);
+            assert!(node.bounds().height <= 110.0);
             element.as_widget().draw(
                 &tree,
                 &mut renderer,

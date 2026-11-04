@@ -1,0 +1,61 @@
+{
+  "agent": "copilot",
+  "mode": "session-model",
+  "evidence_kind": "real-cli",
+  "status": "failed",
+  "passed": false,
+  "platform": "Darwin-arm64",
+  "cargo_exit_code": 101,
+  "effective_tests": 1,
+  "failure_locations": [
+    "crates/vw-agent/src/session/llm/acp/model_source/acceptance_tests.rs:90:13"
+  ],
+  "requests": {
+    "requests": [
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 0
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 1
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/chat/completions",
+        "tool_results": 2
+      }
+    ],
+    "errors": 0
+  },
+  "flow": {
+    "new": true,
+    "second_turn": false,
+    "cancel": false,
+    "restart": false,
+    "switch": false,
+    "isolated": true,
+    "handshake": false,
+    "mode": "session-model",
+    "requires_auxiliary": false
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "vw-agent",
+    "--lib",
+    "--all-features",
+    "acp_model_source_real_cli_session_model",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cargo_target_dir": "/Users/xiangmin/worker/code/shiju/target/rust-slot-3"
+}

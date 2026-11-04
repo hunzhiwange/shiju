@@ -1,0 +1,37 @@
+{
+  "version": "1.0.105",
+  "platform": "Darwin-arm64",
+  "kind": "direct-native-ACP-probe-not-production-acceptance",
+  "launch": [
+    "copilot",
+    "--acp",
+    "--stdio",
+    "--no-auto-update"
+  ],
+  "configuration": "private COPILOT_HOME/providers.json, COPILOT_MODEL=fixture/acp-fixture-primary, COPILOT_OFFLINE=true",
+  "initialize": true,
+  "session_new": true,
+  "session_prompt": true,
+  "requests": [
+    {
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "route": "/v1/chat/completions",
+      "tool_results": 0
+    },
+    {
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "route": "/v1/chat/completions",
+      "tool_results": 1
+    },
+    {
+      "model": "acp-fixture-primary",
+      "authenticated": true,
+      "route": "/v1/chat/completions",
+      "tool_results": 2
+    }
+  ],
+  "errors": 0,
+  "limitations": "No production session lifecycle or auxiliary-agent proof in this probe."
+}

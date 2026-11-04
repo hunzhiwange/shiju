@@ -1,0 +1,50 @@
+{
+  "entries": [
+    {
+      "key": "copilot",
+      "distribution": {
+        "kind": "native",
+        "package": "@github/copilot",
+        "release": "1.0.105",
+        "integrity": "sha512-k5JPVZrc0Ms4YdAmYS80OGxDvwjDZNVqDS3dxphIFUVSTFJRwcHkbHh3yUKk7MEyBjKqQYKLKNAKSF+dVmjl7A=="
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "1.0.105"
+      },
+      "acp_launch": [
+        "copilot",
+        "--acp",
+        "--stdio"
+      ],
+      "local_command_candidates": [
+        "copilot"
+      ],
+      "installed": {
+        "command": [
+          "copilot",
+          "--version"
+        ],
+        "status": "observed",
+        "exit_code": 0,
+        "output": "GitHub Copilot CLI 1.0.105.\nRun 'copilot update' to check for updates."
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "COPILOT_HOME",
+          "files": {
+            "providers.json": "{\"providers\": [{\"name\": \"fixture\", \"type\": \"openai\", \"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}], \"models\": [{\"id\": \"{{model}}\", \"provider\": \"fixture\", \"wireModel\": \"{{model}}\"}]}",
+            "settings.json": "{\"model\":\"fixture/{{model}}\",\"autoUpdate\":false}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "COPILOT_HOME",
+          "files": {
+            "providers.json": "{\"providers\": [{\"name\": \"fixture\", \"type\": \"openai\", \"baseUrl\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}], \"models\": [{\"id\": \"{{model}}\", \"provider\": \"fixture\", \"wireModel\": \"{{model}}\"}]}",
+            "settings.json": "{\"model\":\"fixture/{{model}}\",\"autoUpdate\":false}"
+          }
+        }
+      }
+    }
+  ]
+}

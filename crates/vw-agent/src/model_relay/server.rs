@@ -81,7 +81,7 @@ impl RelayServer {
         });
         let router = Router::new()
             .route("/v1/chat/completions", post(handle))
-            .route("/v1/messages", post(handle))
+            .route("/v1/messages", post(handle_messages))
             .route("/v1/responses", post(handle))
             .with_state(state);
         let cancel = binding.cancelled.clone();
@@ -117,6 +117,15 @@ struct RequestGuard {
 impl Drop for RequestGuard {
     fn drop(&mut self) {
         self.cancel.cancel();
+    }
+}
+
+async fn handle_messages(state: State<Arc<ServerState>>, request: Request) -> Response {
+    let response = handle(state, request).await;
+    if response.status().is_success() {
+        response
+    } else {
+        super::messages::error(response.status())
     }
 }
 

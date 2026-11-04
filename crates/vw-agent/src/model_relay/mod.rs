@@ -15,3 +15,8 @@ pub use transport::ProviderRelayBackend;
 mod chat_tests;
 #[cfg(test)]
 mod transport_tests;
+
+mod messages;
+mod messages_stream;
+#[cfg(test)]
+mod messages_tests;

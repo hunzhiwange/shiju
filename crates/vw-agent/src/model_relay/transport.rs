@@ -80,6 +80,31 @@ fn chat_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
     Ok(url)
 }
 
+fn messages_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
+    let mut url =
+        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    if !matches!(url.scheme(), "http" | "https")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || url.query().is_some()
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let path = url.path().trim_end_matches('/');
+    if path.ends_with("/chat/completions")
+        || path.ends_with("/responses")
+        || path.contains(":generateContent")
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    if !path.ends_with("/messages") {
+        let path = if path.is_empty() { "/v1" } else { path };
+        url.set_path(&format!("{path}/messages"));
+    }
+    Ok(url)
+}
+
 #[async_trait::async_trait]
 impl RelayBackend for ProviderRelayBackend {
     async fn execute(
@@ -93,7 +118,7 @@ impl RelayBackend for ProviderRelayBackend {
         {
             return Err(StatusCode::FORBIDDEN);
         }
-        if request.path != "/v1/chat/completions" {
+        if !matches!(request.path, "/v1/chat/completions" | "/v1/messages") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         let info = provider::get_provider(&identity.provider)
@@ -102,8 +127,24 @@ impl RelayBackend for ProviderRelayBackend {
             .ok_or(StatusCode::FORBIDDEN)?;
         // Exact catalog key required: API-id alias lookup must not authorize another model.
         let model = info.models.get(&identity.model).ok_or(StatusCode::FORBIDDEN)?;
-        let body = chat::prepare(model, &identity.model, &request.body)?;
-        let url = chat_url(model)?;
+        let messages_request = request.path == "/v1/messages";
+        let native = messages_request && model.api.adapter == "anthropic";
+        let body = if native {
+            super::messages::native(model, &identity.model, &request.body)?
+        } else if messages_request {
+            let input =
+                serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
+            let converted = super::messages::to_chat(&input)?;
+            chat::prepare(
+                model,
+                &identity.model,
+                &serde_json::to_vec(&converted).map_err(|_| StatusCode::BAD_REQUEST)?,
+            )?
+        } else {
+            chat::prepare(model, &identity.model, &request.body)?
+        };
+        let streaming = body["stream"] == true;
+        let url = if native { messages_url(model)? } else { chat_url(model)? };
         let key = bearer(&info)?;
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(
@@ -111,6 +152,14 @@ impl RelayBackend for ProviderRelayBackend {
             header::HeaderValue::from_str(&format!("Bearer {key}"))
                 .map_err(|_| StatusCode::UNAUTHORIZED)?,
         );
+        if native {
+            headers.remove(header::AUTHORIZATION);
+            headers.insert(
+                "x-api-key",
+                header::HeaderValue::from_str(&key).map_err(|_| StatusCode::UNAUTHORIZED)?,
+            );
+            headers.insert("anthropic-version", header::HeaderValue::from_static("2023-06-01"));
+        }
         for (name, value) in &model.headers {
             let name = header::HeaderName::from_bytes(name.as_bytes())
                 .map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
@@ -133,6 +182,16 @@ impl RelayBackend for ProviderRelayBackend {
         };
         if !response.status().is_success() {
             return Err(StatusCode::BAD_GATEWAY);
+        }
+        if messages_request {
+            return super::messages_stream::response(
+                response,
+                identity.model.clone(),
+                streaming,
+                native,
+                cancel,
+            )
+            .await;
         }
         let mut result = Response::builder().status(response.status());
         if let Some(content_type) = response.headers().get(header::CONTENT_TYPE) {

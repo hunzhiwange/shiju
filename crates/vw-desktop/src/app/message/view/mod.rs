@@ -402,6 +402,8 @@ pub enum ViewMessage {
     PointerMoved(f32, f32),
     /// 系统拖入的文件悬停在窗口内
     HoveredFilePath(String),
+    /// 未由文件树消费的原生投递。
+    DroppedFilePath(String),
     /// 系统拖入的文件离开窗口
     HoveredFilesLeft,
     /// 窗口大小改变
@@ -950,6 +952,7 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
         | ViewMessage::WorkSidebarDragStarted
         | ViewMessage::WorkSplitDragStarted
         | ViewMessage::PointerMoved(_, _)
+        | ViewMessage::DroppedFilePath(_)
         | ViewMessage::HoveredFilePath(_)
         | ViewMessage::HoveredFilesLeft
         | ViewMessage::WindowResized(_, _, _)

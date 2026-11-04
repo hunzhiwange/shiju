@@ -534,3 +534,15 @@ fn file_tree_move_drop_escape_and_unfocus_cancel_tree_origin() {
         )));
     }
 }
+
+#[test]
+fn file_tree_external_drop_native_event_is_observed_without_hover() {
+    assert!(
+        super::map_global_event(
+            iced::Event::Window(iced::window::Event::FileDropped("/tmp/文件夹".into())),
+            iced::event::Status::Ignored,
+            iced::window::Id::unique(),
+        )
+        .is_some()
+    );
+}

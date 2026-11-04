@@ -160,7 +160,18 @@ fn directory_drop_area<'a>(
     content: Element<'a, Message>,
     target: String,
 ) -> Element<'a, Message> {
-    let area = RightClickArea::new(content, Box::new(|_| Message::None), None, None);
+    let mut area = RightClickArea::new(content, Box::new(|_| Message::None), None, None);
+    if let Some(project_path) = &app.project_path {
+        let root = project_path.clone();
+        let directory = target.clone();
+        area = area.external_file_drop(move |path| {
+            Message::Project(ProjectMessage::FileTreeExternalDropRequested {
+                project_path: root.clone(),
+                target_directory: directory.clone(),
+                source_path: path.to_string_lossy().into_owned(),
+            })
+        });
+    }
     if !app.file_tree_operation_in_progress
         && let Some((project_path, source_path)) = &app.file_tree_drag_source
         && app.project_path.as_ref() == Some(project_path)

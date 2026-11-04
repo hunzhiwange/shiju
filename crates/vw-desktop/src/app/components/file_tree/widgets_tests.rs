@@ -733,3 +733,73 @@ fn file_tree_drop_offscreen_press_cannot_start_drag() {
     );
     assert_eq!(messages, vec![TestMessage::ChildUpdated]);
 }
+
+#[test]
+fn file_tree_external_drop_each_native_callback_hits_visible_directory_without_hover() {
+    let mut area = drop_area(1).external_file_drop(|path| {
+        assert!(path.is_absolute());
+        TestMessage::Requested(8)
+    });
+    let mut tree = tree_for_area(&area);
+    let cursor = mouse::Cursor::Available(Point::new(20.0, 30.0));
+    for path in ["/tmp/文件夹", "/tmp/second"] {
+        let messages = update_area(
+            &mut area,
+            &mut tree,
+            Event::Window(iced::window::Event::FileDropped(path.into())),
+            cursor,
+        );
+        assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::Requested(8)]);
+    }
+    for cursor in [mouse::Cursor::Unavailable, mouse::Cursor::Available(Point::new(500.0, 500.0))] {
+        assert_eq!(
+            update_area(
+                &mut area,
+                &mut tree,
+                Event::Window(iced::window::Event::FileDropped("/tmp/outside".into())),
+                cursor
+            ),
+            vec![TestMessage::ChildUpdated]
+        );
+    }
+}
+
+#[test]
+fn file_tree_external_drop_hover_does_not_submit_and_clipped_rows_do_not_receive() {
+    let mut area = drop_area(1).external_file_drop(|_| TestMessage::Requested(8));
+    let mut tree = tree_for_area(&area);
+    assert_eq!(
+        update_area(
+            &mut area,
+            &mut tree,
+            Event::Window(iced::window::Event::FileHovered("/tmp/source".into())),
+            mouse::Cursor::Available(Point::new(20.0, 30.0))
+        ),
+        vec![TestMessage::ChildUpdated]
+    );
+    let messages = update_drop(
+        &mut area,
+        &mut tree,
+        Event::Window(iced::window::Event::FileDropped("/tmp/source".into())),
+        Point::new(10.0, 10.0),
+        Rectangle::new(Point::ORIGIN, Size::new(120.0, 40.0)),
+        Rectangle::new(Point::new(0.0, 20.0), Size::new(120.0, 20.0)),
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated]);
+}
+
+#[test]
+fn file_tree_external_drop_nested_target_consumes_once() {
+    let child = drop_area(2).external_file_drop(|_| TestMessage::Requested(2));
+    let mut parent: TestArea<'_> =
+        RightClickArea::new(Element::new(child), Box::new(TestMessage::RightClicked), None, None)
+            .external_file_drop(|_| TestMessage::Requested(1));
+    let mut tree = tree_for_area(&parent);
+    let messages = update_area(
+        &mut parent,
+        &mut tree,
+        Event::Window(iced::window::Event::FileDropped("/tmp/source".into())),
+        mouse::Cursor::Available(Point::new(20.0, 30.0)),
+    );
+    assert_eq!(messages, vec![TestMessage::ChildUpdated, TestMessage::Requested(2)]);
+}

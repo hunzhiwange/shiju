@@ -55,6 +55,7 @@ pub struct DropArea<'a, MessageT, ThemeT = iced::Theme, RendererT = iced::Render
     on_hover_changed: Option<(MessageT, MessageT)>,
     /// 是否追踪悬停状态
     track_hover: bool,
+    on_native_drop: Option<Box<dyn Fn(std::path::PathBuf) -> MessageT + 'a>>,
 }
 
 impl<'a, MessageT, ThemeT, RendererT> DropArea<'a, MessageT, ThemeT, RendererT> {
@@ -88,7 +89,18 @@ impl<'a, MessageT, ThemeT, RendererT> DropArea<'a, MessageT, ThemeT, RendererT> 
         on_hover_changed: Option<(MessageT, MessageT)>,
         track_hover: bool,
     ) -> Self {
-        Self { content, on_drop, on_hover_changed, track_hover }
+        Self { content, on_drop, on_hover_changed, track_hover, on_native_drop: None }
+    }
+}
+
+impl<'a, MessageT, ThemeT, RendererT> DropArea<'a, MessageT, ThemeT, RendererT> {
+    /// Preserve the exact native payload independently of hover callbacks.
+    pub fn on_native_drop(
+        mut self,
+        callback: impl Fn(std::path::PathBuf) -> MessageT + 'a,
+    ) -> Self {
+        self.on_native_drop = Some(Box::new(callback));
+        self
     }
 }
 
@@ -211,7 +223,7 @@ where
     ) {
         // 悬停状态追踪逻辑
         // 仅在启用追踪且有悬停消息配置时执行
-        if self.track_hover
+        if (self.track_hover || (self.on_native_drop.is_some() && matches!(event, Event::Window(iced::window::Event::FileDropped(_)))))
             && let Some((on_hovered, on_not_hovered)) = &self.on_hover_changed
             // 仅响应鼠标移动和按钮按下/释放事件
             && matches!(
@@ -243,7 +255,14 @@ where
             && layout.bounds().contains(pos)
         {
             // 发布拖放完成消息
-            shell.publish(self.on_drop.clone());
+            if let Event::Window(iced::window::Event::FileDropped(path)) = event
+                && let Some(callback) = &self.on_native_drop
+            {
+                shell.publish(callback(path.clone()));
+                shell.capture_event();
+            } else {
+                shell.publish(self.on_drop.clone());
+            }
         }
 
         // 将事件传递给内部内容元素处理

@@ -41,6 +41,7 @@ pub struct RightClickArea<'a, Message, ThemeT = Theme, RendererT = iced::Rendere
     on_left_release: Option<Message>,
     drop_messages: Option<(Message, Message)>,
     surface_messages: Option<(Message, Message)>,
+    on_external_drop: Option<Box<dyn Fn(std::path::PathBuf) -> Message + 'a>>,
     on_cancel: Option<Message>,
 }
 
@@ -96,12 +97,22 @@ impl<'a, Message, ThemeT, RendererT> RightClickArea<'a, Message, ThemeT, Rendere
             on_left_release,
             drop_messages: None,
             surface_messages: None,
+            on_external_drop: None,
             on_cancel: None,
         }
     }
     /// 仅用于普通文件树的目录行；消息包含本次拖动的路径快照。
     pub fn file_tree_drop(mut self, hover: Message, request: Message) -> Self {
         self.drop_messages = Some((hover, request));
+        self
+    }
+
+    /// 原生投递以事件路径和当前可见区域为准，不依赖 hover 或鼠标释放。
+    pub fn external_file_drop(
+        mut self,
+        callback: impl Fn(std::path::PathBuf) -> Message + 'a,
+    ) -> Self {
+        self.on_external_drop = Some(Box::new(callback));
         self
     }
 
@@ -342,6 +353,14 @@ where
                 shell,
                 viewport,
             );
+        }
+        if hit
+            && !shell.is_event_captured()
+            && let Event::Window(iced::window::Event::FileDropped(path)) = event
+            && let Some(callback) = &self.on_external_drop
+        {
+            shell.publish(callback(path.clone()));
+            shell.capture_event();
         }
         // Children get first refusal, so nested targets cannot also activate a parent.
         if !cancelled

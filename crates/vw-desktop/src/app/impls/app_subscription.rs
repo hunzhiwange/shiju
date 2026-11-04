@@ -39,6 +39,15 @@ fn map_global_event(
         iced::Event::Window(iced::window::Event::FileHovered(path)) => Some(Message::View(
             message::ViewMessage::HoveredFilePath(path.to_string_lossy().to_string()),
         )),
+        iced::Event::Window(iced::window::Event::FileDropped(path)) => {
+            if status == iced::event::Status::Captured {
+                None
+            } else {
+                Some(Message::View(message::ViewMessage::DroppedFilePath(
+                    path.to_string_lossy().into_owned(),
+                )))
+            }
+        }
         iced::Event::Window(iced::window::Event::FilesHoveredLeft) => {
             Some(Message::View(message::ViewMessage::HoveredFilesLeft))
         }

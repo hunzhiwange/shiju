@@ -206,6 +206,16 @@ pub enum ProjectMessage {
         source_path: String,
         target_directory: String,
     },
+    FileTreeExternalDropRequested {
+        project_path: String,
+        source_path: String,
+        target_directory: String,
+    },
+    FileTreeImportCompleted {
+        project_path: String,
+        source_path: String,
+        result: Result<vw_gateway_client::vw_api_types::file::LocalImportResponse, String>,
+    },
     FileTreeDragCancel,
     FileTreeMoveCompleted {
         project_path: String,

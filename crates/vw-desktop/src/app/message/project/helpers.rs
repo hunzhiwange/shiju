@@ -853,6 +853,29 @@ pub(crate) fn relative_to_project(project_root: &str, path: &str) -> Option<Stri
     None
 }
 
+/// 复制外部本机路径，所有源内容读取和递归写入都由网关负责。
+pub(crate) async fn gateway_import_local_paths(
+    project_path: &str,
+    target_directory: &str,
+    source_paths: Vec<String>,
+) -> Result<vw_gateway_client::vw_api_types::file::LocalImportResponse, String> {
+    let client = gateway_client()?;
+    if !client.endpoint().is_loopback() {
+        return Err("本机导入不支持远程网关".into());
+    }
+    let context = resolve_gateway_file_context(project_path).await?;
+    let directory = relative_to_project(&context.base_directory, target_directory)
+        .ok_or_else(|| "无法定位目标目录".to_string())?;
+    client
+        .file_import_local(&vw_gateway_client::vw_api_types::file::LocalImportRequest {
+            project_id: context.project_id,
+            worktree_id: context.worktree_id,
+            target_directory: if directory == "." { String::new() } else { directory },
+            source_paths,
+        })
+        .await
+}
+
 /// gateway_move_path 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。

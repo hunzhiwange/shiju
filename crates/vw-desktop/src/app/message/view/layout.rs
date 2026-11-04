@@ -240,6 +240,28 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             }
             Task::none()
         }
+        ViewMessage::DroppedFilePath(path) => {
+            app.file_tree_drag_source = None;
+            app.file_tree_drop_target = None;
+            app.dragging_file_paths.clear();
+            app.dragging_file_position = None;
+            app.pending_drop_file_paths = vec![path];
+            app.pending_drop_file_position = None;
+            if app.input_drop_hovered {
+                return crate::app::message::chat::update(
+                    app,
+                    crate::app::message::ChatMessage::InputAreaDragDrop,
+                );
+            }
+            if app.knowledge.file_drop_hovered {
+                return crate::app::message::knowledge_tool::update(
+                    app,
+                    crate::app::message::knowledge_tool::KnowledgeToolMessage::ImportDroppedFiles,
+                );
+            }
+            app.pending_drop_file_paths.clear();
+            Task::none()
+        }
         ViewMessage::HoveredFilesLeft => {
             if app.dragging_file_paths.is_empty() {
                 app.pending_drop_file_paths.clear();

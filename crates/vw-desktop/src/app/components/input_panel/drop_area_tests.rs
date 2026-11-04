@@ -425,3 +425,23 @@ fn drop_area_overlay_delegates_to_content() {
 
     assert!(overlay.is_none());
 }
+
+#[test]
+fn file_tree_external_drop_existing_native_zone_uses_actual_payload_without_hover() {
+    let mut area = test_area(false, Some((TestMessage::Hovered, TestMessage::NotHovered)))
+        .on_native_drop(|path| {
+            assert_eq!(path, std::path::PathBuf::from("/tmp/实际文件"));
+            TestMessage::Dropped
+        });
+    let mut tree = tree_for_drop_area();
+    let messages = update_with(
+        &mut area,
+        &mut tree,
+        Event::Window(iced::window::Event::FileDropped("/tmp/实际文件".into())),
+        mouse::Cursor::Available(Point::new(20.0, 30.0)),
+    );
+    assert_eq!(
+        messages,
+        vec![TestMessage::Hovered, TestMessage::Dropped, TestMessage::ChildUpdated]
+    );
+}

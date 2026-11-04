@@ -494,3 +494,22 @@ async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
         assert!(!app.file_tree_operation_in_progress);
     }
 }
+
+#[test]
+fn file_tree_external_drop_hover_left_and_release_never_import_or_leave_chat_paths() {
+    use crate::app::message::ViewMessage as V;
+    let mut app = test_app();
+    app.project_path = Some("/project".into());
+    app.dragging_file_paths = vec!["/stale-internal-drag".into()];
+    for message in [
+        V::HoveredFilePath("/tmp/hover-only".into()),
+        V::HoveredFilesLeft,
+        V::GlobalMouseReleased,
+        V::DroppedFilePath("/tmp/actual".into()),
+    ] {
+        let _ = super::update(&mut app, message);
+    }
+    assert!(app.pending_drop_file_paths.is_empty());
+    assert!(app.dragging_file_paths.is_empty());
+    assert!(!app.file_tree_operation_in_progress);
+}

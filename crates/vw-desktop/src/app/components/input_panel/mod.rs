@@ -812,15 +812,22 @@ pub fn view<'a>(app: &'a App) -> Element<'a, Message> {
         !app.dragging_file_paths.is_empty() || !app.pending_drop_file_paths.is_empty();
 
     // 包装主内容为拖放区域，支持文件拖拽添加
-    let drop_area: Element<'_, Message> = Element::new(DropArea::new(
-        content_with_overlays,
-        Message::Chat(message::ChatMessage::InputAreaDragDrop),
-        Some((
-            Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(true)),
-            Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(false)),
-        )),
-        dragging_any_tree_item,
-    ));
+    let drop_area: Element<'_, Message> = Element::new(
+        DropArea::new(
+            content_with_overlays,
+            Message::Chat(message::ChatMessage::InputAreaDragDrop),
+            Some((
+                Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(true)),
+                Message::Chat(message::ChatMessage::InputAreaDragHoverChanged(false)),
+            )),
+            dragging_any_tree_item,
+        )
+        .on_native_drop(|path| {
+            Message::View(message::ViewMessage::DroppedFilePath(
+                path.to_string_lossy().into_owned(),
+            ))
+        }),
+    );
 
     // 检测输入区域是否处于拖拽悬停状态
     let input_drop_hovered = app.input_drop_hovered && dragging_any_tree_item;

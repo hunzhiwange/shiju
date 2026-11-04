@@ -35,6 +35,8 @@ use crate::app::{
     App, AppTab, Message, Screen, set_config_field,
     state::{FileTreeClipboard, FileTreeClipboardMode, FindInFolderTab},
 };
+#[path = "file_tree_external_drop.rs"]
+mod external_drop;
 #[path = "file_tree_move_drop.rs"]
 mod move_drop;
 
@@ -200,6 +202,14 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             target_path,
             result,
         } => Some(move_drop::complete(app, project_path, source_path, target_path, result)),
+        ProjectMessage::FileTreeExternalDropRequested {
+            project_path,
+            source_path,
+            target_directory,
+        } => Some(external_drop::submit(app, project_path, source_path, target_directory)),
+        ProjectMessage::FileTreeImportCompleted { project_path, source_path, result } => {
+            Some(external_drop::complete(app, project_path, source_path, result))
+        }
         ProjectMessage::FileTreeDragCancel => {
             move_drop::clear_drag(app);
             Some(iced::Task::none())
@@ -608,3 +618,7 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
 pub(crate) fn release_tree_drop(app: &mut App) -> iced::Task<Message> {
     move_drop::release(app).unwrap_or_else(iced::Task::none)
 }
+
+#[cfg(test)]
+#[path = "file_tree_external_drop_tests.rs"]
+mod external_drop_tests;

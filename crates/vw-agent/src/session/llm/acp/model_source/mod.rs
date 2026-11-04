@@ -63,3 +63,6 @@ pub(super) async fn prepare(
 #[cfg(all(test, unix))]
 #[path = "profile_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod acceptance_tests;

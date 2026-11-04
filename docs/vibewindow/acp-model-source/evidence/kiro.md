@@ -47,7 +47,14 @@
 
 Cargo 红绿阶段使用共享槽位4，集成和最终检查使用动态领取的共享槽位3；同时设置 CARGO_TARGET_DIR 和 CARGO_BUILD_BUILD_DIR 到同一槽位。完整绝对路径和过程日志保留于本地 `target/acp-model-source-evidence/kiro/`，仓库报告仅省略主机路径，不包含令牌、原始请求载荷或随包源码。
 
-共享中继回归及全仓 Clippy：待回归。最终 binding/Responses 检查均退出101、有效测试0，因其它计划的 `session/agent_binding_tests.rs` 仍引用迁移中的 `resolve_full_access_scoped` 和 `AgentDefaults.full_access`。全仓 `cargo clippy --all-targets --all-features -- -D warnings` 已执行，退出101，具体为 `tools/decision/tests.rs:470` 对返回 `()` 的测试调用 `.await`（E0277）。这些文件未由本任务修改。权限重构结束后统一重跑；不将上述失败当作已通过，也不影响此前取得的两种真实 CLI 请求证据。
+2026-11-05 延后回归已完成，当前共享工作区的以下命令均退出0：
+
+- `cargo test -p vw-agent --lib --all-features acp_model_source_kiro -- --nocapture`：4通过、0失败。
+- `cargo test -p vw-agent --lib --all-features acp_model_source_relay_binding_ -- --nocapture`：4通过、0失败。
+- `cargo test -p vw-agent --lib --all-features acp_model_source_relay_responses_ -- --nocapture`：6通过、0失败。
+- `cargo clippy --all-targets --all-features -- -D warnings`：通过。
+
+本轮动态领取槽位2，两个 Cargo 目录均设为仓库绝对路径下的 `target/rust-slot-2`，阶段结束释放锁并保留缓存。完整命令、退出码和日志位于本地 `target/acp-model-source-evidence/kiro/regression-results.json` 及 `regression-{0,1,2,3}.log`。原先的无关权限测试迁移错误已消除；未重复执行没有变化的真实CLI请求证据。
 
 ## 官方参考
 

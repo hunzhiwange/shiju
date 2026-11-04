@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       experiment:
-        description: Measurement to run (LTO never changes production configuration)
+        description: Measurement to run (experiments never change production configuration)
         type: choice
-        options: [dist, lto]
+        options: [dist, lto, precise]
         default: dist
       cache:
         description: 'Rust cache: off for baseline, restore for measured reuse'
@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   measure:
-    if: inputs.experiment != 'lto'
+    if: inputs.experiment == 'dist'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -356,5 +356,112 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-lto-${{ matrix.target }}-${{ github.sha }}
+          path: benchmark/
+          if-no-files-found: error
+
+  precise:
+    if: inputs.experiment == 'precise'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+          - runner: windows-2022
+            target: aarch64-pc-windows-msvc
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    env:
+      VIBEWINDOW_RELEASE_BUILD: '1'
+      CARGO_TERM_COLOR: never
+      BENCH_TARGET: ${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dist on macOS
+        if: runner.os == 'macOS'
+        shell: bash
+        run: curl --proto '=https' --tlsv1.2 -LsSf https://github.com/axodotdev/cargo-dist/releases/download/v0.30.1/cargo-dist-installer.sh | sh
+      - name: Install dist on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: irm https://github.com/axodotdev/cargo-dist/releases/download/v0.30.1/cargo-dist-installer.ps1 | iex
+      - name: Install target standard library
+        shell: bash
+        run: rustup target add "$BENCH_TARGET"
+      - name: Compare precise and workspace builds serially
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          import hashlib, json, os, pathlib, platform, signal, sys, time
+          sys.path.insert(0, str(pathlib.Path.cwd() / 'scripts'))
+          from summarize_release_build import slot, capture, run_dist, write_json, BINS, PACKAGES
+          def interrupted(*args):
+              raise KeyboardInterrupt('benchmark interrupted')
+          signal.signal(signal.SIGTERM, interrupted)
+          root = pathlib.Path.cwd()
+          output = root / 'benchmark'
+          output.mkdir()
+          config = root / 'dist-workspace.toml'
+          original = config.read_text()
+          assert original.count('precise-builds = true') == 1
+          def checked(command, folder, name):
+              result = capture(command)
+              write_json(folder / (name + '.json'), result)
+              if result['exit_code']:
+                  raise RuntimeError(f'{name} exited {result["exit_code"]}')
+              return result['output']
+          try:
+              with slot() as (number, target_dir):
+                  write_json(root / f'target/rust-slot-locks/slot-{number}.lock/owner.json', dict(plan='release-performance', task=5, session=os.environ['GITHUB_RUN_ID'], pid=os.getpid()))
+                  assert checked(['dist', '--version'], output, 'dist-version').strip() == 'cargo-dist 0.30.1'
+                  checked(['dist', 'build', '--help'], output, 'build-help')
+                  checked(['dist', 'plan', '--help'], output, 'plan-help')
+                  checked(['rustc', '-Vv'], output, 'rustc')
+                  checked(['cargo', '-V'], output, 'cargo')
+                  metadata = json.loads(checked(['cargo', 'metadata', '--no-deps', '--format-version=1'], output, 'metadata'))
+                  assert pathlib.Path(metadata['target_directory']).resolve() == target_dir.resolve()
+                  assert pathlib.Path(metadata['build_directory']).resolve() == root / 'target'
+                  write_json(output / 'environment.json', dict(sha=os.environ['GITHUB_SHA'], slot=number, CARGO_TARGET_DIR=str(target_dir), host=platform.platform(), image=os.environ.get('ImageVersion'), cache='no restore; shared build-dir and system caches may be warm', lto='unchanged production thin'))
+                  for package in [*PACKAGES, 'workspace']:
+                      selection = ['--workspace'] if package == 'workspace' else ['-p', package]
+                      checked(['cargo', 'tree', '--locked', '--all-features', '--target', os.environ['BENCH_TARGET'], '--edges', 'normal,build', '--prefix', 'none', '--format', '{p} features=[{f}]', *selection], output, 'features-' + package)
+                  inventories = []
+                  for index, precise in enumerate([True, False, False, True], 1):
+                      folder = output / f'{index}-{precise}'
+                      folder.mkdir()
+                      config.write_text(original.replace('precise-builds = true', 'precise-builds = ' + str(precise).lower()))
+                      plan = json.loads(checked(['dist', 'plan', '--output-format=json'], folder, 'plan'))
+                      inventory = {key: sorted(asset['name'] for asset in value.get('assets', []) if asset.get('kind') == 'executable') for key, value in plan['artifacts'].items() if os.environ['BENCH_TARGET'] in value.get('target_triples', [])}
+                      assert set(name for names in inventory.values() for name in names) == set(BINS)
+                      inventories.append(inventory)
+                      assert inventory == inventories[0], 'Archive/bin plan changed'
+                      started = time.monotonic()
+                      code = run_dist(os.environ['BENCH_TARGET'], folder)
+                      record = dict(precise=precise, exit_code=code, elapsed_seconds=time.monotonic()-started, inventory=inventory, native_smoke='pending: requires native platform and installer verification', binaries={})
+                      write_json(folder / 'result.json', record)
+                      if code:
+                          raise RuntimeError(f'dist build exited {code}')
+                      for name in BINS:
+                          binary = target_dir / os.environ['BENCH_TARGET'] / 'dist' / (name + ('.exe' if os.name == 'nt' else ''))
+                          record['binaries'][name] = dict(bytes=binary.stat().st_size, sha256=hashlib.sha256(binary.read_bytes()).hexdigest())
+                          if os.environ['BENCH_TARGET'] == 'x86_64-apple-darwin' and platform.machine() == 'x86_64' and name in ['shiju', 'vibe-agent', 'acp']:
+                              checked([str(binary), '--help'], folder, name + '-help')
+                      write_json(folder / 'result.json', record)
+          finally:
+              config.write_text(original)
+          PYTHON
+      - name: Upload precise comparison evidence even after failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-precise-${{ matrix.target }}-${{ github.sha }}
           path: benchmark/
           if-no-files-found: error

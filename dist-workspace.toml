@@ -21,7 +21,8 @@ publish-jobs = ["homebrew", "npm"]
 targets = ["aarch64-apple-darwin", "aarch64-unknown-linux-gnu", "aarch64-pc-windows-msvc", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]
 # Match the previous release profile's feature selection.
 all-features = true
-# Build only the selected release packages instead of the whole workspace.
+# Build each release package separately to preserve its dependency feature graph.
+# cargo-dist 0.30.1 uses --workspace when false; archive selection alone is not feature equivalence.
 precise-builds = true
 # Match the archive format consumed by scripts/install-release.sh.
 unix-archive = ".tar.gz"

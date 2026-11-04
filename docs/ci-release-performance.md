@@ -206,3 +206,41 @@ crate 时间、净耗时、三产物体积、帮助输出差异和离线性能�
 实验成本单列，不计作发行收益。只有两目标净收益、原生行为一致及代表性 CPU 负载无
 可测退化均有证据，才可采纳 off 并验证四发行 crate。目前未运行远端 A/B，无实测收益
 或代表性性能数字，保留 thin，不宣称 LTO 已提速。
+
+
+## precise-builds 评估（任务 5，待真实平台回归）
+
+生产继续 `precise-builds=true`、thin LTO。0.30.1 本机 `dist build --help` 与
+`dist plan --help` 已核实，没有传递额外 Cargo timings 的参数；源码
+`cargo-dist-0.30.1/src/build/cargo.rs` 的 false 分支选择 `CargoTargetPackages::Workspace`，
+实际传 `--workspace`。因此关闭 precise 不仅影响四发行包的构建次数，也可能构建未发行
+workspace 成员；`dist=false` 约束归档选择，不能用它证明 Cargo 编译范围没有扩大。
+
+本机两种配置的真实 `dist plan --output-format=json` 均退出 0，均为 67 个 artifact，
+键集合相同。此证据仅覆盖计划，不代表真实归档内容、功能或原生链接一致。
+Intel Mac 目标的 `cargo tree --locked --all-features --target x86_64-apple-darwin
+--edges normal,build --prefix none --format '{p} features=[{f}]'` 分别选择四包及
+`--workspace`，全部退出 0。四包输出分别 463/1966/1407/184 行，workspace 3328 行。
+诊断中 workspace 的 ACP rustls 0.23.45 增加 ring/log/logging，桌面 reqwest 0.13.4
+增加压缩/http2 等 features；CLI tokio 也出现 full/parking_lot 扩大。
+Cargo tree 可能包含根包开发依赖带来的 feature 统一，以上只作风险线索；不把 tree 差异
+直接等同于 dist 实际 rustc 的 cfg。必须复核构建日志、TLS provider 初始化及原生链接库。
+CLI 的根 features 当前默认即包含全部命名项，删除 all-features 不是本次优化手段。
+
+手动选择 `experiment=precise` 运行独立双目标串行 job。入口固定 SHA，记录实际 dist/Cargo/
+Rust 版本、环境、两种计划、各包和 workspace feature 图。仅在 job 工作区临时切换
+precise，finally 恢复配置；不修改生产工作流、不发布、不改 LTO。使用动态共享槽位，
+完整生命周期持锁；中断先终止 dist/Cargo 进程树，保留缓存并释放自己的锁。
+按 true/false/false/true 各测两次，保存带时间戳构建日志、原始 dist manifest、墙钟、
+退出码、五个二进制大小/散列，校验每个目标的归档键与 bin 计划完全相同。
+Mac 原生执行 shiju/vibe-agent/acp help；桌面/Webview 原生 smoke、安装包运行和
+ARM64 Windows 原生验证明确待补，不能把 x64 Windows 交叉构建算作原生验收。
+
+本入口不用四包日志汇总器判断 false 成功，因为 workspace 日志没有四个 package 头；
+依据 dist 原始退出码和五个产物检查，不以减少 Compiling 行替代兼容性验收。
+首次构建不保证冷缓存：槽位、共享 build-dir、registry 和系统缓存可能已有内容。
+远端报告必须单列首次、重复和切换重编译，逐项检查实际新增编译成员、重复依赖、关键
+路径、归档实际成员、链接库、TLS 行为和安装包；冷热净收益须含归档开销。
+没有可信冷缓存证据时标为首次测量，不编造冷/热加速比例。
+目前无远端 run 链接、冷热净收益或两平台完整原生兼容性证据，因此拒绝采纳生产合并，
+保留 true。该决定保护既有功能，不能据此声称已完成性能验收或已取得提速。

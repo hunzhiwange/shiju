@@ -12,7 +12,7 @@ use iced::widget::text_editor;
 use vw_shared::message::types as agent_message;
 
 mod basic;
-mod file_tree;
+pub(crate) mod file_tree;
 mod find;
 pub(crate) mod helpers;
 mod session;
@@ -207,6 +207,12 @@ pub enum ProjectMessage {
         target_directory: String,
     },
     FileTreeDragCancel,
+    FileTreeMoveCompleted {
+        project_path: String,
+        source_path: String,
+        target_path: String,
+        result: Result<(), String>,
+    },
     FileTreePasteCompleted {
         clear_clipboard: bool,
         result: Result<(), String>,

@@ -555,3 +555,130 @@ fn paste_and_delete_failures_set_error_message() {
     );
     assert_eq!(app.error_message.as_deref(), Some("删除失败: missing"));
 }
+
+#[test]
+fn file_tree_move_drop_release_consumes_tree_source_once() {
+    use crate::app::message::ProjectMessage as P;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    let _ = super::handle(
+        &mut app,
+        P::FileTreeInternalDragStart {
+            project_path: "/project".into(),
+            source_path: "/project/a.txt".into(),
+        },
+    );
+    let _ = super::handle(&mut app, P::FileTreeDropTargetChanged(Some("/project/dst".into())));
+    let _ = super::handle(&mut app, P::FileTreeDragEnd);
+    assert!(app.file_tree_operation_in_progress, "tree release must submit a move");
+    assert!(app.file_tree_drag_source.is_none());
+    assert!(app.pending_drop_file_paths.is_empty());
+    let _ = super::handle(&mut app, P::FileTreeDragEnd);
+    assert!(app.pending_drop_file_paths.is_empty());
+}
+
+#[test]
+fn file_tree_move_drop_completion_preserves_dirty_content_and_directory_boundaries() {
+    use crate::app::message::ProjectMessage as P;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    app.lsp_disabled = true;
+    let mut tab = preview_tab("/project/src/nested/a.txt");
+    tab.content = "unsaved".into();
+    tab.editor = crate::app::components::editor::Editor::new("unsaved", "txt");
+    tab.is_dirty = true;
+    app.preview_tabs = vec![tab, preview_tab("/project/src-other/a.txt")];
+    app.active_preview_path = Some("/project/src/nested/a.txt".into());
+    app.file_tree_expanded = vec!["src".into(), "src/nested".into(), "src-other".into()];
+    app.file_tree_operation_in_progress = true;
+    let _ = super::handle(
+        &mut app,
+        P::FileTreeMoveCompleted {
+            project_path: "/project".into(),
+            source_path: "/project/src".into(),
+            target_path: "/project/dst/src".into(),
+            result: Ok(()),
+        },
+    );
+    assert_eq!(app.preview_tabs[0].path, "/project/dst/src/nested/a.txt");
+    assert_eq!(app.preview_tabs[0].content, "unsaved");
+    assert_eq!(app.preview_tabs[0].editor.content(), "unsaved");
+    assert!(app.preview_tabs[0].is_dirty);
+    assert_eq!(app.preview_tabs[1].path, "/project/src-other/a.txt");
+    assert_eq!(app.active_preview_path.as_deref(), Some("/project/dst/src/nested/a.txt"));
+    assert_eq!(app.file_tree_expanded, ["dst/src", "dst/src/nested", "src-other"]);
+    assert!(app.file_tree_expanded_set.contains("dst/src/nested"));
+}
+
+#[test]
+fn file_tree_move_drop_failure_and_old_project_leave_current_editor_and_drag_untouched() {
+    use crate::app::message::ProjectMessage as P;
+    for result in [Ok(()), Err("destination exists".into())] {
+        let mut app = app();
+        app.project_path = Some("/other".into());
+        let mut tab = preview_tab("/other/edit.txt");
+        tab.content = "unsaved".into();
+        tab.editor = crate::app::components::editor::Editor::new("unsaved", "txt");
+        tab.is_dirty = true;
+        app.preview_tabs.push(tab);
+        app.file_tree_drag_source = Some(("/other".into(), "/other/edit.txt".into()));
+        app.project_preview_tabs.insert("/project".into(), vec![preview_tab("/project/a.txt")]);
+        let success = result.is_ok();
+        let _ = super::handle(
+            &mut app,
+            P::FileTreeMoveCompleted {
+                project_path: "/project".into(),
+                source_path: "/project/a.txt".into(),
+                target_path: "/project/dst/a.txt".into(),
+                result,
+            },
+        );
+        assert_eq!(app.preview_tabs[0].path, "/other/edit.txt");
+        assert_eq!(app.preview_tabs[0].content, "unsaved");
+        assert_eq!(app.preview_tabs[0].editor.content(), "unsaved");
+        assert!(app.preview_tabs[0].is_dirty);
+        assert!(app.file_tree_drag_source.is_some());
+        assert_eq!(
+            app.project_preview_tabs["/project"][0].path,
+            if success { "/project/dst/a.txt" } else { "/project/a.txt" }
+        );
+    }
+}
+
+#[test]
+fn file_tree_move_drop_rejects_invalid_targets_and_consumes_release() {
+    use crate::app::message::ProjectMessage as P;
+    for target in [
+        "/project/src",
+        "/project/src/nested",
+        "/project",
+        "/outside",
+        "/project/../outside",
+        "/project/file.txt",
+    ] {
+        let mut app = app();
+        app.project_path = Some("/project".into());
+        app.files = vec!["/project/file.txt".into()];
+        let _ = super::handle(
+            &mut app,
+            P::FileTreeInternalDragStart {
+                project_path: "/project".into(),
+                source_path: "/project/src".into(),
+            },
+        );
+        let _ = super::handle(
+            &mut app,
+            P::FileTreeDropRequested {
+                project_path: "/project".into(),
+                source_path: "/project/src".into(),
+                target_directory: target.into(),
+            },
+        );
+        assert!(!app.file_tree_operation_in_progress, "{target}");
+        assert!(app.file_tree_drag_source.is_none());
+        assert!(app.pending_drop_file_paths.is_empty());
+    }
+}
+
+#[path = "file_tree_move_drop_http_tests.rs"]
+mod http_tests;

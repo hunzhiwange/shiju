@@ -310,7 +310,7 @@ fn file_tree_drop_release_and_cleanup_orders_leave_no_stale_state() {
         assert!(app.file_tree_drop_target.is_none());
         assert!(app.dragging_file_paths.is_empty());
         assert!(app.pending_drop_file_paths.is_empty());
-        assert!(!app.file_tree_operation_in_progress);
+        assert!(app.file_tree_operation_in_progress);
     }
 }
 

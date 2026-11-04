@@ -35,6 +35,9 @@ use crate::app::{
     App, AppTab, Message, Screen, set_config_field,
     state::{FileTreeClipboard, FileTreeClipboardMode, FindInFolderTab},
 };
+#[path = "file_tree_move_drop.rs"]
+mod move_drop;
+
 use iced::Point;
 use std::collections::HashSet;
 
@@ -188,15 +191,17 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             };
             Some(iced::Task::none())
         }
-        // This task only reports intent; gateway execution is wired in the next batch.
-        ProjectMessage::FileTreeDropRequested { .. } | ProjectMessage::FileTreeDragCancel => {
-            app.file_tree_drag_source = None;
-            app.file_tree_drop_target = None;
-            app.dragging_file_paths.clear();
-            app.dragging_file_position = None;
-            app.pending_drop_file_paths.clear();
-            app.pending_drop_file_position = None;
-            app.input_drop_hovered = false;
+        ProjectMessage::FileTreeDropRequested { project_path, source_path, target_directory } => {
+            Some(move_drop::submit(app, project_path, source_path, target_directory))
+        }
+        ProjectMessage::FileTreeMoveCompleted {
+            project_path,
+            source_path,
+            target_path,
+            result,
+        } => Some(move_drop::complete(app, project_path, source_path, target_path, result)),
+        ProjectMessage::FileTreeDragCancel => {
+            move_drop::clear_drag(app);
             Some(iced::Task::none())
         }
         // 开始拖拽：记录被拖拽的文件路径和位置，清空放置相关状态
@@ -216,15 +221,18 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         }
         // 结束拖拽：将拖拽中的文件转移到待放置状态，清空拖拽状态
         ProjectMessage::FileTreeDragEnd => {
-            app.file_tree_drag_source = None;
-            app.file_tree_drop_target = None;
+            if let Some(task) = move_drop::release(app) {
+                return Some(task);
+            }
+            if app.dragging_file_paths.is_empty() {
+                return Some(iced::Task::none());
+            }
             // 将拖拽的文件转移到待放置状态
             app.pending_drop_file_paths = app.dragging_file_paths.clone();
             app.pending_drop_file_position = app.dragging_file_position;
             // 清空拖拽状态
             app.dragging_file_paths.clear();
             app.dragging_file_position = None;
-            app.input_drop_hovered = false;
             Some(iced::Task::none())
         }
         // 保存重命名结果：执行文件/文件夹重命名操作
@@ -594,4 +602,9 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
         // 其他消息类型不在此处理器中处理
         _ => None,
     }
+}
+
+/// Consume the same tree release used by the source widget and global subscription.
+pub(crate) fn release_tree_drop(app: &mut App) -> iced::Task<Message> {
+    move_drop::release(app).unwrap_or_else(iced::Task::none)
 }

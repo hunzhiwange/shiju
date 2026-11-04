@@ -358,7 +358,7 @@ pub(crate) fn refresh_file_index(app: &App) -> Task<Message> {
     )
 }
 
-async fn refresh_file_index_with_fallback(project_path: &str) -> FileTreeIndexSnapshot {
+pub(crate) async fn refresh_file_index_with_fallback(project_path: &str) -> FileTreeIndexSnapshot {
     match refresh_gateway_file_index(project_path).await {
         Ok(snapshot) => snapshot,
         Err(error) => {

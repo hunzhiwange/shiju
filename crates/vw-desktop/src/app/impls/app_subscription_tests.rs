@@ -516,3 +516,21 @@ fn subscription_builds_preview_lsp_enabled_and_disabled_states() {
     app.lsp_disabled = true;
     subscription_builds(&app);
 }
+
+#[test]
+fn file_tree_move_drop_escape_and_unfocus_cancel_tree_origin() {
+    for event in [
+        iced::Event::Window(iced::window::Event::Unfocused),
+        key_pressed(keyboard::Key::Named(keyboard::key::Named::Escape), Modifiers::empty()),
+    ] {
+        let Some(Message::Batch(messages)) =
+            map_global_event(event, iced::event::Status::Captured, window_id())
+        else {
+            panic!("cancel must be delivered even when captured");
+        };
+        assert!(messages.iter().any(|message| matches!(
+            message,
+            Message::Project(message::ProjectMessage::FileTreeDragCancel)
+        )));
+    }
+}

@@ -300,6 +300,11 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                     crate::app::message::git::GitMessage::DiffDragSelectEnd,
                 ));
             }
+            if app.file_tree_drag_source.is_some() && app.file_tree_drop_target.is_some() {
+                return crate::app::message::project::file_tree::release_tree_drop(app);
+            }
+            app.file_tree_drag_source = None;
+            app.file_tree_drop_target = None;
             if !app.dragging_file_paths.is_empty() {
                 app.pending_drop_file_paths = app.dragging_file_paths.clone();
                 app.pending_drop_file_position = app.dragging_file_position;
@@ -322,6 +327,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
             Task::none()
         }
         ViewMessage::GlobalCursorLeft => {
+            if app.file_tree_drag_source.is_some() {
+                let _ = crate::app::message::project::update(
+                    app,
+                    crate::app::message::ProjectMessage::FileTreeDragCancel,
+                );
+            }
             #[cfg(not(target_arch = "wasm32"))]
             if app.lsp_overlay.hover_visible {
                 app.lsp_overlay.hover_interactive = false;

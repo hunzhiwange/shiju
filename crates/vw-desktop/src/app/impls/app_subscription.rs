@@ -64,6 +64,7 @@ fn map_global_event(
             Some(Message::View(message::ViewMessage::WindowFocused(id)))
         }
         iced::Event::Window(iced::window::Event::Unfocused) => Some(Message::Batch(vec![
+            Message::Project(message::ProjectMessage::FileTreeDragCancel),
             Message::View(message::ViewMessage::WindowUnfocused(id)),
             Message::Preview(message::PreviewMessage::WindowUnfocused),
         ])),
@@ -74,12 +75,14 @@ fn map_global_event(
                 #[cfg(not(target_arch = "wasm32"))]
                 let mut messages = vec![
                     Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed),
+                    Message::Project(message::ProjectMessage::FileTreeDragCancel),
                     Message::Editor(message::EditorMessage::CloseSearch),
                     escape_key_message,
                 ];
                 #[cfg(target_arch = "wasm32")]
                 let messages = vec![
                     Message::TaskBoard(message::TaskBoardMessage::ContextMenuClosed),
+                    Message::Project(message::ProjectMessage::FileTreeDragCancel),
                     Message::Editor(message::EditorMessage::CloseSearch),
                     escape_key_message,
                 ];

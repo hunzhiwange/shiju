@@ -407,3 +407,90 @@ fn global_cursor_left_makes_visible_lsp_hover_noninteractive_and_schedules_hide(
     assert!(!app.lsp_overlay.hover_interactive);
     assert!(app.lsp_hover_hide_deadline.is_some());
 }
+
+#[test]
+fn file_tree_move_drop_global_release_submits_once_without_chat_delivery() {
+    use crate::app::message::{ProjectMessage as P, ViewMessage};
+    for global_first in [true, false] {
+        let mut app = test_app();
+        app.project_path = Some("/project".into());
+        let _ = crate::app::message::project::update(
+            &mut app,
+            P::FileTreeInternalDragStart {
+                project_path: "/project".into(),
+                source_path: "/project/a.txt".into(),
+            },
+        );
+        let _ = crate::app::message::project::update(
+            &mut app,
+            P::FileTreeDropTargetChanged(Some("/project/dst".into())),
+        );
+        app.input_drop_hovered = true;
+        if global_first {
+            let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+            let _ = crate::app::message::project::update(&mut app, P::FileTreeDragEnd);
+        } else {
+            let _ = crate::app::message::project::update(&mut app, P::FileTreeDragEnd);
+            let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+        }
+        let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+        assert!(app.file_tree_operation_in_progress);
+        assert!(app.file_tree_drag_source.is_none());
+        assert!(app.pending_drop_file_paths.is_empty());
+        assert!(!app.input_drop_hovered);
+    }
+}
+
+#[test]
+fn file_tree_move_drop_cursor_leave_cancels_without_pending_chat_files() {
+    use crate::app::message::{ProjectMessage as P, ViewMessage};
+    let mut app = test_app();
+    app.project_path = Some("/project".into());
+    let _ = crate::app::message::project::update(
+        &mut app,
+        P::FileTreeInternalDragStart {
+            project_path: "/project".into(),
+            source_path: "/project/a.txt".into(),
+        },
+    );
+    let _ = super::update(&mut app, ViewMessage::GlobalCursorLeft);
+    let _ = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+    assert!(!app.file_tree_operation_in_progress);
+    assert!(app.file_tree_drag_source.is_none());
+    assert!(app.pending_drop_file_paths.is_empty());
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn file_tree_move_drop_chat_release_orders_preserve_existing_delivery() {
+    use crate::app::message::{ProjectMessage as P, ViewMessage};
+    use iced::futures::StreamExt;
+    for global_first in [true, false] {
+        let mut app = test_app();
+        app.project_path = Some("/project".into());
+        let _ = crate::app::message::project::update(
+            &mut app,
+            P::FileTreeInternalDragStart {
+                project_path: "/project".into(),
+                source_path: "/project/a.txt".into(),
+            },
+        );
+        app.input_drop_hovered = true;
+        if !global_first {
+            let _ = crate::app::message::project::update(&mut app, P::FileTreeDragEnd);
+        }
+        let task = super::update(&mut app, ViewMessage::GlobalMouseReleased);
+        if global_first {
+            let _ = crate::app::message::project::update(&mut app, P::FileTreeDragEnd);
+        }
+        let mut stream = iced_runtime::task::into_stream(task).expect("chat delivery");
+        let action = stream.next().await;
+        assert!(matches!(
+            action,
+            Some(iced_runtime::Action::Output(crate::app::Message::Chat(
+                crate::app::message::chat::ChatMessage::InputAreaDragDrop
+            )))
+        ));
+        assert_eq!(app.pending_drop_file_paths, ["/project/a.txt"]);
+        assert!(!app.file_tree_operation_in_progress);
+    }
+}

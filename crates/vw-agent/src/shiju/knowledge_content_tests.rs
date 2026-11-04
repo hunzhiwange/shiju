@@ -124,7 +124,6 @@ async fn shiju_knowledge_content_rejects_malformed_protocol() {
     rejects("text/markdown", page("total_chars: [broken", "secret"), 0).await;
     rejects("text/markdown", "## 正文\n\nsecret".as_bytes().to_vec(), 0).await;
     for body in [
-        "secret\n## 正文\n\nambiguous",
         "secret\n## 操作指引\n\nx\n## 操作指引\n\ny",
         "secret\n## 续读\n\nunexpected",
         "secret\n## 操作指引 \n\nhidden",
@@ -133,6 +132,21 @@ async fn shiju_knowledge_content_rejects_malformed_protocol() {
         rejects("text/markdown", page(meta, body), 0).await;
     }
     rejects("text/markdown", vec![b'x'; 1024 * 1024 + 1], 0).await;
+}
+
+#[tokio::test]
+async fn shiju_knowledge_content_preserves_document_body_headings() {
+    let content = "# 文档\n\n## 摘要\n\n中文摘要\n\n## 正文\n\n中文正文\n\n```text\n## 正文\n```";
+    let (client, server) = fixture(vec![
+        ("application/json", detail().into_bytes()),
+        (
+            "text/markdown",
+            page("total_chars: 100\nhas_more: false", &format!("{content}\n\n## 操作指引\n\n隐藏")),
+        ),
+    ]);
+    let result = client.knowledge_read("key", &request(0)).await.unwrap();
+    assert_eq!(result.content, content);
+    server.join().unwrap();
 }
 #[tokio::test]
 async fn shiju_knowledge_content_accepts_crlf_and_empty_body() {

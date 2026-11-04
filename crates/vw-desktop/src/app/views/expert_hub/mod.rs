@@ -41,7 +41,7 @@ fn section_tabs(app: &App) -> Element<'static, Message> {
         ),
         (crate::app::i18n::I18n::new(app.desktop_locale).__("技能"), ExpertHubSection::Skills),
         (
-            crate::app::i18n::I18n::new(app.desktop_locale).__("资料和知识库"),
+            crate::app::i18n::I18n::new(app.desktop_locale).__("识矩知识库"),
             ExpertHubSection::Knowledge,
         ),
     ] {

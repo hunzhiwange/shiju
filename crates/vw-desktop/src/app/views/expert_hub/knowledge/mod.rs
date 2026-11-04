@@ -15,7 +15,7 @@ pub(super) fn view(app: &App) -> Element<'_, Message> {
             .into();
     }
     let base = column![
-        text(i18n.__("资料和知识库")).size(22),
+        text(i18n.__("识矩知识库")).size(22),
         row![
             container(catalog::bases(app)).width(Length::FillPortion(1)),
             container(catalog::documents(app)).width(Length::FillPortion(1)),

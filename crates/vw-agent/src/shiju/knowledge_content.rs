@@ -149,11 +149,11 @@ fn extract_content(section: &str, has_more: bool) -> Result<&str, ShijuAccountEr
     let mut continuation = None;
     let mut instructions = None;
     let mut offset = 0;
-    // 保留普通 Markdown 标题；保留字重复或顺序不明时拒绝，而非猜测截断位置。
+    // 第一个正文标题来自接口包装；后续同名标题属于文档正文，必须原样保留。
     for line in section.split_inclusive('\n') {
         let heading = line.strip_suffix('\n').unwrap_or(line);
         let slot = match heading.trim() {
-            "## 正文" => Some(&mut body),
+            "## 正文" if body.is_none() => Some(&mut body),
             "## 续读" => Some(&mut continuation),
             "## 操作指引" => Some(&mut instructions),
             _ => None,

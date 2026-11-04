@@ -87,7 +87,7 @@ pub(crate) struct WorkSidebarModel {
     pub(super) space_total: usize,
 }
 
-pub(super) fn navigation_specs() -> [(&'static str, Icon, Option<&'static str>); 8] {
+pub(super) fn navigation_specs() -> [(&'static str, Icon, Option<&'static str>); 9] {
     [
         ("新建任务", Icon::FileEarmarkPlus, None),
         ("助手", Icon::Robot, None),
@@ -96,6 +96,7 @@ pub(super) fn navigation_specs() -> [(&'static str, Icon, Option<&'static str>);
         ("识矩技能", Icon::Star, None),
         ("专家 · 技能 · 连接器", Icon::GearWideConnected, None),
         ("定时任务", Icon::ArrowRepeat, None),
+        ("识矩知识库", Icon::Journals, None),
         ("更多", Icon::Grid1x2, Some("知识库 · 应用")),
     ]
 }
@@ -964,7 +965,7 @@ fn more_menu(i18n: crate::app::i18n::I18n) -> Element<'static, Message> {
 }
 
 fn more_control(app: &App) -> Element<'static, Message> {
-    let (_, icon, trailing) = navigation_specs()[7];
+    let (_, icon, trailing) = navigation_specs()[8];
     let trigger = navigation_button(
         crate::app::i18n::I18n::new(app.desktop_locale),
         crate::app::i18n::I18n::new(app.desktop_locale).__("更多"),
@@ -1376,16 +1377,22 @@ fn navigation_section(app: &App) -> Element<'static, Message> {
     #[cfg(target_arch = "wasm32")]
     let navigation = navigation.push(project_navigation_control(app));
 
-    navigation
-        .push(navigation_button(
-            crate::app::i18n::I18n::new(app.desktop_locale),
-            specs[6].0,
-            specs[6].1,
-            Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Cron)),
-            specs[6].2,
-        ))
-        .push(more_control(app))
-        .into()
+    let navigation = navigation.push(navigation_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        specs[6].0,
+        specs[6].1,
+        Message::View(ViewMessage::OpenSystemSettingsTab(SystemTab::Cron)),
+        specs[6].2,
+    ));
+    #[cfg(not(target_arch = "wasm32"))]
+    let navigation = navigation.push(navigation_button(
+        crate::app::i18n::I18n::new(app.desktop_locale),
+        specs[7].0,
+        specs[7].1,
+        expert_hub_message(ExpertHubSection::Knowledge),
+        specs[7].2,
+    ));
+    navigation.push(more_control(app)).into()
 }
 
 pub(super) fn project_navigation_message() -> Message {

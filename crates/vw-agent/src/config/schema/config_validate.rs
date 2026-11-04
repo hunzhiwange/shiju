@@ -58,6 +58,7 @@ fn has_ollama_cloud_credential(config_api_key: Option<&str>) -> bool {
 /// 该函数只读取配置和必要的环境变量，不修改配置对象。安全相关字段默认采用显式拒绝策略，避免无效配置被
 /// 解释成更宽松的运行时行为。
 pub fn validate_config(config: &Config) -> Result<()> {
+    validate_agent_profiles(config)?;
     if config.gateway.host.trim().is_empty() {
         anyhow::bail!("gateway.host must not be empty");
     }
@@ -301,5 +302,125 @@ pub fn validate_config(config: &Config) -> Result<()> {
 
     validate_proxy_config(&config.proxy)?;
 
+    Ok(())
+}
+
+/// Reject mutations before merge erases an explicit deletion request.
+pub(crate) fn validate_agent_profile_patch(patch: &serde_json::Value) -> Result<()> {
+    let Some(agents) = patch.get("agents") else { return Ok(()) };
+    let Some(agents) = agents.as_object() else {
+        anyhow::bail!("agents must be an object; builtin agents cannot be deleted");
+    };
+    for (key, value) in agents {
+        let official_backend = key
+            .strip_prefix("acp-")
+            .filter(|backend| vw_acp::built_in_agent_specs().contains_key(*backend));
+        let native = vw_config_types::agent::builtin_agent_spec(key).is_some();
+        if official_backend.is_none() && !native {
+            continue;
+        }
+        if !value.is_object() {
+            anyhow::bail!("builtin agent {key} cannot be deleted");
+        }
+        if value.get("builtin").is_some_and(|value| value != true) {
+            anyhow::bail!("builtin agent {key} source cannot be changed");
+        }
+        if let Some(runtime) = value.get("runtime") {
+            let runtime: vw_config_types::agent::AgentRuntime =
+                serde_json::from_value(runtime.clone())?;
+            let expected = match official_backend {
+                Some(backend) => {
+                    vw_config_types::agent::AgentRuntime::Acp { backend: backend.into() }
+                }
+                None => vw_config_types::agent::AgentRuntime::Native,
+            };
+            if runtime != expected {
+                anyhow::bail!("builtin agent {key} runtime cannot be changed");
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_agent_profiles(config: &Config) -> Result<()> {
+    use vw_config_types::agent::{AgentDefault, AgentRuntime, builtin_agent_spec};
+    let backends = vw_acp::built_in_agent_specs();
+    for (key, agent) in &config.agents {
+        if key.is_empty()
+            || !key.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+        {
+            anyhow::bail!("invalid agent ID: {key}");
+        }
+        let official_backend =
+            key.strip_prefix("acp-").filter(|backend| backends.contains_key(*backend));
+        if let Some(backend) = official_backend {
+            if !agent.builtin {
+                anyhow::bail!("builtin agent {key} source cannot be changed");
+            }
+            if agent.runtime != (AgentRuntime::Acp { backend: backend.into() }) {
+                anyhow::bail!("builtin agent {key} runtime cannot be changed");
+            }
+        } else if builtin_agent_spec(key).is_some() {
+            if agent.runtime != AgentRuntime::Native {
+                anyhow::bail!("builtin agent {key} runtime cannot be changed");
+            }
+        } else if agent.builtin {
+            anyhow::bail!("custom agent {key} cannot claim builtin source");
+        }
+        if let AgentRuntime::Acp { backend } = &agent.runtime
+            && !backends.contains_key(backend)
+        {
+            anyhow::bail!("unknown agent backend: {backend}");
+        }
+        if agent.force_model_selection && !agent.has_complete_model_binding() {
+            anyhow::bail!("agent {key} forced model requires provider and model");
+        }
+        if let AgentDefault::Fixed(model) = &agent.defaults.model {
+            if model.provider.trim().is_empty() || model.model.trim().is_empty() {
+                anyhow::bail!("agent {key} fixed model requires provider and model");
+            }
+            if agent.force_model_selection
+                && (model.provider != agent.provider || model.model != agent.model)
+            {
+                anyhow::bail!("agent {key} fixed model conflicts with forced model");
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Seed only newly edited definitions so partial profile patches have real catalog defaults.
+pub(crate) fn seed_agent_profile_patch(
+    current: &Config,
+    patch: &mut serde_json::Value,
+) -> Result<()> {
+    let Some(agents) = patch.get_mut("agents").and_then(serde_json::Value::as_object_mut) else {
+        return Ok(());
+    };
+    let catalog = crate::agent::catalog::merged_agent_catalog(&current.agents);
+    for (key, value) in agents {
+        if !value.is_object() {
+            continue;
+        }
+        // Inherit removes a previous fixed value through the existing merge-patch semantics.
+        if let Some(defaults) = value.get_mut("defaults").and_then(serde_json::Value::as_object_mut)
+        {
+            for field in defaults.values_mut() {
+                if field.get("mode").and_then(serde_json::Value::as_str) == Some("inherit") {
+                    field
+                        .as_object_mut()
+                        .expect("tagged default object")
+                        .insert("value".into(), serde_json::Value::Null);
+                }
+            }
+        }
+        if current.agents.contains_key(key) {
+            continue;
+        }
+        let baseline = catalog.get(key).cloned().unwrap_or_default();
+        let mut seeded = serde_json::to_value(baseline)?;
+        super::config_io::merge_config_payload(&mut seeded, value.clone());
+        *value = seeded;
+    }
     Ok(())
 }

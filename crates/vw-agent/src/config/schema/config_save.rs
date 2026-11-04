@@ -154,8 +154,13 @@ pub(super) fn select_override_shape(shape: &Value, encrypted_effective: Option<&
 pub(super) fn prepare_project_override(
     base: &Config,
     raw_override: Value,
-    patch: Value,
+    mut patch: Value,
 ) -> Result<Value> {
+    super::config_validate::validate_agent_profile_patch(&patch)?;
+    let mut current_payload = serde_json::to_value(base)?;
+    merge_config_payload(&mut current_payload, raw_override.clone());
+    let current = serde_json::from_value(current_payload)?;
+    super::config_validate::seed_agent_profile_patch(&current, &mut patch)?;
     let mut next_override = raw_override;
     merge_raw_project_patch(&mut next_override, patch);
     if let Some(override_object) = next_override.as_object_mut() {

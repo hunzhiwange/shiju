@@ -89,7 +89,9 @@ pub(crate) use config_save::{
     update_project_config_from_configs,
 };
 pub(crate) use config_secrets::{decrypt_config_secrets, encrypt_config_secrets};
-pub(crate) use config_validate::validate_config;
+pub(crate) use config_validate::{
+    seed_agent_profile_patch, validate_agent_profile_patch, validate_config,
+};
 pub use workspace::default_config_and_workspace_dirs;
 pub(crate) use workspace::resolve_runtime_config_dirs;
 

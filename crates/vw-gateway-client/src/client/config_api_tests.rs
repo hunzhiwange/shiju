@@ -265,3 +265,32 @@ async fn global_config_patch_propagates_gateway_errors() {
     assert_eq!(request.body, json!({"x": 1}));
     server.join();
 }
+
+#[tokio::test]
+async fn agent_profile_api_preserves_catalog_query_and_patch_shape() {
+    let profile = json!({"label":"Edited", "recommended_prompts":[], "enabled":false,
+        "defaults":{"skills":{"mode":"fixed","value":[]}}});
+    let server = test_support::server(vec![
+        (200, json!([])),
+        (200, json!([])),
+        (200, json!({"agents":{"acp-claude":profile}})),
+        (200, json!({"key":"custom-new"})),
+    ]);
+    server.client().agent_profiles(Some("/tmp/project"), true).await.unwrap();
+    server.client().agent_profiles(None, false).await.unwrap();
+    let patch = json!({"agents":{"acp-claude":profile}});
+    let result = server.client().config_patch(Some("/tmp/project"), &patch).await.unwrap();
+    assert_eq!(result["agents"]["acp-claude"], profile);
+    let copy = server.client().agent_profile_copy(None, "acp-claude").await.unwrap();
+    assert_eq!(copy["key"], "custom-new");
+    assert_eq!(
+        server.take_request().path,
+        "/v1/agent?directory=%2Ftmp%2Fproject&include_disabled=true"
+    );
+    assert_eq!(server.take_request().path, "/v1/agent");
+    let request = server.take_request();
+    assert_eq!(request.method, "PATCH");
+    assert_eq!(request.body, patch);
+    assert_eq!(server.take_request().path, "/v1/agent/acp-claude/copy");
+    server.join();
+}

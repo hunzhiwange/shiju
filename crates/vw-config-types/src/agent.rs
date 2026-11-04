@@ -476,6 +476,8 @@ pub fn merged_agent_configs(
         if let Some(spec) = builtin_agent_spec(key) {
             let mut builtin =
                 builtin_agent_config(spec.key).expect("builtin spec has configuration");
+            builtin.label = value.label.clone().or(builtin.label);
+            builtin.description = value.description.clone().or(builtin.description);
             builtin.recommended_prompts = value.recommended_prompts.clone();
             builtin.defaults = value.defaults.clone();
             builtin.enabled &= value.enabled;

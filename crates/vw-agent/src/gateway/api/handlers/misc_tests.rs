@@ -81,8 +81,15 @@ async fn command_list_returns_named_command_metadata() {
 #[tokio::test]
 async fn agent_list_returns_keyed_agent_metadata() {
     let temp = tempfile::tempdir().expect("tempdir");
-    let Json(agents) =
-        agent_list(query_for(temp.path()), HeaderMap::new()).await.expect("agents should list");
+    let Json(agents) = agent_list(
+        Query(AgentListQuery {
+            directory: Some(temp.path().to_string_lossy().into()),
+            include_disabled: false,
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("agents should list");
     assert!(agents.iter().all(|agent| !agent.key.trim().is_empty()));
 }
 
@@ -139,12 +146,102 @@ async fn list_handlers_ignore_legacy_invalid_project_json() {
     let Json(commands) = command_list(query(), HeaderMap::new())
         .await
         .expect("command list should ignore legacy project storage");
-    let Json(_agents) = agent_list(query(), HeaderMap::new())
-        .await
-        .expect("agent list should ignore legacy project storage");
+    let Json(_agents) = agent_list(
+        Query(AgentListQuery {
+            directory: Some(temp.path().to_string_lossy().into()),
+            include_disabled: false,
+        }),
+        HeaderMap::new(),
+    )
+    .await
+    .expect("agent list should ignore legacy project storage");
     let Json(_skills) = skill_list(query(), HeaderMap::new())
         .await
         .expect("skill list should ignore legacy project storage");
 
     assert!(!commands.is_empty());
+}
+
+#[tokio::test]
+async fn agent_profile_api_catalog_includes_disabled_only_when_requested() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = tempfile::tempdir().unwrap();
+    let _home = ProfileEnvGuard::set("HOME", home.path());
+    let _config = ProfileEnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path());
+    crate::config::update_global_for_tenant(&vw_api_types::id::TenantScope::default(), serde_json::json!({"agents":{"acp-claude":{"api_key":"profile-secret", "options":{"api_key":"profile-secret"}}}})).await.unwrap();
+    let runtime = with_instance(home.path().to_string_lossy().into_owned(), || {
+        Box::pin(async { Ok(agent::get("acp-snow").await) })
+    })
+    .await
+    .unwrap();
+    assert!(runtime.is_none(), "disabled official entries must not be runnable");
+    for include_disabled in [false, true] {
+        let Json(agents) = agent_list(
+            Query(AgentListQuery {
+                directory: Some(home.path().to_string_lossy().into()),
+                include_disabled,
+            }),
+            HeaderMap::new(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(agents.iter().any(|agent| agent.key == "acp-snow"), include_disabled);
+        assert!(agents.iter().all(|agent| agent.definition.api_key.is_none()));
+        assert!(!serde_json::to_string(&agents).unwrap().contains("profile-secret"));
+    }
+}
+
+struct ProfileEnvGuard(&'static str, Option<std::ffi::OsString>);
+impl ProfileEnvGuard {
+    fn set(key: &'static str, value: &std::path::Path) -> Self {
+        let previous = std::env::var_os(key);
+        unsafe {
+            std::env::set_var(key, value);
+        }
+        Self(key, previous)
+    }
+}
+impl Drop for ProfileEnvGuard {
+    fn drop(&mut self) {
+        unsafe {
+            match &self.1 {
+                Some(value) => std::env::set_var(self.0, value),
+                None => std::env::remove_var(self.0),
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn agent_profile_api_copy_has_unique_custom_identity_and_survives_reload() {
+    let _env_lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = tempfile::tempdir().unwrap();
+    let _home = ProfileEnvGuard::set("HOME", home.path());
+    let _config = ProfileEnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path());
+    let tenant = vw_api_types::id::TenantScope::new("profile-copy", "company").unwrap();
+    let mut keys = std::collections::HashSet::new();
+    for _ in 0..2 {
+        let Json(copy) = agent_copy(
+            Extension(tenant.clone()),
+            Path("acp-claude".into()),
+            Query(InstanceQuery { directory: None }),
+            HeaderMap::new(),
+        )
+        .await
+        .unwrap();
+        assert!(copy.key.starts_with("custom-"));
+        assert!(keys.insert(copy.key.clone()));
+        assert!(!copy.definition.builtin);
+        let saved = crate::config::get_global_for_tenant(&tenant).await.unwrap();
+        assert!(saved.agents.contains_key(&copy.key));
+        assert_eq!(saved.agents[&copy.key].runtime, copy.definition.runtime);
+    }
+    assert!(
+        crate::config::get_global_for_tenant(&vw_api_types::id::TenantScope::default())
+            .await
+            .unwrap()
+            .agents
+            .keys()
+            .all(|key| !keys.contains(key))
+    );
 }

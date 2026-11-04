@@ -428,6 +428,7 @@ fn client_route_entries() -> Vec<GatewayRouteEntry> {
         client_route("GET", "/v1/doc", "documentation placeholder"),
         client_route("GET", "/v1/command", "command catalog"),
         client_route("GET", "/v1/agent", "agent catalog"),
+        client_route("POST", "/v1/agent/{key}/copy", "copy agent profile"),
         client_route("GET", "/v1/skill", "skill catalog"),
         client_route("GET", "/v1/find", "find text"),
         client_route("GET", "/v1/find/file", "find file"),

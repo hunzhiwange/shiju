@@ -6,6 +6,38 @@ use super::GatewayClient;
 use crate::http::directory_query;
 
 impl GatewayClient {
+    /// 管理目录可显式包含未启用项；运行列表继续使用 system_agents。
+    pub async fn agent_profiles(
+        &self,
+        directory: Option<&str>,
+        include_disabled: bool,
+    ) -> Result<Value, String> {
+        let mut query = directory_query(directory);
+        if include_disabled {
+            query.push(("include_disabled".into(), "true".into()));
+        }
+        self.get_json("/v1/agent", &query).await
+    }
+
+    /// 复制后由网关分配新的自定义稳定身份。
+    pub async fn agent_profile_copy(
+        &self,
+        directory: Option<&str>,
+        key: &str,
+    ) -> Result<Value, String> {
+        if key.is_empty()
+            || !key.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-' || c == b'_')
+        {
+            return Err("invalid agent ID".into());
+        }
+        self.post_json(
+            &format!("/v1/agent/{key}/copy"),
+            &directory_query(directory),
+            &serde_json::json!({}),
+        )
+        .await
+    }
+
     /// 读取指定目录生效的配置视图。
     pub async fn config_get(&self, directory: Option<&str>) -> Result<Value, String> {
         self.get_json("/v1/config", &directory_query(directory)).await

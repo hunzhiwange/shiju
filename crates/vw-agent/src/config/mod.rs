@@ -623,8 +623,12 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
         return Err(Error::Invalid("config patch must be a JSON object".to_string()));
     }
 
+    schema::validate_agent_profile_patch(&patch)
+        .map_err(|error| Error::Invalid(error.to_string()))?;
     let gateway_skeys = take_gateway_skeys_from_patch(&mut patch)?;
     let current = get_global_for_tenant(tenant).await?;
+    schema::seed_agent_profile_patch(&current, &mut patch)
+        .map_err(|error| Error::Invalid(error.to_string()))?;
     // 将配置转换为 JSON 值
     let mut merged = serde_json::to_value(&current).map_err(Error::Json)?;
     // 深度合并补丁
@@ -635,6 +639,7 @@ pub async fn update_global_for_tenant(tenant: &TenantScope, mut patch: Value) ->
     // 保留路径字段（不被 patch 覆盖）
     next.workspace_dir = current.workspace_dir;
     next.config_path = current.config_path;
+    validate_config(&next).map_err(|e| Error::Invalid(e.to_string()))?;
     if let Some(skeys) = gateway_skeys {
         replace_gateway_skeys_for_tenant(tenant, &skeys).await?;
         next.gateway.skeys = load_gateway_skeys_for_tenant(tenant).await?;

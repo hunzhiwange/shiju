@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "observed_on": "2026-11-04",
-  "status": "blocked_incomplete_contract",
+  "status": "blocked_unverified_upstream_entries",
   "scope": "Evidence inventory only; does not change install or launch behavior. No entry is supported.",
   "registry_source": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
   "install_source": "crates/vw-config-types/src/acp_install.rs::acp_install_command_for_platform",
@@ -36,9 +36,10 @@
         "release": "0.36.0"
       },
       "license": {
-        "declared": "SEE LICENSE IN LICENSE.md",
-        "source_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0",
-        "review": "metadata_only; bundled component licenses not audited"
+        "declared": "Custom Proprietary License for Augment CLI",
+        "source_url": "https://registry.npmjs.org/@augmentcode/auggie/-/auggie-0.36.0.tgz",
+        "review": "Published LICENSE.md inspected: service/subscription usage constraints and modification/redistribution restrictions; not evidence of arbitrary Provider support",
+        "sha256": "d14e5a4378863850862ff8ada00b727a35d2fb65fc986851d42bd788da365be4"
       },
       "acp_launch": [
         "auggie",
@@ -90,6 +91,33 @@
           "http_status": 200,
           "final_url": "https://docs.augmentcode.com/cli/settings"
         }
+      },
+      "published_artifact_inspection": {
+        "package": "@augmentcode/auggie",
+        "version": "0.36.0",
+        "metadata_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0",
+        "tarball_url": "https://registry.npmjs.org/@augmentcode/auggie/-/auggie-0.36.0.tgz",
+        "sha256": "4fef6ddbd9083f14e403c1ef9326c8f5a800a383731416b6c438a04d17e8f5ab",
+        "integrity": "sha512-jb4kq97pGzG0i5UyISc//LjTVlFzIywwD+VfPemiSIl58KjLfxry3KDgxWYnr1vmV8yUkySVzjLnj4ewUEbT/Q==",
+        "license": "SEE LICENSE IN LICENSE.md",
+        "files": [
+          {
+            "name": "package/package.json",
+            "bytes": 492,
+            "sha256": "0800a1c082237d4b497bc8e7c01fade746553b9f29e8ac1c5dbede45a7108b03"
+          },
+          {
+            "name": "package/LICENSE.md",
+            "bytes": 2025,
+            "sha256": "d14e5a4378863850862ff8ada00b727a35d2fb65fc986851d42bd788da365be4"
+          },
+          {
+            "name": "package/README.md",
+            "bytes": 901,
+            "sha256": "a089f711304115448be02ec69c7de83feb9e2c4975dc5446b79838912077ac3f"
+          }
+        ],
+        "executed": false
       }
     },
     {
@@ -119,8 +147,9 @@
         "package": "@anthropic-ai/claude-agent-sdk",
         "declared_version": "0.2.96",
         "source_url": "https://registry.npmjs.org/%40anthropic-ai%2Fclaude-agent-sdk/0.2.96",
-        "embedded_cli_release": null,
-        "reason": "SDK dependency exact; bundled Claude engine identity not yet inspected"
+        "embedded_cli_release": "2.1.96",
+        "reason": "Published SDK declares bundled engine 2.1.96; installed ACP engine path and model request remain unverified",
+        "identity_evidence": "Official SDK archive package/package.json::claudeCodeVersion"
       },
       "license": {
         "declared": "Apache-2.0",
@@ -171,6 +200,43 @@
           "http_status": 200,
           "final_url": "https://code.claude.com/docs/en/env-vars"
         }
+      },
+      "published_artifact_inspection": {
+        "package": "@anthropic-ai/claude-agent-sdk",
+        "version": "0.2.96",
+        "metadata_url": "https://registry.npmjs.org/%40anthropic-ai%2Fclaude-agent-sdk/0.2.96",
+        "tarball_url": "https://registry.npmjs.org/@anthropic-ai/claude-agent-sdk/-/claude-agent-sdk-0.2.96.tgz",
+        "sha256": "d9d6568dd30980d521c95ff343319255ce0ee9433aaec7dcff13c0bbb450d42f",
+        "integrity": "sha512-EK2L4xpcWMNRSE7Zr0mjty/LCB4q60FmUjI+Z0ui91sd3xL1BVj6fhoZsfZFb9IYWkA309IIcrDIfvJXD8yNbw==",
+        "license": "SEE LICENSE IN README.md",
+        "files": [
+          {
+            "name": "package/package.json",
+            "bytes": 2378,
+            "sha256": "c478cf463b38e9b289e5b16640d60a39b1d2a1528e94b1f7d2578c8754064d9c"
+          },
+          {
+            "name": "package/LICENSE.md",
+            "bytes": 147,
+            "sha256": "8ce94b9478bb9868f9641f818e06cd722fbe55d4c22e2d2ed11971b20146173a"
+          },
+          {
+            "name": "package/README.md",
+            "bytes": 2044,
+            "sha256": "10cdfc5030f8732efe0cb5ffba042d797740b1c83149fa439a9df59028d9d8e1"
+          },
+          {
+            "name": "package/browser-sdk.d.ts",
+            "bytes": 2024,
+            "sha256": "becbef22fbf9c88a29a9cd773a9b8b8910b920cdd2e930d4c050e1ec3b35ccad"
+          },
+          {
+            "name": "package/sdk.d.ts",
+            "bytes": 163814,
+            "sha256": "1867d7b43f4d5489f61a75255fc953527e5b49ce9aadb8269f5a89f3bd1da967"
+          }
+        ],
+        "executed": false
       }
     },
     {
@@ -199,8 +265,19 @@
         "kind": "external_cli",
         "package": "@openai/codex",
         "declared_version": "^0.165.0",
-        "release": null,
-        "reason": "semver range or CODEX_PATH is not a runtime pin; resolve selected binary in task 13"
+        "release": "0.165.0",
+        "reason": "Exact candidate resolved from published stable 0.165.x versions; CODEX_PATH/local binary can still select another engine",
+        "release_status": "npm_range_resolved_not_executed",
+        "source_url": "https://registry.npmjs.org/%40openai%2Fcodex/0.165.0",
+        "integrity": "sha512-aiwtQVp2KBhJld966CuU5bVfQ46VNB4mNTl6giX3WGZdt4euI3tv2RUqJpnupPNA8DXHg2z+RoQ0Zfw87dy8Lw==",
+        "platform_packages": {
+          "@openai/codex-linux-x64": "npm:@openai/codex@0.165.0-linux-x64",
+          "@openai/codex-win32-x64": "npm:@openai/codex@0.165.0-win32-x64",
+          "@openai/codex-darwin-x64": "npm:@openai/codex@0.165.0-darwin-x64",
+          "@openai/codex-linux-arm64": "npm:@openai/codex@0.165.0-linux-arm64",
+          "@openai/codex-win32-arm64": "npm:@openai/codex@0.165.0-win32-arm64",
+          "@openai/codex-darwin-arm64": "npm:@openai/codex@0.165.0-darwin-arm64"
+        }
       },
       "license": {
         "declared": "Apache-2.0",
@@ -248,6 +325,38 @@
           "http_status": 200,
           "final_url": "https://github.com/agentclientprotocol/codex-acp"
         }
+      },
+      "published_artifact_inspection": {
+        "package": "@agentclientprotocol/codex-acp",
+        "version": "2.5.0",
+        "metadata_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0",
+        "tarball_url": "https://registry.npmjs.org/@agentclientprotocol/codex-acp/-/codex-acp-2.5.0.tgz",
+        "sha256": "9206b1543a9e997e7ffcf1be3d5dab60dc3d43b672f1de6dd30ff2a7ca1c280e",
+        "integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw==",
+        "license": "Apache-2.0",
+        "files": [
+          {
+            "name": "package/LICENSE",
+            "bytes": 10760,
+            "sha256": "72ea310b40e1ee2c4aa61935d22065155c50bfde288b114c9cfd3e1fa34f8049"
+          },
+          {
+            "name": "package/dist/index.js",
+            "bytes": 2080199,
+            "sha256": "15de6b2dd5203876a48b12861378bcf87040d623ab2159e05052dc9d54c32b16"
+          },
+          {
+            "name": "package/package.json",
+            "bytes": 4122,
+            "sha256": "64d3735ebe0d4865bf5615070ad80da93bf3e6a38a5f7c8823b95e92b8d822a1"
+          },
+          {
+            "name": "package/README.md",
+            "bytes": 5667,
+            "sha256": "80f40845d0935543954d6a5e62e0d966e966b4e36234a13768b5d490b4f45686"
+          }
+        ],
+        "executed": false
       }
     },
     {
@@ -331,21 +440,24 @@
       "distribution": {
         "kind": "native",
         "package": null,
-        "release": null,
-        "release_status": "unresolved_native_installer_release",
+        "release": "v1.57.0",
+        "release_status": "official_release_metadata_not_executed",
         "installer_urls": [
           "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh",
           "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.ps1"
-        ]
+        ],
+        "source_url": "https://api.github.com/repos/aaif-goose/goose/releases/latest",
+        "artifact_url": "https://github.com/aaif-goose/goose/releases/download/v1.57.0/goose-aarch64-apple-darwin.tar.gz"
       },
       "underlying": {
         "kind": "same_distribution",
-        "release": null
+        "release": "v1.57.0"
       },
       "license": {
-        "declared": null,
-        "source_url": "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md",
-        "review": "unresolved; native distribution terms and bundled notices require review"
+        "declared": "Apache-2.0",
+        "source_url": "https://raw.githubusercontent.com/aaif-goose/goose/v1.57.0/LICENSE",
+        "review": "Fixed release LICENSE inspected; binary notices not audited",
+        "sha256": "44459b86c2e96fdbfd8a6b5c33d30d4b04b5293fcb2ec96fe4dcc4e0f90b8962"
       },
       "acp_launch": [
         "goose",
@@ -376,7 +488,8 @@
         "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
       },
       "source_urls": [
-        "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md"
+        "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md",
+        "https://api.github.com/repos/aaif-goose/goose/releases/latest"
       ],
       "follow_up": "task 15: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
       "source_link_checks": {
@@ -384,6 +497,17 @@
           "http_status": 200,
           "final_url": "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md"
         }
+      },
+      "native_release_evidence": {
+        "installer_url": "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh",
+        "installer_sha256": "710f208cf0225ac330f71cc1540d36b10a6be7a850334b5ec4770fe96fbc57c4",
+        "metadata_http_status": 200,
+        "artifact_downloaded": false,
+        "binary_executed": false,
+        "release_url": "https://github.com/aaif-goose/goose/releases/tag/v1.57.0",
+        "release_manifest_sha256": "4407ef86d2059fc4bbd238cb1c5a63c89ad2544c2156601c361ce4d44cf741e3",
+        "published_digest": "sha256:80d43c49b77302777e9d2fe32faf3c40c1028dafbea1e0a39b0378404a8a074b",
+        "safe_alternative": "Official GOOSE_BIN_DIR and GOOSE_VERSION support an isolated pinned installation; CONFIGURE=false avoids setup. Not executed in this document task."
       }
     },
     {
@@ -702,21 +826,23 @@
       "distribution": {
         "kind": "native",
         "package": null,
-        "release": null,
-        "release_status": "unresolved_native_installer_release",
+        "release": "2026.10.22-27dcf5f",
+        "release_status": "official_release_metadata_not_executed",
         "installer_urls": [
           "https://cursor.com/install",
           "https://cursor.com/install?win32=true"
-        ]
+        ],
+        "source_url": "https://cursor.com/install",
+        "artifact_url": "https://downloads.cursor.com/lab/2026.10.22-27dcf5f/darwin/arm64/agent-cli-package.tar.gz"
       },
       "underlying": {
         "kind": "same_distribution",
-        "release": null
+        "release": "2026.10.22-27dcf5f"
       },
       "license": {
-        "declared": null,
-        "source_url": "https://cursor.com/docs/cli/reference/authentication",
-        "review": "unresolved; native distribution terms and bundled notices require review"
+        "declared": "Anysphere Terms of Service (proprietary)",
+        "source_url": "https://cursor.com/terms-of-service",
+        "review": "Official service terms inspected; packaged third-party notices not audited"
       },
       "acp_launch": [
         "cursor-agent",
@@ -727,7 +853,7 @@
         "cursor-agent"
       ],
       "route": "upstream_blocked",
-      "config_root_candidate": null,
+      "config_root_candidate": "CURSOR_CONFIG_DIR",
       "config_priority": "CURSOR_API_KEY 是 Cursor 认证；CLI model 选择和 IDE BYOK 不证明任意 endpoint",
       "auxiliary_model_routes": "SDK 文档声明 local/cloud 模型推理均经 Cursor 托管服务",
       "config_isolation_verified": false,
@@ -749,7 +875,9 @@
       "source_urls": [
         "https://cursor.com/docs/cli/reference/authentication",
         "https://cursor.com/docs/cli/reference/parameters",
-        "https://cursor.com/help/models-and-usage/api-keys"
+        "https://cursor.com/help/models-and-usage/api-keys",
+        "https://cursor.com/install",
+        "https://cursor.com/docs/cli/reference/configuration"
       ],
       "follow_up": "task 20: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
       "official_extension_review": {
@@ -772,6 +900,14 @@
           "http_status": 200,
           "final_url": "https://cursor.com/help/models-and-usage/api-keys"
         }
+      },
+      "native_release_evidence": {
+        "installer_url": "https://cursor.com/install",
+        "installer_sha256": "77d44de2cb8d12245077e290870ca4085644c5cfd534ba96334c4d6eeb8f0a7c",
+        "metadata_http_status": 200,
+        "artifact_downloaded": false,
+        "binary_executed": false,
+        "release_binding": "Installer embeds identical version in download URL and final version directory."
       }
     },
     {
@@ -779,16 +915,18 @@
       "distribution": {
         "kind": "native",
         "package": null,
-        "release": null,
-        "release_status": "unresolved_native_installer_release",
+        "release": "1.3.0",
+        "release_status": "official_release_metadata_not_executed",
         "installer_urls": [
           "https://app.factory.ai/cli",
           "https://app.factory.ai/cli/windows"
-        ]
+        ],
+        "source_url": "https://app.factory.ai/cli",
+        "artifact_url": "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid"
       },
       "underlying": {
         "kind": "same_distribution",
-        "release": null
+        "release": "1.3.0"
       },
       "license": {
         "declared": null,
@@ -828,7 +966,8 @@
       "source_urls": [
         "https://docs.factory.com/model-independence/byok",
         "https://docs.factory.com/droid-cli/settings",
-        "https://docs.factory.com/enterprise/hierarchical-settings-and-org-control"
+        "https://docs.factory.com/enterprise/hierarchical-settings-and-org-control",
+        "https://app.factory.ai/cli"
       ],
       "follow_up": "task 21: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
       "source_link_checks": {
@@ -844,6 +983,16 @@
           "http_status": 200,
           "final_url": "https://docs.factory.com/enterprise/hierarchical-settings-and-org-control"
         }
+      },
+      "native_release_evidence": {
+        "installer_url": "https://app.factory.ai/cli",
+        "installer_sha256": "8d647400e7575713ff0ff8199ef3ca1fccc49af9f1db4c6974ee557fdca572a7",
+        "metadata_http_status": 200,
+        "artifact_downloaded": false,
+        "binary_executed": false,
+        "published_sha256": "11790b88e3e47813e83089ed43a80ffe782982b62ecad2fd1bc6de2ec475a285",
+        "checksum_url": "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid.sha256",
+        "safe_alternative": "Download checksum and binary directly to an isolated task directory; do not run installer (writes user bin and kills running droid)."
       }
     },
     {
@@ -950,7 +1099,12 @@
       "license": {
         "declared": null,
         "source_url": "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19",
-        "review": "unresolved; do not infer redistribution permission"
+        "review": "unresolved; do not infer redistribution permission",
+        "attempted_source": {
+          "url": "https://raw.githubusercontent.com/iflow-ai/iflow-cli/4642808afbc6580ac117d930f6c64ac0d84955c7/LICENSE",
+          "http_status": 404,
+          "conclusion": "License absent at probed fixed-revision path; do not infer repository or binary license"
+        }
       },
       "acp_launch": [
         "iflow",
@@ -1096,9 +1250,10 @@
         "release": "1.52.0"
       },
       "license": {
-        "declared": null,
-        "source_url": "https://pypi.org/pypi/kimi-cli/1.52.0/json",
-        "review": "unresolved; do not infer redistribution permission"
+        "declared": "Apache-2.0",
+        "source_url": "https://raw.githubusercontent.com/MoonshotAI/kimi-cli/1.52.0/LICENSE",
+        "review": "Fixed source revision/release LICENSE inspected; built distribution correspondence and bundled notices not audited",
+        "sha256": "58d1e17ffe5109a7ae296caafcadfdbe6a7d176f0bc4ab01e12a689b0499d8bd"
       },
       "acp_launch": [
         "kimi",
@@ -1152,21 +1307,23 @@
       "distribution": {
         "kind": "native",
         "package": null,
-        "release": null,
-        "release_status": "unresolved_native_installer_release",
+        "release": "3.0.0",
+        "release_status": "official_release_metadata_not_executed",
         "installer_urls": [
           "https://cli.kiro.dev/install",
           "https://cli.kiro.dev/install.ps1"
-        ]
+        ],
+        "source_url": "https://prod.download.cli.kiro.dev/stable/latest/manifest.json",
+        "artifact_url": "https://prod.download.cli.kiro.dev/stable/3.0.0/kirocli-universal-darwin.zip"
       },
       "underlying": {
         "kind": "same_distribution",
-        "release": null
+        "release": "3.0.0"
       },
       "license": {
-        "declared": null,
-        "source_url": "https://kiro.dev/docs/models/",
-        "review": "unresolved; native distribution terms and bundled notices require review"
+        "declared": "AWS Content under AWS Customer Agreement and AWS Intellectual Property License",
+        "source_url": "https://kiro.dev/license/",
+        "review": "Official Kiro CLI license page inspected; CLI bundled notices remain unreviewed"
       },
       "acp_launch": [
         "kiro-cli",
@@ -1198,7 +1355,8 @@
       },
       "source_urls": [
         "https://kiro.dev/docs/models/",
-        "https://kiro.dev/docs/cli/reference/settings/"
+        "https://kiro.dev/docs/cli/reference/settings/",
+        "https://prod.download.cli.kiro.dev/stable/latest/manifest.json"
       ],
       "follow_up": "task 26: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
       "official_extension_review": {
@@ -1218,6 +1376,27 @@
           "http_status": 200,
           "final_url": "https://kiro.dev/docs/cli/reference/settings/"
         }
+      },
+      "native_release_evidence": {
+        "installer_url": "https://cli.kiro.dev/install",
+        "installer_sha256": "a8bce4c6b740deb61009e3ad10995ec3027a51e6345025f1a2e5048ffdbf4b84",
+        "metadata_http_status": 200,
+        "artifact_downloaded": false,
+        "binary_executed": false,
+        "manifest_sha256": "a495ae24a837aa075c2a10124c397b4e8b03ddf7d07138489f6a4993b11fb6ba",
+        "published_sha256": "0a8f067c4fe6a23a231aa3a18e3e4332120ef9ed3d2d7b6eea907beb8b4cdd8b",
+        "artifact_size": 262568091,
+        "version_index_url": "https://prod.download.cli.kiro.dev/stable/index.json",
+        "version_present_in_index": true,
+        "manifest_targets": [
+          "aarch64-unknown-linux-gnu",
+          "aarch64-unknown-linux-musl",
+          "universal-apple-darwin",
+          "x86_64-pc-windows-msvc",
+          "x86_64-unknown-linux-gnu",
+          "x86_64-unknown-linux-musl"
+        ],
+        "safe_alternative": "Download official standalone ZIP to isolated directory and verify manifest checksum; never run bundled install.sh or mount/install DMG for version inspection."
       }
     },
     {
@@ -1393,7 +1572,14 @@
         "kind": "external_cli",
         "package": "@mariozechner/pi-coding-agent",
         "release": null,
-        "reason": "adapter starts external pi; not a declared dependency, must record executable/version in task 29"
+        "reason": "Published adapter spawns params.piCommand or external pi and inherits process.env; no declared compatible engine release or installed pi was found. Task 29 must select and prove the real engine.",
+        "identity_evidence": "pi-acp 0.0.22 published dist/index.js::PiRpcProcess.spawn",
+        "launch": [
+          "pi",
+          "--mode",
+          "rpc",
+          "--no-themes"
+        ]
       },
       "license": {
         "declared": "MIT",
@@ -1446,6 +1632,38 @@
           "http_status": 200,
           "final_url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md"
         }
+      },
+      "published_artifact_inspection": {
+        "package": "pi-acp",
+        "version": "0.0.22",
+        "metadata_url": "https://registry.npmjs.org/pi-acp/0.0.22",
+        "tarball_url": "https://registry.npmjs.org/pi-acp/-/pi-acp-0.0.22.tgz",
+        "sha256": "963dab8dd814b29141ff9a1d496fe273a2470feb85435b933c16130b49682c02",
+        "integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
+        "license": "MIT",
+        "files": [
+          {
+            "name": "package/LICENSE",
+            "bytes": 1069,
+            "sha256": "b9e63459a8c046806ee709828fe8cf04a08062c5a99847c9ae2a2be18009fa03"
+          },
+          {
+            "name": "package/dist/index.js",
+            "bytes": 81710,
+            "sha256": "f9a00a801269ecaabbfb977cdabac6dae9dacd1f8f27e39905217cf84b4b87d5"
+          },
+          {
+            "name": "package/package.json",
+            "bytes": 1405,
+            "sha256": "3e6012027c3d6a723a4ebb639e9c0c2033e0bf00d3d31657f4ea19b0e420830b"
+          },
+          {
+            "name": "package/README.md",
+            "bytes": 6391,
+            "sha256": "40ebedb1a82719d3e1b09159edaf43e2145b11ecaf0fdacb41f7b10f9d5206d7"
+          }
+        ],
+        "executed": false
       }
     },
     {
@@ -1558,9 +1776,10 @@
         "release": "0.26.7"
       },
       "license": {
-        "declared": null,
-        "source_url": "https://registry.npmjs.org/%40qwen-code%2Fqwen-code/0.26.7",
-        "review": "unresolved; do not infer redistribution permission"
+        "declared": "Apache-2.0",
+        "source_url": "https://raw.githubusercontent.com/QwenLM/qwen-code/f45c34d8ccbd651f2f0f4d97c9b013c11af52f5b/LICENSE",
+        "review": "Fixed source revision/release LICENSE inspected; built distribution correspondence and bundled notices not audited",
+        "sha256": "55367b61ccd2a016a0159ad886bd66a3ee6cb5e873d0c75c803c897dd245b075"
       },
       "acp_launch": [
         "qwen",
@@ -1610,21 +1829,24 @@
       "distribution": {
         "kind": "native",
         "package": null,
-        "release": null,
-        "release_status": "unresolved_native_installer_release",
+        "release": "0.121.3",
+        "release_status": "official_release_metadata_not_executed",
         "installer_urls": [
           "https://trae.cn/trae-cli/install.sh",
           "https://trae.cn/trae-cli/install.ps1"
-        ]
+        ],
+        "source_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_latest_version.txt",
+        "artifact_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_0.121.3_darwin_arm64.tar.gz"
       },
       "underlying": {
         "kind": "same_distribution",
-        "release": null
+        "release": "0.121.3"
       },
       "license": {
         "declared": null,
         "source_url": "https://docs.trae.cn/cli_agent-client-protocol",
-        "review": "unresolved; native distribution terms and bundled notices require review"
+        "review": "Official 2.0 open-source notice is available, but cannot be applied to installer-selected 0.121.3 without matching artifact evidence",
+        "notice_source_url": "https://docs.trae.cn/cli_open-source-software-notice"
       },
       "acp_launch": [
         "traecli",
@@ -1658,7 +1880,8 @@
       "source_urls": [
         "https://docs.trae.cn/cli_agent-client-protocol",
         "https://docs.trae.cn/cli_config-file",
-        "https://docs.trae.cn/cli_environment-variables"
+        "https://docs.trae.cn/cli_environment-variables",
+        "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_latest_version.txt"
       ],
       "follow_up": "task 32: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
       "official_extension_review": {
@@ -1681,6 +1904,17 @@
           "http_status": 200,
           "final_url": "https://docs.trae.cn/cli_environment-variables"
         }
+      },
+      "native_release_evidence": {
+        "installer_url": "https://trae.cn/trae-cli/install.sh",
+        "installer_sha256": "8526c9bc3403371318fc81b6b7eb3027799a7885e6c9541ab39d1a4e541d334a",
+        "metadata_http_status": 200,
+        "artifact_downloaded": false,
+        "binary_executed": false,
+        "version_text_sha256": "18ac2de7bde79e64b9d1ba63b19b44c70eab71ba63ed5d872efcc9a444a4061c",
+        "registered_bin_binding": "Installer links traecli to trae-cli; therefore it is a distribution candidate for the registry key, but ACP entry is not executed.",
+        "compatibility_gap": "Installer currently resolves 0.121.3 while current ACP/config docs describe 2.0. Same-generation ACP contract remains unproved.",
+        "safe_alternative": "Directly acquire versioned archive into task directory; do not run installer (removes previous installations, changes user XDG/bin and may edit shell profiles)."
       }
     }
   ],
@@ -1702,5 +1936,128 @@
     "retry_summary": "One 308 link reachable without trailing slash (configuration); provider-runtime retry TLS handshake timeout. Initial 69/71 unchanged."
   },
   "registry_sha256": "3db13242356b15e2d7219a5a166f0b8869bcf565b23ddde0c7ef1d549460790f",
-  "installer_sha256": "05097c63ef51ae92a38533513e547cae87918e425738e7afd7ff2036d1e4bb3e"
+  "installer_sha256": "05097c63ef51ae92a38533513e547cae87918e425738e7afd7ff2036d1e4bb3e",
+  "contract_delivery": {
+    "version_inventory": "22 distribution release candidates now sourced from public package or installer metadata; does not pin runtime",
+    "actual_model_acceptance": "Separate later driver validation. No model request required for document structure validation; task completion prohibition for unproved CLI entries still applies.",
+    "remaining_external_gap": "No verified supported arbitrary Provider entry for five C distributions. Isolated installation cannot create that upstream API.",
+    "safe_acquisition_policy": "Published archives inspected as data only; no global installation, user config/auth read, login, paid call, vendor contact or issue submission."
+  },
+  "supplemental_link_checks": {
+    "command": "python3 /tmp/acp-contract-review/check_new_links.py",
+    "results": {
+      "https://api.github.com/repos/aaif-goose/goose/releases/latest": {
+        "http_status": 200,
+        "final_url": "https://api.github.com/repos/aaif-goose/goose/releases/latest"
+      },
+      "https://app.factory.ai/cli": {
+        "http_status": 200,
+        "final_url": "https://app.factory.ai/cli"
+      },
+      "https://cursor.com/docs/cli/reference/configuration": {
+        "http_status": 200,
+        "final_url": "https://cursor.com/docs/cli/reference/configuration"
+      },
+      "https://cursor.com/install": {
+        "http_status": 200,
+        "final_url": "https://cursor.com/install"
+      },
+      "https://cursor.com/terms-of-service": {
+        "http_status": 200,
+        "final_url": "https://cursor.com/terms-of-service"
+      },
+      "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid.sha256": {
+        "http_status": 200,
+        "final_url": "https://downloads.factory.ai/factory-cli/releases/1.3.0/darwin/arm64/droid.sha256"
+      },
+      "https://kiro.dev/license/": {
+        "http_status": 200,
+        "final_url": "https://kiro.dev/license/"
+      },
+      "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_latest_version.txt": {
+        "http_status": 200,
+        "final_url": "https://lf-cdn.trae.com.cn/obj/trae-com-cn/trae-cli/trae-cli_latest_version.txt"
+      },
+      "https://prod.download.cli.kiro.dev/stable/index.json": {
+        "http_status": 200,
+        "final_url": "https://prod.download.cli.kiro.dev/stable/index.json"
+      },
+      "https://prod.download.cli.kiro.dev/stable/latest/manifest.json": {
+        "http_status": 200,
+        "final_url": "https://prod.download.cli.kiro.dev/stable/latest/manifest.json"
+      },
+      "https://pypi.org/pypi/hermes-agent/0.19.0/json": {
+        "http_status": 200,
+        "final_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json"
+      },
+      "https://pypi.org/pypi/mistral-vibe/3.0.4/json": {
+        "http_status": 200,
+        "final_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json"
+      },
+      "https://raw.githubusercontent.com/MoonshotAI/kimi-cli/1.52.0/LICENSE": {
+        "http_status": 200,
+        "final_url": "https://raw.githubusercontent.com/MoonshotAI/kimi-cli/1.52.0/LICENSE"
+      },
+      "https://raw.githubusercontent.com/QwenLM/qwen-code/f45c34d8ccbd651f2f0f4d97c9b013c11af52f5b/LICENSE": {
+        "http_status": 200,
+        "final_url": "https://raw.githubusercontent.com/QwenLM/qwen-code/f45c34d8ccbd651f2f0f4d97c9b013c11af52f5b/LICENSE"
+      },
+      "https://raw.githubusercontent.com/aaif-goose/goose/v1.57.0/LICENSE": {
+        "http_status": 200,
+        "final_url": "https://raw.githubusercontent.com/aaif-goose/goose/v1.57.0/LICENSE"
+      },
+      "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0"
+      },
+      "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0"
+      },
+      "https://registry.npmjs.org/%40github%2Fcopilot/1.0.105": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40github%2Fcopilot/1.0.105"
+      },
+      "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0"
+      },
+      "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19"
+      },
+      "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18"
+      },
+      "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82"
+      },
+      "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3"
+      },
+      "https://registry.npmjs.org/@augmentcode/auggie/-/auggie-0.36.0.tgz": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/@augmentcode/auggie/-/auggie-0.36.0.tgz"
+      },
+      "https://registry.npmjs.org/openclaw/2026.10.10": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/openclaw/2026.10.10"
+      },
+      "https://registry.npmjs.org/opencode-ai/1.19.5": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/opencode-ai/1.19.5"
+      },
+      "https://registry.npmjs.org/pi-acp/0.0.22": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/pi-acp/0.0.22"
+      },
+      "https://registry.npmjs.org/snow-ai/0.9.14": {
+        "http_status": 200,
+        "final_url": "https://registry.npmjs.org/snow-ai/0.9.14"
+      }
+    }
+  }
 }

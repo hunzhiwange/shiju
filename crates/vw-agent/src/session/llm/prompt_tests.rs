@@ -190,20 +190,26 @@ fn explicit_model_bypasses_auto() {
 }
 
 #[test]
-fn acp_route_bypasses_auto_selector() {
-    assert!(request_bypasses_auto_selector(None, &json!({ "acp_agent": "codex" })));
+fn cli_local_route_bypasses_auto_selector() {
+    assert!(request_bypasses_auto_selector(
+        None,
+        &json!({ "acp_agent": "codex", "acp_model_source": "cli_local" })
+    ));
     assert!(request_bypasses_auto_selector(
         Some("provider/model"),
-        &json!({ "acp_agent": "codex" })
+        &json!({ "acp_agent": "codex", "acp_model_source": "cli_local" })
     ));
     assert!(!request_bypasses_auto_selector(Some("auto"), &json!({})));
 }
 
 #[tokio::test]
 async fn resolve_model_for_options_uses_acp_route_model_without_explicit_model() {
-    let model = resolve_model_for_options(None, &json!({ "acp_agent": "codex" }))
-        .await
-        .expect("acp request without model should use acp route model");
+    let model = resolve_model_for_options(
+        None,
+        &json!({ "acp_agent": "codex", "acp_model_source": "cli_local" }),
+    )
+    .await
+    .expect("acp request without model should use acp route model");
 
     assert_eq!(model.provider_id, "acp");
     assert_eq!(model.id, "codex");
@@ -212,20 +218,23 @@ async fn resolve_model_for_options_uses_acp_route_model_without_explicit_model()
 
 #[tokio::test]
 async fn resolve_model_for_options_treats_blank_model_as_absent_for_acp_test() {
-    let model = resolve_model_for_options(Some("   ".to_string()), &json!({ "acp_test": true }))
-        .await
-        .expect("blank model should allow the ACP test route");
+    let model = resolve_model_for_options(
+        Some("   ".to_string()),
+        &json!({ "acp_test": true, "acp_model_source": "cli_local" }),
+    )
+    .await
+    .expect("blank model should allow the ACP test route");
 
     assert_eq!(model.provider_id, "acp");
     assert_eq!(model.id, "acp");
 }
 
 #[tokio::test]
-// ACP 路由是协议边界，启用时优先于普通显式模型选择。
-async fn resolve_model_for_options_prioritizes_acp_over_explicit_model() {
+// CLI 本地来源不解析客户端模型。
+async fn resolve_model_for_options_ignores_client_model_for_cli_local() {
     let model = resolve_model_for_options(
         Some("__missing_provider_for_acp__/missing-model".to_string()),
-        &json!({ "acp_agent": "codex" }),
+        &json!({ "acp_agent": "codex", "acp_model_source": "cli_local" }),
     )
     .await
     .expect("ACP should bypass normal explicit model parsing");
@@ -437,4 +446,121 @@ fn send_prompt_returns_parse_errors_without_streaming() {
         .expect_err("invalid model ref should fail before streaming");
 
     assert!(err.contains("模型格式错误"));
+}
+
+#[test]
+fn acp_model_source_routing_preserves_qualified_provider_identity() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _lock = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let home = tempfile::TempDir::new().unwrap();
+    let keys = ["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"];
+    let previous = keys.map(std::env::var_os);
+    struct Restore([Option<std::ffi::OsString>; 3]);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            for (key, value) in
+                ["HOME", "VIBEWINDOW_CONFIG_DIR", "VIBEWINDOW_WORKSPACE"].iter().zip(&self.0)
+            {
+                unsafe {
+                    match value {
+                        Some(value) => std::env::set_var(key, value),
+                        None => std::env::remove_var(key),
+                    }
+                }
+            }
+        }
+    }
+    let _restore = Restore(previous);
+    unsafe {
+        std::env::set_var("HOME", home.path());
+        std::env::set_var("VIBEWINDOW_CONFIG_DIR", home.path().join("config"));
+        std::env::remove_var("VIBEWINDOW_WORKSPACE");
+    }
+    crate::env::provide_with(
+        HashMap::from([
+            ("ACP_ROUTING_ALPHA_TEST_KEY".into(), "routing-alpha-fixture".into()),
+            ("ACP_ROUTING_BETA_TEST_KEY".into(), "routing-beta-fixture".into()),
+        ]),
+        || {
+            runtime.block_on(async {
+    crate::app::agent::config::update(json!({"providers": {
+        "routing-alpha": {"env": ["ACP_ROUTING_ALPHA_TEST_KEY"], "models": {"same": {"status": "active"}}},
+        "routing-beta": {"env": ["ACP_ROUTING_BETA_TEST_KEY"], "models": {"same": {"status": "active"}, "disabled": {"status": "disabled"}}},
+        "acp": {"models": {"cheap": {"status": "active"}}}
+    }})).await.unwrap();
+    for provider_id in ["routing-alpha", "routing-beta"] {
+        provider::invalidate_cache().await;
+        let model = resolve_model_for_options(
+            Some(format!("{provider_id}/same")),
+            &json!({"acp_agent": "codex"}),
+        )
+        .await
+        .unwrap();
+        assert_eq!(model.provider_id, provider_id);
+        assert_eq!(model.id, "same");
+        let info = provider::get_provider(provider_id).await.unwrap().unwrap();
+        assert_eq!(info.key.as_deref(), Some(format!("{provider_id}-fixture").as_str()));
+        assert_ne!(model.api.adapter, "acp");
+        let user = dummy_user("routing-session", &model);
+        assert_eq!(user.model.provider_id, provider_id);
+    }
+    assert!(
+        resolve_model_for_options(
+            Some("routing-beta/disabled".into()),
+            &json!({"acp_agent": "codex"})
+        )
+        .await
+        .is_err()
+    );
+    assert!(
+        resolve_model_for_options(Some("acp/cheap".into()), &json!({"acp_agent": "codex"}))
+            .await
+            .is_err()
+    );
+    let snapshot = resolve_model_for_options(Some("auto".into()), &json!({"acp_agent": "codex"}))
+        .await
+        .unwrap();
+    assert!(!is_acp_model(&snapshot));
+    let identity =
+        (snapshot.provider_id.clone(), snapshot.id.clone(), snapshot.api.adapter.clone());
+    crate::app::agent::config::update(
+        json!({"providers": {"routing-alpha": {"models": {"same": {"status": "disabled"}}}}}),
+    )
+    .await
+    .unwrap();
+    // The request owns its already selected model; a catalog change cannot rewrite it.
+    let user = dummy_user("routing-session", &snapshot);
+    assert_eq!((user.model.provider_id, user.model.model_id, snapshot.api.adapter), identity);
+    })
+        },
+    );
+}
+
+#[tokio::test]
+async fn acp_model_source_routing_rejects_missing_client_model() {
+    let result = resolve_model_for_options(
+        Some("__missing_acp_source__/missing".into()),
+        &json!({"acp_agent": "codex"}),
+    )
+    .await;
+    assert!(result.is_err(), "client source must never fall back to CLI account");
+}
+
+#[tokio::test]
+async fn acp_model_source_routing_local_ignores_missing_model_and_invalid_source_fails() {
+    let model = resolve_model_for_options(
+        Some("__missing__/missing".into()),
+        &json!({"acp_agent": "codex", "acp_model_source": "cli_local"}),
+    )
+    .await
+    .unwrap();
+    assert_eq!(model.provider_id, "acp");
+    assert!(
+        resolve_model_for_options(
+            None,
+            &json!({"acp_agent": "codex", "acp_model_source": "invalid"})
+        )
+        .await
+        .is_err()
+    );
 }

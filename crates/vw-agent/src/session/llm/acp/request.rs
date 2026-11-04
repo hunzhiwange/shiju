@@ -58,6 +58,11 @@ pub(crate) async fn do_stream_request_acp(
         return Err(Error::Aborted);
     }
 
+    let source =
+        super::super::prompt::acp_model_source(merged_options).map_err(super::acp_option_error)?;
+    if source == vw_api_types::acp_model_source::AcpModelSource::SessionModel {
+        validate_session_model(model, provider_info, auth_info)?;
+    }
     let cfg = config::get().await;
     let (acp_agent_name, acp_cfg) =
         lookup_acp_command(&cfg, model, merged_options).ok_or_else(|| {
@@ -74,13 +79,19 @@ pub(crate) async fn do_stream_request_acp(
                 message: format!("acp command not configured for model {}", model.api.id),
             })
         })?;
-    let normalized_acp_cfg = with_copilot_auth_environment(
-        model,
-        provider_info,
-        auth_info,
-        &acp_agent_name,
-        normalize_acp_agent_config(&acp_agent_name, &acp_cfg),
-    );
+    let normalized_acp_cfg = normalize_acp_agent_config(&acp_agent_name, &acp_cfg);
+    let normalized_acp_cfg = match source {
+        vw_api_types::acp_model_source::AcpModelSource::SessionModel => {
+            with_copilot_auth_environment(
+                model,
+                provider_info,
+                auth_info,
+                &acp_agent_name,
+                normalized_acp_cfg,
+            )
+        }
+        vw_api_types::acp_model_source::AcpModelSource::CliLocal => normalized_acp_cfg,
+    };
     let command = normalized_acp_cfg.command.trim();
     if command.is_empty() {
         tracing::warn!(
@@ -467,6 +478,44 @@ pub(crate) async fn do_stream_request_acp(
         drop(prompt_guard);
         return Ok(());
     }
+}
+
+/// Validate the captured client model before touching a CLI process. Credentials stay
+/// in the Provider/auth snapshot; CLI-local execution does not consult this boundary.
+fn validate_session_model(
+    model: &provider::Model,
+    provider_info: &provider::Info,
+    auth_info: Option<&auth::Info>,
+) -> Result<(), Error> {
+    if model.status != "active" || super::super::prompt::is_acp_model(model) {
+        return Err(to_api_error("ACP session_model requires an active non-ACP Provider/model"));
+    }
+    if model.provider_id != provider_info.id {
+        return Err(to_api_error("ACP session_model Provider identity mismatch"));
+    }
+    let has_credentials =
+        provider_info.key.as_deref().is_some_and(|value| is_usable_copilot_token(value.trim()))
+            || provider_info.env.iter().any(|key| {
+                crate::app::agent::env::get(key)
+                    .as_deref()
+                    .is_some_and(|value| is_usable_copilot_token(value.trim()))
+            })
+            || match auth_info {
+                Some(auth::Info::Api(info)) => is_usable_copilot_token(info.key.trim()),
+                // Refresh remains the responsibility of the existing Provider transport.
+                Some(auth::Info::Oauth(info)) => {
+                    !info.access.trim().is_empty() || !info.refresh.trim().is_empty()
+                }
+                Some(auth::Info::Wellknown(info)) => !info.token.trim().is_empty(),
+                None => false,
+            };
+    if !has_credentials {
+        return Err(Error::Api(message::AssistantError::ProviderAuthError {
+            provider_id: model.provider_id.clone(),
+            message: "ACP session_model requires Provider credentials".to_string(),
+        }));
+    }
+    Ok(())
 }
 
 async fn close_client_after_request_if_needed(should_close: bool, entry: &CachedAcpClientEntry) {

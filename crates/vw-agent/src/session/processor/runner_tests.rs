@@ -795,7 +795,7 @@ fn acp_context_preflight_preserves_large_prompt_without_local_compaction() {
         })];
         let original = messages.clone();
         let mut req = request_with_session("acp-context-preflight");
-        req.options = serde_json::json!({ "acp_agent": agent });
+        req.options = serde_json::json!({ "acp_agent": agent, "acp_model_source": "cli_local" });
         let model = super::resolve_request_model(&req, &crate::config::Config::default())
             .expect("resolve ACP model");
 
@@ -2996,4 +2996,45 @@ fn image_routing_text_only_request_does_not_require_model_capabilities() {
     )
     .unwrap();
     assert!(context.is_none());
+}
+
+#[test]
+fn acp_model_source_routing_processor_rejects_missing_client_model() {
+    let mut req = request_with_session("routing-processor");
+    req.options = serde_json::json!({"acp_agent": "codex"});
+    req.model = Some("__missing_acp_source__/missing".into());
+    assert!(super::resolve_request_model(&req, &crate::config::Config::default()).is_err());
+}
+
+#[test]
+fn acp_model_source_routing_processor_local_does_not_resolve_client_model() {
+    let mut req = request_with_session("routing-processor-local");
+    req.options = serde_json::json!({"acp_agent": "codex", "acp_model_source": "cli_local"});
+    req.model = Some("__missing_acp_source__/missing".into());
+    let resolved = super::resolve_request_model(&req, &crate::config::Config::default()).unwrap();
+    assert_eq!(resolved.model, "acp/codex");
+}
+
+#[test]
+fn acp_model_source_routing_processor_freezes_real_model_for_step_events() {
+    let runtime = tokio::runtime::Runtime::new().unwrap();
+    let _env = runtime.block_on(crate::test_support::global_async_env_lock().lock());
+    let _fixture =
+        runtime.block_on(crate::session::llm::recovery_test_support::RecoveryConfig::new(
+            "http://127.0.0.1:1/v1",
+            Some("fixture-key"),
+        ));
+    let mut req = request_with_session("routing-processor-snapshot");
+    req.model = Some("model-recovery/original".into());
+    req.options = serde_json::json!({"acp_agent": "codex"});
+    let selected = super::resolve_request_model(&req, &crate::config::Config::default()).unwrap();
+    assert_eq!(selected.model, "model-recovery/original");
+    assert_eq!(selected.step_event_model(), Some("model-recovery/original"));
+    req.model = Some(selected.model.clone());
+    let context = super::with_request_model_context(
+        crate::tools::ToolUseContext::new("parent", None),
+        req.model.as_deref(),
+    );
+    assert_eq!(context.provider(), Some("model-recovery"));
+    assert_eq!(context.model(), Some("original"));
 }

@@ -58,6 +58,7 @@ pub use model_selector::{
 pub(crate) use prompt::model_limit_for_request;
 pub(crate) use prompt::resolve_auto_model;
 pub(crate) use prompt::stream_chat_with_tools_for_session_with_abort;
+pub(crate) use prompt::{acp_model_source, is_acp_model};
 pub use prompt::{
     send_prompt, stream_chat_with_tools, stream_chat_with_tools_for_session, stream_prompt,
     stream_prompt_with_tools,

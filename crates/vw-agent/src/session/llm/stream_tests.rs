@@ -711,3 +711,17 @@ fn codex_plugin_compat_t41_stream_retries_emit_per_request() {
         },
     );
 }
+
+#[test]
+fn acp_model_source_routing_preserves_provider_auth_and_rejects_missing_provider() {
+    let mut info = acp_route_provider_info();
+    info.id = "client-provider".into();
+    info.key = Some("fixture-key".into());
+    let resolved = resolve_stream_provider_info("client-provider", Some(info), false).unwrap();
+    assert_eq!(resolved.id, "client-provider");
+    assert_eq!(resolved.key.as_deref(), Some("fixture-key"));
+    assert!(matches!(
+        resolve_stream_provider_info("client-provider", None, false),
+        Err(Error::ProviderNotFound(_))
+    ));
+}

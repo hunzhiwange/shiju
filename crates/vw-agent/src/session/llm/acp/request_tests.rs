@@ -48,7 +48,7 @@ fn test_model(provider_id: &str) -> provider::Model {
         "api": {
             "id": "gpt-5-mini",
             "url": "http://localhost",
-            "adapter": "acp"
+            "adapter": "openai-compatible"
         },
         "name": "gpt-5-mini",
         "family": null,
@@ -442,5 +442,72 @@ async fn stream_request_reports_abort_before_config_lookup() {
             assert_eq!(message, "aborted");
         }
         other => panic!("expected abort stream event, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn acp_model_source_routing_rejects_missing_credentials_before_launch() {
+    let result = do_stream_request_acp(
+        &test_model("github-copilot"),
+        &test_provider(None),
+        None,
+        &json!({"acp_agent": "__must_not_launch__"}),
+        &json!([{"role": "user", "content": "hello"}]),
+        "routing-no-auth",
+        None,
+        &mut |_| {},
+    )
+    .await;
+    assert!(matches!(
+        result,
+        Err(super::Error::Api(message::AssistantError::ProviderAuthError { .. }))
+    ));
+}
+
+#[test]
+fn acp_model_source_routing_validates_credentials_and_model_snapshot() {
+    let mut model = test_model("github-copilot");
+    let info = test_provider(Some("fixture-provider-key"));
+    assert!(super::validate_session_model(&model, &info, None).is_ok());
+    assert!(
+        super::validate_session_model(&model, &test_provider(Some(auth::OAUTH_DUMMY_KEY)), None)
+            .is_err()
+    );
+    let oauth = auth::Info::Oauth(auth::OauthInfo {
+        access: String::new(),
+        refresh: "fixture-refresh".into(),
+        expires: 0,
+        account_id: None,
+        enterprise_url: None,
+    });
+    assert!(super::validate_session_model(&model, &test_provider(None), Some(&oauth)).is_ok());
+    model.api.adapter = "acp".into();
+    assert!(super::validate_session_model(&model, &info, None).is_err());
+    model.api.adapter = "openai-compatible".into();
+    model.status = "disabled".into();
+    assert!(super::validate_session_model(&model, &info, None).is_err());
+    model.status = "active".into();
+    model.provider_id = "different-provider".into();
+    assert!(super::validate_session_model(&model, &info, None).is_err());
+}
+
+#[tokio::test]
+async fn acp_model_source_routing_local_reaches_command_lookup_without_client_credentials() {
+    let result = do_stream_request_acp(
+        &test_model("github-copilot"),
+        &test_provider(None),
+        None,
+        &json!({"acp_agent": "__unconfigured_routing_agent__", "acp_model_source": "cli_local"}),
+        &json!([{"role": "user", "content": "hello"}]),
+        "routing-local",
+        None,
+        &mut |_| {},
+    )
+    .await;
+    match result {
+        Err(super::Error::Api(message::AssistantError::Unknown { message })) => {
+            assert!(message.contains("acp command not configured"))
+        }
+        other => panic!("expected command lookup without client auth, got {other:?}"),
     }
 }

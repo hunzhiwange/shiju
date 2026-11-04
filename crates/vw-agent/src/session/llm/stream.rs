@@ -253,11 +253,22 @@ async fn stream_inner(
     // - cfg: 全局配置
     // - provider_info: 提供商特定配置和端点信息
     // - auth_info: 认证信息（API key、OAuth token 等）
+    let input_options = Value::Object(input.agent.options.clone().into_iter().collect());
     let acp_requested_by_input = request_options_map_enable_acp(&input.agent.options);
+    let cli_local = acp_requested_by_input
+        && super::prompt::acp_model_source(&input_options)
+            .map_err(|error| Error::Api(message::AssistantError::Unknown { message: error }))?
+            == vw_api_types::acp_model_source::AcpModelSource::CliLocal;
     let (cfg, provider_info, auth_info) = tokio::join!(
         async { config::get().await },
-        async { provider::get_provider(&input.model.provider_id).await },
-        async { auth::get(&input.model.provider_id) },
+        async {
+            if cli_local {
+                Ok(Some(acp_route_provider_info()))
+            } else {
+                provider::get_provider(&input.model.provider_id).await
+            }
+        },
+        async { if cli_local { None } else { auth::get(&input.model.provider_id) } },
     );
     #[cfg(not(target_arch = "wasm32"))]
     let multimodal_config = cfg.multimodal.clone();
@@ -272,7 +283,7 @@ async fn stream_inner(
             on_event(StreamEvent::Error(error.clone()));
             Error::Api(error)
         })?,
-        acp_requested_by_input,
+        cli_local,
     )?;
 
     // 检测是否为 Codex 模式（OpenAI provider + OAuth 认证）
@@ -321,6 +332,16 @@ async fn stream_inner(
                 );
             }
         }
+    }
+
+    // 模型来源只能由请求决定，Provider/model/variant 默认值不能切换到 CLI 账号。
+    if request_options_value_enable_acp(&merged_options)
+        || super::prompt::is_acp_model(&input.model)
+    {
+        merged_options["acp_model_source"] = input_options
+            .get("acp_model_source")
+            .cloned()
+            .unwrap_or_else(|| json!("session_model"));
     }
 
     // Codex 模式特殊处理：移除 instructions 选项

@@ -324,7 +324,11 @@ fn resolve_request_model(
     req: &Request,
     config: &crate::config::Config,
 ) -> Result<ResolvedRequestModel, String> {
-    if is_acp_request(&req.options) {
+    let acp_requested = is_acp_request(&req.options);
+    let cli_local = acp_requested
+        && crate::session::llm::acp_model_source(&req.options)?
+            == vw_api_types::acp_model_source::AcpModelSource::CliLocal;
+    if cli_local {
         let model = req
             .options
             .get("acp_agent")
@@ -344,8 +348,12 @@ fn resolve_request_model(
 
     let providers = prompt::block_on(crate::app::agent::provider::provider::list())
         .map_err(crate::session::llm::catalog_error_string)?;
-    let candidates =
-        providers.values().flat_map(|info| info.models.values()).cloned().collect::<Vec<_>>();
+    let candidates = providers
+        .values()
+        .flat_map(|info| info.models.values())
+        .filter(|model| !crate::session::llm::is_acp_model(model))
+        .cloned()
+        .collect::<Vec<_>>();
     let selected = if is_auto_model_request(req.model.as_deref()) {
         let needs_image_input = request_needs_image_input(req);
         let agent_key = req.options.get("agent").and_then(Value::as_str).map(str::trim);

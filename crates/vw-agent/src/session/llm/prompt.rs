@@ -160,6 +160,28 @@ fn is_auto_model_request(model: Option<&str>) -> bool {
 
 fn request_bypasses_auto_selector(_model: Option<&str>, options: &Value) -> bool {
     request_options_enable_acp(options)
+        && acp_model_source(options)
+            .is_ok_and(|source| source == vw_api_types::acp_model_source::AcpModelSource::CliLocal)
+}
+
+pub(crate) fn acp_model_source(
+    options: &Value,
+) -> Result<vw_api_types::acp_model_source::AcpModelSource, String> {
+    options.get("acp_model_source").map_or_else(
+        || Ok(vw_api_types::acp_model_source::AcpModelSource::SessionModel),
+        |value| {
+            serde_json::from_value(value.clone())
+                .map_err(|_| "invalid acp_model_source".to_string())
+        },
+    )
+}
+
+pub(crate) fn is_acp_model(model: &provider::Model) -> bool {
+    model.provider_id == "acp"
+        || matches!(
+            model.api.adapter.trim(),
+            "acp" | "agent-client-protocol" | "agent_client_protocol"
+        )
 }
 
 pub(crate) async fn resolve_auto_model(
@@ -172,6 +194,7 @@ pub(crate) async fn resolve_auto_model(
     let candidates = providers
         .values()
         .flat_map(|provider| provider.models.values())
+        .filter(|model| !is_acp_model(model))
         .cloned()
         .collect::<Vec<_>>();
     let agent = options.get("agent").and_then(Value::as_str).and_then(|key| config.agents.get(key));
@@ -265,6 +288,9 @@ async fn resolve_model_for_options(
     model: Option<String>,
     options: &Value,
 ) -> Result<provider::Model, String> {
+    if request_options_enable_acp(options) {
+        acp_model_source(options)?;
+    }
     if request_bypasses_auto_selector(model.as_deref(), options) {
         return Ok(acp_route_model(options));
     }
@@ -273,7 +299,11 @@ async fn resolve_model_for_options(
         return resolve_auto_model("", options, true).await;
     }
 
-    resolve_model(model).await
+    let resolved = resolve_model(model).await?;
+    if request_options_enable_acp(options) && is_acp_model(&resolved) {
+        return Err("ACP session_model requires a real non-ACP Provider/model".to_string());
+    }
+    Ok(resolved)
 }
 
 /// 在请求前读取与实际 LLM 路由相同的模型限制，不发起模型请求。

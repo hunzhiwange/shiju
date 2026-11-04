@@ -1,0 +1,1706 @@
+{
+  "schema_version": 1,
+  "observed_on": "2026-11-04",
+  "status": "blocked_incomplete_contract",
+  "scope": "Evidence inventory only; does not change install or launch behavior. No entry is supported.",
+  "registry_source": "crates/vw-acp/src/agent_registry.rs::BUILT_IN_AGENT_DEFINITIONS",
+  "install_source": "crates/vw-config-types/src/acp_install.rs::acp_install_command_for_platform",
+  "evidence_policy": {
+    "runtime_verified_requires": "Exact installed adapter and underlying CLI plus real offline model request and no fallback proof",
+    "config_roots": "candidate only unless config_isolation_verified=true; HOME substitution forbidden",
+    "secrets": "No auth/config content collected; key names are identifiers only",
+    "package_resolution": "Exact metadata snapshot, not global install update or lock of transitive dependencies"
+  },
+  "entries": [
+    {
+      "key": "auggie",
+      "distribution": {
+        "kind": "native",
+        "package": "@augmentcode/auggie",
+        "release": "0.36.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0",
+        "git_commit": null,
+        "integrity": "sha512-jb4kq97pGzG0i5UyISc//LjTVlFzIywwD+VfPemiSIl58KjLfxry3KDgxWYnr1vmV8yUkySVzjLnj4ewUEbT/Q==",
+        "bin": {
+          "auggie": "augment.mjs"
+        },
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.36.0"
+      },
+      "license": {
+        "declared": "SEE LICENSE IN LICENSE.md",
+        "source_url": "https://registry.npmjs.org/%40augmentcode%2Fauggie/0.36.0",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "auggie",
+        "--acp"
+      ],
+      "registry_default_args": "&[\"@augmentcode/auggie@latest\", \"--acp\"]",
+      "local_command_candidates": [
+        "auggie"
+      ],
+      "route": "upstream_blocked",
+      "config_root_candidate": "--augment-cache-dir",
+      "config_priority": "--model 仅选择目录；扩展加载存在，但已解析 npm 0.36.0 与当前 1.x 扩展文档代际不符",
+      "auxiliary_model_routes": "未证明主/辅助模型均经过注册 Provider",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "auggie",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.augmentcode.com/cli/reference",
+        "https://docs.augmentcode.com/cli/settings"
+      ],
+      "follow_up": "task 11: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "official_extension_review": {
+        "source_urls": [
+          "https://docs.augmentcode.com/cli/reference",
+          "https://raw.githubusercontent.com/earendil-works/pi/main/packages/coding-agent/docs/extensions.md"
+        ],
+        "conclusion": "Official 1.x reference links Pi extensions; Pi exposes registerProvider. Whether Auggie 0.36.0 loads it in ACP, bypasses mandatory Augment login, and avoids fallback remains unproved. Do not promote route based on Pi alone.",
+        "runtime_proof": false
+      },
+      "source_link_checks": {
+        "https://docs.augmentcode.com/cli/reference": {
+          "http_status": 200,
+          "final_url": "https://docs.augmentcode.com/cli/reference"
+        },
+        "https://docs.augmentcode.com/cli/settings": {
+          "http_status": 200,
+          "final_url": "https://docs.augmentcode.com/cli/settings"
+        }
+      }
+    },
+    {
+      "key": "claude",
+      "distribution": {
+        "kind": "acp_adapter",
+        "package": "@agentclientprotocol/claude-agent-acp",
+        "release": "0.26.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0",
+        "git_commit": "0a501434c0bcd8308c66c7469b9bb4c7cf9c36b9",
+        "integrity": "sha512-eNbunIaVwvm+CS7x51cLuosPi8iCrcfUrJLr7zIR6NIlpeXvE3hg/1VY+mRIcHHGmYQtsqPUQaeSqP1w19/fFg==",
+        "bin": {
+          "claude-agent-acp": "dist/index.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/agentclientprotocol/claude-agent-acp.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0"
+        }
+      },
+      "underlying": {
+        "kind": "agent_sdk",
+        "package": "@anthropic-ai/claude-agent-sdk",
+        "declared_version": "0.2.96",
+        "source_url": "https://registry.npmjs.org/%40anthropic-ai%2Fclaude-agent-sdk/0.2.96",
+        "embedded_cli_release": null,
+        "reason": "SDK dependency exact; bundled Claude engine identity not yet inspected"
+      },
+      "license": {
+        "declared": "Apache-2.0",
+        "source_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fclaude-agent-acp/0.26.0",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "claude-agent-acp"
+      ],
+      "registry_default_args": "&[\"-y\", \"@agentclientprotocol/claude-agent-acp@^0.26.0\"]",
+      "local_command_candidates": [
+        "claude-agent-acp"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "CLAUDE_CONFIG_DIR",
+      "config_priority": "ANTHROPIC_BASE_URL、认证及模型环境；SDK 项目 settings 优先级尚待冲突验证",
+      "auxiliary_model_routes": "ANTHROPIC_DEFAULT_{SONNET,OPUS,HAIKU}_MODEL、ANTHROPIC_SMALL_FAST_MODEL、CLAUDE_CODE_SUBAGENT_MODEL",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "claude-agent-acp",
+          "--version"
+        ],
+        "status": "observed",
+        "exit_code": 0,
+        "output": "",
+        "package_version": "0.26.0",
+        "identity_source": "resolved executable ancestor package.json (package metadata only)"
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://github.com/agentclientprotocol/claude-agent-acp",
+        "https://code.claude.com/docs/en/env-vars"
+      ],
+      "follow_up": "task 12: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://github.com/agentclientprotocol/claude-agent-acp": {
+          "http_status": 200,
+          "final_url": "https://github.com/agentclientprotocol/claude-agent-acp"
+        },
+        "https://code.claude.com/docs/en/env-vars": {
+          "http_status": 200,
+          "final_url": "https://code.claude.com/docs/en/env-vars"
+        }
+      }
+    },
+    {
+      "key": "codex",
+      "distribution": {
+        "kind": "acp_adapter",
+        "package": "@agentclientprotocol/codex-acp",
+        "release": "2.5.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0",
+        "git_commit": "34e08970aa324a2be985f5080674d5aa91d7666f",
+        "integrity": "sha512-7e/4OhJwpvSTqsjiokoVYRV7O1XGem1CAsQgO1opmGYbRD5LvmydwDlJrldzQYO5TcPWueGzQ2Jdvyvp6l3qDw==",
+        "bin": {
+          "codex-acp": "dist/index.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/agentclientprotocol/codex-acp.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0"
+        }
+      },
+      "underlying": {
+        "kind": "external_cli",
+        "package": "@openai/codex",
+        "declared_version": "^0.165.0",
+        "release": null,
+        "reason": "semver range or CODEX_PATH is not a runtime pin; resolve selected binary in task 13"
+      },
+      "license": {
+        "declared": "Apache-2.0",
+        "source_url": "https://registry.npmjs.org/%40agentclientprotocol%2Fcodex-acp/2.5.0",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "codex-acp"
+      ],
+      "registry_default_args": "CODEX_ADAPTER_ARGS",
+      "local_command_candidates": [
+        "codex-acp"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "CODEX_HOME",
+      "config_priority": "适配器 CODEX_CONFIG / MODEL_PROVIDER 待固定版本源码核实；禁止假定透传原生 -c",
+      "auxiliary_model_routes": "以所选模型实际窗口生成 Provider；辅助请求/审查模型待核实",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "codex-acp",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://learn.chatgpt.com/docs/config-file/config-advanced",
+        "https://github.com/agentclientprotocol/codex-acp"
+      ],
+      "follow_up": "task 13: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://learn.chatgpt.com/docs/config-file/config-advanced": {
+          "http_status": 200,
+          "final_url": "https://learn.chatgpt.com/docs/config-file/config-advanced"
+        },
+        "https://github.com/agentclientprotocol/codex-acp": {
+          "http_status": 200,
+          "final_url": "https://github.com/agentclientprotocol/codex-acp"
+        }
+      }
+    },
+    {
+      "key": "codebuddy",
+      "distribution": {
+        "kind": "native",
+        "package": "@tencent-ai/codebuddy-code",
+        "release": "2.179.3",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3",
+        "git_commit": null,
+        "integrity": "sha512-SQy1YDuITzH2MClXCrLBVIzW93syDE8VXWsyok8g3eGmahdBE7G+1aR4tBZvQHMwjPANLasTkINM26nUKstPHQ==",
+        "bin": {
+          "cbc": "./bin/codebuddy",
+          "codebuddy": "./bin/codebuddy",
+          "cbc-prewarm": "./bin/cbc-prewarm",
+          "codebuddy-code": "./bin/codebuddy",
+          "codebuddy-lowmem": "./bin/codebuddy-lowmem"
+        },
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "2.179.3"
+      },
+      "license": {
+        "declared": "SEE LICENSE IN README.md",
+        "source_url": "https://registry.npmjs.org/%40tencent-ai%2Fcodebuddy-code/2.179.3",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "codebuddy",
+        "--acp"
+      ],
+      "registry_default_args": "&[\"--acp\"]",
+      "local_command_candidates": [
+        "codebuddy"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": null,
+      "config_priority": "CODEBUDDY_BASE_URL/API_KEY/MODEL；models.json 使用完整请求 URL，与 BASE_URL 语义分别验证",
+      "auxiliary_model_routes": "lite/reasoning/subagent 均需显式覆盖",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "codebuddy",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://www.codebuddy.ai/docs/cli/env-vars",
+        "https://www.codebuddy.ai/docs/cli/models"
+      ],
+      "follow_up": "task 14: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://www.codebuddy.ai/docs/cli/env-vars": {
+          "http_status": 200,
+          "final_url": "https://www.codebuddy.ai/docs/cli/env-vars"
+        },
+        "https://www.codebuddy.ai/docs/cli/models": {
+          "http_status": 200,
+          "final_url": "https://www.codebuddy.ai/docs/cli/models"
+        }
+      }
+    },
+    {
+      "key": "goose",
+      "distribution": {
+        "kind": "native",
+        "package": null,
+        "release": null,
+        "release_status": "unresolved_native_installer_release",
+        "installer_urls": [
+          "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.sh",
+          "https://github.com/aaif-goose/goose/releases/download/stable/download_cli.ps1"
+        ]
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": null
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md",
+        "review": "unresolved; native distribution terms and bundled notices require review"
+      },
+      "acp_launch": [
+        "goose",
+        "acp"
+      ],
+      "registry_default_args": "&[\"acp\"]",
+      "local_command_candidates": [
+        "goose"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "GOOSE_PATH_ROOT",
+      "config_priority": "GOOSE_PROVIDER / GOOSE_MODEL；recipe 覆盖环境的行为待验证",
+      "auxiliary_model_routes": "子 Agent recipe 与辅助模型路线待验证",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "goose",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md"
+      ],
+      "follow_up": "task 15: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md": {
+          "http_status": 200,
+          "final_url": "https://github.com/aaif-goose/goose/blob/main/documentation/docs/guides/environment-variables.md"
+        }
+      }
+    },
+    {
+      "key": "vibe",
+      "distribution": {
+        "kind": "native",
+        "package": "mistral-vibe",
+        "release": "3.0.4",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json",
+        "git_commit": null,
+        "integrity": null,
+        "bin": null,
+        "repository": {
+          "Documentation": "https://github.com/mistralai/mistral-vibe#readme",
+          "Homepage": "https://github.com/mistralai/mistral-vibe",
+          "Issues": "https://github.com/mistralai/mistral-vibe/issues",
+          "Repository": "https://github.com/mistralai/mistral-vibe"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "3.0.4"
+      },
+      "license": {
+        "declared": "Apache-2.0",
+        "source_url": "https://pypi.org/pypi/mistral-vibe/3.0.4/json",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "vibe-acp"
+      ],
+      "registry_default_args": "&[]",
+      "local_command_candidates": [
+        "vibe-acp"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "VIBE_HOME",
+      "config_priority": "专属 TOML Provider api_base/api_key_env_var/api_style 及 model；优先级待固定版本确认",
+      "auxiliary_model_routes": "所有 Agent active_model 均绑定会话模型",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "vibe-acp",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.mistral.ai/vibe/code/cli/configuration",
+        "https://docs.mistral.ai/vibe/code/cli/configuration-reference"
+      ],
+      "follow_up": "task 16: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://docs.mistral.ai/vibe/code/cli/configuration": {
+          "http_status": 200,
+          "final_url": "https://docs.mistral.ai/vibe/code/cli/configuration"
+        },
+        "https://docs.mistral.ai/vibe/code/cli/configuration-reference": {
+          "http_status": 200,
+          "final_url": "https://docs.mistral.ai/vibe/code/cli/configuration-reference"
+        }
+      }
+    },
+    {
+      "key": "hermes",
+      "distribution": {
+        "kind": "native",
+        "package": "hermes-agent",
+        "release": "0.19.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json",
+        "git_commit": null,
+        "integrity": null,
+        "bin": null,
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.19.0"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://pypi.org/pypi/hermes-agent/0.19.0/json",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "hermes",
+        "acp"
+      ],
+      "registry_default_args": "&[\"acp\"]",
+      "local_command_candidates": [
+        "hermes"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "HERMES_HOME",
+      "config_priority": "专属 model.provider/base_url；运行时环境、配置优先级待验证",
+      "auxiliary_model_routes": "auxiliary、delegation、fallback 均显式禁回退/绑定",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "hermes",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://hermes-agent.nousresearch.com/docs/reference/environment-variables",
+        "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime/",
+        "https://hermes-agent.nousresearch.com/docs/user-guide/configuration/"
+      ],
+      "follow_up": "task 17: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://hermes-agent.nousresearch.com/docs/reference/environment-variables": {
+          "http_status": 200,
+          "final_url": "https://hermes-agent.nousresearch.com/docs/reference/environment-variables"
+        },
+        "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime/": {
+          "http_status": 308,
+          "reason": "HTTP error; link not verified",
+          "retry": {
+            "url": "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime",
+            "http_status": null,
+            "reason": "TLS handshake timeout"
+          }
+        },
+        "https://hermes-agent.nousresearch.com/docs/user-guide/configuration/": {
+          "http_status": 308,
+          "reason": "HTTP error; link not verified",
+          "retry": {
+            "url": "https://hermes-agent.nousresearch.com/docs/user-guide/configuration",
+            "http_status": 200,
+            "final_url": "https://hermes-agent.nousresearch.com/docs/user-guide/configuration"
+          }
+        }
+      }
+    },
+    {
+      "key": "snow",
+      "distribution": {
+        "kind": "native",
+        "package": "snow-ai",
+        "release": "0.9.14",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/snow-ai/0.9.14",
+        "git_commit": "a9eba5f9062afbf639829b4992e90a986924f519",
+        "integrity": "sha512-hVawSqfpwqSJgTAPVNp7Lw7gUoBpP89eKIC/lN5f6dvU8HWQtIo0M3BUhqByPmSUM8jZr1bbKF3CbQ9ur0pRaw==",
+        "bin": {
+          "snow": "bundle/cli.mjs"
+        },
+        "repository": {
+          "url": "git+https://github.com/MayDay-wpf/snow-cli.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/snow-ai/0.9.14"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.9.14"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/snow-ai/0.9.14",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "snow",
+        "--acp"
+      ],
+      "registry_default_args": "&[\"--acp\"]",
+      "local_command_candidates": [
+        "snow"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "SNOW_CONFIG_DIR",
+      "config_priority": "专属 JSON baseUrl/apiKey/requestMethod；固定源码提交已识别，但发行版一致性待验证",
+      "auxiliary_model_routes": "advancedModel/basicModel 均覆盖",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "snow",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://github.com/MayDay-wpf/snow-cli",
+        "https://github.com/MayDay-wpf/snow-cli/blob/main/docs/usage/en/02.First%20Time%20Configuration.md"
+      ],
+      "follow_up": "task 18: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://github.com/MayDay-wpf/snow-cli": {
+          "http_status": 200,
+          "final_url": "https://github.com/MayDay-wpf/snow-cli"
+        },
+        "https://github.com/MayDay-wpf/snow-cli/blob/main/docs/usage/en/02.First%20Time%20Configuration.md": {
+          "http_status": 200,
+          "final_url": "https://github.com/MayDay-wpf/snow-cli/blob/main/docs/usage/en/02.First%20Time%20Configuration.md"
+        }
+      }
+    },
+    {
+      "key": "copilot",
+      "distribution": {
+        "kind": "native",
+        "package": "@github/copilot",
+        "release": "1.0.105",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40github%2Fcopilot/1.0.105",
+        "git_commit": null,
+        "integrity": "sha512-k5JPVZrc0Ms4YdAmYS80OGxDvwjDZNVqDS3dxphIFUVSTFJRwcHkbHh3yUKk7MEyBjKqQYKLKNAKSF+dVmjl7A==",
+        "bin": {
+          "copilot": "npm-loader.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/github/copilot-cli.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40github%2Fcopilot/1.0.105"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "1.0.105"
+      },
+      "license": {
+        "declared": "SEE LICENSE IN LICENSE.md",
+        "source_url": "https://registry.npmjs.org/%40github%2Fcopilot/1.0.105",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "copilot",
+        "--acp",
+        "--stdio"
+      ],
+      "registry_default_args": "&[\"--acp\", \"--stdio\"]",
+      "local_command_candidates": [
+        "copilot"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "COPILOT_HOME / COPILOT_PROVIDER_CONFIG",
+      "config_priority": "providers.json 声明优先于旧 COPILOT_PROVIDER_*；必须隔离文件与环境，不能复用 GitHub 登录为模型 key",
+      "auxiliary_model_routes": "COPILOT_MODEL 与辅助路线待真实请求验证",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "copilot",
+          "--version"
+        ],
+        "status": "observed",
+        "exit_code": 0,
+        "output": "GitHub Copilot CLI 1.0.105.\nRun 'copilot update' to check for updates."
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.github.com/en/enterprise-cloud%40latest/copilot/how-tos/copilot-cli/customize-copilot/use-byok-models",
+        "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference"
+      ],
+      "follow_up": "task 19: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://docs.github.com/en/enterprise-cloud%40latest/copilot/how-tos/copilot-cli/customize-copilot/use-byok-models": {
+          "http_status": 200,
+          "final_url": "https://docs.github.com/en/enterprise-cloud@latest/copilot/how-tos/copilot-cli/customize-copilot/add-llm-models"
+        },
+        "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference": {
+          "http_status": 200,
+          "final_url": "https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-config-dir-reference"
+        }
+      }
+    },
+    {
+      "key": "cursor",
+      "distribution": {
+        "kind": "native",
+        "package": null,
+        "release": null,
+        "release_status": "unresolved_native_installer_release",
+        "installer_urls": [
+          "https://cursor.com/install",
+          "https://cursor.com/install?win32=true"
+        ]
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": null
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://cursor.com/docs/cli/reference/authentication",
+        "review": "unresolved; native distribution terms and bundled notices require review"
+      },
+      "acp_launch": [
+        "cursor-agent",
+        "acp"
+      ],
+      "registry_default_args": "&[\"acp\"]",
+      "local_command_candidates": [
+        "cursor-agent"
+      ],
+      "route": "upstream_blocked",
+      "config_root_candidate": null,
+      "config_priority": "CURSOR_API_KEY 是 Cursor 认证；CLI model 选择和 IDE BYOK 不证明任意 endpoint",
+      "auxiliary_model_routes": "SDK 文档声明 local/cloud 模型推理均经 Cursor 托管服务",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "cursor-agent",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://cursor.com/docs/cli/reference/authentication",
+        "https://cursor.com/docs/cli/reference/parameters",
+        "https://cursor.com/help/models-and-usage/api-keys"
+      ],
+      "follow_up": "task 20: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "official_extension_review": {
+        "source_urls": [
+          "https://cursor.com/docs/sdk/typescript"
+        ],
+        "conclusion": "Official SDK explicitly states local/cloud inference uses Cursor hosted models; no arbitrary Provider injection contract found in inspected SDK/CLI pages.",
+        "runtime_proof": false
+      },
+      "source_link_checks": {
+        "https://cursor.com/docs/cli/reference/authentication": {
+          "http_status": 200,
+          "final_url": "https://cursor.com/docs/cli/reference/authentication"
+        },
+        "https://cursor.com/docs/cli/reference/parameters": {
+          "http_status": 200,
+          "final_url": "https://cursor.com/docs/cli/reference/parameters"
+        },
+        "https://cursor.com/help/models-and-usage/api-keys": {
+          "http_status": 200,
+          "final_url": "https://cursor.com/help/models-and-usage/api-keys"
+        }
+      }
+    },
+    {
+      "key": "droid",
+      "distribution": {
+        "kind": "native",
+        "package": null,
+        "release": null,
+        "release_status": "unresolved_native_installer_release",
+        "installer_urls": [
+          "https://app.factory.ai/cli",
+          "https://app.factory.ai/cli/windows"
+        ]
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": null
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://docs.factory.com/model-independence/byok",
+        "review": "unresolved; native distribution terms and bundled notices require review"
+      },
+      "acp_launch": [
+        "droid",
+        "exec",
+        "--output-format",
+        "acp"
+      ],
+      "registry_default_args": "&[\"exec\", \"--output-format\", \"acp\"]",
+      "local_command_candidates": [
+        "droid"
+      ],
+      "route": "bridge_required",
+      "config_root_candidate": null,
+      "config_priority": "customModels 已有文档；运行 ID、隔离配置路径与 ACP 双向传输仍待实测；不假定 FACTORY_HOME",
+      "auxiliary_model_routes": "压缩、子 Agent 与 fallback 需冲突请求验证",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "droid",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.factory.com/model-independence/byok",
+        "https://docs.factory.com/droid-cli/settings",
+        "https://docs.factory.com/enterprise/hierarchical-settings-and-org-control"
+      ],
+      "follow_up": "task 21: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://docs.factory.com/model-independence/byok": {
+          "http_status": 200,
+          "final_url": "https://docs.factory.com/model-independence/byok"
+        },
+        "https://docs.factory.com/droid-cli/settings": {
+          "http_status": 200,
+          "final_url": "https://docs.factory.com/droid-cli/settings"
+        },
+        "https://docs.factory.com/enterprise/hierarchical-settings-and-org-control": {
+          "http_status": 200,
+          "final_url": "https://docs.factory.com/enterprise/hierarchical-settings-and-org-control"
+        }
+      }
+    },
+    {
+      "key": "gemini",
+      "distribution": {
+        "kind": "native",
+        "package": "@google/gemini-cli",
+        "release": "0.66.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0",
+        "git_commit": null,
+        "integrity": "sha512-EAtsJ9/JxiphHlduzvhoCkb7I0LdOxyugB5NpUtVqKVGZIWjV3JmurvK89ZrvMbV3kwk5SdWINz1M5ZN/2K/Lw==",
+        "bin": {
+          "gemini": "bundle/gemini.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/google-gemini/gemini-cli.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.66.0"
+      },
+      "license": {
+        "declared": "Apache-2.0",
+        "source_url": "https://registry.npmjs.org/%40google%2Fgemini-cli/0.66.0",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "gemini",
+        "--experimental-acp",
+        "--approval-mode",
+        "yolo",
+        "--skip-trust"
+      ],
+      "registry_default_args": "GEMINI_ACP_ARGS",
+      "local_command_candidates": [
+        "gemini",
+        "gemini-cli"
+      ],
+      "route": "bridge_required",
+      "config_root_candidate": null,
+      "config_priority": "GEMINI_API_KEY / GEMINI_MODEL / GOOGLE_GEMINI_BASE_URL；必须验证认证路径不回 OAuth/Vertex",
+      "auxiliary_model_routes": "Gemini generateContent 与 streamGenerateContent，元数据、压缩及辅助模型",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "gemini",
+          "--version"
+        ],
+        "status": "observed",
+        "exit_code": 0,
+        "output": "0.66.0"
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://geminicli.com/docs/reference/configuration/"
+      ],
+      "follow_up": "task 22: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://geminicli.com/docs/reference/configuration/": {
+          "http_status": 200,
+          "final_url": "https://geminicli.com/docs/reference/configuration/"
+        }
+      }
+    },
+    {
+      "key": "iflow",
+      "distribution": {
+        "kind": "native",
+        "package": "@iflow-ai/iflow-cli",
+        "release": "0.5.19",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19",
+        "git_commit": "da3e453f790995bcd56850264cf2810610a48857",
+        "integrity": "sha512-cOQNLXJAjqcKq6XQpx47EUV8ocY5sdLXiy7MfJm+b1miRlMJmrQvueT75w1h9UqzrlFPio2VluTxbLRBoR/QBA==",
+        "bin": {
+          "iflow": "bundle/entry.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/iflow-ai/iflow-cli.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.5.19"
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://registry.npmjs.org/%40iflow-ai%2Fiflow-cli/0.5.19",
+        "review": "unresolved; do not infer redistribution permission"
+      },
+      "acp_launch": [
+        "iflow",
+        "--experimental-acp"
+      ],
+      "registry_default_args": "&[\"--experimental-acp\"]",
+      "local_command_candidates": [],
+      "route": "native_config_candidate",
+      "config_root_candidate": null,
+      "config_priority": "IFLOW_ 设置环境优先于系统/项目/用户；apiKey/baseUrl/modelName/selectedAuthType 按版本验证",
+      "auxiliary_model_routes": "摘要、辅助模型与设置写回隔离未验证",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "iflow",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://github.com/iflow-ai/iflow-cli/blob/4642808afbc6580ac117d930f6c64ac0d84955c7/docs_en/configuration/settings.md",
+        "https://github.com/iflow-ai/iflow-cli"
+      ],
+      "follow_up": "task 23: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://github.com/iflow-ai/iflow-cli/blob/4642808afbc6580ac117d930f6c64ac0d84955c7/docs_en/configuration/settings.md": {
+          "http_status": 200,
+          "final_url": "https://github.com/iflow-ai/iflow-cli/blob/4642808afbc6580ac117d930f6c64ac0d84955c7/docs_en/configuration/settings.md"
+        },
+        "https://github.com/iflow-ai/iflow-cli": {
+          "http_status": 200,
+          "final_url": "https://github.com/iflow-ai/iflow-cli"
+        }
+      }
+    },
+    {
+      "key": "kilocode",
+      "distribution": {
+        "kind": "native",
+        "package": "@kilocode/cli",
+        "release": "7.8.18",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18",
+        "git_commit": null,
+        "integrity": "sha512-/Ym2x0IK6drlX4eZK79JcAcKU90sxnqQlInUCiYtpekyMXeMGHLbr0WQpDrJGyTaAJQRhQ4WStADaaQtfQC/nQ==",
+        "bin": {
+          "kilo": "bin/kilo",
+          "kilocode": "bin/kilo"
+        },
+        "repository": {
+          "url": "git+https://github.com/Kilo-Org/kilocode.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "7.8.18"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/%40kilocode%2Fcli/7.8.18",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "kilocode",
+        "acp"
+      ],
+      "registry_default_args": "&[\"-y\", \"@kilocode/cli\", \"acp\"]",
+      "local_command_candidates": [
+        "kilocode"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "KILO_CONFIG / KILO_CONFIG_CONTENT",
+      "config_priority": "kilo 原生 Provider 配置；npm bin 同时含 kilo/kilocode，不能套用 OPENCODE_*",
+      "auxiliary_model_routes": "small_model、Agent 覆盖待验证",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "kilocode",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://kilo.ai/docs/code-with-ai/platforms/cli",
+        "https://kilo.ai/docs/code-with-ai/agents/custom-models"
+      ],
+      "follow_up": "task 24: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://kilo.ai/docs/code-with-ai/platforms/cli": {
+          "http_status": 200,
+          "final_url": "https://kilo.ai/docs/code-with-ai/platforms/cli"
+        },
+        "https://kilo.ai/docs/code-with-ai/agents/custom-models": {
+          "http_status": 200,
+          "final_url": "https://kilo.ai/docs/code-with-ai/agents/custom-models"
+        }
+      }
+    },
+    {
+      "key": "kimi",
+      "distribution": {
+        "kind": "native",
+        "package": "kimi-cli",
+        "release": "1.52.0",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://pypi.org/pypi/kimi-cli/1.52.0/json",
+        "git_commit": null,
+        "integrity": null,
+        "bin": null,
+        "repository": {
+          "Kimi Code CLI": "https://github.com/MoonshotAI/kimi-code",
+          "Migration Guide": "https://moonshotai.github.io/kimi-code/en/guides/migration",
+          "Source": "https://github.com/MoonshotAI/kimi-cli"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://pypi.org/pypi/kimi-cli/1.52.0/json"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "1.52.0"
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://pypi.org/pypi/kimi-cli/1.52.0/json",
+        "review": "unresolved; do not infer redistribution permission"
+      },
+      "acp_launch": [
+        "kimi",
+        "acp"
+      ],
+      "registry_default_args": "&[\"acp\"]",
+      "local_command_candidates": [],
+      "route": "native_config_candidate",
+      "config_root_candidate": "--config / --config-file",
+      "config_priority": "两代 Provider 类型/字段不同；必须按固定版本使用显式配置与 api_key_env",
+      "auxiliary_model_routes": "内置 Kimi 服务、辅助/子 Agent 不得回退",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "kimi",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://moonshotai.github.io/kimi-cli/en/configuration/providers.html",
+        "https://moonshotai.github.io/kimi-code/en/configuration/providers",
+        "https://moonshotai.github.io/kimi-code/en/configuration/config-files"
+      ],
+      "follow_up": "task 25: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://moonshotai.github.io/kimi-cli/en/configuration/providers.html": {
+          "http_status": 200,
+          "final_url": "https://moonshotai.github.io/kimi-cli/en/configuration/providers.html"
+        },
+        "https://moonshotai.github.io/kimi-code/en/configuration/providers": {
+          "http_status": 200,
+          "final_url": "https://moonshotai.github.io/kimi-code/en/configuration/providers"
+        },
+        "https://moonshotai.github.io/kimi-code/en/configuration/config-files": {
+          "http_status": 200,
+          "final_url": "https://moonshotai.github.io/kimi-code/en/configuration/config-files"
+        }
+      }
+    },
+    {
+      "key": "kiro",
+      "distribution": {
+        "kind": "native",
+        "package": null,
+        "release": null,
+        "release_status": "unresolved_native_installer_release",
+        "installer_urls": [
+          "https://cli.kiro.dev/install",
+          "https://cli.kiro.dev/install.ps1"
+        ]
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": null
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://kiro.dev/docs/models/",
+        "review": "unresolved; native distribution terms and bundled notices require review"
+      },
+      "acp_launch": [
+        "kiro-cli",
+        "acp"
+      ],
+      "registry_default_args": "&[\"acp\"]",
+      "local_command_candidates": [
+        "kiro-cli"
+      ],
+      "route": "upstream_blocked",
+      "config_root_candidate": null,
+      "config_priority": "chat.defaultModel 是厂商目录；3.x harness 选择不等于 Provider 注册，隔离入口未证明",
+      "auxiliary_model_routes": "V3/V2 ACP 默认与旧参数触发 V2 的差异须按真实版本核实",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "kiro-cli",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://kiro.dev/docs/models/",
+        "https://kiro.dev/docs/cli/reference/settings/"
+      ],
+      "follow_up": "task 26: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "official_extension_review": {
+        "source_urls": [
+          "https://kiro.dev/docs/cli/agent-harness/",
+          "https://kiro.dev/docs/reference/settings/"
+        ],
+        "conclusion": "Official harness selection configures V3/V2 execution, not arbitrary Provider registration. CLI 3.x ACP defaults differ from 2.x; no endpoint/key hook proved.",
+        "runtime_proof": false
+      },
+      "source_link_checks": {
+        "https://kiro.dev/docs/models/": {
+          "http_status": 200,
+          "final_url": "https://kiro.dev/docs/models/"
+        },
+        "https://kiro.dev/docs/cli/reference/settings/": {
+          "http_status": 200,
+          "final_url": "https://kiro.dev/docs/cli/reference/settings/"
+        }
+      }
+    },
+    {
+      "key": "opencode",
+      "distribution": {
+        "kind": "native",
+        "package": "opencode-ai",
+        "release": "1.19.5",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/opencode-ai/1.19.5",
+        "git_commit": null,
+        "integrity": "sha512-tEqMvQahfhdDj8vceYpXtoIrvjPXm5XRfetWnPN5YISueU7adNx9JcUA3zZ+2GKuDVgDpGdQe1ZLtCZDjqodvA==",
+        "bin": {
+          "opencode": "bin/opencode.exe"
+        },
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/opencode-ai/1.19.5"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "1.19.5"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/opencode-ai/1.19.5",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "opencode",
+        "acp"
+      ],
+      "registry_default_args": "&[\"opencode-ai@latest\", \"acp\"]",
+      "local_command_candidates": [
+        "opencode"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "OPENCODE_CONFIG_CONTENT / OPENCODE_CONFIG_DIR / XDG_*",
+      "config_priority": "专属 Provider；项目配置与 Agent frontmatter 可能改变模型，必须冲突验证",
+      "auxiliary_model_routes": "model/small_model/compaction/Agent 均覆盖",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "opencode",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://opencode.ai/docs/config/",
+        "https://opencode.ai/docs/providers/"
+      ],
+      "follow_up": "task 27: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://opencode.ai/docs/config/": {
+          "http_status": 200,
+          "final_url": "https://opencode.ai/docs/config/"
+        },
+        "https://opencode.ai/docs/providers/": {
+          "http_status": 200,
+          "final_url": "https://opencode.ai/docs/providers/"
+        }
+      }
+    },
+    {
+      "key": "openclaw",
+      "distribution": {
+        "kind": "native",
+        "package": "openclaw",
+        "release": "2026.10.10",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/openclaw/2026.10.10",
+        "git_commit": null,
+        "integrity": "sha512-9HZhzq/Yck3uH3M/iYP7szqoF5JXpXfz0+orhBOKalSH+dj0IC9uWPECkR1vH4lMCytxpHjJKHh9efXRYMJl6w==",
+        "bin": {
+          "openclaw": "openclaw.mjs"
+        },
+        "repository": {
+          "url": "git+https://github.com/openclaw/openclaw.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/openclaw/2026.10.10"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "2026.10.10"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/openclaw/2026.10.10",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "openclaw",
+        "acp"
+      ],
+      "registry_default_args": "&[\"openclaw\", \"acp\"]",
+      "local_command_candidates": [
+        "openclaw"
+      ],
+      "route": "bridge_required",
+      "config_root_candidate": "应用专属 Gateway（待实现）",
+      "config_priority": "stdio ACP 仅桥接 WebSocket Gateway；模型配置须进入执行推理的实例，不复用用户全局实例",
+      "auxiliary_model_routes": "Gateway 各 Agent 默认、fallback、压缩路线均需绑定",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "openclaw",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.openclaw.ai/cli/acp",
+        "https://docs.openclaw.ai/concepts/model-providers"
+      ],
+      "follow_up": "task 28: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://docs.openclaw.ai/cli/acp": {
+          "http_status": 200,
+          "final_url": "https://docs.openclaw.ai/cli/acp"
+        },
+        "https://docs.openclaw.ai/concepts/model-providers": {
+          "http_status": 200,
+          "final_url": "https://docs.openclaw.ai/concepts/model-providers"
+        }
+      }
+    },
+    {
+      "key": "pi",
+      "distribution": {
+        "kind": "acp_adapter",
+        "package": "pi-acp",
+        "release": "0.0.22",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/pi-acp/0.0.22",
+        "git_commit": "8be5f22769f71d759aa48d798416c56e8be101ef",
+        "integrity": "sha512-A9DFxi3dF/xFgf0vm5r5jvEtTszRXqK2MUYXWQN0aSSLeJW53efqFlueczZCj5J119s+FLlQVQYso71PDPL0sw==",
+        "bin": {
+          "pi-acp": "dist/index.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/svkozak/pi-acp.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/pi-acp/0.0.22"
+        }
+      },
+      "underlying": {
+        "kind": "external_cli",
+        "package": "@mariozechner/pi-coding-agent",
+        "release": null,
+        "reason": "adapter starts external pi; not a declared dependency, must record executable/version in task 29"
+      },
+      "license": {
+        "declared": "MIT",
+        "source_url": "https://registry.npmjs.org/pi-acp/0.0.22",
+        "review": "metadata_only; bundled component licenses not audited"
+      },
+      "acp_launch": [
+        "pi-acp"
+      ],
+      "registry_default_args": "&[\"-y\", \"pi-acp@^0.0.22\"]",
+      "local_command_candidates": [
+        "pi-acp"
+      ],
+      "route": "bridge_required",
+      "config_root_candidate": "PI_CODING_AGENT_DIR；ACP 根需补丁",
+      "config_priority": "0.0.22 getPiAcpDir 固定 homedir/.pi/pi-acp；models.json 与 RPC set_model 要同时验证",
+      "auxiliary_model_routes": "底层 pi 子进程继承、模型枚举和 RPC 选择待验证",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "pi-acp",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://github.com/svkozak/pi-acp",
+        "https://github.com/svkozak/pi-acp/blob/v0.0.22/src/acp/paths.ts",
+        "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md"
+      ],
+      "follow_up": "task 29: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://github.com/svkozak/pi-acp": {
+          "http_status": 200,
+          "final_url": "https://github.com/svkozak/pi-acp"
+        },
+        "https://github.com/svkozak/pi-acp/blob/v0.0.22/src/acp/paths.ts": {
+          "http_status": 200,
+          "final_url": "https://github.com/svkozak/pi-acp/blob/v0.0.22/src/acp/paths.ts"
+        },
+        "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md": {
+          "http_status": 200,
+          "final_url": "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/models.md"
+        }
+      }
+    },
+    {
+      "key": "qoder",
+      "distribution": {
+        "kind": "native",
+        "package": "@qoder-ai/qodercli",
+        "release": "1.1.82",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82",
+        "git_commit": null,
+        "integrity": "sha512-Vac4oHtL4F5oUbn51e3OD+CnHFQbMbqqO4a1cy0AnGGzELzvfHXCExgfhqwXUlTUatZbbKq45oMt8Od/GPPtBw==",
+        "bin": {
+          "qoder": "bundle/qoder-npm-dispatcher.cjs",
+          "qodercli": "bundle/qodercli.js"
+        },
+        "repository": null,
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "1.1.82"
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://registry.npmjs.org/%40qoder-ai%2Fqodercli/1.1.82",
+        "review": "unresolved; do not infer redistribution permission"
+      },
+      "acp_launch": [
+        "qodercli",
+        "--acp",
+        "--permission-mode",
+        "bypass_permissions"
+      ],
+      "registry_default_args": "QODER_ACP_ARGS",
+      "local_command_candidates": [
+        "qodercli"
+      ],
+      "route": "upstream_blocked",
+      "config_root_candidate": null,
+      "config_priority": "BYOK 依账号 Custom 向导目录，官方禁止手写 settings.json；SDK model 选择不等于注册 endpoint",
+      "auxiliary_model_routes": "SDK 打包 CLI 仍调用 Qoder 服务；任意 Provider 注册未证明",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "qodercli",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.qoder.com/cli/custom-models",
+        "https://docs.qoder.com/cli/cli-reference"
+      ],
+      "follow_up": "task 30: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "official_extension_review": {
+        "source_urls": [
+          "https://docs.qoder.com/cli/sdk/overview",
+          "https://docs.qoder.com/cli/sdk/model-policy"
+        ],
+        "conclusion": "Official SDK wraps qodercli and Qoder model service; model/BYOK selection does not prove arbitrary endpoint registration. Restricted account wizard remains a gap.",
+        "runtime_proof": false
+      },
+      "source_link_checks": {
+        "https://docs.qoder.com/cli/custom-models": {
+          "http_status": 200,
+          "final_url": "https://docs.qoder.com/cli/custom-models"
+        },
+        "https://docs.qoder.com/cli/cli-reference": {
+          "http_status": 200,
+          "final_url": "https://docs.qoder.com/cli/cli-reference"
+        }
+      }
+    },
+    {
+      "key": "qwen",
+      "distribution": {
+        "kind": "native",
+        "package": "@qwen-code/qwen-code",
+        "release": "0.26.7",
+        "release_status": "metadata_snapshot_not_runtime_pin",
+        "source_url": "https://registry.npmjs.org/%40qwen-code%2Fqwen-code/0.26.7",
+        "git_commit": "f45c34d8ccbd651f2f0f4d97c9b013c11af52f5b",
+        "integrity": "sha512-sRFWwmakpvF3bWBfG1M/ijoZG5h8Yxs0IC4cXZP3dJLyEbbTHItyhzMySG4o4CzLGFIfofArummQJo/xcggweQ==",
+        "bin": {
+          "qwen": "cli-entry.js"
+        },
+        "repository": {
+          "url": "git+https://github.com/QwenLM/qwen-code.git",
+          "type": "git"
+        },
+        "link_check": {
+          "http_status": 200,
+          "final_url": "https://registry.npmjs.org/%40qwen-code%2Fqwen-code/0.26.7"
+        }
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "0.26.7"
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://registry.npmjs.org/%40qwen-code%2Fqwen-code/0.26.7",
+        "review": "unresolved; do not infer redistribution permission"
+      },
+      "acp_launch": [
+        "qwen",
+        "--acp",
+        "--experimental-skills",
+        "--approval-mode",
+        "yolo"
+      ],
+      "registry_default_args": "QWEN_ACP_ARGS",
+      "local_command_candidates": [
+        "qwen",
+        "qwen-code"
+      ],
+      "route": "native_config_candidate",
+      "config_root_candidate": "QWEN_HOME / QWEN_RUNTIME_DIR",
+      "config_priority": "项目 modelProviders 可胜过参数；需会话唯一 Provider/model 别名避免冲突",
+      "auxiliary_model_routes": "主/辅助模型、上下文及输出限制按版本核实",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "qwen",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/"
+      ],
+      "follow_up": "task 31: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "source_link_checks": {
+        "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/": {
+          "http_status": 200,
+          "final_url": "https://qwenlm.github.io/qwen-code-docs/en/users/configuration/model-providers/"
+        }
+      }
+    },
+    {
+      "key": "trae",
+      "distribution": {
+        "kind": "native",
+        "package": null,
+        "release": null,
+        "release_status": "unresolved_native_installer_release",
+        "installer_urls": [
+          "https://trae.cn/trae-cli/install.sh",
+          "https://trae.cn/trae-cli/install.ps1"
+        ]
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": null
+      },
+      "license": {
+        "declared": null,
+        "source_url": "https://docs.trae.cn/cli_agent-client-protocol",
+        "review": "unresolved; native distribution terms and bundled notices require review"
+      },
+      "acp_launch": [
+        "traecli",
+        "acp",
+        "serve"
+      ],
+      "registry_default_args": "&[\"acp\", \"serve\"]",
+      "local_command_candidates": [
+        "traecli"
+      ],
+      "route": "upstream_blocked",
+      "config_root_candidate": "TRAE_HOME",
+      "config_priority": "全局 -c 位于 acp serve 前；TRAECLI_HOST 为平台服务地址，不证明标准模型入口",
+      "auxiliary_model_routes": "插件/MCP 文档只证明能力/工具扩展，无模型 Provider hook 证明",
+      "config_isolation_verified": false,
+      "runtime_verified": false,
+      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "installed": {
+        "command": [
+          "traecli",
+          "--version"
+        ],
+        "status": "not_found",
+        "exit_code": null
+      },
+      "platforms": {
+        "macos": "version-only discovery on current host; no ACP request",
+        "linux": "unverified; package/installer target and ACP must be checked",
+        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+      },
+      "source_urls": [
+        "https://docs.trae.cn/cli_agent-client-protocol",
+        "https://docs.trae.cn/cli_config-file",
+        "https://docs.trae.cn/cli_environment-variables"
+      ],
+      "follow_up": "task 32: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "official_extension_review": {
+        "source_urls": [
+          "https://docs.trae.cn/cli_tools-and-extensions"
+        ],
+        "conclusion": "Official plugin/skills/MCP page describes commands/resources/tools, not model Provider hooks. Platform host/PAT do not prove an LLM endpoint.",
+        "runtime_proof": false
+      },
+      "source_link_checks": {
+        "https://docs.trae.cn/cli_agent-client-protocol": {
+          "http_status": 200,
+          "final_url": "https://docs.trae.cn/cli_agent-client-protocol"
+        },
+        "https://docs.trae.cn/cli_config-file": {
+          "http_status": 200,
+          "final_url": "https://docs.trae.cn/cli_config-file"
+        },
+        "https://docs.trae.cn/cli_environment-variables": {
+          "http_status": 200,
+          "final_url": "https://docs.trae.cn/cli_environment-variables"
+        }
+      }
+    }
+  ],
+  "link_check_summary": {
+    "command": "python3 /tmp/acp_contract_links.py",
+    "method": "urllib.request GET, public URLs only, 15-second timeout, first 1024 bytes",
+    "checked": 71,
+    "http_2xx": 69,
+    "unverified": {
+      "https://hermes-agent.nousresearch.com/docs/developer-guide/provider-runtime/": {
+        "http_status": 308,
+        "reason": "HTTP error; link not verified"
+      },
+      "https://hermes-agent.nousresearch.com/docs/user-guide/configuration/": {
+        "http_status": 308,
+        "reason": "HTTP error; link not verified"
+      }
+    },
+    "retry_summary": "One 308 link reachable without trailing slash (configuration); provider-runtime retry TLS handshake timeout. Initial 69/71 unchanged."
+  },
+  "registry_sha256": "3db13242356b15e2d7219a5a166f0b8869bcf565b23ddde0c7ef1d549460790f",
+  "installer_sha256": "05097c63ef51ae92a38533513e547cae87918e425738e7afd7ff2036d1e4bb3e"
+}

@@ -73,6 +73,9 @@ fn acp_client_cache_key(
         "args": acp_cfg.args,
         "env": env.into_iter().map(|(key, value)| json!([key, value])).collect::<Vec<_>>(),
         "cwd": cwd,
+        "mcpServers": parsed_options.mcp_servers,
+        "sessionMode": parsed_options.session_mode,
+        "sessionConfigOptions": parsed_options.session_config_options,
         "permissionMode": parsed_options.permission_mode,
         "fullAccess": parsed_options.full_access,
         "nonInteractivePermissions": parsed_options.non_interactive_permissions,
@@ -122,6 +125,7 @@ fn build_cached_acp_client(
             env: acp_cfg.env.clone(),
         },
     )
+    .with_mcp_servers(parsed_options.mcp_servers.clone())
     .with_permission_mode(parsed_options.permission_mode.unwrap_or(PermissionMode::ApproveAll))
     .with_full_access(parsed_options.full_access)
     .with_non_interactive_permissions(parsed_options.non_interactive_permissions.clone())

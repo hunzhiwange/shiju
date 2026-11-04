@@ -67,8 +67,10 @@ struct CachedAcpClientEntry {
 /// 从运行时选项解析出的 ACP 会话参数。
 ///
 /// 字段保持为 `Option`，让调用方能区分“用户未配置”和“明确配置为空”的场景。
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Clone, Default, PartialEq, Eq)]
 pub(super) struct ParsedAcpOptions {
+    /// 已在网关按作用域解析的 MCP 配置，不接受请求中的原始凭据。
+    pub(super) mcp_servers: Vec<agent_client_protocol::McpServer>,
     /// ACP 权限模式；未设置时由客户端构造逻辑选择默认策略。
     pub(super) permission_mode: Option<PermissionMode>,
     /// 是否允许 ACP 文件系统操作越过会话工作目录边界。
@@ -83,6 +85,18 @@ pub(super) struct ParsedAcpOptions {
     pub(super) session_options: Option<AcpSessionOptions>,
     /// 需要逐项写入 ACP 会话配置的键值对。
     pub(super) session_config_options: Vec<(String, String)>,
+}
+
+// MCP payloads may contain credentials; diagnostics expose only their count.
+impl std::fmt::Debug for ParsedAcpOptions {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("ParsedAcpOptions")
+            .field("mcp_server_count", &self.mcp_servers.len())
+            .field("permission_mode", &self.permission_mode)
+            .field("full_access", &self.full_access)
+            .finish_non_exhaustive()
+    }
 }
 
 /// 新建 ACP 会话时本地历史的重放策略。

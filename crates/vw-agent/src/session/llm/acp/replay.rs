@@ -46,7 +46,7 @@ fn build_current_prompt(chat_messages: &Value) -> String {
         if content.is_empty() {
             continue;
         }
-        if is_protocol_meta_message(role, &content) {
+        if role == "system" || is_protocol_meta_message(role, &content) {
             if seen_protocol_messages.insert(content.clone()) {
                 protocol_messages.push(content);
             }
@@ -229,7 +229,9 @@ pub(crate) fn build_replay_prompt(
             continue;
         }
         if role == "system" {
-            system_messages.push(content);
+            if !system_messages.contains(&content) {
+                system_messages.push(content);
+            }
         } else {
             non_system_messages.push((role.to_string(), content));
         }

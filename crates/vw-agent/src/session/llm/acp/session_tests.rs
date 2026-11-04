@@ -27,6 +27,7 @@ fn acp_config(command: &str) -> config::schema::AcpAgentConfig {
 
 fn parsed_options() -> ParsedAcpOptions {
     ParsedAcpOptions {
+        mcp_servers: Vec::new(),
         permission_mode: Some(PermissionMode::DenyAll),
         full_access: false,
         non_interactive_permissions: Some(NonInteractivePermissionPolicy::Fail),
@@ -353,4 +354,102 @@ fn acp_model_source_launch_profile_cache_never_contains_environment_secrets() {
             &Default::default()
         )
     );
+}
+
+#[tokio::test]
+async fn agent_acp_defaults_reach_new_session_and_prompt() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let messages = serde_json::json!([
+        {"role":"system","content":"agent rule"},
+        {"role":"system","content":"<system-reminder>skill content</system-reminder>"},
+        {"role":"user","content":"hello"}
+    ]);
+    for fresh in [false, true] {
+        let prompt = super::super::replay::build_request_prompt(
+            &messages,
+            fresh,
+            super::super::AcpReplayStrategy::Discard,
+            3,
+        );
+        assert_eq!(prompt.matches("agent rule").count(), 1);
+        assert_eq!(prompt.matches("skill content").count(), 1);
+    }
+    let temp = tempfile::tempdir().unwrap();
+    let script = temp.path().join("peer.py");
+    let capture = temp.path().join("requests.jsonl");
+    std::fs::write(
+        &script,
+        r#"
+import json, sys
+for line in sys.stdin:
+    r=json.loads(line)
+    if 'id' not in r or 'method' not in r: continue
+    with open(sys.argv[1],'a') as f: f.write(line)
+    m=r['method']
+    if m=='initialize': result={'protocolVersion':1,'agentCapabilities':{'loadSession':True,'sessionCapabilities':{'resume':{}}},'authMethods':[]}
+    elif m=='session/new': result={'sessionId':'defaults'}
+    elif m=='session/prompt':
+        print(json.dumps({'jsonrpc':'2.0','id':900,'method':'fs/write_text_file','params':{'sessionId':'defaults','path':sys.argv[1]+'.denied','content':'must not write'}}),flush=True)
+        permission=json.loads(sys.stdin.readline())
+        if 'error' not in permission: raise Exception('permission default did not deny write')
+        result={'stopReason':'end_turn'}
+    else: result={}
+    print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':result}),flush=True)
+"#,
+    )
+    .unwrap();
+    let cfg = config::schema::AcpAgentConfig {
+        command: "python3".into(),
+        args: vec![script.display().to_string(), capture.display().to_string()],
+        env: Default::default(),
+    };
+    let mut options = ParsedAcpOptions {
+        permission_mode: Some(PermissionMode::DenyAll),
+        mcp_servers: vec![agent_client_protocol::McpServer::Stdio(
+            agent_client_protocol::McpServerStdio::new("selected", "fixture-mcp"),
+        )],
+        ..Default::default()
+    };
+    let key = acp_client_cache_key("fixture", &cfg, temp.path(), &options);
+    let client = build_cached_acp_client("fixture", &cfg, &options);
+    options.mcp_servers.clear();
+    assert_ne!(key, acp_client_cache_key("fixture", &cfg, temp.path(), &options));
+    options.permission_mode = Some(PermissionMode::ApproveReads);
+    let reads_key = acp_client_cache_key("fixture", &cfg, temp.path(), &options);
+    options.permission_mode = Some(PermissionMode::DenyAll);
+    assert_ne!(reads_key, acp_client_cache_key("fixture", &cfg, temp.path(), &options));
+    let session = client.client.create_session(temp.path()).await.unwrap();
+    client.client.load_session(session.session_id.clone(), temp.path()).await.unwrap();
+    client.client.resume_session(session.session_id.clone(), temp.path()).await.unwrap();
+    let prompt = super::super::replay::build_request_prompt(
+        &messages,
+        false,
+        super::super::AcpReplayStrategy::Discard,
+        3,
+    );
+    client
+        .client
+        .run_prompt(
+            vw_acp::PromptRequest::new(temp.path().to_path_buf(), prompt)
+                .with_session_strategy(vw_acp::SessionStrategy::Load(session.session_id)),
+            &mut |_| {},
+        )
+        .await
+        .unwrap();
+    client.client.close().await.unwrap();
+    assert!(!capture.with_extension("jsonl.denied").exists());
+    std::fs::copy(&capture, "/tmp/shiju-unified-acp-6-requests.jsonl").unwrap();
+    let requests: Vec<serde_json::Value> = std::fs::read_to_string(capture)
+        .unwrap()
+        .lines()
+        .map(|line| serde_json::from_str(line).unwrap())
+        .collect();
+    for method in ["session/new", "session/load", "session/resume"] {
+        let request = requests.iter().find(|r| r["method"] == method).unwrap();
+        assert_eq!(request["params"]["mcpServers"][0]["name"], "selected");
+    }
+    let prompt = requests.iter().find(|r| r["method"] == "session/prompt").unwrap();
+    let text = prompt["params"]["prompt"][0]["text"].as_str().unwrap();
+    assert_eq!(text.matches("agent rule").count(), 1);
+    assert_eq!(text.matches("skill content").count(), 1);
 }

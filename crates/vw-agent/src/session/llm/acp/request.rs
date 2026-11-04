@@ -135,7 +135,17 @@ pub(crate) async fn do_stream_request_acp(
         .map(std::path::PathBuf::from)
         .or_else(|| std::env::current_dir().ok())
         .ok_or_else(|| to_api_error("failed to resolve cwd for acp session"))?;
-    let parsed_options = parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
+    let mut parsed_options =
+        parse_acp_options(merged_options, &acp_agent_name, &normalized_acp_cfg)?;
+    let chat_messages = super::config::apply_agent_defaults(
+        &cfg,
+        merged_options,
+        &acp_agent_name,
+        &cwd,
+        &mut parsed_options,
+        chat_messages,
+    )
+    .await?;
     let close_client_after_request =
         parse_close_client_after_request(merged_options)? || launch_profile.is_some();
     let cwd_text = cwd.to_string_lossy().into_owned();
@@ -147,7 +157,7 @@ pub(crate) async fn do_stream_request_acp(
     let mut recovered_session_change = false;
     loop {
         let prompt = super::content::build_request_content(
-            chat_messages,
+            &chat_messages,
             force_new_session,
             replay_strategy,
             replay_recent_count,
@@ -202,11 +212,8 @@ pub(crate) async fn do_stream_request_acp(
         ) && let Some(mode_id) = vw_acp::get_desired_mode_id(record.vwacp.as_ref())
             .or_else(|| parsed_options.session_mode.clone())
         {
-            if let Err(err) = cached_client
-                .client
-                .set_session_mode(acp_session_id.clone(), &cwd, mode_id)
-                .await
-                .map_err(to_api_error)
+            if let Err(err) =
+                apply_default_mode(&cached_client.client, &acp_session_id, &cwd, mode_id).await
             {
                 close_client_after_request_if_needed(
                     close_client_after_request,
@@ -538,6 +545,23 @@ fn parse_close_client_after_request(merged_options: &Value) -> Result<bool, Erro
 
 fn is_usable_copilot_token(value: &str) -> bool {
     !value.is_empty() && value != auth::OAUTH_DUMMY_KEY
+}
+
+/// Validate advertised choices before requesting a mode, including permissive peers.
+async fn apply_default_mode(
+    client: &vw_acp::AcpClient,
+    session_id: &str,
+    cwd: &std::path::Path,
+    mode: String,
+) -> Result<(), Error> {
+    let supported =
+        client.session_capabilities(session_id).and_then(|info| info.modes).is_some_and(|modes| {
+            modes.available_modes.iter().any(|candidate| candidate.id.to_string() == mode)
+        });
+    if !supported {
+        return Err(super::acp_option_error(format!("ACP session mode is not advertised: {mode}")));
+    }
+    client.set_session_mode(session_id.to_string(), cwd, mode).await.map_err(to_api_error)
 }
 #[cfg(test)]
 #[path = "request_tests.rs"]

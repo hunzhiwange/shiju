@@ -320,6 +320,7 @@ pub(crate) fn parse_acp_options(
     }
 
     Ok(ParsedAcpOptions {
+        mcp_servers: Vec::new(),
         permission_mode,
         full_access,
         non_interactive_permissions,
@@ -328,6 +329,127 @@ pub(crate) fn parse_acp_options(
         session_options,
         session_config_options,
     })
+}
+
+/// Resolve trusted agent defaults at the gateway; raw request options never supply MCP credentials.
+pub(super) async fn apply_agent_defaults(
+    cfg: &config::schema::Config,
+    options: &Value,
+    backend: &str,
+    cwd: &std::path::Path,
+    parsed: &mut ParsedAcpOptions,
+    messages: &Value,
+) -> Result<Value, Error> {
+    use crate::agent::defaults::{DefaultSelection, DefaultsContext, resolve};
+    use vw_config_types::agent::{AgentDefault, AgentRuntime};
+    let Some(key) = options.get("agent").and_then(Value::as_str) else {
+        return Ok(messages.clone());
+    };
+    let catalog = crate::agent::catalog::merged_agent_catalog(&cfg.agents);
+    let agent = catalog.get(key).ok_or_else(|| acp_option_error("unknown agent"))?;
+    match &agent.runtime {
+        AgentRuntime::Acp { backend: selected } if selected == backend => {}
+        _ => return Err(acp_option_error("agent runtime does not match selected ACP backend")),
+    }
+    let skills = crate::skills::load_skills_with_config(cwd, cfg);
+    let mcp = crate::tools::mcp_common::load_resolved_acp_config_from(cwd)
+        .await
+        .map_err(super::to_api_error)?;
+    let ceiling =
+        crate::agent::native_permission_ceiling(key).await.map_err(super::to_api_error)?;
+    let context = DefaultsContext {
+        skills: skills.iter().map(|skill| (skill.invocation_name().to_string(), true)).collect(),
+        mcp: mcp
+            .mcp_servers
+            .iter()
+            .map(|server| {
+                (
+                    crate::tools::mcp_common::server_name(server).to_string(),
+                    crate::tools::mcp_common::management_for_server(&mcp, server).enabled,
+                )
+            })
+            .collect(),
+        permission_ceiling: ceiling,
+    };
+    let effective = resolve(
+        agent,
+        &DefaultSelection::default(),
+        &DefaultSelection {
+            skills: Some(agent.allowed_skills.clone()),
+            mcp: Some(
+                context
+                    .mcp
+                    .iter()
+                    .filter(|(_, enabled)| **enabled)
+                    .map(|(id, _)| id.clone())
+                    .collect(),
+            ),
+            ..Default::default()
+        },
+        &context,
+    )
+    .map_err(super::to_api_error)?;
+    // ACP has no portable per-tool/path permission policy. Only an unconditional deny
+    // can be represented without weakening the host policy; reject other fixed policies.
+    if let AgentDefault::Fixed(permission) = &agent.defaults.permission {
+        if permission != &serde_json::json!({"*":"deny"}) {
+            return Err(acp_option_error(
+                "ACP does not support this fixed permission policy; only unconditional deny is supported",
+            ));
+        }
+        parsed.permission_mode = Some(PermissionMode::DenyAll);
+        parsed.full_access = false;
+    }
+    parsed.mcp_servers = mcp
+        .mcp_servers
+        .into_iter()
+        .filter(|server| {
+            effective.mcp.iter().any(|id| id == crate::tools::mcp_common::server_name(server))
+        })
+        .collect();
+    let mut messages = messages
+        .as_array()
+        .cloned()
+        .ok_or_else(|| acp_option_error("ACP messages must be an array"))?;
+    let mut append_system = |content: String| {
+        if !messages
+            .iter()
+            .any(|message| message["role"] == "system" && message["content"] == content)
+        {
+            messages.push(serde_json::json!({"role":"system","content":content}));
+        }
+    };
+    if let Some(rule) = effective.system_prompt.as_ref().filter(|rule| !rule.trim().is_empty()) {
+        append_system(rule.clone());
+    }
+    for id in &effective.skills {
+        if effective.permission_action("skill", id) == crate::permission::next::Action::Deny {
+            return Err(acp_option_error("default skill is denied by permission policy"));
+        }
+        let skill = skills
+            .iter()
+            .find(|skill| skill.invocation_name() == *id)
+            .ok_or_else(|| acp_option_error("default skill is unavailable"))?;
+        let source = skill
+            .location
+            .as_ref()
+            .ok_or_else(|| acp_option_error("default skill has no local source"))?;
+        let record = crate::skills::InvokedSkillRecord::new(id, source, None)
+            .map_err(super::to_api_error)?;
+        if !record.is_authorized_by(skill) {
+            return Err(acp_option_error(
+                "default skill is not authorized for automatic invocation",
+            ));
+        }
+        let replay = record.replay().map_err(super::to_api_error)?;
+        if !replay.allowed_tools.is_empty() || replay.model.is_some() || replay.effort.is_some() {
+            return Err(acp_option_error(
+                "ACP default skill requires unsupported invocation options",
+            ));
+        }
+        append_system(replay.content);
+    }
+    Ok(Value::Array(messages))
 }
 #[cfg(test)]
 #[path = "config_tests.rs"]

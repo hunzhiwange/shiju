@@ -277,3 +277,177 @@ async fn acp_model_source_launch_profile_production_request_rejects_unverified_d
         other => panic!("unexpected production result: {other:?}"),
     }
 }
+
+#[cfg(unix)]
+#[tokio::test]
+async fn agent_acp_defaults_reject_unsupported_mode() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let temp = tempfile::tempdir().unwrap();
+    let script = temp.path().join("peer.py");
+    let capture = temp.path().join("requests.jsonl");
+    std::fs::write(&script, r#"
+import json, sys
+for line in sys.stdin:
+    r=json.loads(line)
+    if 'method' not in r or 'id' not in r: continue
+    with open(sys.argv[1],'a') as f: f.write(line)
+    result = {'protocolVersion':1,'agentCapabilities':{},'authMethods':[]} if r['method']=='initialize' else {'sessionId':'defaults'} if r['method']=='session/new' else {}
+    print(json.dumps({'jsonrpc':'2.0','id':r['id'],'result':result}),flush=True)
+"#).unwrap();
+    let client = vw_acp::AcpClient::new(
+        "defaults",
+        vw_acp::AcpAgentConfig {
+            command: "python3".into(),
+            args: vec![script.display().to_string(), capture.display().to_string()],
+            env: Default::default(),
+        },
+    );
+    let session = client.create_session(temp.path()).await.unwrap();
+    let error =
+        super::apply_default_mode(&client, &session.session_id, temp.path(), "unadvertised".into())
+            .await
+            .unwrap_err();
+    assert!(error.to_string().contains("ACP session mode is not advertised: unadvertised"));
+    client.close().await.unwrap();
+    let requests = std::fs::read_to_string(capture).unwrap();
+    assert!(!requests.contains("session/set_mode"));
+    assert!(!requests.contains("session/prompt"));
+}
+
+#[tokio::test]
+async fn agent_acp_defaults_resolve_scoped_skills_and_reject_unsupported_permission() {
+    let _env = crate::test_support::global_async_env_lock().lock().await;
+    let _fixture = crate::session::llm::recovery_test_support::RecoveryConfig::new(
+        "https://example.test/v1",
+        None,
+    )
+    .await;
+    let temp = tempfile::tempdir().unwrap();
+    let skill_dir = temp.path().join("skills/selected");
+    std::fs::create_dir_all(&skill_dir).unwrap();
+    std::fs::write(
+        skill_dir.join("SKILL.md"),
+        "---\nname: selected\ndescription: fixture\n---\nSCOPED_SKILL_CONTENT\n",
+    )
+    .unwrap();
+    let mut cfg = crate::config::Config::default();
+    cfg.agents.insert(
+        "acp-codex".into(),
+        serde_json::from_value(json!({
+            "provider":"", "model":"", "system_prompt":"TRUSTED_AGENT_RULE", "defaults":{
+                "skills":{"mode":"fixed","value":["selected"]},
+                "mcp":{"mode":"fixed","value":[]}
+            }
+        }))
+        .unwrap(),
+    );
+    let options = json!({"agent":"acp-codex", "mcp_servers":[{"name":"UNTRUSTED"}]});
+    let messages = json!([{"role":"user","content":"hello"}]);
+    let mut parsed = super::super::ParsedAcpOptions::default();
+    let resolved = super::super::config::apply_agent_defaults(
+        &cfg,
+        &options,
+        "codex",
+        temp.path(),
+        &mut parsed,
+        &messages,
+    )
+    .await
+    .unwrap();
+    assert!(parsed.mcp_servers.is_empty());
+    let prompt = super::super::replay::build_request_prompt(
+        &resolved,
+        false,
+        super::super::AcpReplayStrategy::Discard,
+        3,
+    );
+    assert_eq!(prompt.matches("TRUSTED_AGENT_RULE").count(), 1);
+    assert_eq!(prompt.matches("SCOPED_SKILL_CONTENT").count(), 1);
+    let again = super::super::config::apply_agent_defaults(
+        &cfg,
+        &options,
+        "codex",
+        temp.path(),
+        &mut parsed,
+        &resolved,
+    )
+    .await
+    .unwrap();
+    assert_eq!(resolved, again);
+    crate::config::update(json!({"mcpServers":[{"name":"selected-mcp","command":"fixture-mcp"}]}))
+        .await
+        .unwrap();
+    cfg.agents.get_mut("acp-codex").unwrap().defaults.mcp =
+        vw_config_types::agent::AgentDefault::Fixed(vec!["selected-mcp".into()]);
+    super::super::config::apply_agent_defaults(
+        &cfg,
+        &options,
+        "codex",
+        temp.path(),
+        &mut parsed,
+        &messages,
+    )
+    .await
+    .unwrap();
+    assert_eq!(parsed.mcp_servers.len(), 1);
+    assert_eq!(crate::tools::mcp_common::server_name(&parsed.mcp_servers[0]), "selected-mcp");
+    crate::config::update_project(
+        temp.path(),
+        json!({"mcpServerOverrides":[{"name":"selected-mcp","enabled":false}]}),
+    )
+    .await
+    .unwrap();
+    let error = super::super::config::apply_agent_defaults(
+        &cfg,
+        &options,
+        "codex",
+        temp.path(),
+        &mut parsed,
+        &messages,
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("MCP capability is disabled"));
+    cfg.agents.get_mut("acp-codex").unwrap().defaults.mcp =
+        vw_config_types::agent::AgentDefault::Fixed(vec![]);
+    std::fs::write(crate::skills::local_skill_disabled_marker_path(&skill_dir), "").unwrap();
+    assert!(
+        super::super::config::apply_agent_defaults(
+            &cfg,
+            &options,
+            "codex",
+            temp.path(),
+            &mut parsed,
+            &messages
+        )
+        .await
+        .is_err()
+    );
+    let agent = cfg.agents.get_mut("acp-codex").unwrap();
+    agent.defaults.skills = vw_config_types::agent::AgentDefault::Fixed(vec![]);
+    agent.defaults.permission = vw_config_types::agent::AgentDefault::Fixed(json!({"*":"allow"}));
+    let error = super::super::config::apply_agent_defaults(
+        &cfg,
+        &options,
+        "codex",
+        temp.path(),
+        &mut parsed,
+        &messages,
+    )
+    .await
+    .unwrap_err();
+    assert!(error.to_string().contains("ACP does not support this fixed permission policy"));
+    cfg.agents.get_mut("acp-codex").unwrap().defaults.permission =
+        vw_config_types::agent::AgentDefault::Fixed(json!({"*":"deny"}));
+    super::super::config::apply_agent_defaults(
+        &cfg,
+        &options,
+        "codex",
+        temp.path(),
+        &mut parsed,
+        &messages,
+    )
+    .await
+    .unwrap();
+    assert_eq!(parsed.permission_mode, Some(vw_acp::PermissionMode::DenyAll));
+}

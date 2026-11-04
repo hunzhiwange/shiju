@@ -288,3 +288,23 @@ Starting job；未有可下载完成报告。该运行跳过 measure/lto，不�
 该默认分支变更需要维护者决策；不得为获得命中而降低保护、扩大缓存写入权限。
 真实 Developer ID 签名、公证和 stapling 留待下一次授权发布，绝不以 ad-hoc 或模拟
 故障测试宣称已通过真实外部服务。仍须补齐 ARM64 Windows 原生行为及全部包内容核验。
+
+
+## 最新验收范围：仅 macOS
+
+用户已明确取消本计划 Windows/Linux 验证要求。前述六平台入口及缺口为历史记录，
+不再作为当前完成门槛。`experiment=dist` 矩阵现仅 Intel Mac（macos-15-intel，
+x86_64-apple-darwin）与 Apple Silicon（macos-14，aarch64-apple-darwin），沿用
+预构建二进制生成 ad-hoc App/ZIP/DMG；无需等待 Windows/Linux 产物。
+LTO/precise 为此前候选实验，独立任务管理；当前打包回归只选择 dist。
+
+本地 Mac 相关聚焦回归：测量器 11、工具安装 3、签名/公证故障模拟 16 项，合计 30 项
+通过，退出码均 0；shell 语法通过。最新共享工作区 Clippy 退出 0，24.86 秒，
+视频任务 Rust 编译错误未再出现。无真实 Developer ID 公证成功声明。
+
+剩余真实证据仅为两个 Mac 目标的同提交构建、归档与 App/ZIP/DMG 内容/架构/版本/
+manifest/checksum、冷/热时间及缓存成本。已有 precise Intel Mac 仍在执行，不能当作
+打包回归完成。待其结束后，需将本批受审查提交单独带入基准分支，按固定 SHA 运行
+experiment=dist、cache=off/restore/restore；不推混合业务提交、不擅自合并默认分支。
+可信缓存保存仍受保护默认分支限制，需要维护者决定合入已审查入口并运行；专用分支
+可以完成 Mac 构建/打包回归，但不能自行扩大缓存写权限来伪造冷热净收益。

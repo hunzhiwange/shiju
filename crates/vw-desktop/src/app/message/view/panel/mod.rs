@@ -7,6 +7,8 @@ mod apps;
 mod external;
 mod popovers;
 mod settings;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use settings::start_shutdown;
 mod tabs;
 mod update_notifications;
 mod usage;

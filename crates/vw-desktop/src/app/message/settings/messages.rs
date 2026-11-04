@@ -688,6 +688,12 @@ pub enum GeneralSettingsMessage {
     TestTaskCompletionNotification,
     TaskCompletionNotificationSent(Result<(), String>),
     TaskCompletionNotificationPermissionChecked(Result<(), String>),
+    LaunchAtLoginToggled(bool),
+    LaunchAtLoginSaved(Result<bool, String>),
+    CloseToTrayToggled(bool),
+    TrayTick,
+    TrayShow,
+    TrayQuit,
 }
 
 /// 系统设置页顶层消息。

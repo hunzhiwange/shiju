@@ -29,6 +29,11 @@ pub(super) const GENERAL_TABS: &[SettingsTabDescriptor<GeneralSettingsTab>] = &[
             "语言",
             "应用主题",
             "自动保存",
+            "开机启动",
+            "关闭到托盘",
+            "后台运行",
+            "startup",
+            "tray",
             "preview auto save",
             "通知",
             "任务完成",
@@ -252,6 +257,25 @@ pub fn view(app: &App) -> Element<'_, Message> {
     .menu_style(settings_pick_list_menu_style)
     .width(Length::Fixed(280.0));
 
+    let launch_toggle = checkbox(app.launch_at_login)
+        .label(i18n.__("开机启动"))
+        .on_toggle_maybe((!app.launch_at_login_busy && !cfg!(target_arch = "wasm32")).then_some(
+            |enabled| {
+                Message::Settings(message::SettingsMessage::General(
+                    message::GeneralSettingsMessage::LaunchAtLoginToggled(enabled),
+                ))
+            },
+        ))
+        .style(settings_checkbox_style);
+    let tray_toggle = checkbox(app.close_to_tray)
+        .label(i18n.__("关闭到托盘"))
+        .on_toggle_maybe((!cfg!(target_arch = "wasm32")).then_some(|enabled| {
+            Message::Settings(message::SettingsMessage::General(
+                message::GeneralSettingsMessage::CloseToTrayToggled(enabled),
+            ))
+        }))
+        .style(settings_checkbox_style);
+
     let size_slider =
         slider(10.0..=18.0, app.terminal.font_size, terminal_font_size_changed).width(Length::Fill);
 
@@ -278,6 +302,26 @@ pub fn view(app: &App) -> Element<'_, Message> {
             settings_section_card(i18n.__("界面"), i18n.__("应用外观与预览行为。")),
             settings_section_content(
                 column![
+                    setting_row(
+                        i18n.__("开机启动"),
+                        i18n.__(if cfg!(target_os = "macos") {
+                            "需从打包后的 .app 启用，可在系统设置「通用 → 登录项」查看。"
+                        } else {
+                            "登录系统后自动启动识矩，仅对当前设备生效。"
+                        }),
+                        launch_toggle,
+                    ),
+                    settings_divider(),
+                    setting_row(
+                        i18n.__("关闭到托盘"),
+                        i18n.__(if cfg!(target_os = "macos") {
+                            "点击红色关闭按钮后继续运行；从屏幕顶部菜单栏的识矩图标显示窗口或退出。"
+                        } else {
+                            "关闭主窗口后在后台运行，可从托盘显示窗口或退出。"
+                        }),
+                        tray_toggle,
+                    ),
+                    settings_divider(),
                     setting_row(
                         crate::app::i18n::I18n::new(app.desktop_locale).__("语言"),
                         crate::app::i18n::I18n::new(app.desktop_locale)

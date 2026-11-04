@@ -634,6 +634,9 @@ pub struct App {
     pub(crate) chat_timezone: String,
     pub(crate) task_completion_notification: bool,
     pub(crate) task_completion_notification_saving: bool,
+    pub(crate) launch_at_login: bool,
+    pub(crate) launch_at_login_busy: bool,
+    pub(crate) close_to_tray: bool,
     /// 当前应用的自定义主题 id（配置键 `custom:<id>`）；内置主题时为 `None`
     pub(crate) active_custom_theme_id: Option<String>,
     /// 活动自定义主题的皮肤快照（背景路径与 chrome）；内置主题时为 `None`

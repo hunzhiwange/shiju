@@ -699,6 +699,12 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
     let windows = close_requested_windows(app.main_window_id, app.task_pet_window_id, window_id);
 
     if windows.main_window_id.is_some() {
+        if app.close_to_tray && !app.shutdown_requested {
+            if let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale) {
+                return app.show_error_toast(format!("无法关闭到托盘：{error}"));
+            }
+            return crate::app::desktop_lifecycle::hide_main_window(window_id);
+        }
         #[cfg(not(target_arch = "wasm32"))]
         return start_shutdown(app, window_id);
 
@@ -714,7 +720,7 @@ pub fn close_requested(app: &mut App, window_id: iced::window::Id) -> Task<Messa
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn start_shutdown(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
+pub(crate) fn start_shutdown(app: &mut App, window_id: iced::window::Id) -> Task<Message> {
     if !begin_shutdown(&mut app.shutdown_requested) {
         return Task::none();
     }

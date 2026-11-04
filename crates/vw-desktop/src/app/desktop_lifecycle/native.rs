@@ -1,0 +1,207 @@
+//! 原生资源只在 UI 线程创建、保存和销毁；启动项操作由后台任务调用。
+
+use std::cell::RefCell;
+use std::path::PathBuf;
+
+use crate::app::message::GeneralSettingsMessage;
+use auto_launch::{AutoLaunch, AutoLaunchBuilder};
+use tray_icon::menu::{Menu, MenuEvent, MenuItem};
+use tray_icon::{Icon, TrayIcon, TrayIconBuilder};
+
+const SHOW_ID: &str = "shiju.tray.show";
+const QUIT_ID: &str = "shiju.tray.quit";
+thread_local! {
+    static TRAY: RefCell<Option<TrayIcon>> = const { RefCell::new(None) };
+}
+
+fn legacy_launcher() -> Result<AutoLaunch, String> {
+    let executable = std::env::current_exe().map_err(|err| err.to_string())?;
+    let path = executable.to_str().ok_or("启动程序路径不是有效 UTF-8")?;
+    let mut builder = AutoLaunchBuilder::new();
+    builder.set_app_name(if cfg!(debug_assertions) { "ShiJu-dev" } else { "ShiJu" });
+    builder.set_app_path(path);
+    // 只注册当前用户，不尝试机器级注册或提升权限。
+    #[cfg(windows)]
+    builder.set_windows_enable_mode(auto_launch::WindowsEnableMode::CurrentUser);
+    builder.build().map_err(|err| err.to_string())
+}
+
+// macOS 主应用登录项必须由当前 .app 自身注册，不能指向另一个已安装版本。
+#[cfg(target_os = "macos")]
+fn macos_app_bundle(executable: &std::path::Path) -> Option<&std::path::Path> {
+    let macos = executable.parent()?;
+    let contents = macos.parent()?;
+    let bundle = contents.parent()?;
+    (macos.file_name()? == "MacOS"
+        && contents.file_name()? == "Contents"
+        && bundle.extension()? == "app"
+        && contents.join("Info.plist").is_file())
+    .then_some(bundle)
+}
+
+fn launcher() -> Result<AutoLaunch, String> {
+    #[cfg(target_os = "macos")]
+    {
+        let executable = std::env::current_exe().map_err(|err| err.to_string())?;
+        if macos_app_bundle(&executable).is_none() {
+            return Err("macOS 开机启动需从打包后的 .app 运行；请打开识矩应用后再启用".into());
+        }
+        return AutoLaunchBuilder::new()
+            .set_macos_launch_mode(auto_launch::MacOSLaunchMode::SMAppService)
+            .build()
+            .map_err(|err| err.to_string());
+    }
+    #[cfg(not(target_os = "macos"))]
+    legacy_launcher()
+}
+
+pub(crate) fn launch_at_login_enabled() -> bool {
+    #[cfg(target_os = "macos")]
+    if std::env::current_exe().ok().is_some_and(|path| macos_app_bundle(&path).is_none()) {
+        // 保留旧项的可关闭入口，避免升级后遗留开发目录的启动代理。
+        return legacy_launcher()
+            .and_then(|launcher| launcher.is_enabled().map_err(|err| err.to_string()))
+            .unwrap_or(false);
+    }
+    match launcher().and_then(|launcher| launcher.is_enabled().map_err(|err| err.to_string())) {
+        Ok(enabled) => enabled,
+        Err(error) => {
+            tracing::warn!(%error, "failed to read login launch state");
+            false
+        }
+    }
+}
+
+pub(crate) fn set_launch_at_login(enabled: bool) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    if !enabled {
+        remove_legacy_login_item()?;
+        if std::env::current_exe().ok().is_some_and(|path| macos_app_bundle(&path).is_none()) {
+            return Ok(false);
+        }
+    }
+    let launcher = launcher()?;
+    if enabled { launcher.enable() } else { launcher.disable() }.map_err(|err| err.to_string())?;
+    let actual = launcher.is_enabled().map_err(|err| err.to_string())?;
+    if actual != enabled {
+        return Err("系统尚未启用登录项，请在系统设置 → 通用 → 登录项中检查识矩及其授权".into());
+    }
+    #[cfg(target_os = "macos")]
+    if enabled {
+        remove_legacy_login_item()?;
+    }
+    Ok(actual)
+}
+
+#[cfg(target_os = "macos")]
+fn remove_legacy_login_item() -> Result<(), String> {
+    let legacy = legacy_launcher()?;
+    if legacy.is_enabled().map_err(|err| err.to_string())? {
+        legacy.disable().map_err(|err| err.to_string())?;
+    }
+    Ok(())
+}
+
+fn preference_path() -> Result<PathBuf, String> {
+    crate::app::project_dirs()
+        .map(|dirs| dirs.config_dir().join("desktop-lifecycle.json"))
+        .ok_or_else(|| "无法定位本机配置目录".into())
+}
+
+#[derive(Default, serde::Serialize, serde::Deserialize)]
+struct Preferences {
+    #[serde(default)]
+    close_to_tray: bool,
+}
+
+pub(crate) fn close_to_tray_enabled() -> bool {
+    let result = (|| read_close_to_tray(&preference_path()?))();
+    result.unwrap_or_else(|error: String| {
+        tracing::warn!(%error, "failed to read close-to-tray preference");
+        false
+    })
+}
+
+fn read_close_to_tray(path: &std::path::Path) -> Result<bool, String> {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+        Err(error) => return Err(error.to_string()),
+    };
+    serde_json::from_slice::<Preferences>(&bytes)
+        .map(|prefs| prefs.close_to_tray)
+        .map_err(|err| err.to_string())
+}
+
+pub(crate) fn save_close_to_tray(enabled: bool) -> Result<(), String> {
+    write_close_to_tray(&preference_path()?, enabled)
+}
+
+fn write_close_to_tray(path: &std::path::Path, enabled: bool) -> Result<(), String> {
+    let parent = path.parent().ok_or("本机配置目录无效")?;
+    std::fs::create_dir_all(parent).map_err(|err| err.to_string())?;
+    let mut file = tempfile::NamedTempFile::new_in(parent).map_err(|err| err.to_string())?;
+    serde_json::to_writer(file.as_file_mut(), &Preferences { close_to_tray: enabled })
+        .map_err(|err| err.to_string())?;
+    file.as_file().sync_all().map_err(|err| err.to_string())?;
+    file.persist(path).map_err(|err| err.to_string())?;
+    Ok(())
+}
+
+pub(crate) fn ensure_tray(locale: vw_config_types::ui::DesktopLocale) -> Result<(), String> {
+    TRAY.with(|slot| {
+        let mut slot = slot.borrow_mut();
+        if slot.is_some() {
+            return Ok(());
+        }
+        // 测试工作线程没有原生事件循环，禁止在其上调用 AppKit。
+        #[cfg(all(test, target_os = "macos"))]
+        if unsafe { libc::pthread_main_np() } == 0 {
+            return Err("托盘需要原生 UI 主线程".into());
+        }
+        let i18n = crate::app::i18n::I18n::new(locale);
+        let menu = Menu::new();
+        menu.append(&MenuItem::with_id(SHOW_ID, i18n.__("显示主窗口"), true, None))
+            .map_err(|err| err.to_string())?;
+        menu.append(&MenuItem::with_id(QUIT_ID, i18n.__("退出识矩"), true, None))
+            .map_err(|err| err.to_string())?;
+        let image = image::load_from_memory(include_bytes!(
+            "../../../../../assets/logo/icons.iconset/icon_32x32.png"
+        ))
+        .map_err(|err| err.to_string())?
+        .into_rgba8();
+        let (width, height) = image.dimensions();
+        let icon =
+            Icon::from_rgba(image.into_raw(), width, height).map_err(|err| err.to_string())?;
+        *slot = Some(
+            TrayIconBuilder::new()
+                .with_tooltip("ShiJu")
+                .with_menu(Box::new(menu))
+                .with_icon(icon)
+                .build()
+                .map_err(|err| err.to_string())?,
+        );
+        Ok(())
+    })
+}
+
+pub(crate) fn remove_tray() {
+    TRAY.with(|slot| {
+        slot.borrow_mut().take();
+    });
+}
+
+pub(crate) fn poll_tray() -> Vec<GeneralSettingsMessage> {
+    MenuEvent::receiver()
+        .try_iter()
+        .filter_map(|event| match event.id.as_ref() {
+            SHOW_ID => Some(GeneralSettingsMessage::TrayShow),
+            QUIT_ID => Some(GeneralSettingsMessage::TrayQuit),
+            _ => None,
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[path = "native_tests.rs"]
+mod tests;

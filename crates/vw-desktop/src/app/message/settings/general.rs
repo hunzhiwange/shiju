@@ -27,6 +27,76 @@ pub(super) fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
     };
 
     match message {
+        GeneralSettingsMessage::LaunchAtLoginToggled(enabled) => {
+            if app.launch_at_login_busy || cfg!(target_arch = "wasm32") {
+                return Task::none();
+            }
+            app.launch_at_login_busy = true;
+            return Task::perform(
+                async move {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    {
+                        tokio::task::spawn_blocking(move || {
+                            crate::app::desktop_lifecycle::set_launch_at_login(enabled)
+                        })
+                        .await
+                        .map_err(|err| err.to_string())?
+                    }
+                    #[cfg(target_arch = "wasm32")]
+                    {
+                        crate::app::desktop_lifecycle::set_launch_at_login(enabled)
+                    }
+                },
+                |result| {
+                    Message::Settings(SettingsMessage::General(
+                        GeneralSettingsMessage::LaunchAtLoginSaved(result),
+                    ))
+                },
+            );
+        }
+        GeneralSettingsMessage::LaunchAtLoginSaved(result) => {
+            app.launch_at_login_busy = false;
+            match result {
+                Ok(enabled) => app.launch_at_login = enabled,
+                Err(error) => return app.show_error_toast(format!("设置开机启动失败：{error}")),
+            }
+        }
+        GeneralSettingsMessage::CloseToTrayToggled(enabled) => {
+            if enabled
+                && let Err(error) = crate::app::desktop_lifecycle::ensure_tray(app.desktop_locale)
+            {
+                return app.show_error_toast(format!("无法启用托盘：{error}"));
+            }
+            if let Err(error) = crate::app::desktop_lifecycle::save_close_to_tray(enabled) {
+                if !app.close_to_tray {
+                    crate::app::desktop_lifecycle::remove_tray();
+                }
+                return app.show_error_toast(format!("保存关闭到托盘失败：{error}"));
+            }
+            app.close_to_tray = enabled;
+            if !enabled {
+                crate::app::desktop_lifecycle::remove_tray();
+            }
+        }
+        GeneralSettingsMessage::TrayTick => {
+            return Task::batch(
+                crate::app::desktop_lifecycle::poll_tray().into_iter().map(|message| {
+                    Task::done(Message::Settings(SettingsMessage::General(message)))
+                }),
+            );
+        }
+        GeneralSettingsMessage::TrayShow => {
+            if let Some(id) = app.main_window_id {
+                return crate::app::desktop_lifecycle::show_main_window(id);
+            }
+        }
+        GeneralSettingsMessage::TrayQuit =>
+        {
+            #[cfg(not(target_arch = "wasm32"))]
+            if let Some(id) = app.main_window_id {
+                return crate::app::message::view::panel::start_shutdown(app, id);
+            }
+        }
         GeneralSettingsMessage::LocaleSelected(locale) => {
             app.desktop_locale = locale;
             crate::app::i18n::editor::refresh(app);

@@ -294,6 +294,15 @@ impl App {
             crate::app::wasm_ime::subscription(),
             #[cfg(target_os = "macos")]
             crate::app::native_menu::subscription(),
+            if self.close_to_tray {
+                iced::time::every(std::time::Duration::from_millis(200)).map(|_| {
+                    Message::Settings(message::SettingsMessage::General(
+                        message::GeneralSettingsMessage::TrayTick,
+                    ))
+                })
+            } else {
+                Subscription::none()
+            },
             events,
             terminal_subs,
             question_poll,

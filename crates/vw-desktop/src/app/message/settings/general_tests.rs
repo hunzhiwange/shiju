@@ -112,6 +112,37 @@ fn desktop_language_restores_and_reports_save_failure() {
 }
 
 #[test]
+fn login_launch_failure_preserves_previous_state_and_unlocks_control() {
+    let mut app = App::new().0;
+    app.launch_at_login = true;
+    app.launch_at_login_busy = true;
+    let feedback = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LaunchAtLoginSaved(Err(
+            "access denied".into()
+        ))),
+    );
+    assert!(app.launch_at_login);
+    assert!(!app.launch_at_login_busy);
+    assert!(feedback.units() > 0);
+    let _ = update(
+        &mut app,
+        SettingsMessage::General(GeneralSettingsMessage::LaunchAtLoginSaved(Ok(false))),
+    );
+    assert!(!app.launch_at_login);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[test]
+fn tray_quit_starts_shutdown_even_when_close_to_tray_is_enabled() {
+    let mut app = App::new().0;
+    app.main_window_id = Some(iced::window::Id::unique());
+    app.close_to_tray = true;
+    let _ = update(&mut app, SettingsMessage::General(GeneralSettingsMessage::TrayQuit));
+    assert!(app.shutdown_requested);
+}
+
+#[test]
 fn notification_settings_restore_and_report_delivery_failure() {
     let mut app = App::new().0;
     app.apply_bootstrap_system_settings(vw_config_types::ui::AppSystemSettingsConfig {

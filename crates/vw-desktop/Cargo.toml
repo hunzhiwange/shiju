@@ -69,6 +69,8 @@ vw-shared = { path = "../vw-shared", version = "0.5.19" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 arboard = "3.4"
+auto-launch = "0.6"
+tray-icon = { version = "0.26.1", default-features = false, features = ["ksni"] }
 git2 = { version = "0.21.0", default-features = false, features = ["https", "ssh", "vendored-libgit2", "vendored-openssl"] }
 # Pin the shutdown fix: older builds panic when the terminal channel closes.
 iced_term = { git = "https://github.com/doyouhaobaby/iced_term.git", rev = "4cf92c247879d1cce1b8bdba5dd301d844179ac5" }
@@ -149,5 +151,12 @@ test = false
 [[test]]
 name = "agent-profile-window"
 path = "src/agent_profile_window_main.rs"
+harness = false
+test = false
+
+# 显式运行原生 Dock / 托盘恢复验收，不随默认测试启动窗口。
+[[test]]
+name = "tray-window"
+path = "tests/tray_window.rs"
 harness = false
 test = false

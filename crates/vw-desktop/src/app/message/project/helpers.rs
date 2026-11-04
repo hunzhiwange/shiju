@@ -320,6 +320,26 @@ pub(crate) fn persist_clipboard_image_attachment(
     Ok(target.to_string_lossy().to_string())
 }
 
+/// 网关刷新同时发布纯文件索引和保留空目录的树模型。
+#[derive(Debug, Clone)]
+pub struct FileTreeIndexSnapshot {
+    pub(crate) files: Vec<String>,
+    pub(crate) tree: crate::app::components::file_tree::model::FileTreeNode,
+}
+
+impl FileTreeIndexSnapshot {
+    pub(crate) fn from_dto(base_directory: &str, root: &FileNodeDto) -> Self {
+        let mut files = Vec::new();
+        collect_gateway_file_paths(base_directory, root, &mut files);
+        files.sort();
+        let tree = crate::app::components::file_tree::model::build_file_tree_model_from_dto(
+            base_directory,
+            root,
+        );
+        Self { files, tree }
+    }
+}
+
 /// refresh_file_index 处理当前模块对应的消息或状态转换。
 ///
 /// 参数由调用方提供应用状态、用户输入或后台任务结果；返回值会交给上层消息循环继续处理。
@@ -329,18 +349,18 @@ pub(crate) fn refresh_file_index(app: &App) -> Task<Message> {
         return Task::none();
     };
     // 耗时或平台相关操作交给异步任务，避免阻塞界面消息循环。
-    Task::perform(async move { refresh_file_index_with_fallback(&root).await }, |files| {
-        Message::Project(ProjectMessage::FileIndexReady(files))
-    })
+    Task::perform(
+        async move {
+            let snapshot = refresh_file_index_with_fallback(&root).await;
+            ProjectMessage::FileTreeSnapshotReady { project_path: root, snapshot }
+        },
+        Message::Project,
+    )
 }
 
-async fn refresh_file_index_with_fallback(project_path: &str) -> Vec<String> {
+async fn refresh_file_index_with_fallback(project_path: &str) -> FileTreeIndexSnapshot {
     match refresh_gateway_file_index(project_path).await {
-        Ok(files) if !files.is_empty() => files,
-        Ok(files) => {
-            let fallback = refresh_local_file_index(project_path).await;
-            if fallback.is_empty() { files } else { fallback }
-        }
+        Ok(snapshot) => snapshot,
         Err(error) => {
             if vw_gateway_client::is_gateway_unavailable_error(&error) {
                 tracing::debug!(
@@ -357,7 +377,12 @@ async fn refresh_file_index_with_fallback(project_path: &str) -> Vec<String> {
                     "failed to refresh file index from gateway, falling back to local scan"
                 );
             }
-            refresh_local_file_index(project_path).await
+            let files = refresh_local_file_index(project_path).await;
+            let tree = crate::app::components::file_tree::model::build_file_tree_model(
+                project_path,
+                &files,
+            );
+            FileTreeIndexSnapshot { files, tree }
         }
     }
 }
@@ -503,7 +528,7 @@ pub(crate) async fn resolve_gateway_file_context(
     })
 }
 
-async fn refresh_gateway_file_index(project_path: &str) -> Result<Vec<String>, String> {
+async fn refresh_gateway_file_index(project_path: &str) -> Result<FileTreeIndexSnapshot, String> {
     let client = gateway_client()?;
     let context = resolve_gateway_file_context(project_path).await?;
     let response = client
@@ -514,10 +539,7 @@ async fn refresh_gateway_file_index(project_path: &str) -> Result<Vec<String>, S
             depth: None,
         })
         .await?;
-    let mut files = Vec::new();
-    collect_gateway_file_paths(&context.base_directory, &response.root, &mut files);
-    files.sort();
-    Ok(files)
+    Ok(FileTreeIndexSnapshot::from_dto(&context.base_directory, &response.root))
 }
 
 fn collect_gateway_file_paths(base_directory: &str, node: &FileNodeDto, output: &mut Vec<String>) {

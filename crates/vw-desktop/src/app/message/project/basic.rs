@@ -225,12 +225,33 @@ pub(crate) fn handle(app: &mut App, message: ProjectMessage) -> Option<iced::Tas
             }
             Some(iced::Task::none())
         }
-        ProjectMessage::FileIndexLoaded(result) => {
+        ProjectMessage::FileIndexLoaded { project_path, result } => {
+            if app.project_path.as_deref() != Some(project_path.as_str()) {
+                return Some(iced::Task::none());
+            }
             if let Some(path) = app.project_path.clone() {
-                app.set_file_index(&path, result.files);
+                // 网关快照可能先于本地缓存读取到达，不能用纯文件列表覆盖目录树。
+                if !app.has_file_index(&path) {
+                    app.set_file_index(&path, result.files);
+                }
             }
             if result.needs_refresh && app.project_path.is_some() {
                 return Some(crate::app::message::project::helpers::refresh_file_index(app));
+            }
+            Some(iced::Task::none())
+        }
+        ProjectMessage::FileTreeSnapshotReady { project_path, snapshot } => {
+            app.set_file_tree_snapshot(&project_path, snapshot);
+            if app.project_path.as_deref() != Some(project_path.as_str()) {
+                return Some(iced::Task::none());
+            }
+            if app.file_manager_file_tree_refreshing {
+                app.file_manager_file_tree_refreshing = false;
+                return Some(app.show_localized_toast(
+                    crate::app::state::ToastKind::Success,
+                    "文件树已刷新",
+                    vec![],
+                ));
             }
             Some(iced::Task::none())
         }

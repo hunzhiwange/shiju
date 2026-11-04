@@ -818,3 +818,63 @@ fn project_dto(current_branch: Option<&str>) -> ProjectDto {
         session_count: Some(2),
     }
 }
+
+#[test]
+fn file_tree_empty_directory_snapshot_keeps_only_regular_files_in_index() {
+    let dto = FileNodeDto {
+        path: ".".into(),
+        name: ".".into(),
+        kind: FileNodeKind::Directory,
+        size_bytes: None,
+        children: Some(vec![
+            FileNodeDto {
+                path: "empty/nested".into(),
+                name: "nested".into(),
+                kind: FileNodeKind::Directory,
+                size_bytes: None,
+                children: None,
+            },
+            FileNodeDto {
+                path: "readme.txt".into(),
+                name: "readme.txt".into(),
+                kind: FileNodeKind::File,
+                size_bytes: Some(4),
+                children: None,
+            },
+        ]),
+    };
+    let snapshot = super::FileTreeIndexSnapshot::from_dto("/project", &dto);
+    assert_eq!(snapshot.files, ["/project/readme.txt"]);
+    assert!(snapshot.tree.children["empty"].children.contains_key("nested"));
+    assert_eq!(snapshot.tree.files, ["readme.txt"]);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn file_tree_empty_directory_async_refresh_retains_originating_project() {
+    let directory = tempdir().unwrap();
+    fs::create_dir_all(directory.path().join("empty/nested")).unwrap();
+    fs::write(directory.path().join("readme.txt"), "content").unwrap();
+    let root = directory.path().to_string_lossy().into_owned();
+    let mut app = App::new().0;
+    app.project_path = Some(root.clone());
+    let task = refresh_file_index(&app);
+    app.project_path = Some("/different-project".into());
+    let messages = collect_task_messages(task).await;
+    assert_eq!(messages.len(), 1);
+    let crate::app::Message::Project(super::ProjectMessage::FileTreeSnapshotReady {
+        project_path,
+        snapshot,
+    }) = &messages[0]
+    else {
+        panic!("expected scoped snapshot")
+    };
+    assert_eq!(project_path, &root);
+    assert!(
+        snapshot
+            .files
+            .contains(&directory.path().join("readme.txt").to_string_lossy().into_owned())
+    );
+    assert!(snapshot.files.iter().all(|path| std::path::Path::new(path).is_file()));
+    assert_eq!(fs::read_to_string(directory.path().join("readme.txt")).unwrap(), "content");
+    assert!(directory.path().join("empty/nested").is_dir());
+}

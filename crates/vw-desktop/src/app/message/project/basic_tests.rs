@@ -207,12 +207,13 @@ fn file_index_loaded_without_project_does_not_expose_cached_files() {
 
     let task = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::FileIndexLoaded(
-            crate::app::FileIndexLoadResult {
+        crate::app::message::project::ProjectMessage::FileIndexLoaded {
+            project_path: "/workspace/project".into(),
+            result: crate::app::FileIndexLoadResult {
                 files: vec!["src/main.rs".to_string()],
                 needs_refresh: true,
             },
-        ),
+        },
     );
 
     assert!(task.is_some());
@@ -226,12 +227,13 @@ fn file_index_loaded_for_project_sets_cached_files_without_changing_project() {
 
     let task = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::FileIndexLoaded(
-            crate::app::FileIndexLoadResult {
+        crate::app::message::project::ProjectMessage::FileIndexLoaded {
+            project_path: "/workspace/project".into(),
+            result: crate::app::FileIndexLoadResult {
                 files: vec!["/workspace/project/src/main.rs".to_string()],
                 needs_refresh: false,
             },
-        ),
+        },
     );
 
     assert!(task.is_some());
@@ -246,12 +248,13 @@ fn file_index_loaded_requests_refresh_when_project_exists_and_index_is_stale() {
 
     let task = super::handle(
         &mut app,
-        crate::app::message::project::ProjectMessage::FileIndexLoaded(
-            crate::app::FileIndexLoadResult {
+        crate::app::message::project::ProjectMessage::FileIndexLoaded {
+            project_path: "/workspace/project".into(),
+            result: crate::app::FileIndexLoadResult {
                 files: vec!["/workspace/project/src/main.rs".to_string()],
                 needs_refresh: true,
             },
-        ),
+        },
     );
 
     assert!(task.is_some());
@@ -675,4 +678,134 @@ fn unrelated_project_message_is_not_claimed_by_basic_handler() {
         super::handle(&mut app, crate::app::message::project::ProjectMessage::RecentOverlayClosed);
 
     assert!(task.is_none());
+}
+
+fn empty_directory_snapshot(
+    root: &str,
+    empty: &str,
+) -> super::super::helpers::FileTreeIndexSnapshot {
+    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    super::super::helpers::FileTreeIndexSnapshot::from_dto(
+        root,
+        &FileNodeDto {
+            path: ".".into(),
+            name: ".".into(),
+            kind: FileNodeKind::Directory,
+            size_bytes: None,
+            children: Some(vec![
+                FileNodeDto {
+                    path: empty.into(),
+                    name: empty.into(),
+                    kind: FileNodeKind::Directory,
+                    size_bytes: None,
+                    children: Some(vec![]),
+                },
+                FileNodeDto {
+                    path: "readme.txt".into(),
+                    name: "readme.txt".into(),
+                    kind: FileNodeKind::File,
+                    size_bytes: Some(4),
+                    children: None,
+                },
+            ]),
+        },
+    )
+}
+
+#[test]
+fn file_tree_empty_directory_snapshot_refresh_updates_tree_and_search_without_attachments() {
+    use crate::app::message::project::ProjectMessage;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    app.files = vec!["/attached.txt".into()];
+    app.file_manager_file_tree_refreshing = true;
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::FileTreeSnapshotReady {
+            project_path: "/project".into(),
+            snapshot: empty_directory_snapshot("/project", "empty"),
+        },
+    );
+    assert!(!app.file_manager_file_tree_refreshing);
+    assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
+    assert_eq!(app.current_file_index(), ["/project/readme.txt"]);
+    assert_eq!(app.search_panel_file_cache_results, ["/project/readme.txt"]);
+    assert_eq!(app.files, ["/attached.txt"]);
+    // 晚到的本地纯文件缓存不能抹去网关保留的空目录。
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::FileIndexLoaded {
+            project_path: "/project".into(),
+            result: crate::app::FileIndexLoadResult { files: vec![], needs_refresh: false },
+        },
+    );
+    assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::FileTreeSnapshotReady {
+            project_path: "/project".into(),
+            snapshot: empty_directory_snapshot("/project", "imported"),
+        },
+    );
+    assert!(!app.current_file_tree_model().unwrap().children.contains_key("empty"));
+    assert!(app.current_file_tree_model().unwrap().children.contains_key("imported"));
+}
+
+#[test]
+fn file_tree_empty_directory_old_project_result_only_updates_its_cache() {
+    use crate::app::message::project::ProjectMessage;
+    let mut app = app();
+    app.project_path = Some("/current".into());
+    app.set_file_index("/current", vec!["/current/file.txt".into()]);
+    app.file_manager_file_tree_refreshing = true;
+    let results = app.search_panel_file_cache_results.clone();
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::FileTreeSnapshotReady {
+            project_path: "/old".into(),
+            snapshot: empty_directory_snapshot("/old", "empty"),
+        },
+    );
+    assert_eq!(app.current_file_index(), ["/current/file.txt"]);
+    assert_eq!(app.search_panel_file_cache_results, results);
+    assert!(app.file_manager_file_tree_refreshing);
+    assert!(!app.current_file_tree_model().unwrap().children.contains_key("empty"));
+    app.project_path = Some("/old".into());
+    assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
+    assert_eq!(app.current_file_index(), ["/old/readme.txt"]);
+}
+
+#[test]
+fn file_tree_empty_directory_directory_only_snapshot_is_cached_with_empty_file_index() {
+    use crate::app::message::project::ProjectMessage;
+    let mut app = app();
+    app.project_path = Some("/project".into());
+    let mut snapshot = empty_directory_snapshot("/project", "empty");
+    snapshot.files.clear();
+    snapshot.tree.files.clear();
+    let _ = super::handle(
+        &mut app,
+        ProjectMessage::FileTreeSnapshotReady { project_path: "/project".into(), snapshot },
+    );
+    assert!(app.current_file_index().is_empty());
+    assert!(app.current_file_tree_model().unwrap().children.contains_key("empty"));
+    assert!(app.search_panel_file_cache_results.is_empty());
+}
+
+#[test]
+fn file_tree_empty_directory_old_local_load_does_not_pollute_current_project() {
+    let mut app = app();
+    app.project_path = Some("/current".into());
+    let _ = super::handle(
+        &mut app,
+        crate::app::message::project::ProjectMessage::FileIndexLoaded {
+            project_path: "/old".into(),
+            result: crate::app::FileIndexLoadResult {
+                files: vec!["/old/file.txt".into()],
+                needs_refresh: true,
+            },
+        },
+    );
+    assert!(app.current_file_index().is_empty());
+    assert!(!app.has_file_index("/current"));
 }

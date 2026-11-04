@@ -123,8 +123,15 @@ pub enum ProjectMessage {
     RemoveAttachedFile(String),
     FileUrlChanged(String),
     AddFilePressed,
-    FileIndexLoaded(crate::app::FileIndexLoadResult),
+    FileIndexLoaded {
+        project_path: String,
+        result: crate::app::FileIndexLoadResult,
+    },
     FileIndexReady(Vec<String>),
+    FileTreeSnapshotReady {
+        project_path: String,
+        snapshot: helpers::FileTreeIndexSnapshot,
+    },
     ToggleTreeDir(String),
     OpenFilePressed,
     FileManagerShowChanges(bool),

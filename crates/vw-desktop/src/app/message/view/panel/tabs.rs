@@ -113,7 +113,12 @@ pub fn update(app: &mut App, message: ViewMessage) -> Task<Message> {
                                 .await
                                 .unwrap_or_default()
                             },
-                            |result| Message::Project(ProjectMessage::FileIndexLoaded(result)),
+                            move |result| {
+                                Message::Project(ProjectMessage::FileIndexLoaded {
+                                    project_path: path,
+                                    result,
+                                })
+                            },
                         );
                         return Task::batch(vec![reap_task, reload_task, index_task, git_task]);
                     }

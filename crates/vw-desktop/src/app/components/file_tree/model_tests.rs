@@ -210,3 +210,64 @@ fn build_file_tree_subtree_returns_empty_for_missing_directory() {
 
     assert!(!tree.has_entries());
 }
+
+fn empty_directory_dto(
+    path: &str,
+    children: Vec<vw_gateway_client::vw_api_types::file::FileNodeDto>,
+) -> vw_gateway_client::vw_api_types::file::FileNodeDto {
+    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    FileNodeDto {
+        path: path.into(),
+        name: path.rsplit('/').next().unwrap().into(),
+        kind: FileNodeKind::Directory,
+        size_bytes: None,
+        children: Some(children),
+    }
+}
+#[test]
+fn file_tree_empty_directory_dto_preserves_nested_directories() {
+    let dto = empty_directory_dto(
+        ".",
+        vec![empty_directory_dto("empty", vec![empty_directory_dto("empty/nested", vec![])])],
+    );
+    let tree = super::model::build_file_tree_model_from_dto("/project", &dto);
+    assert!(tree.children["empty"].children.contains_key("nested"));
+    assert!(tree.files.is_empty());
+}
+#[test]
+fn file_tree_empty_directory_empty_root_has_no_entries() {
+    let tree =
+        super::model::build_file_tree_model_from_dto("/project", &empty_directory_dto(".", vec![]));
+    assert!(!tree.has_entries());
+}
+#[test]
+fn file_tree_empty_directory_file_and_directory_names_remain_distinct() {
+    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    let dto = empty_directory_dto(
+        ".",
+        vec![
+            empty_directory_dto("same", vec![]),
+            FileNodeDto {
+                path: "same".into(),
+                name: "same".into(),
+                kind: FileNodeKind::File,
+                size_bytes: Some(1),
+                children: None,
+            },
+        ],
+    );
+    let tree = super::model::build_file_tree_model_from_dto("/project", &dto);
+    assert!(tree.children.contains_key("same"));
+    assert_eq!(tree.files, ["same"]);
+}
+
+#[test]
+fn file_tree_empty_directory_project_named_directory_keeps_its_nested_children() {
+    let dto = empty_directory_dto(
+        ".",
+        vec![empty_directory_dto("project", vec![empty_directory_dto("project/empty", vec![])])],
+    );
+    let tree = super::model::build_file_tree_model_from_dto("/workspace/project", &dto);
+    assert!(tree.children["project"].children.contains_key("empty"));
+    assert!(!tree.children.contains_key("empty"));
+}

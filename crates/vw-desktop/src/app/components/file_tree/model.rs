@@ -220,3 +220,55 @@ pub(crate) fn build_file_tree_subtree(
 ) -> FileTreeNode {
     subtree(&build_file_tree_model(project_root, files), prefix).cloned().unwrap_or_default()
 }
+
+/// 从网关目录节点构建模型，保留没有文件的目录。
+pub(crate) fn build_file_tree_model_from_dto(
+    project_root: &str,
+    root: &vw_gateway_client::vw_api_types::file::FileNodeDto,
+) -> FileTreeNode {
+    use vw_gateway_client::vw_api_types::file::{FileNodeDto, FileNodeKind};
+    fn insert(project_root: &str, dto: &FileNodeDto, tree: &mut FileTreeNode) {
+        // DTO 路径已经相对项目根；不能剥掉恰好与项目同名的目录。
+        let normalized = dto.path.replace('\\', "/");
+        let normalized_root = project_root.replace('\\', "/");
+        let root_prefix = format!("{}/", normalized_root.trim_end_matches('/'));
+        let relative = if normalized == normalized_root {
+            String::new()
+        } else {
+            to_rel("", normalized.strip_prefix(&root_prefix).unwrap_or(&normalized))
+        };
+        let parts = relative.split('/').filter(|part| !part.is_empty()).collect::<Vec<_>>();
+        let mut node = &mut *tree;
+        match dto.kind {
+            FileNodeKind::Directory => {
+                for part in &parts {
+                    node = node.children.entry((*part).to_string()).or_default();
+                }
+                if let Some(children) = &dto.children {
+                    for child in children {
+                        insert(project_root, child, tree);
+                    }
+                }
+            }
+            FileNodeKind::File => {
+                if parts.is_empty() {
+                    return;
+                }
+                for part in &parts[..parts.len() - 1] {
+                    node = node.children.entry((*part).to_string()).or_default();
+                }
+                node.files.push(relative);
+            }
+        }
+    }
+    let mut tree = FileTreeNode::default();
+    insert(project_root, root, &mut tree);
+    fn sort_files(node: &mut FileTreeNode) {
+        node.files.sort();
+        for child in node.children.values_mut() {
+            sort_files(child);
+        }
+    }
+    sort_files(&mut tree);
+    tree
+}

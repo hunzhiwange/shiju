@@ -254,6 +254,21 @@ impl App {
         self.refresh_file_search_cache();
     }
 
+    /// 一次发布网关文件列表和目录树；后台项目结果仅更新自己的缓存。
+    pub(crate) fn set_file_tree_snapshot(
+        &mut self,
+        path: &str,
+        snapshot: crate::app::message::project::helpers::FileTreeIndexSnapshot,
+    ) {
+        self.file_index_cache.insert(path.to_string(), snapshot.files);
+        self.file_tree_model_cache.insert(path.to_string(), snapshot.tree);
+        self.file_index_revision = self.file_index_revision.wrapping_add(1);
+        if self.project_path.as_deref() == Some(path) {
+            self.refresh_search_panel_file_cache();
+            self.refresh_file_search_cache();
+        }
+    }
+
     /// 模块内可见函数，执行 has_file_index 对应的应用流程。
     /// 返回值表达处理结果；失败通过错误值、日志或任务消息显式传递。
     pub(crate) fn has_file_index(&self, path: &str) -> bool {

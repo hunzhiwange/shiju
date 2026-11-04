@@ -519,7 +519,12 @@ impl App {
                         .await
                         .unwrap_or_default()
                 },
-                |result| Message::Project(message::ProjectMessage::FileIndexLoaded(result)),
+                move |result| {
+                    Message::Project(message::ProjectMessage::FileIndexLoaded {
+                        project_path: path,
+                        result,
+                    })
+                },
             );
             Task::batch(vec![
                 open_task,

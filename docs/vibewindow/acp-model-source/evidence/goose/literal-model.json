@@ -1,0 +1,20 @@
+{
+  "passed": true,
+  "requests": [
+    {
+      "model": "selected-model-high",
+      "path": "/v1/chat/completions",
+      "authenticated": true,
+      "tool_results": 0,
+      "auxiliary": false
+    },
+    {
+      "model": "selected-model-high",
+      "path": "/v1/chat/completions",
+      "authenticated": true,
+      "tool_results": 0,
+      "auxiliary": false
+    }
+  ],
+  "errors": 0
+}

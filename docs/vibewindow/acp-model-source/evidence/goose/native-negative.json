@@ -1,0 +1,14 @@
+{
+  "provider-override": {
+    "passed": true,
+    "authorized_requests": 0,
+    "rejected_model_requests": 0,
+    "rpc_rejected": true
+  },
+  "missing-credential": {
+    "passed": true,
+    "authorized_requests": 0,
+    "rejected_model_requests": 8,
+    "rpc_rejected": true
+  }
+}

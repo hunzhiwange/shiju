@@ -1,0 +1,9 @@
+{
+  "agent": "goose",
+  "mode": "cli-local",
+  "evidence_kind": "real-cli",
+  "status": "failed",
+  "passed": false,
+  "platform": "Darwin-arm64",
+  "reason": "offline acceptance execution failed; raw diagnostics withheld"
+}

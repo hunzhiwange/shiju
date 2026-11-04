@@ -1,0 +1,128 @@
+--- a/crates/goose-cli/src/cli.rs
++++ b/crates/goose-cli/src/cli.rs
+@@ -847,0 +848,4 @@
++
++        /// Enforce the process-owned model relay (requires the matching driver).
++        #[arg(long, hide = true)]
++        shiju_model_source: bool,
+@@ -2846,4 +2850,17 @@
+-        Some(Command::Acp {
+-            builtins,
+-            enable_scheduler,
+-        }) => goose::acp::server::run(builtins, enable_scheduler).await,
++        Some(Command::Acp { builtins, enable_scheduler, shiju_model_source }) => {
++            if shiju_model_source {
++                let model = std::env::var("SHIJU_GOOSE_MODEL_LOCK")?;
++                anyhow::ensure!(
++                    !model.is_empty()
++                        && std::env::var("GOOSE_MODEL").as_deref() == Ok(model.as_str())
++                        && std::env::var("GOOSE_PROVIDER").as_deref() == Ok("openai"),
++                    "invalid managed Goose model launch"
++                );
++                goose::config::paths::Paths::prepare_managed_history()?;
++            } else {
++                // Native local mode retains upstream provider/model selection.
++                std::env::remove_var("SHIJU_GOOSE_MODEL_LOCK");
++                std::env::remove_var("SHIJU_GOOSE_HISTORY_ROOT");
++            }
++            goose::acp::server::run(builtins, enable_scheduler).await
++        }
+--- a/crates/goose/src/providers/init.rs
++++ b/crates/goose/src/providers/init.rs
+@@ -261,0 +262,3 @@
++    if std::env::var_os("SHIJU_GOOSE_MODEL_LOCK").is_some() {
++        anyhow::ensure!(name == "openai", "managed Goose cannot change provider");
++    }
+--- a/crates/goose/src/model_config.rs
++++ b/crates/goose/src/model_config.rs
+@@ -27,0 +28,3 @@
++    if let Ok(model) = std::env::var("SHIJU_GOOSE_MODEL_LOCK") {
++        return Ok(("openai".into(), model_config_from_user_config("openai", model)?));
++    }
+@@ -167,0 +171,5 @@
++    let locked_model = std::env::var("SHIJU_GOOSE_MODEL_LOCK").ok();
++    if locked_model.is_some() {
++        anyhow::ensure!(provider_name == "openai", "managed Goose cannot change provider");
++    }
++    let model_name = locked_model.as_deref().unwrap_or(model_name);
+@@ -181 +189,3 @@
+-    if provider_name != goose_providers::azure_foundry::AZURE_FOUNDRY_PROVIDER_NAME {
++    if locked_model.is_none()
++        && provider_name != goose_providers::azure_foundry::AZURE_FOUNDRY_PROVIDER_NAME
++    {
+--- a/crates/goose-providers/src/openai.rs
++++ b/crates/goose-providers/src/openai.rs
+@@ -349,0 +350,3 @@
++        if let Ok(model) = std::env::var("SHIJU_GOOSE_MODEL_LOCK") {
++            payload["model"] = json!(model);
++        }
+@@ -578,0 +582,3 @@
++        if std::env::var_os("SHIJU_GOOSE_MODEL_LOCK").is_some() {
++            return false;
++        }
+@@ -881 +887,6 @@
+-            let payload = self.sanitize_request_for_compat(payload, model_config);
++            let mut payload = self.sanitize_request_for_compat(payload, model_config);
++            // Final wire boundary covers lead/worker, recipe and resumed configs,
++            // including model IDs that resemble reasoning-effort suffixes.
++            if let Ok(model) = std::env::var("SHIJU_GOOSE_MODEL_LOCK") {
++                payload["model"] = json!(model);
++            }
+--- a/crates/goose/src/config/paths.rs
++++ b/crates/goose/src/config/paths.rs
+@@ -8,0 +9,13 @@
++        if matches!(dir_type, DirType::Data | DirType::State)
++            && std::env::var_os("SHIJU_GOOSE_MODEL_LOCK").is_some()
++        {
++            if let Some(base) =
++                Self::validated_path_root(std::env::var_os("SHIJU_GOOSE_HISTORY_ROOT"))
++            {
++                return base.join(match dir_type {
++                    DirType::Data => "data",
++                    DirType::State => "state",
++                    _ => unreachable!(),
++                });
++            }
++        }
+@@ -37,0 +51,41 @@
++    }
++
++    /// Keep native transcripts across request-owned config/key revocation.
++    pub fn prepare_managed_history() -> anyhow::Result<()> {
++        std::env::remove_var("SHIJU_GOOSE_HISTORY_ROOT");
++        let Ok(reference) = std::env::var("VW_ACP_LAUNCH_REFERENCE") else {
++            return Ok(());
++        };
++        let digest = reference
++            .strip_prefix("vw-session-model:")
++            .ok_or_else(|| anyhow::anyhow!("invalid managed Goose reference"))?;
++        anyhow::ensure!(
++            digest.len() == 64
++                && digest.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()),
++            "invalid managed Goose reference"
++        );
++        #[cfg(unix)]
++        {
++            use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
++            let uid = unsafe { libc::geteuid() };
++            let root = std::env::temp_dir().join(format!("shiju-goose-state-{uid}"));
++            let history = root.join(digest);
++            for directory in [&root, &history] {
++                match std::fs::DirBuilder::new().mode(0o700).create(directory) {
++                    Ok(()) => {}
++                    Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
++                    Err(error) => return Err(error.into()),
++                }
++                let metadata = directory.symlink_metadata()?;
++                anyhow::ensure!(
++                    metadata.is_dir()
++                        && metadata.uid() == uid
++                        && metadata.permissions().mode() & 0o777 == 0o700,
++                    "insecure managed Goose transcript directory"
++                );
++            }
++            std::env::set_var("SHIJU_GOOSE_HISTORY_ROOT", history);
++            Ok(())
++        }
++        #[cfg(not(unix))]
++        anyhow::bail!("managed Goose transcript ACL verification unavailable")

@@ -1,0 +1,46 @@
+{
+  "entries": [
+    {
+      "key": "goose",
+      "distribution": {
+        "kind": "native",
+        "release": "1.57.0",
+        "upstream_tag": "v1.57.0",
+        "patch": "v1.57.0-model-lock.patch"
+      },
+      "underlying": {
+        "kind": "same_distribution",
+        "release": "1.57.0"
+      },
+      "installed": {
+        "command": [
+          "goose",
+          "--version"
+        ]
+      },
+      "acp_launch": [
+        "goose",
+        "acp"
+      ],
+      "local_command_candidates": [
+        "goose"
+      ],
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "GOOSE_PATH_ROOT",
+          "files": {
+            "config/config.yaml": "{\"GOOSE_PROVIDER\":\"openai\",\"GOOSE_MODEL\":\"{{model}}\",\"OPENAI_BASE_URL\":\"{{endpoint}}\",\"GOOSE_DISABLE_KEYRING\":true}",
+            "config/secrets.yaml": "{\"OPENAI_API_KEY\":\"{{key}}\"}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "GOOSE_PATH_ROOT",
+          "files": {
+            "config/config.yaml": "{\"GOOSE_PROVIDER\":\"openai\",\"GOOSE_MODEL\":\"{{model}}\",\"OPENAI_BASE_URL\":\"{{endpoint}}\",\"GOOSE_DISABLE_KEYRING\":true}",
+            "config/secrets.yaml": "{\"OPENAI_API_KEY\":\"{{key}}\"}"
+          }
+        }
+      }
+    }
+  ]
+}

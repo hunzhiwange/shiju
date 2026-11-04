@@ -18,6 +18,9 @@ mod manifest_tests;
 pub mod prepare;
 #[cfg(test)]
 mod prepare_tests;
+pub mod segments;
+#[cfg(test)]
+mod segments_tests;
 pub mod transcript;
 #[cfg(test)]
 mod transcript_tests;

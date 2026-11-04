@@ -48,7 +48,7 @@
       "kind": "source",
       "path": "codex-rs/exec-server-protocol/src/protocol.rs",
       "tree": "codex",
-      "sha256": "9fcea3d88e4d2e07cfb6611723e5242571cec3c0071c769dc712b74d9f2881fe"
+      "sha256": "b34b6e3ddd50841ef15e24b64f582bef790090df9719aca0c9c464030437d6c9"
     },
     "codex:codex-rs/utils/plugins/src/plugin_namespace.rs": {
       "kind": "source",
@@ -72,7 +72,7 @@
       "kind": "source",
       "path": "codex-rs/core-plugins/src/loader.rs",
       "tree": "codex",
-      "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7"
+      "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
     },
     "codex:codex-rs/skills/src/parser.rs": {
       "kind": "source",
@@ -132,13 +132,13 @@
       "kind": "source",
       "path": "codex-rs/codex-mcp/src/connection_pool.rs",
       "tree": "codex",
-      "sha256": "8a39feca53cd9bdf9115b29f51e16c9e01d7d50ea9a5a42b0b7a82e9072655fe"
+      "sha256": "451ec056a762648c06f332747663ef394090639ea68f43c4c4b5c4607e038e8d"
     },
     "codex:codex-rs/codex-mcp/src/rmcp_client.rs": {
       "kind": "source",
       "path": "codex-rs/codex-mcp/src/rmcp_client.rs",
       "tree": "codex",
-      "sha256": "096694dd52c0bbd4134de487f74f3e0d018cddc20adacfca46048ca2ddf191fd"
+      "sha256": "441575e72e8a8ceeba7fac4513792f3b4b6e23c21515b55a380fc5f99afcf94c"
     },
     "codex:codex-rs/codex-mcp/src/tools.rs": {
       "kind": "source",
@@ -156,7 +156,7 @@
       "kind": "source",
       "path": "codex-rs/codex-mcp/src/runtime.rs",
       "tree": "codex",
-      "sha256": "120282b123e782efa44260cc126df0ee340544cf0f7fa5d2b5bcf0cf478936e9"
+      "sha256": "1f9a71206ccb016d6ef70450ceca09bf449da1c1ed7b869013f17b636ce930b4"
     },
     "codex:codex-rs/protocol/src/mcp.rs": {
       "kind": "source",
@@ -168,7 +168,7 @@
       "kind": "source",
       "path": "codex-rs/codex-mcp/src/resource_client.rs",
       "tree": "codex",
-      "sha256": "e656d163cc12c970266c0346bfa2ba9099b02c3ca1f35adf78df1b8aeece3058"
+      "sha256": "2f95a1b94ade62fa2883ffe699046c077aad2e56448518599c5116eb00844b40"
     },
     "codex:codex-rs/codex-mcp/src/client_capabilities.rs": {
       "kind": "source",
@@ -852,8 +852,8 @@
           "source": "codex:codex-rs/exec-server-protocol/src/protocol.rs",
           "path": "codex-rs/exec-server-protocol/src/protocol.rs",
           "symbol": "DISCOVERABLE_PLUGIN_MANIFEST_PATHS",
-          "line": 53,
-          "sha256": "9fcea3d88e4d2e07cfb6611723e5242571cec3c0071c769dc712b74d9f2881fe"
+          "line": 55,
+          "sha256": "b34b6e3ddd50841ef15e24b64f582bef790090df9719aca0c9c464030437d6c9"
         }
       ],
       "evidence": {
@@ -1852,8 +1852,8 @@
           "source": "codex:codex-rs/core-plugins/src/loader.rs",
           "path": "codex-rs/core-plugins/src/loader.rs",
           "symbol": "plugin_skill_roots",
-          "line": 939,
-          "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7"
+          "line": 1114,
+          "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
         }
       ],
       "evidence": {
@@ -1874,8 +1874,8 @@
           "source": "codex:codex-rs/core-plugins/src/loader.rs",
           "path": "codex-rs/core-plugins/src/loader.rs",
           "symbol": "load_plugin_skill_inventory",
-          "line": 944,
-          "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7"
+          "line": 1077,
+          "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
         }
       ],
       "evidence": {
@@ -2012,8 +2012,8 @@
           "source": "codex:codex-rs/core-plugins/src/loader.rs",
           "path": "codex-rs/core-plugins/src/loader.rs",
           "symbol": "load_plugin_skill_inventory",
-          "line": 944,
-          "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7"
+          "line": 1077,
+          "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
         }
       ],
       "evidence": {
@@ -2850,8 +2850,8 @@
           "source": "codex:codex-rs/core-plugins/src/loader.rs",
           "path": "codex-rs/core-plugins/src/loader.rs",
           "symbol": "DEFAULT_MCP_CONFIG_FILE",
-          "line": 74,
-          "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7"
+          "line": 76,
+          "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
         }
       ],
       "evidence": {
@@ -2872,8 +2872,8 @@
           "source": "codex:codex-rs/codex-mcp/src/connection_pool.rs",
           "path": "codex-rs/codex-mcp/src/connection_pool.rs",
           "symbol": "McpConnectionPool",
-          "line": 36,
-          "sha256": "8a39feca53cd9bdf9115b29f51e16c9e01d7d50ea9a5a42b0b7a82e9072655fe"
+          "line": 75,
+          "sha256": "451ec056a762648c06f332747663ef394090639ea68f43c4c4b5c4607e038e8d"
         }
       ],
       "evidence": {
@@ -2894,8 +2894,8 @@
           "source": "codex:codex-rs/codex-mcp/src/rmcp_client.rs",
           "path": "codex-rs/codex-mcp/src/rmcp_client.rs",
           "symbol": "mcp_initialize_request_params",
-          "line": 1142,
-          "sha256": "096694dd52c0bbd4134de487f74f3e0d018cddc20adacfca46048ca2ddf191fd"
+          "line": 1351,
+          "sha256": "441575e72e8a8ceeba7fac4513792f3b4b6e23c21515b55a380fc5f99afcf94c"
         }
       ],
       "evidence": {
@@ -2986,7 +2986,7 @@
           "path": "codex-rs/codex-mcp/src/runtime.rs",
           "symbol": "invalidate_resource_caches",
           "line": 504,
-          "sha256": "120282b123e782efa44260cc126df0ee340544cf0f7fa5d2b5bcf0cf478936e9"
+          "sha256": "1f9a71206ccb016d6ef70450ceca09bf449da1c1ed7b869013f17b636ce930b4"
         }
       ],
       "evidence": {
@@ -3104,7 +3104,7 @@
           "path": "codex-rs/codex-mcp/src/resource_client.rs",
           "symbol": "McpResourceReadResult",
           "line": 54,
-          "sha256": "e656d163cc12c970266c0346bfa2ba9099b02c3ca1f35adf78df1b8aeece3058"
+          "sha256": "2f95a1b94ade62fa2883ffe699046c077aad2e56448518599c5116eb00844b40"
         }
       ],
       "evidence": {
@@ -3336,7 +3336,7 @@
           "path": "codex-rs/codex-mcp/src/runtime.rs",
           "symbol": "updated_oauth_credentials_after_auth_failure",
           "line": 615,
-          "sha256": "120282b123e782efa44260cc126df0ee340544cf0f7fa5d2b5bcf0cf478936e9"
+          "sha256": "1f9a71206ccb016d6ef70450ceca09bf449da1c1ed7b869013f17b636ce930b4"
         }
       ],
       "evidence": {
@@ -3403,8 +3403,8 @@
           "source": "codex:codex-rs/core-plugins/src/loader.rs",
           "path": "codex-rs/core-plugins/src/loader.rs",
           "symbol": "load_plugin_hooks",
-          "line": 215,
-          "sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7"
+          "line": 1224,
+          "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
         }
       ],
       "evidence": {
@@ -7951,6 +7951,54 @@
       "symbol_or_assertion": "running async SessionEnd hook synchronously",
       "sha256": "b61b90060075bf60ecad8fea012cfa332526a5badc5c2f541fda61446513d094",
       "executed": false
+    }
+  ],
+  "source_revisions": [
+    {
+      "date": "2026-11-04",
+      "task": 65,
+      "authorization": "User explicitly authorized reviewing these six current codex-main sources and updating the source baseline; plan.md and prompt.md remain read-only.",
+      "basis": "Revalidated registered symbols against current source. Original full contents unavailable; no byte-level old/new diff claimed. Expected behaviors, task mappings and original acceptance evidence unchanged.",
+      "report": "compatibility-report.md",
+      "updated_item_references": 11,
+      "changes": [
+        {
+          "source": "codex:codex-rs/exec-server-protocol/src/protocol.rs",
+          "path": "codex-rs/exec-server-protocol/src/protocol.rs",
+          "previous_sha256": "9fcea3d88e4d2e07cfb6611723e5242571cec3c0071c769dc712b74d9f2881fe",
+          "sha256": "b34b6e3ddd50841ef15e24b64f582bef790090df9719aca0c9c464030437d6c9"
+        },
+        {
+          "source": "codex:codex-rs/core-plugins/src/loader.rs",
+          "path": "codex-rs/core-plugins/src/loader.rs",
+          "previous_sha256": "4563a09ab7ad1f2400cfc71a1d0640d165f321f8c0f8c97e0a24c6494a74aaa7",
+          "sha256": "0c16f0a25e4cb0c210c0d3cad21069d52b12a123273d1fe12bfbf54903b33c39"
+        },
+        {
+          "source": "codex:codex-rs/codex-mcp/src/connection_pool.rs",
+          "path": "codex-rs/codex-mcp/src/connection_pool.rs",
+          "previous_sha256": "8a39feca53cd9bdf9115b29f51e16c9e01d7d50ea9a5a42b0b7a82e9072655fe",
+          "sha256": "451ec056a762648c06f332747663ef394090639ea68f43c4c4b5c4607e038e8d"
+        },
+        {
+          "source": "codex:codex-rs/codex-mcp/src/rmcp_client.rs",
+          "path": "codex-rs/codex-mcp/src/rmcp_client.rs",
+          "previous_sha256": "096694dd52c0bbd4134de487f74f3e0d018cddc20adacfca46048ca2ddf191fd",
+          "sha256": "441575e72e8a8ceeba7fac4513792f3b4b6e23c21515b55a380fc5f99afcf94c"
+        },
+        {
+          "source": "codex:codex-rs/codex-mcp/src/runtime.rs",
+          "path": "codex-rs/codex-mcp/src/runtime.rs",
+          "previous_sha256": "120282b123e782efa44260cc126df0ee340544cf0f7fa5d2b5bcf0cf478936e9",
+          "sha256": "1f9a71206ccb016d6ef70450ceca09bf449da1c1ed7b869013f17b636ce930b4"
+        },
+        {
+          "source": "codex:codex-rs/codex-mcp/src/resource_client.rs",
+          "path": "codex-rs/codex-mcp/src/resource_client.rs",
+          "previous_sha256": "e656d163cc12c970266c0346bfa2ba9099b02c3ca1f35adf78df1b8aeece3058",
+          "sha256": "2f95a1b94ade62fa2883ffe699046c077aad2e56448518599c5116eb00844b40"
+        }
+      ]
     }
   ]
 }

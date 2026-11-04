@@ -1,0 +1,134 @@
+{
+  "agent": "kiro",
+  "mode": "cli-local",
+  "evidence_kind": "real-cli",
+  "status": "passed",
+  "passed": true,
+  "platform": "Darwin-arm64",
+  "diagnostics": {
+    "out_initialize": 5,
+    "initialize_returned": true,
+    "out_new": 1,
+    "sdk_settings_sent": false,
+    "sdk_settings_exists": false,
+    "out_error": true,
+    "in_update": 162,
+    "new_returned": true,
+    "out_prompt": 5,
+    "in_read": 3,
+    "out_resume": 4,
+    "in_error": true,
+    "first_error_code": -32601,
+    "error_session_missing": true,
+    "error_process_exit": false,
+    "error_auth": false,
+    "error_forbidden": false,
+    "error_unsupported": false,
+    "error_validation": false,
+    "out_load": 4
+  },
+  "cargo_exit_code": 0,
+  "effective_tests": 1,
+  "failure_locations": [],
+  "requests": {
+    "requests": [
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 0,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 0,
+        "auxiliary": true
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 1,
+        "auxiliary": true
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 2,
+        "auxiliary": true
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 1,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 2,
+        "auxiliary": false
+      },
+      {
+        "model": "acp-fixture-primary",
+        "authenticated": true,
+        "route": "/v1/responses",
+        "tool_results": 2,
+        "auxiliary": false
+      }
+    ],
+    "errors": 0
+  },
+  "flow": {
+    "new": true,
+    "second_turn": true,
+    "cancel": true,
+    "restart": true,
+    "switch": true,
+    "isolated": true,
+    "handshake": true,
+    "mode": "cli-local",
+    "requires_auxiliary": true
+  },
+  "command": [
+    "cargo",
+    "test",
+    "-p",
+    "vw-agent",
+    "--lib",
+    "--all-features",
+    "acp_model_source_real_cli_cli_local",
+    "--",
+    "--ignored",
+    "--nocapture",
+    "--test-threads=1"
+  ],
+  "cargo_target_dir": "<repository>/target/rust-slot-3",
+  "note": "Original local report retains the absolute Cargo target path; this copy omits host-specific paths."
+}

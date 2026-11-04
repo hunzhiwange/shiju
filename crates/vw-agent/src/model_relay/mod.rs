@@ -35,3 +35,5 @@ mod gemini_tests;
 
 mod gemini;
 mod gemini_stream;
+
+mod kiro;

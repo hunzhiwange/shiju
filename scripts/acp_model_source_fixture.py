@@ -8,6 +8,7 @@ import time
 import urllib.parse
 from urllib.parse import urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from acp_model_source_kiro_fixture import KiroFixtureMixin
 
 
 class ModelFixture:
@@ -24,12 +25,14 @@ class ModelFixture:
         self.read_path = "challenge.txt"
         self.second_read_path = None
         self.probe_auxiliary = False
+        self.kiro_controls = False
         self.auxiliary_profile = "general-purpose"
         self.auxiliary_model = "haiku"
         self.models = ("acp-fixture-primary", "acp-fixture-switched")
         fixture = self
 
-        class Handler(BaseHTTPRequestHandler):
+        class Handler(KiroFixtureMixin, BaseHTTPRequestHandler):
+            model_fixture = fixture
             def log_message(self, *_args):
                 pass
 
@@ -63,11 +66,14 @@ class ModelFixture:
                     return None
                 for raw in body.get("tools", []):
                     tool = raw.get("function", raw)
-                    if tool.get("name", "").lower() not in ("agent", "task"):
+                    if tool.get("name", "").lower() not in ("agent", "task", "invoke_sub_agent"):
                         continue
                     properties = tool.get("parameters", tool.get("input_schema", {})).get("properties", {})
                     inputs = {"description": "Read offline challenge", "subagent_type": fixture.auxiliary_profile,
                               "prompt": "AUXILIARY_CHILD: Read " + fixture.read_path + " and " + (fixture.second_read_path or fixture.read_path) + " using your Read tool, then return their contents."}
+                    if tool.get("name") == "invoke_sub_agent":
+                        inputs = {"name": "general-task-execution", "prompt": inputs["prompt"],
+                                  "explanation": "Read the offline challenge with the native child", "contextFiles": []}
                     if "model" in properties and fixture.auxiliary_model is not None:
                         inputs["model"] = fixture.auxiliary_model
                     return {"name": tool["name"], "input": inputs}
@@ -128,6 +134,10 @@ class ModelFixture:
                     if self.path.startswith("/v1beta/models/"):
                         return self.gemini_reply(body)
                     route = urlsplit(self.path).path
+                    if route == "/" and fixture.kiro_controls:
+                        return self.kiro_control(body)
+                    if route == "/v1/responses":
+                        return self.responses_reply(body)
                     if route in ("/v1/messages", "/v1/messages/count_tokens"):
                         return self.messages_reply(body, route)
                     model = body.get("model")
@@ -296,7 +306,7 @@ def successful(evidence, flow):
     models = {r.get("model") for r in records}
     return (evidence.get("errors") == 0 and len(records) >= 4
             and models == ({"acp-fixture-primary"} if flow.get("mode") == "cli-local" else {"acp-fixture-primary", "acp-fixture-switched"})
-            and all(r.get("authenticated") is True and r.get("route") in ("/v1/chat/completions", "/v1/messages",
+            and all(r.get("authenticated") is True and r.get("route") in ("/v1/chat/completions", "/v1/messages", "/v1/responses",
                 "/v1beta/models/" + str(r.get("model")) + ":generateContent",
                 "/v1beta/models/" + str(r.get("model")) + ":streamGenerateContent") for r in records)
             and any(r.get("tool_results", 0) >= 2 for r in records)

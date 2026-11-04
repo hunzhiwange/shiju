@@ -160,7 +160,14 @@ def isolated_environment(entry, directory, fixture, mode):
         with target.open("x") as file:
             os.chmod(target, 0o600)
             file.write(content)
-    return {env_key: str(directory)}
+    environment = {env_key: str(directory)}
+    if entry.get("key") == "kiro":
+        # Fixed reviewed native recipe; arbitrary environment injection is not accepted.
+        environment.update(KIRO_KAS_ENDPOINT=fixture.url, KIRO_KAS_CONTROL_PLANE_ENDPOINT=fixture.url,
+                           KIRO_KAS_REGION="us-east-1", KIRO_API_KEY=values["key"],
+                           KIRO_RUNTIME_DIR=str(directory / "runtime"), KIRO_NO_AUTO_UPDATE="1")
+        fixture.kiro_controls = True
+    return environment
 
 
 def execute_cargo(command, *, env, timeout=1800):
@@ -250,6 +257,12 @@ def run(args):
                 fixture.probe_auxiliary = True
                 fixture.auxiliary_profile = "coder"
                 fixture.auxiliary_model = None
+            if args.agent == "kiro":
+                (root / "challenge-second.txt").write_text(fixture.challenge)
+                fixture.second_read_path = str(root / "challenge-second.txt")
+                fixture.probe_auxiliary = True
+                fixture.auxiliary_profile = "general-task-execution"
+                fixture.auxiliary_model = None
             runtime = root / "entry.json"
             runtime.write_text(json.dumps({"agent": args.agent, "mode": args.mode, "upstream_protocol": upstream_protocol,
                                           "config": config, "isolation_env": native_env, "root": str(root),
@@ -259,7 +272,7 @@ def run(args):
             flow_path = root / "flow.json"
             env.update(VW_ACP_ACCEPTANCE_MANIFEST=str(runtime), VW_ACP_ACCEPTANCE_FLOW=str(flow_path))
             diagnostic_path = root / "diagnostics.json"
-            if args.agent == "claude":
+            if args.agent in ("claude", "kiro"):
                 diagnostic_path.write_text("{}")
                 os.chmod(diagnostic_path, 0o600)
                 env["VW_ACP_ACCEPTANCE_DIAGNOSTICS"] = str(diagnostic_path)
@@ -292,7 +305,7 @@ def run(args):
             flow = {key: raw_flow.get(key) is True for key in
                     ("new", "second_turn", "cancel", "restart", "switch", "isolated", "handshake")}
             flow["mode"] = args.mode
-            flow["requires_auxiliary"] = args.agent in ("claude", "kimi")
+            flow["requires_auxiliary"] = args.agent in ("claude", "kimi", "kiro")
             passed = result.returncode == 0 and exactly_one and successful(evidence, flow)
             report.update(status="passed" if passed else ("handshake-only" if flow.get("handshake") and not evidence["requests"] else "failed"), passed=passed,
                           cargo_exit_code=result.returncode, effective_tests=1 if re.search(r"running 1 test\b", text) else 0,

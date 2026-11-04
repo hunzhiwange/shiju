@@ -334,5 +334,45 @@ class GeminiContract(unittest.TestCase):
                 self.assertEqual(fixture.snapshot()["requests"], [])
 
 
+    def test_kiro_control_does_not_count_as_model_evidence(self):
+        with ModelFixture() as fixture:
+            fixture.kiro_controls = True
+            request = urllib.request.Request(fixture.url, b'{}', {
+                "Authorization": "Bearer " + fixture.key,
+                "x-amz-target": "KiroControlPlaneBearerService.ListAvailableModels"})
+            with urllib.request.urlopen(request) as reply:
+                self.assertEqual(json.load(reply)["defaultModel"]["modelId"], fixture.models[0])
+            self.assertEqual(fixture.snapshot()["requests"], [])
+            self.assertFalse(successful(fixture.snapshot(), {}))
+            request.add_header("Authorization", "Bearer wrong")
+            with self.assertRaises(urllib.error.HTTPError):
+                urllib.request.urlopen(request)
+            self.assertEqual(fixture.snapshot()["requests"], [])
+
+    def test_kiro_responses_calls_native_child_and_read_tools(self):
+        with ModelFixture() as fixture:
+            fixture.probe_auxiliary = True
+            payload = {"model": fixture.models[0], "input": [{"role": "user", "content": "AUXILIARY_PROBE"}],
+                       "tools": [{"type": "function", "name": "invoke_sub_agent", "parameters": {"properties": {}}}]}
+            request = urllib.request.Request(fixture.url + "/v1/responses", json.dumps(payload).encode(),
+                                            {"Authorization": "Bearer " + fixture.key})
+            with urllib.request.urlopen(request) as reply:
+                item = json.load(reply)["output"][0]
+            args = json.loads(item["arguments"])
+            self.assertEqual(item["name"], "invoke_sub_agent")
+            self.assertEqual(args["name"], "general-task-execution")
+            self.assertIn("AUXILIARY_CHILD", args["prompt"])
+            self.assertEqual(fixture.snapshot()["requests"][0]["route"], "/v1/responses")
+
+    def test_responses_rejects_bad_auth_without_model_observation(self):
+        with ModelFixture() as fixture:
+            request = urllib.request.Request(fixture.url + "/v1/responses",
+                json.dumps({"model": fixture.models[0], "input": [{"role": "user", "content": "reply"}]}).encode(),
+                {"Authorization": "Bearer wrong"})
+            with self.assertRaises(urllib.error.HTTPError):
+                urllib.request.urlopen(request)
+            self.assertEqual(fixture.snapshot()["requests"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

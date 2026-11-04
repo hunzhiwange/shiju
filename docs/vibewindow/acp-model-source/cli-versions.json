@@ -1374,7 +1374,7 @@
         "kind": "native",
         "package": null,
         "release": "3.0.0",
-        "release_status": "official_release_metadata_not_executed",
+        "release_status": "official_binary_verified_offline",
         "installer_urls": [
           "https://cli.kiro.dev/install",
           "https://cli.kiro.dev/install.ps1"
@@ -1399,39 +1399,39 @@
       "local_command_candidates": [
         "kiro-cli"
       ],
-      "route": "upstream_blocked",
-      "config_root_candidate": null,
-      "config_priority": "chat.defaultModel 是厂商目录；3.x harness 选择不等于 Provider 注册，隔离入口未证明",
-      "auxiliary_model_routes": "V3/V2 ACP 默认与旧参数触发 V2 的差异须按真实版本核实",
-      "config_isolation_verified": false,
-      "runtime_verified": false,
-      "runtime_evidence_reason": "No ACP model request executed; version-only probe is not model or isolation evidence.",
+      "route": "native_v3_responses_verified",
+      "config_root_candidate": "KIRO_HOME",
+      "config_priority": "3.0.0 V3 private KIRO_HOME settings and KIRO_KAS_ENDPOINT/CONTROL_PLANE_ENDPOINT environment; cli_local retains original native settings",
+      "auxiliary_model_routes": "Native invoke_sub_agent/general-task-execution uses the same bound catalog and Responses relay; 3 real auxiliary requests per source verified on Darwin-arm64",
+      "config_isolation_verified": true,
+      "runtime_verified": true,
+      "runtime_evidence_reason": "Official 3.0.0 Darwin-arm64 binary: session-model 11 requests with both selected models, cli-local 10 requests with native model; both sources include native auxiliary tools, cancellation, restart, restoration and switch proof.",
       "installed": {
         "command": [
           "kiro-cli",
           "--version"
         ],
-        "status": "not_found",
-        "exit_code": null
+        "status": "isolated_native_binary",
+        "exit_code": 0
       },
       "platforms": {
-        "macos": "version-only discovery on current host; no ACP request",
-        "linux": "unverified; package/installer target and ACP must be checked",
-        "windows": "unverified; npm cmd/exe or PowerShell installer differs from Unix; target support not inferred"
+        "macos": "Darwin-arm64 official 3.0.0 ZIP digest verified; both sources and native auxiliary ACP model requests passed",
+        "linux": "Official package metadata only; runtime unverified",
+        "windows": "Official package metadata only; runtime/private ACL unverified"
       },
       "source_urls": [
         "https://kiro.dev/docs/models/",
         "https://kiro.dev/docs/cli/reference/settings/",
         "https://prod.download.cli.kiro.dev/stable/latest/manifest.json"
       ],
-      "follow_up": "task 26: exact CLI model-source adaptation; task 9 isolation; task 10 real offline request proof",
+      "follow_up": "task33: integrate capability publication; Chat/Responses model transports only; Linux/Windows runtime acceptance remains unverified",
       "official_extension_review": {
         "source_urls": [
           "https://kiro.dev/docs/cli/agent-harness/",
           "https://kiro.dev/docs/reference/settings/"
         ],
-        "conclusion": "Official harness selection configures V3/V2 execution, not arbitrary Provider registration. CLI 3.x ACP defaults differ from 2.x; no endpoint/key hook proved.",
-        "runtime_proof": false
+        "conclusion": "Fixed 3.0.0 bundled V3 engine accepts KIRO_KAS_ENDPOINT and KIRO_KAS_CONTROL_PLANE_ENDPOINT; its existing Responses path plus minimal bound control plane completed real isolated offline requests. Generic ACP providers/set is unsupported.",
+        "runtime_proof": true
       },
       "source_link_checks": {
         "https://kiro.dev/docs/models/": {
@@ -1447,8 +1447,8 @@
         "installer_url": "https://cli.kiro.dev/install",
         "installer_sha256": "a8bce4c6b740deb61009e3ad10995ec3027a51e6345025f1a2e5048ffdbf4b84",
         "metadata_http_status": 200,
-        "artifact_downloaded": false,
-        "binary_executed": false,
+        "artifact_downloaded": true,
+        "binary_executed": true,
         "manifest_sha256": "a495ae24a837aa075c2a10124c397b4e8b03ddf7d07138489f6a4993b11fb6ba",
         "published_sha256": "0a8f067c4fe6a23a231aa3a18e3e4332120ef9ed3d2d7b6eea907beb8b4cdd8b",
         "artifact_size": 262568091,
@@ -1463,6 +1463,22 @@
           "x86_64-unknown-linux-musl"
         ],
         "safe_alternative": "Download official standalone ZIP to isolated directory and verify manifest checksum; never run bundled install.sh or mount/install DMG for version inspection."
+      },
+      "offline_acceptance": {
+        "session-model": {
+          "config_root_env": "KIRO_HOME",
+          "upstream_protocol": "chat",
+          "files": {
+            "settings/cli.json": "{\"chat.defaultModel\": \"{{model}}\", \"acp.agentEngine\": \"v3\", \"telemetry.enabled\": false, \"chat.enableAutoAgentUpgrade\": false}"
+          }
+        },
+        "cli-local": {
+          "config_root_env": "KIRO_HOME",
+          "upstream_protocol": "chat",
+          "files": {
+            "settings/cli.json": "{\"chat.defaultModel\": \"{{model}}\", \"acp.agentEngine\": \"v3\", \"telemetry.enabled\": false, \"chat.enableAutoAgentUpgrade\": false}"
+          }
+        }
       }
     },
     {

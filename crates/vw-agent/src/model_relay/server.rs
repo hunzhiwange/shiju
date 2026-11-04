@@ -46,6 +46,7 @@ struct ServerState {
     backend: Arc<dyn RelayBackend>,
     context: crate::project::instance::Context,
     capacity: Arc<Semaphore>,
+    control_capacity: Arc<Semaphore>,
     rate: parking_lot::Mutex<(Instant, u32)>,
 }
 
@@ -77,9 +78,11 @@ impl RelayServer {
             backend,
             context,
             capacity: Arc::new(Semaphore::new(4)),
+            control_capacity: Arc::new(Semaphore::new(8)),
             rate: parking_lot::Mutex::new((Instant::now(), 0)),
         });
         let router = Router::new()
+            .route("/", post(handle))
             .route("/v1/chat/completions", post(handle))
             .route("/v1/messages", post(handle_messages))
             .route("/v1/responses", post(handle_responses))
@@ -181,6 +184,14 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     if !state.binding.accepts(token, &state.binding.identity) {
         return StatusCode::UNAUTHORIZED.into_response();
     }
+    let kiro = state.binding.identity.session.ends_with(":kiro");
+    let kiro_control = kiro && request.uri().path() == "/";
+    let kiro_target = request
+        .headers()
+        .get("x-amz-target")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .to_owned();
     let metadata = gemini && request.method() == axum::http::Method::GET;
     let path = if gemini {
         let resource = request.uri().path().strip_prefix("/v1beta/models/");
@@ -205,6 +216,7 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         }
     } else {
         match request.uri().path() {
+            "/" if kiro_control => "/kiro/control",
             "/v1/chat/completions" => "/v1/chat/completions",
             "/v1/messages" => "/v1/messages",
             "/v1/responses" => "/v1/responses",
@@ -219,7 +231,10 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
     }) {
         return StatusCode::BAD_REQUEST.into_response();
     }
-    let Ok(permit) = state.capacity.clone().try_acquire_owned() else {
+    // Kiro initializes its local catalog/settings concurrently. Keep this bounded
+    // local-only lane separate from the four upstream model request permits.
+    let capacity = if kiro_control { &state.control_capacity } else { &state.capacity };
+    let Ok(permit) = capacity.clone().try_acquire_owned() else {
         return StatusCode::TOO_MANY_REQUESTS.into_response();
     };
     {
@@ -244,6 +259,28 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
         } else {
             serde_json::from_slice(&body).map_err(|_| StatusCode::BAD_REQUEST)?
         };
+        if kiro_control {
+            return crate::session::ui_store::with_tenant_scope(
+                state.binding.identity.tenant.clone(),
+                crate::project::instance::provide_context(state.context.clone(), async {
+                    let model = crate::provider::provider::get_model(
+                        &state.binding.identity.provider,
+                        &state.binding.identity.model,
+                    )
+                    .await
+                    .map_err(|_| StatusCode::FORBIDDEN)?;
+                    if model.status != "active" {
+                        return Err(StatusCode::FORBIDDEN);
+                    }
+                    super::kiro::control(&kiro_target, &json, &state.binding.identity.model)
+                        .map(|value| axum::Json(value).into_response())
+                }),
+            )
+            .await;
+        }
+        if kiro && path == "/v1/responses" {
+            super::kiro::responses(&mut json)?;
+        }
         if gemini {
             let object = json.as_object_mut().ok_or(StatusCode::BAD_REQUEST)?;
             if object
@@ -260,7 +297,7 @@ async fn handle(State(state): State<Arc<ServerState>>, request: Request) -> Resp
                 object.insert("stream".into(), (path == "/v1beta/streamGenerateContent").into());
             }
         }
-        let body = if gemini {
+        let body = if gemini || (kiro && path == "/v1/responses") {
             Bytes::from(serde_json::to_vec(&json).map_err(|_| StatusCode::BAD_REQUEST)?)
         } else {
             body

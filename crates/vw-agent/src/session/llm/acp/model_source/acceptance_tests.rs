@@ -15,6 +15,7 @@ fn accepted(evidence: &Value, mode: &str) -> bool {
             r["authenticated"] == true
                 && (r["route"] == "/v1/chat/completions"
                     || r["route"] == "/v1/messages"
+                    || r["route"] == "/v1/responses"
                     || r["model"].as_str().is_some_and(|model| {
                         r["route"] == format!("/v1beta/models/{model}:generateContent")
                             || r["route"] == format!("/v1beta/models/{model}:streamGenerateContent")
@@ -97,7 +98,9 @@ async fn request(
     let fixture = input.clone();
     let cancellation = async {
         if cancel {
-            for _ in 0..200 {
+            // Native CLI startup and session restoration are part of the enclosing
+            // 60s deadline; cancellation must wait until the model request exists.
+            for _ in 0..1800 {
                 let count = evidence(&fixture).await["requests"].as_array().unwrap().len();
                 if count > before {
                     tx.send(true).unwrap();
@@ -172,8 +175,28 @@ async fn run(mode: &str) {
         serde_json::from_value(input["isolation_env"].clone()).unwrap();
     assert!(!isolation.is_empty(), "native config isolation required");
     assert!(isolation.iter().all(|(key, value)| {
+        let native_value = if input["agent"] == "kiro" {
+            match key.as_str() {
+                "KIRO_KAS_ENDPOINT" | "KIRO_KAS_CONTROL_PLANE_ENDPOINT" => {
+                    Some(value == input["fixture"].as_str().unwrap())
+                }
+                "KIRO_KAS_REGION" => Some(value == "us-east-1"),
+                "KIRO_NO_AUTO_UPDATE" => Some(value == "1"),
+                "KIRO_API_KEY" => Some(
+                    value
+                        == if mode == "cli-local" {
+                            input["key"].as_str().unwrap()
+                        } else {
+                            "offline-native-account-must-not-be-used"
+                        },
+                ),
+                _ => None,
+            }
+        } else {
+            None
+        };
         !matches!(key.to_ascii_uppercase().as_str(), "HOME" | "USERPROFILE" | "PATH")
-            && Path::new(value).starts_with(root)
+            && native_value.unwrap_or_else(|| Path::new(value).starts_with(root))
             && std::env::var(key).is_ok_and(|inherited| inherited == *value)
     }));
     if mode == "cli-local" {
@@ -226,7 +249,7 @@ async fn run(mode: &str) {
         let mut flow = json!({"isolated":true});
         checkpoint(&flow);
         let prompt = "Read challenge.txt twice using your file read tool, then reply.";
-        let first_prompt = if matches!(agent, "claude" | "kimi") {
+        let first_prompt = if matches!(agent, "claude" | "kimi" | "kiro") {
             "AUXILIARY_PROBE: Delegate reading challenge.txt twice to a general-purpose helper, then reply with its contents."
         } else { prompt };
         flow["new"] = json!(request(&input, &model, &info, first_prompt, false).await);
@@ -248,7 +271,7 @@ async fn run(mode: &str) {
                 .any(|r| { r.cwd == root.to_string_lossy() && !r.acp_session_id.is_empty() })
         );
         let observed = evidence(&input).await;
-        if matches!(agent, "claude" | "kimi") {
+        if matches!(agent, "claude" | "kimi" | "kiro") {
             assert!(observed["requests"].as_array().unwrap().iter().any(|request| request["auxiliary"] == true),
                 "auxiliary model did not reach the fixture");
         }

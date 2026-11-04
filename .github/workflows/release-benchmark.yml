@@ -11,7 +11,7 @@ on:
       cache:
         description: 'Rust cache: off for baseline, restore for measured reuse'
         type: choice
-        options: [restore, off]
+        options: [restore, 'off']
         default: restore
 
 permissions:
@@ -308,8 +308,6 @@ jobs:
         include:
           - runner: macos-15-intel
             target: x86_64-apple-darwin
-          - runner: windows-2022
-            target: aarch64-pc-windows-msvc
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 360
     env:

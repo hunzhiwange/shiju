@@ -20,3 +20,12 @@ mod messages;
 mod messages_stream;
 #[cfg(test)]
 mod messages_tests;
+
+#[cfg(test)]
+mod responses_tests;
+
+mod responses;
+mod responses_stream;
+
+#[cfg(test)]
+mod responses_http_tests;

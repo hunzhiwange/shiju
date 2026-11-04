@@ -12,10 +12,11 @@ use tokio_util::sync::CancellationToken;
 /// Resolves current configuration and credentials for every request. Contains no session secrets.
 pub struct ProviderRelayBackend {
     client: reqwest::Client,
+    references: std::sync::Arc<super::responses::References>,
 }
 impl ProviderRelayBackend {
     pub fn new() -> Result<Self, reqwest::Error> {
-        Ok(Self { client: upstream_http_client()? })
+        Ok(Self { client: upstream_http_client()?, references: Default::default() })
     }
 }
 
@@ -105,6 +106,31 @@ fn messages_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
     Ok(url)
 }
 
+fn responses_url(model: &provider::Model) -> Result<reqwest::Url, StatusCode> {
+    let mut url =
+        reqwest::Url::parse(model.api.url.trim()).map_err(|_| StatusCode::UNPROCESSABLE_ENTITY)?;
+    if !matches!(url.scheme(), "http" | "https")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.fragment().is_some()
+        || url.query().is_some()
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    let path = url.path().trim_end_matches('/');
+    if path.ends_with("/messages")
+        || path.ends_with("/chat/completions")
+        || path.contains(":generateContent")
+    {
+        return Err(StatusCode::UNPROCESSABLE_ENTITY);
+    }
+    if !path.ends_with("/responses") {
+        let path = if path.is_empty() { "/v1" } else { path };
+        url.set_path(&format!("{path}/responses"));
+    }
+    Ok(url)
+}
+
 #[async_trait::async_trait]
 impl RelayBackend for ProviderRelayBackend {
     async fn execute(
@@ -118,7 +144,7 @@ impl RelayBackend for ProviderRelayBackend {
         {
             return Err(StatusCode::FORBIDDEN);
         }
-        if !matches!(request.path, "/v1/chat/completions" | "/v1/messages") {
+        if !matches!(request.path, "/v1/chat/completions" | "/v1/messages" | "/v1/responses") {
             return Err(StatusCode::UNPROCESSABLE_ENTITY);
         }
         let info = provider::get_provider(&identity.provider)
@@ -128,8 +154,21 @@ impl RelayBackend for ProviderRelayBackend {
         // Exact catalog key required: API-id alias lookup must not authorize another model.
         let model = info.models.get(&identity.model).ok_or(StatusCode::FORBIDDEN)?;
         let messages_request = request.path == "/v1/messages";
+        let responses_request = request.path == "/v1/responses";
+        let native_responses = responses_request && super::responses::is_native(model);
         let native = messages_request && model.api.adapter == "anthropic";
-        let body = if native {
+        let body = if native_responses {
+            super::responses::native(model, identity, &request.body, &self.references)?
+        } else if responses_request {
+            let input =
+                serde_json::from_slice(&request.body).map_err(|_| StatusCode::BAD_REQUEST)?;
+            let converted = super::responses::to_chat(&input)?;
+            chat::prepare(
+                model,
+                &identity.model,
+                &serde_json::to_vec(&converted).map_err(|_| StatusCode::BAD_REQUEST)?,
+            )?
+        } else if native {
             super::messages::native(model, &identity.model, &request.body)?
         } else if messages_request {
             let input =
@@ -144,7 +183,13 @@ impl RelayBackend for ProviderRelayBackend {
             chat::prepare(model, &identity.model, &request.body)?
         };
         let streaming = body["stream"] == true;
-        let url = if native { messages_url(model)? } else { chat_url(model)? };
+        let url = if native_responses {
+            responses_url(model)?
+        } else if native {
+            messages_url(model)?
+        } else {
+            chat_url(model)?
+        };
         let key = bearer(&info)?;
         let mut headers = axum::http::HeaderMap::new();
         headers.insert(
@@ -182,6 +227,20 @@ impl RelayBackend for ProviderRelayBackend {
         };
         if !response.status().is_success() {
             return Err(StatusCode::BAD_GATEWAY);
+        }
+        if responses_request {
+            return super::responses_stream::response(
+                response,
+                super::responses_stream::Output {
+                    identity: identity.clone(),
+                    native: native_responses,
+                    streaming,
+                    store: native_responses && body["store"] != false,
+                    references: self.references.clone(),
+                },
+                cancel,
+            )
+            .await;
         }
         if messages_request {
             return super::messages_stream::response(

@@ -80,12 +80,16 @@ impl Widget<TestMessage, Theme, RecordingRenderer> for TestContent {
         _theme: &Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
-        _cursor: mouse::Cursor,
+        cursor: mouse::Cursor,
         _viewport: &Rectangle,
     ) {
         renderer.fill_quad(
             renderer::Quad { bounds: layout.bounds(), ..renderer::Quad::default() },
-            Background::Color(iced::Color::BLACK),
+            Background::Color(if cursor.is_over(layout.bounds()) {
+                iced::Color::WHITE
+            } else {
+                iced::Color::BLACK
+            }),
         );
     }
 
@@ -137,6 +141,7 @@ impl<'a> From<TestContent> for Element<'a, TestMessage, Theme, RecordingRenderer
 #[derive(Debug, Default)]
 struct RecordingRenderer {
     fills: Vec<Rectangle>,
+    colors: Vec<Background>,
 }
 
 impl iced::advanced::Renderer for RecordingRenderer {
@@ -148,12 +153,14 @@ impl iced::advanced::Renderer for RecordingRenderer {
 
     fn end_transformation(&mut self) {}
 
-    fn fill_quad(&mut self, quad: renderer::Quad, _background: impl Into<Background>) {
+    fn fill_quad(&mut self, quad: renderer::Quad, background: impl Into<Background>) {
         self.fills.push(quad.bounds);
+        self.colors.push(background.into());
     }
 
     fn reset(&mut self, _new_bounds: Rectangle) {
         self.fills.clear();
+        self.colors.clear();
     }
 
     fn allocate_image(
@@ -418,6 +425,48 @@ fn above_widget_show_flag_and_translation_control_overlay() {
         overlay_node.children()[0].bounds(),
         Rectangle { x: 95.0, y: 18.0, width: 70.0, height: 20.0 }
     );
+}
+
+#[test]
+fn blocking_above_overlay_preserves_hover_with_a_non_interactive_nested_tooltip() {
+    use iced_runtime::user_interface::{Cache, State, UserInterface};
+
+    for (child_interaction, expected) in [
+        (mouse::Interaction::None, mouse::Interaction::Idle),
+        (mouse::Interaction::Pointer, mouse::Interaction::Pointer),
+    ] {
+        let widget = AboveOverlay::new(
+            content(false),
+            overlay_content().with_interaction(child_interaction).with_overlay(),
+        )
+        .show(true)
+        .block_background_events(true);
+        let mut renderer = RecordingRenderer::default();
+        let mut ui =
+            UserInterface::build(widget, Size::new(300.0, 200.0), Cache::new(), &mut renderer);
+        let position = Point::new(20.0, 15.0);
+        let cursor = mouse::Cursor::Available(position);
+        let mut messages = Vec::new();
+        let (state, statuses) = ui.update(
+            &[Event::Mouse(mouse::Event::CursorMoved { position })],
+            cursor,
+            &mut renderer,
+            &mut iced::advanced::clipboard::Null,
+            &mut messages,
+        );
+        assert_eq!(statuses, vec![iced::event::Status::Captured]);
+        assert!(messages.is_empty(), "background content must not receive the event");
+        let State::Updated { mouse_interaction, .. } = state else {
+            panic!("hover should not invalidate the widget tree");
+        };
+        assert_eq!(mouse_interaction, expected);
+        ui.draw(&mut renderer, &Theme::Dark, &renderer::Style::default(), cursor);
+        assert_eq!(
+            renderer.colors,
+            vec![Background::Color(iced::Color::BLACK), Background::Color(iced::Color::WHITE)],
+            "only the foreground popup should render its hover state",
+        );
+    }
 }
 
 #[test]

@@ -15,6 +15,7 @@
 //! - 支持点击外部区域关闭覆盖层（on_close 回调）
 //! - 完全集成到 Iced 的 Widget 和 Overlay 体系中
 
+mod nested;
 mod overlay_element;
 mod widget;
 

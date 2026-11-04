@@ -174,9 +174,13 @@ where
 
         // 组合所有覆盖层元素
         if content.is_some() || above.is_some() {
-            Some(
-                overlay::Group::with_children(content.into_iter().chain(above).collect()).overlay(),
-            )
+            let group =
+                overlay::Group::with_children(content.into_iter().chain(above).collect()).overlay();
+            if self.show && self.block_background_events {
+                Some(super::nested::NestedOverlay::wrap(group))
+            } else {
+                Some(group)
+            }
         } else {
             None
         }

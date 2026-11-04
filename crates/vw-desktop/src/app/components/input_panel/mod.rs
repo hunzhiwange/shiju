@@ -199,6 +199,7 @@ pub(super) fn session_tool_tab_button<'a>(
     if popover_open && active_tab == tab {
         AboveOverlay::new(toggle, session_tool_selector_popover(app))
             .show(true)
+            .block_background_events(true)
             .gap(6.0)
             .on_close(Message::View(message::ViewMessage::ClosePopovers))
             .into()

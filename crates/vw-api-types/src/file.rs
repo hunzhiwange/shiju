@@ -134,9 +134,9 @@ pub struct MoveFileRequest {
     pub worktree_id: Option<WorktreeId>,
     /// 源路径。
     pub from_path: String,
-    /// 目标路径。
+    /// 包含文件或目录名称的完整项目内目标路径；缺少的父目录会自动创建。
     pub to_path: String,
-    /// 是否覆盖已存在目标。
+    /// 是否覆盖已存在的普通文件；目录不支持覆盖。树内拖放必须为 false。
     #[serde(default)]
     pub overwrite: bool,
 }

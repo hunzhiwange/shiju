@@ -623,37 +623,95 @@ async fn file_move_v1(Json(body): Json<MoveFileRequest>) -> Result<Json<Operatio
     let root_directory =
         resolve_file_root(&body.project_id.0, body.worktree_id.as_ref().map(|id| id.0.as_str()))
             .await?;
-    let from_path = body.from_path.clone();
-    let to_path = body.to_path.clone();
-    let overwrite = body.overwrite;
-
-    with_instance(root_directory, move || {
-        Box::pin(async move {
-            let root = PathBuf::from(instance::directory());
-            let from_full = resolve_workspace_path(&root, &from_path)?;
-            let to_full = resolve_workspace_path(&root, &to_path)?;
-
-            if !from_full.exists() {
-                return Err(ApiError::bad_request(format!("file not found: {}", from_path)));
+    tokio::task::spawn_blocking(move || {
+        let root = PathBuf::from(root_directory)
+            .canonicalize()
+            .map_err(|err| ApiError::bad_request(err.to_string()))?;
+        let from_full = resolve_workspace_path(&root, &body.from_path)?;
+        let to_full = resolve_workspace_path(&root, &body.to_path)?;
+        if !from_full.exists() {
+            return Err(ApiError::bad_request(format!("file not found: {}", body.from_path)));
+        }
+        let from = resolve_move_path(&root, &from_full)?;
+        let to = resolve_move_path(&root, &to_full)?;
+        if from == root
+            || to == root
+            || from == to
+            || from.starts_with(&to)
+            || to.starts_with(&from)
+        {
+            return Err(ApiError::bad_request("invalid move: root, equivalent or ancestor paths"));
+        }
+        let source =
+            std::fs::metadata(&from).map_err(|err| ApiError::bad_request(err.to_string()))?;
+        if !source.is_file() && !source.is_dir() {
+            return Err(ApiError::bad_request("unsupported move source"));
+        }
+        match std::fs::metadata(&to) {
+            Ok(target) => {
+                if !body.overwrite {
+                    return Err(ApiError::bad_request(format!(
+                        "path already exists: {}",
+                        body.to_path
+                    )));
+                }
+                if !source.is_file() || !target.is_file() {
+                    return Err(ApiError::bad_request("only regular files support move overwrite"));
+                }
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    if source.dev() == target.dev() && source.ino() == target.ino() {
+                        return Err(ApiError::bad_request(
+                            "source and target refer to the same file",
+                        ));
+                    }
+                }
             }
-            if to_full.exists() && !overwrite {
-                return Err(ApiError::bad_request(format!("path already exists: {}", to_path)));
-            }
-            if let Some(parent) = to_full.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|err| ApiError::bad_request(err.to_string()))?;
-            }
-            if to_full.exists() {
-                remove_existing_path(&to_full, true)?;
-            }
-            std::fs::rename(&from_full, &to_full)
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {}
+            Err(err) => return Err(ApiError::bad_request(err.to_string())),
+        }
+        if let Some(parent) = to.parent() {
+            std::fs::create_dir_all(parent)
                 .map_err(|err| ApiError::bad_request(err.to_string()))?;
-            Ok::<(), ApiError>(())
-        })
+        }
+        // Rename replaces regular files without first deleting the destination. A failed
+        // rename (including cross-filesystem moves) must never fall back to copy/delete.
+        std::fs::rename(&from, &to)
+            .map_err(|err| ApiError::bad_request(format!("move rename failed: {err}")))
     })
-    .await?;
+    .await
+    .map_err(|err| ApiError::internal(format!("file move task failed: {err}")))??;
 
     Ok(Json(OperationAck { ok: true, message: None }))
+}
+
+// Resolve existing ancestors before creating anything. Dangling links and unresolved
+// components fail closed; canonical paths also expose aliases in relationship checks.
+fn resolve_move_path(root: &Path, path: &Path) -> Result<PathBuf, ApiError> {
+    let resolved = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() {
+                return Err(ApiError::bad_request("moving through a symbolic link is unsupported"));
+            }
+            path.canonicalize().map_err(|err| ApiError::bad_request(err.to_string()))?
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            let parent = path.parent().ok_or_else(|| ApiError::bad_request("invalid move path"))?;
+            let name =
+                path.file_name().ok_or_else(|| ApiError::bad_request("invalid move path"))?;
+            let parent = resolve_move_path(root, parent)?;
+            if parent.exists() && !parent.is_dir() {
+                return Err(ApiError::bad_request("move parent is not a directory"));
+            }
+            parent.join(name)
+        }
+        Err(err) => return Err(ApiError::bad_request(err.to_string())),
+    };
+    if !resolved.starts_with(root) {
+        return Err(ApiError::bad_request("path escapes workspace root"));
+    }
+    Ok(resolved)
 }
 
 async fn file_copy_v1(Json(body): Json<CopyFileRequest>) -> Result<Json<OperationAck>, ApiError> {

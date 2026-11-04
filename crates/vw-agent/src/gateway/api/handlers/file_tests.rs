@@ -1041,3 +1041,130 @@ async fn file_root_accepts_registered_primary_and_git_worktree() {
         );
     }
 }
+
+async fn drag_move_request(
+    project: &RegisteredFileProject,
+    from: &str,
+    to: &str,
+    overwrite: bool,
+) -> axum::http::StatusCode {
+    use tower::ServiceExt;
+    router::<()>().oneshot(axum::http::Request::builder().method("POST").uri("/files/move")
+        .header("content-type", "application/json")
+        .body(axum::body::Body::from(serde_json::json!({"project_id": project.0, "from_path": from, "to_path": to, "overwrite": overwrite}).to_string())).unwrap()).await.unwrap().status()
+}
+
+#[tokio::test]
+async fn file_drag_move_rejects_invalid_relationships_without_mutation() {
+    for (from, to) in [
+        ("dir", "dir"),
+        ("dir", "dir/child/new"),
+        ("dir/child", "dir"),
+        (".", "new/root"),
+        ("dir", "."),
+        ("dir", "dir/../dir"),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::create_dir_all(root.join("dir/child")).unwrap();
+        std::fs::write(root.join("dir/child/data"), "preserved").unwrap();
+        let project = RegisteredFileProject::new(root);
+        assert!(!drag_move_request(&project, from, to, true).await.is_success(), "{from} -> {to}");
+        assert_eq!(std::fs::read_to_string(root.join("dir/child/data")).unwrap(), "preserved");
+        assert!(!root.join("dir/child/new").exists());
+        assert!(!root.join("new").exists());
+    }
+}
+
+#[tokio::test]
+async fn file_drag_move_moves_unicode_directory_empty_directory_and_root_file() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    std::fs::create_dir_all(root.join("来源/空目录")).unwrap();
+    std::fs::write(root.join("来源/文件"), "内容").unwrap();
+    let project = RegisteredFileProject::new(root);
+    assert!(drag_move_request(&project, "来源", "新建/目录", false).await.is_success());
+    assert!(!root.join("来源").exists());
+    assert!(root.join("新建/目录/空目录").is_dir());
+    assert!(drag_move_request(&project, "新建/目录/文件", "文件", false).await.is_success());
+    assert_eq!(std::fs::read_to_string(root.join("文件")).unwrap(), "内容");
+    assert!(drag_move_request(&project, "新建/目录/空目录", "空目录", false).await.is_success());
+    assert!(root.join("空目录").is_dir());
+}
+
+#[tokio::test]
+async fn file_drag_move_failures_preserve_source_and_destination() {
+    for (from, to, overwrite) in [
+        ("source", "target", false),
+        ("source", "directory", true),
+        ("directory", "target", true),
+        ("source", "target/child", false),
+        ("missing", "new/child", false),
+        ("source", "source", true),
+    ] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::write(root.join("source"), "source").unwrap();
+        std::fs::write(root.join("target"), "target").unwrap();
+        std::fs::create_dir(root.join("directory")).unwrap();
+        let project = RegisteredFileProject::new(root);
+        assert!(!drag_move_request(&project, from, to, overwrite).await.is_success());
+        assert_eq!(std::fs::read_to_string(root.join("source")).unwrap(), "source");
+        assert_eq!(std::fs::read_to_string(root.join("target")).unwrap(), "target");
+        assert!(root.join("directory").is_dir());
+        assert!(!root.join("new").exists());
+    }
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn file_drag_move_rejects_symlink_alias_and_escape() {
+    let temp = tempfile::tempdir().unwrap();
+    let outside = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    std::fs::create_dir(root.join("dir")).unwrap();
+    std::fs::write(root.join("dir/data"), "preserved").unwrap();
+    std::os::unix::fs::symlink(root.join("dir"), root.join("alias")).unwrap();
+    std::os::unix::fs::symlink(outside.path(), root.join("escape")).unwrap();
+    let project = RegisteredFileProject::new(root);
+    for to in ["alias", "alias/new/child", "escape/new"] {
+        assert!(!drag_move_request(&project, "dir", to, true).await.is_success());
+        assert_eq!(std::fs::read_to_string(root.join("dir/data")).unwrap(), "preserved");
+        assert!(!root.join("dir/new").exists());
+        assert!(!outside.path().join("new").exists());
+    }
+}
+
+#[tokio::test]
+async fn file_drag_move_overwrites_regular_file_without_removing_directories() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    std::fs::write(root.join("source"), "replacement").unwrap();
+    std::fs::write(root.join("target"), "original").unwrap();
+    let project = RegisteredFileProject::new(root);
+    assert!(drag_move_request(&project, "source", "target", true).await.is_success());
+    assert!(!root.join("source").exists());
+    assert_eq!(std::fs::read_to_string(root.join("target")).unwrap(), "replacement");
+    let request: MoveFileRequest = serde_json::from_value(serde_json::json!({
+        "project_id": project.0, "from_path": "target", "to_path": "new"
+    }))
+    .unwrap();
+    assert!(!request.overwrite);
+}
+
+#[cfg(unix)]
+#[tokio::test]
+async fn file_drag_move_rejects_dangling_links_and_hardlink_equivalence() {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path();
+    std::fs::write(root.join("source"), "preserved").unwrap();
+    std::os::unix::fs::symlink(root.join("missing"), root.join("dangling")).unwrap();
+    std::fs::hard_link(root.join("source"), root.join("hardlink")).unwrap();
+    let project = RegisteredFileProject::new(root);
+    for to in ["dangling", "dangling/new", "hardlink"] {
+        assert!(!drag_move_request(&project, "source", to, true).await.is_success());
+        assert_eq!(std::fs::read_to_string(root.join("source")).unwrap(), "preserved");
+        assert!(std::fs::symlink_metadata(root.join("dangling")).unwrap().file_type().is_symlink());
+        assert!(!root.join("missing").exists());
+    }
+}

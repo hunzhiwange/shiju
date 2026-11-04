@@ -2,18 +2,21 @@
 use serde_json::Value;
 use std::sync::{
     Arc,
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicU32, AtomicUsize, Ordering},
 };
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Clone, Debug)]
 pub struct VideoEditRunBudget {
+    active: Arc<AtomicUsize>,
+    peak: Arc<AtomicUsize>,
+    progress: Arc<std::sync::Mutex<crate::workflow::video_edit::assets::VideoAssetProgress>>,
     limit: usize,
     permits: Arc<Semaphore>,
     cancellation: CancellationToken,
     steps: Arc<AtomicU32>,
-    assets: Arc<std::sync::Mutex<std::collections::BTreeMap<String, OwnedSemaphorePermit>>>,
+    assets: Arc<std::sync::Mutex<std::collections::BTreeMap<String, VideoEditPermit>>>,
 }
 impl Default for VideoEditRunBudget {
     fn default() -> Self {
@@ -26,6 +29,9 @@ impl VideoEditRunBudget {
             return Err("video edit concurrency must be an integer in 1..=5".into());
         }
         Ok(Self {
+            active: Default::default(),
+            peak: Default::default(),
+            progress: Default::default(),
             limit,
             permits: Arc::new(Semaphore::new(limit)),
             cancellation: CancellationToken::new(),
@@ -50,6 +56,25 @@ impl VideoEditRunBudget {
     pub fn limit(&self) -> usize {
         self.limit
     }
+    pub(crate) fn peak(&self) -> usize {
+        self.peak.load(Ordering::SeqCst)
+    }
+    fn track(&self, permit: OwnedSemaphorePermit) -> VideoEditPermit {
+        let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+        self.peak.fetch_max(active, Ordering::SeqCst);
+        VideoEditPermit { _permit: permit, active: self.active.clone() }
+    }
+    pub(crate) fn set_asset_progress(
+        &self,
+        progress: crate::workflow::video_edit::assets::VideoAssetProgress,
+    ) {
+        if let Ok(mut current) = self.progress.lock() {
+            *current = progress;
+        }
+    }
+    pub(crate) fn asset_progress(&self) -> crate::workflow::video_edit::assets::VideoAssetProgress {
+        self.progress.lock().map(|p| p.clone()).unwrap_or_default()
+    }
     pub fn cancel(&self) {
         self.cancellation.cancel();
     }
@@ -59,11 +84,14 @@ impl VideoEditRunBudget {
     pub async fn cancelled(&self) {
         self.cancellation.cancelled().await;
     }
-    pub async fn acquire(&self) -> Result<OwnedSemaphorePermit, String> {
+    pub async fn acquire(&self) -> Result<VideoEditPermit, String> {
         tokio::select! {
             biased;
             _ = self.cancelled() => Err("video edit run cancelled".into()),
-            permit = self.permits.clone().acquire_owned() => permit.map_err(|_| "video edit budget closed".into()),
+            permit = self.permits.clone().acquire_owned() => {
+                let permit = permit.map_err(|_| "video edit budget closed".to_string())?;
+                Ok(self.track(permit))
+            },
         }
     }
     pub(crate) async fn reserve_asset(&self, key: &str) -> Result<(), String> {
@@ -88,7 +116,7 @@ impl VideoEditRunBudget {
         }
         match self.permits.clone().try_acquire_owned() {
             Ok(permit) => {
-                assets.insert(key.into(), permit);
+                assets.insert(key.into(), self.track(permit));
                 Ok(true)
             }
             Err(tokio::sync::TryAcquireError::NoPermits) => Ok(false),
@@ -117,3 +145,15 @@ impl VideoEditRunBudget {
 #[cfg(test)]
 #[path = "budget_tests.rs"]
 mod tests;
+
+/// A leaf/remote-job lease keeps precise operation accounting until it is dropped.
+#[derive(Debug)]
+pub struct VideoEditPermit {
+    _permit: OwnedSemaphorePermit,
+    active: Arc<AtomicUsize>,
+}
+impl Drop for VideoEditPermit {
+    fn drop(&mut self) {
+        self.active.fetch_sub(1, Ordering::SeqCst);
+    }
+}

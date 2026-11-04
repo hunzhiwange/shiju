@@ -413,8 +413,11 @@ pub fn tool_workflow_view<'a>(
     let status = tool_status(&value);
     let state = workflow_node_state(status);
     let visual = tool_visual_state(status);
+    let video_progress = video_edit_summary(&value);
     let plan_run_card = plan_run_card_display(i18n, &value);
-    let (title, summary) = if let Some(display) = &plan_run_card {
+    let (title, summary) = if let Some(summary) = video_progress {
+        ("单视频运行，最多五路".into(), summary)
+    } else if let Some(display) = &plan_run_card {
         (display.primary_text.clone(), display.summary_text.clone())
     } else {
         let title = metadata_string(&value, "title");
@@ -505,3 +508,27 @@ pub(crate) fn workflow_node_detail_body(i18n: crate::app::i18n::I18n, value: &Va
 #[cfg(test)]
 #[path = "workflow_view_tests.rs"]
 mod tests;
+
+fn video_edit_summary(value: &Value) -> Option<String> {
+    let p: vw_gateway_client::vw_api_types::workflow::VideoEditProgress =
+        serde_json::from_value(metadata_value(value, "video_edit_progress")?.clone()).ok()?;
+    Some(format!(
+        "{} · 分段 {} · 排队 {} / 运行 {} / 完成 {} / 失败 {} · 峰值 {}/{}\n素材：排队 {} / 运行 {} / 完成 {} / 失败 {}\n本轮模板 {}",
+        p.stage,
+        p.total,
+        p.queued,
+        p.running,
+        p.completed,
+        p.failed,
+        p.peak,
+        p.limit,
+        p.jobs_queued,
+        p.jobs_running,
+        p.jobs_completed,
+        p.jobs_failed,
+        p.template_sha256
+    ))
+}
+#[cfg(test)]
+#[path = "video_edit_tests.rs"]
+mod video_edit_tests;

@@ -16,6 +16,36 @@ pub(super) fn validate(source: &str) -> Result<()> {
                 None => Default::default(),
             };
         let limit = options.max_parallel();
+        // The desktop graph editor adds presentation state, not executable inputs.
+        if let Some(workflow) = root["workflow"].as_object_mut() {
+            for key in ["environment_variables", "conversation_variables"] {
+                if workflow.get(key).and_then(Value::as_array).is_some_and(Vec::is_empty) {
+                    workflow.remove(key);
+                }
+            }
+        }
+        if let Some(graph) = root["workflow"]["graph"].as_object_mut() {
+            graph.remove("viewport");
+        }
+        if let Some(edges) = root["workflow"]["graph"]["edges"].as_array_mut() {
+            for edge in edges {
+                if let Some(object) = edge.as_object_mut() {
+                    for key in ["id", "selected", "zIndex"] {
+                        object.remove(key);
+                    }
+                    if object.get("type").and_then(Value::as_str) == Some("custom") {
+                        object.remove("type");
+                    }
+                    if let Some(data) = object.get_mut("data").and_then(Value::as_object_mut) {
+                        data.remove("sourceType");
+                        data.remove("targetType");
+                        if data.is_empty() {
+                            object.remove("data");
+                        }
+                    }
+                }
+            }
+        }
         let nodes = root["workflow"]["graph"]["nodes"]
             .as_array_mut()
             .ok_or_else(|| anyhow::anyhow!("missing nodes"))?;
@@ -47,13 +77,23 @@ pub(super) fn validate(source: &str) -> Result<()> {
     }
     fn strip_presentation(node: &mut Value) {
         if let Some(object) = node.as_object_mut() {
-            for key in ["position", "positionAbsolute", "width", "height", "selected"] {
+            for key in [
+                "position",
+                "positionAbsolute",
+                "width",
+                "height",
+                "selected",
+                "sourcePosition",
+                "targetPosition",
+                "zIndex",
+            ] {
                 object.remove(key);
             }
         }
         if let Some(data) = node.get_mut("data").and_then(Value::as_object_mut) {
             data.remove("title");
             data.remove("desc");
+            data.remove("selected");
         }
     }
     fn normalize_llm(data: &mut Value) -> Result<()> {
@@ -81,3 +121,7 @@ pub(super) fn validate(source: &str) -> Result<()> {
     );
     Ok(())
 }
+
+#[cfg(test)]
+#[path = "entry_presentation_tests.rs"]
+mod presentation_tests;

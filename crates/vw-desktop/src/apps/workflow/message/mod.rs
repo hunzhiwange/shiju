@@ -19,11 +19,15 @@ use iced::{Point, Task, Vector};
 #[cfg(not(target_arch = "wasm32"))]
 use vw_gateway_client::{WorkflowRecordSummary, WorkflowRecordUpsertBody};
 
+#[cfg(test)]
+mod video_edit_tests;
+
 mod app;
 mod canvas;
 mod document;
 mod node;
 mod run;
+mod video_edit;
 
 #[cfg(test)]
 #[path = "app_tests.rs"]
@@ -64,6 +68,37 @@ fn render_workflow_svg_to_png(svg_data: &str) -> Option<Vec<u8>> {
 
 #[derive(Debug, Clone)]
 pub enum WorkflowMessage {
+    OpenVideoTemplate,
+    ReloadVideoTemplate,
+    ScopedSavedAppsLoaded {
+        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        result: Result<Vec<WorkflowSavedAppSummary>, String>,
+    },
+    VideoTemplateLoaded {
+        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        graph: bool,
+        result: Result<vw_gateway_client::WorkflowRecord, String>,
+    },
+    CloseVideoTemplate,
+    VideoTemplateYamlAction(text_editor::Action),
+    VideoTemplatePathChanged(String),
+    PickVideoTemplatePath,
+    VideoTemplatePathPicked {
+        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        path: Option<String>,
+    },
+    SaveVideoTemplate,
+    RequestVideoTemplateRestore,
+    CancelVideoTemplateRestore,
+    ConfirmVideoTemplateRestore,
+    VideoTemplatePersisted {
+        tenant: vw_gateway_client::vw_api_types::TenantScope,
+        graph: bool,
+        restore: bool,
+        result: Result<vw_gateway_client::WorkflowRecord, String>,
+    },
+    StartNativeVideoEdit,
+
     LoadSavedApps,
     LoadSavedAppsFinished(Result<Vec<WorkflowSavedAppSummary>, String>),
     OpenSavedApp(String),
@@ -75,14 +110,23 @@ pub enum WorkflowMessage {
     CopySavedAppUuid(String),
     ClearCopiedSavedAppUuid(String),
     OpenSavedAppRunPrompt(String),
-    SavedAppRunPromptLoaded { uuid: String, result: Result<Vec<WorkflowRunInputDraft>, String> },
+    SavedAppRunPromptLoaded {
+        uuid: String,
+        result: Result<Vec<WorkflowRunInputDraft>, String>,
+    },
     SavedAppRunQueryChanged(String),
     SavedAppRunInputChanged(usize, String),
     SavedAppRunInputToggled(usize, bool),
     CancelSavedAppRunPrompt,
     SubmitSavedAppRunPrompt,
-    SavedAppRunEvent { uuid: String, event: vw_gateway_client::GatewayWorkflowStreamEvent },
-    SavedAppRunFinished { uuid: String, result: Result<(), String> },
+    SavedAppRunEvent {
+        uuid: String,
+        event: vw_gateway_client::GatewayWorkflowStreamEvent,
+    },
+    SavedAppRunFinished {
+        uuid: String,
+        result: Result<(), String>,
+    },
     CancelSavedAppRun,
     RetrySavedAppRunPreview,
     CloseSavedAppRunPreview,
@@ -96,7 +140,10 @@ pub enum WorkflowMessage {
     CancelDeleteSavedApp,
     DeleteSavedApp(String),
     DeleteSavedAppFinished(Result<String, crate::app::i18n::workflow::Feedback>),
-    OpenInlineYaml { workflow_yaml: String, focus_node_id: Option<String> },
+    OpenInlineYaml {
+        workflow_yaml: String,
+        focus_node_id: Option<String>,
+    },
     OpenFile,
     OpenFileFinished(Result<Option<LoadedWorkflow>, crate::app::i18n::workflow::Feedback>),
     SelectApp(String),
@@ -245,7 +292,10 @@ pub enum WorkflowMessage {
     NodeEditorCodeAction(text_editor::Action),
     NodeEditorCodeDefaultValueAction(text_editor::Action),
     NodeEditorDataAction(text_editor::Action),
-    NodeEditorDslOpenContextMenu { x: f32, y: f32 },
+    NodeEditorDslOpenContextMenu {
+        x: f32,
+        y: f32,
+    },
     NodeEditorDslCloseContextMenu,
     NodeEditorDslUndo,
     NodeEditorDslRedo,
@@ -315,12 +365,18 @@ pub enum WorkflowSaveTarget {
 }
 
 pub fn update(app: &mut App, message: WorkflowMessage) -> Task<Message> {
-    app::handle(app, message.clone())
+    sync_video_tenant(app);
+    video_edit::handle(app, message.clone())
+        .or_else(|| app::handle(app, message.clone()))
         .or_else(|| run::handle(app, message.clone()))
         .or_else(|| node::handle(app, message.clone()))
         .or_else(|| document::handle(app, message.clone()))
         .or_else(|| canvas::handle(app, message))
         .unwrap_or_else(Task::none)
+}
+
+pub(crate) fn sync_video_tenant(app: &mut App) {
+    app.workflow_state.select_tenant(crate::app::session_gateway::active_tenant_scope());
 }
 
 pub(super) fn apply_loaded(app: &mut App, loaded: LoadedWorkflow) {
@@ -339,13 +395,20 @@ pub(crate) fn load_saved_apps_task() -> Task<Message> {
 
     #[cfg(not(target_arch = "wasm32"))]
     {
+        let tenant = crate::app::session_gateway::active_tenant_scope();
+        let client = crate::app::config::gateway_client();
         Task::perform(
             async move {
-                let client = crate::app::config::gateway_client()?;
+                let client = client?;
                 let records = client.workflow_applications_list().await?;
                 Ok(records.into_iter().map(saved_app_summary_from_record).collect())
             },
-            |res| Message::WorkflowTool(WorkflowMessage::LoadSavedAppsFinished(res)),
+            move |result| {
+                Message::WorkflowTool(WorkflowMessage::ScopedSavedAppsLoaded {
+                    tenant: tenant.clone(),
+                    result,
+                })
+            },
         )
     }
 }
@@ -439,6 +502,9 @@ pub(super) fn save_active_app(app: &mut App, force_picker: bool) -> Task<Message
         return Task::none();
     };
 
+    if !force_picker && entry.local_uuid.as_deref() == Some(video_edit::TEMPLATE_ID) {
+        return video_edit::save_graph(app, entry);
+    }
     save_entry(entry, force_picker)
 }
 

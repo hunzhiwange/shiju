@@ -242,6 +242,46 @@ impl GatewayClient {
         self.put_json(&workflow_application_path(uuid)?, &[], body).await
     }
 
+    /// Save the tenant template only if the version opened by the user still exists.
+    pub async fn workflow_template_update(
+        &self,
+        uuid: &str,
+        body: &WorkflowRecordUpsertBody,
+        expected_updated_at_ms: u64,
+    ) -> Result<WorkflowRecord, String> {
+        let path = workflow_application_path(uuid)?;
+        let request = self
+            .client
+            .put(format!("{}{}", self.endpoint.base_url(), path))
+            .header("x-workflow-expected-updated-at-ms", expected_updated_at_ms)
+            .json(body);
+        let response = crate::http::apply_request_context(request, &self.endpoint)
+            .send()
+            .await
+            .map_err(|e| crate::http::transport_error("PUT", &self.endpoint, &path, e))?;
+        crate::http::parse_json_response("PUT", &self.endpoint, &path, response).await
+    }
+
+    /// Explicitly restore the seed using the version shown in the editor.
+    pub async fn workflow_template_restore(
+        &self,
+        uuid: &str,
+        expected_updated_at_ms: u64,
+        confirmed: bool,
+    ) -> Result<WorkflowRecord, String> {
+        let path = format!("{}/restore-default", workflow_application_path(uuid)?);
+        let request = self
+            .client
+            .post(format!("{}{}", self.endpoint.base_url(), path))
+            .header("x-workflow-expected-updated-at-ms", expected_updated_at_ms)
+            .json(&serde_json::json!({"confirmed": confirmed}));
+        let response = crate::http::apply_request_context(request, &self.endpoint)
+            .send()
+            .await
+            .map_err(|e| crate::http::transport_error("POST", &self.endpoint, &path, e))?;
+        crate::http::parse_json_response("POST", &self.endpoint, &path, response).await
+    }
+
     /// 删除本地 Dify Workflow。
     pub async fn workflow_application_delete(
         &self,

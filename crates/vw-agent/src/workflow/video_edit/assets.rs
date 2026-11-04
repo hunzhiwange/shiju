@@ -222,6 +222,7 @@ pub async fn prepare_video_assets(
             })
             .collect();
         save(store, run).await?;
+        budget.set_asset_progress(progress(run));
     }
     let ledger_digests: BTreeSet<_> = run.asset_jobs.iter().map(|j| &j.request.digest).collect();
     ensure!(
@@ -231,6 +232,7 @@ pub async fn prepare_video_assets(
         "asset ledger request mismatch"
     );
     save(store, run).await?;
+    budget.set_asset_progress(progress(run));
     for index in 0..run.asset_jobs.len() {
         if run.asset_jobs[index].state.is_terminal() {
             budget.release_asset(&run.asset_jobs[index].idempotency_key);
@@ -238,6 +240,7 @@ pub async fn prepare_video_assets(
         }
     }
     save(store, run).await?;
+    budget.set_asset_progress(progress(run));
     let old: Vec<_> = run
         .asset_jobs
         .iter()
@@ -261,6 +264,7 @@ pub async fn prepare_video_assets(
         let state = cloud.reconcile(&job).await.unwrap_or(VideoAssetRemoteState::Unknown);
         update(run, index, state)?;
         save(store, run).await?;
+        budget.set_asset_progress(progress(run));
         if !matches!(
             run.asset_jobs[index].state,
             VideoAssetJobState::Unknown | VideoAssetJobState::Running
@@ -268,6 +272,7 @@ pub async fn prepare_video_assets(
             budget.release_asset(&job.idempotency_key);
             retry_failed(run, index);
             save(store, run).await?;
+            budget.set_asset_progress(progress(run));
         }
     }
     check_cancelled(store, run, budget).await?;
@@ -290,6 +295,7 @@ pub async fn prepare_video_assets(
     run.asset_peak = run.asset_peak.max(progress(run).running);
     // Persist intent before side effects. A save failure leaves reservations held, fail closed.
     save(store, run).await?;
+    budget.set_asset_progress(progress(run));
     let results = futures_util::future::join_all(dispatch.iter().map(|&index| {
         let job = &run.asset_jobs[index];
         async move {
@@ -307,6 +313,7 @@ pub async fn prepare_video_assets(
         let idempotency_key = run.asset_jobs[index].idempotency_key.clone();
         update(run, index, state)?;
         save(store, run).await?;
+        budget.set_asset_progress(progress(run));
         if !matches!(
             run.asset_jobs[index].state,
             VideoAssetJobState::Unknown | VideoAssetJobState::Running
@@ -314,6 +321,7 @@ pub async fn prepare_video_assets(
             budget.release_asset(&idempotency_key);
             retry_failed(run, index);
             save(store, run).await?;
+            budget.set_asset_progress(progress(run));
         }
     }
     check_cancelled(store, run, budget).await?;

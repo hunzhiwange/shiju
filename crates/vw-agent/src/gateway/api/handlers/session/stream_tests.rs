@@ -2004,6 +2004,22 @@ async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persis
             collected.output
         );
         assert_eq!(events.last().unwrap()["type"], "chat.done");
+        let progress = events
+            .iter()
+            .filter_map(|e| e.get("payload")?.get("metadata")?.get("video_edit_progress"))
+            .collect::<Vec<_>>();
+        assert!(!progress.is_empty(), "native progress must reach the real chat channel");
+        let last = progress.last().unwrap();
+        assert_eq!(last["stage"], "预览完成");
+        assert!(last["total"].as_u64().unwrap() > 0);
+        assert_eq!(last["completed"], last["total"]);
+        assert_eq!(last["failed"], 0);
+        assert_eq!(
+            last["template_sha256"],
+            seed.load(database.clone(), tenant.clone()).await.unwrap().digest
+        );
+        assert!(last["peak"].as_u64().unwrap() <= 5);
+
         assert!(!project.join(".shiju/workflow_commands.json").exists());
         let scope = crate::session::ui_store::resolve_session_scope_id_for_tenant(
             &tenant,
@@ -2023,22 +2039,41 @@ async fn video_edit_entry_gateway_unbound_projects_template_edit_menu_and_persis
         if index == 1 {
             let current = seed.load(database.clone(), tenant.clone()).await.unwrap();
             assert_eq!(current.digest, initial.digest);
-            save_template(
-                database.clone(),
-                tenant.clone(),
-                vw_api_types::workflow::WorkflowRecordUpsertBody {
-                    uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
-                    name: VIDEO_EDIT_TEMPLATE_NAME.into(),
-                    description: String::new(),
-                    workflow_yaml: current
-                        .record
-                        .workflow_yaml
-                        .replace("给出简洁的全片编辑简报", "EDITED_BRIEF"),
-                },
-                current.record.updated_at_ms,
+            let payload = vw_api_types::workflow::WorkflowRecordUpsertBody {
+                uuid: Some(VIDEO_EDIT_TEMPLATE_UUID.into()),
+                name: VIDEO_EDIT_TEMPLATE_NAME.into(),
+                description: String::new(),
+                workflow_yaml: current
+                    .record
+                    .workflow_yaml
+                    .replace("给出简洁的全片编辑简报", "EDITED_BRIEF"),
+            };
+            let router = crate::gateway::api::handlers::workflow::applications_router()
+                .layer(axum::Extension(tenant.clone()))
+                .layer(axum::Extension(seed.clone()));
+            let path = format!("/workflow/applications/{VIDEO_EDIT_TEMPLATE_UUID}");
+            let request = axum::http::Request::builder()
+                .method("PUT")
+                .uri(&path)
+                .header("content-type", "application/json")
+                .header("x-workflow-expected-updated-at-ms", current.record.updated_at_ms)
+                .body(axum::body::Body::from(serde_json::to_vec(&payload).unwrap()))
+                .unwrap();
+            let response = tower::ServiceExt::oneshot(router.clone(), request).await.unwrap();
+            assert_eq!(response.status(), axum::http::StatusCode::OK);
+            let response = tower::ServiceExt::oneshot(
+                router,
+                axum::http::Request::builder().uri(&path).body(axum::body::Body::empty()).unwrap(),
             )
             .await
             .unwrap();
+            assert_eq!(response.status(), axum::http::StatusCode::OK);
+            let record: vw_api_types::workflow::WorkflowRecord = serde_json::from_slice(
+                &axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap(),
+            )
+            .unwrap();
+            assert_eq!(record.uuid, VIDEO_EDIT_TEMPLATE_UUID);
+            assert!(record.workflow_yaml.contains("EDITED_BRIEF"));
         }
     }
     let edited = seed.load(database.clone(), tenant.clone()).await.unwrap();

@@ -27,6 +27,7 @@ mod node_validation;
 mod start_variable_drafts;
 mod start_variable_validation;
 mod variables;
+pub(crate) mod video_edit;
 mod visual_sync;
 mod yaml_helpers;
 
@@ -746,6 +747,8 @@ pub struct WorkflowCanvasContextMenu {
 
 #[derive(Debug, Default)]
 pub struct WorkflowState {
+    pub tenant_drafts: HashMap<vw_gateway_client::vw_api_types::TenantScope, Box<WorkflowState>>,
+    pub video_edit: video_edit::VideoEditUiState,
     pub apps: Vec<WorkflowAppEntry>,
     pub active_app_id: Option<String>,
     pub saved_apps: Vec<WorkflowSavedAppSummary>,

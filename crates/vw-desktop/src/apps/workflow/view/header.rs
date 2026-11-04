@@ -84,6 +84,13 @@ pub(super) fn build_header(
     .wrap();
 
     let maintenance_actions = row![
+        button(text("剪辑模板 / YAML").size(12))
+            .style(rounded_action_btn_style)
+            .padding([8, 12])
+            .on_press_maybe(
+                (state.local_uuid.as_deref() == Some(state::video_edit::TEMPLATE_ID))
+                    .then_some(Message::WorkflowTool(WorkflowMessage::OpenVideoTemplate))
+            ),
         button(text(i18n.__("编辑应用")).size(12))
             .style(rounded_action_btn_style)
             .padding([8, 12])

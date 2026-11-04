@@ -13,6 +13,8 @@ use vw_api_types::workflow::{WorkflowRunRequest, WorkflowRunStatus};
 
 #[path = "native_agent.rs"]
 mod agent;
+#[path = "native_video_progress.rs"]
+mod video_progress;
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -216,6 +218,7 @@ fn run_command(
     emit: &mut (impl FnMut(StreamEvent) -> bool + Send + 'static),
     prepared: Option<(WorkflowRuntime, WorkflowRunRequest)>,
 ) -> bool {
+    let video_run = prepared.is_some();
     let (prepared_runtime, workflow_request) = match prepared {
         Some((runtime, request)) => (Some(runtime), request),
         None => (
@@ -263,10 +266,22 @@ fn run_command(
     }) {
         return true;
     }
+    let video_budget = runtime.video_edit_budget.clone();
+    let progress = Arc::new(std::sync::Mutex::new(video_progress::Progress::new(
+        workflow_request.workflow_yaml.as_deref().unwrap_or_default(),
+    )));
     let result = crate::session::prompt::block_on(async {
         let events = tx.clone();
         let mut run_id = String::new();
+        let updates = progress.clone();
+        let budget = video_budget.clone();
         let run = run_workflow_with_events(runtime, workflow_request, move |event| {
+            if video_run && let Ok(mut progress) = updates.lock() {
+                progress.observe(&event);
+                if let Some(event) = progress.event_changed(&budget) {
+                    let _ = events.send(event);
+                }
+            }
             if let WorkflowRunEvent::WorkflowStarted { run_id: id } = event {
                 run_id = id;
             } else if let Some(event) = node_event(&run_id, event) {
@@ -274,6 +289,7 @@ fn run_command(
             }
         });
         tokio::pin!(run);
+        let mut tick = tokio::time::interval(std::time::Duration::from_millis(250));
         loop {
             tokio::select! {
                 result = &mut run => {
@@ -285,10 +301,27 @@ fn run_command(
                 Some(event) = rx.recv() => {
                     if !emit(event) { cancellation.cancel(); return Err("cancelled".to_string()) }
                 }
+                _ = tick.tick(), if video_run => {
+                    if let Ok(mut progress) = progress.lock() && progress.ready() {
+                        if let Some(event) = progress.event_changed(&video_budget) && !emit(event) { cancellation.cancel(); return Err("cancelled".into()); }
+                    }
+                }
                 _ = cancellation.cancelled() => return Err("cancelled".to_string()),
             }
         }
     });
+    if video_run
+        && let Ok(mut progress) = progress.lock()
+        && progress.ready()
+    {
+        progress.finish(
+            result.as_ref().is_ok_and(|r| r.status == WorkflowRunStatus::Succeeded),
+            cancellation.is_cancelled(),
+        );
+        if let Some(event) = progress.event_changed(&video_budget) {
+            emit(event);
+        }
+    }
     match result {
         Ok(response) if response.status == WorkflowRunStatus::Succeeded => {
             emit(StreamEvent::StepFinish {

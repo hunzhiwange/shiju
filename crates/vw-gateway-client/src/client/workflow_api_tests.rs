@@ -655,3 +655,25 @@ fn workflow_stream_request(query: &str) -> GatewayWorkflowStreamRequest {
 fn sse(payload: serde_json::Value) -> String {
     format!("data: {payload}\n\n")
 }
+
+#[tokio::test]
+async fn video_edit_ui_template_client_preserves_version_tenant_and_yaml() {
+    let server = test_support::server_raw(vec![
+        (200, workflow_record().to_string()),
+        (200, workflow_record().to_string()),
+    ]);
+    let body = WorkflowRecordUpsertBody {
+        uuid: Some("wf-1".into()),
+        name: "通用云端视频剪辑".into(),
+        description: String::new(),
+        workflow_yaml: "workflow: {video_edit: {max_parallel: 3}}".into(),
+    };
+    server.client().workflow_template_update("wf-1", &body, 42).await.unwrap();
+    let request = take_scoped_request(&server);
+    assert_eq!(request.header("x-workflow-expected-updated-at-ms"), Some("42"));
+    assert_eq!(request.body["workflow_yaml"], body.workflow_yaml);
+    server.client().workflow_template_restore("wf-1", 43, true).await.unwrap();
+    let request = take_scoped_request(&server);
+    assert_eq!(request.header("x-workflow-expected-updated-at-ms"), Some("43"));
+    assert_eq!(request.body["confirmed"], true);
+}

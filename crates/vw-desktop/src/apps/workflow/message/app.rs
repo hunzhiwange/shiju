@@ -16,6 +16,13 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             Task::none()
         }
         WorkflowMessage::OpenSavedApp(uuid) => {
+            if uuid == super::video_edit::TEMPLATE_ID {
+                if app.workflow_state.select_app_by_local_uuid(&uuid) {
+                    crate::apps::workflow::sync_top_tab(app);
+                    return Some(Task::none());
+                }
+                return Some(super::video_edit::load_template(true));
+            }
             if app.workflow_state.select_app_by_local_uuid(&uuid) {
                 crate::apps::workflow::sync_top_tab(app);
                 return Some(Task::none());
@@ -70,6 +77,9 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             Task::none()
         }
         WorkflowMessage::RequestDeleteSavedApp(uuid) => {
+            if uuid == super::video_edit::TEMPLATE_ID {
+                return Some(app.show_error_toast("内置剪辑模板不能删除，请使用恢复默认"));
+            }
             app.workflow_state.open_saved_app_delete_confirm(uuid);
             Task::none()
         }
@@ -78,6 +88,9 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             Task::none()
         }
         WorkflowMessage::DeleteSavedApp(uuid) => {
+            if uuid == super::video_edit::TEMPLATE_ID {
+                return Some(app.show_error_toast("内置剪辑模板不能删除"));
+            }
             app.workflow_state.begin_saved_app_delete(uuid.clone());
             delete_saved_app_task(uuid)
         }

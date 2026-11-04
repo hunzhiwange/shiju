@@ -7,6 +7,12 @@ use std::collections::BTreeMap;
 pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Message>> {
     Some(match message {
         WorkflowMessage::OpenSavedAppRunPrompt(uuid) => {
+            if uuid == super::video_edit::TEMPLATE_ID {
+                return Some(
+                    super::video_edit::handle(app, WorkflowMessage::OpenVideoTemplate)
+                        .unwrap_or_else(Task::none),
+                );
+            }
             app.workflow_state.open_saved_app_run_prompt(uuid.clone());
             load_saved_app_run_prompt_task(uuid)
         }
@@ -34,6 +40,11 @@ pub(super) fn handle(app: &mut App, message: WorkflowMessage) -> Option<Task<Mes
             let Some(prompt) = app.workflow_state.saved_app_run_prompt.clone() else {
                 return Some(Task::none());
             };
+            if prompt.uuid == super::video_edit::TEMPLATE_ID {
+                return Some(
+                    app.show_error_toast("内置剪辑模板必须从原生会话执行，请使用模板设置"),
+                );
+            }
             if prompt.loading {
                 app.workflow_state.set_saved_app_run_prompt_error("运行参数仍在加载");
                 return Some(Task::none());

@@ -205,3 +205,23 @@ where
 #[cfg(test)]
 #[path = "workflow_video_tests.rs"]
 mod workflow_video_tests;
+
+/// Sanitized native video progress; never contains tool input, credentials or signed URLs.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct VideoEditProgress {
+    pub run_id: String,
+    pub sequence: u64,
+    pub stage: String,
+    pub total: usize,
+    pub queued: usize,
+    pub running: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub peak: usize,
+    pub limit: usize,
+    pub template_sha256: String,
+    pub jobs_queued: usize,
+    pub jobs_running: usize,
+    pub jobs_completed: usize,
+    pub jobs_failed: usize,
+}

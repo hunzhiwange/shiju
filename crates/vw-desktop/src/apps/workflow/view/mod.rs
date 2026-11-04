@@ -56,6 +56,9 @@ mod start_panel;
 mod styles;
 mod toolbar;
 mod variables;
+mod video_edit;
+#[cfg(test)]
+mod video_edit_tests;
 
 #[cfg(test)]
 #[path = "node_editor_fields_tests.rs"]
@@ -394,6 +397,9 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
             layers.push(build_saved_app_run_detail_layer(i18n, detail));
         }
 
+        if state.video_edit.open {
+            layers.push(video_edit::modal(state));
+        }
         return stack(layers).width(Length::Fill).height(Length::Fill).into();
     }
 
@@ -464,6 +470,9 @@ pub fn view(i18n: crate::app::i18n::I18n, state: &WorkflowState) -> Element<'_, 
         layers.push(build_start_variable_editor_modal(i18n, state));
     }
 
+    if state.video_edit.open {
+        layers.push(video_edit::modal(state));
+    }
     stack(layers).width(Length::Fill).height(Length::Fill).into()
 }
 

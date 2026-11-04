@@ -203,7 +203,11 @@ fn build_saved_app_card(
 ) -> Element<'static, Message> {
     let uuid = app.uuid.clone();
     let title = saved_app_title(i18n, &app.name);
-    let description = saved_app_description(i18n, &app.description);
+    let description = if app.uuid == state::video_edit::TEMPLATE_ID {
+        "随程序分发 · 当前租户可编辑 · 单视频运行，最多五路".to_string()
+    } else {
+        saved_app_description(i18n, &app.description)
+    };
     let updated_label = i18n
         .format("编辑于 %s", &[format_saved_app_time(app.updated_at_ms).to_string().into()])
         .expect("valid workflow display template");
@@ -305,12 +309,23 @@ fn build_saved_app_actions_menu(
         false,
     );
 
-    let delete_message = (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid));
+    let builtin = uuid == state::video_edit::TEMPLATE_ID;
+    let delete_message = if builtin {
+        Some(WorkflowMessage::OpenVideoTemplate)
+    } else {
+        (!deleting).then_some(WorkflowMessage::RequestDeleteSavedApp(uuid))
+    };
     let delete_item = build_saved_app_action_item(
         Icon::Trash,
-        if deleting { i18n.__("删除中") } else { i18n.__("删除") },
+        if builtin {
+            "模板设置 / YAML"
+        } else if deleting {
+            i18n.__("删除中")
+        } else {
+            i18n.__("删除")
+        },
         delete_message,
-        true,
+        !builtin,
     );
 
     PointBelowOverlay::new(
@@ -329,7 +344,11 @@ fn build_saved_app_actions_menu(
 }
 
 fn saved_app_run_action_message(uuid: String, run_blocked: bool) -> Option<WorkflowMessage> {
-    (!run_blocked).then_some(WorkflowMessage::OpenSavedAppRunPrompt(uuid))
+    (!run_blocked).then_some(if uuid == state::video_edit::TEMPLATE_ID {
+        WorkflowMessage::OpenVideoTemplate
+    } else {
+        WorkflowMessage::OpenSavedAppRunPrompt(uuid)
+    })
 }
 
 fn build_saved_app_action_item(

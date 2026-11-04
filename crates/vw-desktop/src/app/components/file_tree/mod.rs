@@ -40,6 +40,8 @@ mod find_results;
 mod icons;
 mod menu;
 pub(crate) mod model;
+#[cfg(target_os = "macos")]
+mod native_drop;
 mod tree_list;
 mod widgets;
 

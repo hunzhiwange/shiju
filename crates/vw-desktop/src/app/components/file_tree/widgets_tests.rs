@@ -193,6 +193,36 @@ fn update_area(
 }
 
 #[test]
+fn file_tree_surface_preserves_nested_context_menu_overlay() {
+    use crate::app::components::overlays::PointBelowOverlay;
+
+    let menu = PointBelowOverlay::new(Element::new(area()), TestContent::default())
+        .show(true)
+        .anchor(Point::new(12.0, 8.0));
+    let mut surface =
+        RightClickArea::new(menu.into(), Box::new(TestMessage::RightClicked), None, None);
+    let mut tree = tree_for_area(&surface);
+    let renderer = RecordingRenderer::default();
+    let node = surface.layout(
+        &mut tree,
+        &renderer,
+        &layout::Limits::new(Size::ZERO, Size::new(400.0, 200.0)),
+    );
+
+    assert!(
+        surface
+            .overlay(
+                &mut tree,
+                Layout::new(&node),
+                &renderer,
+                &Rectangle::INFINITE,
+                iced::Vector::ZERO,
+            )
+            .is_some()
+    );
+}
+
+#[test]
 fn right_click_area_exposes_single_child_state_and_content_size() {
     let area = area();
     let state = area.state();

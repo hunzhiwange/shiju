@@ -293,6 +293,18 @@ where
             }
             _ => cursor,
         };
+        #[cfg(target_os = "macos")]
+        // Resolve once at the tree surface, then pass the same native position
+        // through all directory rows, including their viewport hit tests.
+        let cursor = if self.surface_messages.is_some()
+            && matches!(event, Event::Window(iced::window::Event::FileDropped(_)))
+        {
+            super::native_drop::cursor_position()
+                .map(mouse::Cursor::Available)
+                .unwrap_or(mouse::Cursor::Unavailable)
+        } else {
+            cursor
+        };
         let visible = layout.bounds().intersection(viewport);
         let hit = cursor
             .position()
@@ -419,6 +431,23 @@ where
             cursor,
             viewport,
             renderer,
+        )
+    }
+
+    fn overlay<'b>(
+        &'b mut self,
+        tree: &'b mut widget::Tree,
+        layout: Layout<'b>,
+        renderer: &RendererT,
+        viewport: &Rectangle,
+        translation: iced::Vector,
+    ) -> Option<iced::advanced::overlay::Element<'b, Message, ThemeT, RendererT>> {
+        self.content.as_widget_mut().overlay(
+            &mut tree.children[0],
+            layout,
+            renderer,
+            viewport,
+            translation,
         )
     }
 }

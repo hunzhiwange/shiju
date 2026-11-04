@@ -64,6 +64,9 @@ impl Tool for PassiveTool {
 
 fn agentic_config() -> DelegateAgentConfig {
     DelegateAgentConfig {
+        runtime: Default::default(),
+        recommended_prompts: Vec::new(),
+        defaults: Default::default(),
         label: None,
         description: None,
         builtin: false,

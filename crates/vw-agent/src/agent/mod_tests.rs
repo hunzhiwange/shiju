@@ -154,12 +154,15 @@ fn load_agent_configs_merges_configured_agents_with_builtins() {
     }
     assert_eq!(agents["custom"].provider, "openai");
     assert_eq!(agents["custom"].mode, "sub_agent");
-    assert_eq!(agents["main"].label.as_deref(), Some("Main"));
+    assert_eq!(
+        agents["main"].label.as_deref(),
+        Some(vw_config_types::agent::builtin_agent_spec("main").unwrap().label)
+    );
     assert!(agents["main"].builtin);
 
     let fallback = load_agent_configs(&json!({"agents": "not an object"}));
     assert!(fallback.contains_key("main"));
-    assert_eq!(fallback.len(), 5);
+    assert_eq!(fallback.len(), 27);
 }
 
 #[test]
@@ -174,7 +177,7 @@ fn load_agent_configs_discards_malformed_configured_map() {
 
     assert!(!agents.contains_key("incomplete"));
     assert!(agents.contains_key("main"));
-    assert_eq!(agents.len(), 5);
+    assert_eq!(agents.len(), 27);
 }
 
 #[test]
@@ -182,7 +185,7 @@ fn load_agent_configs_uses_builtins_when_agents_key_is_missing() {
     let agents = load_agent_configs(&json!({"default_agent": "main"}));
 
     assert!(agents.contains_key("main"));
-    assert_eq!(agents.len(), 5);
+    assert_eq!(agents.len(), 27);
     assert!(agents.values().all(|agent| agent.builtin));
 }
 

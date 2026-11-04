@@ -17,6 +17,9 @@ fn invalid_provider_config() -> DelegateAgentConfig {
 
 fn delegate_config(provider: &str) -> DelegateAgentConfig {
     DelegateAgentConfig {
+        runtime: Default::default(),
+        recommended_prompts: Vec::new(),
+        defaults: Default::default(),
         label: None,
         description: None,
         builtin: false,

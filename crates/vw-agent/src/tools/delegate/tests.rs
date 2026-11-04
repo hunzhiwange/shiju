@@ -49,6 +49,9 @@ fn sample_agents() -> HashMap<String, DelegateAgentConfig> {
     agents.insert(
         "researcher".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,
@@ -85,6 +88,9 @@ fn sample_agents() -> HashMap<String, DelegateAgentConfig> {
     agents.insert(
         "coder".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,
@@ -320,6 +326,9 @@ impl Provider for FailingProvider {
 /// 返回配置好的 `DelegateAgentConfig` 实例，使用 OpenRouter 提供者。
 fn agentic_config(allowed_tools: Vec<String>, max_iterations: usize) -> DelegateAgentConfig {
     DelegateAgentConfig {
+        runtime: Default::default(),
+        recommended_prompts: Vec::new(),
+        defaults: Default::default(),
         label: None,
         description: None,
         builtin: false,
@@ -483,6 +492,9 @@ async fn invalid_provider_returns_error() {
     agents.insert(
         "broken".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,
@@ -595,6 +607,9 @@ async fn delegate_context_is_prepended_to_prompt() {
     agents.insert(
         "tester".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,
@@ -649,6 +664,9 @@ async fn delegate_empty_context_omits_prefix() {
     agents.insert(
         "tester".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,

@@ -430,6 +430,9 @@ mod tests {
         config.agents.insert(
             "zeta".into(),
             crate::app::agent::config::DelegateAgentConfig {
+                runtime: Default::default(),
+                recommended_prompts: Vec::new(),
+                defaults: Default::default(),
                 label: None,
                 description: None,
                 builtin: false,
@@ -464,6 +467,9 @@ mod tests {
         config.agents.insert(
             "alpha".into(),
             crate::app::agent::config::DelegateAgentConfig {
+                runtime: Default::default(),
+                recommended_prompts: Vec::new(),
+                defaults: Default::default(),
                 label: None,
                 description: None,
                 builtin: false,

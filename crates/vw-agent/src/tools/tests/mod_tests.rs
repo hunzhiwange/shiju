@@ -389,6 +389,9 @@ fn all_tools_includes_agent_tool_when_agents_configured() {
     agents.insert(
         "researcher".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,
@@ -485,6 +488,9 @@ fn all_tools_includes_default_agent_tool_when_only_primary_agents() {
     agents.insert(
         "main".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,
@@ -551,6 +557,9 @@ fn all_tools_registers_agent_tool_for_delegate_agents() {
     agents.insert(
         "researcher".to_string(),
         DelegateAgentConfig {
+            runtime: Default::default(),
+            recommended_prompts: Vec::new(),
+            defaults: Default::default(),
             label: None,
             description: None,
             builtin: false,

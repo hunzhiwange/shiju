@@ -26,6 +26,9 @@
 
 #[allow(clippy::module_inception)]
 pub mod agent;
+pub mod catalog;
+#[cfg(test)]
+mod catalog_tests;
 pub mod classifier;
 pub mod dispatcher;
 pub mod loop_;
@@ -54,7 +57,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use vw_config_types::agent::{DelegateAgentConfig, merged_agent_configs};
+use vw_config_types::agent::DelegateAgentConfig;
 
 /// 代理生成提示词模板
 ///
@@ -306,7 +309,7 @@ fn load_agent_configs(cfg: &Value) -> HashMap<String, DelegateAgentConfig> {
             serde_json::from_value::<HashMap<String, DelegateAgentConfig>>(value).ok()
         })
         .unwrap_or_default();
-    merged_agent_configs(&configured)
+    catalog::merged_agent_catalog(&configured)
 }
 
 pub fn resolve_model_ref(

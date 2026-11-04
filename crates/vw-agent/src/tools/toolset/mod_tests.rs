@@ -104,6 +104,9 @@ fn security_for_workspace(workspace: &Path) -> Arc<SecurityPolicy> {
 
 fn agent_config(mode: &str, enabled: bool, allowed_skills: Vec<String>) -> DelegateAgentConfig {
     DelegateAgentConfig {
+        runtime: Default::default(),
+        recommended_prompts: Vec::new(),
+        defaults: Default::default(),
         label: None,
         description: None,
         builtin: false,

@@ -1,0 +1,14 @@
+{
+  "session-model": {
+    "config_root_env": "OPENCODE_CONFIG_DIR",
+    "files": {
+      "opencode.json": "{\"model\": \"session-provider/{{model}}\", \"small_model\": \"session-provider/{{model}}\", \"enabled_providers\": [\"session-provider\"], \"autoupdate\": false, \"share\": \"disabled\", \"provider\": {\"session-provider\": {\"npm\": \"@ai-sdk/openai-compatible\", \"models\": {\"{{model}}\": {\"name\": \"Native offline model\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}, \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}}}, \"agent\": {\"build\": {\"model\": \"session-provider/{{model}}\"}, \"plan\": {\"model\": \"session-provider/{{model}}\"}, \"general\": {\"model\": \"session-provider/{{model}}\"}, \"explore\": {\"model\": \"session-provider/{{model}}\"}, \"title\": {\"model\": \"session-provider/{{model}}\"}, \"summary\": {\"model\": \"session-provider/{{model}}\"}, \"compaction\": {\"model\": \"session-provider/{{model}}\"}}}"
+    }
+  },
+  "cli-local": {
+    "config_root_env": "OPENCODE_CONFIG_DIR",
+    "files": {
+      "opencode.json": "{\"model\": \"session-provider/{{model}}\", \"small_model\": \"session-provider/{{model}}\", \"enabled_providers\": [\"session-provider\"], \"autoupdate\": false, \"share\": \"disabled\", \"provider\": {\"session-provider\": {\"npm\": \"@ai-sdk/openai-compatible\", \"models\": {\"{{model}}\": {\"name\": \"Native offline model\", \"tool_call\": true, \"limit\": {\"context\": 32000, \"output\": 4096}}}, \"options\": {\"baseURL\": \"{{endpoint}}\", \"apiKey\": \"{{key}}\"}}}, \"agent\": {\"build\": {\"model\": \"session-provider/{{model}}\"}, \"plan\": {\"model\": \"session-provider/{{model}}\"}, \"general\": {\"model\": \"session-provider/{{model}}\"}, \"explore\": {\"model\": \"session-provider/{{model}}\"}, \"title\": {\"model\": \"session-provider/{{model}}\"}, \"summary\": {\"model\": \"session-provider/{{model}}\"}, \"compaction\": {\"model\": \"session-provider/{{model}}\"}}}"
+    }
+  }
+}

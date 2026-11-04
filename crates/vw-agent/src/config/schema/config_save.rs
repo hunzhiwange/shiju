@@ -150,12 +150,17 @@ pub(super) fn select_override_shape(shape: &Value, encrypted_effective: Option<&
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-/// 合并并验证项目覆盖，同时剔除禁止由项目层持久化的代理和 skey 字段。
+/// 合并并验证项目覆盖；拒绝 agents 修改，保留旧记录，并剔除运行期 skey 字段。
 pub(super) fn prepare_project_override(
     base: &Config,
-    raw_override: Value,
+    mut raw_override: Value,
     mut patch: Value,
 ) -> Result<Value> {
+    if patch.get("agents").is_some() {
+        bail!("agents are global; update tenant global config instead");
+    }
+    // Preserve legacy records without letting them affect validation or encryption.
+    let legacy_agents = raw_override.as_object_mut().and_then(|object| object.remove("agents"));
     super::config_validate::validate_agent_profile_patch(&patch)?;
     let mut current_payload = serde_json::to_value(base)?;
     merge_config_payload(&mut current_payload, raw_override.clone());
@@ -187,7 +192,14 @@ pub(super) fn prepare_project_override(
     encrypt_config_secrets(&mut effective)?;
     let encrypted_effective =
         serde_json::to_value(effective).context("Failed to serialize effective project config")?;
-    Ok(select_override_shape(&next_override, Some(&encrypted_effective)))
+    let mut selected = select_override_shape(&next_override, Some(&encrypted_effective));
+    if let Some(agents) = legacy_agents {
+        selected
+            .as_object_mut()
+            .context("project config payload root must be an object")?
+            .insert("agents".into(), agents);
+    }
+    Ok(selected)
 }
 
 /// 计算从 `before` 变为 `after` 的递归合并补丁；无变化时返回 `None`。
@@ -239,6 +251,9 @@ pub(crate) async fn update_project_config_for_tenant(
         let Some(patch_object) = patch.as_object() else {
             bail!("config patch must be a JSON object");
         };
+        if patch_object.contains_key("agents") {
+            bail!("agents are global; update tenant global config instead");
+        }
         if !project_root.is_dir() {
             bail!("project root must be an existing directory");
         }

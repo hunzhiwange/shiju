@@ -245,3 +245,56 @@ async fn agent_profile_api_copy_has_unique_custom_identity_and_survives_reload()
             .all(|key| !keys.contains(key))
     );
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_catalog_copy_is_global_and_tenant_isolated() {
+    let _lock = crate::test_support::global_async_env_lock().lock().await;
+    let home = tempfile::tempdir().unwrap();
+    let _home = ProfileEnvGuard::set("HOME", home.path());
+    let _config = ProfileEnvGuard::set("VIBEWINDOW_CONFIG_DIR", home.path());
+    let tenant = vw_api_types::id::TenantScope::new("cleanup", "copy").unwrap();
+    let other = vw_api_types::id::TenantScope::new("cleanup", "other").unwrap();
+    crate::config::update_global_for_tenant(
+        &tenant,
+        serde_json::json!({"agents":{"main":{"description":"global"}}}),
+    )
+    .await
+    .unwrap();
+    let store = crate::config::SystemConfigStore::new(
+        crate::global_database::GlobalDatabase::for_home(home.path()).unwrap(),
+    )
+    .unwrap();
+    for name in ["a", "b"] {
+        let project = home.path().join(name);
+        std::fs::create_dir_all(&project).unwrap();
+        let payload = serde_json::json!({"agents":{"main":{"description":name}}}).to_string();
+        store.upsert_project(&tenant, project.to_str().unwrap(), &payload).unwrap();
+        let Json(copy) = agent_copy(
+            Extension(tenant.clone()),
+            Path("main".into()),
+            query_for(&project),
+            HeaderMap::new(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(copy.definition.description.as_deref(), Some("global"));
+        assert!(
+            crate::config::get_global_for_tenant(&tenant)
+                .await
+                .unwrap()
+                .agents
+                .contains_key(&copy.key)
+        );
+        assert!(
+            !crate::config::get_global_for_tenant(&other)
+                .await
+                .unwrap()
+                .agents
+                .contains_key(&copy.key)
+        );
+        assert_eq!(
+            store.get_project(&tenant, project.to_str().unwrap()).unwrap().unwrap(),
+            payload
+        );
+    }
+}

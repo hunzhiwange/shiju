@@ -89,33 +89,20 @@ async fn agent_copy(
     Query(query): Query<InstanceQuery>,
     headers: HeaderMap,
 ) -> Result<Json<agent::Info>, ApiError> {
-    let explicit = query.directory.as_deref().is_some_and(|dir| !dir.trim().is_empty())
-        || headers
-            .get("x-vibewindow-directory")
-            .and_then(|value| value.to_str().ok())
-            .is_some_and(|dir| !dir.trim().is_empty());
-    let directory = std::path::PathBuf::from(resolve_directory(&query, &headers));
-    let config = if explicit {
-        crate::config::get_project_for_tenant(&tenant, &directory).await
-    } else {
-        crate::config::get_global_for_tenant(&tenant).await
-    }
-    .map_err(|error| ApiError::bad_request(error.to_string()))?;
+    // Directory remains accepted for API compatibility, but never selects storage.
+    let _ = (query, headers);
+    let config = crate::config::get_global_for_tenant(&tenant)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
     let mut definition = agent::catalog::merged_agent_catalog(&config.agents)
         .remove(&key)
         .ok_or_else(|| ApiError::bad_request("agent not found"))?;
     definition.builtin = false;
     let key = format!("custom-{}", uuid::Uuid::new_v4());
     let patch = serde_json::json!({"agents": {&key: &definition}});
-    if explicit {
-        crate::config::update_project_for_tenant(&tenant, &directory, patch)
-            .await
-            .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    } else {
-        crate::config::update_global_for_tenant(&tenant, patch)
-            .await
-            .map_err(|error| ApiError::bad_request(error.to_string()))?;
-    }
+    crate::config::update_global_for_tenant(&tenant, patch)
+        .await
+        .map_err(|error| ApiError::bad_request(error.to_string()))?;
     definition.api_key = None;
     definition.options.clear();
     Ok(Json(agent::Info { key, definition }))

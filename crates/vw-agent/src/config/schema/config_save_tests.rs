@@ -329,27 +329,43 @@ fn prepare_project_override_rejects_base_config_path_without_parent() {
 }
 
 #[tokio::test]
-async fn main_agent_model_override_survives_store_reopen() {
+async fn agent_config_cleanup_global_model_and_legacy_project_record_survive_reopen() {
     let temp = TempDir::new().unwrap();
     let project = temp.path().join("project");
     std::fs::create_dir_all(&project).unwrap();
     let tenant = TenantScope::new("platform", "company").unwrap();
-    let base = Config {
+    let mut base = Config {
         config_path: temp.path().join("shiju.json"),
         workspace_dir: project.clone(),
         ..Default::default()
     };
+    base.agents.insert(
+        "main".into(),
+        vw_config_types::agent::AgentDefinitionConfig {
+            provider: "custom".into(),
+            model: "saved-model".into(),
+            ..Default::default()
+        },
+    );
+    let legacy = serde_json::json!({"agents":{"main":{"model":"legacy", "provider":"legacy"}}});
     let patch = serde_json::json!({
-        "agents": {"main": {"provider": "custom", "model": "saved-model"}},
         "default_provider": "custom",
         "default_model": "custom/saved-model"
     });
-    let prepared = prepare_project_override(&base, serde_json::json!({}), patch).unwrap();
+    let prepared = prepare_project_override(&base, legacy.clone(), patch).unwrap();
+    assert_eq!(prepared["agents"], legacy["agents"]);
     let db = store(&temp);
     save_config_to_store(&base, &tenant, &db).unwrap();
     save_project_config_to_store(&db, &tenant, &project, &prepared).unwrap();
     drop(db);
     let reopened = store(&temp);
+    assert_eq!(
+        serde_json::from_str::<serde_json::Value>(
+            &reopened.get_project(&tenant, project.to_str().unwrap()).unwrap().unwrap()
+        )
+        .unwrap()["agents"],
+        legacy["agents"]
+    );
     let loaded = super::config_load::load_config_for_tenant_from_store(
         &reopened,
         &tenant,
@@ -364,4 +380,17 @@ async fn main_agent_model_override_survives_store_reopen() {
     assert_eq!(loaded.default_model.as_deref(), Some("custom/saved-model"));
     assert_eq!(loaded.agents["main"].provider, "custom");
     assert_eq!(loaded.agents["main"].model, "saved-model");
+}
+
+#[test]
+fn agent_config_cleanup_shared_project_patch_boundary_rejects_agents() {
+    for agents in [serde_json::json!({}), serde_json::Value::Null] {
+        let error = prepare_project_override(
+            &Config::default(),
+            serde_json::json!({}),
+            serde_json::json!({"agents":agents}),
+        )
+        .unwrap_err();
+        assert!(error.to_string().contains("agents are global"));
+    }
 }

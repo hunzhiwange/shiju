@@ -550,3 +550,43 @@ async fn load_config_with_unavailable_channel_secret_keeps_gateway_configuration
     assert!(loaded.channels_config.available_channels().dingtalk.is_none());
     assert_eq!(loaded.channels_config.dingtalk.unwrap().client_secret, "enc2:not-hex");
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_global_agents_ignore_project_override() {
+    let home = tempfile::tempdir().unwrap();
+    let store =
+        SystemConfigStore::new(GlobalDatabase::new(home.path().join("db.sqlite3")).unwrap())
+            .unwrap();
+    let tenant = TenantScope::new("cleanup", "one").unwrap();
+    store
+        .upsert(
+            &tenant,
+            &json!({"agents":{"main":{"provider":"", "model":"", "description":"global"}}})
+                .to_string(),
+        )
+        .unwrap();
+    for name in ["a", "b"] {
+        let project = home.path().join(name);
+        std::fs::create_dir_all(&project).unwrap();
+        let payload =
+            json!({"agents":{"main":{"description":name}},"default_temperature":0.3}).to_string();
+        store.upsert_project(&tenant, project.to_str().unwrap(), &payload).unwrap();
+        let loaded = load_config_for_tenant_from_store(
+            &store,
+            &tenant,
+            Some(&project),
+            home.path(),
+            project.clone(),
+            ConfigResolutionSource::DefaultConfigDir,
+            |_| {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(loaded.agents["main"].description.as_deref(), Some("global"));
+        assert_eq!(loaded.default_temperature, 0.3);
+        assert_eq!(
+            store.get_project(&tenant, project.to_str().unwrap()).unwrap().unwrap(),
+            payload
+        );
+    }
+}

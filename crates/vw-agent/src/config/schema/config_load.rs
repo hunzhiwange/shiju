@@ -243,11 +243,13 @@ pub(super) async fn load_config_for_tenant_from_store(
     }
 
     if let Some(project_payload) = project_payload {
-        let project_override: Value = serde_json::from_str(&project_payload)
+        let mut project_override: Value = serde_json::from_str(&project_payload)
             .context("Failed to parse tenant project config payload")?;
         if !project_override.is_object() {
             bail!("tenant project config payload root must be an object");
         }
+        // Agent definitions belong to the tenant, never to a workspace.
+        project_override.as_object_mut().unwrap().remove("agents");
         merge_config_payload(&mut merged_payload, project_override);
     }
 

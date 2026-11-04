@@ -658,6 +658,11 @@ pub async fn update_project_for_tenant(
     project_root: &Path,
     patch: Value,
 ) -> Result<Config, Error> {
+    if patch.get("agents").is_some() {
+        return Err(Error::Invalid(
+            "agents are global; update tenant global config instead".into(),
+        ));
+    }
     schema::update_project_config_for_tenant(tenant, project_root, patch)
         .await
         .map_err(|error| Error::Invalid(error.to_string()))

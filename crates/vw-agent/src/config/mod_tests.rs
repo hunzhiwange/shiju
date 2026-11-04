@@ -255,3 +255,18 @@ fn load_from_path_without_env_blocking_rejects_path_without_parent() {
         matches!(error, Error::Invalid(message) if message == "config path must have a parent directory")
     );
 }
+
+#[tokio::test]
+async fn agent_config_cleanup_project_agents_patch_is_rejected() {
+    let dir = tempfile::tempdir().unwrap();
+    for agents in [json!({}), Value::Null] {
+        let error = super::update_project_for_tenant(
+            &TenantScope::default(),
+            &dir.path().join("missing"),
+            json!({"agents":agents}),
+        )
+        .await
+        .unwrap_err();
+        assert!(error.to_string().contains("agents are global"), "{error}");
+    }
+}

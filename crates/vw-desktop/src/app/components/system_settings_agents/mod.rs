@@ -4,6 +4,7 @@
 //! 注释聚焦调用边界、返回值和错误传播方式，便于后续维护设置页与工具栏行为时快速定位职责。
 
 mod basic;
+pub(crate) mod defaults;
 mod identity;
 mod profile_modal;
 mod shared;
@@ -628,3 +629,6 @@ fn agents_view(app: &App) -> Element<'_, Message> {
 
 #[cfg(test)]
 mod profile_modal_tests;
+
+#[cfg(test)]
+mod defaults_tests;

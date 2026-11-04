@@ -563,6 +563,7 @@ pub enum AgentsMessage {
     ProfileOpen(String),
     ProfileCancel,
     ProfileNameChanged(String),
+    ProfileDefaultsChanged(vw_config_types::agent::AgentDefaults),
     ProfileDescriptionChanged(String),
     ProfileRuntimeChanged(String),
     ProfileRulesAction(text_editor::Action),

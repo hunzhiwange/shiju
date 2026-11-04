@@ -11,6 +11,21 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 app.agents_settings.profile_modal =
                     app.agents_settings.entries.iter().find(|entry| entry.key == key).cloned();
             }
+            if app.agents_settings.profile_modal.is_some() {
+                return Task::batch([
+                    if app.agents_settings.project_path == app.project_path {
+                        super::super::update(app, SettingsMessage::SkillsRefresh)
+                    } else {
+                        Task::none()
+                    },
+                    super::super::mcp::update(
+                        app,
+                        SettingsMessage::Mcp(
+                            crate::app::message::settings::McpMessage::InspectRefresh,
+                        ),
+                    ),
+                ]);
+            }
             Task::none()
         }
         AgentsMessage::ProfileCancel => {
@@ -67,6 +82,19 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                     vec![],
                 );
             }
+            if !deleting {
+                let error =
+                    crate::app::components::system_settings_agents::defaults::validation_error(
+                        app, draft,
+                    );
+                if let Some(error) = error {
+                    return app.show_localized_toast(
+                        crate::app::state::ToastKind::Error,
+                        "保存智能体配置失败：%s",
+                        vec![error.into()],
+                    );
+                }
+            }
             let mut value = if deleting {
                 serde_json::Value::Null
             } else {
@@ -74,6 +102,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                     "label": draft.label, "description": draft.description,
                     "recommended_prompts": draft.recommended_prompts, "runtime": draft.runtime,
                     "system_prompt": draft.system_prompt_editor.text(),
+                    "defaults": crate::app::components::system_settings_agents::defaults::patch(&draft.defaults),
                 })
             };
             // JSON Merge Patch must remove the ACP-only field when returning to native.
@@ -92,7 +121,8 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 Message::Settings(SettingsMessage::Agents(AgentsMessage::ProfileSaved(result)))
             })
         }
-        AgentsMessage::ProfileNameChanged(_)
+        AgentsMessage::ProfileDefaultsChanged(_)
+        | AgentsMessage::ProfileNameChanged(_)
         | AgentsMessage::ProfileDescriptionChanged(_)
         | AgentsMessage::ProfileRuntimeChanged(_)
         | AgentsMessage::ProfileRulesAction(_)
@@ -107,6 +137,7 @@ pub(super) fn update(app: &mut App, message: AgentsMessage) -> Task<Message> {
                 return Task::none();
             };
             match message {
+                AgentsMessage::ProfileDefaultsChanged(value) => draft.defaults = value,
                 AgentsMessage::ProfileNameChanged(value) => draft.label = value,
                 AgentsMessage::ProfileDescriptionChanged(value) => draft.description = value,
                 AgentsMessage::ProfileRulesAction(action) => {

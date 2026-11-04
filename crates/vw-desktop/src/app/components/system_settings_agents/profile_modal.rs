@@ -86,6 +86,7 @@ pub(super) fn overlay<'a>(app: &'a App, base: Element<'a, Message>) -> Element<'
             .menu_style(settings_pick_list_menu_style),
         );
     }
+    fields = fields.push(super::defaults::view(app, draft));
     fields = fields
         .push(text("引擎和规则修改只影响新会话。").style(settings_muted_text_style))
         .push(text("规则").size(16))

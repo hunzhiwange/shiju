@@ -11,6 +11,7 @@ use iced::{Background, Color, Element, Length, Theme};
 
 fn entry(key: &str, kind: AgentSettingsEntryKind) -> DelegateAgentSettingsEntry {
     DelegateAgentSettingsEntry {
+        defaults: Default::default(),
         key: key.to_string(),
         label: key.to_string(),
         runtime: Default::default(),

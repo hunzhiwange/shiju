@@ -267,6 +267,9 @@ pub(crate) fn agent_settings_entries_from_config(
                 default_model_cfg.as_deref(),
             );
             let entry = DelegateAgentConfig {
+                runtime: config.runtime,
+                recommended_prompts: config.recommended_prompts,
+                defaults: config.defaults,
                 label: config.label,
                 description: config.description,
                 builtin: config.builtin,

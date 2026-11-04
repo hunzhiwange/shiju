@@ -15,6 +15,8 @@ fn needs_activity_animation_tick(app: &App, startup_transition_active: bool) -> 
         || (app.screen == Screen::Project && app.any_session_requesting())
         || app.has_active_explore_summary_animation()
         || app.task_pet_window_id.is_some()
+        || ((app.show_settings || app.show_system_settings)
+            && app.acp_settings.diagnostic_id.is_some())
 }
 
 #[cfg(not(target_arch = "wasm32"))]

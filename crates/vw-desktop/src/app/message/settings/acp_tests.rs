@@ -4,6 +4,7 @@
 use super::{new_agent_request, sort_acp_agent_names, update};
 use crate::app::config::AcpSettingsSnapshot;
 use crate::app::message::settings::{AcpMessage, SettingsMessage};
+use crate::app::state::AcpDiagnosticStatus;
 use std::collections::BTreeMap;
 use vw_config_types::config::AcpAgentConfig;
 
@@ -410,7 +411,7 @@ fn acp_diagnostic_ignores_stale_results_after_edit_and_cancel() {
             result: Ok("connected".into()),
         }),
     );
-    assert_eq!(app.acp_settings.diagnostic_status.as_deref(), Some("诊断已取消"));
+    assert_eq!(app.acp_settings.diagnostic_status, Some(AcpDiagnosticStatus::Cancelled));
 }
 
 #[test]
@@ -443,7 +444,7 @@ fn acp_diagnostic_ignores_stale_results_retry_accepts_only_current_request() {
             result: Ok("connected".into()),
         }),
     );
-    assert_eq!(app.acp_settings.diagnostic_status.as_deref(), Some("启动成功 · 握手成功"));
+    assert_eq!(app.acp_settings.diagnostic_status, Some(AcpDiagnosticStatus::Connected));
     assert!(app.acp_settings.diagnostic_id.is_none());
 }
 
@@ -455,7 +456,8 @@ fn list_diagnostic_starts_without_opening_or_changing_editor() {
     app.acp_settings.new_agent_command_input = "draft-command".into();
     let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::TestAgent("codex".into())));
     assert!(app.acp_settings.diagnostic_id.is_some());
-    assert!(app.acp_settings.diagnostic_status.as_deref().unwrap().starts_with("codex："));
+    assert_eq!(app.acp_settings.diagnostic_results["codex"], AcpDiagnosticStatus::Running);
+    assert_eq!(app.acp_settings.diagnostic_agent.as_deref(), Some("codex"));
     assert!(!app.acp_settings.new_agent_expanded);
     assert_eq!(app.acp_settings.new_agent_name_input, "unsaved draft");
     assert_eq!(app.acp_settings.new_agent_command_input, "draft-command");
@@ -467,6 +469,61 @@ fn list_diagnostic_rejects_missing_agent() {
     app.acp_settings.catalog.clear();
     let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::TestAgent("missing".into())));
     assert!(app.acp_settings.diagnostic_id.is_none());
+}
+
+#[test]
+fn diagnostic_results_stay_with_each_agent_and_retry_replaces_only_its_result() {
+    let (mut app, _) = crate::app::App::new();
+    for agent in ["codex", "claude"] {
+        app.acp_settings.catalog.insert(agent.into(), acp_config(agent));
+    }
+    for (agent, result, expected) in [
+        ("codex", "connected", AcpDiagnosticStatus::Connected),
+        ("claude", "handshake_failed", AcpDiagnosticStatus::HandshakeFailed),
+        ("claude", "authentication_required", AcpDiagnosticStatus::AuthenticationRequired),
+        ("claude", "startup_failed", AcpDiagnosticStatus::StartupFailed),
+        ("claude", "timed_out", AcpDiagnosticStatus::TimedOut),
+        ("claude", "unknown", AcpDiagnosticStatus::Unavailable),
+    ] {
+        let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::TestAgent(agent.into())));
+        assert_eq!(app.acp_settings.diagnostic_results[agent], AcpDiagnosticStatus::Running);
+        let id = app.acp_settings.diagnostic_id.clone().unwrap();
+        let _ = update(
+            &mut app,
+            SettingsMessage::Acp(AcpMessage::DiagnosticCompleted { id, result: Ok(result.into()) }),
+        );
+        assert_eq!(app.acp_settings.diagnostic_results[agent], expected);
+        assert_eq!(app.acp_settings.diagnostic_results["codex"], AcpDiagnosticStatus::Connected);
+        assert!(app.acp_settings.diagnostic_agent.is_none());
+    }
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::TestAgent("claude".into())));
+    let id = app.acp_settings.diagnostic_id.clone().unwrap();
+    let _ = update(&mut app, SettingsMessage::Acp(AcpMessage::CancelDiagnostic));
+    let _ = update(
+        &mut app,
+        SettingsMessage::Acp(AcpMessage::DiagnosticCompleted {
+            id,
+            result: Ok("connected".into()),
+        }),
+    );
+    assert_eq!(app.acp_settings.diagnostic_results["claude"], AcpDiagnosticStatus::Cancelled);
+    assert_eq!(app.acp_settings.diagnostic_results["codex"], AcpDiagnosticStatus::Connected);
+}
+
+#[test]
+fn saved_configuration_change_invalidates_previous_connection_result() {
+    let (mut app, _) = crate::app::App::new();
+    let original = snapshot(&[("codex", true), ("claude", true)]);
+    super::apply_snapshot(&mut app, original.clone());
+    for agent in ["codex", "claude"] {
+        app.acp_settings.diagnostic_results.insert(agent.into(), AcpDiagnosticStatus::Connected);
+    }
+    super::apply_snapshot(&mut app, original);
+    assert_eq!(app.acp_settings.diagnostic_results.len(), 2);
+    let mut changed = snapshot(&[("codex", true)]);
+    changed.catalog.get_mut("codex").unwrap().args.push("--changed".into());
+    super::apply_snapshot(&mut app, changed);
+    assert!(app.acp_settings.diagnostic_results.is_empty());
 }
 
 #[test]

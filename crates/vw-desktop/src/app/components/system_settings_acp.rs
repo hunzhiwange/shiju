@@ -13,6 +13,10 @@ use iced::widget::{button, column, container, row, scrollable, text, text_input}
 use iced::{Alignment, Element, Length};
 use vw_config_types::config::AcpAgentConfig;
 
+#[path = "system_settings_acp_diagnostic.rs"]
+mod diagnostic;
+use diagnostic::diagnostic_status;
+
 const ACP_ORDER: &[&str] = &[
     "claude",
     "gemini",
@@ -130,6 +134,8 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
     let enabled = app.acp_settings.enabled.contains(&agent);
     let saving = app.acp_settings.saving_agent.as_deref() == Some(agent.as_str());
     let copied = app.acp_settings.copied_agent.as_deref() == Some(agent.as_str());
+    let testing = app.acp_settings.diagnostic_agent.as_deref() == Some(agent.as_str())
+        && app.acp_settings.diagnostic_id.is_some();
     let command = command_line(config);
     let toggle_label = if saving {
         crate::app::i18n::I18n::new(app.desktop_locale).__("保存中...")
@@ -181,15 +187,17 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
         ),
     );
     header = header.push(
-        button(text("测试连接").size(13))
+        button(text(if testing { "取消测试" } else { "测试连接" }).size(13))
             .padding([7, 14])
             .style(rounded_action_btn_style)
-            .on_press_maybe(
+            .on_press_maybe(if testing {
+                Some(acp_message(AcpMessage::CancelDiagnostic))
+            } else {
                 app.acp_settings
                     .diagnostic_id
                     .is_none()
-                    .then(|| acp_message(AcpMessage::TestAgent(agent.clone()))),
-            ),
+                    .then(|| acp_message(AcpMessage::TestAgent(agent.clone())))
+            }),
     );
     header = header.push(toggle);
 
@@ -225,55 +233,56 @@ fn acp_card<'a>(app: &'a App, agent: String, config: &'a AcpAgentConfig) -> Elem
                 .into()
         };
 
-    settings_panel(
-        column![
-            header,
-            installation,
-            text(crate::app::i18n::I18n::new(app.desktop_locale).__(setup_hint(&agent)))
-                .size(12)
-                .style(settings_muted_text_style),
-            container(
-                row![
-                    text(command.clone()).size(12).width(Length::Fill),
-                    button(
-                        text(if copied {
-                            "✓"
-                        } else {
-                            crate::app::i18n::I18n::new(app.desktop_locale).__("复制")
-                        })
-                        .size(12)
-                    )
-                    .padding([5, 10])
-                    .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::CopyCommand {
-                        agent: agent.clone(),
-                        command
-                    })))
-                    .style(rounded_action_btn_style),
-                ]
-                .align_y(Alignment::Center)
-                .spacing(8)
-            )
-            .padding([9, 12])
-            .width(Length::Fill)
-            .style(|theme: &iced::Theme| {
-                let palette = theme.extended_palette();
-                iced::widget::container::Style {
-                    text_color: Some(theme.palette().text.scale_alpha(0.92)),
-                    background: Some(iced::Background::Color(
-                        palette.background.weak.color.scale_alpha(0.58),
-                    )),
-                    border: iced::Border {
-                        radius: 8.0.into(),
-                        width: 1.0,
-                        color: palette.background.strong.color.scale_alpha(0.55),
-                    },
-                    ..Default::default()
-                }
-            }),
-        ]
-        .spacing(12),
-    )
-    .into()
+    let mut content = column![
+        header,
+        installation,
+        text(crate::app::i18n::I18n::new(app.desktop_locale).__(setup_hint(&agent)))
+            .size(12)
+            .style(settings_muted_text_style),
+        container(
+            row![
+                text(command.clone()).size(12).width(Length::Fill),
+                button(
+                    text(if copied {
+                        "✓"
+                    } else {
+                        crate::app::i18n::I18n::new(app.desktop_locale).__("复制")
+                    })
+                    .size(12)
+                )
+                .padding([5, 10])
+                .on_press(Message::Settings(SettingsMessage::Acp(AcpMessage::CopyCommand {
+                    agent: agent.clone(),
+                    command
+                })))
+                .style(rounded_action_btn_style),
+            ]
+            .align_y(Alignment::Center)
+            .spacing(8)
+        )
+        .padding([9, 12])
+        .width(Length::Fill)
+        .style(|theme: &iced::Theme| {
+            let palette = theme.extended_palette();
+            iced::widget::container::Style {
+                text_color: Some(theme.palette().text.scale_alpha(0.92)),
+                background: Some(iced::Background::Color(
+                    palette.background.weak.color.scale_alpha(0.58),
+                )),
+                border: iced::Border {
+                    radius: 8.0.into(),
+                    width: 1.0,
+                    color: palette.background.strong.color.scale_alpha(0.55),
+                },
+                ..Default::default()
+            }
+        }),
+    ]
+    .spacing(12);
+    if let Some(status) = app.acp_settings.diagnostic_results.get(&agent) {
+        content = content.push(diagnostic_status(*status, app.status_animation_frame));
+    }
+    settings_panel(content).into()
 }
 
 fn form_field<'a>(
@@ -379,14 +388,14 @@ fn new_agent_form(app: &App) -> Element<'_, Message> {
                 settings_close_button(acp_message(AcpMessage::CancelEditor))
             ]
             .align_y(Alignment::Center),
-            text(
-                app.acp_settings
-                    .diagnostic_status
-                    .as_deref()
-                    .unwrap_or("诊断使用当前草稿，在网关主机执行，不发送消息或自动认证")
-            )
-            .size(12)
-            .style(settings_muted_text_style),
+            if let Some(status) = state.diagnostic_status {
+                diagnostic_status(status, app.status_animation_frame)
+            } else {
+                text("诊断使用当前草稿，在网关主机执行，不发送消息或自动认证")
+                    .size(12)
+                    .style(settings_muted_text_style)
+                    .into()
+            },
             scrollable(container(fields).padding([0, 7]))
                 .direction(iced::widget::scrollable::Direction::Vertical(
                     iced::widget::scrollable::Scrollbar::new().width(4).scroller_width(4)
@@ -490,18 +499,6 @@ pub fn view(app: &App) -> Element<'_, Message> {
                 })
                 .unwrap_or_else(|| error.clone()),
         ));
-    }
-
-    if let Some(status) = &app.acp_settings.diagnostic_status {
-        content = content.push(text(status).size(12).style(settings_muted_text_style));
-    }
-    if app.acp_settings.diagnostic_id.is_some() {
-        content = content.push(
-            button(text("取消测试"))
-                .padding([7, 14])
-                .style(rounded_action_btn_style)
-                .on_press(acp_message(AcpMessage::CancelDiagnostic)),
-        );
     }
 
     let agents = ordered_agents(app);

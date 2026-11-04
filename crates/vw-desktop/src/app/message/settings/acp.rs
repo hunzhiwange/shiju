@@ -6,6 +6,7 @@ use crate::app::config::{
     AcpSettingsSnapshot, add_global_acp_agent_async, save_global_acp_agent_async,
     set_global_acp_agent_enabled_async,
 };
+use crate::app::state::AcpDiagnosticStatus;
 use crate::app::{App, Message};
 use iced::Task;
 use vw_config_types::config::AcpAgentConfig;
@@ -28,6 +29,11 @@ fn refresh_task() -> Task<Message> {
 }
 
 fn apply_snapshot(app: &mut App, snapshot: AcpSettingsSnapshot) {
+    app.acp_settings.diagnostic_results.retain(|agent, _| {
+        app.acp_settings.catalog.get(agent).zip(snapshot.catalog.get(agent)).is_some_and(
+            |(old, new)| old.command == new.command && old.args == new.args && old.env == new.env,
+        )
+    });
     app.acp_settings.catalog = snapshot.catalog;
     app.acp_settings.enabled = snapshot.enabled.keys().cloned().collect();
     app.acp_agents = sort_acp_agent_names(app.acp_settings.enabled.iter().cloned().collect());
@@ -144,6 +150,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AcpMessage::DiagnosticCancelled => Task::none(),
         AcpMessage::StartDiagnostic | AcpMessage::TestAgent(_) => {
+            let from_card = matches!(message, AcpMessage::TestAgent(_));
             let (agent, config) = match message {
                 AcpMessage::TestAgent(agent) => {
                     let Some(config) = app.acp_settings.catalog.get(&agent).cloned() else {
@@ -168,8 +175,13 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
                 NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             );
             app.acp_settings.diagnostic_id = Some(id.clone());
-            app.acp_settings.diagnostic_status =
-                Some(format!("{agent}：正在网关启动进程并验证 ACP 握手…"));
+            app.acp_settings.diagnostic_status = Some(AcpDiagnosticStatus::Running);
+            if from_card {
+                app.acp_settings
+                    .diagnostic_results
+                    .insert(agent.clone(), AcpDiagnosticStatus::Running);
+                app.acp_settings.diagnostic_agent = Some(agent);
+            }
             Task::batch([
                 previous,
                 Task::perform(
@@ -193,7 +205,7 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
         }
         AcpMessage::CancelDiagnostic => {
             let task = cancel_diagnostic(app);
-            app.acp_settings.diagnostic_status = Some("诊断已取消".into());
+            app.acp_settings.diagnostic_status = Some(AcpDiagnosticStatus::Cancelled);
             task
         }
         AcpMessage::DiagnosticCompleted { id, result } => {
@@ -202,17 +214,26 @@ pub fn update(app: &mut App, message: SettingsMessage) -> Task<Message> {
             }
             app.acp_settings.diagnostic_id = None;
             let status = match result.as_deref() {
-                Ok("connected") => "启动成功 · 握手成功",
-                Ok("authentication_required") => "启动成功 · 握手成功 · 需要认证（未自动认证）",
-                Ok("startup_failed") => "进程启动失败，请检查网关主机上的命令与环境",
-                Ok("handshake_failed") => "启动成功 · ACP 握手失败",
-                Ok("timed_out") => "启动成功 · ACP 握手超时",
-                Ok("cancelled") => "诊断已取消",
-                _ => "网关诊断不可用或不支持，请检查网关版本与连接",
+                Ok("connected") => AcpDiagnosticStatus::Connected,
+                Ok("authentication_required") => AcpDiagnosticStatus::AuthenticationRequired,
+                Ok("startup_failed") => AcpDiagnosticStatus::StartupFailed,
+                Ok("handshake_failed") => AcpDiagnosticStatus::HandshakeFailed,
+                Ok("timed_out") => AcpDiagnosticStatus::TimedOut,
+                Ok("cancelled") => AcpDiagnosticStatus::Cancelled,
+                _ => AcpDiagnosticStatus::Unavailable,
+            };
+            app.acp_settings.diagnostic_status = Some(status);
+            if let Some(agent) = app.acp_settings.diagnostic_agent.take() {
+                app.acp_settings.diagnostic_results.insert(agent, status);
             }
-            .to_string();
-            app.acp_settings.diagnostic_status = Some(status.clone());
-            app.show_info_toast(status)
+            match status {
+                AcpDiagnosticStatus::Connected => app.show_success_toast(status.description()),
+                AcpDiagnosticStatus::StartupFailed
+                | AcpDiagnosticStatus::HandshakeFailed
+                | AcpDiagnosticStatus::TimedOut
+                | AcpDiagnosticStatus::Unavailable => app.show_error_toast(status.description()),
+                _ => app.show_info_toast(status.description()),
+            }
         }
         AcpMessage::EditAgent(agent) => {
             if let Some(config) = app.acp_settings.catalog.get(&agent) {
@@ -446,6 +467,9 @@ fn cancel_diagnostic(app: &mut App) -> Task<Message> {
     let Some(id) = app.acp_settings.diagnostic_id.take() else {
         return Task::none();
     };
+    if let Some(agent) = app.acp_settings.diagnostic_agent.take() {
+        app.acp_settings.diagnostic_results.insert(agent, AcpDiagnosticStatus::Cancelled);
+    }
     Task::perform(
         async move {
             if let Ok(client) = crate::app::config::gateway_client() {

@@ -4,7 +4,92 @@
 const SOURCE: &str = include_str!("system_settings_acp.rs");
 
 use super::{acp_description, acp_title, command_line, ordered_agents, setup_hint, view};
+use crate::app::state::AcpDiagnosticStatus;
 use vw_config_types::config::AcpAgentConfig;
+
+#[tokio::test(flavor = "multi_thread")]
+async fn acp_status_cards_and_editor_render_all_results_and_animate_in_both_themes() {
+    use iced::advanced::renderer::Headless;
+    use iced::advanced::Renderer as _;
+    use iced::advanced::{Layout, layout, mouse, renderer, widget::Tree};
+    use iced::{Color, Font, Pixels, Rectangle, Size, Theme};
+
+    let (mut app, _) = crate::app::App::new();
+    let config = AcpAgentConfig { command: "中文路径/agent".into(), ..Default::default() };
+    app.acp_settings.new_agent_name_input = "中文代理".into();
+    app.acp_settings.new_agent_command_input = config.command.clone();
+    for theme in [Theme::Dark, Theme::Light] {
+        let mut renderer =
+            <iced::Renderer as Headless>::new(Font::DEFAULT, Pixels(16.0), Some("tiny-skia"))
+                .await
+                .expect("headless renderer");
+        for status in [
+            AcpDiagnosticStatus::Running,
+            AcpDiagnosticStatus::Connected,
+            AcpDiagnosticStatus::AuthenticationRequired,
+            AcpDiagnosticStatus::StartupFailed,
+            AcpDiagnosticStatus::HandshakeFailed,
+            AcpDiagnosticStatus::TimedOut,
+            AcpDiagnosticStatus::Cancelled,
+            AcpDiagnosticStatus::Unavailable,
+        ] {
+            app.acp_settings.diagnostic_status = Some(status);
+            app.acp_settings.diagnostic_results.insert("中文代理".into(), status);
+            let running = status == AcpDiagnosticStatus::Running;
+            app.acp_settings.diagnostic_agent = running.then(|| "中文代理".into());
+            app.acp_settings.diagnostic_id = running.then(|| "active-test".into());
+            for editor in [false, true] {
+                let mut first_frame = None;
+                for frame in 0..if running { 2 } else { 1 } {
+                    app.status_animation_frame = frame;
+                    let mut element = if editor {
+                        super::new_agent_form(&app)
+                    } else {
+                        super::acp_card(&app, "中文代理".into(), &config)
+                    };
+                    let bounds = Size::new(960.0, 640.0);
+                    let mut tree = Tree::new(element.as_widget());
+                    let node = element.as_widget_mut().layout(
+                        &mut tree,
+                        &renderer,
+                        &layout::Limits::new(Size::ZERO, bounds),
+                    );
+                    element.as_widget().draw(
+                        &tree,
+                        &mut renderer,
+                        &theme,
+                        &renderer::Style { text_color: theme.palette().text },
+                        Layout::new(&node),
+                        mouse::Cursor::Unavailable,
+                        &Rectangle::with_size(bounds),
+                    );
+                    let pixels = renderer.screenshot(Size::new(960, 640), 1.0, Color::TRANSPARENT);
+                    assert!(pixels.chunks_exact(4).any(|pixel| pixel[3] > 0));
+                    if let Some(previous) = first_frame {
+                        assert_ne!(pixels, previous, "running indicator must visibly animate");
+                    }
+                    if !editor
+                        && frame == 0
+                        && let Some(directory) = std::env::var_os("ACP_STATUS_SCREENSHOTS")
+                    {
+                        let directory = std::path::PathBuf::from(directory);
+                        std::fs::create_dir_all(&directory).unwrap();
+                        image::save_buffer(
+                            directory.join(format!("{theme:?}-{status:?}.png")),
+                            &pixels,
+                            960,
+                            640,
+                            image::ColorType::Rgba8,
+                        )
+                        .unwrap();
+                    }
+                    first_frame = Some(pixels);
+                    renderer.reset(Rectangle::with_size(bounds));
+                }
+            }
+        }
+    }
+}
 
 #[test]
 fn system_settings_acp_tests_are_wired() {
@@ -278,7 +363,7 @@ async fn acp_diagnostic_ignores_stale_results_render_both_themes() {
             app.acp_settings.new_agent_expanded = true;
             app.acp_settings.new_agent_name_input = agent.into();
             app.acp_settings.new_agent_command_input = config.command.clone();
-            app.acp_settings.diagnostic_status = Some("启动成功 · 握手成功 · 需要认证".into());
+            app.acp_settings.diagnostic_status = Some(AcpDiagnosticStatus::AuthenticationRequired);
             app.acp_settings.editor_args = vec!["中文参数,空格 ".into()];
             app.acp_settings.editor_env = vec![("TOKEN".into(), "中文值".into())];
             let mut element = super::new_agent_form(&app);
@@ -319,8 +404,7 @@ async fn acp_configuration_flow_regression_long_editor_keeps_actions_visible() {
     app.acp_settings.new_agent_expanded = true;
     app.acp_settings.new_agent_name_input = "中文自定义代理".into();
     app.acp_settings.new_agent_command_input = "/usr/bin/python3".into();
-    app.acp_settings.diagnostic_status =
-        Some("启动成功 · 握手成功 · 需要认证（未自动认证）".into());
+    app.acp_settings.diagnostic_status = Some(AcpDiagnosticStatus::AuthenticationRequired);
     for theme in [Theme::Dark, Theme::Light] {
         let mut fixed_bounds = None;
         for count in [1, 40] {

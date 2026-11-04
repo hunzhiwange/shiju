@@ -467,6 +467,24 @@ fn subscription_builds_settings_ticks() {
 }
 
 #[test]
+fn acp_diagnostic_animation_ticks_only_while_settings_are_visible_and_test_is_running() {
+    let mut app = test_app();
+    app.screen = crate::app::Screen::Home;
+    app.task_pet_window_id = None;
+    app.show_settings = true;
+    app.acp_settings.diagnostic_id = Some("diagnostic".into());
+    assert!(super::needs_activity_animation_tick(&app, false));
+    app.show_settings = false;
+    assert!(!super::needs_activity_animation_tick(&app, false));
+    app.show_system_settings = true;
+    assert!(super::needs_activity_animation_tick(&app, false));
+    app.show_system_settings = false;
+    app.show_settings = true;
+    app.acp_settings.diagnostic_id = None;
+    assert!(!super::needs_activity_animation_tick(&app, false));
+}
+
+#[test]
 fn subscription_builds_workflow_and_update_progress_states() {
     let mut app = test_app();
     let (_progress_tx, progress_rx) = std::sync::mpsc::channel();

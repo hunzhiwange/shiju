@@ -16,7 +16,9 @@ pub enum GeneralSettingsTab {
 /// 对外暴露当前模块需要复用的能力。
 pub(super) use super::*;
 
+mod acp_diagnostic;
 mod agents;
+pub(crate) use acp_diagnostic::AcpDiagnosticStatus;
 mod channels;
 mod cron_frequency;
 pub(crate) use cron_frequency::CronFrequency;
